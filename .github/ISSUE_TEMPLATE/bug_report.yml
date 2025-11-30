@@ -1,0 +1,61 @@
+name: 🐞 Bug Report
+description: Create a report to help us improve CrossMacro
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+  
+  - type: dropdown
+    id: compositor
+    attributes:
+      label: Wayland Compositor
+      description: Which compositor are you using?
+      options:
+        - Hyprland
+        - KDE Plasma
+        - GNOME
+        - Sway
+        - Other (please specify)
+    validations:
+      required: true
+
+  - type: input
+    id: distro
+    attributes:
+      label: Linux Distribution
+      description: e.g., Arch Linux, Fedora 40, Ubuntu 24.04
+      placeholder: Arch Linux
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Bug
+      description: A clear and concise description of what the bug is.
+      placeholder: When I press F8 to record...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Please copy and paste any relevant logs.
+      render: shell

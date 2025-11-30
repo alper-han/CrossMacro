@@ -1,0 +1,31 @@
+name-template: 'v$NEXT_PATCH_VERSION'
+tag-template: 'v$NEXT_PATCH_VERSION'
+categories:
+  - title: '🚀 Features'
+    labels:
+      - 'enhancement'
+      - 'feature'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'bug'
+      - 'fix'
+  - title: '🧰 Maintenance'
+    labels:
+      - 'chore'
+      - 'documentation'
+      - 'maintenance'
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+version-resolver:
+  major:
+    labels:
+      - 'major'
+      - 'breaking'
+  minor:
+    labels:
+      - 'minor'
+      - 'enhancement'
+  default: patch
+template: |
+  ## Changes
+
+  $CHANGES

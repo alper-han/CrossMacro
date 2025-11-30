@@ -1,0 +1,31 @@
+name: 💡 Feature Request
+description: Suggest an idea for this project
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature!
+
+  - type: input
+    id: title
+    attributes:
+      label: Summary
+      description: A short summary of the feature.
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Detailed Description
+      description: Describe the solution you'd like.
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use Case
+      description: Describe the problem this feature solves or why it would be useful.

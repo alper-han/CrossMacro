@@ -1,0 +1,201 @@
+{
+  description = "CrossMacro - Cross-platform Mouse Macro Recorder and Player";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+  };
+
+  outputs = { self, nixpkgs, flake-utils }:
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = nixpkgs.legacyPackages.${system};
+        
+        # Runtime libraries required by Avalonia/SkiaSharp on Linux
+        # These are critical for FHS environment to work correctly
+        runtimeLibs = with pkgs; [
+          # Core GUI dependencies
+          fontconfig
+          freetype
+          expat
+          
+          # X11 dependencies (Required by Avalonia/SkiaSharp)
+          xorg.libX11
+          xorg.libICE
+          xorg.libSM
+          xorg.libXi
+          xorg.libXcursor
+          xorg.libXext
+          xorg.libXrandr
+          xorg.libXrender
+          xorg.libXinerama
+          xorg.libXfixes
+          
+          # GTK/GNOME dependencies
+          glib
+          gtk3
+          
+          # Graphics/OpenGL
+          libglvnd
+          mesa
+          
+          # Core system libraries
+          zlib
+          icu
+          openssl
+          
+          # Wayland support
+          wayland
+          libxkbcommon
+          
+          # Additional dependencies
+          krb5
+          stdenv.cc.cc.lib # libstdc++
+        ];
+
+        # The main CrossMacro package
+        crossmacro = pkgs.buildDotnetModule rec {
+          pname = "crossmacro";
+          version = "1.0.0";
+
+          src = ./.;
+
+          projectFile = "src/CrossMacro.UI/CrossMacro.UI.csproj";
+          
+          # NuGet dependencies lock file
+          nugetDeps = ./deps.nix;
+
+          # .NET 10 Preview support
+          dotnet-sdk = pkgs.dotnet-sdk_10;
+          dotnet-runtime = pkgs.dotnet-runtime_10;
+
+          executables = [ "CrossMacro.UI" ];
+
+          buildType = "Release";
+          
+          # Disable self-contained to use system runtime
+          dotnetFlags = [
+            "-p:PublishSingleFile=false"
+            "-p:SelfContained=false"
+          ];
+
+          # Ensure libraries are found during build/test if needed
+          makeWrapperArgs = [
+            "--prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath runtimeLibs}"
+          ];
+
+          meta = with pkgs.lib; {
+            description = "Mouse macro recorder and player supporting Hyprland, KDE Plasma, and GNOME Shell";
+            homepage = "https://github.com/alper-han/CrossMacro";
+            license = licenses.gpl3;
+            platforms = platforms.linux;
+            mainProgram = "CrossMacro.UI";
+            maintainers = with maintainers; [ ];
+          };
+        };
+
+        # FHS environment wrapper for maximum compatibility
+        # This ensures SkiaSharp/Avalonia can find all native libraries (libX11, fontconfig, etc.)
+        crossmacro-fhs = pkgs.buildFHSEnv {
+          name = "crossmacro";
+          
+          targetPkgs = pkgs: [
+            crossmacro
+            pkgs.dotnet-runtime_10
+          ] ++ runtimeLibs;
+
+          runScript = "CrossMacro.UI";
+
+          meta = with pkgs.lib; {
+            description = "CrossMacro wrapped in FHS environment (Recommended for Avalonia)";
+            platforms = platforms.linux;
+            mainProgram = "crossmacro";
+          };
+        };
+
+      in
+      {
+        packages = {
+          # Default to FHS version for 'nix build'
+          default = crossmacro-fhs;
+          
+          # Raw package
+          crossmacro = crossmacro;
+          
+          # Explicit FHS package
+          crossmacro-fhs = crossmacro-fhs;
+        };
+
+        # 'nix run' will use this
+        apps = {
+          default = {
+            type = "app";
+            program = "${crossmacro-fhs}/bin/crossmacro";
+          };
+        };
+
+        devShells.default = pkgs.mkShell {
+          buildInputs = with pkgs; [
+            dotnet-sdk_10
+            git
+          ] ++ runtimeLibs;
+
+          LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath runtimeLibs}";
+          
+          shellHook = ''
+            echo "🚀 CrossMacro Development Environment"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "Dotnet SDK: $(dotnet --version)"
+            echo ""
+            echo "Commands:"
+            echo "  dotnet run --project src/CrossMacro.UI/CrossMacro.UI.csproj"
+            echo "  dotnet build"
+            echo ""
+            echo "⚠️  Input Device Access Required:"
+            echo "   sudo usermod -aG input \$USER"
+            echo "   (logout and login again after)"
+            echo ""
+          '';
+        };
+
+        # NixOS module for system-wide installation
+        nixosModules.default = { config, lib, pkgs, ... }:
+          with lib;
+          let
+            cfg = config.programs.crossmacro;
+          in
+          {
+            options.programs.crossmacro = {
+              enable = mkEnableOption "CrossMacro mouse macro recorder";
+              
+              package = mkOption {
+                type = types.package;
+                default = self.packages.${pkgs.system}.default;
+                description = "The CrossMacro package to use";
+              };
+            };
+
+            config = mkIf cfg.enable {
+              environment.systemPackages = [ cfg.package ];
+              
+              # Ensure input group exists
+              users.groups.input = {};
+              
+              # Automatically add all normal users to input group
+              users.users = lib.mapAttrs (name: user:
+                lib.optionalAttrs user.isNormalUser {
+                  extraGroups = user.extraGroups ++ [ "input" ];
+                }
+              ) config.users.users;
+              
+              # Add udev rules for input device access
+              services.udev.extraRules = ''
+                # Allow members of input group to access input devices
+                KERNEL=="event*", SUBSYSTEM=="input", MODE="0660", GROUP="input"
+                KERNEL=="uinput", SUBSYSTEM=="misc", MODE="0660", GROUP="input"
+              '';
+            };
+          };
+      }
+    );
+}

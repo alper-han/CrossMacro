@@ -1,0 +1,128 @@
+# CrossMacro
+
+A modern mouse macro recording and playback application for Linux Wayland compositors.
+
+## Screenshots
+
+| Recording | Playback |
+| :---: | :---: |
+| ![Recording](screenshots/recording-tab.png) | ![Playback](screenshots/playback-tab.png) |
+| **Files** | **Settings** |
+| ![Files](screenshots/files-tab.png) | ![Settings](screenshots/settings-tab.png) |
+
+## 🖥️ Supported Platforms
+
+- **Linux** (Wayland compositor)
+  - Hyprland ✓
+  - KDE Plasma ✓
+  - GNOME ✓
+
+
+
+## 🎯 Features
+
+- **Mouse Event Recording**: Record mouse clicks and movements
+- **Playback**: Replay recorded macros
+- **Loop Mode**: Continuously repeat macros
+- **Speed Control**: Adjust playback speed from 0.25x to 5.0x
+- **File Operations**: Save/load macros in .macro format
+- **Global Hotkeys**: Global hotkey support (F8, F9, F10)
+
+## ⚙️ Setup & Configuration
+
+<details>
+<summary>⚠️ Required Permissions (Read First)</summary>
+
+To record and play macros without `sudo`, you must configure permissions:
+
+1. **Add user to input group:**
+   ```bash
+   sudo usermod -aG input $USER
+   ```
+
+2. **Configure uinput rules:**
+   ```bash
+   echo 'KERNEL=="uinput", GROUP="input", MODE="0660"' | sudo tee /etc/udev/rules.d/99-crossmacro.rules
+   ```
+
+3. **Apply changes:**
+   ```bash
+   sudo udevadm control --reload-rules && sudo udevadm trigger
+   ```
+   *Note: You may need to logout and login again for group changes to take effect.*
+
+</details>
+
+## 📥 Installation
+
+<details>
+<summary><strong>Debian / Ubuntu (.deb)</strong></summary>
+
+```bash
+sudo dpkg -i crossmacro_*.deb
+```
+</details>
+
+<details>
+<summary><strong>Fedora / RHEL (.rpm)</strong></summary>
+
+```bash
+sudo rpm -i crossmacro-*.rpm
+```
+</details>
+
+<details>
+<summary><strong>Arch Linux</strong></summary>
+
+```bash
+makepkg -si
+```
+</details>
+
+<details>
+<summary><strong>NixOS</strong></summary>
+
+```bash
+nix run github:alper-han/CrossMacro
+```
+</details>
+
+<details>
+<summary><strong>AppImage</strong></summary>
+
+```bash
+chmod +x CrossMacro-*.AppImage && ./CrossMacro-*.AppImage
+```
+</details>
+
+<details>
+<summary><strong>Manual Build</strong></summary>
+
+```bash
+dotnet run --project src/CrossMacro.UI/
+```
+</details>
+
+## 🚧 In Progress
+- [ ] X11 support
+
+## 📅 Planned
+- [ ] Virtual keyboard device creation
+- [ ] Keyboard macro support
+- [ ] Windows support
+- [ ] Localization support
+- [ ] Theme support
+- [ ] Customizable global hotkeys
+- [ ] Cross-platform support expansion
+
+
+
+
+
+
+
+> [!WARNING]
+> **Important for GNOME Users**
+> To capture mouse position on GNOME, the application automatically installs a necessary GNOME Shell extension script.
+> **This script will only become active after a session restart.**
+> Therefore, mouse tracking may not work correctly on the very first run. Please log out and log back in after the first launch to ensure full functionality.

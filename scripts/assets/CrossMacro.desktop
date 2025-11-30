@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=CrossMacro
+Comment=Mouse Macro Automation Tool
+Exec=CrossMacro.UI
+Icon=crossmacro
+Type=Application
+Categories=Utility;
+Terminal=false
+StartupNotify=true

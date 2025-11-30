@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.github.alper-han.CrossMacro</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0</project_license>
+  <name>CrossMacro</name>
+  <developer_name>Alper Han</developer_name>
+  <summary>Mouse Macro Automation Tool</summary>
+  <description>
+    <p>
+      CrossMacro is a modern mouse macro recording and playback tool designed for Linux Wayland compositors.
+      It supports recording mouse events, playing them back with adjustable speed, and looping.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Record and replay mouse movements and clicks</li>
+      <li>Support for Hyprland, KDE, and GNOME Wayland sessions</li>
+      <li>Global hotkeys for control (F8: Record, F9: Play, F10: Stop)</li>
+      <li>Adjustable playback speed</li>
+      <li>Loop mode for continuous playback</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">CrossMacro.desktop</launchable>
+  <url type="homepage">https://github.com/alper-han/CrossMacro</url>
+  <url type="bugtracker">https://github.com/alper-han/CrossMacro/issues</url>
+  <releases>
+    <release version="1.0.0" date="2025-11-30">
+      <description>
+        <p>Initial release of CrossMacro.</p>
+      </description>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1"/>
+</component>

@@ -1,0 +1,292 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CrossMacro.UI.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="500"
+        x:Class="CrossMacro.UI.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/mouse-icon.png"
+        Title="CrossMacro"
+        Width="600" Height="520"
+        MinWidth="500" MinHeight="420"
+        Background="#0F172A"
+        TransparencyLevelHint="AcrylicBlur"
+        ExtendClientAreaToDecorationsHint="True"
+        SystemDecorations="None"
+        CanResize="False">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <Grid RowDefinitions="*,Auto" Margin="0">
+        
+        <!-- Main Content Tabs -->
+        <TabControl Grid.Row="0" Margin="10" Padding="0">
+            
+            <!-- Recording Tab -->
+            <TabItem Header="◉ Recording" FontSize="14">
+                <ScrollViewer Padding="10">
+                    <StackPanel Spacing="20">
+                        <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto">
+                            <!-- Labels Row -->
+                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Status" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Classes="label" Text="Events" Margin="8,0,0,8"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Classes="label" Text="Ready" Margin="8,0,0,8"/>
+
+                            <!-- Content Row -->
+                            <!-- Status Indicator -->
+                            <Border Grid.Row="1" Grid.Column="0"
+                                   Background="#1E293B"
+                                   CornerRadius="8"
+                                   Padding="12,8"
+                                   VerticalAlignment="Stretch">
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <Ellipse Width="12" Height="12" Fill="#64748B"/>
+                                    <TextBlock Text="{Binding RecordingStatus}" 
+                                              Foreground="#F1F5F9"
+                                              FontWeight="Medium"
+                                              TextTrimming="CharacterEllipsis"
+                                              ToolTip.Tip="{Binding RecordingStatus}"
+                                              MaxWidth="150"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Event Count -->
+                            <Border Grid.Row="1" Grid.Column="1"
+                                   Background="#1E293B"
+                                   CornerRadius="8"
+                                   Padding="12,8"
+                                   Margin="8,0,0,0"
+                                   VerticalAlignment="Stretch">
+                                <TextBlock Text="{Binding EventCount}" 
+                                          Classes="value"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                            </Border>
+
+                            <!-- Quick Stats -->
+                            <Border Grid.Row="1" Grid.Column="2"
+                                   Background="#1E293B"
+                                   CornerRadius="8"
+                                   Padding="12,8"
+                                   Margin="8,0,0,0"
+                                   VerticalAlignment="Stretch">
+                                <TextBlock Text="{Binding HasRecordedMacro}" 
+                                          Foreground="#10B981"
+                                          HorizontalAlignment="Center"
+                                          FontWeight="Bold"
+                                          VerticalAlignment="Center"/>
+                            </Border>
+                        </Grid>
+
+                        <!-- Recording Controls -->
+                        <StackPanel Spacing="12">
+                            <Grid ColumnDefinitions="*,*">
+                                <Button Grid.Column="0"
+                                       Classes="success"
+                                       Content="▶ Start"
+                                       Click="OnStartRecording"
+                                       IsEnabled="{Binding !IsRecording}"
+                                       HorizontalAlignment="Stretch"
+                                       HorizontalContentAlignment="Center"
+                                       Margin="0,0,4,0"/>
+                                
+                                <Button Grid.Column="1"
+                                       Classes="danger"
+                                       Content="⏹ Stop"
+                                       Click="OnStopRecording"
+                                       IsEnabled="{Binding IsRecording}"
+                                       HorizontalAlignment="Stretch"
+                                       HorizontalContentAlignment="Center"
+                                       Margin="4,0,0,0"/>
+                            </Grid>
+                            
+                            <TextBlock Classes="label" 
+                                      Text="💡 Tip: Click Start to begin capturing mouse events"
+                                      HorizontalAlignment="Center"
+                                      FontSize="12"
+                                      Opacity="0.7"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Playback Tab -->
+            <TabItem Header="▶️ Playback" FontSize="14">
+                <ScrollViewer Padding="10">
+                    <StackPanel Spacing="20">
+                        <!-- Speed Control -->
+                        <StackPanel Spacing="8">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Classes="label" Text="Playback Speed"/>
+                                <TextBlock Grid.Column="1" Text="{Binding PlaybackSpeed, StringFormat='{}{0:0.0}x'}" 
+                                          Classes="value"/>
+                            </Grid>
+                            <Slider Minimum="0.1" Maximum="5.0" Value="{Binding PlaybackSpeed}"
+                                    TickFrequency="0.1" IsSnapToTickEnabled="True"/>
+                        </StackPanel>
+
+                        <!-- Loop Controls -->
+                        <StackPanel Spacing="12">
+                            <CheckBox Content="Loop Playback" IsChecked="{Binding IsLooping}"/>
+                            
+                            <Grid ColumnDefinitions="*,*" IsVisible="{Binding IsLooping}">
+                                <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
+                                    <TextBlock Classes="label" Text="Loop Count"/>
+                                    <NumericUpDown Value="{Binding LoopCount}" Minimum="0" Maximum="1000" FormatString="0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="4" Margin="8,0,0,0">
+                                    <TextBlock Classes="label" Text="Loop Delay (ms)"/>
+                                    <NumericUpDown Value="{Binding LoopDelayMs}" Minimum="0" Maximum="10000" Increment="100" FormatString="0"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                        
+                        <!-- Countdown -->
+                        <StackPanel Spacing="8">
+                             <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Classes="label" Text="Countdown (sec)"/>
+                                <TextBlock Grid.Column="1" Text="{Binding CountdownSeconds}" Classes="value"/>
+                            </Grid>
+                            <Slider Minimum="0" Maximum="10" Value="{Binding CountdownSeconds}"
+                                    TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        </StackPanel>
+
+                        <!-- Play Controls -->
+                        <Grid ColumnDefinitions="*,*">
+                            <Button Grid.Column="0" Grid.ColumnSpan="2"
+                                   Classes="accent"
+                                   Content="▶ Play Macro"
+                                   Command="{Binding PlayMacro}"
+                                   IsEnabled="{Binding HasRecordedMacro}"
+                                   IsVisible="{Binding !IsPlaying}"
+                                   HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Center"/>
+                                   
+                             <Button Grid.Column="0" Grid.ColumnSpan="2"
+                                   Classes="danger"
+                                   Content="🛑 STOP PLAYBACK"
+                                   Command="{Binding StopPlayback}"
+                                   IsVisible="{Binding IsPlaying}"
+                                   HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Center"
+                                   FontWeight="Bold"
+                                   FontSize="16"/>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Files Tab -->
+            <TabItem Header="💾 Files" FontSize="14">
+                <ScrollViewer Padding="10">
+                    <StackPanel Spacing="20">
+                        <!-- Macro Name -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Classes="label" Text="Macro Name"/>
+                            <TextBox Text="{Binding MacroName}" Watermark="Enter macro name..."/>
+                        </StackPanel>
+                        
+                        <Button Content="📂 Load Macro"
+                                Command="{Binding LoadMacro}"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"/>
+
+                        <Button Content="💾 Save Macro"
+                                Command="{Binding SaveMacro}"
+                                IsEnabled="{Binding HasRecordedMacro}"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+            
+            <!-- Settings Tab -->
+            <TabItem Header="⚙️ Settings" FontSize="14">
+                <ScrollViewer Padding="10">
+                    <StackPanel Spacing="20">
+
+                        
+                        <!-- Hotkey Info -->
+                        <Border Background="#1E293B" CornerRadius="8" Padding="12">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="Global Hotkeys" FontWeight="Bold" Foreground="#F1F5F9"/>
+                                
+                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
+                                    <Border Grid.Row="0" Grid.Column="0" Background="#334155" CornerRadius="4" Padding="6,2" Margin="0,0,12,8">
+                                        <TextBlock Text="F8" FontWeight="Bold" Foreground="#F1F5F9" HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Toggle Recording (Start/Stop)" VerticalAlignment="Center" Foreground="#CBD5E1"/>
+                                    
+                                    <Border Grid.Row="1" Grid.Column="0" Background="#334155" CornerRadius="4" Padding="6,2" Margin="0,0,12,8">
+                                        <TextBlock Text="F9" FontWeight="Bold" Foreground="#F1F5F9" HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="Toggle Playback (Start/Stop)" VerticalAlignment="Center" Foreground="#CBD5E1"/>
+                                    
+                                    <Border Grid.Row="2" Grid.Column="0" Background="#334155" CornerRadius="4" Padding="6,2" Margin="0,0,12,0">
+                                        <TextBlock Text="F10" FontWeight="Bold" Foreground="#F1F5F9" HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="Pause/Resume Playback" VerticalAlignment="Center" Foreground="#CBD5E1"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+            
+        </TabControl>
+
+        <!-- Title Bar / Status Bar -->
+        <Border Grid.Row="1"
+               Background="#1E293B"
+               Padding="12,8"
+               BorderBrush="#334155"
+               BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <TextBlock Grid.Column="0"
+                          Text="🖱️ CrossMacro"
+                          FontSize="12"
+                          FontWeight="Bold"
+                          Foreground="#F1F5F9"
+                          VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2"
+                          Foreground="#94A3B8"
+                          FontSize="11"
+                          Text="{Binding RecordingStatus}"
+                          HorizontalAlignment="Right"
+                          VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- Close Button -->
+        <Button Grid.Row="0"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Width="20"
+                Height="20"
+                Margin="10"
+                Background="#EF4444"
+                Foreground="White"
+                CornerRadius="10"
+                Padding="0"
+                Click="OnCloseApp"
+                Cursor="Hand"
+                IsVisible="{Binding IsCloseButtonVisible}"
+                ToolTip.Tip="Close Application">
+            <Button.Styles>
+                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                    <Setter Property="Background" Value="#DC2626"/>
+                </Style>
+            </Button.Styles>
+            <TextBlock Text="✕" 
+                       HorizontalAlignment="Center" 
+                       VerticalAlignment="Center" 
+                       FontWeight="Bold"
+                       FontSize="10"/>
+        </Button>
+
+    </Grid>
+
+</Window>

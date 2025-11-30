@@ -68,7 +68,7 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
     
     - name: Download build artifacts
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: crossmacro-linux-x64
         path: publish/
@@ -127,7 +127,7 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
     
     - name: Download build artifacts
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: crossmacro-linux-x64
         path: publish/
@@ -186,7 +186,7 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
     
     - name: Download build artifacts
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: crossmacro-linux-x64
         path: publish/

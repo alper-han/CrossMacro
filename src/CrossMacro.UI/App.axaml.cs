@@ -7,11 +7,13 @@ using System.Linq;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using CrossMacro.Core.Services;
+using CrossMacro.Core.Models;
 using CrossMacro.UI.ViewModels;
 using CrossMacro.UI.Views;
 using CrossMacro.Core.Wayland;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Infrastructure.Wayland;
+using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI;
 
@@ -29,7 +31,16 @@ public partial class App : Application
     {
         var services = new ServiceCollection();
         
-        // Register Core services
+        // Register Services
+        services.AddSingleton<IHotkeyConfigurationService, HotkeyConfigurationService>();
+        services.AddSingleton<ISettingsService, SettingsService>();
+
+        // Register Models (Load from config)
+        services.AddSingleton<HotkeySettings>(sp => {
+            var configService = sp.GetRequiredService<IHotkeyConfigurationService>();
+            return configService.Load();
+        });
+        
         services.AddSingleton<IGlobalHotkeyService, GlobalHotkeyService>();
         services.AddSingleton<IMacroFileManager, MacroFileManager>();
         
@@ -44,7 +55,10 @@ public partial class App : Application
         services.AddTransient<IMacroPlayer, MacroPlayer>();
         
         // Register ViewModels
-        services.AddTransient<MainWindowViewModel>();
+        services.AddSingleton<MainWindowViewModel>();
+        
+        // Register Tray Icon Service
+        services.AddSingleton<ITrayIconService, TrayIconService>();
         
         _serviceProvider = services.BuildServiceProvider();
     }
@@ -57,12 +71,29 @@ public partial class App : Application
             // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
             DisableAvaloniaDataAnnotationValidation();
             
+            // Load settings synchronously to avoid deadlock
+            var settingsService = _serviceProvider!.GetRequiredService<ISettingsService>();
+            settingsService.Load();
+            
             // Resolve ViewModel from DI container
             var viewModel = _serviceProvider!.GetRequiredService<MainWindowViewModel>();
             
             desktop.MainWindow = new MainWindow
             {
                 DataContext = viewModel
+            };
+            
+            // Initialize tray icon service after main window is created
+            var trayIconService = _serviceProvider!.GetRequiredService<ITrayIconService>();
+            trayIconService.Initialize();
+            
+            // Set initial tray icon state
+            trayIconService.SetEnabled(settingsService.Current.EnableTrayIcon);
+            
+            // Listen for tray icon setting changes
+            viewModel.TrayIconEnabledChanged += (sender, enabled) =>
+            {
+                trayIconService.SetEnabled(enabled);
             };
         }
 

@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:CrossMacro.UI.ViewModels"
+        xmlns:controls="using:CrossMacro.UI.Controls"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="500"
@@ -20,10 +21,26 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <Grid RowDefinitions="*,Auto" Margin="0">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="0">
+        
+        <!-- Warning Banner -->
+        <Border Grid.Row="0" 
+                Background="#F59E0B" 
+                Padding="12,8"
+                IsVisible="{Binding HasExtensionWarning}">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <TextBlock Grid.Column="0" Text="⚠️" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" 
+                          Text="{Binding ExtensionWarning}" 
+                          Foreground="#1E293B"
+                          FontWeight="Bold"
+                          TextWrapping="Wrap"
+                          VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
         
         <!-- Main Content Tabs -->
-        <TabControl Grid.Row="0" Margin="10" Padding="0">
+        <TabControl Grid.Row="1" Margin="10" Padding="0">
             
             <!-- Recording Tab -->
             <TabItem Header="◉ Recording" FontSize="14">
@@ -215,22 +232,42 @@
                                 <TextBlock Text="Global Hotkeys" FontWeight="Bold" Foreground="#F1F5F9"/>
                                 
                                 <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
-                                    <Border Grid.Row="0" Grid.Column="0" Background="#334155" CornerRadius="4" Padding="6,2" Margin="0,0,12,8">
-                                        <TextBlock Text="F8" FontWeight="Bold" Foreground="#F1F5F9" HorizontalAlignment="Center"/>
-                                    </Border>
+                                    <controls:HotkeyCapture Grid.Row="0" Grid.Column="0" 
+                                                           Hotkey="{Binding RecordingHotkey, Mode=TwoWay}" 
+                                                           Margin="0,0,12,8"
+                                                           MinWidth="80"/>
                                     <TextBlock Grid.Row="0" Grid.Column="1" Text="Toggle Recording (Start/Stop)" VerticalAlignment="Center" Foreground="#CBD5E1"/>
                                     
-                                    <Border Grid.Row="1" Grid.Column="0" Background="#334155" CornerRadius="4" Padding="6,2" Margin="0,0,12,8">
-                                        <TextBlock Text="F9" FontWeight="Bold" Foreground="#F1F5F9" HorizontalAlignment="Center"/>
-                                    </Border>
+                                    <controls:HotkeyCapture Grid.Row="1" Grid.Column="0" 
+                                                           Hotkey="{Binding PlaybackHotkey, Mode=TwoWay}" 
+                                                           Margin="0,0,12,8"
+                                                           MinWidth="80"/>
                                     <TextBlock Grid.Row="1" Grid.Column="1" Text="Toggle Playback (Start/Stop)" VerticalAlignment="Center" Foreground="#CBD5E1"/>
                                     
-                                    <Border Grid.Row="2" Grid.Column="0" Background="#334155" CornerRadius="4" Padding="6,2" Margin="0,0,12,0">
-                                        <TextBlock Text="F10" FontWeight="Bold" Foreground="#F1F5F9" HorizontalAlignment="Center"/>
-                                    </Border>
+                                    <controls:HotkeyCapture Grid.Row="2" Grid.Column="0" 
+                                                           Hotkey="{Binding PauseHotkey, Mode=TwoWay}" 
+                                                           Margin="0,0,12,0"
+                                                           MinWidth="80"/>
                                     <TextBlock Grid.Row="2" Grid.Column="1" Text="Pause/Resume Playback" VerticalAlignment="Center" Foreground="#CBD5E1"/>
                                 </Grid>
                             </StackPanel>
+                        </Border>
+                        
+                        <!-- Tray Icon Settings -->
+                        <Border Background="#1E293B" CornerRadius="8" Padding="12">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" 
+                                          Text="Enable Tray Icon" 
+                                          FontWeight="Medium" 
+                                          Foreground="#F1F5F9"
+                                          VerticalAlignment="Center"/>
+                                          
+                                <ToggleSwitch Grid.Column="1" 
+                                             IsChecked="{Binding EnableTrayIcon}"
+                                             OnContent="" 
+                                             OffContent=""
+                                             VerticalAlignment="Center"/>
+                            </Grid>
                         </Border>
                     </StackPanel>
                 </ScrollViewer>
@@ -239,7 +276,7 @@
         </TabControl>
 
         <!-- Title Bar / Status Bar -->
-        <Border Grid.Row="1"
+        <Border Grid.Row="2"
                Background="#1E293B"
                Padding="12,8"
                BorderBrush="#334155"
@@ -259,6 +296,12 @@
                           VerticalAlignment="Center"/>
             </Grid>
         </Border>
+
+        <!-- Drag Handle -->
+        <Border Grid.Row="0"
+                Background="Transparent"
+                IsVisible="{Binding IsCloseButtonVisible}"
+                PointerPressed="OnTitleBarPointerPressed"/>
 
         <!-- Close Button -->
         <Button Grid.Row="0"

@@ -6,10 +6,12 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Avalonia.Threading;
+using Avalonia.Controls.Notifications;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Native.Evdev;
 using CrossMacro.Infrastructure.Wayland;
+using CrossMacro.Core.Wayland;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -19,6 +21,11 @@ public class MainWindowViewModel : ViewModelBase
     private readonly IMacroPlayer _player;
     private readonly IMacroFileManager _fileManager;
     private readonly IGlobalHotkeyService _hotkeyService;
+    private readonly IMousePositionProvider _positionProvider;
+    private readonly HotkeySettings _hotkeySettings;
+    private readonly ISettingsService _settingsService;
+    
+    public WindowNotificationManager? NotificationManager { get; set; }
     
     private bool _isRecording;
     private int _eventCount;
@@ -32,8 +39,18 @@ public class MainWindowViewModel : ViewModelBase
     private bool _isPlaying;
     private string _macroName = "New Macro";
     private int _countdownSeconds;
+    private string? _extensionWarning;
+    private bool _hasExtensionWarning;
     
     private bool _isPaused;
+    
+    // Hotkey settings
+    private string _recordingHotkey;
+    private string _playbackHotkey;
+    private string _pauseHotkey;
+    
+    // Tray settings
+    private bool _enableTrayIcon;
 
     public bool IsCloseButtonVisible { get; }
 
@@ -41,12 +58,26 @@ public class MainWindowViewModel : ViewModelBase
         IMacroRecorder recorder,
         IMacroPlayer player,
         IMacroFileManager fileManager,
-        IGlobalHotkeyService hotkeyService)
+        IGlobalHotkeyService hotkeyService,
+        IMousePositionProvider positionProvider,
+        HotkeySettings hotkeySettings,
+        ISettingsService settingsService)
     {
         _recorder = recorder;
         _player = player;
         _fileManager = fileManager;
         _hotkeyService = hotkeyService;
+        _positionProvider = positionProvider;
+        _hotkeySettings = hotkeySettings;
+        _settingsService = settingsService;
+        
+        // Initialize hotkey properties
+        _recordingHotkey = _hotkeySettings.RecordingHotkey;
+        _playbackHotkey = _hotkeySettings.PlaybackHotkey;
+        _pauseHotkey = _hotkeySettings.PauseHotkey;
+        
+        // Initialize tray icon setting
+        _enableTrayIcon = _settingsService.Current.EnableTrayIcon;
 
         // Hide close button on Hyprland
         var compositor = CompositorDetector.DetectCompositor();
@@ -59,6 +90,12 @@ public class MainWindowViewModel : ViewModelBase
         _hotkeyService.ToggleRecordingRequested += OnToggleRecordingRequested;
         _hotkeyService.TogglePlaybackRequested += OnTogglePlaybackRequested;
         _hotkeyService.TogglePauseRequested += OnTogglePauseRequested;
+        
+        // Subscribe to GNOME extension status events if using GnomePositionProvider
+        if (_positionProvider is GnomePositionProvider gnomeProvider)
+        {
+            gnomeProvider.ExtensionStatusChanged += OnExtensionStatusChanged;
+        }
         
         // Start hotkey service automatically
         StartHotkeyService();
@@ -209,6 +246,32 @@ public class MainWindowViewModel : ViewModelBase
             }
         }
     }
+    
+    public string? ExtensionWarning
+    {
+        get => _extensionWarning;
+        set
+        {
+            if (_extensionWarning != value)
+            {
+                _extensionWarning = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+    
+    public bool HasExtensionWarning
+    {
+        get => _hasExtensionWarning;
+        set
+        {
+            if (_hasExtensionWarning != value)
+            {
+                _hasExtensionWarning = value;
+                OnPropertyChanged();
+            }
+        }
+    }
 
 
 
@@ -231,6 +294,94 @@ public class MainWindowViewModel : ViewModelBase
                 OnPropertyChanged();
             }
         }
+    }
+    
+    public string RecordingHotkey
+    {
+        get => _recordingHotkey;
+        set
+        {
+            if (_recordingHotkey != value)
+            {
+                _recordingHotkey = value;
+                _hotkeySettings.RecordingHotkey = value;
+                OnPropertyChanged();
+                UpdateHotkeys();
+            }
+        }
+    }
+    
+    public string PlaybackHotkey
+    {
+        get => _playbackHotkey;
+        set
+        {
+            if (_playbackHotkey != value)
+            {
+                _playbackHotkey = value;
+                _hotkeySettings.PlaybackHotkey = value;
+                OnPropertyChanged();
+                UpdateHotkeys();
+            }
+        }
+    }
+    
+    public string PauseHotkey
+    {
+        get => _pauseHotkey;
+        set
+        {
+            if (_pauseHotkey != value)
+            {
+                _pauseHotkey = value;
+                _hotkeySettings.PauseHotkey = value;
+                OnPropertyChanged();
+                UpdateHotkeys();
+            }
+        }
+    }
+    
+    public bool EnableTrayIcon
+    {
+        get => _enableTrayIcon;
+        set
+        {
+            if (_enableTrayIcon != value)
+            {
+                _enableTrayIcon = value;
+                _settingsService.Current.EnableTrayIcon = value;
+                OnPropertyChanged();
+                
+                // Save settings asynchronously
+                _ = _settingsService.SaveAsync();
+                
+                // Notify App.axaml.cs to update tray icon
+                TrayIconEnabledChanged?.Invoke(this, value);
+            }
+        }
+    }
+    
+    public event EventHandler<bool>? TrayIconEnabledChanged;
+    
+    private void OnExtensionStatusChanged(object? sender, string message)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            // If it's a success message, show temporary notification
+            if (message.Contains("enabled successfully"))
+            {
+                NotificationManager?.Show(new Notification(
+                    "GNOME Extension", 
+                    message, 
+                    NotificationType.Success,
+                    TimeSpan.FromSeconds(3)));
+                return;
+            }
+            
+            // If it's an error/warning, only show persistent warning banner (no popup notification)
+            ExtensionWarning = message;
+            HasExtensionWarning = true;
+        });
     }
 
 
@@ -475,6 +626,24 @@ public class MainWindowViewModel : ViewModelBase
         {
             RecordingStatus = $"Hotkey error: {ex.Message}";
             Console.WriteLine(ex);
+        }
+    }
+    
+    private void UpdateHotkeys()
+    {
+        try
+        {
+            if (_hotkeyService.IsRunning)
+            {
+                _hotkeyService.UpdateHotkeys(
+                    _hotkeySettings.RecordingHotkey,
+                    _hotkeySettings.PlaybackHotkey,
+                    _hotkeySettings.PauseHotkey);
+            }
+        }
+        catch (Exception ex)
+        {
+            RecordingStatus = $"Hotkey update error: {ex.Message}";
         }
     }
     

@@ -36,4 +36,18 @@ public interface IGlobalHotkeyService : IDisposable
     /// Stop monitoring keyboard devices
     /// </summary>
     void Stop();
+    
+    /// <summary>
+    /// Update hotkey mappings dynamically
+    /// </summary>
+    /// <param name="recordingHotkey">Hotkey for recording (e.g., "F8", "J", "Super+J")</param>
+    /// <param name="playbackHotkey">Hotkey for playback</param>
+    /// <param name="pauseHotkey">Hotkey for pause</param>
+    void UpdateHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey);
+
+    /// <summary>
+    /// Captures the next key press (with modifiers) and returns the hotkey string
+    /// </summary>
+    /// <returns>Hotkey string (e.g. "F8", "Ctrl+J")</returns>
+    Task<string> CaptureNextKeyAsync(CancellationToken cancellationToken = default);
 }

@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="120" d:DesignHeight="32"
+             x:Class="CrossMacro.UI.Controls.HotkeyCapture"
+             x:Name="Root"
+             Focusable="True">
+    
+    <Border Background="#334155" 
+            CornerRadius="4" 
+            Padding="8,4"
+            Cursor="Hand"
+            PointerPressed="OnPointerPressed">
+        <TextBlock x:Name="DisplayText"
+                   Text="{Binding #Root.DisplayString}"
+                   FontWeight="Bold" 
+                   Foreground="#F1F5F9" 
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"/>
+    </Border>
+    
+</UserControl>

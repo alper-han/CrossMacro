@@ -203,7 +203,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
 
     /// <summary>
     /// Background task that periodically syncs cached position with actual cursor position
-    /// to correct drift caused by mouse acceleration
+    /// to correct drift caused by mouse acceleration and record movements for tablet devices
     /// </summary>
     private async Task PositionSyncLoop(CancellationToken cancellationToken)
     {
@@ -237,8 +237,21 @@ public class MacroRecorder : IMacroRecorder, IDisposable
                     {
                         using (_eventLock.EnterScope())
                         {
-                            Log.Debug("[MacroRecorder] Position drift detected: ({OldX},{OldY}) -> ({NewX},{NewY}), drift={Drift}px", 
+                            Log.Debug("[MacroRecorder] Position change detected: ({OldX},{OldY}) -> ({NewX},{NewY}), distance={Drift}px", 
                                 _cachedX, _cachedY, actualPos.Value.X, actualPos.Value.Y, totalDrift);
+                            
+                            // Record this as a move event (for tablet/absolute devices)
+                            if (_isRecording && _currentSequence != null && _stopwatch != null)
+                            {
+                                var macroEvent = new MacroEvent
+                                {
+                                    Type = EventType.MouseMove,
+                                    Timestamp = _stopwatch.ElapsedMilliseconds,
+                                    X = actualPos.Value.X,
+                                    Y = actualPos.Value.Y
+                                };
+                                AddMacroEvent(macroEvent);
+                            }
                             
                             _cachedX = actualPos.Value.X;
                             _cachedY = actualPos.Value.Y;

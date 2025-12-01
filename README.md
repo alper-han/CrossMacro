@@ -1,6 +1,6 @@
 # CrossMacro
 
-A modern mouse macro recording and playback application for Linux Wayland compositors.
+A modern mouse macro recording and playback application for Linux Wayland and X11.
 
 ## Screenshots
 
@@ -12,10 +12,11 @@ A modern mouse macro recording and playback application for Linux Wayland compos
 
 ## 🖥️ Supported Platforms
 
-- **Linux** (Wayland compositor)
+- **Linux** (Wayland & X11)
   - Hyprland ✓
   - KDE Plasma ✓
   - GNOME ✓
+  - X11 ✓
 
 
 
@@ -26,7 +27,7 @@ A modern mouse macro recording and playback application for Linux Wayland compos
 - **Loop Mode**: Continuously repeat macros
 - **Speed Control**: Adjust playback speed from 0.25x to 5.0x
 - **File Operations**: Save/load macros in .macro format
-- **Global Hotkeys**: Global hotkey support (F8, F9, F10)
+- **Global Hotkeys**: Global hotkey support
 
 ## ⚙️ Setup & Configuration
 
@@ -50,6 +51,33 @@ To record and play macros without `sudo`, you must configure permissions:
    sudo udevadm control --reload-rules && sudo udevadm trigger
    ```
    *Note: You may need to logout and login again for group changes to take effect.*
+
+</details>
+
+<details>
+<summary>⚙️ Additional Setup for GNOME Users</summary>
+
+CrossMacro automatically installs a GNOME Shell extension to capture mouse positions. To enable this extension, you need an extension manager application:
+
+**Fedora:**
+```bash
+# Usually pre-installed. If missing:
+sudo dnf install gnome-extensions-app
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt install gnome-shell-extension-manager
+```
+
+**Arch Linux:**
+```bash
+sudo pacman -S extension-manager
+```
+
+After installing the extension manager, simply:
+1. Run CrossMacro (the extension will be automatically installed and enabled)
+2. Log out and log back in for changes to take effect
 
 </details>
 
@@ -113,25 +141,14 @@ dotnet run --project src/CrossMacro.UI/
 </details>
 
 ## 🚧 In Progress
-- [ ] X11 support
+- [ ] Keyboard macro support
 
 ## 📅 Planned
 - [ ] Virtual keyboard device creation
-- [ ] Keyboard macro support
 - [ ] Windows support
 - [ ] Localization support
 - [ ] Theme support
-- [ ] Customizable global hotkeys
 - [ ] Cross-platform support expansion
 
 
 
-
-
-
-
-> [!WARNING]
-> **Important for GNOME Users**
-> To capture mouse position on GNOME, the application automatically installs a necessary GNOME Shell extension script.
-> **This script will only become active after a session restart.**
-> Therefore, mouse tracking may not work correctly on the very first run. Please log out and log back in after the first launch to ensure full functionality.

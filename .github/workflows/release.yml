@@ -68,7 +68,7 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
     
     - name: Download build artifacts
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: crossmacro-linux-x64
         path: publish/
@@ -100,13 +100,14 @@ jobs:
         files: |
           scripts/*.deb
           scripts/crossmacro-deb.sha256
+        overwrite_files: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # 3. Package RPM
   package-rpm:
     name: Package RPM
-    needs: build-core
+    needs: package-deb
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -127,7 +128,7 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
     
     - name: Download build artifacts
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: crossmacro-linux-x64
         path: publish/
@@ -159,13 +160,14 @@ jobs:
         files: |
           scripts/*.rpm
           scripts/crossmacro-rpm.sha256
+        overwrite_files: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # 4. Package AppImage
   package-appimage:
     name: Package AppImage
-    needs: build-core
+    needs: package-rpm
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -186,7 +188,7 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
     
     - name: Download build artifacts
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: crossmacro-linux-x64
         path: publish/
@@ -218,5 +220,6 @@ jobs:
         files: |
           scripts/*.AppImage
           scripts/crossmacro-appimage.sha256
+        overwrite_files: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

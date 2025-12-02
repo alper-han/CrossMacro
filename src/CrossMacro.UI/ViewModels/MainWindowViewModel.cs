@@ -100,6 +100,12 @@ public class MainWindowViewModel : ViewModelBase
             gnomeProvider.ExtensionStatusChanged += OnExtensionStatusChanged;
         }
         
+        // Subscribe to KDE dependency status events if using KdePositionProvider
+        if (_positionProvider is KdePositionProvider kdeProvider)
+        {
+            kdeProvider.ExtensionStatusChanged += OnExtensionStatusChanged;
+        }
+        
         // Start hotkey service automatically
         StartHotkeyService();
     }

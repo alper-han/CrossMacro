@@ -22,6 +22,9 @@ namespace CrossMacro.Infrastructure.Wayland
         
         private Connection? _dbusConnection;
         private KdeTrackerService? _trackerService;
+        
+        // Event for notifying about dependency status
+        public event EventHandler<string>? ExtensionStatusChanged;
 
         public string ProviderName => "KDE KWin Script (DBus)";
         public bool IsSupported { get; private set; }
@@ -34,11 +37,53 @@ namespace CrossMacro.Infrastructure.Wayland
 
             if (IsSupported)
             {
+                // Check if qdbus is available
+                if (!IsQdbusAvailable())
+                {
+                    Log.Warning("[KdePositionProvider] qdbus not found. Please install Qt tools package (qt5-tools, qt6-tools, or qttools5-dev-tools).");
+                    IsSupported = false;
+                    _resolutionTcs.TrySetResult((0, 0));
+                    
+                    // Notify UI about missing dependency
+                    ExtensionStatusChanged?.Invoke(this, "qdbus not found. Please install Qt tools package (qt5-tools, qt6-tools, or qttools5-dev-tools).");
+                    return;
+                }
+
                 StartTracking();
             }
             else
             {
                 _resolutionTcs.TrySetResult((0, 0));
+            }
+        }
+
+        private bool IsQdbusAvailable()
+        {
+            try
+            {
+                var which = Process.Start(new ProcessStartInfo
+                {
+                    FileName = "which",
+                    Arguments = "qdbus",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+                });
+
+                if (which != null)
+                {
+                    which.WaitForExit();
+                    return which.ExitCode == 0;
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[KdePositionProvider] Failed to check for qdbus availability");
+                return false;
             }
         }
 
@@ -66,7 +111,7 @@ namespace CrossMacro.Infrastructure.Wayland
         private string GetSafeScriptPath(string fileName)
         {
             var localShare = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var scriptDir = Path.Combine(localShare, "CrossMacro", "scripts");
+            var scriptDir = Path.Combine(localShare, "crossmacro", "scripts");
             
             if (!Directory.Exists(scriptDir))
                 Directory.CreateDirectory(scriptDir);
@@ -155,7 +200,8 @@ console.error('[CrossMacro] Position tracking started');
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
                         UseShellExecute = false,
-                        CreateNoWindow = true
+                        CreateNoWindow = true,
+                        WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
                     }
                 };
                 
@@ -186,7 +232,8 @@ console.error('[CrossMacro] Position tracking started');
                     Arguments = $"org.kde.KWin /Scripting/Script{_scriptId} run",
                     RedirectStandardError = true,
                     CreateNoWindow = true,
-                    UseShellExecute = false
+                    UseShellExecute = false,
+                    WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
                 });
                 
                 if (runProcess != null)
@@ -274,7 +321,8 @@ console.error('[CrossMacro] Position tracking started');
                         Arguments = $"org.kde.KWin /Scripting/Script{_scriptId} stop",
                         CreateNoWindow = true,
                         RedirectStandardError = true,
-                        UseShellExecute = false
+                        UseShellExecute = false,
+                        WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
                     })?.WaitForExit();
 
                     Process.Start(new ProcessStartInfo
@@ -283,7 +331,8 @@ console.error('[CrossMacro] Position tracking started');
                         Arguments = $"org.kde.KWin /Scripting org.kde.kwin.Scripting.unloadScript {_scriptId}",
                         CreateNoWindow = true,
                         RedirectStandardError = true,
-                        UseShellExecute = false
+                        UseShellExecute = false,
+                        WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
                     })?.WaitForExit();
                 }
                 catch { }

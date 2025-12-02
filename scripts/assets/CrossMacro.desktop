@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=CrossMacro
 Comment=Mouse Macro Automation Tool
-Exec=CrossMacro.UI
+Exec=crossmacro
 Icon=crossmacro
 Type=Application
 Categories=Utility;

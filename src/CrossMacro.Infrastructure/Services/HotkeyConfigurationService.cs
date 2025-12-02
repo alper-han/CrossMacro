@@ -20,7 +20,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
             xdgConfigHome = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
         }
 
-        var configDir = Path.Combine(xdgConfigHome, "CrossMacro");
+        var configDir = Path.Combine(xdgConfigHome, "crossmacro");
         if (!Directory.Exists(configDir))
         {
             Directory.CreateDirectory(configDir);

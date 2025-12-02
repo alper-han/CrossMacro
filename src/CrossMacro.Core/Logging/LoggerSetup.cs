@@ -35,25 +35,25 @@ public static class LoggerSetup
     {
         if (OperatingSystem.IsWindows())
         {
-            // Windows: %LOCALAPPDATA%\CrossMacro\logs
+            // Windows: %LOCALAPPDATA%\crossmacro\logs
             return Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "CrossMacro", "logs");
+                "crossmacro", "logs");
         }
         else
         {
-            // Linux: XDG_DATA_HOME/CrossMacro/logs or ~/.local/share/CrossMacro/logs
+            // Linux: XDG_DATA_HOME/crossmacro/logs or ~/.local/share/crossmacro/logs
             var xdgDataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
             
             if (!string.IsNullOrEmpty(xdgDataHome))
             {
-                return Path.Combine(xdgDataHome, "CrossMacro", "logs");
+                return Path.Combine(xdgDataHome, "crossmacro", "logs");
             }
             
             // Fallback to XDG default
             return Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".local", "share", "CrossMacro", "logs");
+                ".local", "share", "crossmacro", "logs");
         }
     }
 }

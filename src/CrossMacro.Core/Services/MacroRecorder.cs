@@ -62,10 +62,13 @@ public class MacroRecorder : IMacroRecorder, IDisposable
 
     // SetInputDevice removed - now auto-detects all mice
 
-    public async Task StartRecordingAsync(CancellationToken cancellationToken = default)
+    public async Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, CancellationToken cancellationToken = default)
     {
         if (_isRecording)
             return;
+            
+        if (!recordMouse && !recordKeyboard)
+            throw new ArgumentException("At least one recording type (mouse or keyboard) must be enabled");
 
         // Reset all state variables for a fresh recording session
         _isRecording = true;
@@ -95,12 +98,18 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             // Auto-detect all mouse and keyboard devices
             Log.Information("[MacroRecorder] Auto-detecting input devices...");
             var devices = InputDeviceHelper.GetAvailableDevices();
-            var mice = devices.Where(d => d.IsMouse).ToList();
-            var keyboards = devices.Where(d => d.IsKeyboard).ToList();
             
-            if (mice.Count == 0)
+            var mice = recordMouse ? devices.Where(d => d.IsMouse).ToList() : devices.Take(0).ToList();
+            var keyboards = recordKeyboard ? devices.Where(d => d.IsKeyboard).ToList() : devices.Take(0).ToList();
+            
+            if (recordMouse && mice.Count == 0)
             {
                 throw new InvalidOperationException("No mouse devices found");
+            }
+            
+            if (recordKeyboard && keyboards.Count == 0)
+            {
+                throw new InvalidOperationException("No keyboard devices found");
             }
             
             Log.Information("[MacroRecorder] Found {MiceCount} mouse device(s) and {KeyboardCount} keyboard device(s):", mice.Count, keyboards.Count);
@@ -160,8 +169,8 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             
             Log.Information("[MacroRecorder] Successfully monitoring {Count} input device(s)", _readers.Count);
 
-            // Initialize cached position
-            if (_positionProvider != null)
+            // Initialize cached position only if recording mouse
+            if (recordMouse && _positionProvider != null)
             {
                 try
                 {

@@ -42,6 +42,9 @@ public class MainWindowViewModel : ViewModelBase
     private string? _extensionWarning;
     private bool _hasExtensionWarning;
     
+    private bool _isMouseRecordingEnabled = true;
+    private bool _isKeyboardRecordingEnabled = true;
+    
     private bool _isPaused;
     
     // Hotkey settings
@@ -112,7 +115,9 @@ public class MainWindowViewModel : ViewModelBase
             {
                 _isRecording = value;
                 OnPropertyChanged();
+                OnPropertyChanged();
                 OnPropertyChanged(nameof(CanPlayMacro));
+                OnPropertyChanged(nameof(CanStartRecording));
                 RecordingStatus = value ? "Recording..." : "Ready";
             }
         }
@@ -159,6 +164,36 @@ public class MainWindowViewModel : ViewModelBase
     }
 
     public bool CanPlayMacro => HasRecordedMacro && !IsRecording;
+
+    public bool IsMouseRecordingEnabled
+    {
+        get => _isMouseRecordingEnabled;
+        set
+        {
+            if (_isMouseRecordingEnabled != value)
+            {
+                _isMouseRecordingEnabled = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CanStartRecording));
+            }
+        }
+    }
+
+    public bool IsKeyboardRecordingEnabled
+    {
+        get => _isKeyboardRecordingEnabled;
+        set
+        {
+            if (_isKeyboardRecordingEnabled != value)
+            {
+                _isKeyboardRecordingEnabled = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CanStartRecording));
+            }
+        }
+    }
+
+    public bool CanStartRecording => !IsRecording && (IsMouseRecordingEnabled || IsKeyboardRecordingEnabled);
     
     public double PlaybackSpeed
     {
@@ -396,7 +431,7 @@ public class MainWindowViewModel : ViewModelBase
         {
             if (IsRecording)
                 StopRecording();
-            else
+            else if (CanStartRecording)
                 StartRecording();
         });
     }
@@ -445,7 +480,7 @@ public class MainWindowViewModel : ViewModelBase
             // Disable playback and pause hotkeys during recording so they can be recorded
             _hotkeyService.SetPlaybackPauseHotkeysEnabled(false);
             
-            await _recorder.StartRecordingAsync();
+            await _recorder.StartRecordingAsync(IsMouseRecordingEnabled, IsKeyboardRecordingEnabled);
         }
         catch (Exception ex)
         {

@@ -21,10 +21,13 @@ public interface IMacroRecorder : IDisposable
     event EventHandler<MacroEvent>? EventRecorded;
 
     /// <summary>
-    /// Starts recording mouse events from ALL detected mice
+    /// Starts recording events from detected devices
     /// </summary>
+    /// <param name="recordMouse">Whether to record mouse events</param>
+    /// <param name="recordKeyboard">Whether to record keyboard events</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Task representing the recording operation</returns>
-    Task StartRecordingAsync(CancellationToken cancellationToken = default);
+    Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Stops recording and returns the recorded sequence

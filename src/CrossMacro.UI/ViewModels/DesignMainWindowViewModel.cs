@@ -24,7 +24,7 @@ public class DesignMainWindowViewModel : MainWindowViewModel
     {
         public bool IsRecording => false;
         public event EventHandler<MacroEvent>? EventRecorded;
-        public Task StartRecordingAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public MacroSequence StopRecording() => new MacroSequence();
         public MacroSequence? GetCurrentRecording() => null;
         public void Dispose() { }

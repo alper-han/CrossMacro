@@ -177,7 +177,7 @@
                                    Classes="accent"
                                    Content="▶ Play Macro"
                                    Command="{Binding PlayMacro}"
-                                   IsEnabled="{Binding HasRecordedMacro}"
+                                   IsEnabled="{Binding CanPlayMacro}"
                                    IsVisible="{Binding !IsPlaying}"
                                    HorizontalAlignment="Stretch"
                                    HorizontalContentAlignment="Center"/>

@@ -50,4 +50,10 @@ public interface IGlobalHotkeyService : IDisposable
     /// </summary>
     /// <returns>Hotkey string (e.g. "F8", "Ctrl+J")</returns>
     Task<string> CaptureNextKeyAsync(CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Enable or disable playback and pause hotkeys (used during recording to allow recording these keys)
+    /// </summary>
+    /// <param name="enabled">True to enable, false to disable</param>
+    void SetPlaybackPauseHotkeysEnabled(bool enabled);
 }

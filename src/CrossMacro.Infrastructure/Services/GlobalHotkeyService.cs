@@ -34,6 +34,9 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     private const int DebounceIntervalMs = 300;
     private readonly TimeSpan _debounceInterval = TimeSpan.FromMilliseconds(DebounceIntervalMs);
     
+    // Control whether playback/pause hotkeys are enabled (used during recording)
+    private bool _playbackPauseHotkeysEnabled = true;
+    
     public event EventHandler? ToggleRecordingRequested;
     public event EventHandler? TogglePlaybackRequested;
     public event EventHandler? TogglePauseRequested;
@@ -249,9 +252,15 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             }
 
             // Check if this matches any hotkey
+            // Recording hotkey is always active
             CheckHotkeyMatch(ev.code, "Recording", _recordingHotkey, () => ToggleRecordingRequested?.Invoke(this, EventArgs.Empty));
-            CheckHotkeyMatch(ev.code, "Playback", _playbackHotkey, () => TogglePlaybackRequested?.Invoke(this, EventArgs.Empty));
-            CheckHotkeyMatch(ev.code, "Pause", _pauseHotkey, () => TogglePauseRequested?.Invoke(this, EventArgs.Empty));
+            
+            // Playback and pause hotkeys are only active when enabled (disabled during recording)
+            if (_playbackPauseHotkeysEnabled)
+            {
+                CheckHotkeyMatch(ev.code, "Playback", _playbackHotkey, () => TogglePlaybackRequested?.Invoke(this, EventArgs.Empty));
+                CheckHotkeyMatch(ev.code, "Pause", _pauseHotkey, () => TogglePauseRequested?.Invoke(this, EventArgs.Empty));
+            }
         }
     }
 
@@ -359,6 +368,15 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     private void OnError(Exception ex)
     {
         Log.Error(ex, "[GlobalHotkeyService] Error occurred");
+    }
+
+    public void SetPlaybackPauseHotkeysEnabled(bool enabled)
+    {
+        using (_lock.EnterScope())
+        {
+            _playbackPauseHotkeysEnabled = enabled;
+            Log.Information("[GlobalHotkeyService] Playback/Pause hotkeys {Status}", enabled ? "enabled" : "disabled");
+        }
     }
 
     public void Dispose()

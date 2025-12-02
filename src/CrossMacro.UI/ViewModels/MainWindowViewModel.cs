@@ -112,6 +112,7 @@ public class MainWindowViewModel : ViewModelBase
             {
                 _isRecording = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(CanPlayMacro));
                 RecordingStatus = value ? "Recording..." : "Ready";
             }
         }
@@ -152,9 +153,12 @@ public class MainWindowViewModel : ViewModelBase
             {
                 _hasRecordedMacro = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(CanPlayMacro));
             }
         }
     }
+
+    public bool CanPlayMacro => HasRecordedMacro && !IsRecording;
     
     public double PlaybackSpeed
     {
@@ -437,12 +441,19 @@ public class MainWindowViewModel : ViewModelBase
         {
             IsRecording = true;
             EventCount = 0;
+            
+            // Disable playback and pause hotkeys during recording so they can be recorded
+            _hotkeyService.SetPlaybackPauseHotkeysEnabled(false);
+            
             await _recorder.StartRecordingAsync();
         }
         catch (Exception ex)
         {
             RecordingStatus = $"Error: {ex.Message}";
             IsRecording = false;
+            
+            // Re-enable hotkeys on error
+            _hotkeyService.SetPlaybackPauseHotkeysEnabled(true);
         }
     }
     
@@ -464,6 +475,11 @@ public class MainWindowViewModel : ViewModelBase
         {
             RecordingStatus = $"Error: {ex.Message}";
             IsRecording = false;
+        }
+        finally
+        {
+            // Re-enable playback and pause hotkeys after recording stops
+            _hotkeyService.SetPlaybackPauseHotkeysEnabled(true);
         }
     }
     

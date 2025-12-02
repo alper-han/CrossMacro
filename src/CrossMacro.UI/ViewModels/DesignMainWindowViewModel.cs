@@ -23,7 +23,9 @@ public class DesignMainWindowViewModel : MainWindowViewModel
     private class MockMacroRecorder : IMacroRecorder
     {
         public bool IsRecording => false;
+#pragma warning disable CS0067 // Event is never used (design-time mock)
         public event EventHandler<MacroEvent>? EventRecorded;
+#pragma warning restore CS0067
         public Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public MacroSequence StopRecording() => new MacroSequence();
         public MacroSequence? GetCurrentRecording() => null;
@@ -48,9 +50,11 @@ public class DesignMainWindowViewModel : MainWindowViewModel
 
     private class MockGlobalHotkeyService : IGlobalHotkeyService
     {
+#pragma warning disable CS0067 // Events are never used (design-time mock)
         public event EventHandler? ToggleRecordingRequested;
         public event EventHandler? TogglePlaybackRequested;
         public event EventHandler? TogglePauseRequested;
+#pragma warning restore CS0067
         public bool IsRunning => false;
         public void Start() { }
         public void Stop() { }

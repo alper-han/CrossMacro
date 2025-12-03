@@ -120,7 +120,7 @@ public class MacroFileManager : IMacroFileManager
                     macro.CreatedAt = date;
                 else if (line.StartsWith("# DurationMs: ") && long.TryParse(line.Substring(14).Trim(), out var duration))
                     macro.TotalDurationMs = duration;
-                else if (line.StartsWith("# IsAbsolute: ") && bool.TryParse(line.Substring(12).Trim(), out var isAbs))
+                else if (line.StartsWith("# IsAbsolute: ") && bool.TryParse(line.Substring(14).Trim(), out var isAbs))
                     macro.IsAbsoluteCoordinates = isAbs;
                 
                 continue;

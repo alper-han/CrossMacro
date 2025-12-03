@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -171,18 +172,27 @@ public class MacroPlayer : IMacroPlayer, IDisposable
             }
             
             // Explicitly move to start position to ensure clean start
-            var firstEvent = macro.Events.Count > 0 ? macro.Events[0] : null;
-            if (firstEvent != null && _cachedScreenWidth > 0 && _cachedScreenHeight > 0)
+            var firstMouseEvent = macro.Events.FirstOrDefault(e => 
+                e.Type == EventType.MouseMove || 
+                e.Type == EventType.ButtonPress || 
+                e.Type == EventType.ButtonRelease || 
+                e.Type == EventType.Click);
+            
+            if (firstMouseEvent != null && _cachedScreenWidth > 0 && _cachedScreenHeight > 0)
             {
                 // Clamp to valid screen coordinates (defensive programming)
-                int startX = Math.Clamp(firstEvent.X, 0, _cachedScreenWidth);
-                int startY = Math.Clamp(firstEvent.Y, 0, _cachedScreenHeight);
+                int startX = Math.Clamp(firstMouseEvent.X, 0, _cachedScreenWidth);
+                int startY = Math.Clamp(firstMouseEvent.Y, 0, _cachedScreenHeight);
                 
                 Log.Information("[MacroPlayer] Moving to start position: ({X}, {Y})", startX, startY);
                 _device.MoveAbsolute(startX, startY);
                 _currentX = startX;
                 _currentY = startY;
                 _positionInitialized = true;
+            }
+            else if (firstMouseEvent == null)
+            {
+                Log.Information("[MacroPlayer] No mouse events found in macro, skipping start position move");
             }
             
             // If Loop is enabled, use RepeatCount; otherwise play once
@@ -368,7 +378,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable
                         targetAbsY = _currentY + ev.Y;
                     }
 
-                    // CRITICAL FIX: On X11, use XWarpPointer instead of uinput absolute positioning
+                    // On X11, use XWarpPointer instead of uinput absolute positioning
                     // uinput EV_ABS doesn't move the cursor on X11, but XWarpPointer does
                     // Use cached reflection method (set in constructor for performance)
                     if (_x11SetPositionMethod != null)

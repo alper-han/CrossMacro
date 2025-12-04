@@ -81,6 +81,13 @@ public class MainWindowViewModel : ViewModelBase
         
         // Initialize tray icon setting
         _enableTrayIcon = _settingsService.Current.EnableTrayIcon;
+        
+        // Initialize playback settings from saved settings
+        _playbackSpeed = _settingsService.Current.PlaybackSpeed;
+        _isLooping = _settingsService.Current.IsLooping;
+        _loopCount = _settingsService.Current.LoopCount;
+        _loopDelayMs = _settingsService.Current.LoopDelayMs;
+        _countdownSeconds = _settingsService.Current.CountdownSeconds;
 
         // Hide close button on Hyprland
         var compositor = CompositorDetector.DetectCompositor();
@@ -209,7 +216,9 @@ public class MainWindowViewModel : ViewModelBase
             if (Math.Abs(_playbackSpeed - value) > 0.01)
             {
                 _playbackSpeed = value;
+                _settingsService.Current.PlaybackSpeed = value;
                 OnPropertyChanged();
+                _ = _settingsService.SaveAsync();
             }
         }
     }
@@ -222,7 +231,9 @@ public class MainWindowViewModel : ViewModelBase
             if (_isLooping != value)
             {
                 _isLooping = value;
+                _settingsService.Current.IsLooping = value;
                 OnPropertyChanged();
+                _ = _settingsService.SaveAsync();
             }
         }
     }
@@ -235,7 +246,9 @@ public class MainWindowViewModel : ViewModelBase
             if (_loopCount != value)
             {
                 _loopCount = value;
+                _settingsService.Current.LoopCount = value;
                 OnPropertyChanged();
+                _ = _settingsService.SaveAsync();
             }
         }
     }
@@ -248,7 +261,9 @@ public class MainWindowViewModel : ViewModelBase
             if (_loopDelayMs != value)
             {
                 _loopDelayMs = value;
+                _settingsService.Current.LoopDelayMs = value ?? 0;
                 OnPropertyChanged();
+                _ = _settingsService.SaveAsync();
             }
         }
     }
@@ -287,7 +302,9 @@ public class MainWindowViewModel : ViewModelBase
             if (_countdownSeconds != value)
             {
                 _countdownSeconds = value;
+                _settingsService.Current.CountdownSeconds = value ?? 0;
                 OnPropertyChanged();
+                _ = _settingsService.SaveAsync();
             }
         }
     }

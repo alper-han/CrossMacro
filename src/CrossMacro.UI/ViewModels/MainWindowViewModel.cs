@@ -206,7 +206,7 @@ public class MainWindowViewModel : ViewModelBase
         }
     }
 
-    public bool CanStartRecording => !IsRecording && (IsMouseRecordingEnabled || IsKeyboardRecordingEnabled);
+    public bool CanStartRecording => !IsRecording && !IsPlaying && (IsMouseRecordingEnabled || IsKeyboardRecordingEnabled);
     
     public double PlaybackSpeed
     {
@@ -277,6 +277,7 @@ public class MainWindowViewModel : ViewModelBase
             {
                 _isPlaying = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(CanStartRecording));
             }
         }
     }
@@ -549,6 +550,7 @@ public class MainWindowViewModel : ViewModelBase
         try
         {
             IsPlaying = true;
+            IsPaused = false; // Reset pause state for new playback
             
             // Countdown
             var countdown = CountdownSeconds ?? 0;
@@ -583,6 +585,7 @@ public class MainWindowViewModel : ViewModelBase
         finally
         {
             IsPlaying = false;
+            IsPaused = false; // Reset pause state when playback completes
         }
     }
     
@@ -591,6 +594,7 @@ public class MainWindowViewModel : ViewModelBase
         if (IsPlaying)
         {
             IsPlaying = false;
+            IsPaused = false; // Reset pause state when stopping
             _player.Stop();
             RecordingStatus = "Playback stopped";
         }

@@ -37,6 +37,9 @@ public class MacroPlayer : IMacroPlayer, IDisposable
     // Track pressed mouse buttons to release on stop/pause (thread-safe)
     private readonly ConcurrentDictionary<ushort, byte> _pressedButtons = new();
     
+    // Track if any mouse button is currently pressed (for drag operations)
+    private bool _isMouseButtonPressed;
+    
     // Track pressed keyboard keys to release on stop/pause (thread-safe)
     private readonly ConcurrentDictionary<int, byte> _pressedKeys = new();
     
@@ -47,6 +50,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable
     private const int VirtualDeviceCreationDelayMs = 500;
     private const int SmallDelayThresholdMs = 15;
     private const double MinimumDelayMs = 0.5;
+    private const double MinEnforcedDelayMs = 1.0; // Minimum delay to prevent event skipping at high speeds
     private const int MaxPlaybackErrors = 10;
     
     public bool IsPlaying { get; private set; }
@@ -112,6 +116,11 @@ public class MacroPlayer : IMacroPlayer, IDisposable
         // Clear any tracked pressed buttons/keys from previous sessions
         _pressedButtons.Clear();
         _pressedKeys.Clear();
+        _isMouseButtonPressed = false;
+        
+        // Reset pause state for clean playback start
+        _isPaused = false;
+        _pauseEvent.Set(); // Ensure pause event is signaled (not paused)
         
         // Reset error counter
         _errorCount = 0;
@@ -283,6 +292,14 @@ public class MacroPlayer : IMacroPlayer, IDisposable
             {
                 double adjustedDelay = ev.DelayMs / speedMultiplier;
                 
+                // Enforce minimum delay ONLY when mouse button is pressed (drag/draw operations)
+                // This prevents coordinate skipping during drag operations at high speeds
+                // while allowing normal mouse movements to be fully accelerated
+                if (_isMouseButtonPressed && adjustedDelay < MinEnforcedDelayMs)
+                {
+                    adjustedDelay = MinEnforcedDelayMs;
+                }
+                
                 // For delays larger than threshold, Task.Delay is accurate enough and saves CPU
                 if (adjustedDelay > SmallDelayThresholdMs)
                 {
@@ -301,12 +318,6 @@ public class MacroPlayer : IMacroPlayer, IDisposable
                         else
                             Thread.Yield();
                     }
-                }
-                
-                // Enforce minimum delay to prevent flooding when speed is very high
-                if (adjustedDelay < MinimumDelayMs)
-                {
-                    Thread.SpinWait(1);
                 }
             }
             
@@ -348,6 +359,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable
                 var pressButton = MapButton(ev.Button);
                 _device.EmitButton(pressButton, true);
                 _pressedButtons.TryAdd(pressButton, 0);
+                _isMouseButtonPressed = true; // Track that a button is now pressed
                 break;
                 
             case EventType.ButtonRelease:
@@ -355,6 +367,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable
                 var releaseButton = MapButton(ev.Button);
                 _device.EmitButton(releaseButton, false);
                 _pressedButtons.TryRemove(releaseButton, out _);
+                _isMouseButtonPressed = _pressedButtons.Count > 0; // Only false if no buttons pressed
                 break;
                 
             case EventType.MouseMove:

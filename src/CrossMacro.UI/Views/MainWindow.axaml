@@ -186,7 +186,7 @@
                                 <TextBlock Grid.Column="1" Text="{Binding PlaybackSpeed, StringFormat='{}{0:0.0}x'}" 
                                           Classes="value"/>
                             </Grid>
-                            <Slider Minimum="0.1" Maximum="5.0" Value="{Binding PlaybackSpeed}"
+                            <Slider Minimum="0.1" Maximum="10.0" Value="{Binding PlaybackSpeed}"
                                     TickFrequency="0.1" IsSnapToTickEnabled="True"/>
                         </StackPanel>
 

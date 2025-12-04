@@ -117,6 +117,20 @@ public class InputDeviceHelper
             // Check capabilities
             bool isMouse = CheckIsMouse(fd);
             bool isKeyboard = CheckIsKeyboard(fd);
+            bool isTouchpad = false;
+            
+            // If not detected as a mouse, check if it's a touchpad
+            // Touchpads use EV_ABS instead of EV_REL
+            if (!isMouse)
+            {
+                isTouchpad = CheckIsTouchpad(fd);
+                if (isTouchpad)
+                {
+                    // Treat touchpad as a mouse for recording purposes
+                    isMouse = true;
+                    Log.Debug("[InputDeviceHelper] Device '{Name}' detected as touchpad, treating as mouse", name);
+                }
+            }
             
             // Fallback: Check /proc/bus/input/devices for "mouseX" handler
             if (!isMouse)
@@ -182,6 +196,49 @@ public class InputDeviceHelper
 
         if (!HasCapability(fd, EvdevNative.EVIOCGBIT_REL, UInputNative.REL_Y))
             return false;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Check if this is a touchpad device
+    /// Touchpads use absolute positioning (EV_ABS) instead of relative movement (EV_REL)
+    /// </summary>
+    private static bool CheckIsTouchpad(int fd)
+    {
+        // Check for EV_ABS (Absolute positioning - touchpads use this)
+        if (!HasCapability(fd, EvdevNative.EVIOCGBIT_EV, UInputNative.EV_ABS))
+            return false;
+
+        // Check for EV_KEY (for tap/click events)
+        if (!HasCapability(fd, EvdevNative.EVIOCGBIT_EV, UInputNative.EV_KEY))
+            return false;
+
+        // Check for BTN_TOUCH or BTN_LEFT (touchpad buttons)
+        bool hasTouchBtn = HasCapability(fd, EvdevNative.EVIOCGBIT_KEY, UInputNative.BTN_TOUCH);
+        bool hasLeftBtn = HasCapability(fd, EvdevNative.EVIOCGBIT_KEY, UInputNative.BTN_LEFT);
+        
+        if (!hasTouchBtn && !hasLeftBtn)
+            return false;
+
+        // Check for ABS_X and ABS_Y (basic positioning)
+        bool hasAbsX = HasCapability(fd, EvdevNative.EVIOCGBIT_ABS, UInputNative.ABS_X);
+        bool hasAbsY = HasCapability(fd, EvdevNative.EVIOCGBIT_ABS, UInputNative.ABS_Y);
+        
+        // Check for multitouch axes (more reliable for touchpads)
+        bool hasMtX = HasCapability(fd, EvdevNative.EVIOCGBIT_ABS, UInputNative.ABS_MT_POSITION_X);
+        bool hasMtY = HasCapability(fd, EvdevNative.EVIOCGBIT_ABS, UInputNative.ABS_MT_POSITION_Y);
+        
+        // Must have either basic ABS or multitouch axes
+        if (!((hasAbsX && hasAbsY) || (hasMtX && hasMtY)))
+            return false;
+
+        // Make sure it's NOT a regular mouse (mice have EV_REL)
+        if (HasCapability(fd, EvdevNative.EVIOCGBIT_EV, UInputNative.EV_REL))
+        {
+            // Has relative movement - this is a mouse, not a touchpad
+            return false;
+        }
 
         return true;
     }

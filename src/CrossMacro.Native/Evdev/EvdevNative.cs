@@ -15,6 +15,8 @@ public static class EvdevNative
     public const ulong EVIOCGBIT_EV = 0x80044520; // EV capabilities
     public const ulong EVIOCGBIT_KEY = 0x80044521; // KEY capabilities
     public const ulong EVIOCGBIT_REL = 0x80044522; // REL capabilities
+    public const ulong EVIOCGBIT_ABS = 0x80044523; // ABS capabilities (for touchpads)
+    public const ulong EVIOCGPROP = 0x80044509;    // Device properties
 
     [DllImport(LibC, SetLastError = true)]
     public static extern int open(string pathname, int flags);

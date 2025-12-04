@@ -43,6 +43,15 @@ public static class UInputNative
     public const ushort BTN_RIGHT = 0x111;
     public const ushort BTN_MIDDLE = 0x112;
     
+    // Touchpad buttons
+    public const ushort BTN_TOUCH = 0x14a;
+    public const ushort BTN_TOOL_FINGER = 0x145;
+    
+    // ABS axes for multitouch (touchpad)
+    public const ushort ABS_MT_SLOT = 0x2f;
+    public const ushort ABS_MT_POSITION_X = 0x35;
+    public const ushort ABS_MT_POSITION_Y = 0x36;
+    
     // SYN events
     public const ushort SYN_REPORT = 0;
     

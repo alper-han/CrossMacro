@@ -201,7 +201,7 @@
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Spacing="4" Margin="8,0,0,0">
                                     <TextBlock Classes="label" Text="Loop Delay (ms)"/>
-                                    <NumericUpDown Value="{Binding LoopDelayMs}" Minimum="0" Maximum="10000" Increment="100" FormatString="0"/>
+                                    <NumericUpDown Value="{Binding LoopDelayMs}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
                                 </StackPanel>
                             </Grid>
                         </StackPanel>
@@ -212,8 +212,8 @@
                                 <TextBlock Grid.Column="0" Classes="label" Text="Countdown (sec)"/>
                                 <TextBlock Grid.Column="1" Text="{Binding CountdownSeconds}" Classes="value"/>
                             </Grid>
-                            <Slider Minimum="0" Maximum="10" Value="{Binding CountdownSeconds}"
-                                    TickFrequency="1" IsSnapToTickEnabled="True"/>
+                            <NumericUpDown Minimum="0" Maximum="2147483647" Value="{Binding CountdownSeconds}"
+                                    Increment="1" FormatString="0"/>
                         </StackPanel>
 
                         <!-- Play Controls -->

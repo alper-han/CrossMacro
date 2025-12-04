@@ -34,11 +34,11 @@ public class MainWindowViewModel : ViewModelBase
     private double _playbackSpeed = 1.0;
     private bool _isLooping;
     private int _loopCount = 1;
-    private int _loopDelayMs = 0;
+    private int? _loopDelayMs = 0;
     private MacroSequence? _currentMacro;
     private bool _isPlaying;
     private string _macroName = "New Macro";
-    private int _countdownSeconds;
+    private int? _countdownSeconds = 0;
     private string? _extensionWarning;
     private bool _hasExtensionWarning;
     
@@ -240,7 +240,7 @@ public class MainWindowViewModel : ViewModelBase
         }
     }
     
-    public int LoopDelayMs
+    public int? LoopDelayMs
     {
         get => _loopDelayMs;
         set
@@ -279,7 +279,7 @@ public class MainWindowViewModel : ViewModelBase
         }
     }
     
-    public int CountdownSeconds
+    public int? CountdownSeconds
     {
         get => _countdownSeconds;
         set
@@ -534,9 +534,10 @@ public class MainWindowViewModel : ViewModelBase
             IsPlaying = true;
             
             // Countdown
-            if (CountdownSeconds > 0)
+            var countdown = CountdownSeconds ?? 0;
+            if (countdown > 0)
             {
-                for (int i = CountdownSeconds; i > 0; i--)
+                for (int i = countdown; i > 0; i--)
                 {
                     RecordingStatus = $"Starting in {i}...";
                     await Task.Delay(1000);
@@ -551,7 +552,7 @@ public class MainWindowViewModel : ViewModelBase
                 SpeedMultiplier = PlaybackSpeed,
                 Loop = IsLooping,
                 RepeatCount = LoopCount,
-                RepeatDelayMs = LoopDelayMs
+                RepeatDelayMs = LoopDelayMs ?? 0
             };
             
             await _player.PlayAsync(_currentMacro, options);

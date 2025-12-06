@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="400"
+             x:Class="CrossMacro.UI.Views.Tabs.FilesTabView"
+             x:DataType="vm:FilesViewModel">
+
+    <ScrollViewer Padding="10">
+        <StackPanel Spacing="20">
+            <!-- Macro Name -->
+            <StackPanel Spacing="8">
+                <TextBlock Classes="label" Text="Macro Name"/>
+                <TextBox Text="{Binding MacroName}" Watermark="Enter macro name..."/>
+            </StackPanel>
+            
+            <Button Content="📂 Load Macro"
+                    Command="{Binding LoadMacroAsync}"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"/>
+
+            <Button Content="💾 Save Macro"
+                    Command="{Binding SaveMacroAsync}"
+                    IsEnabled="{Binding HasRecordedMacro}"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"/>
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>

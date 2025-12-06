@@ -1,0 +1,73 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="400"
+             x:Class="CrossMacro.UI.Views.Tabs.PlaybackTabView"
+             x:DataType="vm:PlaybackViewModel">
+
+    <ScrollViewer Padding="10">
+        <StackPanel Spacing="20">
+            <!-- Speed Control -->
+            <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Classes="label" Text="Playback Speed"/>
+                    <TextBlock Grid.Column="1" Text="{Binding PlaybackSpeed, StringFormat='{}{0:0.0}x'}" 
+                              Classes="value"/>
+                </Grid>
+                <Slider Minimum="0.1" Maximum="10.0" Value="{Binding PlaybackSpeed}"
+                        TickFrequency="0.1" IsSnapToTickEnabled="True"/>
+            </StackPanel>
+
+            <!-- Loop Controls -->
+            <StackPanel Spacing="12">
+                <CheckBox Content="Loop Playback" IsChecked="{Binding IsLooping}"/>
+                
+                <Grid ColumnDefinitions="*,*" IsVisible="{Binding IsLooping}">
+                    <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
+                        <TextBlock Classes="label" Text="Loop Count"/>
+                        <NumericUpDown Value="{Binding LoopCount}" Minimum="0" Maximum="1000" FormatString="0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="4" Margin="8,0,0,0">
+                        <TextBlock Classes="label" Text="Loop Delay (ms)"/>
+                        <NumericUpDown Value="{Binding LoopDelayMs}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+            
+            <!-- Countdown -->
+            <StackPanel Spacing="8">
+                 <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Classes="label" Text="Countdown (sec)"/>
+                    <TextBlock Grid.Column="1" Text="{Binding CountdownSeconds}" Classes="value"/>
+                </Grid>
+                <NumericUpDown Minimum="0" Maximum="2147483647" Value="{Binding CountdownSeconds}"
+                        Increment="1" FormatString="0"/>
+            </StackPanel>
+
+            <!-- Play Controls -->
+            <Grid ColumnDefinitions="*,*">
+                <Button Grid.Column="0" Grid.ColumnSpan="2"
+                       Classes="accent"
+                       Content="▶ Play Macro"
+                       Command="{Binding PlayMacroAsync}"
+                       IsEnabled="{Binding CanPlayMacro}"
+                       IsVisible="{Binding !IsPlaying}"
+                       HorizontalAlignment="Stretch"
+                       HorizontalContentAlignment="Center"/>
+                       
+                 <Button Grid.Column="0" Grid.ColumnSpan="2"
+                       Classes="danger"
+                       Content="🛑 STOP PLAYBACK"
+                       Command="{Binding StopPlayback}"
+                       IsVisible="{Binding IsPlaying}"
+                       HorizontalAlignment="Stretch"
+                       HorizontalContentAlignment="Center"
+                       FontWeight="Bold"
+                       FontSize="16"/>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>

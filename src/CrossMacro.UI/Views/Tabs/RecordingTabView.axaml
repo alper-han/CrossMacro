@@ -1,0 +1,140 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="400"
+             x:Class="CrossMacro.UI.Views.Tabs.RecordingTabView"
+             x:DataType="vm:RecordingViewModel">
+
+    <ScrollViewer Padding="10">
+        <StackPanel Spacing="20">
+            <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto">
+                <!-- Labels Row -->
+                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Status" Margin="0,0,0,8"/>
+                <TextBlock Grid.Row="0" Grid.Column="1" Classes="label" Text="Events" Margin="8,0,0,8"/>
+                <TextBlock Grid.Row="0" Grid.Column="2" Classes="label" Text="Ready" Margin="8,0,0,8"/>
+
+                <!-- Content Row -->
+                <!-- Status Indicator -->
+                <Border Grid.Row="1" Grid.Column="0"
+                       Background="#1E293B"
+                       CornerRadius="8"
+                       Padding="12,8"
+                       VerticalAlignment="Stretch">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Ellipse Width="12" Height="12" Fill="#64748B"/>
+                        <TextBlock Text="{Binding RecordingStatus}" 
+                                  Foreground="#F1F5F9"
+                                  FontWeight="Medium"
+                                  TextTrimming="CharacterEllipsis"
+                                  ToolTip.Tip="{Binding RecordingStatus}"
+                                  MaxWidth="150"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Event Count -->
+                <Border Grid.Row="1" Grid.Column="1"
+                       Background="#1E293B"
+                       CornerRadius="8"
+                       Padding="12,8"
+                       Margin="8,0,0,0"
+                       VerticalAlignment="Stretch">
+                    <TextBlock Text="{Binding EventCount}" 
+                              Classes="value"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+                </Border>
+
+                <!-- Quick Stats -->
+                <Border Grid.Row="1" Grid.Column="2"
+                       Background="#1E293B"
+                       CornerRadius="8"
+                       Padding="12,8"
+                       Margin="8,0,0,0"
+                       VerticalAlignment="Stretch">
+                    <TextBlock Text="{Binding IsRecording}" 
+                              Foreground="#10B981"
+                              HorizontalAlignment="Center"
+                              FontWeight="Bold"
+                              VerticalAlignment="Center"/>
+                </Border>
+            </Grid>
+
+            <!-- Recording Controls Panel -->
+            <Border Background="#1E293B" CornerRadius="12" Padding="16">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="CAPTURE SETTINGS" 
+                              FontWeight="SemiBold" 
+                              Foreground="#94A3B8" 
+                              FontSize="12"/>
+
+                    <!-- Toggles -->
+                    <Grid ColumnDefinitions="*,*">
+                        <Border Grid.Column="0" 
+                                Background="#0F172A" 
+                                CornerRadius="6" 
+                                Padding="12,8" 
+                                Margin="0,0,6,0">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <TextBlock Text="🖱️" FontSize="16"/>
+                                    <TextBlock Text="Mouse" FontWeight="Medium" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" 
+                                             IsChecked="{Binding IsMouseRecordingEnabled}"
+                                             OnContent="" OffContent=""
+                                             VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Column="1" 
+                                Background="#0F172A" 
+                                CornerRadius="6" 
+                                Padding="12,8" 
+                                Margin="6,0,0,0">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <TextBlock Text="⌨️" FontSize="16"/>
+                                    <TextBlock Text="Keyboard" FontWeight="Medium" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" 
+                                             IsChecked="{Binding IsKeyboardRecordingEnabled}"
+                                             OnContent="" OffContent=""
+                                             VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <!-- Action Buttons -->
+                    <Grid ColumnDefinitions="*,*">
+                        <Button Grid.Column="0"
+                               Classes="success"
+                               Content="▶ Start Recording"
+                               Click="OnStartRecording"
+                               IsEnabled="{Binding CanStartRecording}"
+                               HorizontalAlignment="Stretch"
+                               HorizontalContentAlignment="Center"
+                               Margin="0,0,6,0"/>
+                        
+                        <Button Grid.Column="1"
+                               Classes="danger"
+                               Content="⏹ Stop"
+                               Click="OnStopRecording"
+                               IsEnabled="{Binding IsRecording}"
+                               HorizontalAlignment="Stretch"
+                               HorizontalContentAlignment="Center"
+                               Margin="6,0,0,0"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Classes="label" 
+                      Text="💡 Tip: Use global hotkeys to control recording while in other apps"
+                      HorizontalAlignment="Center"
+                      FontSize="12"
+                      Opacity="0.7"/>
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>

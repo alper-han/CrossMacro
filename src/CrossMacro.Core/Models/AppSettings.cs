@@ -37,4 +37,16 @@ public class AppSettings
     /// Countdown seconds before playback starts
     /// </summary>
     public int CountdownSeconds { get; set; } = 0;
+    
+    // Recording Settings
+    
+    /// <summary>
+    /// Whether mouse recording is enabled
+    /// </summary>
+    public bool IsMouseRecordingEnabled { get; set; } = true;
+    
+    /// <summary>
+    /// Whether keyboard recording is enabled
+    /// </summary>
+    public bool IsKeyboardRecordingEnabled { get; set; } = true;
 }

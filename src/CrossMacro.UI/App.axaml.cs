@@ -31,7 +31,7 @@ public partial class App : Application
     {
         var services = new ServiceCollection();
         
-        // Register Services
+        // Register Core Services
         services.AddSingleton<IHotkeyConfigurationService, HotkeyConfigurationService>();
         services.AddSingleton<ISettingsService, SettingsService>();
 
@@ -54,7 +54,13 @@ public partial class App : Application
         services.AddTransient<IMacroRecorder, MacroRecorder>();
         services.AddTransient<IMacroPlayer, MacroPlayer>();
         
-        // Register ViewModels
+        // Register Child ViewModels (Singleton for state persistence)
+        services.AddSingleton<RecordingViewModel>();
+        services.AddSingleton<PlaybackViewModel>();
+        services.AddSingleton<FilesViewModel>();
+        services.AddSingleton<SettingsViewModel>();
+        
+        // Register Main ViewModel (Coordinator)
         services.AddSingleton<MainWindowViewModel>();
         
         // Register Tray Icon Service

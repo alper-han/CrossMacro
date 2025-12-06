@@ -1,312 +1,127 @@
 ﻿using System;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 using Avalonia.Threading;
 using Avalonia.Controls.Notifications;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using CrossMacro.Native.Evdev;
 using CrossMacro.Infrastructure.Wayland;
 using CrossMacro.Core.Wayland;
 
 namespace CrossMacro.UI.ViewModels;
 
+/// <summary>
+/// Coordinator ViewModel - manages child ViewModels and cross-cutting concerns
+/// </summary>
 public class MainWindowViewModel : ViewModelBase
 {
-    private readonly IMacroRecorder _recorder;
-    private readonly IMacroPlayer _player;
-    private readonly IMacroFileManager _fileManager;
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly IMousePositionProvider _positionProvider;
-    private readonly HotkeySettings _hotkeySettings;
-    private readonly ISettingsService _settingsService;
+    
+    private string? _extensionWarning;
+    private bool _hasExtensionWarning;
+    private string _globalStatus = "Ready";
     
     public WindowNotificationManager? NotificationManager { get; set; }
     
-    private bool _isRecording;
-    private int _eventCount;
-    private string _recordingStatus = "Ready";
-    private bool _hasRecordedMacro;
-    private double _playbackSpeed = 1.0;
-    private bool _isLooping;
-    private int _loopCount = 1;
-    private int? _loopDelayMs = 0;
-    private MacroSequence? _currentMacro;
-    private bool _isPlaying;
-    private string _macroName = "New Macro";
-    private int? _countdownSeconds = 0;
-    private string? _extensionWarning;
-    private bool _hasExtensionWarning;
+    // Child ViewModels
+    public RecordingViewModel Recording { get; }
+    public PlaybackViewModel Playback { get; }
+    public FilesViewModel Files { get; }
+    public SettingsViewModel Settings { get; }
     
-    private bool _isMouseRecordingEnabled = true;
-    private bool _isKeyboardRecordingEnabled = true;
-    
-    private bool _isPaused;
-    
-    // Hotkey settings
-    private string _recordingHotkey;
-    private string _playbackHotkey;
-    private string _pauseHotkey;
-    
-    // Tray settings
-    private bool _enableTrayIcon;
-
     public bool IsCloseButtonVisible { get; }
-
+    
+    /// <summary>
+    /// Event fired when tray icon setting changes (for App.axaml.cs)
+    /// </summary>
+    public event EventHandler<bool>? TrayIconEnabledChanged;
+    
     public MainWindowViewModel(
-        IMacroRecorder recorder,
-        IMacroPlayer player,
-        IMacroFileManager fileManager,
+        RecordingViewModel recording,
+        PlaybackViewModel playback,
+        FilesViewModel files,
+        SettingsViewModel settings,
         IGlobalHotkeyService hotkeyService,
-        IMousePositionProvider positionProvider,
-        HotkeySettings hotkeySettings,
-        ISettingsService settingsService)
+        IMousePositionProvider positionProvider)
     {
-        _recorder = recorder;
-        _player = player;
-        _fileManager = fileManager;
+        Recording = recording;
+        Playback = playback;
+        Files = files;
+        Settings = settings;
         _hotkeyService = hotkeyService;
         _positionProvider = positionProvider;
-        _hotkeySettings = hotkeySettings;
-        _settingsService = settingsService;
         
-        // Initialize hotkey properties
-        _recordingHotkey = _hotkeySettings.RecordingHotkey;
-        _playbackHotkey = _hotkeySettings.PlaybackHotkey;
-        _pauseHotkey = _hotkeySettings.PauseHotkey;
-        
-        // Initialize tray icon setting
-        _enableTrayIcon = _settingsService.Current.EnableTrayIcon;
-        
-        // Initialize playback settings from saved settings
-        _playbackSpeed = _settingsService.Current.PlaybackSpeed;
-        _isLooping = _settingsService.Current.IsLooping;
-        _loopCount = _settingsService.Current.LoopCount;
-        _loopDelayMs = _settingsService.Current.LoopDelayMs;
-        _countdownSeconds = _settingsService.Current.CountdownSeconds;
-
         // Hide close button on Hyprland
         var compositor = CompositorDetector.DetectCompositor();
         IsCloseButtonVisible = compositor != CompositorType.HYPRLAND;
         
-        // Subscribe to recording events
-        _recorder.EventRecorded += OnEventRecorded;
+        // Wire up cross-ViewModel communication
+        SetupViewModelCommunication();
         
         // Subscribe to hotkey events
         _hotkeyService.ToggleRecordingRequested += OnToggleRecordingRequested;
         _hotkeyService.TogglePlaybackRequested += OnTogglePlaybackRequested;
         _hotkeyService.TogglePauseRequested += OnTogglePauseRequested;
         
-        // Subscribe to GNOME extension status events if using GnomePositionProvider
+        // Subscribe to extension status events
+        SetupExtensionStatusHandling();
+        
+        // Forward tray icon changes
+        Settings.TrayIconEnabledChanged += (s, enabled) => TrayIconEnabledChanged?.Invoke(this, enabled);
+        
+        // Start hotkey service
+        Settings.StartHotkeyService();
+    }
+    
+    private void SetupViewModelCommunication()
+    {
+        // When recording completes, update Files and Playback
+        Recording.RecordingCompleted += (s, macro) =>
+        {
+            Files.SetMacro(macro);
+            Playback.SetMacro(macro);
+            GlobalStatus = $"Recorded {macro.EventCount} events";
+        };
+        
+        // When recording state changes, update Playback's ability to start
+        Recording.RecordingStateChanged += (s, isRecording) =>
+        {
+            Playback.CanPlayMacroExternal = !isRecording;
+        };
+        
+        // When playback state changes, update Recording's ability to start
+        Playback.PlaybackStateChanged += (s, isPlaying) =>
+        {
+            Recording.CanStartRecordingExternal = !isPlaying;
+        };
+        
+        // When a macro is loaded, update Playback
+        Files.MacroLoaded += (s, macro) =>
+        {
+            Playback.SetMacro(macro);
+            GlobalStatus = $"Loaded: {macro.Name}";
+        };
+        
+        // Forward status changes
+        Recording.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(Recording.RecordingStatus))
+                GlobalStatus = Recording.RecordingStatus;
+        };
+        
+        Playback.StatusChanged += (s, status) => GlobalStatus = status;
+        Files.StatusChanged += (s, status) => GlobalStatus = status;
+    }
+    
+    private void SetupExtensionStatusHandling()
+    {
         if (_positionProvider is GnomePositionProvider gnomeProvider)
         {
             gnomeProvider.ExtensionStatusChanged += OnExtensionStatusChanged;
         }
         
-        // Subscribe to KDE dependency status events if using KdePositionProvider
         if (_positionProvider is KdePositionProvider kdeProvider)
         {
             kdeProvider.ExtensionStatusChanged += OnExtensionStatusChanged;
-        }
-        
-        // Start hotkey service automatically
-        StartHotkeyService();
-    }
-    
-    // ... (Previous code remains) ...
-
-    public bool IsRecording
-    {
-        get => _isRecording;
-        set
-        {
-            if (_isRecording != value)
-            {
-                _isRecording = value;
-                OnPropertyChanged();
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(CanPlayMacro));
-                OnPropertyChanged(nameof(CanStartRecording));
-                RecordingStatus = value ? "Recording..." : "Ready";
-            }
-        }
-    }
-    
-    public int EventCount
-    {
-        get => _eventCount;
-        set
-        {
-            if (_eventCount != value)
-            {
-                _eventCount = value;
-                OnPropertyChanged();
-            }
-        }
-    }
-    
-    public string RecordingStatus
-    {
-        get => _recordingStatus;
-        set
-        {
-            if (_recordingStatus != value)
-            {
-                _recordingStatus = value;
-                OnPropertyChanged();
-            }
-        }
-    }
-    
-    public bool HasRecordedMacro
-    {
-        get => _hasRecordedMacro;
-        set
-        {
-            if (_hasRecordedMacro != value)
-            {
-                _hasRecordedMacro = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(CanPlayMacro));
-            }
-        }
-    }
-
-    public bool CanPlayMacro => HasRecordedMacro && !IsRecording;
-
-    public bool IsMouseRecordingEnabled
-    {
-        get => _isMouseRecordingEnabled;
-        set
-        {
-            if (_isMouseRecordingEnabled != value)
-            {
-                _isMouseRecordingEnabled = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(CanStartRecording));
-            }
-        }
-    }
-
-    public bool IsKeyboardRecordingEnabled
-    {
-        get => _isKeyboardRecordingEnabled;
-        set
-        {
-            if (_isKeyboardRecordingEnabled != value)
-            {
-                _isKeyboardRecordingEnabled = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(CanStartRecording));
-            }
-        }
-    }
-
-    public bool CanStartRecording => !IsRecording && !IsPlaying && (IsMouseRecordingEnabled || IsKeyboardRecordingEnabled);
-    
-    public double PlaybackSpeed
-    {
-        get => _playbackSpeed;
-        set
-        {
-            if (Math.Abs(_playbackSpeed - value) > 0.01)
-            {
-                _playbackSpeed = value;
-                _settingsService.Current.PlaybackSpeed = value;
-                OnPropertyChanged();
-                _ = _settingsService.SaveAsync();
-            }
-        }
-    }
-    
-    public bool IsLooping
-    {
-        get => _isLooping;
-        set
-        {
-            if (_isLooping != value)
-            {
-                _isLooping = value;
-                _settingsService.Current.IsLooping = value;
-                OnPropertyChanged();
-                _ = _settingsService.SaveAsync();
-            }
-        }
-    }
-    
-    public int LoopCount
-    {
-        get => _loopCount;
-        set
-        {
-            if (_loopCount != value)
-            {
-                _loopCount = value;
-                _settingsService.Current.LoopCount = value;
-                OnPropertyChanged();
-                _ = _settingsService.SaveAsync();
-            }
-        }
-    }
-    
-    public int? LoopDelayMs
-    {
-        get => _loopDelayMs;
-        set
-        {
-            if (_loopDelayMs != value)
-            {
-                _loopDelayMs = value;
-                _settingsService.Current.LoopDelayMs = value ?? 0;
-                OnPropertyChanged();
-                _ = _settingsService.SaveAsync();
-            }
-        }
-    }
-    
-    public bool IsPlaying
-    {
-        get => _isPlaying;
-        set
-        {
-            if (_isPlaying != value)
-            {
-                _isPlaying = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(CanStartRecording));
-            }
-        }
-    }
-    
-    public string MacroName
-    {
-        get => _macroName;
-        set
-        {
-            if (_macroName != value)
-            {
-                _macroName = value;
-                OnPropertyChanged();
-            }
-        }
-    }
-    
-    public int? CountdownSeconds
-    {
-        get => _countdownSeconds;
-        set
-        {
-            if (_countdownSeconds != value)
-            {
-                _countdownSeconds = value;
-                _settingsService.Current.CountdownSeconds = value ?? 0;
-                OnPropertyChanged();
-                _ = _settingsService.SaveAsync();
-            }
         }
     }
     
@@ -335,102 +150,24 @@ public class MainWindowViewModel : ViewModelBase
             }
         }
     }
-
-
-
-    private void OnEventRecorded(object? sender, MacroEvent e)
+    
+    public string GlobalStatus
     {
-        // Update UI on main thread
-        Dispatcher.UIThread.Post(() => {
-            EventCount++;
-        });
-    }
-
-    public bool IsPaused
-    {
-        get => _isPaused;
+        get => _globalStatus;
         set
         {
-            if (_isPaused != value)
+            if (_globalStatus != value)
             {
-                _isPaused = value;
+                _globalStatus = value;
                 OnPropertyChanged();
             }
         }
     }
-    
-    public string RecordingHotkey
-    {
-        get => _recordingHotkey;
-        set
-        {
-            if (_recordingHotkey != value)
-            {
-                _recordingHotkey = value;
-                _hotkeySettings.RecordingHotkey = value;
-                OnPropertyChanged();
-                UpdateHotkeys();
-            }
-        }
-    }
-    
-    public string PlaybackHotkey
-    {
-        get => _playbackHotkey;
-        set
-        {
-            if (_playbackHotkey != value)
-            {
-                _playbackHotkey = value;
-                _hotkeySettings.PlaybackHotkey = value;
-                OnPropertyChanged();
-                UpdateHotkeys();
-            }
-        }
-    }
-    
-    public string PauseHotkey
-    {
-        get => _pauseHotkey;
-        set
-        {
-            if (_pauseHotkey != value)
-            {
-                _pauseHotkey = value;
-                _hotkeySettings.PauseHotkey = value;
-                OnPropertyChanged();
-                UpdateHotkeys();
-            }
-        }
-    }
-    
-    public bool EnableTrayIcon
-    {
-        get => _enableTrayIcon;
-        set
-        {
-            if (_enableTrayIcon != value)
-            {
-                _enableTrayIcon = value;
-                _settingsService.Current.EnableTrayIcon = value;
-                OnPropertyChanged();
-                
-                // Save settings asynchronously
-                _ = _settingsService.SaveAsync();
-                
-                // Notify App.axaml.cs to update tray icon
-                TrayIconEnabledChanged?.Invoke(this, value);
-            }
-        }
-    }
-    
-    public event EventHandler<bool>? TrayIconEnabledChanged;
     
     private void OnExtensionStatusChanged(object? sender, string message)
     {
         Dispatcher.UIThread.Post(() =>
         {
-            // If it's a success message, show temporary notification
             if (message.Contains("enabled successfully"))
             {
                 NotificationManager?.Show(new Notification(
@@ -441,22 +178,16 @@ public class MainWindowViewModel : ViewModelBase
                 return;
             }
             
-            // If it's an error/warning, only show persistent warning banner (no popup notification)
             ExtensionWarning = message;
             HasExtensionWarning = true;
         });
     }
-
-
-
+    
     private void OnToggleRecordingRequested(object? sender, EventArgs e)
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (IsRecording)
-                StopRecording();
-            else if (CanStartRecording)
-                StartRecording();
+            Recording.ToggleRecording();
         });
     }
 
@@ -464,10 +195,7 @@ public class MainWindowViewModel : ViewModelBase
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (IsPlaying)
-                StopPlayback();
-            else
-                PlayMacro();
+            Playback.TogglePlayback();
         });
     }
 
@@ -475,256 +203,7 @@ public class MainWindowViewModel : ViewModelBase
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (!IsPlaying) return;
-
-            if (_player.IsPaused)
-            {
-                _player.Resume();
-                IsPaused = false;
-                RecordingStatus = "Resumed";
-            }
-            else
-            {
-                _player.Pause();
-                IsPaused = true;
-                RecordingStatus = "Paused";
-            }
+            Playback.TogglePause();
         });
     }
-
-
-    
-    public async void StartRecording()
-    {
-        try
-        {
-            IsRecording = true;
-            EventCount = 0;
-            
-            // Disable playback and pause hotkeys during recording so they can be recorded
-            _hotkeyService.SetPlaybackPauseHotkeysEnabled(false);
-            
-            await _recorder.StartRecordingAsync(IsMouseRecordingEnabled, IsKeyboardRecordingEnabled);
-        }
-        catch (Exception ex)
-        {
-            RecordingStatus = $"Error: {ex.Message}";
-            IsRecording = false;
-            
-            // Re-enable hotkeys on error
-            _hotkeyService.SetPlaybackPauseHotkeysEnabled(true);
-        }
-    }
-    
-    public void StopRecording()
-    {
-        try
-        {
-            _currentMacro = _recorder.StopRecording();
-            IsRecording = false;
-            HasRecordedMacro = _currentMacro != null && _currentMacro.EventCount > 0;
-            
-            if (HasRecordedMacro)
-            {
-                _currentMacro!.Name = MacroName;
-                RecordingStatus = $"Recorded {_currentMacro!.EventCount} events";
-            }
-        }
-        catch (Exception ex)
-        {
-            RecordingStatus = $"Error: {ex.Message}";
-            IsRecording = false;
-        }
-        finally
-        {
-            // Re-enable playback and pause hotkeys after recording stops
-            _hotkeyService.SetPlaybackPauseHotkeysEnabled(true);
-        }
-    }
-    
-    public async void PlayMacro()
-    {
-        if (_currentMacro == null || IsPlaying)
-            return;
-        
-        try
-        {
-            IsPlaying = true;
-            IsPaused = false; // Reset pause state for new playback
-            
-            // Countdown
-            var countdown = CountdownSeconds ?? 0;
-            if (countdown > 0)
-            {
-                for (int i = countdown; i > 0; i--)
-                {
-                    RecordingStatus = $"Starting in {i}...";
-                    await Task.Delay(1000);
-                    if (!IsPlaying) return; // Cancelled via Stop
-                }
-            }
-            
-            RecordingStatus = "Playing...";
-            
-            var options = new PlaybackOptions
-            {
-                SpeedMultiplier = PlaybackSpeed,
-                Loop = IsLooping,
-                RepeatCount = LoopCount,
-                RepeatDelayMs = LoopDelayMs ?? 0
-            };
-            
-            await _player.PlayAsync(_currentMacro, options);
-            
-            RecordingStatus = "Playback complete";
-        }
-        catch (Exception ex)
-        {
-            RecordingStatus = $"Playback error: {ex.Message}";
-        }
-        finally
-        {
-            IsPlaying = false;
-            IsPaused = false; // Reset pause state when playback completes
-        }
-    }
-    
-    public void StopPlayback()
-    {
-        if (IsPlaying)
-        {
-            IsPlaying = false;
-            IsPaused = false; // Reset pause state when stopping
-            _player.Stop();
-            RecordingStatus = "Playback stopped";
-        }
-    }
-    
-    public async void SaveMacro()
-    {
-        if (_currentMacro == null)
-            return;
-        
-        try
-        {
-            var mainWindow = (Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.MainWindow;
-            if (mainWindow == null)
-            {
-                RecordingStatus = "Error: Cannot open file dialog";
-                return;
-            }
-
-            var dialog = new Avalonia.Platform.Storage.FilePickerSaveOptions
-            {
-                Title = "Save Macro",
-                SuggestedFileName = $"{MacroName}.macro",
-                FileTypeChoices = new[]
-                {
-                    new Avalonia.Platform.Storage.FilePickerFileType("Macro Files")
-                    {
-                        Patterns = new[] { "*.macro" }
-                    }
-                }
-            };
-
-            var result = await mainWindow.StorageProvider.SaveFilePickerAsync(dialog);
-            if (result == null)
-            {
-                RecordingStatus = "Save cancelled";
-                return;
-            }
-
-            var filePath = result.Path.LocalPath;
-            _currentMacro.Name = MacroName;
-            await _fileManager.SaveAsync(_currentMacro, filePath);
-            
-            RecordingStatus = $"Saved to {Path.GetFileName(filePath)}";
-        }
-        catch (Exception ex)
-        {
-            RecordingStatus = $"Save error: {ex.Message}";
-        }
-    }
-    
-    public async void LoadMacro()
-    {
-        try
-        {
-            var mainWindow = (Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.MainWindow;
-            if (mainWindow == null)
-            {
-                RecordingStatus = "Error: Cannot open file dialog";
-                return;
-            }
-
-            var dialog = new Avalonia.Platform.Storage.FilePickerOpenOptions
-            {
-                Title = "Load Macro",
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new Avalonia.Platform.Storage.FilePickerFileType("Macro Files")
-                    {
-                        Patterns = new[] { "*.macro" }
-                    }
-                }
-            };
-
-            var result = await mainWindow.StorageProvider.OpenFilePickerAsync(dialog);
-            if (result == null || result.Count == 0)
-            {
-                RecordingStatus = "Load cancelled";
-                return;
-            }
-
-            var filePath = result[0].Path.LocalPath;
-            _currentMacro = await _fileManager.LoadAsync(filePath);
-            
-            if (_currentMacro != null)
-            {
-                HasRecordedMacro = true;
-                EventCount = _currentMacro.EventCount;
-                MacroName = _currentMacro.Name;
-                RecordingStatus = $"Loaded {Path.GetFileName(filePath)}";
-            }
-        }
-        catch (Exception ex)
-        {
-            RecordingStatus = $"Load error: {ex.Message}";
-        }
-    }
-
-    private void StartHotkeyService()
-    {
-        try
-        {
-            _hotkeyService.Start();
-            RecordingStatus = "Hotkeys active";
-        }
-        catch (Exception ex)
-        {
-            RecordingStatus = $"Hotkey error: {ex.Message}";
-            Console.WriteLine(ex);
-        }
-    }
-    
-    private void UpdateHotkeys()
-    {
-        try
-        {
-            if (_hotkeyService.IsRunning)
-            {
-                _hotkeyService.UpdateHotkeys(
-                    _hotkeySettings.RecordingHotkey,
-                    _hotkeySettings.PlaybackHotkey,
-                    _hotkeySettings.PauseHotkey);
-            }
-        }
-        catch (Exception ex)
-        {
-            RecordingStatus = $"Hotkey update error: {ex.Message}";
-        }
-    }
-    
-
 }

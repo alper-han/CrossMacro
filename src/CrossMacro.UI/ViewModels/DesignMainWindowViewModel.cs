@@ -7,17 +7,55 @@ using CrossMacro.Core.Wayland;
 
 namespace CrossMacro.UI.ViewModels;
 
+/// <summary>
+/// Design-time ViewModel for XAML preview in IDE
+/// </summary>
 public class DesignMainWindowViewModel : MainWindowViewModel
 {
     public DesignMainWindowViewModel() : base(
-        new MockMacroRecorder(),
-        new MockMacroPlayer(),
-        new MockMacroFileManager(),
+        new DesignRecordingViewModel(),
+        new DesignPlaybackViewModel(),
+        new DesignFilesViewModel(),
+        new DesignSettingsViewModel(),
         new MockGlobalHotkeyService(),
-        new MockMousePositionProvider(),
-        new HotkeySettings(),
-        new MockSettingsService())
+        new MockMousePositionProvider())
     {
+    }
+
+    private class DesignRecordingViewModel : RecordingViewModel
+    {
+        public DesignRecordingViewModel() : base(
+            new MockMacroRecorder(),
+            new MockGlobalHotkeyService(),
+            new MockSettingsService())
+        {
+        }
+    }
+
+    private class DesignPlaybackViewModel : PlaybackViewModel
+    {
+        public DesignPlaybackViewModel() : base(
+            new MockMacroPlayer(),
+            new MockSettingsService())
+        {
+        }
+    }
+
+    private class DesignFilesViewModel : FilesViewModel
+    {
+        public DesignFilesViewModel() : base(new MockMacroFileManager())
+        {
+        }
+    }
+
+    private class DesignSettingsViewModel : SettingsViewModel
+    {
+        public DesignSettingsViewModel() : base(
+            new MockGlobalHotkeyService(),
+            new MockSettingsService(),
+            new HotkeySettings())
+        {
+        }
     }
 
     private class MockMacroRecorder : IMacroRecorder

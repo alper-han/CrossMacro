@@ -129,14 +129,8 @@ public class TrayIconService : ITrayIconService
     {
         try
         {
-            if (_viewModel.IsRecording)
-            {
-                _viewModel.StopRecording();
-            }
-            else
-            {
-                _viewModel.StartRecording();
-            }
+            // Access recording through the child ViewModel
+            _viewModel.Recording.ToggleRecording();
         }
         catch (Exception ex)
         {
@@ -148,14 +142,8 @@ public class TrayIconService : ITrayIconService
     {
         try
         {
-            if (_viewModel.IsPlaying)
-            {
-                _viewModel.StopPlayback();
-            }
-            else
-            {
-                _viewModel.PlayMacro();
-            }
+            // Access playback through the child ViewModel
+            _viewModel.Playback.TogglePlayback();
         }
         catch (Exception ex)
         {
@@ -167,13 +155,14 @@ public class TrayIconService : ITrayIconService
     {
         try
         {
-            if (_viewModel.IsRecording)
+            // Stop whatever is currently running
+            if (_viewModel.Recording.IsRecording)
             {
-                _viewModel.StopRecording();
+                _viewModel.Recording.StopRecording();
             }
-            else if (_viewModel.IsPlaying)
+            else if (_viewModel.Playback.IsPlaying)
             {
-                _viewModel.StopPlayback();
+                _viewModel.Playback.StopPlayback();
             }
         }
         catch (Exception ex)

@@ -13,11 +13,13 @@ namespace CrossMacro.Infrastructure.Services;
 /// </summary>
 public class LinuxShellClipboardService : IClipboardService
 {
-    private enum ClipboardTool { Unknown, WlClipboard, Xclip, Xsel }
+    private enum ClipboardTool { Unknown, WlClipboard, Xclip, Xsel, KdeKlipper }
     private ClipboardTool _tool = ClipboardTool.Unknown;
     private bool _initialized = false;
 
-    private async Task EnsureInitializedAsync()
+    public bool IsSupported => _tool != ClipboardTool.Unknown;
+
+    public async Task InitializeAsync()
     {
         if (_initialized) return;
 
@@ -50,13 +52,22 @@ public class LinuxShellClipboardService : IClipboardService
             return;
         }
 
-        Log.Warning("[LinuxClipboard] No supported clipboard tool found (wl-copy, xclip, xsel missing)");
+        // Check for KDE Klipper (qdbus)
+        if (await CheckCommandAsync("qdbus") && await CheckKlipperAsync())
+        {
+            _tool = ClipboardTool.KdeKlipper;
+            Log.Information("[LinuxClipboard] Using KDE Klipper (qdbus)");
+            _initialized = true;
+            return;
+        }
+
+        Log.Warning("[LinuxClipboard] No supported clipboard tool found (wl-copy, xclip, xsel, qdbus+klipper missing)");
         _initialized = true;
     }
 
     public async Task SetTextAsync(string text)
     {
-        await EnsureInitializedAsync();
+        await InitializeAsync();
 
         try
         {
@@ -72,6 +83,9 @@ public class LinuxShellClipboardService : IClipboardService
                 case ClipboardTool.Xsel:
                     await RunCommandAsync("xsel", "--clipboard --input", text);
                     break;
+                case ClipboardTool.KdeKlipper:
+                    await RunQdbusSetAsync(text);
+                    break;
                 default:
                     Log.Warning("Cannot set clipboard: No tool available");
                     break;
@@ -85,7 +99,7 @@ public class LinuxShellClipboardService : IClipboardService
 
     public async Task<string?> GetTextAsync()
     {
-        await EnsureInitializedAsync();
+        await InitializeAsync();
 
         try
         {
@@ -94,6 +108,7 @@ public class LinuxShellClipboardService : IClipboardService
                 ClipboardTool.WlClipboard => await ReadCommandAsync("wl-paste", "--no-newline"),
                 ClipboardTool.Xclip => await ReadCommandAsync("xclip", "-selection clipboard -o"),
                 ClipboardTool.Xsel => await ReadCommandAsync("xsel", "--clipboard --output"),
+                ClipboardTool.KdeKlipper => await ReadCommandAsync("qdbus", "org.kde.klipper /klipper getClipboardContents"),
                 _ => null
             };
         }
@@ -131,6 +146,30 @@ public class LinuxShellClipboardService : IClipboardService
         }
     }
 
+    // Helper to verify if Klipper service is available via qdbus
+    private static async Task<bool> CheckKlipperAsync()
+    {
+        try
+        {
+            using var proc = Process.Start(new ProcessStartInfo
+            {
+                FileName = "qdbus",
+                Arguments = "org.kde.klipper", // Checks if the service is listed
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            });
+            
+            if (proc == null) return false;
+            await proc.WaitForExitAsync();
+            return proc.ExitCode == 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private static async Task RunCommandAsync(string command, string args, string input)
     {
         using var proc = new Process
@@ -149,6 +188,29 @@ public class LinuxShellClipboardService : IClipboardService
         await proc.StandardInput.WriteAsync(input);
         proc.StandardInput.Close(); 
         
+        await proc.WaitForExitAsync();
+    }
+
+    private static async Task RunQdbusSetAsync(string text)
+    {
+        using var proc = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = "qdbus",
+                RedirectStandardOutput = true, // Suppress output
+                UseShellExecute = false,
+                CreateNoWindow = true
+            }
+        };
+        
+        // Use ArgumentList to safely handle special characters/spaces without manual escaping
+        proc.StartInfo.ArgumentList.Add("org.kde.klipper");
+        proc.StartInfo.ArgumentList.Add("/klipper");
+        proc.StartInfo.ArgumentList.Add("setClipboardContents");
+        proc.StartInfo.ArgumentList.Add(text);
+
+        proc.Start();
         await proc.WaitForExitAsync();
     }
 

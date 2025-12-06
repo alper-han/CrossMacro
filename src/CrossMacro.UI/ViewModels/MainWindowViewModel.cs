@@ -26,6 +26,7 @@ public class MainWindowViewModel : ViewModelBase
     public RecordingViewModel Recording { get; }
     public PlaybackViewModel Playback { get; }
     public FilesViewModel Files { get; }
+    public TextExpansionViewModel TextExpansion { get; }
     public SettingsViewModel Settings { get; }
     
     public bool IsCloseButtonVisible { get; }
@@ -39,6 +40,7 @@ public class MainWindowViewModel : ViewModelBase
         RecordingViewModel recording,
         PlaybackViewModel playback,
         FilesViewModel files,
+        TextExpansionViewModel textExpansion,
         SettingsViewModel settings,
         IGlobalHotkeyService hotkeyService,
         IMousePositionProvider positionProvider)
@@ -46,6 +48,7 @@ public class MainWindowViewModel : ViewModelBase
         Recording = recording;
         Playback = playback;
         Files = files;
+        TextExpansion = textExpansion;
         Settings = settings;
         _hotkeyService = hotkeyService;
         _positionProvider = positionProvider;

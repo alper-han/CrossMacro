@@ -67,6 +67,12 @@
                        FontWeight="Bold"
                        FontSize="16"/>
             </Grid>
+
+            <TextBlock Classes="label" 
+                      Text="💡 Tip: Loop Count 0 means infinite loop"
+                      HorizontalAlignment="Center"
+                      FontSize="12"
+                      Opacity="0.7"/>
         </StackPanel>
     </ScrollViewer>
 

@@ -49,4 +49,12 @@ public class AppSettings
     /// Whether keyboard recording is enabled
     /// </summary>
     public bool IsKeyboardRecordingEnabled { get; set; } = true;
+    
+    // Text Expansion Settings
+    
+    /// <summary>
+    /// Whether text expansion is enabled globally
+    /// </summary>
+    public bool EnableTextExpansion { get; set; } = false;
 }
+

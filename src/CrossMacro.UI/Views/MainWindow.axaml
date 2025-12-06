@@ -57,6 +57,11 @@
                 <tabs:FilesTabView DataContext="{Binding Files}"/>
             </TabItem>
             
+            <!-- Text Expansion Tab -->
+            <TabItem Header="📝 Text Expansion" FontSize="14">
+                <tabs:TextExpansionTabView DataContext="{Binding TextExpansion}"/>
+            </TabItem>
+            
             <!-- Settings Tab -->
             <TabItem Header="⚙️ Settings" FontSize="14">
                 <tabs:SettingsTabView DataContext="{Binding Settings}"/>

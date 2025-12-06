@@ -1,4 +1,5 @@
 using System;
+using System.Collections.ObjectModel;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
@@ -16,6 +17,7 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         new DesignRecordingViewModel(),
         new DesignPlaybackViewModel(),
         new DesignFilesViewModel(),
+        new DesignTextExpansionViewModel(),
         new DesignSettingsViewModel(),
         new MockGlobalHotkeyService(),
         new MockMousePositionProvider())
@@ -47,6 +49,19 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         {
         }
     }
+
+    private class DesignTextExpansionViewModel : TextExpansionViewModel
+    {
+        public DesignTextExpansionViewModel() : base(new MockTextExpansionStorageService())
+        {
+            Expansions = new ObservableCollection<TextExpansion>
+            {
+                new TextExpansion(":mail", "example@email.com"),
+                new TextExpansion(":date", "2023-10-27", false)
+            };
+        }
+    }
+
 
     private class DesignSettingsViewModel : SettingsViewModel
     {
@@ -111,6 +126,13 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         public void Dispose() { }
     }
 
+    private class MockTextExpansionStorageService : Infrastructure.Services.TextExpansionStorageService
+    {
+        public MockTextExpansionStorageService() : base()
+        {
+        }
+    }
+
     private class MockSettingsService : ISettingsService
     {
         public AppSettings Current { get; } = new AppSettings();
@@ -120,3 +142,4 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         public void Save() { }
     }
 }
+

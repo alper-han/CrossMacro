@@ -58,6 +58,7 @@ public partial class App : Application
         services.AddSingleton<RecordingViewModel>();
         services.AddSingleton<PlaybackViewModel>();
         services.AddSingleton<FilesViewModel>();
+        services.AddSingleton<TextExpansionViewModel>();
         services.AddSingleton<SettingsViewModel>();
         
         // Register Main ViewModel (Coordinator)
@@ -65,6 +66,12 @@ public partial class App : Application
         
         // Register Tray Icon Service
         services.AddSingleton<ITrayIconService, TrayIconService>();
+        // Use shell-based clipboard service for reliable background operation on Linux
+        services.AddSingleton<IClipboardService, LinuxShellClipboardService>(); 
+        // Register Text Expansion Storage Service
+        services.AddSingleton<TextExpansionStorageService>();
+        services.AddSingleton<ITextExpansionService, TextExpansionService>();
+
         
         _serviceProvider = services.BuildServiceProvider();
     }
@@ -77,12 +84,17 @@ public partial class App : Application
             // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
             DisableAvaloniaDataAnnotationValidation();
             
+            if (_serviceProvider == null)
+            {
+                throw new InvalidOperationException("Service provider is not initialized");
+            }
+            
             // Load settings synchronously to avoid deadlock
-            var settingsService = _serviceProvider!.GetRequiredService<ISettingsService>();
+            var settingsService = _serviceProvider.GetRequiredService<ISettingsService>();
             settingsService.Load();
             
             // Resolve ViewModel from DI container
-            var viewModel = _serviceProvider!.GetRequiredService<MainWindowViewModel>();
+            var viewModel = _serviceProvider.GetRequiredService<MainWindowViewModel>();
             
             desktop.MainWindow = new MainWindow
             {
@@ -90,8 +102,13 @@ public partial class App : Application
             };
             
             // Initialize tray icon service after main window is created
-            var trayIconService = _serviceProvider!.GetRequiredService<ITrayIconService>();
+            var trayIconService = _serviceProvider.GetRequiredService<ITrayIconService>();
             trayIconService.Initialize();
+            
+            // Initialize Text Expansion Service on background thread
+            var expansionService = _serviceProvider.GetRequiredService<ITextExpansionService>();
+            _ = System.Threading.Tasks.Task.Run(() => expansionService.Start());
+
             
             // Set initial tray icon state
             trayIconService.SetEnabled(settingsService.Current.EnableTrayIcon);
@@ -100,6 +117,24 @@ public partial class App : Application
             viewModel.TrayIconEnabledChanged += (sender, enabled) =>
             {
                 trayIconService.SetEnabled(enabled);
+            };
+
+            // Listen for settings expansion toggle via a new mechanism or just rely on the service checking the settings?
+            // The service checks _settingsService.Current.EnableTextExpansion in Start(), but if it changes at runtime...
+            // We should ideally subscribe to changes, but for now simple restart or manual Start/Stop might be needed if I didn't implement listener on service.
+            // Actually, let's fix the service to listen to property changes if we can, or just start/stop here.
+            
+            // For now, let's wire up the SettingsViewModel change to the service
+            var settingsVM = _serviceProvider.GetRequiredService<SettingsViewModel>();
+            settingsVM.PropertyChanged += (sender, e) => {
+                if (e.PropertyName == nameof(SettingsViewModel.EnableTextExpansion))
+                {
+                     // Run Start/Stop on background thread to avoid UI blocking
+                     _ = System.Threading.Tasks.Task.Run(() => {
+                         if (settingsVM.EnableTextExpansion) expansionService.Start();
+                         else expansionService.Stop();
+                     });
+                }
             };
         }
 

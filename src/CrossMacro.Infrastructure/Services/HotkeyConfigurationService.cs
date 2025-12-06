@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using System.IO;
 using System.Text.Json;
 using CrossMacro.Core.Models;
@@ -42,6 +43,33 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
                     Log.Information("Loaded hotkey configuration from {Path}", _configPath);
                     return settings;
                 }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to load hotkey configuration from {Path}", _configPath);
+        }
+
+        Log.Information("Using default hotkey configuration");
+        return new HotkeySettings();
+    }
+
+    public async Task<HotkeySettings> LoadAsync()
+    {
+        try
+        {
+            if (!File.Exists(_configPath))
+            {
+                Log.Information("Using default hotkey configuration");
+                return new HotkeySettings();
+            }
+
+            var json = await File.ReadAllTextAsync(_configPath);
+            var settings = JsonSerializer.Deserialize<HotkeySettings>(json);
+            if (settings != null)
+            {
+                Log.Information("Loaded hotkey configuration from {Path}", _configPath);
+                return settings;
             }
         }
         catch (Exception ex)

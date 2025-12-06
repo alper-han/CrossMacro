@@ -106,6 +106,22 @@ public class SettingsViewModel : ViewModelBase
         }
     }
     
+    public bool EnableTextExpansion
+    {
+        get => _settingsService.Current.EnableTextExpansion;
+        set
+        {
+            if (_settingsService.Current.EnableTextExpansion != value)
+            {
+                _settingsService.Current.EnableTextExpansion = value;
+                OnPropertyChanged();
+                
+                // Save settings asynchronously
+                _ = _settingsService.SaveAsync();
+            }
+        }
+    }
+    
     private void UpdateHotkeys()
     {
         try

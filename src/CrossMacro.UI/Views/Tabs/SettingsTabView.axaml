@@ -40,19 +40,37 @@
             
             <!-- Tray Icon Settings -->
             <Border Background="#1E293B" CornerRadius="8" Padding="12">
-                <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Grid.Column="0" 
-                              Text="Enable Tray Icon" 
-                              FontWeight="Medium" 
-                              Foreground="#F1F5F9"
-                              VerticalAlignment="Center"/>
-                              
-                    <ToggleSwitch Grid.Column="1" 
-                                 IsChecked="{Binding EnableTrayIcon}"
-                                 OnContent="" 
-                                 OffContent=""
-                                 VerticalAlignment="Center"/>
-                </Grid>
+                <StackPanel Spacing="16">
+                    <!-- Tray Icon -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" 
+                                  Text="Enable Tray Icon" 
+                                  FontWeight="Medium" 
+                                  Foreground="#F1F5F9"
+                                  VerticalAlignment="Center"/>
+                                  
+                        <ToggleSwitch Grid.Column="1" 
+                                     IsChecked="{Binding EnableTrayIcon}"
+                                     OnContent="" 
+                                     OffContent=""
+                                     VerticalAlignment="Center"/>
+                    </Grid>
+                    
+                    <!-- Text Expansion -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" 
+                                  Text="Enable Text Expansion" 
+                                  FontWeight="Medium" 
+                                  Foreground="#F1F5F9"
+                                  VerticalAlignment="Center"/>
+                                  
+                        <ToggleSwitch Grid.Column="1" 
+                                     IsChecked="{Binding EnableTextExpansion}"
+                                     OnContent="" 
+                                     OffContent=""
+                                     VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
             </Border>
         </StackPanel>
     </ScrollViewer>

@@ -173,51 +173,53 @@
 
         formatter = pkgs.nixfmt-rfc-style;
 
-        # NixOS module for system-wide installation
-        nixosModules.default =
-          {
-            config,
-            lib,
-            pkgs,
-            ...
-          }:
-          with lib;
-          let
-            cfg = config.programs.crossmacro;
-          in
-          {
-            options.programs.crossmacro = {
-              enable = mkEnableOption "CrossMacro mouse macro recorder";
+      }
+    )
+    // {
+      # NixOS module for system-wide installation
+      nixosModules.default =
+        {
+          config,
+          lib,
+          pkgs,
+          ...
+        }:
+        with lib;
+        let
+          cfg = config.programs.crossmacro;
+        in
+        {
+          options.programs.crossmacro = {
+            enable = mkEnableOption "CrossMacro mouse macro recorder";
 
-              package = mkOption {
-                type = types.package;
-                default = self.packages.${pkgs.system}.default;
-                description = "The CrossMacro package to use";
-              };
-            };
-
-            config = mkIf cfg.enable {
-              environment.systemPackages = [ cfg.package ];
-
-              # Ensure input group exists
-              users.groups.input = { };
-
-              # Automatically add all normal users to input group
-              users.users = lib.mapAttrs (
-                name: user:
-                lib.optionalAttrs user.isNormalUser {
-                  extraGroups = user.extraGroups ++ [ "input" ];
-                }
-              ) config.users.users;
-
-              # Add udev rules for input device access
-              services.udev.extraRules = ''
-                # Allow members of input group to access input devices
-                KERNEL=="event*", SUBSYSTEM=="input", MODE="0660", GROUP="input"
-                KERNEL=="uinput", SUBSYSTEM=="misc", MODE="0660", GROUP="input"
-              '';
+            package = mkOption {
+              type = types.package;
+              default = self.packages.${pkgs.system}.default;
+              description = "The CrossMacro package to use";
             };
           };
-      }
-    );
+
+          config = mkIf cfg.enable {
+            environment.systemPackages = [ cfg.package ];
+
+            # Ensure input group exists
+            users.groups.input = { };
+
+            # Automatically add all normal users to input group
+            users.users = lib.mapAttrs (
+              name: user:
+              lib.optionalAttrs user.isNormalUser {
+                extraGroups = user.extraGroups ++ [ "input" ];
+              }
+            ) config.users.users;
+
+            # Add udev rules for input device access
+            services.udev.extraRules = ''
+              # Allow members of input group to access input devices
+              KERNEL=="event*", SUBSYSTEM=="input", MODE="0660", GROUP="input"
+              KERNEL=="uinput", SUBSYSTEM=="misc", MODE="0660", GROUP="input"
+            '';
+          };
+        };
+    };
 }

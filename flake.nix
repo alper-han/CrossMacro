@@ -113,10 +113,10 @@
           name = "crossmacro";
 
           targetPkgs =
-            pkgs:
+            tpkgs:
             [
               crossmacro
-              pkgs.dotnet-runtime_10
+              tpkgs.dotnet-runtime_10
             ]
             ++ runtimeLibs;
 
@@ -129,9 +129,8 @@
             ln -s ${crossmacro}/share/metainfo $out/share/metainfo
           '';
 
-          meta = with pkgs.lib; {
+          meta = crossmacro.meta // {
             description = "CrossMacro wrapped in FHS environment (Recommended for Avalonia)";
-            platforms = platforms.linux;
             mainProgram = "crossmacro";
           };
         };
@@ -153,7 +152,7 @@
         apps = {
           default = {
             type = "app";
-            program = "${crossmacro-fhs}/bin/crossmacro";
+            program = pkgs.lib.getExe crossmacro-fhs;
           };
         };
 

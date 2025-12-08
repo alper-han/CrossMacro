@@ -197,21 +197,21 @@
               default = self.packages.${pkgs.system}.default;
               description = "The CrossMacro package to use";
             };
+
+            addUsersToInputGroup = mkOption {
+              type = types.bool;
+              default = true;
+              description = "Whether to add all normal users to the input group";
+            };
           };
 
           config = mkIf cfg.enable {
             environment.systemPackages = [ cfg.package ];
 
-            # Ensure input group exists
-            users.groups.input = { };
-
             # Automatically add all normal users to input group
-            users.users = lib.mapAttrs (
-              name: user:
-              lib.optionalAttrs user.isNormalUser {
-                extraGroups = user.extraGroups ++ [ "input" ];
-              }
-            ) config.users.users;
+            users.groups.input.members = mkIf cfg.addUsersToInputGroup (
+              attrNames (filterAttrs (_: user: user.isNormalUser) config.users.users)
+            );
 
             # Add udev rules for input device access
             services.udev.extraRules = ''

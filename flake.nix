@@ -6,11 +6,17 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        
+
         # Runtime libraries required by Avalonia/SkiaSharp on Linux
         # These are critical for FHS environment to work correctly
         runtimeLibs = with pkgs; [
@@ -18,7 +24,7 @@
           fontconfig
           freetype
           expat
-          
+
           # X11 dependencies (Required by Avalonia/SkiaSharp)
           xorg.libX11
           xorg.libICE
@@ -30,24 +36,24 @@
           xorg.libXrender
           xorg.libXinerama
           xorg.libXfixes
-          
+
           # GTK/GNOME dependencies
           glib
           gtk3
-          
+
           # Graphics/OpenGL
           libglvnd
           mesa
-          
+
           # Core system libraries
           zlib
           icu
           openssl
-          
+
           # Wayland support
           wayland
           libxkbcommon
-          
+
           # Additional dependencies
           krb5
           stdenv.cc.cc.lib # libstdc++
@@ -61,7 +67,7 @@
           src = ./.;
 
           projectFile = "src/CrossMacro.UI/CrossMacro.UI.csproj";
-          
+
           # NuGet dependencies lock file
           nugetDeps = ./deps.nix;
 
@@ -72,7 +78,7 @@
           executables = [ "CrossMacro.UI" ];
 
           buildType = "Release";
-          
+
           # Disable self-contained to use system runtime
           dotnetFlags = [
             "-p:PublishSingleFile=false"
@@ -99,11 +105,14 @@
         # This ensures SkiaSharp/Avalonia can find all native libraries (libX11, fontconfig, etc.)
         crossmacro-fhs = pkgs.buildFHSEnv {
           name = "crossmacro";
-          
-          targetPkgs = pkgs: [
-            crossmacro
-            pkgs.dotnet-runtime_10
-          ] ++ runtimeLibs;
+
+          targetPkgs =
+            pkgs:
+            [
+              crossmacro
+              pkgs.dotnet-runtime_10
+            ]
+            ++ runtimeLibs;
 
           runScript = "CrossMacro.UI";
 
@@ -119,10 +128,10 @@
         packages = {
           # Default to FHS version for 'nix build'
           default = crossmacro-fhs;
-          
+
           # Raw package
           crossmacro = crossmacro;
-          
+
           # Explicit FHS package
           crossmacro-fhs = crossmacro-fhs;
         };
@@ -136,13 +145,16 @@
         };
 
         devShells.default = pkgs.mkShell {
-          buildInputs = with pkgs; [
-            dotnet-sdk_10
-            git
-          ] ++ runtimeLibs;
+          buildInputs =
+            with pkgs;
+            [
+              dotnet-sdk_10
+              git
+            ]
+            ++ runtimeLibs;
 
           LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath runtimeLibs}";
-          
+
           shellHook = ''
             echo "🚀 CrossMacro Development Environment"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -159,8 +171,16 @@
           '';
         };
 
+        formatter = pkgs.nixfmt-rfc-style;
+
         # NixOS module for system-wide installation
-        nixosModules.default = { config, lib, pkgs, ... }:
+        nixosModules.default =
+          {
+            config,
+            lib,
+            pkgs,
+            ...
+          }:
           with lib;
           let
             cfg = config.programs.crossmacro;
@@ -168,7 +188,7 @@
           {
             options.programs.crossmacro = {
               enable = mkEnableOption "CrossMacro mouse macro recorder";
-              
+
               package = mkOption {
                 type = types.package;
                 default = self.packages.${pkgs.system}.default;
@@ -178,17 +198,18 @@
 
             config = mkIf cfg.enable {
               environment.systemPackages = [ cfg.package ];
-              
+
               # Ensure input group exists
-              users.groups.input = {};
-              
+              users.groups.input = { };
+
               # Automatically add all normal users to input group
-              users.users = lib.mapAttrs (name: user:
+              users.users = lib.mapAttrs (
+                name: user:
                 lib.optionalAttrs user.isNormalUser {
                   extraGroups = user.extraGroups ++ [ "input" ];
                 }
               ) config.users.users;
-              
+
               # Add udev rules for input device access
               services.udev.extraRules = ''
                 # Allow members of input group to access input devices

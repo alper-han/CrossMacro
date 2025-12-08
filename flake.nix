@@ -91,6 +91,12 @@
             "--prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath runtimeLibs}"
           ];
 
+          postInstall = ''
+            install -Dm644 scripts/assets/CrossMacro.desktop $out/share/applications/crossmacro.desktop
+            install -Dm644 src/CrossMacro.UI/Assets/mouse-icon.png $out/share/icons/hicolor/512x512/apps/crossmacro.png
+            install -Dm644 scripts/assets/com.github.alper-han.CrossMacro.appdata.xml $out/share/metainfo/com.github.alper-han.CrossMacro.appdata.xml
+          '';
+
           meta = with pkgs.lib; {
             description = "Mouse macro recorder and player supporting Hyprland, KDE Plasma, and GNOME Shell";
             homepage = "https://github.com/alper-han/CrossMacro";
@@ -115,6 +121,13 @@
             ++ runtimeLibs;
 
           runScript = "CrossMacro.UI";
+
+          extraInstallCommands = ''
+            mkdir -p $out/share
+            ln -s ${crossmacro}/share/applications $out/share/applications
+            ln -s ${crossmacro}/share/icons $out/share/icons
+            ln -s ${crossmacro}/share/metainfo $out/share/metainfo
+          '';
 
           meta = with pkgs.lib; {
             description = "CrossMacro wrapped in FHS environment (Recommended for Avalonia)";

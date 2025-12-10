@@ -7,6 +7,7 @@ namespace CrossMacro.Core.Services;
 /// </summary>
 public interface IClipboardService
 {
+    bool IsSupported { get; }
     Task SetTextAsync(string text);
     Task<string?> GetTextAsync();
 }

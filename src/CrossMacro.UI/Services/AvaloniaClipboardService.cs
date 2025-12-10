@@ -12,27 +12,43 @@ namespace CrossMacro.UI.Services;
 
 public class AvaloniaClipboardService : IClipboardService
 {
+    public bool IsSupported => true; // Avalonia clipboard is generally supported if UI is running
+
     public async Task SetTextAsync(string text)
     {
+        Log.Debug("[AvaloniaClipboard] SetTextAsync called for length {Length}", text.Length);
         await Dispatcher.UIThread.InvokeAsync(async () =>
         {
-            try
+            Log.Debug("[AvaloniaClipboard] SetTextAsync running on UI thread");
+            var clipboard = GetClipboard();
+            if (clipboard != null)
             {
-                var clipboard = GetClipboard();
-                if (clipboard != null)
+                try 
                 {
+                    // Wayland/Linux fix: Do NOT call ClearAsync() before SetTextAsync().
+                    // It can cause ownership loss if the window is not focused or if the compositor is strict.
+                    // Log.Debug("[AvaloniaClipboard] Clearing clipboard...");
+                    // await clipboard.ClearAsync(); 
+                    
+                    Log.Debug("[AvaloniaClipboard] Setting text to clipboard instance: {Type}", clipboard.GetType().Name);
                     await clipboard.SetTextAsync(text);
+                    Log.Debug("[AvaloniaClipboard] SetTextAsync completed successfully");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "[AvaloniaClipboard] Exception during SetTextAsync");
                 }
             }
-            catch (Exception ex)
+            else
             {
-                Log.Error(ex, "Failed to set clipboard text via Avalonia");
+                Log.Warning("[AvaloniaClipboard] SetTextAsync: Clipboard is null");
             }
         });
     }
 
     public async Task<string?> GetTextAsync()
     {
+        Log.Debug("[AvaloniaClipboard] GetTextAsync called");
         return await Dispatcher.UIThread.InvokeAsync(async () =>
         {
             try
@@ -56,13 +72,67 @@ public class AvaloniaClipboardService : IClipboardService
 
     private Avalonia.Input.Platform.IClipboard? GetClipboard()
     {
-        // Try to get clipboard from the main window or active application lifetime
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        // Debugging flow
+        if (Application.Current == null)
         {
-            return desktop.MainWindow?.Clipboard;
+             Log.Error("[AvaloniaClipboard] Application.Current is null!");
+             return null;
+        }
+
+        // 1. Try Classic Desktop Lifetime
+        if (Application.Current.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            if (desktop.MainWindow != null)
+            {
+                 var clipboard = desktop.MainWindow.Clipboard;
+                 if (clipboard != null) return clipboard;
+                 Log.Warning("[AvaloniaClipboard] desktop.MainWindow.Clipboard is null.");
+            }
+            else
+            {
+                 Log.Warning("[AvaloniaClipboard] desktop.MainWindow is null (Window might be closed/hidden).");
+            }
+        }
+        else
+        {
+             Log.Warning("[AvaloniaClipboard] ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime.");
         }
         
-        // Fallback for other lifetimes if needed (e.g. single view)
-        return TopLevel.GetTopLevel(null)?.Clipboard;
+        // 2. Try TopLevel lookup (Fallback)
+        try 
+        {
+             // This can find active windows even if MainWindow property is unset or confusing
+             // However, strictly speaking, we need a visual root.
+             var topLevel = TopLevel.GetTopLevel(null); 
+             if (topLevel != null)
+             {
+                 if (topLevel.Clipboard != null) return topLevel.Clipboard;
+                 Log.Warning("[AvaloniaClipboard] TopLevel found but Clipboard is null.");
+             }
+             else
+             {
+                 Log.Warning("[AvaloniaClipboard] TopLevel.GetTopLevel(null) returned null. No active visual root?");
+             }
+        }
+        catch (Exception ex)
+        {
+             Log.Warning(ex, "[AvaloniaClipboard] Failed to look up TopLevel.");
+        }
+        
+        // 3. Last Resort: Try to find ANY open window
+        if (Application.Current.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktopLoop)
+        {
+             foreach (var window in desktopLoop.Windows)
+             {
+                 if (window.Clipboard != null)
+                 {
+                      Log.Information("[AvaloniaClipboard] Found clipboard via auxiliary window: {Title}", window.Title);
+                      return window.Clipboard;
+                 }
+             }
+        }
+
+        Log.Error("[AvaloniaClipboard] Could not resolve any Clipboard instance. Avalonia clipboard unavailable.");
+        return null;
     }
 }

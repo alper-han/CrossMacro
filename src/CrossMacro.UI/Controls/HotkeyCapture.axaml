@@ -19,8 +19,7 @@
             <!-- Hover Effect on Border -->
             <Style Selector="Border:pointerover">
                 <Setter Property="Background" Value="#475569"/>
-                <Setter Property="BorderBrush" Value="#64748B"/>
-                <Setter Property="BoxShadow" Value="0 0 0 2 #1A94A3B8"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
             </Style>
             
             <!-- Hover Effect on Icon -->
@@ -43,7 +42,7 @@
                        x:Name="DisplayText"
                        Text="{Binding #Root.DisplayString}"
                        FontWeight="Bold" 
-                       Foreground="#F1F5F9" 
+                       Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" 
                        FontFamily="Consolas,Courier New,monospace"
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center"
@@ -57,7 +56,7 @@
                 <Canvas Width="24" Height="24">
                     <Path x:Name="EditIcon"
                           Data="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
-                          Fill="#F1F5F9"
+                          Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
                           Opacity="0.5">
                         <Path.Transitions>
                             <Transitions>

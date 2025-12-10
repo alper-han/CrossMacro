@@ -187,19 +187,41 @@ public class MacroPlayer : IMacroPlayer, IDisposable
                 e.Type == EventType.ButtonRelease || 
                 e.Type == EventType.Click);
             
-            if (firstMouseEvent != null && _cachedScreenWidth > 0 && _cachedScreenHeight > 0)
+            if (firstMouseEvent != null)
             {
-                // Clamp to valid screen coordinates (defensive programming)
-                int startX = Math.Clamp(firstMouseEvent.X, 0, _cachedScreenWidth);
-                int startY = Math.Clamp(firstMouseEvent.Y, 0, _cachedScreenHeight);
-                
-                Log.Information("[MacroPlayer] Moving to start position: ({X}, {Y})", startX, startY);
-                _device.MoveAbsolute(startX, startY);
-                _currentX = startX;
-                _currentY = startY;
-                _positionInitialized = true;
+                if (_cachedScreenWidth > 0 && _cachedScreenHeight > 0)
+                {
+                    // Full Absolute Support: Move directly to start
+                    int startX = Math.Clamp(firstMouseEvent.X, 0, _cachedScreenWidth);
+                    int startY = Math.Clamp(firstMouseEvent.Y, 0, _cachedScreenHeight);
+                    
+                    Log.Information("[MacroPlayer] Moving to start position: ({X}, {Y})", startX, startY);
+                    _device.MoveAbsolute(startX, startY);
+                    _currentX = startX;
+                    _currentY = startY;
+                    _positionInitialized = true;
+                }
+                else
+                {
+                    Log.Information("[MacroPlayer] Blind Mode: Performing Corner Reset (Force 0,0) to sync start position...");
+                    
+                    for (int r = 0; r < 5; r++)
+                    {
+                        _device.Move(-10000, -10000); 
+                        await Task.Delay(20, _cts.Token);
+                    }
+                    
+                    await Task.Delay(100, _cts.Token); 
+                    
+                    _currentX = 0;
+                    _currentY = 0;
+                    _positionInitialized = true;
+                    
+                    // If the first event isn't at 0,0, we need to move there from 0,0
+                    // Since we are at 0,0 now, we are consistent with the recording start
+                }
             }
-            else if (firstMouseEvent == null)
+            else
             {
                 Log.Information("[MacroPlayer] No mouse events found in macro, skipping start position move");
             }
@@ -371,7 +393,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable
                 break;
                 
             case EventType.MouseMove:
-                bool canPlayAbsolute = _positionProvider != null || (_cachedScreenWidth > 0 && _cachedScreenHeight > 0);
+                bool canPlayAbsolute = (_positionProvider != null && _positionProvider.IsSupported) || (_cachedScreenWidth > 0 && _cachedScreenHeight > 0);
 
                 if (canPlayAbsolute)
                 {

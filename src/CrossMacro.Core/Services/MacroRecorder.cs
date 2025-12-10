@@ -169,8 +169,8 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             
             Log.Information("[MacroRecorder] Successfully monitoring {Count} input device(s)", _readers.Count);
 
-            // Initialize cached position only if recording mouse
-            if (recordMouse && _positionProvider != null)
+            // Initialize cached position only if recording mouse and provider supports it
+            if (recordMouse && _positionProvider != null && _positionProvider.IsSupported)
             {
                 try
                 {
@@ -202,26 +202,52 @@ public class MacroRecorder : IMacroRecorder, IDisposable
                     if (!positionFound)
                     {
                         Log.Error("[MacroRecorder] Failed to get initial position after {Max} attempts.", InitialPositionRetryCount);
+                        // Instead of throwing, fall back to relative mode if provider is inconsistent
+                        Log.Warning("[MacroRecorder] Falling back to relative recording (0,0 start)");
+                        _cachedX = 0;
+                        _cachedY = 0;
                         throw new InvalidOperationException("Could not determine initial mouse position. Recording aborted to prevent drift.");
                     }
+
+                    // Start background position sync to correct drift during recording
+                    _syncCancellation = new CancellationTokenSource();
+                    _syncTask = Task.Run(() => PositionSyncLoop(_syncCancellation.Token));
                 }
                 catch (Exception ex)
                 {
                     Log.Error(ex, "[MacroRecorder] Error getting initial position");
-                }
-                
-                // Start background position sync to correct drift during recording
-                if (_positionProvider != null)
-                {
-                    _syncCancellation = new CancellationTokenSource();
-                    _syncTask = Task.Run(() => PositionSyncLoop(_syncCancellation.Token));
+                    throw; // Re-throw to abort if we expected support
                 }
             }
             else
             {
+                Log.Information("[MacroRecorder] Relative recording mode active (Blind Mode)");
+                
+                try 
+                {
+                    Log.Information("[MacroRecorder] Performing Corner Reset (Force 0,0) for calibration...");
+                    using (var resetDevice = new UInputDevice())
+                    {
+                        resetDevice.CreateVirtualInputDevice();
+                        await Task.Delay(200, cancellationToken);
+                        resetDevice.Move(-10000, -10000);
+                        await Task.Delay(50, cancellationToken);
+                        resetDevice.Move(-10000, -10000);
+                        Log.Information("[MacroRecorder] Corner Reset complete.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "[MacroRecorder] Failed to perform Corner Reset");
+                }
+
                 _accumulatedX = 0;
                 _accumulatedY = 0;
+                // Ensure cached values match start for consistency
+                _cachedX = 0;
+                _cachedY = 0;
             }
+
         }
         catch (Exception)
         {

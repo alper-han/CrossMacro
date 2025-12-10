@@ -19,6 +19,8 @@ public class CompositeClipboardService : IClipboardService
         _avaloniaService = avaloniaService;
     }
 
+    public bool IsSupported => _linuxService.IsSupported || _avaloniaService.IsSupported;
+
     private async Task InitializeAsync()
     {
         if (_initialized) return;
@@ -37,7 +39,7 @@ public class CompositeClipboardService : IClipboardService
              return;
         }
 
-        Log.Verbose("[CompositeClipboard] Linux shell clipboard tools not found, falling back to Avalonia clipboard");
+        Log.Debug("[CompositeClipboard] Linux shell clipboard tools not found, falling back to Avalonia clipboard");
         await _avaloniaService.SetTextAsync(text);
     }
 
@@ -50,7 +52,7 @@ public class CompositeClipboardService : IClipboardService
             return await _linuxService.GetTextAsync();
         }
         
-         Log.Verbose("[CompositeClipboard] Linux shell clipboard tools not found, falling back to Avalonia clipboard");
+         Log.Debug("[CompositeClipboard] Linux shell clipboard tools not found, falling back to Avalonia clipboard");
          return await _avaloniaService.GetTextAsync();
     }
 }

@@ -68,18 +68,39 @@ public class KeyboardLayoutService : IKeyboardLayoutService, IDisposable
     private string? DetectKeyboardLayout()
     {
         string? layout = null;
-
+        
         // 1. Try hyprctl (Wayland - Hyprland)
         layout = DetectHyprlandLayout();
         if (!string.IsNullOrWhiteSpace(layout)) return layout;
 
-        // 2. Try setxkbmap (X11)
-        layout = DetectX11Layout();
-        if (!string.IsNullOrWhiteSpace(layout)) return layout;
+        // Check if running on Wayland
+        bool isWayland = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"));
 
-        // 3. Try localectl (Systemd / Generic)
-        layout = DetectLocalectlLayout();
-        if (!string.IsNullOrWhiteSpace(layout)) return layout;
+        if (isWayland)
+        {
+            // On Wayland, setxkbmap usually queries XWayland which defaults to 'us' unless configured.
+            // localectl is more likely to represent the user's system preference.
+            
+            // 2. Try localectl (Systemd / Generic)
+            layout = DetectLocalectlLayout();
+            if (!string.IsNullOrWhiteSpace(layout)) return layout;
+
+            // 3. Try setxkbmap (X11/XWayland) as fallback
+            layout = DetectX11Layout();
+            if (!string.IsNullOrWhiteSpace(layout)) return layout;
+        }
+        else
+        {
+            // On X11, setxkbmap is the source of truth for the current session.
+
+            // 2. Try setxkbmap (X11)
+            layout = DetectX11Layout();
+            if (!string.IsNullOrWhiteSpace(layout)) return layout;
+
+            // 3. Try localectl (Systemd / Generic)
+            layout = DetectLocalectlLayout();
+            if (!string.IsNullOrWhiteSpace(layout)) return layout;
+        }
 
         // 4. Try Environment Variable
         layout = Environment.GetEnvironmentVariable("XKB_DEFAULT_LAYOUT");
@@ -434,10 +455,64 @@ public class KeyboardLayoutService : IKeyboardLayoutService, IDisposable
         return null; // Fallback
     }
 
+    private Dictionary<char, (int KeyCode, bool Shift, bool AltGr)>? _charToInputCache;
+
+    public (int KeyCode, bool Shift, bool AltGr)? GetInputForChar(char c)
+    {
+        lock (_lock)
+        {
+            if (_charToInputCache == null)
+            {
+                BuildCharInputCache();
+            }
+
+            return _charToInputCache!.TryGetValue(c, out var input) ? input : null;
+        }
+    }
+
+    private void BuildCharInputCache()
+    {
+        _charToInputCache = new Dictionary<char, (int KeyCode, bool Shift, bool AltGr)>();
+
+        // Scan codes 1-255 using the existing XKB state
+        // Higher keycodes (multimedia etc) are rarely used for chars
+        for (int code = 1; code < 255; code++)
+        {
+            if (IsModifier(code)) continue;
+
+            // Check all 4 modifier combinations
+            // 1. None
+            TryAddCharToCache(code, false, false);
+            // 2. Shift
+            TryAddCharToCache(code, true, false);
+            // 3. AltGr
+            TryAddCharToCache(code, false, true);
+            // 4. Shift + AltGr
+            TryAddCharToCache(code, true, true);
+        }
+    }
+
+    private void TryAddCharToCache(int code, bool shift, bool altGr)
+    {
+        // Must use the internal method that assumes lock is held or works safely?
+        // GetCharFromKeyCode takes a lock. We are already in a lock in GetInputForChar, but BuildCharInputCache is called from there.
+        // Wait, GetCharFromKeyCode takes `lock (_lock)`. Use `Monitor.IsEntered` or split the method?
+        // Actually GetCharFromKeyCode logic is small. I can refactor or just call it.
+        // Recursive lock is allowed in C#, so calling GetCharFromKeyCode inside GetInputForChar's lock is fine.
+        
+        var c = GetCharFromKeyCode(code, shift, altGr, false);
+        if (c.HasValue && !_charToInputCache!.ContainsKey(c.Value))
+        {
+            _charToInputCache[c.Value] = (code, shift, altGr);
+        }
+    }
+
     private void UpdateModifierIndices()
     {
         if (_xkbKeymap == IntPtr.Zero) return;
         
+        _charToInputCache = null; // Invalidate cache on layout update
+
         _modIndexShift = GetModIndex("Shift");
         _modIndexLock = GetModIndex("Lock", "Caps_Lock"); 
         _modIndexCtrl = GetModIndex("Control", "Ctrl");

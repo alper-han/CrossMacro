@@ -14,7 +14,8 @@
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Grid.Column="0" Classes="label" Text="Playback Speed"/>
                     <TextBlock Grid.Column="1" Text="{Binding PlaybackSpeed, StringFormat='{}{0:0.0}x'}" 
-                              Classes="value"/>
+                              FontWeight="Medium"
+                              Foreground="{DynamicResource SystemAccentColor}"/>
                 </Grid>
                 <Slider Minimum="0.1" Maximum="10.0" Value="{Binding PlaybackSpeed}"
                         TickFrequency="0.1" IsSnapToTickEnabled="True"/>
@@ -40,7 +41,9 @@
             <StackPanel Spacing="8">
                  <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Grid.Column="0" Classes="label" Text="Countdown (sec)"/>
-                    <TextBlock Grid.Column="1" Text="{Binding CountdownSeconds}" Classes="value"/>
+                    <TextBlock Grid.Column="1" Text="{Binding CountdownSeconds}" 
+                              FontWeight="Medium"
+                              Foreground="{DynamicResource SystemAccentColor}"/>
                 </Grid>
                 <NumericUpDown Minimum="0" Maximum="2147483647" Value="{Binding CountdownSeconds}"
                         Increment="1" FormatString="0"/>

@@ -23,9 +23,9 @@
                        Padding="12,8"
                        VerticalAlignment="Stretch">
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <Ellipse Width="12" Height="12" Fill="#64748B"/>
+                        <Ellipse Width="12" Height="12" Fill="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
                         <TextBlock Text="{Binding RecordingStatus}" 
-                                  Foreground="#F1F5F9"
+                                  Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
                                   FontWeight="Medium"
                                   TextTrimming="CharacterEllipsis"
                                   ToolTip.Tip="{Binding RecordingStatus}"
@@ -41,7 +41,8 @@
                        Margin="8,0,0,0"
                        VerticalAlignment="Stretch">
                     <TextBlock Text="{Binding EventCount}" 
-                              Classes="value"
+                              FontWeight="Medium"
+                              Foreground="{DynamicResource SystemAccentColor}"
                               HorizontalAlignment="Center"
                               VerticalAlignment="Center"/>
                 </Border>
@@ -54,7 +55,7 @@
                        Margin="8,0,0,0"
                        VerticalAlignment="Stretch">
                     <TextBlock Text="{Binding IsRecording}" 
-                              Foreground="#10B981"
+                              Foreground="{DynamicResource SystemAccentColor}"
                               HorizontalAlignment="Center"
                               FontWeight="Bold"
                               VerticalAlignment="Center"/>
@@ -66,7 +67,7 @@
                 <StackPanel Spacing="16">
                     <TextBlock Text="CAPTURE SETTINGS" 
                               FontWeight="SemiBold" 
-                              Foreground="#94A3B8" 
+                              Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" 
                               FontSize="12"/>
 
                     <!-- Toggles -->

@@ -291,29 +291,130 @@ public class TextExpansionService : ITextExpansionService
                 Log.Debug("Backspacing {Length} chars", expansion.Trigger.Length);
                 for (int i = 0; i < expansion.Trigger.Length; i++)
                 {
-                    SendKey(14); // Backspace
+                    await SendKeyAsync(14); // Backspace
                 }
 
-                // 2. Paste the replacement (Universal Language Support)
-                Log.Debug("Pasting replacement: {Replacement}", expansion.Replacement);
-                
-                // Backup clipboard
-                var oldClipboard = await _clipboardService.GetTextAsync();
-                
-                // Set new text
-                await _clipboardService.SetTextAsync(expansion.Replacement);
-                await Task.Delay(50); // Wait for clipboard to accept
-                
-                // Send Ctrl+V
-                SendKey(47, shift: false, altGr: false, ctrl: true); // 47 = v, ctrl=true
-                
-                // Wait for paste to complete
-                await Task.Delay(150);
-                
-                // Restore clipboard
-                if (!string.IsNullOrEmpty(oldClipboard))
+                // 2. Insert Replacement
+                bool clipboardSuccess = false;
+
+                if (_clipboardService.IsSupported)
                 {
-                    await _clipboardService.SetTextAsync(oldClipboard);
+                    Log.Debug("Attempting to paste replacement: {Replacement}", expansion.Replacement);
+                    
+                    try 
+                    {
+                        // Backup clipboard (with timeout)
+                        string? oldClipboard = null;
+                        try 
+                        {
+                            var getTask = _clipboardService.GetTextAsync();
+                            // Reduce timeout to 100ms for faster fallback
+                            if (await Task.WhenAny(getTask, Task.Delay(100)) == getTask)
+                            {
+                                oldClipboard = await getTask;
+                            }
+                        }
+                        catch (Exception ex) 
+                        {
+                            Log.Warning(ex, "Failed to backup clipboard");
+                        }
+                        
+                        // Set new text (with timeout)
+                        var setsTask = _clipboardService.SetTextAsync(expansion.Replacement);
+                        // Reduce timeout to 100ms to prevent perceptible freeze
+                        if (await Task.WhenAny(setsTask, Task.Delay(100)) == setsTask)
+                        {
+                            await setsTask; // Propagate exceptions if any
+                            
+                            await Task.Delay(50); // Wait for clipboard to accept
+                            
+                            // Send Ctrl+V
+                            await SendKeyAsync(47, shift: false, altGr: false, ctrl: true); // 47 = v, ctrl=true
+                            
+                            // Wait for paste to complete
+                            await Task.Delay(150);
+                            
+                            clipboardSuccess = true;
+                            
+                            // Restore clipboard (fire and forget)
+                            if (!string.IsNullOrEmpty(oldClipboard))
+                            {
+                                _ = Task.Run(async () => {
+                                    try {
+                                        var restoreTask = _clipboardService.SetTextAsync(oldClipboard);
+                                        await Task.WhenAny(restoreTask, Task.Delay(200));
+                                    } catch { /* Ignore restore errors */ }
+                                });
+                            }
+                        }
+                        else
+                        {
+                             Log.Warning("Clipboard SetText timed out (100ms). Switching to type fallback.");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Clipboard paste operation failed via exception");
+                    }
+                }
+
+                if (!clipboardSuccess)
+                {
+                    // Fallback: Type the characters directly if clipboard failed/timed-out
+                    Log.Information("Typing replacement directly (Fallback active): {Replacement}", expansion.Replacement);
+                    
+                    // Iterate using index to handle Surrogate Pairs (UTF-16) correctly
+                    string text = expansion.Replacement;
+                    for (int i = 0; i < text.Length; i++)
+                    {
+                        char c = text[i];
+                        if (c == '\r') continue; // Ignore CR, rely on LF
+                        
+                        if (c == '\n')
+                        {
+                            await SendKeyAsync(28); // Enter
+                            await Task.Delay(5);
+                            continue;
+                        }
+
+                        int codePoint = c;
+                        bool isSurrogatePair = false;
+
+                        // Check for Surrogate Pair (High followed by Low)
+                        if (char.IsHighSurrogate(c) && i + 1 < text.Length && char.IsLowSurrogate(text[i + 1]))
+                        {
+                            codePoint = char.ConvertToUtf32(text, i);
+                            isSurrogatePair = true;
+                        }
+
+                        bool handled = false;
+                        if (!isSurrogatePair)
+                        {
+                           // Standard BMP char: Try simple key injection first
+                            var input = _layoutService.GetInputForChar(c);
+                            if (input.HasValue)
+                            {
+                                await SendKeyAsync(input.Value.KeyCode, input.Value.Shift, input.Value.AltGr);
+                                handled = true;
+                            }
+                        }
+
+                        if (!handled)
+                        {
+                            // Fallback for Emojis (Surrogates) or chars not on layout
+                            // Sequence: Ctrl+Shift+U -> Hex Code -> Enter
+                            Log.Debug("Unicode Hex Fallback for: {CodePoint:X}", codePoint);
+                            await TypeUnicodeHexAsync(codePoint);
+                        }
+
+                        if (isSurrogatePair)
+                        {
+                            i++; // Skip low surrogate
+                        }
+
+                        // Reduced inter-char delay for speed
+                        await Task.Delay(1); 
+                    }
                 }
             }
             finally
@@ -327,7 +428,61 @@ public class TextExpansionService : ITextExpansionService
         }
     }
 
-    private void SendKey(int keyCode, bool shift = false, bool altGr = false, bool ctrl = false)
+    private async Task TypeUnicodeHexAsync(int codePoint)
+    {
+        if (_outputDevice == null) return;
+
+        Log.Debug("Initiating Ctrl+Shift+U sequence...");
+        
+        // 1. Send Ctrl+Shift+U Explicit Sequence with proper delays
+        // Hold Modifiers
+        // Ctrl Down
+        _outputDevice.SendEvent(UInputNative.EV_KEY, 29, 1); // Left Ctrl
+        _outputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+        await Task.Delay(10);
+        
+        // Shift Down
+        _outputDevice.SendEvent(UInputNative.EV_KEY, 42, 1); // Left Shift
+        _outputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+        await Task.Delay(10);
+        
+        // Press U (22)
+        await SendKeyAsync(22); 
+        
+        // Release Modifiers
+        // Shift Up
+        _outputDevice.SendEvent(UInputNative.EV_KEY, 42, 0); // Release Shift
+        _outputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+        await Task.Delay(10);
+        
+        // Ctrl Up
+        _outputDevice.SendEvent(UInputNative.EV_KEY, 29, 0); // Release Ctrl
+        _outputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+        
+        // CRITICAL: Wait for the IME/Toolkit to display the underlined 'u'
+        // Increased to 200ms to ensure stability on slower systems/compositors
+        await Task.Delay(200);
+
+        // 2. Type Hex Digits Fast
+        string hex = codePoint.ToString("x");
+        foreach (char h in hex)
+        {
+            var input = _layoutService.GetInputForChar(h);
+            if (input.HasValue)
+            {
+                await SendKeyAsync(input.Value.KeyCode, input.Value.Shift, input.Value.AltGr);
+            }
+            await Task.Delay(5); // Fast typing (5ms)
+        }
+        
+        await Task.Delay(20);
+        
+        // 3. Commit
+        Log.Debug("Committing Unicode entry...");
+        await SendKeyAsync(28); // Enter
+    }
+
+    private async Task SendKeyAsync(int keyCode, bool shift = false, bool altGr = false, bool ctrl = false)
     {
         if (_outputDevice == null) return;
 
@@ -352,6 +507,10 @@ public class TextExpansionService : ITextExpansionService
         _outputDevice.SendEvent(UInputNative.EV_KEY, (ushort)keyCode, 1);
         _outputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
         
+        // Hold key briefly to ensure OS registers it
+        await Task.Delay(15); 
+
+        // Key Release
         _outputDevice.SendEvent(UInputNative.EV_KEY, (ushort)keyCode, 0);
         _outputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
 

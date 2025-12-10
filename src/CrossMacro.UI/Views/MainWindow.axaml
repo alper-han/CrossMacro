@@ -32,7 +32,7 @@
                 <TextBlock Grid.Column="0" Text="⚠️" Margin="0,0,8,0" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1" 
                           Text="{Binding ExtensionWarning}" 
-                          Foreground="#1E293B"
+                          Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
                           FontWeight="Bold"
                           TextWrapping="Wrap"
                           VerticalAlignment="Center"/>
@@ -80,10 +80,10 @@
                           Text="🖱️ CrossMacro"
                           FontSize="12"
                           FontWeight="Bold"
-                          Foreground="#F1F5F9"
+                          Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
                           VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="2"
-                          Foreground="#94A3B8"
+                          Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
                           FontSize="11"
                           Text="{Binding GlobalStatus}"
                           HorizontalAlignment="Right"

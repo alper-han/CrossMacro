@@ -14,26 +14,26 @@
             <!-- Hotkey Info -->
             <Border Background="#1E293B" CornerRadius="8" Padding="12">
                 <StackPanel Spacing="12">
-                    <TextBlock Text="Global Hotkeys" FontWeight="Bold" Foreground="#F1F5F9"/>
+                    <TextBlock Text="Global Hotkeys" FontWeight="Bold" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
                     
                     <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
                         <controls:HotkeyCapture Grid.Row="0" Grid.Column="0" 
                                                Hotkey="{Binding RecordingHotkey, Mode=TwoWay}" 
                                                Margin="0,0,12,8"
                                                MinWidth="140"/>
-                        <TextBlock Grid.Row="0" Grid.Column="1" Text="Toggle Recording (Start/Stop)" VerticalAlignment="Center" Foreground="#CBD5E1"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="Toggle Recording (Start/Stop)" VerticalAlignment="Center" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
                         
                         <controls:HotkeyCapture Grid.Row="1" Grid.Column="0" 
                                                Hotkey="{Binding PlaybackHotkey, Mode=TwoWay}" 
                                                Margin="0,0,12,8"
                                                MinWidth="140"/>
-                        <TextBlock Grid.Row="1" Grid.Column="1" Text="Toggle Playback (Start/Stop)" VerticalAlignment="Center" Foreground="#CBD5E1"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="Toggle Playback (Start/Stop)" VerticalAlignment="Center" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
                         
                         <controls:HotkeyCapture Grid.Row="2" Grid.Column="0" 
                                                Hotkey="{Binding PauseHotkey, Mode=TwoWay}" 
                                                Margin="0,0,12,0"
                                                MinWidth="140"/>
-                        <TextBlock Grid.Row="2" Grid.Column="1" Text="Pause/Resume Playback" VerticalAlignment="Center" Foreground="#CBD5E1"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="Pause/Resume Playback" VerticalAlignment="Center" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
                     </Grid>
                 </StackPanel>
             </Border>
@@ -46,7 +46,7 @@
                         <TextBlock Grid.Column="0" 
                                   Text="Enable Tray Icon" 
                                   FontWeight="Medium" 
-                                  Foreground="#F1F5F9"
+                                  Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
                                   VerticalAlignment="Center"/>
                                   
                         <ToggleSwitch Grid.Column="1" 
@@ -61,7 +61,7 @@
                         <TextBlock Grid.Column="0" 
                                   Text="Enable Text Expansion" 
                                   FontWeight="Medium" 
-                                  Foreground="#F1F5F9"
+                                  Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
                                   VerticalAlignment="Center"/>
                                   
                         <ToggleSwitch Grid.Column="1" 

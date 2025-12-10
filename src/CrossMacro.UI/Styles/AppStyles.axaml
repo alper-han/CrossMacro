@@ -48,7 +48,7 @@
     <!-- Modern Button Styles -->
     <Style Selector="Button.primary">
         <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
-        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="Foreground" Value="White"/>
         <Setter Property="Padding" Value="16,10"/>
         <Setter Property="CornerRadius" Value="8"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
@@ -72,7 +72,7 @@
     
     <Style Selector="Button.success">
         <Setter Property="Background" Value="{StaticResource SuccessBrush}"/>
-        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="Foreground" Value="White"/>
         <Setter Property="Padding" Value="20,12"/>
         <Setter Property="CornerRadius" Value="10"/>
         <Setter Property="FontWeight" Value="Bold"/>
@@ -91,13 +91,17 @@
         <Setter Property="Background" Value="{StaticResource SuccessHoverBrush}"/>
     </Style>
     
+    <Style Selector="Button.success:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource SuccessHoverBrush}"/>
+    </Style>
+    
     <Style Selector="Button.success:pressed">
         <Setter Property="RenderTransform" Value="scale(0.96)"/>
     </Style>
     
     <Style Selector="Button.danger">
         <Setter Property="Background" Value="{StaticResource DangerBrush}"/>
-        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="Foreground" Value="White"/>
         <Setter Property="Padding" Value="20,12"/>
         <Setter Property="CornerRadius" Value="10"/>
         <Setter Property="FontWeight" Value="Bold"/>
@@ -116,13 +120,17 @@
         <Setter Property="Background" Value="{StaticResource DangerHoverBrush}"/>
     </Style>
     
+    <Style Selector="Button.danger:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource DangerHoverBrush}"/>
+    </Style>
+    
     <Style Selector="Button.danger:pressed">
         <Setter Property="RenderTransform" Value="scale(0.96)"/>
     </Style>
     
     <Style Selector="Button.secondary">
-        <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
-        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="Background" Value="#334155"/>
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
         <Setter Property="Padding" Value="16,10"/>
         <Setter Property="CornerRadius" Value="8"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
@@ -136,7 +144,7 @@
     </Style>
     
     <Style Selector="Button.secondary:pointerover">
-        <Setter Property="Background" Value="{StaticResource SurfaceHoverBrush}"/>
+        <Setter Property="Background" Value="#475569"/>
     </Style>
     
     <!-- Glass Panel Style -->
@@ -158,19 +166,19 @@
     <Style Selector="TextBlock.title">
         <Setter Property="FontSize" Value="24"/>
         <Setter Property="FontWeight" Value="Bold"/>
-        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
     </Style>
     
     <Style Selector="TextBlock.subtitle">
         <Setter Property="FontSize" Value="18"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
     </Style>
     
     <Style Selector="TextBlock.label">
         <Setter Property="FontSize" Value="14"/>
         <Setter Property="FontWeight" Value="Medium"/>
-        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
     </Style>
     
     <Style Selector="TextBlock.value">
@@ -182,7 +190,7 @@
     <!-- NumericUpDown Style -->
     <Style Selector="NumericUpDown">
         <Setter Property="Background" Value="#334155"/>
-        <Setter Property="Foreground" Value="#F1F5F9"/>
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="6"/>
@@ -191,14 +199,12 @@
     
     <Style Selector="NumericUpDown:pointerover /template/ Border#PART_BorderElement">
         <Setter Property="Background" Value="#475569"/>
-        <Setter Property="BorderBrush" Value="#64748B"/>
-        <Setter Property="BoxShadow" Value="0 0 0 2 #1A94A3B8"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
     </Style>
     
     <Style Selector="NumericUpDown:focus /template/ Border#PART_BorderElement">
         <Setter Property="Background" Value="#475569"/>
-        <Setter Property="BorderBrush" Value="#6366F1"/>
-        <Setter Property="BoxShadow" Value="0 0 0 2 #1A6366F1"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
     </Style>
     
     <Style Selector="NumericUpDown /template/ Border#PART_BorderElement">
@@ -214,25 +220,23 @@
     <!-- TextBox Style -->
     <Style Selector="TextBox">
         <Setter Property="Background" Value="#334155"/>
-        <Setter Property="Foreground" Value="#F1F5F9"/>
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="6"/>
         <Setter Property="Padding" Value="8"/>
-        <Setter Property="CaretBrush" Value="#F1F5F9"/>
-        <Setter Property="SelectionBrush" Value="#6366F1"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+        <Setter Property="SelectionBrush" Value="{DynamicResource SystemAccentColor}"/>
     </Style>
     
     <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
         <Setter Property="Background" Value="#475569"/>
-        <Setter Property="BorderBrush" Value="#64748B"/>
-        <Setter Property="BoxShadow" Value="0 0 0 2 #1A94A3B8"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
     </Style>
     
     <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
         <Setter Property="Background" Value="#475569"/>
-        <Setter Property="BorderBrush" Value="#6366F1"/>
-        <Setter Property="BoxShadow" Value="0 0 0 2 #1A6366F1"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
     </Style>
     
     <Style Selector="TextBox /template/ Border#PART_BorderElement">
@@ -247,7 +251,21 @@
     
     <!-- CheckBox Style -->
     <Style Selector="CheckBox">
-        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+    </Style>
+    
+    <!-- CheckBox Hover - Subtle Effect -->
+    <Style Selector="CheckBox:pointerover /template/ Border#NormalRectangle">
+        <Setter Property="Opacity" Value="0.8"/>
+    </Style>
+    
+    <!-- ToggleSwitch Hover - Subtle Effect -->
+    <Style Selector="ToggleSwitch:pointerover /template/ Border#SwitchKnobBounds">
+        <Setter Property="Opacity" Value="0.9"/>
+    </Style>
+    
+    <Style Selector="ToggleSwitch:pointerover /template/ Border#OuterBorder">
+        <Setter Property="Opacity" Value="0.9"/>
     </Style>
     
 </Styles>

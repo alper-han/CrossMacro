@@ -67,8 +67,14 @@ public partial class App : Application
         
         // Register Tray Icon Service
         services.AddSingleton<ITrayIconService, TrayIconService>();
-        // Use shell-based clipboard service for reliable background operation on Linux
-        services.AddSingleton<IClipboardService, LinuxShellClipboardService>(); 
+        
+        // Clipboard Services
+        services.AddSingleton<LinuxShellClipboardService>();
+        services.AddSingleton<AvaloniaClipboardService>();
+        
+        // Use CompositeClipboardService to fallback to Avalonia if Shell tools (wl-copy etc) are missing
+        services.AddSingleton<IClipboardService, CompositeClipboardService>();
+
         // Register Text Expansion Storage Service
         services.AddSingleton<TextExpansionStorageService>();
         services.AddSingleton<ITextExpansionService, TextExpansionService>();

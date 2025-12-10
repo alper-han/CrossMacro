@@ -5,6 +5,9 @@ using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Wayland;
 using CrossMacro.Core.Wayland;
+using CrossMacro.Infrastructure.Helpers;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -18,6 +21,11 @@ public class MainWindowViewModel : ViewModelBase
     
     private string? _extensionWarning;
     private bool _hasExtensionWarning;
+    
+    // Warning sources
+    private string? _gnomeWarning;
+    private string? _uinputWarning;
+
     private string _globalStatus = "Ready";
     
     public WindowNotificationManager? NotificationManager { get; set; }
@@ -73,6 +81,9 @@ public class MainWindowViewModel : ViewModelBase
         
         // Start hotkey service
         Settings.StartHotkeyService();
+        
+        // Check permissions
+        CheckPermissions();
     }
     
     private void SetupViewModelCommunication()
@@ -178,12 +189,51 @@ public class MainWindowViewModel : ViewModelBase
                     message, 
                     NotificationType.Success,
                     TimeSpan.FromSeconds(3)));
+                
+                // Clear warning if it was set
+                if (_gnomeWarning != null)
+                {
+                    _gnomeWarning = null;
+                    UpdateCombinedWarning();
+                }
                 return;
             }
             
-            ExtensionWarning = message;
-            HasExtensionWarning = true;
+            _gnomeWarning = message;
+            UpdateCombinedWarning();
         });
+    }
+
+    private void CheckPermissions()
+    {
+        Task.Run(() => 
+        {
+            if (!PermissionHelper.CheckUInputAccess())
+            {
+                Dispatcher.UIThread.Post(() => {
+                    _uinputWarning = "⚠️ Missing Permissions: You are not in the 'input' group.";
+                    UpdateCombinedWarning();
+                });
+            }
+        });
+    }
+
+    private void UpdateCombinedWarning()
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrEmpty(_uinputWarning)) parts.Add(_uinputWarning);
+        if (!string.IsNullOrEmpty(_gnomeWarning)) parts.Add(_gnomeWarning);
+
+        if (parts.Count > 0)
+        {
+            ExtensionWarning = string.Join("\n\n", parts);
+            HasExtensionWarning = true;
+        }
+        else
+        {
+            ExtensionWarning = null;
+            HasExtensionWarning = false;
+        }
     }
     
     private void OnToggleRecordingRequested(object? sender, EventArgs e)

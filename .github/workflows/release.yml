@@ -223,3 +223,67 @@ jobs:
         overwrite_files: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 5. Build Windows Executable
+  build-windows:
+    name: Build Windows Executable
+    needs: package-appimage
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+    
+    - name: Extract version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" == "push" ]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${VERSION#v}
+          VERSION=${VERSION#.}
+        else
+          VERSION="${{ github.event.inputs.version }}"
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: '10.0.x'
+    
+    - name: Build Windows executable
+      run: |
+        dotnet publish src/CrossMacro.UI/CrossMacro.UI.csproj \
+          -c Release \
+          -r win-x64 \
+          --self-contained \
+          -p:PublishSingleFile=true \
+          -p:IncludeNativeLibrariesForSelfExtract=true \
+          -p:DebugType=None \
+          -p:DebugSymbols=false \
+          -o publish-windows/
+    
+    - name: Rename executable
+      run: |
+        mv publish-windows/CrossMacro.UI.exe publish-windows/CrossMacro-${{ steps.version.outputs.version }}-win-x64.exe
+    
+    - name: Generate checksum
+      run: |
+        cd publish-windows
+        sha256sum *.exe > crossmacro-windows.sha256
+    
+    - name: Upload to Release
+      if: github.event_name == 'push'
+      uses: softprops/action-gh-release@v2
+      with:
+        name: CrossMacro v${{ steps.version.outputs.version }}
+        draft: false
+        prerelease: false
+        make_latest: true
+        files: |
+          publish-windows/*.exe
+          publish-windows/crossmacro-windows.sha256
+        overwrite_files: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

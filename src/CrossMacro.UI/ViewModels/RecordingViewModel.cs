@@ -17,6 +17,8 @@ public class RecordingViewModel : ViewModelBase
     
     private bool _isRecording;
     private int _eventCount;
+    private int _mouseEventCount;
+    private int _keyboardEventCount;
     private string _recordingStatus = "Ready";
     private bool _isMouseRecordingEnabled = true;
     private bool _isKeyboardRecordingEnabled = true;
@@ -72,6 +74,32 @@ public class RecordingViewModel : ViewModelBase
             if (_eventCount != value)
             {
                 _eventCount = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+    
+    public int MouseEventCount
+    {
+        get => _mouseEventCount;
+        private set
+        {
+            if (_mouseEventCount != value)
+            {
+                _mouseEventCount = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+    
+    public int KeyboardEventCount
+    {
+        get => _keyboardEventCount;
+        private set
+        {
+            if (_keyboardEventCount != value)
+            {
+                _keyboardEventCount = value;
                 OnPropertyChanged();
             }
         }
@@ -148,6 +176,21 @@ public class RecordingViewModel : ViewModelBase
         Dispatcher.UIThread.Post(() =>
         {
             EventCount++;
+            
+            // Track mouse and keyboard events separately
+            switch (e.Type)
+            {
+                case EventType.ButtonPress:
+                case EventType.ButtonRelease:
+                case EventType.MouseMove:
+                case EventType.Click:
+                    MouseEventCount++;
+                    break;
+                case EventType.KeyPress:
+                case EventType.KeyRelease:
+                    KeyboardEventCount++;
+                    break;
+            }
         });
     }
     
@@ -160,6 +203,8 @@ public class RecordingViewModel : ViewModelBase
         {
             IsRecording = true;
             EventCount = 0;
+            MouseEventCount = 0;
+            KeyboardEventCount = 0;
             
             // Disable playback and pause hotkeys during recording so they can be recorded
             _hotkeyService.SetPlaybackPauseHotkeysEnabled(false);
@@ -213,6 +258,38 @@ public class RecordingViewModel : ViewModelBase
             // Re-enable playback and pause hotkeys after recording stops
             _hotkeyService.SetPlaybackPauseHotkeysEnabled(true);
         }
+    }
+    
+    /// <summary>
+    /// Set the current macro (called when loading from file)
+    /// </summary>
+    public void SetMacro(MacroSequence macro)
+    {
+        if (macro == null)
+            return;
+
+        EventCount = macro.EventCount;
+        MouseEventCount = 0;
+        KeyboardEventCount = 0;
+
+        foreach (var e in macro.Events)
+        {
+            switch (e.Type)
+            {
+                case EventType.ButtonPress:
+                case EventType.ButtonRelease:
+                case EventType.MouseMove:
+                case EventType.Click:
+                    MouseEventCount++;
+                    break;
+                case EventType.KeyPress:
+                case EventType.KeyRelease:
+                    KeyboardEventCount++;
+                    break;
+            }
+        }
+
+        RecordingStatus = $"Loaded {macro.EventCount} events";
     }
     
     /// <summary>

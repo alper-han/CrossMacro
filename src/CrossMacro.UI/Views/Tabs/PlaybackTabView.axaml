@@ -19,21 +19,22 @@
                               Foreground="{DynamicResource SystemAccentColor}"/>
                 </Grid>
                 <Slider Minimum="0.1" Maximum="10.0" Value="{Binding PlaybackSpeed}"
-                        TickFrequency="0.1" IsSnapToTickEnabled="True"/>
+                        TickFrequency="0.1" IsSnapToTickEnabled="True"
+                        IsEnabled="{Binding !IsPlaying}"/>
             </StackPanel>
 
             <!-- Loop Controls -->
             <StackPanel Spacing="12">
-                <CheckBox Content="Loop Playback" IsChecked="{Binding IsLooping}"/>
+                <CheckBox Content="Loop Playback" IsChecked="{Binding IsLooping}" IsEnabled="{Binding !IsPlaying}"/>
                 
                 <Grid ColumnDefinitions="*,*" IsVisible="{Binding IsLooping}">
                     <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
                         <TextBlock Classes="label" Text="Loop Count"/>
-                        <NumericUpDown Value="{Binding LoopCount}" Minimum="0" Maximum="1000" FormatString="0"/>
+                        <NumericUpDown Value="{Binding LoopCount}" Minimum="0" Maximum="1000" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="4" Margin="8,0,0,0">
                         <TextBlock Classes="label" Text="Loop Delay (ms)"/>
-                        <NumericUpDown Value="{Binding LoopDelayMs}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
+                        <NumericUpDown Value="{Binding LoopDelayMs}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
                     </StackPanel>
                 </Grid>
             </StackPanel>
@@ -48,7 +49,7 @@
                               Foreground="{DynamicResource SystemAccentColor}"/>
                 </Grid>
                 <NumericUpDown Minimum="0" Maximum="2147483647" Value="{Binding CountdownSeconds}"
-                        Increment="1" FormatString="0"/>
+                        Increment="1" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
             </StackPanel>
 
             <!-- Play Controls -->

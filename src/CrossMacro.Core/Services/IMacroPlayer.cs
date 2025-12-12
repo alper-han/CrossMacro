@@ -19,6 +19,21 @@ public interface IMacroPlayer : IDisposable
     bool IsPaused { get; }
 
     /// <summary>
+    /// Current loop iteration (1-based)
+    /// </summary>
+    int CurrentLoop { get; }
+
+    /// <summary>
+    /// Total number of loops (0 = infinite)
+    /// </summary>
+    int TotalLoops { get; }
+
+    /// <summary>
+    /// Whether the player is currently waiting between loop iterations
+    /// </summary>
+    bool IsWaitingBetweenLoops { get; }
+
+    /// <summary>
     /// Plays a macro sequence
     /// </summary>
     Task PlayAsync(MacroSequence macro, PlaybackOptions? options = null, CancellationToken cancellationToken = default);

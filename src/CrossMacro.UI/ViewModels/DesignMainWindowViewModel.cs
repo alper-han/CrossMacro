@@ -90,6 +90,9 @@ public class DesignMainWindowViewModel : MainWindowViewModel
     private class MockMacroPlayer : IMacroPlayer
     {
         public bool IsPaused => false;
+        public int CurrentLoop => 0;
+        public int TotalLoops => 0;
+        public bool IsWaitingBetweenLoops => false;
         public Task PlayAsync(MacroSequence macro, PlaybackOptions? options = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public void Stop() { }
         public void Pause() { }

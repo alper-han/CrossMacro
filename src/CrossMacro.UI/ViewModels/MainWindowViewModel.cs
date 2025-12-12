@@ -108,10 +108,11 @@ public class MainWindowViewModel : ViewModelBase
             Recording.CanStartRecordingExternal = !isPlaying;
         };
         
-        // When a macro is loaded, update Playback
+        // When a macro is loaded, update Playback and Recording
         Files.MacroLoaded += (s, macro) =>
         {
             Playback.SetMacro(macro);
+            Recording.SetMacro(macro);
             GlobalStatus = $"Loaded: {macro.Name}";
         };
         

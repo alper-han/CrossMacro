@@ -45,6 +45,9 @@ public class MacroPlayer : IMacroPlayer, IDisposable
     private const int MaxPlaybackErrors = 10;
     
     public bool IsPlaying { get; private set; }
+    public int CurrentLoop { get; private set; }
+    public int TotalLoops { get; private set; }
+    public bool IsWaitingBetweenLoops { get; private set; }
 
     public MacroPlayer(IMousePositionProvider positionProvider, PlaybackValidator validator, Func<IInputSimulator>? inputSimulatorFactory = null)
     {
@@ -207,17 +210,23 @@ public class MacroPlayer : IMacroPlayer, IDisposable
             
             int repeatCount = options.Loop ? options.RepeatCount : 1;
             bool infiniteLoop = options.Loop && repeatCount == 0;
+            TotalLoops = infiniteLoop ? 0 : repeatCount;
             Log.Information("[MacroPlayer] Loop settings: Loop={Loop}, RepeatCount={Count}, Infinite={Infinite}", options.Loop, repeatCount, infiniteLoop);
             
             int i = 0;
             while ((infiniteLoop || i < repeatCount) && !_cts.Token.IsCancellationRequested)
             {
+                CurrentLoop = i + 1;
                 Log.Information("[MacroPlayer] Starting playback iteration {Iteration}", i + 1);
                 await PlayOnceAsync(macro, options.SpeedMultiplier, _cts.Token);
                 
-                if (options.RepeatDelayMs > 0 && !_cts.Token.IsCancellationRequested)
+                bool hasNextIteration = infiniteLoop || i < repeatCount - 1;
+                
+                if (hasNextIteration && options.RepeatDelayMs > 0 && !_cts.Token.IsCancellationRequested)
                 {
+                    IsWaitingBetweenLoops = true;
                     await Task.Delay(options.RepeatDelayMs, _cts.Token);
+                    IsWaitingBetweenLoops = false;
                 }
                 
                 i++;
@@ -232,6 +241,9 @@ public class MacroPlayer : IMacroPlayer, IDisposable
             ReleaseAllKeys();
             
             IsPlaying = false;
+            CurrentLoop = 0;
+            TotalLoops = 0;
+            IsWaitingBetweenLoops = false;
             _inputSimulator?.Dispose();
             _inputSimulator = null;
             _cts?.Dispose();

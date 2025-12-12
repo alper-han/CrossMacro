@@ -24,6 +24,7 @@ public class PlaybackViewModel : ViewModelBase
     private string _playbackStatus = "Ready";
     
     private MacroSequence? _currentMacro;
+    private DispatcherTimer? _statusUpdateTimer;
     
     /// <summary>
     /// Event fired when playback state changes
@@ -48,6 +49,50 @@ public class PlaybackViewModel : ViewModelBase
         _loopCount = _settingsService.Current.LoopCount;
         _loopDelayMs = _settingsService.Current.LoopDelayMs;
         _countdownSeconds = _settingsService.Current.CountdownSeconds;
+        
+        // Setup status update timer
+        _statusUpdateTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(100)
+        };
+        _statusUpdateTimer.Tick += OnStatusUpdateTimerTick;
+    }
+    
+    private void OnStatusUpdateTimerTick(object? sender, EventArgs e)
+    {
+        if (IsPlaying && !IsPaused)
+        {
+            UpdatePlaybackStatus();
+        }
+    }
+    
+    private void UpdatePlaybackStatus()
+    {
+        var currentLoop = _player.CurrentLoop;
+        var totalLoops = _player.TotalLoops;
+        var isWaiting = _player.IsWaitingBetweenLoops;
+        
+        // If waiting between loops, show delay message
+        if (isWaiting)
+        {
+            var delayMs = LoopDelayMs ?? 0;
+            PlaybackStatus = $"Waiting {delayMs} ms before next loop...";
+            return;
+        }
+        
+        // Otherwise show normal playing status
+        if (totalLoops == 0)
+        {
+            PlaybackStatus = $"Playing (Loop {currentLoop} - Infinite)";
+        }
+        else if (totalLoops > 1)
+        {
+            PlaybackStatus = $"Playing (Loop {currentLoop}/{totalLoops})";
+        }
+        else
+        {
+            PlaybackStatus = "Playing...";
+        }
     }
     
     public double PlaybackSpeed
@@ -222,7 +267,10 @@ public class PlaybackViewModel : ViewModelBase
                 }
             }
             
-            PlaybackStatus = "Playing...";
+            // Start status update timer AFTER countdown
+            _statusUpdateTimer?.Start();
+            
+            UpdatePlaybackStatus();
             
             var options = new PlaybackOptions
             {
@@ -242,6 +290,7 @@ public class PlaybackViewModel : ViewModelBase
         }
         finally
         {
+            _statusUpdateTimer?.Stop();
             IsPlaying = false;
             IsPaused = false;
         }
@@ -266,7 +315,7 @@ public class PlaybackViewModel : ViewModelBase
         {
             _player.Resume();
             IsPaused = false;
-            PlaybackStatus = "Resumed";
+            UpdatePlaybackStatus();
         }
         else
         {

@@ -7,16 +7,13 @@ public static class EvdevNative
 {
     private const string LibC = "libc";
 
-    // ioctl commands
-    // _IOR('E', 0x06, char[NAME_MAX]) - get device name
     public const ulong EVIOCGNAME_256 = 0x81004506; 
     
-    // _IOR('E', 0x20, int[...]) - get bitfield
-    public const ulong EVIOCGBIT_EV = 0x80044520; // EV capabilities
-    public const ulong EVIOCGBIT_KEY = 0x80044521; // KEY capabilities
-    public const ulong EVIOCGBIT_REL = 0x80044522; // REL capabilities
-    public const ulong EVIOCGBIT_ABS = 0x80044523; // ABS capabilities (for touchpads)
-    public const ulong EVIOCGPROP = 0x80044509;    // Device properties
+    public const ulong EVIOCGBIT_EV = 0x80044520;
+    public const ulong EVIOCGBIT_KEY = 0x80044521; 
+    public const ulong EVIOCGBIT_REL = 0x80044522; 
+    public const ulong EVIOCGBIT_ABS = 0x80044523; 
+    public const ulong EVIOCGPROP = 0x80044509;    
 
     [DllImport(LibC, SetLastError = true)]
     public static extern int open(string pathname, int flags);

@@ -208,7 +208,7 @@ public class MainWindowViewModel : ViewModelBase
     {
         Task.Run(() => 
         {
-            if (!PermissionHelper.CheckUInputAccess())
+            if (OperatingSystem.IsLinux() && !PermissionHelper.CheckUInputAccess())
             {
                 Dispatcher.UIThread.Post(() => {
                     _uinputWarning = "⚠️ Missing Permissions: You are not in the 'input' group.";

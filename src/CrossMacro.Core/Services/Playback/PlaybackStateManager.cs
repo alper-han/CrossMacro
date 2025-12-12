@@ -3,10 +3,6 @@ using System.Threading;
 
 namespace CrossMacro.Core.Services.Playback;
 
-/// <summary>
-/// Manages playback state (play, pause, resume, stop)
-/// Single Responsibility: Only handles state transitions and pause synchronization
-/// </summary>
 public class PlaybackStateManager : IDisposable
 {
     private readonly ManualResetEventSlim _pauseEvent = new(true);
@@ -16,19 +12,10 @@ public class PlaybackStateManager : IDisposable
     public bool IsPlaying { get; private set; }
     public bool IsPaused { get; private set; }
     
-    /// <summary>
-    /// Event fired when playback state changes
-    /// </summary>
     public event EventHandler<bool>? PlayingChanged;
     
-    /// <summary>
-    /// Event fired when pause state changes
-    /// </summary>
     public event EventHandler<bool>? PausedChanged;
     
-    /// <summary>
-    /// Start playback
-    /// </summary>
     public CancellationToken Start(CancellationToken externalToken = default)
     {
         if (IsPlaying)
@@ -44,22 +31,16 @@ public class PlaybackStateManager : IDisposable
         return _cts.Token;
     }
     
-    /// <summary>
-    /// Stop playback
-    /// </summary>
     public void Stop()
     {
         _cts?.Cancel();
         IsPlaying = false;
         IsPaused = false;
-        _pauseEvent.Set(); // Ensure not blocked
+        _pauseEvent.Set(); 
         
         PlayingChanged?.Invoke(this, false);
     }
     
-    /// <summary>
-    /// Pause playback
-    /// </summary>
     public void Pause()
     {
         if (!IsPlaying || IsPaused)
@@ -71,9 +52,6 @@ public class PlaybackStateManager : IDisposable
         PausedChanged?.Invoke(this, true);
     }
     
-    /// <summary>
-    /// Resume playback
-    /// </summary>
     public void Resume()
     {
         if (!IsPlaying || !IsPaused)
@@ -85,9 +63,6 @@ public class PlaybackStateManager : IDisposable
         PausedChanged?.Invoke(this, false);
     }
     
-    /// <summary>
-    /// Wait if paused (for use in playback loop)
-    /// </summary>
     public void WaitIfPaused(CancellationToken cancellationToken)
     {
         if (IsPaused)
@@ -96,9 +71,6 @@ public class PlaybackStateManager : IDisposable
         }
     }
     
-    /// <summary>
-    /// Mark playback as finished (called when playback completes naturally)
-    /// </summary>
     public void Finish()
     {
         IsPlaying = false;

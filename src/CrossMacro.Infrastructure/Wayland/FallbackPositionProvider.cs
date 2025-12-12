@@ -1,5 +1,4 @@
 using System;
-using System;
 using System.Threading.Tasks;
 using CrossMacro.Core.Wayland;
 
@@ -24,9 +23,6 @@ namespace CrossMacro.Infrastructure.Wayland
             return Task.FromResult<(int Width, int Height)?>(null);
         }
 
-
-
         public void Dispose() { }
     }
-
 }

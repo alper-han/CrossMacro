@@ -40,7 +40,7 @@
                         <!-- Replacement -->
                         <StackPanel Grid.Row="0" Grid.Column="2" Spacing="6">
                             <TextBlock Text="Replacement" FontSize="12" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
-                            <TextBox Watermark="example@email.com" 
+                            <TextBox Watermark="email@example.com" 
                                      Text="{Binding ReplacementInput}"
                                      CornerRadius="6"
                                      Padding="10"/>

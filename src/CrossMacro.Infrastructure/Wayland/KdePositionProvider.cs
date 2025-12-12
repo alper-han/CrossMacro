@@ -303,8 +303,6 @@ console.error('[CrossMacro] Position tracking started');
             return (5120, 1440);
         }
 
-
-
         public void Dispose()
         {
             _cts.Cancel();

@@ -1,0 +1,60 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="200"
+        x:Class="CrossMacro.UI.Views.Dialogs.ConfirmationDialog"
+        Title="Confirmation"
+        Width="400" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        SystemDecorations="BorderOnly"
+        Background="#0F172A"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1">
+
+    <Border BorderBrush="#334155" BorderThickness="1">
+        <StackPanel Spacing="20" Margin="24">
+            <!-- Header -->
+            <TextBlock Name="TitleText"
+                       Text="Confirm Action"
+                       FontSize="18"
+                       FontWeight="Bold"
+                       Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+
+            <!-- Message -->
+            <TextBlock Name="MessageText"
+                       Text="Are you sure you want to maintain this?"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+
+            <!-- Buttons -->
+            <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" Margin="0,12,0,0">
+                <Button Name="NoButton"
+                        Content="No"
+                        Click="NoButton_Click"
+                        Background="Transparent"
+                        BorderBrush="#334155"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                        Padding="16,8"/>
+                
+                <Button Name="YesButton"
+                        Content="Yes"
+                        Click="YesButton_Click"
+                        Background="#EF4444" 
+                        Foreground="White"
+                        CornerRadius="4"
+                        Padding="16,8">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="#DC2626"/>
+                        </Style>
+                    </Button.Styles>
+                </Button>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

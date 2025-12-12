@@ -494,12 +494,6 @@ public class KeyboardLayoutService : IKeyboardLayoutService, IDisposable
 
     private void TryAddCharToCache(int code, bool shift, bool altGr)
     {
-        // Must use the internal method that assumes lock is held or works safely?
-        // GetCharFromKeyCode takes a lock. We are already in a lock in GetInputForChar, but BuildCharInputCache is called from there.
-        // Wait, GetCharFromKeyCode takes `lock (_lock)`. Use `Monitor.IsEntered` or split the method?
-        // Actually GetCharFromKeyCode logic is small. I can refactor or just call it.
-        // Recursive lock is allowed in C#, so calling GetCharFromKeyCode inside GetInputForChar's lock is fine.
-        
         var c = GetCharFromKeyCode(code, shift, altGr, false);
         if (c.HasValue && !_charToInputCache!.ContainsKey(c.Value))
         {

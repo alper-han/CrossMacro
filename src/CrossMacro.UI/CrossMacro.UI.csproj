@@ -29,7 +29,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CrossMacro.Core\CrossMacro.Core.csproj" />
-    <ProjectReference Include="..\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
+    <ProjectReference Include="../CrossMacro.Core/CrossMacro.Core.csproj" />
+    <ProjectReference Include="../CrossMacro.Infrastructure/CrossMacro.Infrastructure.csproj" />
+    <ProjectReference Include="../CrossMacro.Platform.Linux/CrossMacro.Platform.Linux.csproj" />
+    <ProjectReference Include="../CrossMacro.Platform.Windows/CrossMacro.Platform.Windows.csproj" />
   </ItemGroup>
 </Project>

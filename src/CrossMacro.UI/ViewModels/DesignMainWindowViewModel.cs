@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Core.Wayland;
+using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -52,11 +54,11 @@ public class DesignMainWindowViewModel : MainWindowViewModel
 
     private class DesignTextExpansionViewModel : TextExpansionViewModel
     {
-        public DesignTextExpansionViewModel() : base(new MockTextExpansionStorageService())
+        public DesignTextExpansionViewModel() : base(new MockTextExpansionStorageService(), new MockDialogService())
         {
             Expansions = new ObservableCollection<TextExpansion>
             {
-                new TextExpansion(":mail", "example@email.com"),
+                new TextExpansion(":mail", "email@example.com"),
                 new TextExpansion(":date", "2023-10-27", false)
             };
         }
@@ -79,7 +81,7 @@ public class DesignMainWindowViewModel : MainWindowViewModel
 #pragma warning disable CS0067 // Event is never used (design-time mock)
         public event EventHandler<MacroEvent>? EventRecorded;
 #pragma warning restore CS0067
-        public Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, IEnumerable<int>? ignoredKeys = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public MacroSequence StopRecording() => new MacroSequence();
         public MacroSequence? GetCurrentRecording() => null;
         public void Dispose() { }
@@ -108,6 +110,9 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         public event EventHandler? TogglePlaybackRequested;
         public event EventHandler? TogglePauseRequested;
 #pragma warning restore CS0067
+        public int RecordingHotkeyCode => 0;
+        public int PlaybackHotkeyCode => 0;
+        public int PauseHotkeyCode => 0;
         public bool IsRunning => false;
         public void Start() { }
         public void Stop() { }
@@ -141,5 +146,12 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         public Task SaveAsync() => Task.CompletedTask;
         public void Save() { }
     }
-}
 
+    private class MockDialogService : IDialogService
+    {
+        public Task<bool> ShowConfirmationAsync(string title, string message, string yesText = "Yes", string noText = "No")
+        {
+            return Task.FromResult(true);
+        }
+    }
+}

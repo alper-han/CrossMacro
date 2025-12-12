@@ -6,27 +6,23 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using CrossMacro.Core.Models;
-using CrossMacro.Native.UInput;
 using CrossMacro.Core.Wayland;
 using Serilog;
 
 namespace CrossMacro.Core.Services;
 
-/// <summary>
-/// Plays back recorded macro sequences
-/// </summary>
 public class MacroPlayer : IMacroPlayer, IDisposable
 {
-    private UInputDevice? _device;
+    private IInputSimulator? _inputSimulator;
+    private readonly Func<IInputSimulator>? _inputSimulatorFactory;
     private CancellationTokenSource? _cts;
     private bool _disposed;
     private readonly IMousePositionProvider? _positionProvider;
     private readonly PlaybackValidator _validator;
     
-    // Cached reflection for X11 cursor movement (performance optimization)
     private readonly MethodInfo? _x11SetPositionMethod;
     
-    // Track current position for absolute coordinate playback
+    
     private int _currentX;
     private int _currentY;
     private bool _positionInitialized;
@@ -34,33 +30,28 @@ public class MacroPlayer : IMacroPlayer, IDisposable
     private int _cachedScreenHeight;
     private bool _resolutionCached;
     
-    // Track pressed mouse buttons to release on stop/pause (thread-safe)
     private readonly ConcurrentDictionary<ushort, byte> _pressedButtons = new();
     
-    // Track if any mouse button is currently pressed (for drag operations)
     private bool _isMouseButtonPressed;
     
-    // Track pressed keyboard keys to release on stop/pause (thread-safe)
     private readonly ConcurrentDictionary<int, byte> _pressedKeys = new();
     
-    // Playback error tracking
     private int _errorCount;
     
-    // Constants
     private const int VirtualDeviceCreationDelayMs = 500;
     private const int SmallDelayThresholdMs = 15;
     private const double MinimumDelayMs = 0.5;
-    private const double MinEnforcedDelayMs = 1.0; // Minimum delay to prevent event skipping at high speeds
+    private const double MinEnforcedDelayMs = 1.0;
     private const int MaxPlaybackErrors = 10;
     
     public bool IsPlaying { get; private set; }
 
-    public MacroPlayer(IMousePositionProvider positionProvider, PlaybackValidator validator)
+    public MacroPlayer(IMousePositionProvider positionProvider, PlaybackValidator validator, Func<IInputSimulator>? inputSimulatorFactory = null)
     {
         _positionProvider = positionProvider;
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
+        _inputSimulatorFactory = inputSimulatorFactory;
         
-        // Cache reflection for X11 SetAbsolutePositionAsync method (one-time cost)
         if (_positionProvider != null)
         {
             _x11SetPositionMethod = _positionProvider.GetType()
@@ -85,7 +76,6 @@ public class MacroPlayer : IMacroPlayer, IDisposable
         if (IsPlaying)
             throw new InvalidOperationException("Playback is already in progress");
         
-        // Validate macro
         var validationResult = _validator.Validate(macro);
         if (!validationResult.IsValid)
         {
@@ -94,7 +84,6 @@ public class MacroPlayer : IMacroPlayer, IDisposable
             throw new InvalidOperationException($"Playback validation failed: {errorMsg}");
         }
         
-        // Log warnings if any
         if (validationResult.Warnings.Count > 0)
         {
             foreach (var warning in validationResult.Warnings)
@@ -108,21 +97,17 @@ public class MacroPlayer : IMacroPlayer, IDisposable
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         IsPlaying = true;
         
-        // Reset position tracking state for clean playback
         _positionInitialized = false;
         _currentX = 0;
         _currentY = 0;
         
-        // Clear any tracked pressed buttons/keys from previous sessions
         _pressedButtons.Clear();
         _pressedKeys.Clear();
         _isMouseButtonPressed = false;
         
-        // Reset pause state for clean playback start
         _isPaused = false;
-        _pauseEvent.Set(); // Ensure pause event is signaled (not paused)
+        _pauseEvent.Set(); 
         
-        // Reset error counter
         _errorCount = 0;
         
         Log.Information("[MacroPlayer] ========== PLAYBACK STARTED ==========");
@@ -130,7 +115,6 @@ public class MacroPlayer : IMacroPlayer, IDisposable
         
         try
         {
-            // Get screen resolution if possible (cache to avoid repeated queries)
             if (!_resolutionCached && _positionProvider != null)
             {
                 try
@@ -152,15 +136,15 @@ public class MacroPlayer : IMacroPlayer, IDisposable
             
             Log.Information("[MacroPlayer] Using screen resolution for virtual device: {Width}x{Height}. If this does not match your actual screen resolution, drift will occur.", _cachedScreenWidth, _cachedScreenHeight);
 
-            // Create virtual device
-            _device = new UInputDevice(_cachedScreenWidth, _cachedScreenHeight);
-            _device.CreateVirtualInputDevice();  // Mouse + Keyboard support
-            Log.Information("[MacroPlayer] Virtual device created. All playback events will be sent to this single virtual device.");
+            if (_inputSimulatorFactory == null)
+                throw new InvalidOperationException("No input simulator factory provided. Ensure IInputSimulator is registered in DI.");
             
-            // Sleep a bit to ensure device is ready
+            _inputSimulator = _inputSimulatorFactory();
+            _inputSimulator.Initialize(_cachedScreenWidth, _cachedScreenHeight);
+            Log.Information("[MacroPlayer] Input simulator created: {ProviderName}", _inputSimulator.ProviderName);
+            
             await Task.Delay(VirtualDeviceCreationDelayMs, _cts.Token);
             
-            // Initialize position from provider if available, otherwise from first event
             if (_positionProvider != null && _positionProvider.IsSupported)
             {
                 try
@@ -180,7 +164,6 @@ public class MacroPlayer : IMacroPlayer, IDisposable
                 }
             }
             
-            // Explicitly move to start position to ensure clean start
             var firstMouseEvent = macro.Events.FirstOrDefault(e => 
                 e.Type == EventType.MouseMove || 
                 e.Type == EventType.ButtonPress || 
@@ -191,12 +174,11 @@ public class MacroPlayer : IMacroPlayer, IDisposable
             {
                 if (_cachedScreenWidth > 0 && _cachedScreenHeight > 0)
                 {
-                    // Full Absolute Support: Move directly to start
                     int startX = Math.Clamp(firstMouseEvent.X, 0, _cachedScreenWidth);
                     int startY = Math.Clamp(firstMouseEvent.Y, 0, _cachedScreenHeight);
                     
                     Log.Information("[MacroPlayer] Moving to start position: ({X}, {Y})", startX, startY);
-                    _device.MoveAbsolute(startX, startY);
+                    _inputSimulator!.MoveAbsolute(startX, startY);
                     _currentX = startX;
                     _currentY = startY;
                     _positionInitialized = true;
@@ -207,7 +189,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable
                     
                     for (int r = 0; r < 5; r++)
                     {
-                        _device.Move(-10000, -10000); 
+                        _inputSimulator!.MoveRelative(-10000, -10000); 
                         await Task.Delay(20, _cts.Token);
                     }
                     
@@ -216,9 +198,6 @@ public class MacroPlayer : IMacroPlayer, IDisposable
                     _currentX = 0;
                     _currentY = 0;
                     _positionInitialized = true;
-                    
-                    // If the first event isn't at 0,0, we need to move there from 0,0
-                    // Since we are at 0,0 now, we are consistent with the recording start
                 }
             }
             else
@@ -226,8 +205,6 @@ public class MacroPlayer : IMacroPlayer, IDisposable
                 Log.Information("[MacroPlayer] No mouse events found in macro, skipping start position move");
             }
             
-            // If Loop is enabled, use RepeatCount; otherwise play once
-            // RepeatCount = 0 means infinite loop, RepeatCount > 0 means loop that many times
             int repeatCount = options.Loop ? options.RepeatCount : 1;
             bool infiniteLoop = options.Loop && repeatCount == 0;
             Log.Information("[MacroPlayer] Loop settings: Loop={Loop}, RepeatCount={Count}, Infinite={Infinite}", options.Loop, repeatCount, infiniteLoop);
@@ -248,17 +225,15 @@ public class MacroPlayer : IMacroPlayer, IDisposable
         }
         catch (OperationCanceledException)
         {
-            // Playback was stopped, this is normal
         }
         finally
         {
-            // CRITICAL: Release all buttons and keys before cleanup to prevent stuck inputs
             ReleaseAllButtons();
             ReleaseAllKeys();
             
             IsPlaying = false;
-            _device?.Dispose();
-            _device = null;
+            _inputSimulator?.Dispose();
+            _inputSimulator = null;
             _cts?.Dispose();
             _cts = null;
             Log.Information("[MacroPlayer] ========== PLAYBACK ENDED ==========");
@@ -294,8 +269,8 @@ public class MacroPlayer : IMacroPlayer, IDisposable
 
     private async Task PlayOnceAsync(MacroSequence macro, double speedMultiplier, CancellationToken cancellationToken)
     {
-        if (_device == null)
-            throw new InvalidOperationException("Device not initialized");
+        if (_inputSimulator == null)
+            throw new InvalidOperationException("Input simulator not initialized");
         
         MacroEvent? previousEvent = null;
         
@@ -303,31 +278,24 @@ public class MacroPlayer : IMacroPlayer, IDisposable
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Check for pause
             if (_isPaused)
             {
                 await Task.Run(() => _pauseEvent.Wait(cancellationToken), cancellationToken);
             }
             
-            // Apply delay
             if (previousEvent != null && ev.DelayMs > 0)
             {
                 double adjustedDelay = ev.DelayMs / speedMultiplier;
                 
-                // Enforce minimum delay ONLY when mouse button is pressed (drag/draw operations)
-                // This prevents coordinate skipping during drag operations at high speeds
-                // while allowing normal mouse movements to be fully accelerated
                 if (_isMouseButtonPressed && adjustedDelay < MinEnforcedDelayMs)
                 {
                     adjustedDelay = MinEnforcedDelayMs;
                 }
                 
-                // For delays larger than threshold, Task.Delay is accurate enough and saves CPU
                 if (adjustedDelay > SmallDelayThresholdMs)
                 {
                     await Task.Delay((int)adjustedDelay, cancellationToken);
                 }
-                // For small delays, use busy-wait for precision
                 else if (adjustedDelay > 0)
                 {
                     long startTicks = Stopwatch.GetTimestamp();
@@ -343,7 +311,6 @@ public class MacroPlayer : IMacroPlayer, IDisposable
                 }
             }
             
-            // Execute event
             try
             {
                 ExecuteEvent(ev, macro.IsAbsoluteCoordinates);
@@ -364,11 +331,9 @@ public class MacroPlayer : IMacroPlayer, IDisposable
     
     private void ExecuteEvent(MacroEvent ev, bool isRecordedAbsolute)
     {
-        if (_device == null)
+        if (_inputSimulator == null)
             return;
         
-        // Log that we are sending to the virtual device (to clarify for user)
-        // We log this periodically or for key events to avoid spamming for every mouse move
         if (ev.Type != EventType.MouseMove)
         {
             Log.Debug("[MacroPlayer] Sending event to Virtual Device");
@@ -379,17 +344,17 @@ public class MacroPlayer : IMacroPlayer, IDisposable
             case EventType.ButtonPress:
                 Log.Information("[MacroPlayer] ButtonPress: {Button} at ({X}, {Y})", ev.Button, ev.X, ev.Y);
                 var pressButton = MapButton(ev.Button);
-                _device.EmitButton(pressButton, true);
-                _pressedButtons.TryAdd(pressButton, 0);
-                _isMouseButtonPressed = true; // Track that a button is now pressed
+                _inputSimulator.MouseButton(pressButton, true);
+                _pressedButtons.TryAdd((ushort)pressButton, 0);
+                _isMouseButtonPressed = true;
                 break;
                 
             case EventType.ButtonRelease:
                 Log.Information("[MacroPlayer] ButtonRelease: {Button} at ({X}, {Y})", ev.Button, ev.X, ev.Y);
                 var releaseButton = MapButton(ev.Button);
-                _device.EmitButton(releaseButton, false);
-                _pressedButtons.TryRemove(releaseButton, out _);
-                _isMouseButtonPressed = _pressedButtons.Count > 0; // Only false if no buttons pressed
+                _inputSimulator.MouseButton(releaseButton, false);
+                _pressedButtons.TryRemove((ushort)releaseButton, out _);
+                _isMouseButtonPressed = _pressedButtons.Count > 0;
                 break;
                 
             case EventType.MouseMove:
@@ -401,30 +366,22 @@ public class MacroPlayer : IMacroPlayer, IDisposable
 
                     if (isRecordedAbsolute)
                     {
-                        // Case 1: Abs -> Abs
                         targetAbsX = ev.X;
                         targetAbsY = ev.Y;
                     }
                     else
                     {
-                        // Case 4: Rel -> Abs
-                        // ev.X/Y are deltas
                         targetAbsX = _currentX + ev.X;
                         targetAbsY = _currentY + ev.Y;
                     }
 
-                    // On X11, use XWarpPointer instead of uinput absolute positioning
-                    // uinput EV_ABS doesn't move the cursor on X11, but XWarpPointer does
-                    // Use cached reflection method (set in constructor for performance)
                     if (_x11SetPositionMethod != null)
                     {
-                        // X11 provider - use XWarpPointer
                         _x11SetPositionMethod.Invoke(_positionProvider, new object[] { targetAbsX, targetAbsY });
                     }
                     else
                     {
-                        // Wayland: use uinput absolute positioning (works fine on Wayland)
-                        _device.MoveAbsolute(targetAbsX, targetAbsY);
+                        _inputSimulator.MoveAbsolute(targetAbsX, targetAbsY);
                     }
 
                     _currentX = targetAbsX;
@@ -436,75 +393,67 @@ public class MacroPlayer : IMacroPlayer, IDisposable
 
                     if (isRecordedAbsolute)
                     {
-                        // Case 3: Abs -> Rel
-                        // We need to calculate delta from our "virtual" current position
                         dx = ev.X - _currentX;
                         dy = ev.Y - _currentY;
                         
-                        // Update virtual position
                         _currentX = ev.X;
                         _currentY = ev.Y;
                     }
                     else
                     {
-                        // Case 2: Rel -> Rel
                         dx = ev.X;
                         dy = ev.Y;
                         
-                        // Update virtual position
                         _currentX += dx;
                         _currentY += dy;
                     }
 
-                    _device.Move(dx, dy);
+                    _inputSimulator.MoveRelative(dx, dy);
                 }
                 break;
                 
             case EventType.Click:
-                // Handle Scroll
                 if (ev.Button == MouseButton.ScrollUp)
                 {
                     Log.Information("[MacroPlayer] SCROLL UP");
-                    _device.SendEvent(UInputNative.EV_REL, UInputNative.REL_WHEEL, 1);
-                    _device.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+                    _inputSimulator.Scroll(1);
                 }
                 else if (ev.Button == MouseButton.ScrollDown)
                 {
                     Log.Information("[MacroPlayer] SCROLL DOWN");
-                    _device.SendEvent(UInputNative.EV_REL, UInputNative.REL_WHEEL, -1);
-                    _device.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+                    _inputSimulator.Scroll(-1);
                 }
                 else
                 {
                     Log.Information("[MacroPlayer] CLICK: {Button} at ({X}, {Y})", ev.Button, ev.X, ev.Y);
-                    // EmitClick does press+release, but we don't need to track it
-                    // since it's atomic and completes immediately
-                    _device.EmitClick(MapButton(ev.Button));
+                    var clickButton = MapButton(ev.Button);
+                    _inputSimulator.MouseButton(clickButton, true);
+                    _inputSimulator.MouseButton(clickButton, false);
                 }
                 break;
                 
             case EventType.KeyPress:
                 Log.Information("[MacroPlayer] KeyPress: KeyCode={KeyCode}", ev.KeyCode);
-                _device.EmitKey(ev.KeyCode, true);
+                _inputSimulator.KeyPress(ev.KeyCode, true);
                 _pressedKeys.TryAdd(ev.KeyCode, 0);
                 break;
                 
             case EventType.KeyRelease:
                 Log.Information("[MacroPlayer] KeyRelease: KeyCode={KeyCode}", ev.KeyCode);
-                _device.EmitKey(ev.KeyCode, false);
+                _inputSimulator.KeyPress(ev.KeyCode, false);
                 _pressedKeys.TryRemove(ev.KeyCode, out _);
                 break;
         }
     }
     
-    private ushort MapButton(MouseButton button)
+    private int MapButton(MouseButton button)
     {
         return button switch
         {
-            MouseButton.Left => UInputNative.BTN_LEFT,
-            MouseButton.Right => UInputNative.BTN_RIGHT,
-            MouseButton.Middle => UInputNative.BTN_MIDDLE,
-            _ => UInputNative.BTN_LEFT
+            MouseButton.Left => MouseButtonCode.Left,
+            MouseButton.Right => MouseButtonCode.Right,
+            MouseButton.Middle => MouseButtonCode.Middle,
+            _ => MouseButtonCode.Left
         };
     }
     
@@ -514,12 +463,9 @@ public class MacroPlayer : IMacroPlayer, IDisposable
         _cts?.Cancel();
     }
     
-    /// <summary>
-    /// Release all currently pressed mouse buttons to prevent them from staying stuck
-    /// </summary>
     private void ReleaseAllButtons()
     {
-        if (_device == null)
+        if (_inputSimulator == null)
             return;
         
         if (_pressedButtons.IsEmpty)
@@ -527,7 +473,6 @@ public class MacroPlayer : IMacroPlayer, IDisposable
             
         Log.Information("[MacroPlayer] Releasing {Count} pressed buttons", _pressedButtons.Count);
         
-        // Create a copy to avoid modification during iteration
         var buttonsToRelease = _pressedButtons.Keys.ToArray();
         _pressedButtons.Clear();
         
@@ -535,7 +480,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable
         {
             try
             {
-                _device.EmitButton(button, false);
+                _inputSimulator.MouseButton(button, false);
                 Log.Debug("[MacroPlayer] Released button: {Button}", button);
             }
             catch (Exception ex)
@@ -544,13 +489,11 @@ public class MacroPlayer : IMacroPlayer, IDisposable
             }
         }
         
-        // FAILSAFE: Also explicitly release all common mouse buttons
-        // This ensures even if tracking failed, buttons are released
         try
         {
-            _device.EmitButton(UInputNative.BTN_LEFT, false);
-            _device.EmitButton(UInputNative.BTN_RIGHT, false);
-            _device.EmitButton(UInputNative.BTN_MIDDLE, false);
+            _inputSimulator.MouseButton(MouseButtonCode.Left, false);
+            _inputSimulator.MouseButton(MouseButtonCode.Right, false);
+            _inputSimulator.MouseButton(MouseButtonCode.Middle, false);
             Log.Debug("[MacroPlayer] Failsafe: Released all common buttons");
         }
         catch (Exception ex)
@@ -559,12 +502,9 @@ public class MacroPlayer : IMacroPlayer, IDisposable
         }
     }
     
-    /// <summary>
-    /// Release all currently pressed keyboard keys to prevent them from staying stuck
-    /// </summary>
     private void ReleaseAllKeys()
     {
-        if (_device == null)
+        if (_inputSimulator == null)
             return;
         
         if (_pressedKeys.IsEmpty)
@@ -572,7 +512,6 @@ public class MacroPlayer : IMacroPlayer, IDisposable
             
         Log.Information("[MacroPlayer] Releasing {Count} pressed keys", _pressedKeys.Count);
         
-        // Create a copy to avoid modification during iteration
         var keysToRelease = _pressedKeys.Keys.ToArray();
         _pressedKeys.Clear();
         
@@ -580,7 +519,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable
         {
             try
             {
-                _device.EmitKey(keyCode, false);
+                _inputSimulator.KeyPress(keyCode, false);
                 Log.Debug("[MacroPlayer] Released key: {KeyCode}", keyCode);
             }
             catch (Exception ex)
@@ -601,7 +540,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable
         ReleaseAllButtons();
         ReleaseAllKeys();
         
-        _device?.Dispose();
+        _inputSimulator?.Dispose();
         _cts?.Dispose();
         _pauseEvent?.Dispose();
         

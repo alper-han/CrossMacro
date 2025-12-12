@@ -25,11 +25,6 @@ public class AvaloniaClipboardService : IClipboardService
             {
                 try 
                 {
-                    // Wayland/Linux fix: Do NOT call ClearAsync() before SetTextAsync().
-                    // It can cause ownership loss if the window is not focused or if the compositor is strict.
-                    // Log.Debug("[AvaloniaClipboard] Clearing clipboard...");
-                    // await clipboard.ClearAsync(); 
-                    
                     Log.Debug("[AvaloniaClipboard] Setting text to clipboard instance: {Type}", clipboard.GetType().Name);
                     await clipboard.SetTextAsync(text);
                     Log.Debug("[AvaloniaClipboard] SetTextAsync completed successfully");
@@ -56,9 +51,9 @@ public class AvaloniaClipboardService : IClipboardService
                 var clipboard = GetClipboard();
                 if (clipboard != null)
                 {
-#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 
                     return await clipboard.GetTextAsync();
-#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 
                 }
                 return null;
             }
@@ -72,14 +67,12 @@ public class AvaloniaClipboardService : IClipboardService
 
     private Avalonia.Input.Platform.IClipboard? GetClipboard()
     {
-        // Debugging flow
         if (Application.Current == null)
         {
              Log.Error("[AvaloniaClipboard] Application.Current is null!");
              return null;
         }
 
-        // 1. Try Classic Desktop Lifetime
         if (Application.Current.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             if (desktop.MainWindow != null)
@@ -98,11 +91,8 @@ public class AvaloniaClipboardService : IClipboardService
              Log.Warning("[AvaloniaClipboard] ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime.");
         }
         
-        // 2. Try TopLevel lookup (Fallback)
         try 
         {
-             // This can find active windows even if MainWindow property is unset or confusing
-             // However, strictly speaking, we need a visual root.
              var topLevel = TopLevel.GetTopLevel(null); 
              if (topLevel != null)
              {
@@ -119,7 +109,6 @@ public class AvaloniaClipboardService : IClipboardService
              Log.Warning(ex, "[AvaloniaClipboard] Failed to look up TopLevel.");
         }
         
-        // 3. Last Resort: Try to find ANY open window
         if (Application.Current.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktopLoop)
         {
              foreach (var window in desktopLoop.Windows)

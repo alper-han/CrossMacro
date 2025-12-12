@@ -48,15 +48,13 @@ public class EvdevReader : IDisposable
 
         _cts?.Cancel();
         
-        // Close device BEFORE waiting - this will immediately unblock the blocking read() call
         CloseDevice();
         
         try
         {
-            // Reduced timeout since device close immediately unblocks the read
             _readTask?.Wait(200);
         }
-        catch (AggregateException) { /* Ignore cancellation */ }
+        catch (AggregateException) { }
         
         IsListening = false;
     }
@@ -79,7 +77,6 @@ public class EvdevReader : IDisposable
         {
             while (!token.IsCancellationRequested && _fd >= 0)
             {
-                // Blocking read - will wait here until event arrives or FD is closed
                 IntPtr bytesRead = EvdevNative.read(_fd, buffer, (IntPtr)eventSize);
                 
                 if (bytesRead.ToInt64() == eventSize)
@@ -91,31 +88,26 @@ public class EvdevReader : IDisposable
                 {
                     var errno = Marshal.GetLastWin32Error();
                     
-                    // EBADF (9) means file descriptor was closed (likely by Stop())
                     if (errno == 9) 
                     {
-                        break; // Exit loop gracefully
+                        break; 
                     }
                     
-                    // EINTR (4) - Interrupted system call, just retry
                     if (errno == 4) 
                     {
                         continue;
                     }
 
-                    // Real error
                     throw new System.IO.IOException($"Read error: {errno}");
                 }
                 else if (bytesRead.ToInt64() == 0)
                 {
-                     // EOF
                      break;
                 }
             }
         }
         catch (OperationCanceledException)
         {
-            // Normal cancellation
         }
         catch (Exception ex)
         {

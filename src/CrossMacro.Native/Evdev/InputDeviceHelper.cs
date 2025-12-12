@@ -249,13 +249,8 @@ public class InputDeviceHelper
         if (!HasCapability(fd, EvdevNative.EVIOCGBIT_EV, UInputNative.EV_KEY))
             return false;
 
-        // Simplified check: Just verify it has some basic alphanumeric keys
-        // This filters out devices with only a few media/control keys
-        // We check for a few common keys across the keyboard
-        
-        // Check for at least ESC or ENTER (most keyboards have these)
-        bool hasEsc = HasCapability(fd, EvdevNative.EVIOCGBIT_KEY, 1); // KEY_ESC
-        bool hasEnter = HasCapability(fd, EvdevNative.EVIOCGBIT_KEY, 28); // KEY_ENTER
+        bool hasEsc = HasCapability(fd, EvdevNative.EVIOCGBIT_KEY, 1); 
+        bool hasEnter = HasCapability(fd, EvdevNative.EVIOCGBIT_KEY, 28); 
         
         if (!hasEsc && !hasEnter)
             return false;
@@ -279,8 +274,7 @@ public class InputDeviceHelper
 
     private static bool HasCapability(int fd, ulong type, int code)
     {
-        // Bitfield buffer (enough for most capabilities)
-        byte[] mask = new byte[64]; // 512 bits
+        byte[] mask = new byte[64]; 
         int len = EvdevNative.ioctl(fd, type, mask);
         
         if (len < 0)
@@ -520,26 +514,16 @@ public class InputDeviceHelper
                 return false;
             }
 
-            // For devices that pass capability checks but don't actually produce events,
-            // we need a more aggressive test. However, we can't wait for actual mouse movement
-            // during device scan. Instead, we'll just verify the device isn't grabbed/locked.
-            
-            // Try a test read - if device is grabbed, this will fail
             byte[] testBuffer = new byte[24];
             IntPtr bufferPtr = Marshal.AllocHGlobal(testBuffer.Length);
             try
             {
                 var result = EvdevNative.read(testFd, bufferPtr, (IntPtr)testBuffer.Length);
-                // If we get EAGAIN (would block), device is readable but no events yet - that's OK
-                // If we get an actual error (not EAGAIN), device is not usable
                 
-                // Check errno to distinguish between "no data" and "error"
                 if (result.ToInt32() < 0)
                 {
                     int errno = Marshal.GetLastWin32Error();
-                    // EAGAIN (11) or EWOULDBLOCK means no data available - this is OK
-                    // Any other error means device is not usable
-                    if (errno != 11 && errno != 0) // 11 = EAGAIN
+                    if (errno != 11 && errno != 0) 
                     {
                         return false;
                     }

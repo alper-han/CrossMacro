@@ -5,65 +5,56 @@ using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using CrossMacro.Native.Evdev;
-using CrossMacro.Native.UInput;
-using CrossMacro.Native.Xkb;
-using System.Diagnostics;
-using System.Text.Json;
 using Serilog;
 
 namespace CrossMacro.Infrastructure.Services;
 
-/// <summary>
-/// Global hotkey service
-/// Monitors keyboard devices for customizable hotkeys
-/// </summary>
 public class GlobalHotkeyService : IGlobalHotkeyService
 {
-    private List<EvdevReader> _readers = new();
+    private IInputCapture? _inputCapture;
     private bool _isRunning;
     private readonly Lock _lock = new();
+    private CancellationTokenSource? _captureCts;
 
     private readonly IKeyboardLayoutService _layoutService;
-
-
-
+    private readonly Func<IInputCapture>? _inputCaptureFactory;
     
-    // Hotkey mappings (action -> key codes + modifiers)
     private HotkeyMapping _recordingHotkey = new();
     private HotkeyMapping _playbackHotkey = new();
     private HotkeyMapping _pauseHotkey = new();
     
-    // Track currently pressed modifiers
     private readonly HashSet<int> _pressedModifiers = new();
     
-    // Debouncing
     private readonly Dictionary<string, DateTime> _lastHotkeyPressTimes = new();
     private const int DebounceIntervalMs = 300;
     private readonly TimeSpan _debounceInterval = TimeSpan.FromMilliseconds(DebounceIntervalMs);
     
-    // Control whether playback/pause hotkeys are enabled (used during recording)
     private bool _playbackPauseHotkeysEnabled = true;
     
     public event EventHandler? ToggleRecordingRequested;
     public event EventHandler? TogglePlaybackRequested;
     public event EventHandler? TogglePauseRequested;
     
+    public int RecordingHotkeyCode => _recordingHotkey.MainKey;
+    public int PlaybackHotkeyCode => _playbackHotkey.MainKey;
+    public int PauseHotkeyCode => _pauseHotkey.MainKey;
+    
     public bool IsRunning => _isRunning;
 
     private readonly IHotkeyConfigurationService _configService;
 
-    public GlobalHotkeyService(IHotkeyConfigurationService configService, IKeyboardLayoutService layoutService)
+    public GlobalHotkeyService(
+        IHotkeyConfigurationService configService, 
+        IKeyboardLayoutService layoutService,
+        Func<IInputCapture>? inputCaptureFactory = null)
     {
         _configService = configService;
         _layoutService = layoutService;
+        _inputCaptureFactory = inputCaptureFactory;
         
-        // Load saved hotkeys
         var settings = _configService.Load();
         UpdateHotkeys(settings.RecordingHotkey, settings.PlaybackHotkey, settings.PauseHotkey, save: false);
     }
-
-
 
     public void Start()
     {
@@ -71,13 +62,23 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         {
             if (_isRunning) return;
 
-            // Auto-detect all keyboard devices
-            Log.Information("[GlobalHotkeyService] Auto-detecting keyboard devices...");
-            var devices = InputDeviceHelper.GetAvailableDevices();
+            if (_inputCaptureFactory == null)
+            {
+                throw new InvalidOperationException("No input capture factory configured");
+            }
+
+            _inputCapture = _inputCaptureFactory();
+            _inputCapture.Configure(captureMouse: false, captureKeyboard: true);
+            _inputCapture.InputReceived += OnInputReceived;
+            _inputCapture.Error += OnInputCaptureError;
+            
+            var devices = _inputCapture.GetAvailableDevices();
             var keyboards = devices.Where(d => d.IsKeyboard).ToList();
             
             if (keyboards.Count == 0)
             {
+                _inputCapture.Dispose();
+                _inputCapture = null;
                 throw new InvalidOperationException("No keyboard devices found");
             }
             
@@ -87,32 +88,11 @@ public class GlobalHotkeyService : IGlobalHotkeyService
                 Log.Information("  - {Name} ({Path})", kbd.Name, kbd.Path);
             }
             
-            // Create a reader for each keyboard
-            foreach (var kbd in keyboards)
-            {
-                try
-                {
-                    var reader = new EvdevReader(kbd.Path, kbd.Name);
-                    reader.EventReceived += OnEventReceived;
-                    reader.ErrorOccurred += OnError;
-                    reader.Start();
-                    _readers.Add(reader);
-                    Log.Information("[GlobalHotkeyService] Started monitoring: {Name}", kbd.Name);
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "[GlobalHotkeyService] Failed to open {Name}", kbd.Name);
-                    // Continue with other devices
-                }
-            }
-            
-            if (_readers.Count == 0)
-            {
-                throw new InvalidOperationException("Failed to open any keyboard devices");
-            }
+            _captureCts = new CancellationTokenSource();
+            _ = _inputCapture.StartAsync(_captureCts.Token);
             
             _isRunning = true;
-            Log.Information("[GlobalHotkeyService] Successfully monitoring {Count} keyboard device(s)", _readers.Count);
+            Log.Information("[GlobalHotkeyService] Started via {ProviderName}", _inputCapture.ProviderName);
         }
     }
 
@@ -122,39 +102,25 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         {
             if (!_isRunning) return;
 
-            // Stop all readers in PARALLEL to avoid cumulative delays
-            if (_readers.Count > 0)
+            if (_inputCapture != null)
             {
-                // First, unsubscribe from all events
-                foreach (var reader in _readers)
+                try
                 {
-                    try
-                    {
-                        reader.EventReceived -= OnEventReceived;
-                        reader.ErrorOccurred -= OnError;
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error(ex, "[GlobalHotkeyService] Error unsubscribing from reader events");
-                    }
+                    _inputCapture.InputReceived -= OnInputReceived;
+                    _inputCapture.Error -= OnInputCaptureError;
+                    _inputCapture.Stop();
+                    _inputCapture.Dispose();
                 }
-                
-                // Then stop all readers in parallel
-                Parallel.ForEach(_readers, reader =>
+                catch (Exception ex)
                 {
-                    try
-                    {
-                        reader.Stop();
-                        reader.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error(ex, "[GlobalHotkeyService] Error disposing reader");
-                    }
-                });
-                
-                _readers.Clear();
+                    Log.Error(ex, "[GlobalHotkeyService] Error stopping input capture");
+                }
+                _inputCapture = null;
             }
+            
+            _captureCts?.Cancel();
+            _captureCts?.Dispose();
+            _captureCts = null;
             
             _isRunning = false;
             Log.Information("[GlobalHotkeyService] Stopped");
@@ -199,7 +165,6 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         }
     }
 
-    // Capture state
     private TaskCompletionSource<string>? _captureTcs;
     private bool _isCapturing;
 
@@ -210,7 +175,6 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         
         using (_lock.EnterScope())
         {
-            // Clear modifiers for fresh capture
             _pressedModifiers.Clear();
         }
 
@@ -228,65 +192,61 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         }
     }
 
-    private void OnEventReceived(EvdevReader sender, UInputNative.input_event ev)
+    private void OnInputReceived(object? sender, InputCaptureEventArgs e)
     {
-        if (ev.type != UInputNative.EV_KEY)
+        if (e.Type != InputEventType.Key)
             return;
 
         using (_lock.EnterScope())
         {
-            // Track modifier key state
-            if (IsModifierKeyCode(ev.code))
+            if (IsModifierKeyCode(e.Code))
             {
-                if (ev.value == 1) // Key press
+                if (e.Value == 1) 
                 {
-                    _pressedModifiers.Add(ev.code);
+                    _pressedModifiers.Add(e.Code);
                 }
-                else if (ev.value == 0) // Key release
+                else if (e.Value == 0) 
                 {
-                    _pressedModifiers.Remove(ev.code);
+                    _pressedModifiers.Remove(e.Code);
                 }
                 return;
             }
 
-            // Only process key press events for main keys
-            if (ev.value != 1)
+            if (e.Value != 1)
                 return;
 
-            // If capturing, handle capture and return
             if (_isCapturing && _captureTcs != null)
             {
-                var hotkeyString = BuildHotkeyString(ev.code);
-                // Run on thread pool to avoid blocking input thread with TCS continuations
+                var hotkeyString = BuildHotkeyString(e.Code);
                 Task.Run(() => _captureTcs.TrySetResult(hotkeyString));
                 return;
             }
 
-            // Check if this matches any hotkey
-            // Recording hotkey is always active
-            CheckHotkeyMatch(ev.code, "Recording", _recordingHotkey, () => ToggleRecordingRequested?.Invoke(this, EventArgs.Empty));
+            CheckHotkeyMatch(e.Code, "Recording", _recordingHotkey, () => ToggleRecordingRequested?.Invoke(this, EventArgs.Empty));
             
-            // Playback and pause hotkeys are only active when enabled (disabled during recording)
             if (_playbackPauseHotkeysEnabled)
             {
-                CheckHotkeyMatch(ev.code, "Playback", _playbackHotkey, () => TogglePlaybackRequested?.Invoke(this, EventArgs.Empty));
-                CheckHotkeyMatch(ev.code, "Pause", _pauseHotkey, () => TogglePauseRequested?.Invoke(this, EventArgs.Empty));
+                CheckHotkeyMatch(e.Code, "Playback", _playbackHotkey, () => TogglePlaybackRequested?.Invoke(this, EventArgs.Empty));
+                CheckHotkeyMatch(e.Code, "Pause", _pauseHotkey, () => TogglePauseRequested?.Invoke(this, EventArgs.Empty));
             }
         }
+    }
+
+    private void OnInputCaptureError(object? sender, string errorMessage)
+    {
+        Log.Error("[GlobalHotkeyService] Input capture error: {Error}", errorMessage);
     }
 
     private string BuildHotkeyString(int keyCode)
     {
         var parts = new List<string>();
 
-        // Modifiers
         if (_pressedModifiers.Contains(29) || _pressedModifiers.Contains(97)) parts.Add("Ctrl");
         if (_pressedModifiers.Contains(42) || _pressedModifiers.Contains(54)) parts.Add("Shift");
         if (_pressedModifiers.Contains(56)) parts.Add("Alt");
         if (_pressedModifiers.Contains(100)) parts.Add("AltGr");
         if (_pressedModifiers.Contains(125) || _pressedModifiers.Contains(126)) parts.Add("Super");
 
-        // Main Key
         parts.Add(GetKeyName(keyCode));
 
         return string.Join("+", parts);
@@ -302,16 +262,12 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         if (mapping.MainKey != keyCode)
             return;
 
-        // Check if all required modifiers are pressed
         if (!mapping.RequiredModifiers.All(m => _pressedModifiers.Contains(m)))
             return;
 
-        // Check if any extra modifiers are pressed
         if (_pressedModifiers.Except(mapping.RequiredModifiers).Any())
             return;
 
-        // Debouncing
-        // Note: Caller (OnEventReceived) already holds _lock
         var now = DateTime.UtcNow;
         if (_lastHotkeyPressTimes.TryGetValue(actionName, out var lastTime))
         {
@@ -328,15 +284,10 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
     private static bool IsModifierKeyCode(int code)
     {
-        return code is 29 or 97   // Ctrl (left, right)
-            or 42 or 54           // Shift (left, right)
-            or 56 or 100          // Alt (left, right)
-            or 125 or 126;        // Super/Meta (left, right)
-    }
-
-    private void OnError(Exception ex)
-    {
-        Log.Error(ex, "[GlobalHotkeyService] Error occurred");
+        return code is 29 or 97   
+            or 42 or 54           
+            or 56 or 100          
+            or 125 or 126;        
     }
 
     public void SetPlaybackPauseHotkeysEnabled(bool enabled)
@@ -382,26 +333,23 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
     private int GetKeyCode(string keyName)
     {
-        // Modifier keys
         if (keyName.Equals("Ctrl", StringComparison.OrdinalIgnoreCase))
-            return 29; // KEY_LEFTCTRL
+            return 29; 
         if (keyName.Equals("Shift", StringComparison.OrdinalIgnoreCase))
-            return 42; // KEY_LEFTSHIFT
+            return 42; 
         if (keyName.Equals("Alt", StringComparison.OrdinalIgnoreCase))
-            return 56; // KEY_LEFTALT
+            return 56; 
         if (keyName.Equals("AltGr", StringComparison.OrdinalIgnoreCase))
-            return 100; // KEY_RIGHTALT
+            return 100; 
         if (keyName.Equals("Super", StringComparison.OrdinalIgnoreCase) || keyName.Equals("Meta", StringComparison.OrdinalIgnoreCase))
-            return 125; // KEY_LEFTMETA
+            return 125; 
 
-        // Function keys
         if (keyName.StartsWith("F", StringComparison.OrdinalIgnoreCase) && int.TryParse(keyName[1..], out var fNum))
         {
             if (fNum >= 1 && fNum <= 24)
-                return 59 + fNum - 1; // F1 = 59, F2 = 60, etc.
+                return 59 + fNum - 1; 
         }
 
-        // Special keys overrides
         var special = keyName switch
         {
             "Space" => 57,
@@ -423,8 +371,6 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         };
         if (special != -1) return special;
 
-        // Try to reverse match using GetKeyName (which now uses IKeyboardLayoutService)
-        // This handles "Ö", "Ş", etc.
         for (int i = 0; i < 256; i++)
         {
             var name = GetKeyName(i);
@@ -434,14 +380,9 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             }
         }
 
-        // Delegate to layout service for hard parsing if needed, but the loop above calling GetKeyName -> _layoutService.GetKeyName covers most dynamic cases.
-        // We can check if _layoutService can provide reverse mapping directly to be faster?
-        // _layoutService.GetKeyCode(keyName) exists.
         var code = _layoutService.GetKeyCode(keyName);
         if (code != -1) return code;
 
-        // Fallback for hardcoded Latin layout if XKB fails
-        // Letter keys (QWERTY layout mapping)
         if (keyName.Length == 1 && char.IsLetter(keyName[0]))
         {
             return char.ToUpper(keyName[0]) switch
@@ -453,14 +394,12 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             };
         }
 
-        // Number keys (top row)
         if (keyName.Length == 1 && char.IsDigit(keyName[0]))
         {
             var digit = keyName[0] - '0';
-            return digit == 0 ? 11 : 2 + digit - 1; // 1 = 2, 2 = 3, ..., 0 = 11
+            return digit == 0 ? 11 : 2 + digit - 1; 
         }
 
-        // Special keys characters
         return keyName switch
         {
             "," => 51,

@@ -14,6 +14,8 @@ using CrossMacro.Core.Wayland;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Infrastructure.Wayland;
 using CrossMacro.UI.Services;
+using CrossMacro.Platform.Linux;
+using CrossMacro.Platform.Windows;
 
 namespace CrossMacro.UI;
 
@@ -31,55 +33,82 @@ public partial class App : Application
     {
         var services = new ServiceCollection();
         
-        // Register Core Services
         services.AddSingleton<IHotkeyConfigurationService, HotkeyConfigurationService>();
         services.AddSingleton<ISettingsService, SettingsService>();
 
-        // Register Models (Load from config)
         services.AddSingleton<HotkeySettings>(sp => {
             var configService = sp.GetRequiredService<IHotkeyConfigurationService>();
             return configService.Load();
         });
         
         services.AddSingleton<IGlobalHotkeyService, GlobalHotkeyService>();
-        services.AddSingleton<IKeyboardLayoutService, KeyboardLayoutService>();
         services.AddSingleton<IMacroFileManager, MacroFileManager>();
         
-        // Register Native services
-        services.AddSingleton<IMousePositionProvider>(sp => 
-            MousePositionProviderFactory.CreateProvider());
+        if (OperatingSystem.IsWindows())
+        {
+            services.AddSingleton<IKeyboardLayoutService, WindowsKeyboardLayoutService>();
+            services.AddSingleton<IMousePositionProvider, WindowsMousePositionProvider>();
             
-        // Register Validators
+            services.AddTransient<Func<IInputSimulator>>(sp => () => new WindowsInputSimulator());
+            services.AddTransient<Func<IInputCapture>>(sp => () => new WindowsInputCapture());
+            
+            services.AddTransient<IMacroRecorder>(sp =>
+            {
+                var positionProvider = sp.GetRequiredService<IMousePositionProvider>();
+                Func<IInputSimulator> simulatorFactory = () => new WindowsInputSimulator();
+                Func<IInputCapture> captureFactory = () => new WindowsInputCapture();
+                return new MacroRecorder(positionProvider, simulatorFactory, captureFactory);
+            });
+        }
+        else
+        {
+            services.AddSingleton<IKeyboardLayoutService, KeyboardLayoutService>();
+            
+            services.AddSingleton<IMousePositionProvider>(sp => 
+                MousePositionProviderFactory.CreateProvider());
+                
+            services.AddTransient<Func<IInputSimulator>>(sp => () => new LinuxInputSimulator());
+            services.AddTransient<Func<IInputCapture>>(sp => () => new LinuxInputCapture());
+            
+            services.AddTransient<IMacroRecorder>(sp =>
+            {
+                var positionProvider = sp.GetRequiredService<IMousePositionProvider>();
+                Func<IInputSimulator> simulatorFactory = () => new LinuxInputSimulator();
+                Func<IInputCapture> captureFactory = () => new LinuxInputCapture();
+                return new MacroRecorder(positionProvider, simulatorFactory, captureFactory);
+            });
+        }
+        
         services.AddTransient<PlaybackValidator>();
-
-        services.AddTransient<IMacroRecorder, MacroRecorder>();
+        
         services.AddTransient<IMacroPlayer, MacroPlayer>();
         
-        // Register Child ViewModels (Singleton for state persistence)
         services.AddSingleton<RecordingViewModel>();
         services.AddSingleton<PlaybackViewModel>();
         services.AddSingleton<FilesViewModel>();
         services.AddSingleton<TextExpansionViewModel>();
         services.AddSingleton<SettingsViewModel>();
         
-        // Register Main ViewModel (Coordinator)
         services.AddSingleton<MainWindowViewModel>();
         
-        // Register Tray Icon Service
         services.AddSingleton<ITrayIconService, TrayIconService>();
         
-        // Clipboard Services
-        services.AddSingleton<LinuxShellClipboardService>();
         services.AddSingleton<AvaloniaClipboardService>();
-        
-        // Use CompositeClipboardService to fallback to Avalonia if Shell tools (wl-copy etc) are missing
-        services.AddSingleton<IClipboardService, CompositeClipboardService>();
 
-        // Register Text Expansion Storage Service
+        if (OperatingSystem.IsWindows())
+        {
+            services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<AvaloniaClipboardService>());
+        }
+        else
+        {
+            services.AddSingleton<LinuxShellClipboardService>();
+            services.AddSingleton<IClipboardService, CompositeClipboardService>();
+        }
+
         services.AddSingleton<TextExpansionStorageService>();
         services.AddSingleton<ITextExpansionService, TextExpansionService>();
+        services.AddSingleton<IDialogService, DialogService>();
 
-        
         _serviceProvider = services.BuildServiceProvider();
     }
 
@@ -87,8 +116,6 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
-            // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
             DisableAvaloniaDataAnnotationValidation();
             
             if (_serviceProvider == null)
@@ -96,11 +123,9 @@ public partial class App : Application
                 throw new InvalidOperationException("Service provider is not initialized");
             }
             
-            // Load settings synchronously to avoid deadlock
             var settingsService = _serviceProvider.GetRequiredService<ISettingsService>();
             settingsService.Load();
             
-            // Resolve ViewModel from DI container
             var viewModel = _serviceProvider.GetRequiredService<MainWindowViewModel>();
             
             desktop.MainWindow = new MainWindow
@@ -108,35 +133,23 @@ public partial class App : Application
                 DataContext = viewModel
             };
             
-            // Initialize tray icon service after main window is created
             var trayIconService = _serviceProvider.GetRequiredService<ITrayIconService>();
             trayIconService.Initialize();
             
-            // Initialize Text Expansion Service on background thread
             var expansionService = _serviceProvider.GetRequiredService<ITextExpansionService>();
             _ = System.Threading.Tasks.Task.Run(() => expansionService.Start());
-
             
-            // Set initial tray icon state
             trayIconService.SetEnabled(settingsService.Current.EnableTrayIcon);
             
-            // Listen for tray icon setting changes
             viewModel.TrayIconEnabledChanged += (sender, enabled) =>
             {
                 trayIconService.SetEnabled(enabled);
             };
 
-            // Listen for settings expansion toggle via a new mechanism or just rely on the service checking the settings?
-            // The service checks _settingsService.Current.EnableTextExpansion in Start(), but if it changes at runtime...
-            // We should ideally subscribe to changes, but for now simple restart or manual Start/Stop might be needed if I didn't implement listener on service.
-            // Actually, let's fix the service to listen to property changes if we can, or just start/stop here.
-            
-            // For now, let's wire up the SettingsViewModel change to the service
             var settingsVM = _serviceProvider.GetRequiredService<SettingsViewModel>();
             settingsVM.PropertyChanged += (sender, e) => {
                 if (e.PropertyName == nameof(SettingsViewModel.EnableTextExpansion))
                 {
-                     // Run Start/Stop on background thread to avoid UI blocking
                      _ = System.Threading.Tasks.Task.Run(() => {
                          if (settingsVM.EnableTextExpansion) expansionService.Start();
                          else expansionService.Stop();
@@ -150,11 +163,9 @@ public partial class App : Application
 
     private void DisableAvaloniaDataAnnotationValidation()
     {
-        // Get an array of plugins to remove
         var dataValidationPluginsToRemove =
             BindingPlugins.DataValidators.OfType<DataAnnotationsValidationPlugin>().ToArray();
 
-        // remove each entry found
         foreach (var plugin in dataValidationPluginsToRemove)
         {
             BindingPlugins.DataValidators.Remove(plugin);

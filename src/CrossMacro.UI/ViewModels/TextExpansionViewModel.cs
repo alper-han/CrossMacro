@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -16,14 +17,16 @@ namespace CrossMacro.UI.ViewModels;
 public partial class TextExpansionViewModel : ViewModelBase
 {
     private readonly TextExpansionStorageService _storageService;
+    private readonly IDialogService _dialogService;
 
     private string _triggerInput = string.Empty;
     private string _replacementInput = string.Empty;
     private ObservableCollection<TextExpansion> _expansions = new();
     
-    public TextExpansionViewModel(TextExpansionStorageService storageService)
+    public TextExpansionViewModel(TextExpansionStorageService storageService, IDialogService dialogService)
     {
         _storageService = storageService;
+        _dialogService = dialogService;
         
         // Load existing expansions asynchronously
         _ = LoadExpansionsAsync();
@@ -105,6 +108,12 @@ public partial class TextExpansionViewModel : ViewModelBase
     {
         if (expansion == null) return;
         
+        var confirmed = await _dialogService.ShowConfirmationAsync(
+            "Delete Expansion", 
+            $"Are you sure you want to delete the expansion '{expansion.Trigger}'?");
+            
+        if (!confirmed) return;
+
         if (Expansions.Remove(expansion))
         {
             await _storageService.SaveAsync(Expansions);
@@ -125,4 +134,3 @@ public partial class TextExpansionViewModel : ViewModelBase
         await _storageService.SaveAsync(Expansions);
     }
 }
-

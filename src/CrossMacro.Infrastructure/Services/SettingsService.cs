@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using Serilog;
+using CrossMacro.Core;
 
 namespace CrossMacro.Infrastructure.Services;
 
@@ -13,7 +14,6 @@ namespace CrossMacro.Infrastructure.Services;
 /// </summary>
 public class SettingsService : ISettingsService
 {
-    private const string AppName = "crossmacro";
     private const string SettingsFileName = "settings.json";
     private readonly string _configDirectory;
     private readonly string _settingsFilePath;
@@ -29,7 +29,7 @@ public class SettingsService : ISettingsService
             ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config")
             : xdgConfigHome;
 
-        _configDirectory = Path.Combine(configHome, AppName);
+        _configDirectory = Path.Combine(configHome, AppConstants.AppIdentifier);
         _settingsFilePath = Path.Combine(_configDirectory, SettingsFileName);
         
         _currentSettings = new AppSettings();

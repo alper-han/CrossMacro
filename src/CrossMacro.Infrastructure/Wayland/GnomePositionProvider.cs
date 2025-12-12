@@ -7,8 +7,8 @@ using Tmds.DBus;
 
 namespace CrossMacro.Infrastructure.Wayland
 {
-    [DBusInterface("org.example.MacroHelper")]
-    public interface IMacroHelper : IDBusObject
+    [DBusInterface("org.crossmacro.Tracker")]
+    public interface IGnomeTrackerService : IDBusObject
     {
         Task<(int x, int y)> GetPositionAsync();
         Task<(int width, int height)> GetResolutionAsync();
@@ -24,7 +24,7 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const MouseInterface = `
 <node>
-  <interface name=""org.example.MacroHelper"">
+  <interface name=""org.crossmacro.Tracker"">
     <method name=""GetPosition"">
       <arg type=""i"" direction=""out"" name=""x""/>
       <arg type=""i"" direction=""out"" name=""y""/>
@@ -39,10 +39,10 @@ const MouseInterface = `
 export default class CursorSpyExtension extends Extension {
     enable() {
         this._dbusImpl = Gio.DBusExportedObject.wrapJSObject(MouseInterface, this);
-        this._dbusImpl.export(Gio.DBus.session, '/org/example/MacroHelper');
+        this._dbusImpl.export(Gio.DBus.session, '/org/crossmacro/Tracker');
 
         Gio.DBus.session.own_name(
-            'org.example.MacroHelper',
+            'org.crossmacro.Tracker',
             Gio.BusNameOwnerFlags.NONE,
             null,
             null
@@ -83,7 +83,7 @@ export default class CursorSpyExtension extends Extension {
 }
 ";
         private Connection? _connection;
-        private IMacroHelper? _proxy;
+        private IGnomeTrackerService? _proxy;
         private readonly TaskCompletionSource<bool> _initializationTcs = new();
         private bool _isInitialized;
         private (int Width, int Height)? _cachedResolution;
@@ -318,7 +318,7 @@ export default class CursorSpyExtension extends Extension {
 
                 _connection = new Connection(Address.Session);
                 await _connection.ConnectAsync();
-                _proxy = _connection.CreateProxy<IMacroHelper>("org.example.MacroHelper", "/org/example/MacroHelper");
+                _proxy = _connection.CreateProxy<IGnomeTrackerService>("org.crossmacro.Tracker", "/org/crossmacro/Tracker");
                 _isInitialized = true;
                 _initializationTcs.SetResult(true);
                 Log.Information("[GnomePositionProvider] Connected to DBus service");

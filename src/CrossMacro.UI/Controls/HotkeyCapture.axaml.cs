@@ -10,13 +10,14 @@ using Avalonia.Interactivity;
 using Avalonia.Threading;
 using CrossMacro.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
+using CrossMacro.Core;
 
 namespace CrossMacro.UI.Controls;
 
 public partial class HotkeyCapture : UserControl
 {
     public static readonly StyledProperty<string> HotkeyProperty =
-        AvaloniaProperty.Register<HotkeyCapture, string>(nameof(Hotkey), "F8");
+        AvaloniaProperty.Register<HotkeyCapture, string>(nameof(Hotkey), AppConstants.DefaultRecordingHotkey);
 
     public static readonly DirectProperty<HotkeyCapture, bool> IsCapturingProperty =
         AvaloniaProperty.RegisterDirect<HotkeyCapture, bool>(
@@ -70,7 +71,7 @@ public partial class HotkeyCapture : UserControl
             nameof(DisplayString),
             o => o.DisplayString);
 
-    private string _displayString = "F8";
+    private string _displayString = AppConstants.DefaultRecordingHotkey;
 
     public string DisplayString
     {

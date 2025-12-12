@@ -9,15 +9,15 @@ public class HotkeySettings
     /// Hotkey for toggling recording (default: F8)
     /// Format: "F8", "J", "Super+J", "Ctrl+Shift+A"
     /// </summary>
-    public string RecordingHotkey { get; set; } = "F8";
+    public string RecordingHotkey { get; set; } = AppConstants.DefaultRecordingHotkey;
 
     /// <summary>
     /// Hotkey for toggling playback (default: F9)
     /// </summary>
-    public string PlaybackHotkey { get; set; } = "F9";
+    public string PlaybackHotkey { get; set; } = AppConstants.DefaultPlaybackHotkey;
 
     /// <summary>
     /// Hotkey for toggling pause (default: F10)
     /// </summary>
-    public string PauseHotkey { get; set; } = "F10";
+    public string PauseHotkey { get; set; } = AppConstants.DefaultPauseHotkey;
 }

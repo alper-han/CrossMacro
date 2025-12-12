@@ -5,6 +5,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform;
 using CrossMacro.UI.ViewModels;
 using Serilog;
+using CrossMacro.Core;
 
 namespace CrossMacro.UI.Services;
 
@@ -45,7 +46,7 @@ public class TrayIconService : ITrayIconService
             _trayIcon = new TrayIcon
             {
                 Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://CrossMacro.UI/Assets/mouse-icon.png"))),
-                ToolTipText = "CrossMacro",
+                ToolTipText = AppConstants.AppName,
                 IsVisible = true
             };
 

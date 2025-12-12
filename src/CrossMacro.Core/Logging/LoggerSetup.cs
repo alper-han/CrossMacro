@@ -38,7 +38,7 @@ public static class LoggerSetup
             // Windows: %LOCALAPPDATA%\crossmacro\logs
             return Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "crossmacro", "logs");
+                AppConstants.AppIdentifier, "logs");
         }
         else
         {
@@ -47,13 +47,13 @@ public static class LoggerSetup
             
             if (!string.IsNullOrEmpty(xdgDataHome))
             {
-                return Path.Combine(xdgDataHome, "crossmacro", "logs");
+                return Path.Combine(xdgDataHome, AppConstants.AppIdentifier, "logs");
             }
             
             // Fallback to XDG default
             return Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".local", "share", "crossmacro", "logs");
+                ".local", "share", AppConstants.AppIdentifier, "logs");
         }
     }
 }

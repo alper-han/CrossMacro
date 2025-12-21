@@ -1,6 +1,7 @@
 using System;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using Serilog;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -136,7 +137,7 @@ public class SettingsViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Hotkey update error: {ex.Message}");
+            Log.Error(ex, "Hotkey update error");
         }
     }
     
@@ -151,7 +152,7 @@ public class SettingsViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Hotkey service start error: {ex.Message}");
+            Log.Error(ex, "Hotkey service start error");
         }
     }
 }

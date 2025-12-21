@@ -11,6 +11,7 @@ using Avalonia.Threading;
 using CrossMacro.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using CrossMacro.Core;
+using Serilog;
 
 namespace CrossMacro.UI.Controls;
 
@@ -248,7 +249,7 @@ public partial class HotkeyCapture : UserControl
                     RemoveHoverEffect();
                 }
                 
-                Console.WriteLine($"Capture failed: {ex}");
+                Log.Error(ex, "Capture failed");
             });
         }
     }

@@ -9,11 +9,11 @@ namespace CrossMacro.UI;
 /// <summary>
 /// Given a view model, returns the corresponding view if possible.
 /// </summary>
-[RequiresUnreferencedCode(
-    "Default implementation of ViewLocator involves reflection which may be trimmed away.",
-    Url = "https://docs.avaloniaui.net/docs/concepts/view-locator")]
+// [RequiresUnreferencedCode] removed to avoid warning in App.axaml. Warns internally instead, which we suppress.
 public class ViewLocator : IDataTemplate
 {
+    [UnconditionalSuppressMessage("Trimming", "IL2057", Justification = "ViewModel to View mapping by convention")]
+    [UnconditionalSuppressMessage("Trimming", "IL2096", Justification = "View creation via reflection")]
     public Control? Build(object? param)
     {
         if (param is null)

@@ -77,11 +77,12 @@
                BorderThickness="0,1,0,0">
             <Grid ColumnDefinitions="Auto,*,Auto">
                 <TextBlock Grid.Column="0"
-                          Text="🖱️ CrossMacro"
                           FontSize="12"
                           FontWeight="Bold"
                           Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                          VerticalAlignment="Center"/>
+                          VerticalAlignment="Center">
+                    <Run Text="🖱️ CrossMacro "/><Run Text="{Binding AppVersion}"/>
+                </TextBlock>
                 <TextBlock Grid.Column="2"
                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
                           FontSize="11"

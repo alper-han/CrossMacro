@@ -8,7 +8,24 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <InvariantGlobalization>true</InvariantGlobalization>
     <Version>0.5.2</Version>
+    <Description>Cross-platform mouse and keyboard macro automation tool with text expansion support.</Description>
   </PropertyGroup>
+
+  <!-- Self-contained deployment for Linux packages (DEB/RPM) -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' != ''">
+    <SelfContained>true</SelfContained>
+    <PublishTrimmed>true</PublishTrimmed>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <TrimMode>partial</TrimMode>
+  </PropertyGroup>
+
+  <!-- Avalonia trimmer configuration to prevent essential assemblies from being trimmed -->
+  <ItemGroup Condition="'$(PublishTrimmed)' == 'true'">
+    <TrimmerRootAssembly Include="Avalonia" />
+    <TrimmerRootAssembly Include="Avalonia.Desktop" />
+    <TrimmerRootAssembly Include="Avalonia.Themes.Fluent" />
+    <TrimmerRootAssembly Include="Avalonia.Fonts.Inter" />
+  </ItemGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />

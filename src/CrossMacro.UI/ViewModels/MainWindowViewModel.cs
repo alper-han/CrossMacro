@@ -5,9 +5,6 @@ using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Wayland;
 using CrossMacro.Core.Wayland;
-using CrossMacro.Infrastructure.Helpers;
-using System.Threading.Tasks;
-using System.Collections.Generic;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -24,7 +21,6 @@ public class MainWindowViewModel : ViewModelBase
     
     // Warning sources
     private string? _gnomeWarning;
-    private string? _uinputWarning;
 
     private string _globalStatus = "Ready";
     
@@ -38,6 +34,17 @@ public class MainWindowViewModel : ViewModelBase
     public SettingsViewModel Settings { get; }
     
     public bool IsCloseButtonVisible { get; }
+    
+    /// <summary>
+    /// Application version from assembly
+    /// </summary>
+    public string AppVersion { get; } = GetAppVersion();
+    
+    private static string GetAppVersion()
+    {
+        var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        return version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "";
+    }
     
     /// <summary>
     /// Event fired when tray icon setting changes (for App.axaml.cs)
@@ -81,9 +88,6 @@ public class MainWindowViewModel : ViewModelBase
         
         // Start hotkey service
         Settings.StartHotkeyService();
-        
-        // Check permissions
-        CheckPermissions();
     }
     
     private void SetupViewModelCommunication()
@@ -205,29 +209,13 @@ public class MainWindowViewModel : ViewModelBase
         });
     }
 
-    private void CheckPermissions()
-    {
-        Task.Run(() => 
-        {
-            if (OperatingSystem.IsLinux() && !PermissionHelper.CheckUInputAccess())
-            {
-                Dispatcher.UIThread.Post(() => {
-                    _uinputWarning = "⚠️ Missing Permissions: You are not in the 'input' group.";
-                    UpdateCombinedWarning();
-                });
-            }
-        });
-    }
+
 
     private void UpdateCombinedWarning()
     {
-        var parts = new List<string>();
-        if (!string.IsNullOrEmpty(_uinputWarning)) parts.Add(_uinputWarning);
-        if (!string.IsNullOrEmpty(_gnomeWarning)) parts.Add(_gnomeWarning);
-
-        if (parts.Count > 0)
+        if (!string.IsNullOrEmpty(_gnomeWarning))
         {
-            ExtensionWarning = string.Join("\n\n", parts);
+            ExtensionWarning = _gnomeWarning;
             HasExtensionWarning = true;
         }
         else

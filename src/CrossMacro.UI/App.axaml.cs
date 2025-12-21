@@ -64,17 +64,54 @@ public partial class App : Application
         {
             services.AddSingleton<IKeyboardLayoutService, KeyboardLayoutService>();
             
+            services.AddSingleton<CrossMacro.Platform.Linux.Ipc.IpcClient>();
+            
             services.AddSingleton<IMousePositionProvider>(sp => 
                 MousePositionProviderFactory.CreateProvider());
-                
-            services.AddTransient<Func<IInputSimulator>>(sp => () => new LinuxInputSimulator());
-            services.AddTransient<Func<IInputCapture>>(sp => () => new LinuxInputCapture());
+            
+            // Register Legacy implementations (Transient)
+            services.AddTransient<CrossMacro.Platform.Linux.LinuxInputSimulator>();
+            services.AddSingleton<Func<CrossMacro.Platform.Linux.LinuxInputSimulator>>(sp => () => sp.GetRequiredService<CrossMacro.Platform.Linux.LinuxInputSimulator>());
+            
+            services.AddTransient<CrossMacro.Platform.Linux.LinuxInputCapture>();
+            services.AddSingleton<Func<CrossMacro.Platform.Linux.LinuxInputCapture>>(sp => () => sp.GetRequiredService<CrossMacro.Platform.Linux.LinuxInputCapture>());
+            
+            // Register IPC implementations (Transient)
+            services.AddTransient<CrossMacro.Platform.Linux.Ipc.LinuxIpcInputSimulator>();
+            services.AddSingleton<Func<CrossMacro.Platform.Linux.Ipc.LinuxIpcInputSimulator>>(sp => () => sp.GetRequiredService<CrossMacro.Platform.Linux.Ipc.LinuxIpcInputSimulator>());
+
+            services.AddTransient<CrossMacro.Platform.Linux.Ipc.LinuxIpcInputCapture>();
+            services.AddSingleton<Func<CrossMacro.Platform.Linux.Ipc.LinuxIpcInputCapture>>(sp => () => sp.GetRequiredService<CrossMacro.Platform.Linux.Ipc.LinuxIpcInputCapture>());
+            
+            // Register Factory
+            services.AddSingleton<LinuxInputProviderFactory>(sp => new LinuxInputProviderFactory(
+                sp.GetRequiredService<CrossMacro.Platform.Linux.Ipc.IpcClient>(),
+                sp.GetRequiredService<Func<CrossMacro.Platform.Linux.LinuxInputSimulator>>(),
+                sp.GetRequiredService<Func<CrossMacro.Platform.Linux.LinuxInputCapture>>(),
+                sp.GetRequiredService<Func<CrossMacro.Platform.Linux.Ipc.LinuxIpcInputSimulator>>(),
+                sp.GetRequiredService<Func<CrossMacro.Platform.Linux.Ipc.LinuxIpcInputCapture>>()
+            ));
+            
+            // Use Factory for IInputSimulator and IInputCapture
+            services.AddTransient<Func<IInputSimulator>>(sp => 
+            {
+                var factory = sp.GetRequiredService<LinuxInputProviderFactory>();
+                return () => factory.CreateSimulator();
+            });
+            
+            services.AddTransient<Func<IInputCapture>>(sp => 
+            {
+                var factory = sp.GetRequiredService<LinuxInputProviderFactory>();
+                return () => factory.CreateCapture();
+            });
             
             services.AddTransient<IMacroRecorder>(sp =>
             {
                 var positionProvider = sp.GetRequiredService<IMousePositionProvider>();
-                Func<IInputSimulator> simulatorFactory = () => new LinuxInputSimulator();
-                Func<IInputCapture> captureFactory = () => new LinuxInputCapture();
+                var factory = sp.GetRequiredService<LinuxInputProviderFactory>();
+                
+                Func<IInputSimulator> simulatorFactory = () => factory.CreateSimulator();
+                Func<IInputCapture> captureFactory = () => factory.CreateCapture();
                 return new MacroRecorder(positionProvider, simulatorFactory, captureFactory);
             });
         }
@@ -156,11 +193,43 @@ public partial class App : Application
                      });
                 }
             };
+            
+            // First-run GitHub star prompt
+            if (!settingsService.Current.HasAskedForStar)
+            {
+                desktop.MainWindow.Opened += async (s, e) =>
+                {
+                    var dialogService = _serviceProvider.GetRequiredService<IDialogService>();
+                    var wantToStar = await dialogService.ShowConfirmationAsync(
+                        "Support CrossMacro",
+                        "Consider giving it a ⭐ on GitHub!",
+                        "Open GitHub",
+                        "Later"
+                    );
+                    
+                    if (wantToStar)
+                    {
+                        try
+                        {
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                            {
+                                FileName = "https://github.com/alper-han/CrossMacro",
+                                UseShellExecute = true
+                            });
+                        }
+                        catch { }
+                    }
+                    
+                    settingsService.Current.HasAskedForStar = true;
+                    settingsService.Save();
+                };
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
     }
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "We are removing a validator plugin. If it's trimmed, it's not there to remove, which is fine.")]
     private void DisableAvaloniaDataAnnotationValidation()
     {
         var dataValidationPluginsToRemove =

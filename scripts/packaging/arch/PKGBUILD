@@ -52,6 +52,10 @@ package() {
     install -dm755 "$pkgdir/usr/lib/$pkgname/daemon"
     cp -r publish-daemon/* "$pkgdir/usr/lib/$pkgname/daemon/"
     
+    # Ensure binaries have executable permissions
+    chmod +x "$pkgdir/usr/lib/$pkgname/CrossMacro.UI"
+    chmod +x "$pkgdir/usr/lib/$pkgname/daemon/CrossMacro.Daemon"
+    
     # Install Service File
     install -dm755 "$pkgdir/usr/lib/systemd/system"
     install -Dm644 "scripts/daemon/crossmacro.service" \

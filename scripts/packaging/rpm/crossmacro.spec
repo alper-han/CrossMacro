@@ -84,8 +84,11 @@ if [ $1 -eq 0 ]; then
 fi
 
 %files
+
 /usr/lib/%{name}
-/usr/bin/%{name}
+%attr(0755, root, root) /usr/bin/%{name}
+%attr(0755, root, root) /usr/lib/%{name}/CrossMacro.UI
+%attr(0755, root, root) /usr/lib/%{name}/daemon/CrossMacro.Daemon
 /usr/lib/systemd/system/crossmacro.service
 /usr/lib/udev/rules.d/99-crossmacro.rules
 /usr/share/applications/%{name}.desktop

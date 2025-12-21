@@ -152,6 +152,10 @@ if command -v patchelf >/dev/null; then
     echo "Patching Daemon binary interpreter..."
     patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 "$DEB_DIR/usr/lib/$APP_NAME/daemon/CrossMacro.Daemon"
 fi
+
+# Ensure binaries have executable permissions
+chmod +x "$DEB_DIR/usr/lib/$APP_NAME/CrossMacro.UI"
+chmod +x "$DEB_DIR/usr/lib/$APP_NAME/daemon/CrossMacro.Daemon"
 # Cleanup unnecessary files if any (pdb etc) - though StripSymbols should handle it.
 # With AOT, the output is the executable. We might get a .dbg file if not stripped, but we set StripSymbols.
 

@@ -72,7 +72,7 @@ if command -v appimage-run &> /dev/null; then
     TOOL_CMD="appimage-run $TOOL_CMD"
 fi
 
-$TOOL_CMD "$APP_DIR" "CrossMacro-$VERSION-x86_64.AppImage"
+$TOOL_CMD --no-appstream "$APP_DIR" "CrossMacro-$VERSION-x86_64.AppImage"
 
 # 7. Cleanup appimagetool
 echo "Cleaning up build tools..."

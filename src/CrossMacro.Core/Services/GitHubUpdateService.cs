@@ -9,6 +9,21 @@ using Serilog;
 
 namespace CrossMacro.Core.Services;
 
+// Source-generated JSON context for trimming-safe deserialization
+[JsonSerializable(typeof(GitHubRelease))]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
+internal partial class GitHubJsonContext : JsonSerializerContext { }
+
+// Must be public or internal for source generator to access
+internal class GitHubRelease
+{
+    [JsonPropertyName("tag_name")]
+    public string? TagName { get; set; }
+
+    [JsonPropertyName("html_url")]
+    public string? HtmlUrl { get; set; }
+}
+
 public class GitHubUpdateService : IUpdateService
 {
     private const string GitHubApiUrl = "https://api.github.com/repos/alper-han/CrossMacro/releases/latest";
@@ -28,7 +43,7 @@ public class GitHubUpdateService : IUpdateService
                 return new UpdateCheckResult { HasUpdate = false };
             }
 
-            var release = await response.Content.ReadFromJsonAsync<GitHubRelease>();
+            var release = await response.Content.ReadFromJsonAsync(GitHubJsonContext.Default.GitHubRelease);
             if (release == null)
             {
                 Log.Warning("GitHub release info is null");
@@ -69,14 +84,5 @@ public class GitHubUpdateService : IUpdateService
         }
 
         return new UpdateCheckResult { HasUpdate = false };
-    }
-
-    private class GitHubRelease
-    {
-        [JsonPropertyName("tag_name")]
-        public string? TagName { get; set; }
-
-        [JsonPropertyName("html_url")]
-        public string? HtmlUrl { get; set; }
     }
 }

@@ -268,6 +268,9 @@ jobs:
       env:
         GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
       run: |
+        # Set default branch name to suppress Git 3.0 warning
+        git config --global init.defaultBranch master
+        
         # Try to clone. If it fails (new package), init a new repo
         if ! git clone ssh://aur@aur.archlinux.org/crossmacro.git aur-repo; then
           echo "Clone failed or repo does not exist. Initializing new repo..."
@@ -312,6 +315,7 @@ jobs:
         
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
+        git config --global init.defaultBranch master
         git config --global --add safe.directory $(pwd)
         
         git add PKGBUILD .SRCINFO crossmacro.install crossmacro.sysusers

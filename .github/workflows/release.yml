@@ -282,8 +282,10 @@ jobs:
       run: |
         VERSION=${{ needs.build-core.outputs.version }}
         
-        # Copy PKGBUILD from source if not present or to overwrite
+        # Copy PKGBUILD and install files from source if not present or to overwrite
         cp scripts/packaging/arch/PKGBUILD aur-repo/
+        cp scripts/packaging/arch/crossmacro.install aur-repo/
+        cp scripts/packaging/arch/crossmacro.sysusers aur-repo/
         
         cd aur-repo
         
@@ -312,7 +314,7 @@ jobs:
         git config --global user.email "actions@github.com"
         git config --global --add safe.directory $(pwd)
         
-        git add PKGBUILD .SRCINFO
+        git add PKGBUILD .SRCINFO crossmacro.install crossmacro.sysusers
         
         if ! git diff --quiet --cached; then
           git commit -m "Update to version $VERSION"

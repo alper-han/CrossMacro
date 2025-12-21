@@ -73,6 +73,7 @@ if command -v rpmbuild &> /dev/null; then
     rpmbuild --define "_topdir $(pwd)/$RPM_BUILD_DIR" \
              --define "_sourcedir $(pwd)/$RPM_BUILD_DIR/SOURCES" \
              --define "version $VERSION" \
+             --nodeps \
              -bb "$RPM_BUILD_DIR/SPECS/crossmacro.spec"
     
     # Copy RPM to scripts directory for GitHub release

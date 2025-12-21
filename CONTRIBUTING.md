@@ -19,20 +19,42 @@ This section guides you through submitting a bug report for CrossMacro.
 
 ## 💻 Development Setup
 
-1. **Prerequisites**:
-   - .NET 10 SDK
-   - **Linux**: `libevdev` and `uinput` permissions (see README for setup)
-   - **Windows**: No additional requirements
+### Prerequisites
+- .NET 10 SDK
 
-2. **Build the project**:
+### Linux Setup
+
+1. **Install system dependencies**:
+   - `polkit` (required for daemon authorization)
+   - `libevdev` development headers (if building from source)
+
+2. **Install the daemon**:
+   ```bash
+   sudo ./scripts/daemon/install.sh
+   ```
+   This will:
+   - Build and install the daemon to `/opt/crossmacro/daemon`
+   - Create the `crossmacro` system user and group
+   - Set up the systemd service
+   - Add your user to the `crossmacro` group
+
+3. **Reboot your system** for group changes to take effect.
+
+4. **Build and run the UI**:
    ```bash
    dotnet build
-   ```
-
-3. **Run the UI**:
-   ```bash
    dotnet run --project src/CrossMacro.UI/
    ```
+
+### Windows Setup
+
+1. **Build and run**:
+   ```bash
+   dotnet build
+   dotnet run --project src/CrossMacro.UI/
+   ```
+   
+   No additional setup required - Windows uses API hooks directly.
 
 ## 📥 Pull Requests
 

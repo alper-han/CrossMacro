@@ -43,7 +43,9 @@ A modern mouse and keyboard macro recording and playback application for Linux (
 
 ## 📥 Installation
 
-### Debian / Ubuntu (.deb)
+<details>
+<summary><strong>Debian / Ubuntu (.deb)</strong></summary>
+
 ```bash
 # Download from GitHub Releases, then:
 sudo apt install ./crossmacro-*_amd64.deb
@@ -54,7 +56,11 @@ sudo usermod -aG crossmacro $USER
 # Reboot your system for group changes to take effect, then start the app
 ```
 
-### Fedora / RHEL (.rpm)
+</details>
+
+<details>
+<summary><strong>Fedora / RHEL (.rpm)</strong></summary>
+
 ```bash
 # Download from GitHub Releases, then:
 sudo dnf install ./crossmacro-*.x86_64.rpm
@@ -65,7 +71,11 @@ sudo usermod -aG crossmacro $USER
 # Reboot your system for group changes to take effect, then start the app
 ```
 
-### Arch Linux
+</details>
+
+<details>
+<summary><strong>Arch Linux</strong></summary>
+
 Available on the [AUR](https://aur.archlinux.org/packages/crossmacro):
 ```bash
 # Using yay
@@ -80,7 +90,11 @@ sudo usermod -aG crossmacro $USER
 # Reboot your system for group changes to take effect, then start the app
 ```
 
-### NixOS
+</details>
+
+<details>
+<summary><strong>NixOS</strong></summary>
+
 **Run directly:**
 ```bash
 nix run github:alper-han/CrossMacro
@@ -107,7 +121,10 @@ Then in your NixOS configuration:
 
 > **Note:** The NixOS module automatically sets up the daemon service, user, and groups. Just add yourself to the `crossmacro` group.
 
-### AppImage (Portable)
+</details>
+
+<details>
+<summary><strong>AppImage (Portable)</strong></summary>
 
 This method allows you to run the app without installing anything extra.
 Since AppImages run on FUSE, we recommend configuring **User Group Permissions** for the best experience.
@@ -135,13 +152,20 @@ This allows you to run the app normally (just double-click) without needing sudo
    ./CrossMacro-*.AppImage
    ```
 
-### Windows
+</details>
+
+<details>
+<summary><strong>Windows</strong></summary>
 
 Download the `.exe` file from [GitHub Releases](https://github.com/alper-han/CrossMacro/releases) and run it directly.
 
 > **Note:** No installation required. The executable is self-contained and doesn't require .NET to be installed.
 
-### Manual Build (Development)
+</details>
+
+
+<details>
+<summary><strong>Manual Build (Development)</strong></summary>
 
 **Requirements:** .NET 10 SDK
 
@@ -157,7 +181,14 @@ sudo ./scripts/daemon/install.sh
 dotnet run --project src/CrossMacro.UI/
 ```
 
-## ⚙️ How It Works (Linux)
+</details>
+
+
+
+## ⚙️ How It Works
+
+<details>
+<summary><strong>Linux</strong></summary>
 
 CrossMacro uses a **secure daemon architecture** on Linux:
 
@@ -175,6 +206,31 @@ CrossMacro uses a **secure daemon architecture** on Linux:
 - **Daemon** runs as a system service with `input` group privileges
 - **UI** runs as your normal user, communicates via Unix socket
 - **Security**: Your user never needs direct access to input devices
+
+</details>
+
+<details>
+<summary><strong>Windows</strong></summary>
+
+CrossMacro uses **Windows API hooks** for input handling:
+
+```
+┌─────────────────────────────────────┐
+│         CrossMacro UI               │
+│  (Single Process Architecture)      │
+└─────────────────────────────────────┘
+              │
+              ▼
+    Windows API (User32.dll)
+    ├─ SendInput()      (simulation)
+    └─ SetWindowsHookEx() (capture)
+```
+
+- **Single Process**: No separate daemon required
+- **API Hooks**: Uses low-level keyboard and mouse hooks
+- **Permissions**: Runs with normal user privileges
+
+</details>
 
 ## 🛠️ Troubleshooting
 
@@ -248,14 +304,3 @@ pkcheck --version
 > **Note:** Most desktop Linux distributions (Fedora, Ubuntu, Arch, etc.) include polkit by default. This is typically only an issue on minimal server installations or embedded systems.
 
 </details>
-
-
-
-## 📄 License
-
-GPL-3.0 License - see [LICENSE](LICENSE) for details.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting PRs.
-

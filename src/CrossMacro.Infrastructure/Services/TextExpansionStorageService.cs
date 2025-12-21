@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using Serilog;
+using CrossMacro.Infrastructure.Serialization;
 
 namespace CrossMacro.Infrastructure.Services;
 
@@ -19,7 +20,6 @@ public class TextExpansionStorageService
     private const string ExpansionsFileName = "text-expansions.json";
     private readonly string _configDirectory;
     private readonly string _filePath;
-    private readonly JsonSerializerOptions _jsonOptions;
     private List<TextExpansion> _expansions = new();
     private readonly object _lock = new();
 
@@ -34,11 +34,7 @@ public class TextExpansionStorageService
         _configDirectory = Path.Combine(configHome, AppName);
         _filePath = Path.Combine(_configDirectory, ExpansionsFileName);
         
-        _jsonOptions = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
+
         
         Log.Information("[TextExpansionStorageService] Storage path: {Path}", _filePath);
     }
@@ -61,7 +57,7 @@ public class TextExpansionStorageService
                 }
 
                 var json = File.ReadAllText(_filePath);
-                _expansions = JsonSerializer.Deserialize<List<TextExpansion>>(json, _jsonOptions) ?? new List<TextExpansion>();
+                _expansions = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.ListTextExpansion) ?? new List<TextExpansion>();
                 
                 Log.Information("[TextExpansionStorageService] Loaded {Count} text expansions", _expansions.Count);
                 return new List<TextExpansion>(_expansions);
@@ -90,7 +86,7 @@ public class TextExpansionStorageService
             }
 
             var json = await File.ReadAllTextAsync(_filePath);
-            var loaded = JsonSerializer.Deserialize<List<TextExpansion>>(json, _jsonOptions) ?? new List<TextExpansion>();
+            var loaded = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.ListTextExpansion) ?? new List<TextExpansion>();
             
             lock (_lock)
             {
@@ -120,7 +116,7 @@ public class TextExpansionStorageService
             
             var expansionList = expansions.ToList();
             
-            var json = JsonSerializer.Serialize(expansionList, _jsonOptions);
+            var json = JsonSerializer.Serialize(expansionList, CrossMacroJsonContext.Default.ListTextExpansion);
             await File.WriteAllTextAsync(_filePath, json);
             
             lock (_lock)

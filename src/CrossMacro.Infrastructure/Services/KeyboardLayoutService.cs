@@ -111,6 +111,10 @@ public class KeyboardLayoutService : IKeyboardLayoutService, IDisposable
 
     private string? DetectHyprlandLayout()
     {
+        // Skip if not running on Hyprland
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("HYPRLAND_INSTANCE_SIGNATURE")))
+            return null;
+            
         try
         {
             var startInfo = new ProcessStartInfo
@@ -118,9 +122,14 @@ public class KeyboardLayoutService : IKeyboardLayoutService, IDisposable
                 FileName = "hyprctl",
                 Arguments = "devices -j",
                 RedirectStandardOutput = true,
+                RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            
+            // Clear LD_LIBRARY_PATH to prevent FHS wrapper library contamination
+            // This fixes "GLIBCXX_3.4.34 not found" errors on NixOS
+            startInfo.Environment["LD_LIBRARY_PATH"] = "";
 
             using var process = Process.Start(startInfo);
             if (process != null)
@@ -156,7 +165,10 @@ public class KeyboardLayoutService : IKeyboardLayoutService, IDisposable
                 }
             }
         }
-        catch { /* Ignore */ }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "[KeyboardLayoutService] Failed to detect Hyprland layout");
+        }
         return null;
     }
 
@@ -200,7 +212,10 @@ public class KeyboardLayoutService : IKeyboardLayoutService, IDisposable
                 }
             }
         }
-        catch { /* Ignore */ }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "[KeyboardLayoutService] Failed to detect X11 layout");
+        }
         return null;
     }
 
@@ -240,7 +255,10 @@ public class KeyboardLayoutService : IKeyboardLayoutService, IDisposable
                 }
             }
         }
-        catch { /* Ignore */ }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "[KeyboardLayoutService] Failed to detect localectl layout");
+        }
         return null;
     }
 

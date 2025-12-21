@@ -333,7 +333,10 @@ console.error('[CrossMacro] Position tracking started');
                         WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
                     })?.WaitForExit();
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Log.Debug(ex, "[KdePositionProvider] Error stopping/unloading KWin script");
+                }
             }
 
             // Clean up DBus
@@ -341,7 +344,14 @@ console.error('[CrossMacro] Position tracking started');
 
             if (_tempJsFile != null && File.Exists(_tempJsFile))
             {
-                try { File.Delete(_tempJsFile); } catch { }
+                try 
+                { 
+                    File.Delete(_tempJsFile); 
+                } 
+                catch (Exception ex)
+                {
+                    Log.Debug(ex, "[KdePositionProvider] Failed to delete temp script file: {File}", _tempJsFile);
+                }
             }
         }
     }

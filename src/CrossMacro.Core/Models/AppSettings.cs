@@ -56,5 +56,12 @@ public class AppSettings
     /// Whether text expansion is enabled globally
     /// </summary>
     public bool EnableTextExpansion { get; set; } = false;
+    
+    // First Run Settings
+    
+    /// <summary>
+    /// Whether the user has been asked to star the GitHub repository
+    /// </summary>
+    public bool HasAskedForStar { get; set; } = false;
 }
 

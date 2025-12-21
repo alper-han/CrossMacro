@@ -5,6 +5,7 @@ using System.Text.Json;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using Serilog;
+using CrossMacro.Infrastructure.Serialization;
 
 namespace CrossMacro.Infrastructure.Services;
 
@@ -37,7 +38,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
             if (File.Exists(_configPath))
             {
                 var json = File.ReadAllText(_configPath);
-                var settings = JsonSerializer.Deserialize<HotkeySettings>(json);
+                var settings = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.HotkeySettings);
                 if (settings != null)
                 {
                     Log.Information("Loaded hotkey configuration from {Path}", _configPath);
@@ -65,7 +66,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
             }
 
             var json = await File.ReadAllTextAsync(_configPath);
-            var settings = JsonSerializer.Deserialize<HotkeySettings>(json);
+            var settings = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.HotkeySettings);
             if (settings != null)
             {
                 Log.Information("Loaded hotkey configuration from {Path}", _configPath);
@@ -85,8 +86,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
     {
         try
         {
-            var options = new JsonSerializerOptions { WriteIndented = true };
-            var json = JsonSerializer.Serialize(settings, options);
+            var json = JsonSerializer.Serialize(settings, CrossMacroJsonContext.Default.HotkeySettings);
             File.WriteAllText(_configPath, json);
             Log.Information("Saved hotkey configuration to {Path}", _configPath);
         }

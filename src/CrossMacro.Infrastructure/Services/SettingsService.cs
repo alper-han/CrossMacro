@@ -6,6 +6,7 @@ using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using Serilog;
 using CrossMacro.Core;
+using CrossMacro.Infrastructure.Serialization;
 
 namespace CrossMacro.Infrastructure.Services;
 
@@ -48,7 +49,7 @@ public class SettingsService : ISettingsService
             }
 
             var json = await File.ReadAllTextAsync(_settingsFilePath);
-            _currentSettings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+            _currentSettings = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.AppSettings) ?? new AppSettings();
             
             Log.Information("Settings loaded from {Path}", _settingsFilePath);
             return _currentSettings;
@@ -74,7 +75,7 @@ public class SettingsService : ISettingsService
             }
 
             var json = File.ReadAllText(_settingsFilePath);
-            _currentSettings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+            _currentSettings = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.AppSettings) ?? new AppSettings();
             
             Log.Information("Settings loaded from {Path}", _settingsFilePath);
             return _currentSettings;
@@ -94,12 +95,7 @@ public class SettingsService : ISettingsService
             // Ensure config directory exists
             Directory.CreateDirectory(_configDirectory);
 
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true
-            };
-
-            var json = JsonSerializer.Serialize(_currentSettings, options);
+            var json = JsonSerializer.Serialize(_currentSettings, CrossMacroJsonContext.Default.AppSettings);
             await File.WriteAllTextAsync(_settingsFilePath, json);
             
             Log.Information("Settings saved to {Path}", _settingsFilePath);
@@ -118,12 +114,7 @@ public class SettingsService : ISettingsService
             // Ensure config directory exists
             Directory.CreateDirectory(_configDirectory);
 
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true
-            };
-
-            var json = JsonSerializer.Serialize(_currentSettings, options);
+            var json = JsonSerializer.Serialize(_currentSettings, CrossMacroJsonContext.Default.AppSettings);
             File.WriteAllText(_settingsFilePath, json);
             
             Log.Information("Settings saved to {Path}", _settingsFilePath);

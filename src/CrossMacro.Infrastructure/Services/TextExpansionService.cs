@@ -6,9 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Helpers;
-using CrossMacro.Native.Evdev;
-using CrossMacro.Native.UInput;
 using Serilog;
 
 namespace CrossMacro.Infrastructure.Services;
@@ -22,7 +19,13 @@ public class TextExpansionService : ITextExpansionService
     private readonly ISettingsService _settingsService;
     private readonly IClipboardService _clipboardService;
     private readonly TextExpansionStorageService _storageService;
-    private readonly List<EvdevReader> _readers = new();
+    
+    private readonly Func<IInputCapture> _inputCaptureFactory;
+    private readonly Func<IInputSimulator> _inputSimulatorFactory;
+    
+    private IInputCapture? _inputCapture;
+    private IInputSimulator? _inputSimulator;
+    
     private readonly object _lock; // Use monitor for synchronous operations
     private bool _isRunning;
     
@@ -30,8 +33,6 @@ public class TextExpansionService : ITextExpansionService
     private readonly StringBuilder _buffer;
     private const int MaxBufferLength = 50; // Max supported trigger length
     
-    // UInput device for injecting keystrokes
-    private UInputDevice? _outputDevice;
     private readonly SemaphoreSlim _outputLock; // Use SemaphoreSlim for async operations
 
     // Modifier state
@@ -45,12 +46,17 @@ public class TextExpansionService : ITextExpansionService
         ISettingsService settingsService, 
         IClipboardService clipboardService, 
         TextExpansionStorageService storageService,
-        IKeyboardLayoutService layoutService)
+        IKeyboardLayoutService layoutService,
+        Func<IInputCapture> inputCaptureFactory,
+        Func<IInputSimulator> inputSimulatorFactory)
     {
         _settingsService = settingsService;
         _clipboardService = clipboardService;
         _storageService = storageService;
         _layoutService = layoutService;
+        _inputCaptureFactory = inputCaptureFactory;
+        _inputSimulatorFactory = inputSimulatorFactory;
+        
         _buffer = new StringBuilder();
         _lock = new object();
         _outputLock = new SemaphoreSlim(1, 1);
@@ -59,7 +65,6 @@ public class TextExpansionService : ITextExpansionService
 
     public void Start()
     {
-        // ... (Start implementation remains same) ...
         // Only start if enabled in settings
         if (!_settingsService.Current.EnableTextExpansion)
         {
@@ -73,45 +78,37 @@ public class TextExpansionService : ITextExpansionService
 
             try
             {
-                // Auto-detect keyboards
-                var devices = InputDeviceHelper.GetAvailableDevices();
-                var keyboards = devices.Where(d => d.IsKeyboard).ToList();
-
-                if (keyboards.Count == 0)
-                {
-                    Log.Warning("[TextExpansionService] No keyboards found, cannot start monitoring");
-                    return;
-                }
-
-                foreach (var kbd in keyboards)
-                {
-                    try
-                    {
-                        var reader = new EvdevReader(kbd.Path, kbd.Name);
-                        reader.EventReceived += OnEventReceived;
-                        reader.Start();
-                        _readers.Add(reader);
-                        Log.Information("[TextExpansionService] Monitoring {Name} for text expansion", kbd.Name);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error(ex, "[TextExpansionService] Failed to open keyboard {Name}", kbd.Name);
-                    }
-                }
-
-                if (_readers.Count > 0)
-                {
-                    _isRunning = true;
-                }
+                // Initialize Input Capture
+                _inputCapture = _inputCaptureFactory();
+                _inputCapture.Configure(captureMouse: false, captureKeyboard: true);
+                _inputCapture.InputReceived += OnInputReceived;
+                _inputCapture.Error += OnInputCaptureError;
+                
+                // Fire and forget start (it's async but Start() is void)
+                _ = _inputCapture.StartAsync(CancellationToken.None);
+                
+                // Initialize Input Simulator (lazy loaded or upfront is fine, we'll do it upfront here for readiness)
+                // We'll actually initialize it on demand or here. Let's do it on demand to match previous pattern, 
+                // but create the instance here.
+                _inputSimulator = _inputSimulatorFactory();
+                // Initialize with 0,0 since we don't care about mouse position for text expansion
+                _inputSimulator.Initialize(0, 0); 
+                
+                _isRunning = true;
+                Log.Information("[TextExpansionService] Started monitoring via {Provider}", _inputCapture.ProviderName);
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "[TextExpansionService] Failed to start service");
+                Stop(); // Clean up if partial start
             }
         }
     }
-
-    // ... Stop/Dispose ...
+    
+    private void OnInputCaptureError(object? sender, string error)
+    {
+        Log.Error("[TextExpansionService] Input capture error: {Error}", error);
+    }
 
     public void Stop()
     {
@@ -119,22 +116,26 @@ public class TextExpansionService : ITextExpansionService
         {
             if (!_isRunning) return;
 
-            foreach (var reader in _readers)
-            {
-                reader.Stop();
-                reader.Dispose();
-            }
-            _readers.Clear();
-            
             try 
             {
-                _outputLock.Wait();
-                _outputDevice?.Dispose();
-                _outputDevice = null;
+                if (_inputCapture != null)
+                {
+                    _inputCapture.InputReceived -= OnInputReceived;
+                    _inputCapture.Error -= OnInputCaptureError;
+                    _inputCapture.Stop();
+                    _inputCapture.Dispose();
+                    _inputCapture = null;
+                }
+                
+                if (_inputSimulator != null)
+                {
+                    _inputSimulator.Dispose();
+                    _inputSimulator = null;
+                }
             }
-            finally
+            catch (Exception ex)
             {
-                _outputLock.Release();
+                Log.Error(ex, "[TextExpansionService] Error stopping service");
             }
 
             _isRunning = false;
@@ -153,49 +154,56 @@ public class TextExpansionService : ITextExpansionService
     private long _lastPressTime;
     private const long DebounceTicks = 20 * 10000; // 20ms in ticks
 
-    private void OnEventReceived(EvdevReader sender, UInputNative.input_event ev)
+    private void OnInputReceived(object? sender, InputCaptureEventArgs e)
     {
         // Only process key events
-        if (ev.type != UInputNative.EV_KEY) return;
-
+        if (e.Type != InputEventType.Key) return;
+        
+        // We only care about Press (1). 
+        // Note: Release (0) and Repeat (2) are ignored for typing logic, 
+        // BUT we need Release for modifiers to track state correctly?
+        // Actually, existing logic for modifiers checked value == 1 || value == 2.
+        // Let's adapt carefully.
+        
         lock (_lock)
         {
             // Update shift state
-            if (ev.code == 42 || ev.code == 54) // Left/Right Shift
+            if (e.Code == 42 || e.Code == 54) // Left/Right Shift
             {
-                _isShiftPressed = ev.value == 1 || ev.value == 2;
+                // value 1=down, 2=repeat, 0=up
+                _isShiftPressed = e.Value == 1 || e.Value == 2;
                 return;
             }
             // Update AltGr state (Right Alt = 100)
-            if (ev.code == 100)
+            if (e.Code == 100)
             {
-                _isAltGrPressed = ev.value == 1 || ev.value == 2;
+                _isAltGrPressed = e.Value == 1 || e.Value == 2;
                 return;
             }
             // Update CapsLock state (Toggle on Press)
-            if (ev.code == 58 && ev.value == 1) // Caps Lock Press
+            if (e.Code == 58 && e.Value == 1) // Caps Lock Press
             {
                 _isCapsLockOn = !_isCapsLockOn;
                 return;
             }
 
-            // Only process key PRESS (value == 1)
+            // Only process key PRESS (value == 1) for actual typing
             // Ignore Repeat (2) and Release (0)
-            if (ev.value != 1) return;
+            if (e.Value != 1) return;
 
             // Debouncing check
             // If same key is pressed very quickly, assume it's a duplicate event from dual interfaces
             long now = DateTime.UtcNow.Ticks;
-            if (ev.code == _lastKey && (now - _lastPressTime) < DebounceTicks)
+            if (e.Code == _lastKey && (now - _lastPressTime) < DebounceTicks)
             {
                // Duplicate event, ignore
                return;
             }
-            _lastKey = ev.code;
+            _lastKey = e.Code;
             _lastPressTime = now;
 
             // Map key to char using IKeyboardLayoutService (XKB aware)
-            var charValue = _layoutService.GetCharFromKeyCode(ev.code, _isShiftPressed, _isAltGrPressed, _isCapsLockOn);
+            var charValue = _layoutService.GetCharFromKeyCode(e.Code, _isShiftPressed, _isAltGrPressed, _isCapsLockOn);
 
             // Manage buffer
             if (charValue.HasValue)
@@ -203,17 +211,17 @@ public class TextExpansionService : ITextExpansionService
                 AppendToBuffer(charValue.Value);
                 CheckForExpansion();
             }
-            else if (ev.code == 14) // Backspace
+            else if (e.Code == 14) // Backspace
             {
                 // Remove last char from buffer if possible
                 if (_buffer.Length > 0) _buffer.Length--;
             }
-            else if (ev.code == 28 || ev.code == 57) // Enter or Space
+            else if (e.Code == 28 || e.Code == 57) // Enter or Space
             {
                  // Reset usage on Enter logic can stay
-                 if (ev.code == 28) _buffer.Clear();
+                 if (e.Code == 28) _buffer.Clear();
                  // Space (57) special handling
-                 if (ev.code == 57)
+                 if (e.Code == 57)
                  {
                     var spaceChar = _layoutService.GetCharFromKeyCode(57, false, false, false);
                     if (spaceChar.HasValue) 
@@ -270,15 +278,15 @@ public class TextExpansionService : ITextExpansionService
             await _outputLock.WaitAsync();
             try
             {
-                if (_outputDevice == null)
+                if (_inputSimulator == null)
                 {
-                    _outputDevice = new UInputDevice();
-                    _outputDevice.CreateVirtualInputDevice();
+                    // Should be initialized in Start, but safe guard
+                    _inputSimulator = _inputSimulatorFactory();
+                    _inputSimulator.Initialize(0,0);
                     await Task.Delay(200);
                 }
 
                 // 0. Wait for Modifiers (AltGr AND Shift) to be released
-                // If user is holding AltGr (e.g. for '}') or Shift (e.g. for '!'), Ctrl+V might fail or behave differently (e.g. Shift+Ctrl+V is terminal paste).
                 int timeoutMs = 2000;
                 int elapsed = 0;
                 while ((_isAltGrPressed || _isShiftPressed) && elapsed < timeoutMs)
@@ -308,7 +316,6 @@ public class TextExpansionService : ITextExpansionService
                         try 
                         {
                             var getTask = _clipboardService.GetTextAsync();
-                            // Reduce timeout to 100ms for faster fallback
                             if (await Task.WhenAny(getTask, Task.Delay(100)) == getTask)
                             {
                                 oldClipboard = await getTask;
@@ -321,7 +328,6 @@ public class TextExpansionService : ITextExpansionService
                         
                         // Set new text (with timeout)
                         var setsTask = _clipboardService.SetTextAsync(expansion.Replacement);
-                        // Reduce timeout to 100ms to prevent perceptible freeze
                         if (await Task.WhenAny(setsTask, Task.Delay(100)) == setsTask)
                         {
                             await setsTask; // Propagate exceptions if any
@@ -343,7 +349,10 @@ public class TextExpansionService : ITextExpansionService
                                     try {
                                         var restoreTask = _clipboardService.SetTextAsync(oldClipboard);
                                         await Task.WhenAny(restoreTask, Task.Delay(200));
-                                    } catch { /* Ignore restore errors */ }
+                                    } catch (Exception ex) 
+                                    { 
+                                        Log.Debug(ex, "[TextExpansionService] Failed to restore clipboard");
+                                    }
                                 });
                             }
                         }
@@ -430,20 +439,19 @@ public class TextExpansionService : ITextExpansionService
 
     private async Task TypeUnicodeHexAsync(int codePoint)
     {
-        if (_outputDevice == null) return;
+        if (_inputSimulator == null) return;
 
         Log.Debug("Initiating Ctrl+Shift+U sequence...");
         
         // 1. Send Ctrl+Shift+U Explicit Sequence with proper delays
-        // Hold Modifiers
         // Ctrl Down
-        _outputDevice.SendEvent(UInputNative.EV_KEY, 29, 1); // Left Ctrl
-        _outputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+        _inputSimulator.KeyPress(29, true); // Left Ctrl
+        _inputSimulator.Sync();
         await Task.Delay(10);
         
         // Shift Down
-        _outputDevice.SendEvent(UInputNative.EV_KEY, 42, 1); // Left Shift
-        _outputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+        _inputSimulator.KeyPress(42, true); // Left Shift
+        _inputSimulator.Sync();
         await Task.Delay(10);
         
         // Press U (22)
@@ -451,13 +459,13 @@ public class TextExpansionService : ITextExpansionService
         
         // Release Modifiers
         // Shift Up
-        _outputDevice.SendEvent(UInputNative.EV_KEY, 42, 0); // Release Shift
-        _outputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+        _inputSimulator.KeyPress(42, false);
+        _inputSimulator.Sync();
         await Task.Delay(10);
         
         // Ctrl Up
-        _outputDevice.SendEvent(UInputNative.EV_KEY, 29, 0); // Release Ctrl
-        _outputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+        _inputSimulator.KeyPress(29, false);
+        _inputSimulator.Sync();
         
         // CRITICAL: Wait for the IME/Toolkit to display the underlined 'u'
         // Increased to 200ms to ensure stability on slower systems/compositors
@@ -484,51 +492,51 @@ public class TextExpansionService : ITextExpansionService
 
     private async Task SendKeyAsync(int keyCode, bool shift = false, bool altGr = false, bool ctrl = false)
     {
-        if (_outputDevice == null) return;
+        if (_inputSimulator == null) return;
 
         // Modifiers Down
         if (ctrl)
         {
-            _outputDevice.SendEvent(UInputNative.EV_KEY, 29, 1); // Left Ctrl
-            _outputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+            _inputSimulator.KeyPress(29, true);
+            _inputSimulator.Sync();
         }
         if (shift) 
         {
-            _outputDevice.SendEvent(UInputNative.EV_KEY, 42, 1); // Left Shift
-            _outputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+            _inputSimulator.KeyPress(42, true);
+            _inputSimulator.Sync();
         }
         if (altGr)
         {
-            _outputDevice.SendEvent(UInputNative.EV_KEY, 100, 1); // Right Alt
-            _outputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+            _inputSimulator.KeyPress(100, true);
+            _inputSimulator.Sync();
         }
 
         // Key Press
-        _outputDevice.SendEvent(UInputNative.EV_KEY, (ushort)keyCode, 1);
-        _outputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+        _inputSimulator.KeyPress(keyCode, true);
+        _inputSimulator.Sync();
         
         // Hold key briefly to ensure OS registers it
         await Task.Delay(15); 
 
         // Key Release
-        _outputDevice.SendEvent(UInputNative.EV_KEY, (ushort)keyCode, 0);
-        _outputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+        _inputSimulator.KeyPress(keyCode, false);
+        _inputSimulator.Sync();
 
         // Modifiers Up (Reverse Order)
         if (altGr)
         {
-            _outputDevice.SendEvent(UInputNative.EV_KEY, 100, 0);
-            _outputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+            _inputSimulator.KeyPress(100, false);
+            _inputSimulator.Sync();
         }
         if (shift) 
         {
-            _outputDevice.SendEvent(UInputNative.EV_KEY, 42, 0);
-            _outputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+            _inputSimulator.KeyPress(42, false);
+            _inputSimulator.Sync();
         }
         if (ctrl)
         {
-            _outputDevice.SendEvent(UInputNative.EV_KEY, 29, 0);
-            _outputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+            _inputSimulator.KeyPress(29, false);
+            _inputSimulator.Sync();
         }
     }
 }

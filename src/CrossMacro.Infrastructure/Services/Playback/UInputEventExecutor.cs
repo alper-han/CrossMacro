@@ -102,7 +102,10 @@ public class UInputEventExecutor : IEventExecutor
             _device.EmitButton(UInputNative.BTN_RIGHT, false);
             _device.EmitButton(UInputNative.BTN_MIDDLE, false);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "[UInputEventExecutor] Failsafe button release failed");
+        }
         
         // Release all tracked keys
         var keysToRelease = _pressedKeys.Keys.ToArray();

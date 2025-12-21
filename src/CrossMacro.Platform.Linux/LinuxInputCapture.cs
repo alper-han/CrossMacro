@@ -29,8 +29,9 @@ public class LinuxInputCapture : IInputCapture
             {
                 return Directory.Exists("/dev/input");
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Debug(ex, "[LinuxInputCapture] Failed to check /dev/input directory");
                 return false;
             }
         }
@@ -136,7 +137,10 @@ public class LinuxInputCapture : IInputCapture
                     reader.EventReceived -= OnEvdevEventReceived;
                     reader.ErrorOccurred -= OnEvdevError;
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Log.Debug(ex, "[LinuxInputCapture] Error unsubscribing from reader events");
+                }
             }
             
             Parallel.ForEach(_readers, reader =>

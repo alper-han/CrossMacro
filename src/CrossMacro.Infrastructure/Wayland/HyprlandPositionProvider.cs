@@ -159,7 +159,10 @@ namespace CrossMacro.Infrastructure.Wayland
                     {
                         socket.Shutdown(SocketShutdown.Both);
                     }
-                    catch { /* Ignore shutdown errors */ }
+                    catch (Exception ex)
+                    {
+                        Log.Debug(ex, "[HyprlandPositionProvider] Socket shutdown error");
+                    }
                 }
             }
         }
@@ -218,9 +221,9 @@ namespace CrossMacro.Infrastructure.Wayland
                     maxWidth = Math.Max(maxWidth, posX + width);
                     maxHeight = Math.Max(maxHeight, posY + height);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Skip malformed lines
+                    Log.Debug(ex, "[HyprlandPositionProvider] Failed to parse monitor line: {Line}", line);
                     continue;
                 }
             }

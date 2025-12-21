@@ -57,8 +57,8 @@ public class MacroPlayer : IMacroPlayer, IDisposable
         
         if (_positionProvider != null)
         {
-            _x11SetPositionMethod = _positionProvider.GetType()
-                .GetMethod("SetAbsolutePositionAsync", new[] { typeof(int), typeof(int) });
+            // Verify X11 position setter availability (hack for specific Linux provider)
+            _x11SetPositionMethod = GetSetPositionMethod(_positionProvider);
             
             if (_positionProvider.IsSupported)
             {
@@ -222,10 +222,12 @@ public class MacroPlayer : IMacroPlayer, IDisposable
                 
                 bool hasNextIteration = infiniteLoop || i < repeatCount - 1;
                 
-                if (hasNextIteration && options.RepeatDelayMs > 0 && !_cts.Token.IsCancellationRequested)
+                // Minimum 10ms delay between iterations to ensure hotkey responsiveness
+                if (hasNextIteration && !_cts.Token.IsCancellationRequested)
                 {
-                    IsWaitingBetweenLoops = true;
-                    await Task.Delay(options.RepeatDelayMs, _cts.Token);
+                    int delayMs = Math.Max(10, options.RepeatDelayMs);
+                    IsWaitingBetweenLoops = options.RepeatDelayMs > 0;
+                    await Task.Delay(delayMs, _cts.Token);
                     IsWaitingBetweenLoops = false;
                 }
                 
@@ -557,5 +559,11 @@ public class MacroPlayer : IMacroPlayer, IDisposable
         _pauseEvent?.Dispose();
         
         GC.SuppressFinalize(this);
+    }
+
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Optional Linux-specific method lookup via reflection.")]
+    private static MethodInfo? GetSetPositionMethod(IMousePositionProvider provider)
+    {
+        return provider.GetType().GetMethod("SetAbsolutePositionAsync", new[] { typeof(int), typeof(int) });
     }
 }

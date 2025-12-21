@@ -34,7 +34,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
     private CancellationTokenSource? _syncCancellation;
     private const int BaseSyncIntervalMs = 1;
     private const int MaxSyncIntervalMs = 500;
-    private const int DriftThresholdPx = 2;
+    private const int DriftThresholdPx = 0;
     
     private const int PositionCacheMilliseconds = 1;
     private readonly TimeSpan _positionCacheTime = TimeSpan.FromMilliseconds(PositionCacheMilliseconds);
@@ -228,7 +228,10 @@ public class MacroRecorder : IMacroRecorder, IDisposable
                     _inputCapture.Stop();
                     _inputCapture.Dispose(); 
                 } 
-                catch { }
+                catch (Exception cleanupEx)
+                {
+                    Log.Debug(cleanupEx, "[MacroRecorder] Error during input capture cleanup");
+                }
                 _inputCapture = null;
             }
             throw;
@@ -489,7 +492,10 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             {
                 _syncTask?.Wait(1000);
             }
-            catch (AggregateException) { }
+            catch (AggregateException)
+            {
+                // Task was cancelled or timed out - expected during shutdown
+            }
             
             _syncCancellation?.Dispose();
             _syncCancellation = null;
@@ -558,7 +564,10 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             {
                 _syncTask?.Wait(1000);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "[MacroRecorder] Error waiting for sync task during dispose");
+            }
             
             _syncCancellation?.Dispose();
             _syncCancellation = null;

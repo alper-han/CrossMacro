@@ -41,100 +41,46 @@ A modern mouse and keyboard macro recording and playback application for Linux (
   - **F10**: Pause/Resume playback
 - **System Tray Icon**: Minimize to tray and control macros from system tray (optional)
 
-## ⚙️ Setup & Configuration
-
-> **⚠️ Important**: Complete this setup **before** installing the application.
-
-<details>
-<summary><strong>Required Permissions (Click to expand)</strong></summary>
-
-To record and play macros without `sudo`, you must configure permissions:
-
-1. **Add user to input group:**
-   ```bash
-   sudo usermod -aG input $USER
-   ```
-
-2. **Configure uinput rules:**
-   ```bash
-   echo 'KERNEL=="uinput", GROUP="input", MODE="0660"' | sudo tee /etc/udev/rules.d/99-crossmacro.rules
-   ```
-
-3. **Apply changes:**
-   ```bash
-   sudo udevadm control --reload-rules && sudo udevadm trigger
-   ```
-   
-**Important:** Log out and log back in for group changes to take effect.
-
-</details>
-
-<details>
-<summary><strong>GNOME Users Only (Click to expand)</strong></summary>
-
-CrossMacro requires a GNOME Shell extension to capture mouse positions. The extension is **automatically installed** when you first run CrossMacro.
-
-**You need an extension manager to enable it:**
-
-**Fedora:**
-```bash
-# Usually pre-installed. If missing:
-sudo dnf install gnome-extensions-app
-```
-
-**Ubuntu/Debian:**
-```bash
-sudo apt install gnome-shell-extension-manager
-```
-
-**Arch Linux:**
-```bash
-sudo pacman -S extension-manager
-```
-
-
-
-**Note:** CrossMacro will automatically detect if the extension is missing or disabled and show a warning in the app.
-
-</details>
-
 ## 📥 Installation
 
-<details>
-<summary><strong>Debian / Ubuntu (.deb)</strong></summary>
-
+### Debian / Ubuntu (.deb)
 ```bash
 # Download from GitHub Releases, then:
-sudo dpkg -i crossmacro-*_amd64.deb
+sudo apt install ./crossmacro-*_amd64.deb
+
+# Add yourself to the crossmacro group (required for daemon communication)
+sudo usermod -aG crossmacro $USER
+
+# Log out and back in, then start the app
 ```
-</details>
 
-<details>
-<summary><strong>Fedora / RHEL (.rpm)</strong></summary>
-
+### Fedora / RHEL (.rpm)
 ```bash
 # Download from GitHub Releases, then:
-sudo rpm -i crossmacro-*.x86_64.rpm
+sudo dnf install ./crossmacro-*.x86_64.rpm
+
+# Add yourself to the crossmacro group (required for daemon communication)
+sudo usermod -aG crossmacro $USER
+
+# Log out and back in, then start the app
 ```
-</details>
 
-<details>
-<summary><strong>Arch Linux</strong></summary>
-
+### Arch Linux
 Available on the [AUR](https://aur.archlinux.org/packages/crossmacro):
-
 ```bash
 # Using yay
 yay -S crossmacro
 
 # Using paru
 paru -S crossmacro
+
+# After installation, add yourself to the group
+sudo usermod -aG crossmacro $USER
+
+# Log out and back in, then start the app
 ```
-</details>
 
-<details>
-<summary><strong>NixOS</strong></summary>
-
+### NixOS
 **Run directly:**
 ```bash
 nix run github:alper-han/CrossMacro
@@ -153,40 +99,163 @@ Then in your NixOS configuration:
   imports = [ inputs.crossmacro.nixosModules.default ];
   
   programs.crossmacro.enable = true;
+  
+  # Add your user to the crossmacro group
+  users.users.yourusername.extraGroups = [ "crossmacro" ];
 }
 ```
 
-> **Note:** Automatically configures permissions and udev rules. No manual setup needed!
+> **Note:** The NixOS module automatically sets up the daemon service, user, and groups. Just add yourself to the `crossmacro` group.
 
-</details>
+### AppImage (Portable)
 
-<details>
-<summary><strong>AppImage</strong></summary>
+This method allows you to run the app without installing anything extra.
+Since AppImages run on FUSE, we recommend configuring **User Group Permissions** for the best experience.
 
-```bash
-# Download from GitHub Releases, then run directly:
-./CrossMacro-*.AppImage
-```
-</details>
+> **⚠️ Security Warning:** Adding your user to the `input` group grants your user account direct access to all input devices (keystrokes, mouse moves). This bypasses the secure daemon isolation typically recommended for Linux/Wayland, but is required for the AppImage to function without a system service.
 
-<details>
-<summary><strong>Windows</strong></summary>
+**Setup Instructions (Required) 🛠️**
+This allows you to run the app normally (just double-click) without needing sudo.
+
+1. **One-time setup** (Run in terminal):
+   ```bash
+   # Add udev rule for uinput access
+   echo 'KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"' | sudo tee /etc/udev/rules.d/99-crossmacro.rules
+   
+   # Reload rules
+   sudo udevadm control --reload-rules && sudo udevadm trigger
+   
+   # Add your user to input group
+   sudo usermod -aG input $USER
+   ```
+2. **Restart your computer** (Important for group changes to take effect).
+3. **Run the App**:
+   ```bash
+   chmod +x CrossMacro-*.AppImage
+   ./CrossMacro-*.AppImage
+   ```
+
+### Windows
 
 Download the `.exe` file from [GitHub Releases](https://github.com/alper-han/CrossMacro/releases) and run it directly.
 
 > **Note:** No installation required. The executable is self-contained and doesn't require .NET to be installed.
 
-</details>
-
-<details>
-<summary><strong>Manual Build</strong></summary>
+### Manual Build (Development)
 
 **Requirements:** .NET 10 SDK
 
 ```bash
+# Clone the repository
+git clone https://github.com/alper-han/CrossMacro.git
+cd CrossMacro
+
+# Install daemon (Linux only)
+sudo ./scripts/daemon/install.sh
+
+# Run the application
 dotnet run --project src/CrossMacro.UI/
 ```
+
+## ⚙️ How It Works (Linux)
+
+CrossMacro uses a **secure daemon architecture** on Linux:
+
+```
+┌─────────────────┐     IPC Socket      ┌──────────────────────┐
+│  CrossMacro UI  │ ◄─────────────────► │  CrossMacro Daemon   │
+│  (Your User)    │                     │  (System Service)    │
+└─────────────────┘                     └──────────────────────┘
+                                               │
+                                               ▼
+                                        /dev/input/* (read)
+                                        /dev/uinput  (write)
+```
+
+- **Daemon** runs as a system service with `input` group privileges
+- **UI** runs as your normal user, communicates via Unix socket
+- **Security**: Your user never needs direct access to input devices
+
+## 🛠️ Troubleshooting
+
+<details>
+<summary><strong>GNOME: Extension Required</strong></summary>
+
+CrossMacro requires a GNOME Shell extension to **read mouse position** on Wayland. The extension is **automatically installed** when you first run CrossMacro.
+
+> **Note:** When using AppImage (without the system daemon), this extension is still required for recording mouse positions. The app will handle input simulation directly via the permissions granted.
+
+**You need an extension manager to enable it:**
+
+| Distro | Command |
+|--------|---------|
+| Fedora | `sudo dnf install gnome-extensions-app` |
+| Ubuntu/Debian | `sudo apt install gnome-shell-extension-manager` |
+| Arch | `sudo pacman -S extension-manager` |
+
+CrossMacro will show a warning if the extension is missing or disabled.
+
+</details>
+
+<details>
+<summary><strong>Daemon Not Running</strong></summary>
+
+Check daemon status:
+```bash
+systemctl status crossmacro.service
+```
+
+If not running:
+```bash
+sudo systemctl start crossmacro.service
+sudo systemctl enable crossmacro.service  # Auto-start on boot
+```
+
+</details>
+
+<details>
+<summary><strong>Permission Denied Errors</strong></summary>
+
+Ensure you're in the `crossmacro` group:
+```bash
+groups | grep crossmacro
+```
+
+If not, add yourself:
+```bash
+sudo usermod -aG crossmacro $USER
+# Log out and back in!
+```
+
+</details>
+
+<details>
+<summary><strong>Polkit Not Available (Minimal/Embedded Systems)</strong></summary>
+
+The daemon requires **polkit** for authorization. If your system doesn't have polkit installed (some minimal or embedded distributions), the daemon will reject all connections.
+
+**Check if polkit is installed:**
+```bash
+which pkcheck
+# or
+pkcheck --version
+```
+
+**If polkit is not available:**
+- The daemon won't work without polkit
+- Use the **AppImage** instead with `input` group permissions (see AppImage section above)
+
+> **Note:** Most desktop Linux distributions (Fedora, Ubuntu, Arch, etc.) include polkit by default. This is typically only an issue on minimal server installations or embedded systems.
+
 </details>
 
 
+
+## 📄 License
+
+GPL-3.0 License - see [LICENSE](LICENSE) for details.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting PRs.
 

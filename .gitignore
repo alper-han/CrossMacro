@@ -125,15 +125,18 @@ result-*
 
 # Published application
 publish/
+publish-*/
 dist/
 
 # DEB packages
 *.deb
 scripts/build_deb_output/
+scripts/deb_package/
 
 # RPM packages
 *.rpm
 scripts/build_rpm_output/
+scripts/rpm_build/
 
 # Arch Linux packages
 *.pkg.tar.zst
@@ -143,6 +146,11 @@ scripts/build_arch_output/
 # AppImage
 *.AppImage
 scripts/build_appimage_output/
+scripts/AppDir/
+
+# SELinux build artifacts
+*.pp
+*.mod
 
 # Generic package build directories
 scripts/packaging/build/

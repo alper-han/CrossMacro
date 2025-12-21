@@ -1,0 +1,50 @@
+[Unit]
+Description=CrossMacro Input Daemon Service
+Documentation=https://github.com/alper-han/CrossMacro
+After=network.target polkit.service
+Wants=polkit.service
+
+[Service]
+Type=notify
+User=crossmacro
+Group=input
+ExecStart=/usr/lib/crossmacro/daemon/CrossMacro.Daemon
+Restart=on-failure
+RestartSec=5
+
+# Security Hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=no
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+ProtectHostname=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+
+# Capability restrictions (only necessary ones)
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_SETUID CAP_SETGID
+AmbientCapabilities=CAP_SYS_ADMIN
+
+# Allow write to /dev/input and /dev/uinput
+ReadWritePaths=/dev/input /dev/uinput /run/crossmacro
+
+# Create runtime directory for socket
+RuntimeDirectory=crossmacro
+RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=yes
+
+# Resource limits
+LimitNOFILE=1024
+LimitNPROC=64
+
+[Install]
+WantedBy=multi-user.target

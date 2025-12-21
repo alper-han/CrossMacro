@@ -107,7 +107,7 @@ echo ""
 echo "------------------------------------------------------------------------------"
 echo ""
 echo "Next steps:"
-echo "   1. Log out and log back in for group changes to take effect."
+echo "   1. Reboot your system for group changes to take effect."
 echo "   2. Run 'crossmacro' or start the UI from your application menu."
 echo ""
 if [ -n "$SUDO_USER" ]; then

@@ -51,7 +51,7 @@ sudo apt install ./crossmacro-*_amd64.deb
 # Add yourself to the crossmacro group (required for daemon communication)
 sudo usermod -aG crossmacro $USER
 
-# Log out and back in, then start the app
+# Reboot your system for group changes to take effect, then start the app
 ```
 
 ### Fedora / RHEL (.rpm)
@@ -62,7 +62,7 @@ sudo dnf install ./crossmacro-*.x86_64.rpm
 # Add yourself to the crossmacro group (required for daemon communication)
 sudo usermod -aG crossmacro $USER
 
-# Log out and back in, then start the app
+# Reboot your system for group changes to take effect, then start the app
 ```
 
 ### Arch Linux
@@ -77,7 +77,7 @@ paru -S crossmacro
 # After installation, add yourself to the group
 sudo usermod -aG crossmacro $USER
 
-# Log out and back in, then start the app
+# Reboot your system for group changes to take effect, then start the app
 ```
 
 ### NixOS
@@ -224,7 +224,7 @@ groups | grep crossmacro
 If not, add yourself:
 ```bash
 sudo usermod -aG crossmacro $USER
-# Log out and back in!
+# Reboot your system for group changes to take effect!
 ```
 
 </details>

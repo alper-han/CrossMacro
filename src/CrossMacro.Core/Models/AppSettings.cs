@@ -57,11 +57,12 @@ public class AppSettings
     /// </summary>
     public bool EnableTextExpansion { get; set; } = false;
     
-    // First Run Settings
+    // Update Settings
     
     /// <summary>
-    /// Whether the user has been asked to star the GitHub repository
+    /// Whether to check for updates on startup
     /// </summary>
-    public bool HasAskedForStar { get; set; } = false;
+    public bool CheckForUpdates { get; set; } = false;
+
 }
 

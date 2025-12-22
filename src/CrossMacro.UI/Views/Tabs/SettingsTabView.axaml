@@ -74,6 +74,21 @@
                                          OffContent=""
                                          VerticalAlignment="Center"/>
                         </Grid>
+                        
+                        <!-- Update Check -->
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" 
+                                      Text="Check for Updates at Startup" 
+                                      FontWeight="Medium" 
+                                      Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                                      VerticalAlignment="Center"/>
+                                      
+                            <ToggleSwitch Grid.Column="1" 
+                                         IsChecked="{Binding CheckForUpdates}"
+                                         OnContent="" 
+                                         OffContent=""
+                                         VerticalAlignment="Center"/>
+                        </Grid>
                     </StackPanel>
                 </Border>
 

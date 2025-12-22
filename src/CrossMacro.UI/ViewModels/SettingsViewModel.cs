@@ -107,6 +107,7 @@ public class SettingsViewModel : ViewModelBase
         }
     }
     
+    
     public bool EnableTextExpansion
     {
         get => _settingsService.Current.EnableTextExpansion;
@@ -115,6 +116,22 @@ public class SettingsViewModel : ViewModelBase
             if (_settingsService.Current.EnableTextExpansion != value)
             {
                 _settingsService.Current.EnableTextExpansion = value;
+                OnPropertyChanged();
+                
+                // Save settings asynchronously
+                _ = _settingsService.SaveAsync();
+            }
+        }
+    }
+
+    public bool CheckForUpdates
+    {
+        get => _settingsService.Current.CheckForUpdates;
+        set
+        {
+            if (_settingsService.Current.CheckForUpdates != value)
+            {
+                _settingsService.Current.CheckForUpdates = value;
                 OnPropertyChanged();
                 
                 // Save settings asynchronously

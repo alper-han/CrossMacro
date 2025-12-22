@@ -126,6 +126,9 @@ public class MainWindowViewModel : ViewModelBase
 
     private async System.Threading.Tasks.Task CheckForUpdatesAsync()
     {
+        // Check if updates are enabled in settings
+        if (!Settings.CheckForUpdates) return;
+
         var updateService = (Avalonia.Application.Current as App)?.Services?.GetService(typeof(IUpdateService)) as IUpdateService;
         if (updateService == null) return;
 

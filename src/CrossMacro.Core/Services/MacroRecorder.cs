@@ -6,7 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using Serilog;
-using CrossMacro.Core.Wayland;
+using CrossMacro.Core.Services;
 
 namespace CrossMacro.Core.Services;
 

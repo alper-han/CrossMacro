@@ -24,4 +24,16 @@ public class DialogService : IDialogService
         
         return false;
     }
+    public async Task ShowMessageAsync(string title, string message, string buttonText = "OK")
+    {
+        var dialog = new ConfirmationDialog(title, message, buttonText, null); 
+        
+        var desktop = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+        var owner = desktop?.MainWindow; // Or try to find the active window if needed
+
+        if (owner != null)
+        {
+            await dialog.ShowDialog<bool>(owner);
+        }
+    }
 }

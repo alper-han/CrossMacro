@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using CrossMacro.Core.Wayland;
 using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.ViewModels;
@@ -155,6 +154,11 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         public Task<bool> ShowConfirmationAsync(string title, string message, string yesText = "Yes", string noText = "No")
         {
             return Task.FromResult(true);
+        }
+
+        public Task ShowMessageAsync(string title, string message, string buttonText = "OK")
+        {
+            return Task.CompletedTask;
         }
     }
 }

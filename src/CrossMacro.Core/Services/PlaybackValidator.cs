@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using CrossMacro.Core.Models;
-using CrossMacro.Core.Wayland;
+using CrossMacro.Core.Services;
 
 namespace CrossMacro.Core.Services;
 

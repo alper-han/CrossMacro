@@ -1,5 +1,5 @@
 using Serilog;
-using CrossMacro.Core.Wayland;
+using CrossMacro.Core.Services;
 
 namespace CrossMacro.Infrastructure.Wayland
 {

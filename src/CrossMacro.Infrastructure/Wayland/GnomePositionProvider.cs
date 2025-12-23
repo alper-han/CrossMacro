@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using CrossMacro.Core.Wayland;
+using CrossMacro.Core.Services;
 using Serilog;
 using Tmds.DBus;
 

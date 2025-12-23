@@ -1,10 +1,10 @@
 using System;
 using System.Threading.Tasks;
 
-namespace CrossMacro.Core.Wayland
+namespace CrossMacro.Core.Services
 {
     /// <summary>
-    /// Interface for mouse position providers across different Wayland compositors
+    /// Interface for mouse position providers across different platforms
     /// </summary>
     public interface IMousePositionProvider : IDisposable
     {

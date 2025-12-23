@@ -1,6 +1,6 @@
 using System;
 using System.Threading.Tasks;
-using CrossMacro.Core.Wayland;
+using CrossMacro.Core.Services;
 using CrossMacro.Native.X11;
 using Serilog;
 

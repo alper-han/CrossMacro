@@ -10,12 +10,17 @@ public partial class ConfirmationDialog : Window
         InitializeComponent();
     }
 
-    public ConfirmationDialog(string title, string message, string yesText, string noText) : this()
+    public ConfirmationDialog(string title, string message, string yesText, string? noText) : this()
     {
         TitleText.Text = title;
         MessageText.Text = message;
         YesButton.Content = yesText;
         NoButton.Content = noText;
+        
+        if (string.IsNullOrEmpty(noText))
+        {
+            NoButton.IsVisible = false;
+        }
     }
 
     private void YesButton_Click(object? sender, RoutedEventArgs e)

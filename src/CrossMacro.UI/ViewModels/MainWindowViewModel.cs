@@ -4,7 +4,6 @@ using Avalonia.Controls.Notifications;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Wayland;
-using CrossMacro.Core.Wayland;
 
 namespace CrossMacro.UI.ViewModels;
 

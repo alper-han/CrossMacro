@@ -5,7 +5,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using CrossMacro.Core.Wayland;
+using CrossMacro.Core.Services;
 using Serilog;
 
 namespace CrossMacro.Infrastructure.Wayland

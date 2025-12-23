@@ -19,7 +19,10 @@ public class KeyboardLayoutService : IKeyboardLayoutService, IDisposable
 
     public KeyboardLayoutService()
     {
-        InitializeXkb();
+        if (OperatingSystem.IsLinux())
+        {
+            InitializeXkb();
+        }
     }
 
     private void InitializeXkb()
@@ -438,7 +441,7 @@ public class KeyboardLayoutService : IKeyboardLayoutService, IDisposable
         // Space special case
         if (keyCode == 57) return ' ';
 
-        // Try XKB first
+        // Try XKB first (Only on Linux)
         if (_xkbState != IntPtr.Zero)
         {
              lock (_lock) 

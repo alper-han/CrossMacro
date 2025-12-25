@@ -23,3 +23,7 @@ jobs:
 
     - name: Build
       run: dotnet build --configuration Release --no-restore
+
+    - name: Run Tests
+      run: dotnet test --configuration Release --no-build --verbosity normal
+

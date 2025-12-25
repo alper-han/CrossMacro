@@ -36,4 +36,50 @@ public class DialogService : IDialogService
             await dialog.ShowDialog<bool>(owner);
         }
     }
+
+    public async Task<string?> ShowSaveFileDialogAsync(string title, string defaultFileName, FileDialogFilter[] filters)
+    {
+        var desktop = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+        var mainWindow = desktop?.MainWindow;
+
+        if (mainWindow == null) return null;
+
+        var fileTypeChoices = filters.Select(f => new Avalonia.Platform.Storage.FilePickerFileType(f.Name)
+        {
+            Patterns = f.Extensions
+        }).ToList();
+
+        var options = new Avalonia.Platform.Storage.FilePickerSaveOptions
+        {
+            Title = title,
+            SuggestedFileName = defaultFileName,
+            FileTypeChoices = fileTypeChoices
+        };
+
+        var file = await mainWindow.StorageProvider.SaveFilePickerAsync(options);
+        return file?.Path.LocalPath;
+    }
+
+    public async Task<string?> ShowOpenFileDialogAsync(string title, FileDialogFilter[] filters)
+    {
+        var desktop = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+        var mainWindow = desktop?.MainWindow;
+
+        if (mainWindow == null) return null;
+
+        var fileTypeFilters = filters.Select(f => new Avalonia.Platform.Storage.FilePickerFileType(f.Name)
+        {
+            Patterns = f.Extensions
+        }).ToList();
+
+        var options = new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = false,
+            FileTypeFilter = fileTypeFilters
+        };
+
+        var files = await mainWindow.StorageProvider.OpenFilePickerAsync(options);
+        return files?.Count > 0 ? files[0].Path.LocalPath : null;
+    }
 }

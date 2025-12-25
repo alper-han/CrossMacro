@@ -5,6 +5,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -14,6 +15,7 @@ namespace CrossMacro.UI.ViewModels;
 public class FilesViewModel : ViewModelBase
 {
     private readonly IMacroFileManager _fileManager;
+    private readonly IDialogService _dialogService;
     
     private string _macroName = "New Macro";
     private bool _hasRecordedMacro;
@@ -31,9 +33,10 @@ public class FilesViewModel : ViewModelBase
     /// </summary>
     public event EventHandler<string>? StatusChanged;
     
-    public FilesViewModel(IMacroFileManager fileManager)
+    public FilesViewModel(IMacroFileManager fileManager, IDialogService dialogService)
     {
         _fileManager = fileManager;
+        _dialogService = dialogService;
     }
     
     public string MacroName
@@ -103,36 +106,19 @@ public class FilesViewModel : ViewModelBase
         
         try
         {
-            var mainWindow = (Avalonia.Application.Current?.ApplicationLifetime 
-                as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
-            
-            if (mainWindow == null)
+            var filters = new[]
             {
-                Status = "Error: Cannot open file dialog";
-                return;
-            }
-
-            var dialog = new FilePickerSaveOptions
-            {
-                Title = "Save Macro",
-                SuggestedFileName = $"{MacroName}.macro",
-                FileTypeChoices = new[]
-                {
-                    new FilePickerFileType("Macro Files")
-                    {
-                        Patterns = new[] { "*.macro" }
-                    }
-                }
+                new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "*.macro" } }
             };
 
-            var result = await mainWindow.StorageProvider.SaveFilePickerAsync(dialog);
-            if (result == null)
+            var filePath = await _dialogService.ShowSaveFileDialogAsync("Save Macro", $"{MacroName}.macro", filters);
+            
+            if (string.IsNullOrEmpty(filePath))
             {
                 Status = "Save cancelled";
                 return;
             }
 
-            var filePath = result.Path.LocalPath;
             _currentMacro.Name = MacroName;
             await _fileManager.SaveAsync(_currentMacro, filePath);
             
@@ -148,36 +134,19 @@ public class FilesViewModel : ViewModelBase
     {
         try
         {
-            var mainWindow = (Avalonia.Application.Current?.ApplicationLifetime 
-                as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
-            
-            if (mainWindow == null)
+            var filters = new[]
             {
-                Status = "Error: Cannot open file dialog";
-                return;
-            }
-
-            var dialog = new FilePickerOpenOptions
-            {
-                Title = "Load Macro",
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("Macro Files")
-                    {
-                        Patterns = new[] { "*.macro" }
-                    }
-                }
+                new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "*.macro" } }
             };
 
-            var result = await mainWindow.StorageProvider.OpenFilePickerAsync(dialog);
-            if (result == null || result.Count == 0)
+            var filePath = await _dialogService.ShowOpenFileDialogAsync("Load Macro", filters);
+            
+            if (string.IsNullOrEmpty(filePath))
             {
                 Status = "Load cancelled";
                 return;
             }
 
-            var filePath = result[0].Path.LocalPath;
             _currentMacro = await _fileManager.LoadAsync(filePath);
             
             if (_currentMacro != null)

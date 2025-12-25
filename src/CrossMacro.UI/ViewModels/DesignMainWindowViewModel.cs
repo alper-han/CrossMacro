@@ -46,8 +46,33 @@ public class DesignMainWindowViewModel : MainWindowViewModel
 
     private class DesignFilesViewModel : FilesViewModel
     {
-        public DesignFilesViewModel() : base(new MockMacroFileManager())
+        public DesignFilesViewModel() : base(new MockMacroFileManager(), new MockDialogService())
         {
+        }
+    }
+
+
+
+    private class MockDialogService : IDialogService
+    {
+        public Task<bool> ShowConfirmationAsync(string title, string message, string yesText = "Yes", string noText = "No")
+        {
+            return Task.FromResult(true);
+        }
+
+        public Task ShowMessageAsync(string title, string message, string buttonText = "OK")
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<string?> ShowSaveFileDialogAsync(string title, string defaultFileName, FileDialogFilter[] filters)
+        {
+            return Task.FromResult<string?>("design_mode.macro");
+        }
+
+        public Task<string?> ShowOpenFileDialogAsync(string title, FileDialogFilter[] filters)
+        {
+             return Task.FromResult<string?>("design_mode.macro");
         }
     }
 
@@ -149,16 +174,5 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         public void Save() { }
     }
 
-    private class MockDialogService : IDialogService
-    {
-        public Task<bool> ShowConfirmationAsync(string title, string message, string yesText = "Yes", string noText = "No")
-        {
-            return Task.FromResult(true);
-        }
 
-        public Task ShowMessageAsync(string title, string message, string buttonText = "OK")
-        {
-            return Task.CompletedTask;
-        }
-    }
 }

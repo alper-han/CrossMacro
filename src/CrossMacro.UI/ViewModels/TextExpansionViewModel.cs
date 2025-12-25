@@ -30,8 +30,10 @@ public partial class TextExpansionViewModel : ViewModelBase
         _dialogService = dialogService;
         
         // Load existing expansions asynchronously
-        _ = LoadExpansionsAsync();
+        InitializationTask = LoadExpansionsAsync();
     }
+
+    public Task InitializationTask { get; private set; } = Task.CompletedTask;
 
     private async Task LoadExpansionsAsync()
     {

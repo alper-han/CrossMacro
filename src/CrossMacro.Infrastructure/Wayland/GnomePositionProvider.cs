@@ -3,6 +3,8 @@ using System.IO;
 using System.Threading.Tasks;
 using CrossMacro.Core.Services;
 using Serilog;
+using CrossMacro.Infrastructure.Wayland.DBus;
+
 using Tmds.DBus;
 
 namespace CrossMacro.Infrastructure.Wayland
@@ -114,7 +116,7 @@ export default class CursorSpyExtension extends Extension {
             }
         }
 
-        private void EnsureExtensionInstalled()
+        private async Task EnsureExtensionInstalledAsync()
         {
             try
             {
@@ -131,8 +133,8 @@ export default class CursorSpyExtension extends Extension {
                     Log.Information("[GnomePositionProvider] Installing GNOME Shell extension to {Path}", extensionPath);
                     Directory.CreateDirectory(extensionPath);
                     
-                    File.WriteAllText(Path.Combine(extensionPath, "extension.js"), EXTENSION_JS);
-                    File.WriteAllText(Path.Combine(extensionPath, "metadata.json"), METADATA_JSON);
+                    await File.WriteAllTextAsync(Path.Combine(extensionPath, "extension.js"), EXTENSION_JS);
+                    await File.WriteAllTextAsync(Path.Combine(extensionPath, "metadata.json"), METADATA_JSON);
                     
                     // Wait for files to be fully written to disk
                     var extensionJsPath = Path.Combine(extensionPath, "extension.js");
@@ -152,7 +154,7 @@ export default class CursorSpyExtension extends Extension {
                             break;
                         }
                         
-                        System.Threading.Thread.Sleep(100);
+                        await Task.Delay(100);
                         elapsedMs += 100;
                     }
                     
@@ -168,8 +170,7 @@ export default class CursorSpyExtension extends Extension {
                     Log.Debug("[GnomePositionProvider] Extension files already exist at {Path}", extensionPath);
                 }
                 
-                // Always check if extension is enabled, regardless of file existence
-                ValidateExtensionStatus();
+                // Do not validate immediately here as we need connection first
             }
             catch (Exception ex)
             {
@@ -178,110 +179,73 @@ export default class CursorSpyExtension extends Extension {
             }
         }
         
-        private bool CheckExtensionEnabled()
+        private async Task<bool> CheckExtensionEnabledAsync()
         {
             try
             {
-                using var checkProcess = new System.Diagnostics.Process
-                {
-                    StartInfo = new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = "gnome-extensions",
-                        Arguments = "list --enabled",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    }
-                };
+                if (_connection == null) return false;
                 
-                checkProcess.Start();
-                var output = checkProcess.StandardOutput.ReadToEnd();
-                checkProcess.WaitForExit();
+                var extensionsProxy = _connection.CreateProxy<IGnomeShellExtensions>("org.gnome.Shell", "/org/gnome/Shell");
+                var info = await extensionsProxy.GetExtensionInfoAsync("crossmacro@zynix.net");
                 
-                if (checkProcess.ExitCode == 0)
+                if (info != null && info.TryGetValue("state", out var stateObj))
                 {
-                    bool isEnabled = output.Contains("crossmacro@zynix.net");
-                    Log.Debug("[GnomePositionProvider] Extension enabled status: {Status}", isEnabled);
-                    return isEnabled;
+                    // State 1 = ENABLED/ACTIVE
+                    double stateValue = 0;
+                    if (stateObj is double stateDbl) stateValue = stateDbl;
+                    else if (stateObj is int stateInt) stateValue = stateInt;
+                    else if (stateObj is uint stateUInt) stateValue = stateUInt;
+                    else if (stateObj is long stateLong) stateValue = stateLong;
+                    
+                    return stateValue == 1;
                 }
-                else
-                {
-                    var error = checkProcess.StandardError.ReadToEnd();
-                    Log.Warning("[GnomePositionProvider] Failed to check extension status: {Error}", error);
-                    return false;
-                }
+                
+                return false;
             }
             catch (Exception ex)
             {
-                Log.Debug(ex, "[GnomePositionProvider] Could not check extension status (gnome-extensions command may not be available)");
+                Log.Debug(ex, "[GnomePositionProvider] Failed to check extension status via DBus");
                 return false;
             }
         }
         
-        private bool EnableExtension()
+        private async Task<bool> EnableExtensionAsync()
         {
-            // Try to enable the extension automatically
             try
             {
-                using var enableProcess = new System.Diagnostics.Process
-                {
-                    StartInfo = new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = "gnome-extensions",
-                        Arguments = "enable crossmacro@zynix.net",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    }
-                };
-                
-                enableProcess.Start();
-                var output = enableProcess.StandardOutput.ReadToEnd();
-                var error = enableProcess.StandardError.ReadToEnd();
-                enableProcess.WaitForExit();
-                
-                if (enableProcess.ExitCode == 0)
-                {
-                    Log.Information("[GnomePositionProvider] Extension enabled successfully");
-                    return true;
-                }
-                else
-                {
-                    Log.Warning("[GnomePositionProvider] Failed to enable extension. Exit code: {Code}, Error: {Error}", 
-                        enableProcess.ExitCode, error);
-                    return false;
-                }
+                if (_connection == null) return false;
+
+                var extensionsProxy = _connection.CreateProxy<IGnomeShellExtensions>("org.gnome.Shell", "/org/gnome/Shell");
+                return await extensionsProxy.EnableExtensionAsync("crossmacro@zynix.net");
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[GnomePositionProvider] Exception while trying to enable extension");
+                Log.Error(ex, "[GnomePositionProvider] Exception while trying to enable extension via DBus");
                 return false;
             }
         }
         
-        private void ValidateExtensionStatus()
+        private async Task ValidateExtensionStatusAsync()
         {
             // Check if extension is enabled
-            bool isEnabled = CheckExtensionEnabled();
+            bool isEnabled = await CheckExtensionEnabledAsync();
             
             if (!isEnabled)
             {
-                Log.Information("[GnomePositionProvider] Extension is not enabled, attempting to enable...");
+                Log.Information("[GnomePositionProvider] Extension is not enabled, attempting to enable via DBus...");
                 
                 // Try to enable it
-                bool enableSuccess = EnableExtension();
+                bool enableSuccess = await EnableExtensionAsync();
                 
                 if (enableSuccess)
                 {
                     // Verify it's actually enabled now
-                    System.Threading.Thread.Sleep(500); // Give it a moment
-                    isEnabled = CheckExtensionEnabled();
+                    await Task.Delay(500); // Give it a moment
+                    isEnabled = await CheckExtensionEnabledAsync();
                     
                     if (isEnabled)
                     {
-                        Log.Information("[GnomePositionProvider] Extension enabled and verified successfully");
+                        Log.Information("[GnomePositionProvider] Extension enabled and verified successfully via DBus");
                         ExtensionStatusChanged?.Invoke(this, "GNOME extension enabled successfully");
                     }
                     else
@@ -312,12 +276,16 @@ export default class CursorSpyExtension extends Extension {
         {
             try
             {
-                // Ensure extension is installed/enabled before connecting
+                // Ensure extension is installed before connecting
                 // This runs on a background thread now, so it won't block startup
-                EnsureExtensionInstalled();
+                await EnsureExtensionInstalledAsync();
 
                 _connection = new Connection(Address.Session);
                 await _connection.ConnectAsync();
+                
+                // Now that we are connected, check status via DBus
+                await ValidateExtensionStatusAsync();
+                
                 _proxy = _connection.CreateProxy<IGnomeTrackerService>("org.crossmacro.Tracker", "/org/crossmacro/Tracker");
                 _isInitialized = true;
                 _initializationTcs.SetResult(true);

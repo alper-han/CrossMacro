@@ -13,11 +13,17 @@ namespace CrossMacro.Infrastructure.Services;
 /// </summary>
 public class LinuxShellClipboardService : IClipboardService
 {
+    private readonly IProcessRunner _processRunner;
     private enum ClipboardTool { Unknown, WlClipboard, Xclip, Xsel, KdeKlipper }
     private ClipboardTool _tool = ClipboardTool.Unknown;
     private bool _initialized = false;
 
     public bool IsSupported => _tool != ClipboardTool.Unknown;
+
+    public LinuxShellClipboardService(IProcessRunner processRunner)
+    {
+        _processRunner = processRunner;
+    }
 
     public async Task InitializeAsync()
     {
@@ -26,7 +32,7 @@ public class LinuxShellClipboardService : IClipboardService
         // Check for Wayland first
         if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY")))
         {
-            if (await CheckCommandAsync("wl-copy")) 
+            if (await _processRunner.CheckCommandAsync("wl-copy")) 
             {
                 _tool = ClipboardTool.WlClipboard;
                 Log.Information("[LinuxClipboard] Detected Wayland, using wl-clipboard");
@@ -36,7 +42,7 @@ public class LinuxShellClipboardService : IClipboardService
         }
 
         // Check for X11 tools
-        if (await CheckCommandAsync("xclip"))
+        if (await _processRunner.CheckCommandAsync("xclip"))
         {
             _tool = ClipboardTool.Xclip;
             Log.Information("[LinuxClipboard] Using xclip");
@@ -44,7 +50,7 @@ public class LinuxShellClipboardService : IClipboardService
             return;
         }
 
-        if (await CheckCommandAsync("xsel"))
+        if (await _processRunner.CheckCommandAsync("xsel"))
         {
             _tool = ClipboardTool.Xsel;
             Log.Information("[LinuxClipboard] Using xsel");
@@ -53,7 +59,7 @@ public class LinuxShellClipboardService : IClipboardService
         }
 
         // Check for KDE Klipper (qdbus)
-        if (await CheckCommandAsync("qdbus") && await CheckKlipperAsync())
+        if (await _processRunner.CheckCommandAsync("qdbus") && await CheckKlipperAsync())
         {
             _tool = ClipboardTool.KdeKlipper;
             Log.Information("[LinuxClipboard] Using KDE Klipper (qdbus)");
@@ -74,14 +80,13 @@ public class LinuxShellClipboardService : IClipboardService
             switch (_tool)
             {
                 case ClipboardTool.WlClipboard:
-                    // --type text/plain helps some compositors
-                    await RunCommandAsync("wl-copy", "--type text/plain", text);
+                    await _processRunner.RunCommandAsync("wl-copy", "--type text/plain", text);
                     break;
                 case ClipboardTool.Xclip:
-                    await RunCommandAsync("xclip", "-selection clipboard", text);
+                    await _processRunner.RunCommandAsync("xclip", "-selection clipboard", text);
                     break;
                 case ClipboardTool.Xsel:
-                    await RunCommandAsync("xsel", "--clipboard --input", text);
+                    await _processRunner.RunCommandAsync("xsel", "--clipboard --input", text);
                     break;
                 case ClipboardTool.KdeKlipper:
                     await RunQdbusSetAsync(text);
@@ -105,10 +110,10 @@ public class LinuxShellClipboardService : IClipboardService
         {
             return _tool switch
             {
-                ClipboardTool.WlClipboard => await ReadCommandAsync("wl-paste", "--no-newline"),
-                ClipboardTool.Xclip => await ReadCommandAsync("xclip", "-selection clipboard -o"),
-                ClipboardTool.Xsel => await ReadCommandAsync("xsel", "--clipboard --output"),
-                ClipboardTool.KdeKlipper => await ReadCommandAsync("qdbus", "org.kde.klipper /klipper getClipboardContents"),
+                ClipboardTool.WlClipboard => await _processRunner.ReadCommandAsync("wl-paste", "--no-newline"),
+                ClipboardTool.Xclip => await _processRunner.ReadCommandAsync("xclip", "-selection clipboard -o"),
+                ClipboardTool.Xsel => await _processRunner.ReadCommandAsync("xsel", "--clipboard --output"),
+                ClipboardTool.KdeKlipper => await _processRunner.ReadCommandAsync("qdbus", "org.kde.klipper /klipper getClipboardContents"),
                 _ => null
             };
         }
@@ -119,50 +124,14 @@ public class LinuxShellClipboardService : IClipboardService
         }
     }
 
-    private static async Task<bool> CheckCommandAsync(string command)
-    {
-        try
-        {
-            using var proc = Process.Start(new ProcessStartInfo
-            {
-                FileName = "which",
-                Arguments = command,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            });
-            
-            if (proc == null)
-            {
-                return false;
-            }
-            
-            await proc.WaitForExitAsync();
-            return proc.ExitCode == 0;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
     // Helper to verify if Klipper service is available via qdbus
-    private static async Task<bool> CheckKlipperAsync()
+    private async Task<bool> CheckKlipperAsync()
     {
         try
         {
-            using var proc = Process.Start(new ProcessStartInfo
-            {
-                FileName = "qdbus",
-                Arguments = "org.kde.klipper", // Checks if the service is listed
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            });
-            
-            if (proc == null) return false;
-            await proc.WaitForExitAsync();
-            return proc.ExitCode == 0;
+
+             var output = await _processRunner.ReadCommandAsync("qdbus", "org.kde.klipper");
+             return !string.IsNullOrEmpty(output);
         }
         catch
         {
@@ -170,67 +139,14 @@ public class LinuxShellClipboardService : IClipboardService
         }
     }
 
-    private static async Task RunCommandAsync(string command, string args, string input)
+    private async Task RunQdbusSetAsync(string text)
     {
-        using var proc = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = command,
-                Arguments = args,
-                RedirectStandardInput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            }
-        };
-        
-        proc.Start();
-        await proc.StandardInput.WriteAsync(input);
-        proc.StandardInput.Close(); 
-        
-        await proc.WaitForExitAsync();
-    }
-
-    private static async Task RunQdbusSetAsync(string text)
-    {
-        using var proc = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = "qdbus",
-                RedirectStandardOutput = true, // Suppress output
-                UseShellExecute = false,
-                CreateNoWindow = true
-            }
-        };
-        
-        // Use ArgumentList to safely handle special characters/spaces without manual escaping
-        proc.StartInfo.ArgumentList.Add("org.kde.klipper");
-        proc.StartInfo.ArgumentList.Add("/klipper");
-        proc.StartInfo.ArgumentList.Add("setClipboardContents");
-        proc.StartInfo.ArgumentList.Add(text);
-
-        proc.Start();
-        await proc.WaitForExitAsync();
-    }
-
-    private static async Task<string> ReadCommandAsync(string command, string args)
-    {
-        using var proc = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = command,
-                Arguments = args,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            }
-        };
-        
-        proc.Start();
-        var result = await proc.StandardOutput.ReadToEndAsync();
-        await proc.WaitForExitAsync();
-        return result;
+        await _processRunner.ExecuteCommandAsync("qdbus", new[] 
+        { 
+            "org.kde.klipper", 
+            "/klipper", 
+            "setClipboardContents", 
+            text 
+        });
     }
 }

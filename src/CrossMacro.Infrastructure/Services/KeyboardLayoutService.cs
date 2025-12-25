@@ -117,60 +117,46 @@ public class KeyboardLayoutService : IKeyboardLayoutService, IDisposable
         // Skip if not running on Hyprland
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("HYPRLAND_INSTANCE_SIGNATURE")))
             return null;
-            
+
         try
         {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "hyprctl",
-                Arguments = "devices -j",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            
-            // Clear LD_LIBRARY_PATH to prevent FHS wrapper library contamination
-            // This fixes "GLIBCXX_3.4.34 not found" errors on NixOS
-            startInfo.Environment["LD_LIBRARY_PATH"] = "";
+            using var ipcClient = new Wayland.HyprlandIpcClient();
+            if (!ipcClient.IsAvailable)
+                return null;
 
-            using var process = Process.Start(startInfo);
-            if (process != null)
-            {
-                var json = process.StandardOutput.ReadToEnd();
-                process.WaitForExit();
+            // Use socket IPC instead of hyprctl process
+            // j/ prefix is required for JSON output in Hyprland IPC
+            var json = ipcClient.SendCommandAsync("j/devices").GetAwaiter().GetResult();
+            if (string.IsNullOrWhiteSpace(json))
+                return null;
 
-                if (process.ExitCode == 0)
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("keyboards", out var keyboards))
+            {
+                foreach (var kb in keyboards.EnumerateArray())
                 {
-                    using var doc = JsonDocument.Parse(json);
-                    if (doc.RootElement.TryGetProperty("keyboards", out var keyboards))
+                    if (kb.TryGetProperty("active_layout_index", out var _)) // Prefer active ones
                     {
-                        foreach (var kb in keyboards.EnumerateArray())
+                        if (kb.TryGetProperty("layout", out var layout) && !string.IsNullOrWhiteSpace(layout.GetString()))
                         {
-                            if (kb.TryGetProperty("active_layout_index", out var _)) // Prefer active ones
-                            {
-                                if (kb.TryGetProperty("layout", out var layout) && !string.IsNullOrWhiteSpace(layout.GetString()))
-                                {
-                                    return layout.GetString();
-                                }
-                            }
+                            return layout.GetString();
                         }
-                        
-                        // Fallback to any keyboard if no active index found
-                        foreach (var kb in keyboards.EnumerateArray())
-                        {
-                             if (kb.TryGetProperty("layout", out var layout) && !string.IsNullOrWhiteSpace(layout.GetString()))
-                             {
-                                 return layout.GetString();
-                             }
-                        }
+                    }
+                }
+
+                // Fallback to any keyboard if no active index found
+                foreach (var kb in keyboards.EnumerateArray())
+                {
+                    if (kb.TryGetProperty("layout", out var layout) && !string.IsNullOrWhiteSpace(layout.GetString()))
+                    {
+                        return layout.GetString();
                     }
                 }
             }
         }
         catch (Exception ex)
         {
-            Log.Debug(ex, "[KeyboardLayoutService] Failed to detect Hyprland layout");
+            Log.Debug(ex, "[KeyboardLayoutService] Failed to detect Hyprland layout via IPC");
         }
         return null;
     }

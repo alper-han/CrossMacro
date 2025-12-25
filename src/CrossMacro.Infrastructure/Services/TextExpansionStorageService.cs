@@ -14,7 +14,8 @@ namespace CrossMacro.Infrastructure.Services;
 /// Service for managing text expansion storage in a separate JSON file
 /// Follows XDG Base Directory specification
 /// </summary>
-public class TextExpansionStorageService
+public class TextExpansionStorageService : ITextExpansionStorageService
+
 {
     private const string AppName = "crossmacro";
     private const string ExpansionsFileName = "text-expansions.json";

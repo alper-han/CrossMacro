@@ -18,7 +18,7 @@ public class TextExpansionService : ITextExpansionService
     private readonly IKeyboardLayoutService _layoutService;
     private readonly ISettingsService _settingsService;
     private readonly IClipboardService _clipboardService;
-    private readonly TextExpansionStorageService _storageService;
+    private readonly ITextExpansionStorageService _storageService;
     
     private readonly Func<IInputCapture> _inputCaptureFactory;
     private readonly Func<IInputSimulator> _inputSimulatorFactory;
@@ -45,7 +45,7 @@ public class TextExpansionService : ITextExpansionService
     public TextExpansionService(
         ISettingsService settingsService, 
         IClipboardService clipboardService, 
-        TextExpansionStorageService storageService,
+        ITextExpansionStorageService storageService,
         IKeyboardLayoutService layoutService,
         Func<IInputCapture> inputCaptureFactory,
         Func<IInputSimulator> inputSimulatorFactory)

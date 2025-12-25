@@ -1,9 +1,5 @@
 using System;
-using System.Buffers;
-using System.IO;
-using System.Net.Sockets;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Services;
 using Serilog;
@@ -15,74 +11,39 @@ namespace CrossMacro.Infrastructure.Wayland
     /// </summary>
     public class HyprlandPositionProvider : IMousePositionProvider
     {
-        private const int SocketTimeoutMs = 1000;
-        private const int BufferSize = 4096;
-        
         // Cached command byte arrays to avoid repeated encoding
         private static readonly byte[] CursorPosCommand = Encoding.UTF8.GetBytes("cursorpos");
         private static readonly byte[] MonitorsCommand = Encoding.UTF8.GetBytes("monitors");
-        
-        private readonly string? _socketPath;
+
+        private readonly HyprlandIpcClient _ipcClient;
         private bool _disposed;
 
-        public bool IsSupported { get; }
+        public bool IsSupported => _ipcClient.IsAvailable;
         public string ProviderName => "Hyprland IPC";
 
-        public HyprlandPositionProvider()
+        public HyprlandPositionProvider() : this(new HyprlandIpcClient())
         {
-            // Detect Hyprland socket path
-            // First try to find the socket directory directly
-            var runtimeDir = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
-            
-            if (string.IsNullOrEmpty(runtimeDir))
-            {
-                IsSupported = false;
-                Log.Warning("[HyprlandPositionProvider] XDG_RUNTIME_DIR not found");
-                return;
-            }
+        }
 
-            var hyprDir = Path.Combine(runtimeDir, "hypr");
-            
-            if (!Directory.Exists(hyprDir))
-            {
-                IsSupported = false;
-                Log.Warning("[HyprlandPositionProvider] Hyprland directory not found: {HyprDir}", hyprDir);
-                return;
-            }
+        public HyprlandPositionProvider(HyprlandIpcClient ipcClient)
+        {
+            _ipcClient = ipcClient ?? throw new ArgumentNullException(nameof(ipcClient));
 
-            // Find the first available socket (there should only be one active instance)
-            try
+            if (IsSupported)
             {
-                var instanceDirs = Directory.GetDirectories(hyprDir);
-                foreach (var instanceDir in instanceDirs)
-                {
-                    var socketPath = Path.Combine(instanceDir, ".socket.sock");
-                    if (File.Exists(socketPath))
-                    {
-                        _socketPath = socketPath;
-                        IsSupported = true;
-                        Log.Information("[HyprlandPositionProvider] Socket found: {SocketPath}", _socketPath);
-                        return;
-                    }
-                }
+                Log.Information("[HyprlandPositionProvider] Using shared IPC client");
             }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "[HyprlandPositionProvider] Error searching for Hyprland socket");
-            }
-
-            IsSupported = false;
-            Log.Warning("[HyprlandPositionProvider] No Hyprland socket found in {HyprDir}", hyprDir);
         }
 
         public async Task<(int X, int Y)?> GetAbsolutePositionAsync()
         {
-            if (_disposed || !IsSupported || _socketPath == null)
+            if (_disposed || !IsSupported)
                 return null;
 
             try
             {
-                var response = await SendCommandAsync(CursorPosCommand).ConfigureAwait(false);
+                var response = await _ipcClient.SendCommandAsync(CursorPosCommand).ConfigureAwait(false);
+                if (response == null) return null;
                 return ParseCursorPosition(response);
             }
             catch (Exception ex)
@@ -94,76 +55,19 @@ namespace CrossMacro.Infrastructure.Wayland
 
         public async Task<(int Width, int Height)?> GetScreenResolutionAsync()
         {
-            if (_disposed || !IsSupported || _socketPath == null)
+            if (_disposed || !IsSupported)
                 return null;
 
             try
             {
-                var response = await SendCommandAsync(MonitorsCommand).ConfigureAwait(false);
+                var response = await _ipcClient.SendCommandAsync(MonitorsCommand).ConfigureAwait(false);
+                if (response == null) return null;
                 return ParseMonitors(response);
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "[HyprlandPositionProvider] Failed to get screen resolution");
                 return null;
-            }
-        }
-
-        private async Task<string> SendCommandAsync(byte[] commandBytes)
-        {
-            using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-            using var cts = new CancellationTokenSource(SocketTimeoutMs);
-            
-            try
-            {
-                var endpoint = new UnixDomainSocketEndPoint(_socketPath!);
-                
-                // Connect
-                await socket.ConnectAsync(endpoint, cts.Token).ConfigureAwait(false);
-
-                // Send command (byte array is pre-encoded for performance)
-                await socket.SendAsync(commandBytes, SocketFlags.None, cts.Token).ConfigureAwait(false);
-
-                // Read response using ArrayPool to reduce allocations
-                var buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
-                try
-                {
-                    using var ms = new MemoryStream();
-                    int received;
-                    
-                    // Read until we get less than buffer size (indicating end of data)
-                    // or timeout occurs (handled by CancellationToken)
-                    do
-                    {
-                        received = await socket.ReceiveAsync(new Memory<byte>(buffer, 0, BufferSize), SocketFlags.None, cts.Token).ConfigureAwait(false);
-                        if (received > 0)
-                        {
-                            await ms.WriteAsync(buffer.AsMemory(0, received), cts.Token).ConfigureAwait(false);
-                        }
-                    } while (received == BufferSize);
-
-                    // Use GetBuffer() to avoid extra allocation, but need to use Length for correct size
-                    return Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length).Trim();
-                }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(buffer);
-                }
-            }
-            finally
-            {
-                // Gracefully shutdown if still connected
-                if (socket.Connected)
-                {
-                    try
-                    {
-                        socket.Shutdown(SocketShutdown.Both);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Debug(ex, "[HyprlandPositionProvider] Socket shutdown error");
-                    }
-                }
             }
         }
 

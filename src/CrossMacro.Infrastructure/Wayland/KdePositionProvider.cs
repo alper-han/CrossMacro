@@ -23,11 +23,9 @@ namespace CrossMacro.Infrastructure.Wayland
         private Connection? _dbusConnection;
         private KdeTrackerService? _trackerService;
         
-        // The qdbus command to use (could be qdbus, qdbus6, qdbus-qt5, or qdbus-qt6)
-        private string _qdbusCommand = "qdbus";
+
         
-        // Event for notifying about dependency status
-        public event EventHandler<string>? ExtensionStatusChanged;
+
 
         public string ProviderName => "KDE KWin Script (DBus)";
         public bool IsSupported { get; private set; }
@@ -40,19 +38,6 @@ namespace CrossMacro.Infrastructure.Wayland
 
             if (IsSupported)
             {
-                // Check if qdbus is available (try multiple variants)
-                if (!IsQdbusAvailable())
-                {
-                    Log.Warning("[KdePositionProvider] qdbus not found. Please install Qt tools package (qt5-tools, qt6-tools, or qttools5-dev-tools).");
-                    IsSupported = false;
-                    _resolutionTcs.TrySetResult((0, 0));
-                    
-                    // Notify UI about missing dependency
-                    ExtensionStatusChanged?.Invoke(this, "qdbus not found. Please install Qt tools package (qt5-tools, qt6-tools, or qttools5-dev-tools).");
-                    return;
-                }
-
-                Log.Information("[KdePositionProvider] Using qdbus command: {Command}", _qdbusCommand);
                 StartTracking();
             }
             else
@@ -61,45 +46,7 @@ namespace CrossMacro.Infrastructure.Wayland
             }
         }
 
-        private bool IsQdbusAvailable()
-        {
-            // Try multiple qdbus variants (Fedora uses qdbus6/qdbus-qt6, some distros use qdbus-qt5)
-            string[] qdbusVariants = ["qdbus", "qdbus6", "qdbus-qt6", "qdbus-qt5"];
-            
-            foreach (var variant in qdbusVariants)
-            {
-                try
-                {
-                    var which = Process.Start(new ProcessStartInfo
-                    {
-                        FileName = "which",
-                        Arguments = variant,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                        WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
-                    });
 
-                    if (which != null)
-                    {
-                        which.WaitForExit();
-                        if (which.ExitCode == 0)
-                        {
-                            _qdbusCommand = variant;
-                            Log.Debug("[KdePositionProvider] Found qdbus variant: {Variant}", variant);
-                            return true;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Debug(ex, "[KdePositionProvider] Failed to check for {Variant}", variant);
-                }
-            }
-            
-            return false;
-        }
 
         private void StartTracking()
         {
@@ -205,57 +152,34 @@ console.error('[CrossMacro] Position tracking started');
                 await Task.Delay(200, ct);
 
                 // 3. Load KWin script
-                var loadProcess = new Process
+                try 
                 {
-                    StartInfo = new ProcessStartInfo
+                    Log.Information("[KdePositionProvider] Loading KWin script via DBus...");
+                    var scriptingProxy = _dbusConnection.CreateProxy<IKWinScripting>("org.kde.KWin", "/Scripting");
+                    var scriptIdInt = await scriptingProxy.loadScriptAsync(_tempJsFile);
+                    _scriptId = scriptIdInt.ToString();
+                    
+                    if (string.IsNullOrEmpty(_scriptId) || scriptIdInt < 0)
                     {
-                        FileName = _qdbusCommand,
-                        Arguments = $"org.kde.KWin /Scripting org.kde.kwin.Scripting.loadScript {_tempJsFile}",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                        WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+                         Log.Error("[KdePositionProvider] Failed to load KWin script. Invalid ID: '{ScriptId}'", _scriptId);
+                         IsSupported = false;
+                         _resolutionTcs.TrySetResult((0, 0));
+                         return;
                     }
-                };
-                
-                loadProcess.Start();
-                _scriptId = (await loadProcess.StandardOutput.ReadToEndAsync(ct)).Trim();
-                var loadError = await loadProcess.StandardError.ReadToEndAsync(ct);
-                await loadProcess.WaitForExitAsync(ct);
 
-                if (!string.IsNullOrEmpty(loadError))
-                {
-                    Log.Error("[KdePositionProvider] KWin script load error: {Error}", loadError);
+                    Log.Information("[KdePositionProvider] KWin script loaded with ID: {ScriptId}", _scriptId);
+
+                    // 4. Run script
+                    var scriptProxy = _dbusConnection.CreateProxy<IKWinScript>("org.kde.KWin", $"/Scripting/Script{_scriptId}");
+                    await scriptProxy.runAsync();
+                    
+                    Log.Information("[KdePositionProvider] Tracking started successfully via DBus");
                 }
-
-                if (string.IsNullOrEmpty(_scriptId) || !int.TryParse(_scriptId, out _))
+                catch (Exception ex)
                 {
-                    Log.Error("[KdePositionProvider] Failed to load KWin script. Invalid ID: '{ScriptId}'", _scriptId);
-                    IsSupported = false;
-                    _resolutionTcs.TrySetResult((0, 0));
-                    return;
+                    Log.Error(ex, "[KdePositionProvider] DBus error during script loading/execution");
+                    throw;
                 }
-
-                Log.Information("[KdePositionProvider] KWin script loaded with ID: {ScriptId}", _scriptId);
-
-                // 4. Run script
-                var runProcess = Process.Start(new ProcessStartInfo
-                {
-                    FileName = _qdbusCommand,
-                    Arguments = $"org.kde.KWin /Scripting/Script{_scriptId} run",
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                    UseShellExecute = false,
-                    WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
-                });
-                
-                if (runProcess != null)
-                {
-                    await runProcess.WaitForExitAsync(ct);
-                }
-
-                Log.Information("[KdePositionProvider] Tracking started successfully via DBus");
             }
             catch (OperationCanceledException)
             {
@@ -327,25 +251,14 @@ console.error('[CrossMacro] Position tracking started');
             {
                 try
                 {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = _qdbusCommand,
-                        Arguments = $"org.kde.KWin /Scripting/Script{_scriptId} stop",
-                        CreateNoWindow = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
-                    })?.WaitForExit();
-
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = _qdbusCommand,
-                        Arguments = $"org.kde.KWin /Scripting org.kde.kwin.Scripting.unloadScript {_scriptId}",
-                        CreateNoWindow = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
-                    })?.WaitForExit();
+                if (_dbusConnection != null)
+                {
+                        var scriptingProxy = _dbusConnection.CreateProxy<IKWinScripting>("org.kde.KWin", "/Scripting");
+                        var scriptProxy = _dbusConnection.CreateProxy<IKWinScript>("org.kde.KWin", $"/Scripting/Script{_scriptId}");
+                        
+                        scriptProxy.stopAsync();
+                        scriptingProxy.unloadScriptAsync(_scriptId);
+                }
                 }
                 catch (Exception ex)
                 {

@@ -81,6 +81,7 @@ public partial class App : Application
         else
         {
             services.AddSingleton<IKeyboardLayoutService, KeyboardLayoutService>();
+            services.AddSingleton<IProcessRunner, ProcessRunner>();
             
             services.AddSingleton<CrossMacro.Platform.Linux.Ipc.IpcClient>();
             
@@ -170,7 +171,7 @@ public partial class App : Application
             services.AddSingleton<IClipboardService, CompositeClipboardService>();
         }
 
-        services.AddSingleton<TextExpansionStorageService>();
+        services.AddSingleton<ITextExpansionStorageService, TextExpansionStorageService>();
         services.AddSingleton<ITextExpansionService, TextExpansionService>();
         services.AddSingleton<IDialogService, DialogService>();
 

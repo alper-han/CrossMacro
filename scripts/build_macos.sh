@@ -2,7 +2,7 @@
 set -e
 
 APP_NAME="CrossMacro"
-VERSION="${VERSION:-0.7.0}"
+VERSION="${VERSION:-0.7.1}"
 BUNDLE_ID="net.crossmacro.CrossMacro"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"

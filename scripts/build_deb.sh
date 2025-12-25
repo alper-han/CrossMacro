@@ -3,7 +3,7 @@ set -e
 
 # Configuration
 APP_NAME="crossmacro"
-VERSION="${VERSION:-0.7.0}"
+VERSION="${VERSION:-0.7.1}"
 ARCH="amd64"
 PUBLISH_DIR="${PUBLISH_DIR:-../publish}"  # Use env var or default to ../publish
 DEB_DIR="deb_package"

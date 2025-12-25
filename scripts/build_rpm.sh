@@ -3,7 +3,7 @@ set -e
 
 # Configuration
 APP_NAME="crossmacro"
-VERSION="${VERSION:-0.7.0}"
+VERSION="${VERSION:-0.7.1}"
 PUBLISH_DIR="${PUBLISH_DIR:-../publish}"  # Use env var or default to ../publish
 RPM_BUILD_DIR="rpm_build"
 ICON_PATH="../src/CrossMacro.UI/Assets/mouse-icon.png"

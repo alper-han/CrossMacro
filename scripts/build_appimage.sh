@@ -3,7 +3,7 @@ set -e
 
 # Configuration
 APP_NAME="CrossMacro"
-VERSION="${VERSION:-0.7.0}"
+VERSION="${VERSION:-0.7.1}"
 PUBLISH_DIR="${PUBLISH_DIR:-../publish}"  # Use env var or default to ../publish
 APP_DIR="AppDir"
 

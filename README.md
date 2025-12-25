@@ -31,6 +31,15 @@ A modern mouse and keyboard macro recording and playback application for Linux (
 - **Linux**
   - Other Wayland compositors (fallback mode)
 
+<details>
+<summary><strong>What is the difference?</strong></summary>
+
+Relative positioning works flawlessly for reproducing input. However, in **Fallback Mode**, the cursor must **reset to the top-left corner (0,0)** at the start of every recording and playback session.
+
+This is required because standard Wayland security protocols prevent applications from reading the current mouse position on these compositors, so the app must force a known reference point (0,0) to calculate relative movements correctly.
+
+</details>
+
 
 
 ## 🎯 Features

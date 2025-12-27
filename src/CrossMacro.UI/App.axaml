@@ -2,9 +2,26 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="CrossMacro.UI.App"
              xmlns:local="using:CrossMacro.UI"
+             xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
              RequestedThemeVariant="Dark">
 
     <Application.DataTemplates>
+        <DataTemplate DataType="{x:Type vm:RecordingViewModel}">
+            <tabs:RecordingTabView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:PlaybackViewModel}">
+            <tabs:PlaybackTabView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:FilesViewModel}">
+            <tabs:FilesTabView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:TextExpansionViewModel}">
+             <tabs:TextExpansionTabView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+            <tabs:SettingsTabView/>
+        </DataTemplate>
         <local:ViewLocator/>
     </Application.DataTemplates>
   

@@ -97,12 +97,13 @@
                 <!-- Support Section -->
                 <Border Background="#1E293B" CornerRadius="8" Padding="12">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="4">
+                        <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,12,0">
                             <TextBlock Text="Support CrossMacro" 
                                       FontWeight="Bold" 
                                       Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
                             <TextBlock Text="If you like this project, please consider giving it a star on GitHub!" 
                                       FontSize="12"
+                                      TextWrapping="Wrap"
                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
                         </StackPanel>
                         

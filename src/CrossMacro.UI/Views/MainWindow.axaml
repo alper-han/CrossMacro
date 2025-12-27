@@ -9,8 +9,8 @@
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/mouse-icon.png"
         Title="CrossMacro"
-        Width="600" Height="600"
-        MinWidth="600" MinHeight="600"
+        Width="700" Height="600"
+        MinWidth="700" MinHeight="600"
         Background="#0F172A"
         TransparencyLevelHint="AcrylicBlur"
         ExtendClientAreaToDecorationsHint="True"
@@ -21,194 +21,289 @@
         <vm:DesignMainWindowViewModel/>
     </Design.DataContext>
 
-    <Grid RowDefinitions="Auto,*,Auto" Margin="0">
+    <SplitView DisplayMode="CompactInline"
+               IsPaneOpen="{Binding IsPaneOpen}"
+               OpenPaneLength="200"
+               CompactPaneLength="76"
+               Background="#0F172A"
+               PaneBackground="#1E293B">
         
-        <!-- Warning Banner -->
-        <Border Grid.Row="0" 
-                Background="#F59E0B" 
-                Padding="12,8"
-                IsVisible="{Binding HasExtensionWarning}">
-            <Grid ColumnDefinitions="Auto,*,Auto">
-                <TextBlock Grid.Column="0" Text="⚠️" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1" 
-                          Text="{Binding ExtensionWarning}" 
-                          Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                          FontWeight="Bold"
-                          TextWrapping="Wrap"
-                          VerticalAlignment="Center"/>
+        <SplitView.Pane>
+            <Grid RowDefinitions="Auto,*,Auto">
+                <!-- Toggle Button (Top Row) -->
+                <ToggleButton Grid.Row="0"
+                              IsChecked="{Binding IsPaneOpen}"
+                              Background="Transparent"
+                              Width="32" Height="32"
+                              CornerRadius="6"
+                              Padding="4"
+                              Margin="19,16,0,8"
+                              HorizontalAlignment="Left">
+                     <ToggleButton.Styles>
+                        <Style Selector="ToggleButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                            <Setter Property="Background" Value="#334155"/>
+                        </Style>
+                        <Style Selector="ToggleButton:checked /template/ ContentPresenter#PART_ContentPresenter">
+                            <Setter Property="Background" Value="Transparent"/>
+                        </Style>
+                         <Style Selector="ToggleButton:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                            <Setter Property="Background" Value="#334155"/>
+                        </Style>
+                    </ToggleButton.Styles>
+                    <PathIcon Data="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"
+                              Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                              Width="16" Height="16"/>
+                </ToggleButton>
+                
+                <!-- Navigation List (Top) -->
+                <ListBox Grid.Row="1" 
+                         ItemsSource="{Binding TopNavigationItems}" 
+                         SelectedItem="{Binding SelectedTopItem}"
+                         Background="Transparent"
+                         SelectionMode="Single"
+                         VerticalAlignment="Top"
+                         Margin="0,0">
+                    <ListBox.Styles>
+                         <Style Selector="ListBoxItem">
+                             <Setter Property="Padding" Value="16,12"/>
+                             <Setter Property="CornerRadius" Value="0"/>
+                             <Setter Property="Margin" Value="0,2,0,2"/>
+                             <Setter Property="Cursor" Value="Hand"/>
+                             <Setter Property="Foreground" Value="#94A3B8"/> <!-- Slate-400 -->
+                             <Setter Property="Background" Value="Transparent"/>
+                             <Setter Property="BorderThickness" Value="3,0,3,0"/>
+                             <Setter Property="BorderBrush" Value="Transparent"/>
+                         </Style>
+                         <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                             <Setter Property="Background" Value="#334155"/> <!-- Slate-700 -->
+                             <Setter Property="Foreground" Value="White"/>
+                         </Style>
+                         <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                             <Setter Property="Background" Value="#0F172A"/> <!-- Slate-900 (Darker) -->
+                             <Setter Property="Foreground" Value="White"/>
+                         </Style>
+                         <Style Selector="ListBoxItem:selected">
+                             <Setter Property="BorderThickness" Value="3,0,3,0"/>
+                             <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+                         </Style>
+                    </ListBox.Styles>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                                <Border Width="32" Height="32" Background="Transparent">
+                                     <TextBlock Text="{Binding Icon}" 
+                                               FontSize="20" 
+                                               HorizontalAlignment="Center" 
+                                               VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{Binding Label}" 
+                                           VerticalAlignment="Center" 
+                                           FontWeight="SemiBold"
+                                           FontSize="14"
+                                           TextTrimming="CharacterEllipsis"
+                                           IsVisible="{Binding $parent[SplitView].IsPaneOpen}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <!-- Navigation List (Bottom/Settings) -->
+                <ListBox Grid.Row="2" 
+                         ItemsSource="{Binding BottomNavigationItems}" 
+                         SelectedItem="{Binding SelectedBottomItem}"
+                         Background="Transparent"
+                         SelectionMode="Single"
+                         VerticalAlignment="Bottom"
+                         Margin="0">
+                    <ListBox.Styles>
+                         <Style Selector="ListBoxItem">
+                             <Setter Property="Padding" Value="16,12"/>
+                             <Setter Property="CornerRadius" Value="0"/>
+                             <Setter Property="Margin" Value="0,2,0,2"/>
+                             <Setter Property="Cursor" Value="Hand"/>
+                             <Setter Property="Foreground" Value="#94A3B8"/> <!-- Slate-400 -->
+                             <Setter Property="Background" Value="Transparent"/>
+                             <Setter Property="BorderThickness" Value="3,0,3,0"/>
+                             <Setter Property="BorderBrush" Value="Transparent"/>
+                         </Style>
+                         <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                             <Setter Property="Background" Value="#334155"/> <!-- Slate-700 -->
+                             <Setter Property="Foreground" Value="White"/>
+                         </Style>
+                         <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                             <Setter Property="Background" Value="#0F172A"/> <!-- Slate-900 (Darker) -->
+                             <Setter Property="Foreground" Value="White"/>
+                         </Style>
+                         <Style Selector="ListBoxItem:selected">
+                             <Setter Property="BorderThickness" Value="3,0,3,0"/>
+                             <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+                         </Style>
+                    </ListBox.Styles>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                                <Border Width="32" Height="32" Background="Transparent">
+                                     <TextBlock Text="{Binding Icon}" 
+                                               FontSize="20" 
+                                               HorizontalAlignment="Center" 
+                                               VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{Binding Label}" 
+                                           VerticalAlignment="Center" 
+                                           FontWeight="SemiBold"
+                                           FontSize="14"
+                                           TextTrimming="CharacterEllipsis"
+                                           IsVisible="{Binding $parent[SplitView].IsPaneOpen}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
             </Grid>
-        </Border>
-        
-        <!-- Main Content Tabs -->
-        <TabControl Grid.Row="1" Margin="10" Padding="0">
-            
-            <!-- Recording Tab -->
-            <TabItem Header="◉ Recording" FontSize="14">
-                <tabs:RecordingTabView DataContext="{Binding Recording}"/>
-            </TabItem>
+        </SplitView.Pane>
 
-            <!-- Playback Tab -->
-            <TabItem Header="▶️ Playback" FontSize="14">
-                <tabs:PlaybackTabView DataContext="{Binding Playback}"/>
-            </TabItem>
-
-            <!-- Files Tab -->
-            <TabItem Header="💾 Files" FontSize="14">
-                <tabs:FilesTabView DataContext="{Binding Files}"/>
-            </TabItem>
-            
-            <!-- Text Expansion Tab -->
-            <TabItem Header="📝 Text Expansion" FontSize="14">
-                <tabs:TextExpansionTabView DataContext="{Binding TextExpansion}"/>
-            </TabItem>
-            
-            <!-- Settings Tab -->
-            <TabItem Header="⚙️ Settings" FontSize="14">
-                <tabs:SettingsTabView DataContext="{Binding Settings}"/>
-            </TabItem>
-            
-        </TabControl>
-
-        <!-- Title Bar / Status Bar -->
-        <Border Grid.Row="2"
-               Background="#1E293B"
-               Padding="12,8"
-               BorderBrush="#334155"
-               BorderThickness="0,1,0,0">
-            <Grid ColumnDefinitions="Auto,*,Auto">
-                <TextBlock Grid.Column="0"
-                          FontSize="12"
-                          FontWeight="Bold"
-                          Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                          VerticalAlignment="Center">
-                    <Run Text="🖱️ CrossMacro "/><Run Text="{Binding AppVersion}"/>
-                </TextBlock>
-                <TextBlock Grid.Column="2"
-                          Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                          FontSize="11"
-                          Text="{Binding GlobalStatus}"
-                          HorizontalAlignment="Right"
-                          VerticalAlignment="Center"/>
-            </Grid>
-        </Border>
-
-
-        <!-- Update Notification Popup -->
-        <Border Grid.Row="1"
-                Background="#1E293B"
-                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="12"
-                Margin="20"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Bottom"
-                IsVisible="{Binding IsUpdateNotificationVisible}"
-                BoxShadow="0 4 12 4 #40000000">
-            <Border.Transitions>
-                <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.3" Easing="CubicEaseOut"/>
-                </Transitions>
-            </Border.Transitions>
-            
-            <StackPanel Spacing="8" Width="240">
-                <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Spacing="2">
-                        <TextBlock Text="Update Available" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding LatestVersion, StringFormat='v{0} is available'}" 
-                                  FontSize="12" 
-                                  Foreground="#94A3B8"/>
-                    </StackPanel>
+        <SplitView.Content>
+            <Grid RowDefinitions="Auto,Auto,*,Auto">
+                
+                <!-- Window Title Bar Area (Drag Handle & Controls) -->
+                <Grid Grid.Row="0" Height="40" Background="Transparent" ColumnDefinitions="*,Auto">
+                    <Border Background="Transparent" PointerPressed="OnTitleBarPointerPressed"/>
                     
-                    <Button Grid.Column="1" 
-                            Command="{Binding DismissUpdateNotification}"
-                            Background="Transparent"
-                            Padding="4"
-                            VerticalAlignment="Top"
-                            Margin="8,-4,-4,0">
-                        <TextBlock Text="✕" FontSize="11" Foreground="#64748B"/>
-                    </Button>
+                    <!-- Window Controls -->
+                    <StackPanel Grid.Column="1"
+                                Orientation="Horizontal"
+                                Spacing="8"
+                                Margin="0,0,10,0"
+                                IsVisible="{Binding IsCloseButtonVisible}">
+                        
+                        <!-- Minimize Button -->
+                        <Button Width="32" Height="32"
+                                Background="Transparent"
+                                Foreground="#94A3B8"
+                                Click="OnMinimizeWindow"
+                                ToolTip.Tip="Minimize">
+                            <TextBlock Text="─" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Button>
+                        
+                        <!-- Close Button -->
+                        <Button Width="32" Height="32"
+                                Background="Transparent"
+                                Foreground="#94A3B8"
+                                Click="OnCloseApp"
+                                ToolTip.Tip="Close">
+                             <Button.Styles>
+                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                    <Setter Property="Background" Value="#EF4444"/>
+                                </Style>
+                                <Style Selector="Button:pointerover">
+                                    <Setter Property="Foreground" Value="White"/>
+                                </Style>
+                            </Button.Styles>
+                            <TextBlock Text="✕" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Warning Banner -->
+                <Border Grid.Row="1" 
+                        Background="#F59E0B" 
+                        Padding="12,8"
+                        IsVisible="{Binding HasExtensionWarning}"
+                        Margin="0,0,0,10">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <TextBlock Grid.Column="0" Text="⚠️" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" 
+                                  Text="{Binding ExtensionWarning}" 
+                                  Foreground="Black"
+                                  FontWeight="Bold"
+                                  TextWrapping="Wrap"
+                                  VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <!-- Main Content Display -->
+                <!-- Added stretch alignment and adjusted margins -->
+                <TransitioningContentControl Grid.Row="2" 
+                                           Content="{Binding CurrentPage}" 
+                                           Margin="16,0,16,16" 
+                                           HorizontalAlignment="Stretch" 
+                                           VerticalAlignment="Stretch">
+                     <TransitioningContentControl.PageTransition>
+                        <CrossFade Duration="0:00:00.250" />
+                    </TransitioningContentControl.PageTransition>
+                </TransitioningContentControl>
+
+                <!-- Footer (Version / Status) -->
+                <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" Margin="24,0,24,20" VerticalAlignment="Bottom">
+                    <TextBlock Grid.Column="0"
+                               FontSize="12"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                               VerticalAlignment="Center">
+                        <Run Text="🖱️ CrossMacro "/><Run Text="{Binding AppVersion}"/>
+                    </TextBlock>
+                    <TextBlock Grid.Column="2" 
+                               Text="{Binding GlobalStatus}" 
+                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" 
+                               FontSize="11" 
+                               HorizontalAlignment="Right"
+                               VerticalAlignment="Center"/>
                 </Grid>
                 
-                <Button Command="{Binding OpenUpdateUrl}"
-                        HorizontalAlignment="Stretch"
-                        Background="{DynamicResource SystemAccentColor}"
-                        Foreground="White"
-                        CornerRadius="4"
-                        Padding="6">
-                    <TextBlock Text="View on GitHub" 
-                              HorizontalAlignment="Center" 
-                              FontSize="12"
-                              FontWeight="SemiBold"/>
-                </Button>
-            </StackPanel>
-        </Border>
+                <!-- Update Notification (Overlay) -->
+                <Border Grid.Row="2"
+                        Background="#1E293B"
+                        BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12"
+                        Margin="0,0,20,20"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Bottom"
+                        IsVisible="{Binding IsUpdateNotificationVisible}"
+                        BoxShadow="0 4 12 4 #40000000">
+                    <Border.Transitions>
+                        <Transitions>
+                            <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+                            <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                        </Transitions>
+                    </Border.Transitions>
+                    
+                    <StackPanel Spacing="8" Width="240">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Update Available" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding LatestVersion, StringFormat='v0 is available'}" 
+                                          FontSize="12" 
+                                          Foreground="#94A3B8"/>
+                            </StackPanel>
+                            
+                            <Button Grid.Column="1" 
+                                    Command="{Binding DismissUpdateNotification}"
+                                    Background="Transparent"
+                                    Padding="4"
+                                    VerticalAlignment="Top"
+                                    Margin="8,-4,-4,0">
+                                <TextBlock Text="✕" FontSize="11" Foreground="#64748B"/>
+                            </Button>
+                        </Grid>
+                        
+                        <Button Command="{Binding OpenUpdateUrl}"
+                                HorizontalAlignment="Stretch"
+                                Background="{DynamicResource SystemAccentColor}"
+                                Foreground="White"
+                                CornerRadius="4"
+                                Padding="6">
+                            <TextBlock Text="View on GitHub" 
+                                      HorizontalAlignment="Center" 
+                                      FontSize="12"
+                                      FontWeight="SemiBold"/>
+                        </Button>
+                    </StackPanel>
+                </Border>
 
-        <!-- Drag Handle -->
-        <Border Grid.Row="0"
-                Background="Transparent"
-                IsVisible="{Binding IsCloseButtonVisible}"
-                PointerPressed="OnTitleBarPointerPressed"/>
+            </Grid>
+        </SplitView.Content>
 
-        <!-- Window Control Buttons -->
-        <StackPanel Grid.Row="0"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Top"
-                    Margin="10"
-                    Spacing="8"
-                    IsVisible="{Binding IsCloseButtonVisible}">
-            
-            <!-- Minimize Button -->
-            <Button Width="24"
-                    Height="24"
-                    Background="Transparent"
-                    Foreground="#94A3B8"
-                    Padding="0"
-                    Click="OnMinimizeWindow"
-                    Cursor="Hand"
-                    ToolTip.Tip="Minimize">
-                <Button.Styles>
-                    <Style Selector="Button:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="Transparent"/>
-                    </Style>
-                    <Style Selector="Button:pointerover">
-                        <Setter Property="Foreground" Value="White"/>
-                    </Style>
-                </Button.Styles>
-                <TextBlock Text="─" 
-                           HorizontalAlignment="Center" 
-                           VerticalAlignment="Center" 
-                           FontWeight="Bold"
-                           FontSize="14"/>
-            </Button>
-            
-            <!-- Close Button -->
-            <Button Width="24"
-                    Height="24"
-                    Background="Transparent"
-                    Foreground="#94A3B8"
-                    Padding="0"
-                    Click="OnCloseApp"
-                    Cursor="Hand"
-                    ToolTip.Tip="Close Application">
-                <Button.Styles>
-                    <Style Selector="Button:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="#EF4444"/>
-                    </Style>
-                    <Style Selector="Button:pointerover">
-                        <Setter Property="Foreground" Value="White"/>
-                    </Style>
-                </Button.Styles>
-                <TextBlock Text="✕" 
-                           HorizontalAlignment="Center" 
-                           VerticalAlignment="Center" 
-                           FontWeight="Bold"
-                           FontSize="14"/>
-            </Button>
-        </StackPanel>
-
-    </Grid>
+    </SplitView>
 
 </Window>

@@ -4,6 +4,9 @@ using Avalonia.Controls.Notifications;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Wayland;
+using CrossMacro.UI.Models;
+using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -32,7 +35,98 @@ public class MainWindowViewModel : ViewModelBase
     public TextExpansionViewModel TextExpansion { get; }
     public SettingsViewModel Settings { get; }
     
+    
     public bool IsCloseButtonVisible { get; }
+
+    private bool _isPaneOpen = true;
+    public bool IsPaneOpen
+    {
+        get => _isPaneOpen;
+        set
+        {
+            if (_isPaneOpen != value)
+            {
+                _isPaneOpen = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    private NavigationItem? _selectedTopItem;
+    public NavigationItem? SelectedTopItem
+    {
+        get => _selectedTopItem;
+        set
+        {
+            if (_selectedTopItem != value)
+            {
+                _selectedTopItem = value;
+                OnPropertyChanged();
+                
+                if (value != null)
+                {
+                    SelectedBottomItem = null;
+                    SelectedNavigationItem = value;
+                }
+            }
+        }
+    }
+
+    private NavigationItem? _selectedBottomItem;
+    public NavigationItem? SelectedBottomItem
+    {
+        get => _selectedBottomItem;
+        set
+        {
+            if (_selectedBottomItem != value)
+            {
+                _selectedBottomItem = value;
+                OnPropertyChanged();
+                
+                if (value != null)
+                {
+                    SelectedTopItem = null;
+                    SelectedNavigationItem = value;
+                }
+            }
+        }
+    }
+
+    private NavigationItem? _selectedNavigationItem;
+    public NavigationItem? SelectedNavigationItem
+    {
+        get => _selectedNavigationItem;
+        private set
+        {
+            if (_selectedNavigationItem != value)
+            {
+                _selectedNavigationItem = value;
+                OnPropertyChanged();
+                if (value != null)
+                {
+                    CurrentPage = value.ViewModel;
+                }
+            }
+        }
+    }
+
+    private ViewModelBase? _currentPage;
+    public ViewModelBase? CurrentPage
+    {
+        get => _currentPage;
+        set
+        {
+            if (_currentPage != value)
+            {
+                _currentPage = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public ObservableCollection<NavigationItem> TopNavigationItems { get; private set; }
+    public ObservableCollection<NavigationItem> BottomNavigationItems { get; private set; }
+
     
     /// <summary>
     /// Application version from assembly
@@ -88,8 +182,25 @@ public class MainWindowViewModel : ViewModelBase
         // Start hotkey service
         Settings.StartHotkeyService();
 
+        // Initialize Navigation
+        TopNavigationItems = new ObservableCollection<NavigationItem>
+        {
+            new NavigationItem { Label = "Recording", Icon = "◉", ViewModel = Recording },
+            new NavigationItem { Label = "Playback", Icon = "▶️", ViewModel = Playback },
+            new NavigationItem { Label = "Files", Icon = "💾", ViewModel = Files },
+            new NavigationItem { Label = "Text Expansion", Icon = "📝", ViewModel = TextExpansion }
+        };
+
+        BottomNavigationItems = new ObservableCollection<NavigationItem>
+        {
+            new NavigationItem { Label = "Settings", Icon = "⚙️", ViewModel = Settings }
+        };
+
+        SelectedTopItem = TopNavigationItems.First();
+
         // Check for updates
         _ = CheckForUpdatesAsync();
+
     }
 
     // Update Notification Properties

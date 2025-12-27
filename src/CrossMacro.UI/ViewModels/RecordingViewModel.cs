@@ -60,6 +60,7 @@ public class RecordingViewModel : ViewModelBase
                 _isRecording = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanStartRecording));
+                OnPropertyChanged(nameof(CanToggleRecording));
                 RecordingStatus = value ? "Recording..." : "Ready";
                 RecordingStateChanged?.Invoke(this, value);
             }
@@ -129,6 +130,7 @@ public class RecordingViewModel : ViewModelBase
                 _settingsService.Current.IsMouseRecordingEnabled = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanStartRecording));
+                OnPropertyChanged(nameof(CanToggleRecording));
                 _ = _settingsService.SaveAsync();
             }
         }
@@ -145,12 +147,18 @@ public class RecordingViewModel : ViewModelBase
                 _settingsService.Current.IsKeyboardRecordingEnabled = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanStartRecording));
+                OnPropertyChanged(nameof(CanToggleRecording));
                 _ = _settingsService.SaveAsync();
             }
         }
     }
     
     public bool CanStartRecording => !IsRecording && CanStartRecordingExternal && (IsMouseRecordingEnabled || IsKeyboardRecordingEnabled);
+    
+    /// <summary>
+    /// Returns true if the toggle button should be enabled (can start OR can stop)
+    /// </summary>
+    public bool CanToggleRecording => IsRecording || CanStartRecording;
     
     private bool _canStartRecordingExternal = true;
     
@@ -167,6 +175,7 @@ public class RecordingViewModel : ViewModelBase
                 _canStartRecordingExternal = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanStartRecording));
+                OnPropertyChanged(nameof(CanToggleRecording));
             }
         }
     }

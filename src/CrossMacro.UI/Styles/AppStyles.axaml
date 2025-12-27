@@ -320,5 +320,145 @@
     <Style Selector="ScrollBar:pointerover /template/ Thumb /template/ Border">
         <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
     </Style>
+    
+    <!-- ComboBox Style -->
+    <Style Selector="ComboBox">
+        <Setter Property="Background" Value="#334155"/>
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Padding" Value="12,8"/>
+    </Style>
+    
+    <Style Selector="ComboBox:pointerover /template/ Border#Background">
+        <Setter Property="Background" Value="#475569"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+    </Style>
+    
+    <Style Selector="ComboBox:focus /template/ Border#Background">
+        <Setter Property="Background" Value="#475569"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+    </Style>
+    
+    <Style Selector="ComboBox:pressed /template/ Border#Background">
+        <Setter Property="Background" Value="#475569"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+    </Style>
+    
+    <Style Selector="ComboBox /template/ Border#Background">
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
+            </Transitions>
+        </Setter>
+    </Style>
+    
+    <!-- ComboBox Popup Style -->
+    <Style Selector="ComboBox /template/ Popup Border">
+        <Setter Property="Background" Value="#1E293B"/>
+        <Setter Property="BorderBrush" Value="#334155"/>
+        <Setter Property="CornerRadius" Value="6"/>
+    </Style>
+    
+    <Style Selector="ComboBoxItem">
+        <Setter Property="Padding" Value="12,8"/>
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+    </Style>
+    
+    <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#334155"/>
+    </Style>
+    
+    <Style Selector="ComboBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+    </Style>
+    
+    <!-- TimePicker Style -->
+    <Style Selector="TimePicker">
+        <Setter Property="Background" Value="#334155"/>
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="6"/>
+    </Style>
+    
+    <Style Selector="TimePicker:pointerover /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="#475569"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+    </Style>
+    
+    <Style Selector="TimePicker:focus /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="#475569"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+    </Style>
+    
+    <Style Selector="TimePicker:pressed /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="#475569"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+    </Style>
+    
+    <Style Selector="TimePicker /template/ Border#PART_BorderElement">
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
+            </Transitions>
+        </Setter>
+    </Style>
+    
+    <!-- TimePicker Flyout/Popup Style -->
+    <Style Selector="TimePickerPresenter">
+        <Setter Property="Background" Value="#1E293B"/>
+        <Setter Property="BorderBrush" Value="#334155"/>
+    </Style>
+    
+    <!-- DatePicker Style -->
+    <Style Selector="DatePicker">
+        <Setter Property="Background" Value="#334155"/>
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="6"/>
+    </Style>
+    
+    <Style Selector="DatePicker:pointerover /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="#475569"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+    </Style>
+    
+    <Style Selector="DatePicker:focus /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="#475569"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+    </Style>
+    
+    <Style Selector="DatePicker:pressed /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="#475569"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+    </Style>
+    
+    <Style Selector="DatePicker /template/ Border#PART_BorderElement">
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
+            </Transitions>
+        </Setter>
+    </Style>
+    
+    <!-- DatePicker Flyout/Calendar Style -->
+    <Style Selector="DatePickerPresenter">
+        <Setter Property="Background" Value="#1E293B"/>
+        <Setter Property="BorderBrush" Value="#334155"/>
+    </Style>
+    
+    <Style Selector="CalendarDayButton:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#334155"/>
+    </Style>
+    
+    <Style Selector="CalendarDayButton:selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+    </Style>
 
 </Styles>

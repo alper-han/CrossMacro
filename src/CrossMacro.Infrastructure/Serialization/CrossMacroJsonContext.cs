@@ -14,6 +14,8 @@ namespace CrossMacro.Infrastructure.Serialization;
 [JsonSerializable(typeof(List<TextExpansion>))]
 [JsonSerializable(typeof(ScheduledTask))]
 [JsonSerializable(typeof(List<ScheduledTask>))]
+[JsonSerializable(typeof(ShortcutTask))]
+[JsonSerializable(typeof(List<ShortcutTask>))]
 [JsonSourceGenerationOptions(
     WriteIndented = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,

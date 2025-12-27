@@ -160,6 +160,8 @@ public partial class App : Application
         services.AddSingleton<TextExpansionViewModel>();
         services.AddSingleton<ISchedulerService, SchedulerService>();
         services.AddSingleton<ScheduleViewModel>();
+        services.AddSingleton<IShortcutService, ShortcutService>();
+        services.AddSingleton<ShortcutViewModel>();
         services.AddSingleton<SettingsViewModel>();
         
         services.AddSingleton<MainWindowViewModel>();

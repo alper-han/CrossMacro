@@ -19,12 +19,14 @@ public class MainWindowViewModelTests
     private readonly IMousePositionProvider _positionProvider;
     private readonly IDialogService _filesDialogService;
     private readonly ISchedulerService _schedulerService;
+    private readonly IShortcutService _shortcutService;
 
     private readonly RecordingViewModel _recordingViewModel;
     private readonly PlaybackViewModel _playbackViewModel;
     private readonly FilesViewModel _filesViewModel;
     private readonly TextExpansionViewModel _textExpansionViewModel;
     private readonly ScheduleViewModel _scheduleViewModel;
+    private readonly ShortcutViewModel _shortcutViewModel;
     private readonly SettingsViewModel _settingsViewModel;
 
     private readonly MainWindowViewModel _viewModel;
@@ -58,6 +60,10 @@ public class MainWindowViewModelTests
         _schedulerService = Substitute.For<ISchedulerService>();
         _scheduleViewModel = new ScheduleViewModel(_schedulerService, dialogService);
 
+        // ShortcutViewModel
+        _shortcutService = Substitute.For<IShortcutService>();
+        _shortcutViewModel = new ShortcutViewModel(_shortcutService, dialogService);
+
         // Fix: SettingsViewModel takes (IGlobalHotkeyService, ISettingsService, HotkeySettings)
         var hotkeySettings = new HotkeySettings();
         _settingsViewModel = new SettingsViewModel(_hotkeyService, _settingsService, hotkeySettings);
@@ -69,6 +75,7 @@ public class MainWindowViewModelTests
             _filesViewModel,
             _textExpansionViewModel,
             _scheduleViewModel,
+            _shortcutViewModel,
             _settingsViewModel,
             _hotkeyService,
             _positionProvider);

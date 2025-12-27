@@ -34,6 +34,7 @@ public class MainWindowViewModel : ViewModelBase
     public FilesViewModel Files { get; }
     public TextExpansionViewModel TextExpansion { get; }
     public ScheduleViewModel Schedule { get; }
+    public ShortcutViewModel Shortcuts { get; }
     public SettingsViewModel Settings { get; }
     
     
@@ -151,6 +152,7 @@ public class MainWindowViewModel : ViewModelBase
         FilesViewModel files,
         TextExpansionViewModel textExpansion,
         ScheduleViewModel schedule,
+        ShortcutViewModel shortcuts,
         SettingsViewModel settings,
         IGlobalHotkeyService hotkeyService,
         IMousePositionProvider positionProvider)
@@ -160,6 +162,7 @@ public class MainWindowViewModel : ViewModelBase
         Files = files;
         TextExpansion = textExpansion;
         Schedule = schedule;
+        Shortcuts = shortcuts;
         Settings = settings;
         _hotkeyService = hotkeyService;
         _positionProvider = positionProvider;
@@ -192,6 +195,7 @@ public class MainWindowViewModel : ViewModelBase
             new NavigationItem { Label = "Playback", Icon = "▶️", ViewModel = Playback },
             new NavigationItem { Label = "Files", Icon = "💾", ViewModel = Files },
             new NavigationItem { Label = "Text Expansion", Icon = "📝", ViewModel = TextExpansion },
+            new NavigationItem { Label = "Shortcuts", Icon = "⌨️", ViewModel = Shortcuts },
             new NavigationItem { Label = "Schedule", Icon = "🕐", ViewModel = Schedule }
         };
 

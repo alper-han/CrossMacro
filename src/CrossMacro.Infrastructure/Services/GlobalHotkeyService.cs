@@ -34,6 +34,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     public event EventHandler? ToggleRecordingRequested;
     public event EventHandler? TogglePlaybackRequested;
     public event EventHandler? TogglePauseRequested;
+    public event EventHandler<RawHotkeyInputEventArgs>? RawInputReceived;
     
     public int RecordingHotkeyCode => _recordingHotkey.MainKey;
     public int PlaybackHotkeyCode => _playbackHotkey.MainKey;
@@ -68,7 +69,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             }
 
             _inputCapture = _inputCaptureFactory();
-            _inputCapture.Configure(captureMouse: false, captureKeyboard: true);
+            _inputCapture.Configure(captureMouse: true, captureKeyboard: true);
             _inputCapture.InputReceived += OnInputReceived;
             _inputCapture.Error += OnInputCaptureError;
             
@@ -194,9 +195,23 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
     private void OnInputReceived(object? sender, InputCaptureEventArgs e)
     {
-        if (e.Type != InputEventType.Key)
+        // Handle keyboard events
+        if (e.Type == InputEventType.Key)
+        {
+            HandleKeyboardInput(e);
             return;
-
+        }
+        
+        // Handle mouse button events (for shortcuts only, not global hotkeys)
+        if (e.Type == InputEventType.MouseButton)
+        {
+            HandleMouseButtonInput(e);
+            return;
+        }
+    }
+    
+    private void HandleKeyboardInput(InputCaptureEventArgs e)
+    {
         using (_lock.EnterScope())
         {
             if (IsModifierKeyCode(e.Code))
@@ -214,6 +229,12 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
             if (e.Value != 1)
                 return;
+            
+            // Block pure mouse left (272) and right (273) clicks without modifiers
+            // These may come as Key events on some platforms
+            bool hasModifiers = _pressedModifiers.Count > 0;
+            if ((e.Code == 272 || e.Code == 273) && !hasModifiers)
+                return;
 
             if (_isCapturing && _captureTcs != null)
             {
@@ -229,7 +250,74 @@ public class GlobalHotkeyService : IGlobalHotkeyService
                 CheckHotkeyMatch(e.Code, "Playback", _playbackHotkey, () => TogglePlaybackRequested?.Invoke(this, EventArgs.Empty));
                 CheckHotkeyMatch(e.Code, "Pause", _pauseHotkey, () => TogglePauseRequested?.Invoke(this, EventArgs.Empty));
             }
+            
+            // Raise raw input event for other services (e.g., ShortcutService)
+            var hotkeyStr = BuildHotkeyString(e.Code);
+            RawInputReceived?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, _pressedModifiers, hotkeyStr));
         }
+    }
+    
+    private void HandleMouseButtonInput(InputCaptureEventArgs e)
+    {
+        // Only handle button press (Value == 1)
+        if (e.Value != 1)
+            return;
+        
+        using (_lock.EnterScope())
+        {
+            // Block pure left click (272) and right click (273) without modifiers
+            // But allow them if combined with keyboard modifiers (Ctrl, Shift, Alt, etc.)
+            bool hasModifiers = _pressedModifiers.Count > 0;
+            if ((e.Code == 272 || e.Code == 273) && !hasModifiers)
+                return;
+            
+            var mouseButtonName = GetMouseButtonName(e.Code);
+            if (string.IsNullOrEmpty(mouseButtonName))
+                return;
+            
+            // Build hotkey string with modifiers
+            var hotkeyString = BuildMouseHotkeyString(mouseButtonName);
+            
+            if (_isCapturing && _captureTcs != null)
+            {
+                Task.Run(() => _captureTcs.TrySetResult(hotkeyString));
+                return;
+            }
+            
+            // Raise raw input event for ShortcutService
+            RawInputReceived?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, _pressedModifiers, hotkeyString));
+        }
+    }
+    
+    private string BuildMouseHotkeyString(string mouseButtonName)
+    {
+        var parts = new List<string>();
+
+        if (_pressedModifiers.Contains(29) || _pressedModifiers.Contains(97)) parts.Add("Ctrl");
+        if (_pressedModifiers.Contains(42) || _pressedModifiers.Contains(54)) parts.Add("Shift");
+        if (_pressedModifiers.Contains(56)) parts.Add("Alt");
+        if (_pressedModifiers.Contains(100)) parts.Add("AltGr");
+        if (_pressedModifiers.Contains(125) || _pressedModifiers.Contains(126)) parts.Add("Super");
+
+        parts.Add(mouseButtonName);
+
+        return string.Join("+", parts);
+    }
+    
+    private static string GetMouseButtonName(int buttonCode)
+    {
+        return buttonCode switch
+        {
+            272 => "Mouse Left",
+            273 => "Mouse Right",
+            274 => "Mouse Middle",
+            275 => "Mouse Side",      // BTN_SIDE (often "back" button)
+            276 => "Mouse Extra",     // BTN_EXTRA (often "forward" button)
+            277 => "Mouse Forward",   // BTN_FORWARD
+            278 => "Mouse Back",      // BTN_BACK
+            279 => "Mouse Task",      // BTN_TASK
+            _ => $"Mouse{buttonCode - 271}"  // Generic fallback
+        };
     }
 
     private void OnInputCaptureError(object? sender, string errorMessage)
@@ -367,6 +455,15 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             "Down" => 108,
             "Left" => 105,
             "Right" => 106,
+            // Mouse buttons (BTN_LEFT=272 through BTN_TASK=279)
+            "Mouse Left" => 272,
+            "Mouse Right" => 273,
+            "Mouse Middle" => 274,
+            "Mouse Side" => 275,
+            "Mouse Extra" => 276,
+            "Mouse Forward" => 277,
+            "Mouse Back" => 278,
+            "Mouse Task" => 279,
             _ => -1
         };
         if (special != -1) return special;

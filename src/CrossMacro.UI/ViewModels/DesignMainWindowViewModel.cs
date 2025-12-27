@@ -20,6 +20,7 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         new DesignFilesViewModel(),
         new DesignTextExpansionViewModel(),
         new DesignScheduleViewModel(),
+        new DesignShortcutViewModel(),
         new DesignSettingsViewModel(),
         new MockGlobalHotkeyService(),
         new MockMousePositionProvider())
@@ -109,6 +110,34 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         }
     }
 
+    private class DesignShortcutViewModel : ShortcutViewModel
+    {
+        public DesignShortcutViewModel() : base(
+            new MockShortcutService(),
+            new MockDialogService())
+        {
+        }
+    }
+
+    private class MockShortcutService : IShortcutService
+    {
+        public ObservableCollection<ShortcutTask> Tasks { get; } = new();
+        public bool IsListening => false;
+#pragma warning disable CS0067 // Event is never used (design-time mock)
+        public event EventHandler<ShortcutExecutedEventArgs>? ShortcutExecuted;
+        public event EventHandler<ShortcutTask>? ShortcutStarting;
+#pragma warning restore CS0067
+        public void AddTask(ShortcutTask task) => Tasks.Add(task);
+        public void RemoveTask(Guid id) { }
+        public void UpdateTask(ShortcutTask task) { }
+        public void SetTaskEnabled(Guid id, bool enabled) { }
+        public void Start() { }
+        public void Stop() { }
+        public Task SaveAsync() => Task.CompletedTask;
+        public Task LoadAsync() => Task.CompletedTask;
+        public void Dispose() { }
+    }
+
     private class MockSchedulerService : ISchedulerService
     {
         public ObservableCollection<ScheduledTask> Tasks { get; } = new();
@@ -165,6 +194,7 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         public event EventHandler? ToggleRecordingRequested;
         public event EventHandler? TogglePlaybackRequested;
         public event EventHandler? TogglePauseRequested;
+        public event EventHandler<RawHotkeyInputEventArgs>? RawInputReceived;
 #pragma warning restore CS0067
         public int RecordingHotkeyCode => 0;
         public int PlaybackHotkeyCode => 0;

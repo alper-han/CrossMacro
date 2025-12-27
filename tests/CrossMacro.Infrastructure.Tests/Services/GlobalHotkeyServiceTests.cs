@@ -50,7 +50,7 @@ public class GlobalHotkeyServiceTests
         _service.Start();
 
         // Assert
-        _inputCapture.Received(1).Configure(false, true);
+        _inputCapture.Received(1).Configure(true, true);
         Assert.True(_service.IsRunning);
     }
 

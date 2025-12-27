@@ -492,7 +492,13 @@ public class DaemonService
         const ushort REL_WHEEL = 0x08;
         const ushort EV_SYN = 0x00;
 
-        if (type == EV_KEY) return 1; // InputEventType.Key
+        if (type == EV_KEY)
+        {
+            // Mouse button codes: BTN_LEFT (0x110=272) through BTN_TASK (0x117=279)
+            if (code >= 272 && code <= 279)
+                return 2; // InputEventType.MouseButton
+            return 1; // InputEventType.Key
+        }
         
         if (type == EV_REL)
         {

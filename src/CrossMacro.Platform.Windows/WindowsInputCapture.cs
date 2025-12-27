@@ -255,9 +255,14 @@ public class WindowsInputCapture : IInputCapture
 
             if (evdevCode != 0)
             {
+                // Mouse buttons should use MouseButton type, not Key
+                var eventType = (type == InputEventCode.EV_KEY && evdevCode >= 272 && evdevCode <= 279)
+                    ? InputEventType.MouseButton
+                    : (InputEventType)type;
+                
                 var args = new InputCaptureEventArgs
                 {
-                    Type = (InputEventType)type,
+                    Type = eventType,
                     Code = evdevCode,
                     Value = value,
                     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),

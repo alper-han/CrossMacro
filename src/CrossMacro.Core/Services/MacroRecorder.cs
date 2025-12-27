@@ -370,6 +370,11 @@ public class MacroRecorder : IMacroRecorder, IDisposable
                     };
                     AddMacroEvent(scrollEvent);
                     break;
+                
+                case InputEventType.MouseButton:
+                    // Handle mouse button events (from properly typed platforms)
+                    HandleMouseButtonEvent(e);
+                    break;
                     
                 case InputEventType.Key:
                     if (_hasPendingMove)
@@ -377,31 +382,10 @@ public class MacroRecorder : IMacroRecorder, IDisposable
                         FlushPendingMove();
                     }
                     
-                    var keyEvent = new MacroEvent
-                    {
-                        Timestamp = _stopwatch.ElapsedMilliseconds
-                    };
-                    
+                    // Backward compatibility: some platforms may still send mouse buttons as Key
                     if (e.Code == InputEventCode.BTN_LEFT || e.Code == InputEventCode.BTN_RIGHT || e.Code == InputEventCode.BTN_MIDDLE)
                     {
-                        if (e.Code == InputEventCode.BTN_LEFT) keyEvent.Button = MouseButton.Left;
-                        else if (e.Code == InputEventCode.BTN_RIGHT) keyEvent.Button = MouseButton.Right;
-                        else if (e.Code == InputEventCode.BTN_MIDDLE) keyEvent.Button = MouseButton.Middle;
-                        
-                        keyEvent.Type = e.Value == 1 ? EventType.ButtonPress : EventType.ButtonRelease;
-                        
-                        if (_positionProvider != null)
-                        {
-                            keyEvent.X = _cachedX;
-                            keyEvent.Y = _cachedY;
-                        }
-                        else
-                        {
-                            keyEvent.X = _accumulatedX;
-                            keyEvent.Y = _accumulatedY;
-                        }
-                        
-                        AddMacroEvent(keyEvent);
+                        HandleMouseButtonEvent(e);
                     }
                     else if (e.Code >= 1 && e.Code <= 255)
                     {
@@ -412,9 +396,13 @@ public class MacroRecorder : IMacroRecorder, IDisposable
 
                         if (e.Value == 0 || e.Value == 1)
                         {
-                            keyEvent.Type = e.Value == 1 ? EventType.KeyPress : EventType.KeyRelease;
-                            keyEvent.KeyCode = e.Code;
-                            keyEvent.Button = MouseButton.None;
+                            var keyEvent = new MacroEvent
+                            {
+                                Timestamp = _stopwatch.ElapsedMilliseconds,
+                                Type = e.Value == 1 ? EventType.KeyPress : EventType.KeyRelease,
+                                KeyCode = e.Code,
+                                Button = MouseButton.None
+                            };
                             
                             Log.Information("[MacroRecorder] Keyboard event: {Type} Key={Code}", 
                                 keyEvent.Type, keyEvent.KeyCode);
@@ -425,6 +413,44 @@ public class MacroRecorder : IMacroRecorder, IDisposable
                     break;
             }
         }
+    }
+
+    private void HandleMouseButtonEvent(InputCaptureEventArgs e)
+    {
+        if (_currentSequence == null || _stopwatch == null) return;
+        
+        if (_hasPendingMove)
+        {
+            FlushPendingMove();
+        }
+        
+        var buttonEvent = new MacroEvent
+        {
+            Timestamp = _stopwatch.ElapsedMilliseconds
+        };
+        
+        if (e.Code == InputEventCode.BTN_LEFT) buttonEvent.Button = MouseButton.Left;
+        else if (e.Code == InputEventCode.BTN_RIGHT) buttonEvent.Button = MouseButton.Right;
+        else if (e.Code == InputEventCode.BTN_MIDDLE) buttonEvent.Button = MouseButton.Middle;
+        else return; // Ignore other mouse buttons for recording
+        
+        buttonEvent.Type = e.Value == 1 ? EventType.ButtonPress : EventType.ButtonRelease;
+        
+        if (_positionProvider != null)
+        {
+            buttonEvent.X = _cachedX;
+            buttonEvent.Y = _cachedY;
+        }
+        else
+        {
+            buttonEvent.X = _accumulatedX;
+            buttonEvent.Y = _accumulatedY;
+        }
+        
+        Log.Debug("[MacroRecorder] Mouse button: {Button} {Type} at ({X}, {Y})", 
+            buttonEvent.Button, buttonEvent.Type, buttonEvent.X, buttonEvent.Y);
+        
+        AddMacroEvent(buttonEvent);
     }
 
     private void FlushPendingMove()

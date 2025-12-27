@@ -169,7 +169,9 @@ public class LinuxInputCapture : IInputCapture
     {
         var eventType = e.type switch
         {
-            UInputNative.EV_KEY => InputEventType.Key,
+            UInputNative.EV_KEY => IsMouseButtonCode(e.code) 
+                ? InputEventType.MouseButton 
+                : InputEventType.Key,
             UInputNative.EV_REL => e.code == UInputNative.REL_WHEEL 
                 ? InputEventType.MouseScroll 
                 : InputEventType.MouseMove,
@@ -187,6 +189,15 @@ public class LinuxInputCapture : IInputCapture
         };
         
         InputReceived?.Invoke(this, args);
+    }
+    
+    /// <summary>
+    /// Check if evdev code is a mouse button (BTN_LEFT=272 through BTN_TASK=279)
+    /// </summary>
+    private static bool IsMouseButtonCode(ushort code)
+    {
+        // BTN_LEFT (0x110=272) through BTN_TASK (0x117=279)
+        return code >= 272 && code <= 279;
     }
     
     private void OnEvdevError(Exception ex)

@@ -23,7 +23,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService
     private readonly string _configDirectory;
     private readonly string _filePath;
     private List<TextExpansion> _expansions = new();
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
 
     public TextExpansionStorageService()
     {
@@ -48,12 +48,12 @@ public class TextExpansionStorageService : ITextExpansionStorageService
                 if (!File.Exists(_filePath))
                 {
                     Log.Information("[TextExpansionStorageService] No existing file found, starting with empty list");
-                    _expansions = new List<TextExpansion>();
+                    _expansions = [];
                     return new List<TextExpansion>(_expansions);
                 }
 
                 var json = File.ReadAllText(_filePath);
-                _expansions = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.ListTextExpansion) ?? new List<TextExpansion>();
+                _expansions = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.ListTextExpansion) ?? [];
                 
                 Log.Information("[TextExpansionStorageService] Loaded {Count} text expansions", _expansions.Count);
                 return new List<TextExpansion>(_expansions);
@@ -61,7 +61,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService
             catch (Exception ex)
             {
                 Log.Error(ex, "[TextExpansionStorageService] Failed to load text expansions");
-                _expansions = new List<TextExpansion>();
+                _expansions = [];
                 return new List<TextExpansion>(_expansions);
             }
         }
@@ -77,12 +77,12 @@ public class TextExpansionStorageService : ITextExpansionStorageService
             if (!File.Exists(_filePath))
             {
                 Log.Information("[TextExpansionStorageService] No existing file found, starting with empty list");
-                lock (_lock) { _expansions = new List<TextExpansion>(); }
-                return new List<TextExpansion>();
+                lock (_lock) { _expansions = []; }
+                return [];
             }
 
             var json = await File.ReadAllTextAsync(_filePath);
-            var loaded = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.ListTextExpansion) ?? new List<TextExpansion>();
+            var loaded = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.ListTextExpansion) ?? [];
             
             lock (_lock)
             {
@@ -95,8 +95,8 @@ public class TextExpansionStorageService : ITextExpansionStorageService
         catch (Exception ex)
         {
             Log.Error(ex, "[TextExpansionStorageService] Failed to load text expansions");
-            lock (_lock) { _expansions = new List<TextExpansion>(); }
-            return new List<TextExpansion>();
+            lock (_lock) { _expansions = []; }
+            return [];
         }
     }
 

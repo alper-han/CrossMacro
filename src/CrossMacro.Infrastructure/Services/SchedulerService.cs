@@ -26,7 +26,7 @@ public class SchedulerService : ISchedulerService
     private readonly Func<IMacroPlayer> _playerFactory;
     private readonly ITimeProvider _timeProvider;
     private readonly SynchronizationContext? _syncContext;
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private PeriodicTimer? _periodicTimer;
     private CancellationTokenSource? _cts;
     private Task? _timerTask;

@@ -16,7 +16,7 @@ public class AuditLogger
 {
     private readonly string _logDirectory;
     private readonly string _logPath;
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private readonly bool _logSimulations;
     private readonly int _maxFileSizeBytes;
     private StreamWriter? _writer;

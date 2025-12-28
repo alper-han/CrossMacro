@@ -17,7 +17,7 @@ public class IpcClient : IDisposable
     private BinaryWriter? _writer;
     private CancellationTokenSource? _cts;
     private Task? _readTask;
-    private readonly object _writeLock = new();
+    private readonly Lock _writeLock = new();
 
     public event EventHandler<InputCaptureEventArgs>? InputReceived;
     public event EventHandler<string>? ErrorOccurred;
@@ -142,7 +142,7 @@ public class IpcClient : IDisposable
     }
 
     private int _captureRequestCount = 0;
-    private readonly object _captureLock = new();
+    private readonly Lock _captureLock = new();
 
     public void StartCapture(bool mouse, bool keyboard)
     {

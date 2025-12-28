@@ -35,10 +35,10 @@ public class LinuxIpcInputCapture : IInputCapture
 
     public IReadOnlyList<InputDeviceInfo> GetAvailableDevices()
     {
-        return new List<InputDeviceInfo> 
-        { 
+        return
+        [ 
             new InputDeviceInfo { Name = "All Daemon Devices", Path = "daemon", IsMouse = true, IsKeyboard = true } 
-        };
+        ];
     }
 
     private bool _started;

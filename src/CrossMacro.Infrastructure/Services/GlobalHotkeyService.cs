@@ -291,7 +291,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     
     private string BuildMouseHotkeyString(string mouseButtonName)
     {
-        var parts = new List<string>();
+        List<string> parts = [];
 
         if (_pressedModifiers.Contains(29) || _pressedModifiers.Contains(97)) parts.Add("Ctrl");
         if (_pressedModifiers.Contains(42) || _pressedModifiers.Contains(54)) parts.Add("Shift");
@@ -327,7 +327,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
     private string BuildHotkeyString(int keyCode)
     {
-        var parts = new List<string>();
+        List<string> parts = [];
 
         if (_pressedModifiers.Contains(29) || _pressedModifiers.Contains(97)) parts.Add("Ctrl");
         if (_pressedModifiers.Contains(42) || _pressedModifiers.Contains(54)) parts.Add("Shift");

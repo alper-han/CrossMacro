@@ -22,7 +22,7 @@ public class DaemonService
     private Socket? _socket;
     private readonly List<EvdevReader> _readers = new();
     private UInputDevice? _uInputDevice;
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     
     private readonly RateLimiter _rateLimiter = new(maxConnectionsPerWindow: 10, windowSeconds: 60, banSeconds: 60);
     private readonly AuditLogger _auditLogger = new();

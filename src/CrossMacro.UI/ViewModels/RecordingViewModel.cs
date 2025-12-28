@@ -219,12 +219,12 @@ public class RecordingViewModel : ViewModelBase, IDisposable
             // Disable playback and pause hotkeys during recording so they can be recorded
             _hotkeyService.SetPlaybackPauseHotkeysEnabled(false);
             
-            var ignoredKeys = new[] 
-            { 
+            int[] ignoredKeys = 
+            [ 
                 _hotkeyService.RecordingHotkeyCode,
                 _hotkeyService.PlaybackHotkeyCode,
                 _hotkeyService.PauseHotkeyCode
-            };
+            ];
             
             await _recorder.StartRecordingAsync(IsMouseRecordingEnabled, IsKeyboardRecordingEnabled, ignoredKeys);
         }

@@ -11,7 +11,7 @@ namespace CrossMacro.Daemon.Security;
 public class RateLimiter
 {
     private readonly Dictionary<uint, ConnectionRecord> _connectionAttempts = new();
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     
     private readonly int _maxConnectionsPerWindow;
     private readonly TimeSpan _windowDuration;
@@ -120,7 +120,7 @@ public class RateLimiter
 
     private void CleanupExpired(DateTime now)
     {
-        var toRemove = new List<uint>();
+        List<uint> toRemove = [];
         foreach (var kvp in _connectionAttempts)
         {
             var record = kvp.Value;

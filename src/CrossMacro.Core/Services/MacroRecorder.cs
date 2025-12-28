@@ -107,8 +107,8 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             _inputCapture.Error += OnInputCaptureError;
             
             var devices = _inputCapture.GetAvailableDevices();
-            var mice = recordMouse ? devices.Where(d => d.IsMouse).ToList() : new List<InputDeviceInfo>();
-            var keyboards = recordKeyboard ? devices.Where(d => d.IsKeyboard).ToList() : new List<InputDeviceInfo>();
+            var mice = recordMouse ? devices.Where(d => d.IsMouse).ToList() : [];
+            var keyboards = recordKeyboard ? devices.Where(d => d.IsKeyboard).ToList() : [];
             
             if (recordMouse && mice.Count == 0)
             {

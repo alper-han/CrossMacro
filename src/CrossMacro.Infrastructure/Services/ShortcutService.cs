@@ -25,7 +25,7 @@ public class ShortcutService : IShortcutService
     private readonly Func<IMacroPlayer> _playerFactory;
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly SynchronizationContext? _syncContext;
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private bool _isListening;
     private bool _disposed;
     

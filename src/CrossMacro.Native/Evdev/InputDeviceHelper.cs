@@ -22,7 +22,7 @@ public class InputDeviceHelper
 
     public static List<InputDevice> GetAvailableDevices()
     {
-        var devices = new List<InputDevice>();
+        List<InputDevice> devices = [];
         var inputDir = "/dev/input";
 
         Log.Information("Scanning input devices in {InputDir}...", inputDir);

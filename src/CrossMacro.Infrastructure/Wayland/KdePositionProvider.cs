@@ -16,7 +16,7 @@ namespace CrossMacro.Infrastructure.Wayland
         private int _currentX;
         private int _currentY;
         private bool _hasPosition;
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
         private readonly TaskCompletionSource<(int Width, int Height)> _resolutionTcs = new();
         private readonly System.Threading.CancellationTokenSource _cts = new();
         

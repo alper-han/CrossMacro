@@ -26,7 +26,7 @@ public class TextExpansionService : ITextExpansionService
     private IInputCapture? _inputCapture;
     private IInputSimulator? _inputSimulator;
     
-    private readonly object _lock; // Use monitor for synchronous operations
+    private readonly Lock _lock; // Use monitor for synchronous operations
     private bool _isRunning;
     
     // Buffer for tracking typed characters
@@ -58,7 +58,7 @@ public class TextExpansionService : ITextExpansionService
         _inputSimulatorFactory = inputSimulatorFactory;
         
         _buffer = new StringBuilder();
-        _lock = new object();
+        _lock = new Lock();
         _outputLock = new SemaphoreSlim(1, 1);
     }
 

@@ -15,7 +15,7 @@ public class KeyboardLayoutService : IKeyboardLayoutService, IDisposable
     private IntPtr _xkbContext;
     private IntPtr _xkbKeymap;
     private IntPtr _xkbState;
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
 
     public KeyboardLayoutService()
     {
@@ -540,7 +540,7 @@ public class KeyboardLayoutService : IKeyboardLayoutService, IDisposable
 
     private void BuildCharInputCache()
     {
-        _charToInputCache = new Dictionary<char, (int KeyCode, bool Shift, bool AltGr)>();
+        _charToInputCache = [];
 
         // Scan codes 1-255 using the existing XKB state
         // Higher keycodes (multimedia etc) are rarely used for chars

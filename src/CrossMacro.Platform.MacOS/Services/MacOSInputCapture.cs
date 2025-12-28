@@ -39,10 +39,10 @@ public class MacOSInputCapture : IInputCapture
 
     public IReadOnlyList<InputDeviceInfo> GetAvailableDevices()
     {
-        return new List<InputDeviceInfo>
-        {
+        return
+        [
             new InputDeviceInfo { Name = "CoreGraphics Virtual Device", IsKeyboard = true, IsMouse = true }
-        };
+        ];
     }
 
     public Task StartAsync(CancellationToken ct)

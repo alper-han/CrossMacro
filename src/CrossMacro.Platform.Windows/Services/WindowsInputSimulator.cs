@@ -3,7 +3,7 @@ using CrossMacro.Core.Services;
 using CrossMacro.Platform.Windows.Helpers;
 using CrossMacro.Platform.Windows.Native;
 
-namespace CrossMacro.Platform.Windows;
+namespace CrossMacro.Platform.Windows.Services;
 
 public class WindowsInputSimulator : IInputSimulator
 {

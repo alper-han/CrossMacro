@@ -1,7 +1,7 @@
 using CrossMacro.Platform.MacOS.Native;
 using System.Diagnostics;
 
-namespace CrossMacro.Platform.MacOS;
+namespace CrossMacro.Platform.MacOS.Helpers;
 
 public static class MacOSPermissionChecker
 {

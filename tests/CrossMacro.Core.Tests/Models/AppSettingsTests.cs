@@ -24,6 +24,8 @@ public class AppSettingsTests
         // Assert - Recording Settings
         settings.IsMouseRecordingEnabled.Should().BeTrue();
         settings.IsKeyboardRecordingEnabled.Should().BeTrue();
+        settings.ForceRelativeCoordinates.Should().BeFalse();
+        settings.SkipInitialZeroZero.Should().BeFalse();
 
         // Assert - Text Expansion Settings
         settings.EnableTextExpansion.Should().BeFalse();

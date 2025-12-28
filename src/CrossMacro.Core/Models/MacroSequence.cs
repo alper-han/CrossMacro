@@ -71,6 +71,12 @@ public class MacroSequence
     public bool IsAbsoluteCoordinates { get; set; }
     
     /// <summary>
+    /// Whether Corner Reset was skipped during recording.
+    /// If false and IsAbsoluteCoordinates is false, playback should do Corner Reset to 0,0 first.
+    /// </summary>
+    public bool SkipInitialZeroZero { get; set; }
+    
+    /// <summary>
     /// Validates the macro sequence
     /// </summary>
     /// <returns>True if valid, false otherwise</returns>

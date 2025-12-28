@@ -23,6 +23,8 @@ public class RecordingViewModel : ViewModelBase, IDisposable
     private string _recordingStatus = "Ready";
     private bool _isMouseRecordingEnabled = true;
     private bool _isKeyboardRecordingEnabled = true;
+    private bool _forceRelativeCoordinates;
+    private bool _skipInitialZeroZero;
     
     /// <summary>
     /// Event fired when recording is completed with the recorded macro
@@ -43,11 +45,12 @@ public class RecordingViewModel : ViewModelBase, IDisposable
         _hotkeyService = hotkeyService;
         _settingsService = settingsService;
         
-        // Initialize from saved settings
-        _isMouseRecordingEnabled = _settingsService.Current.IsMouseRecordingEnabled;
         _isKeyboardRecordingEnabled = _settingsService.Current.IsKeyboardRecordingEnabled;
         
-        // Subscribe to recording events
+        _forceRelativeCoordinates = IsForceRelativeSupported && _settingsService.Current.ForceRelativeCoordinates;
+        
+        _skipInitialZeroZero = _settingsService.Current.SkipInitialZeroZero;
+        
         _recorder.EventRecorded += OnEventRecorded;
     }
     
@@ -154,6 +157,44 @@ public class RecordingViewModel : ViewModelBase, IDisposable
         }
     }
     
+    public bool ForceRelativeCoordinates
+    {
+        get => _forceRelativeCoordinates;
+        set
+        {
+            if (value && !IsForceRelativeSupported)
+                value = false;
+
+            if (_forceRelativeCoordinates != value)
+            {
+                _forceRelativeCoordinates = value;
+                _settingsService.Current.ForceRelativeCoordinates = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ShowSkipZeroZeroOption));
+                _ = _settingsService.SaveAsync();
+            }
+        }
+    }
+
+    public bool IsForceRelativeSupported => OperatingSystem.IsLinux();
+    
+    public bool SkipInitialZeroZero
+    {
+        get => _skipInitialZeroZero;
+        set
+        {
+            if (_skipInitialZeroZero != value)
+            {
+                _skipInitialZeroZero = value;
+                _settingsService.Current.SkipInitialZeroZero = value;
+                OnPropertyChanged();
+                _ = _settingsService.SaveAsync();
+            }
+        }
+    }
+    
+    public bool ShowSkipZeroZeroOption => ForceRelativeCoordinates;
+    
     public bool CanStartRecording => !IsRecording && CanStartRecordingExternal && (IsMouseRecordingEnabled || IsKeyboardRecordingEnabled);
     
     /// <summary>
@@ -226,7 +267,12 @@ public class RecordingViewModel : ViewModelBase, IDisposable
                 _hotkeyService.PauseHotkeyCode
             ];
             
-            await _recorder.StartRecordingAsync(IsMouseRecordingEnabled, IsKeyboardRecordingEnabled, ignoredKeys);
+            await _recorder.StartRecordingAsync(
+                IsMouseRecordingEnabled, 
+                IsKeyboardRecordingEnabled, 
+                ignoredKeys,
+                forceRelative: ForceRelativeCoordinates,
+                skipInitialZero: SkipInitialZeroZero);
         }
         catch (Exception ex)
         {

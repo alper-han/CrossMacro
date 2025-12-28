@@ -11,7 +11,7 @@ public interface IMacroRecorder : IDisposable
     
     event EventHandler<MacroEvent>? EventRecorded;
 
-    Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, IEnumerable<int>? ignoredKeys = null, CancellationToken cancellationToken = default);
+    Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, IEnumerable<int>? ignoredKeys = null, bool forceRelative = false, bool skipInitialZero = false, CancellationToken cancellationToken = default);
     
     MacroSequence StopRecording();
     

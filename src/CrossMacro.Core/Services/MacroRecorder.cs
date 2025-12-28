@@ -21,10 +21,8 @@ public class MacroRecorder : IMacroRecorder, IDisposable
     private readonly Func<IInputSimulator>? _inputSimulatorFactory;
     private readonly Func<IInputCapture>? _inputCaptureFactory;
     
-    private int _accumulatedX;
-    private int _accumulatedY;
-    
     private HashSet<int>? _ignoredKeys;
+    private bool _useAbsoluteCoordinates;
     
     private int _cachedX;
     private int _cachedY;
@@ -39,7 +37,8 @@ public class MacroRecorder : IMacroRecorder, IDisposable
     private const int PositionCacheMilliseconds = 1;
     private readonly TimeSpan _positionCacheTime = TimeSpan.FromMilliseconds(PositionCacheMilliseconds);
     private const int InitialPositionRetryCount = 3;
-    private const int InitialPositionRetryDelayMs = 100;
+    // Base delay for position retry - uses exponential backoff: 5ms, 10ms, 20ms
+    private const int InitialPositionRetryBaseDelayMs = 5;
     
     public event EventHandler<MacroEvent>? EventRecorded;
     
@@ -64,7 +63,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
         }
     }
 
-    public async Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, IEnumerable<int>? ignoredKeys = null, CancellationToken cancellationToken = default)
+    public async Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, IEnumerable<int>? ignoredKeys = null, bool forceRelative = false, bool skipInitialZero = false, CancellationToken cancellationToken = default)
     {
         if (_isRecording)
             return;
@@ -73,11 +72,17 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             throw new ArgumentException("At least one recording type (mouse or keyboard) must be enabled");
 
         _isRecording = true;
+        
+        // Determine coordinate mode: force relative OR fallback to relative if no position provider
+        bool useAbsoluteCoordinates = !forceRelative && _positionProvider != null && _positionProvider.IsSupported;
+        _useAbsoluteCoordinates = useAbsoluteCoordinates;
+        
         _currentSequence = new MacroSequence
         {
             Name = "New Macro",
             CreatedAt = DateTime.UtcNow,
-            IsAbsoluteCoordinates = true
+            IsAbsoluteCoordinates = useAbsoluteCoordinates,
+            SkipInitialZeroZero = skipInitialZero
         };
         
         _ignoredKeys = ignoredKeys != null ? new HashSet<int>(ignoredKeys) : null;
@@ -90,8 +95,6 @@ public class MacroRecorder : IMacroRecorder, IDisposable
         
         _cachedX = 0;
         _cachedY = 0;
-        _accumulatedX = 0;
-        _accumulatedY = 0;
         _lastPositionUpdate = DateTime.MinValue;
         
         try
@@ -134,9 +137,14 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             
             _ = _inputCapture.StartAsync(cancellationToken);
             
+            // Give input capture some time to initialize/warm-up to avoid missing initial rapid events
+            // Delay removed to prevent missing immediate events
+            // await Task.Delay(200, cancellationToken);
+            
             Log.Information("[MacroRecorder] Input capture started via {ProviderName}", _inputCapture.ProviderName);
 
-            if (recordMouse && _positionProvider != null && _positionProvider.IsSupported)
+            // Use absolute mode only if we have a position provider AND not forcing relative mode
+            if (recordMouse && useAbsoluteCoordinates)
             {
                 try
                 {
@@ -145,7 +153,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
                     
                     while (retryCount < InitialPositionRetryCount && !positionFound)
                     {
-                        var pos = await _positionProvider.GetAbsolutePositionAsync();
+                        var pos = await _positionProvider!.GetAbsolutePositionAsync();
                         if (pos.HasValue)
                         {
                             _cachedX = pos.Value.X;
@@ -158,8 +166,11 @@ public class MacroRecorder : IMacroRecorder, IDisposable
                             retryCount++;
                             if (retryCount < InitialPositionRetryCount)
                             {
-                                Log.Warning("[MacroRecorder] Failed to get initial position, retrying ({Retry}/{Max})...", retryCount, InitialPositionRetryCount);
-                                await Task.Delay(InitialPositionRetryDelayMs, cancellationToken);
+                                // Exponential backoff: 5ms, 10ms, 20ms
+                                int delayMs = InitialPositionRetryBaseDelayMs * (1 << retryCount);
+                                Log.Warning("[MacroRecorder] Failed to get initial position, retrying in {DelayMs}ms ({Retry}/{Max})...", 
+                                    delayMs, retryCount, InitialPositionRetryCount);
+                                await Task.Delay(delayMs, cancellationToken);
                             }
                         }
                     }
@@ -182,35 +193,39 @@ public class MacroRecorder : IMacroRecorder, IDisposable
                     throw;
                 }
             }
-            else
+            else if (recordMouse)
             {
-                Log.Information("[MacroRecorder] Relative recording mode active (Blind Mode)");
+                // Relative recording mode (forced or fallback)
+                Log.Information("[MacroRecorder] Relative recording mode active (Blind Mode), ForceRelative={ForceRelative}", forceRelative);
                 
-                try 
+                if (!skipInitialZero)
                 {
-                    Log.Information("[MacroRecorder] Performing Corner Reset (Force 0,0) for calibration...");
-                    if (_inputSimulatorFactory != null)
+                    try 
                     {
-                        using var resetSimulator = _inputSimulatorFactory();
-                        resetSimulator.Initialize();
-                        await Task.Delay(200, cancellationToken);
-                        resetSimulator.MoveRelative(-10000, -10000);
-                        await Task.Delay(50, cancellationToken);
-                        resetSimulator.MoveRelative(-10000, -10000);
-                        Log.Information("[MacroRecorder] Corner Reset complete.");
+                        Log.Information("[MacroRecorder] Performing Corner Reset (Force 0,0) for calibration...");
+                        if (_inputSimulatorFactory != null)
+                        {
+                            using var resetSimulator = _inputSimulatorFactory();
+                            resetSimulator.Initialize();
+                            await Task.Delay(10, cancellationToken); // Minimal stabilization (reduced from 50ms)
+                            resetSimulator.MoveRelative(-20000, -20000); // Single large move
+                            Log.Information("[MacroRecorder] Corner Reset complete.");
+                        }
+                        else
+                        {
+                            Log.Warning("[MacroRecorder] No input simulator factory, skipping Corner Reset");
+                        }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        Log.Warning("[MacroRecorder] No input simulator factory, skipping Corner Reset");
+                        Log.Error(ex, "[MacroRecorder] Failed to perform Corner Reset");
                     }
                 }
-                catch (Exception ex)
+                else
                 {
-                    Log.Error(ex, "[MacroRecorder] Failed to perform Corner Reset");
+                    Log.Information("[MacroRecorder] Skipping Corner Reset (SkipInitialZeroZero=true)");
                 }
 
-                _accumulatedX = 0;
-                _accumulatedY = 0;
                 _cachedX = 0;
                 _cachedY = 0;
             }
@@ -436,15 +451,17 @@ public class MacroRecorder : IMacroRecorder, IDisposable
         
         buttonEvent.Type = e.Value == 1 ? EventType.ButtonPress : EventType.ButtonRelease;
         
-        if (_positionProvider != null)
+        if (_useAbsoluteCoordinates)
         {
+            // Absolute mode: store position for reference
             buttonEvent.X = _cachedX;
             buttonEvent.Y = _cachedY;
         }
         else
         {
-            buttonEvent.X = _accumulatedX;
-            buttonEvent.Y = _accumulatedY;
+            // Relative mode: coordinates not used for button events
+            buttonEvent.X = 0;
+            buttonEvent.Y = 0;
         }
         
         Log.Debug("[MacroRecorder] Mouse button: {Button} {Type} at ({X}, {Y})", 
@@ -463,8 +480,9 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             Timestamp = _stopwatch.ElapsedMilliseconds
         };
 
-        if (_positionProvider != null)
+        if (_useAbsoluteCoordinates)
         {
+            // Absolute mode: store cumulative position
             _cachedX += _pendingRelX;
             _cachedY += _pendingRelY;
             macroEvent.X = _cachedX;
@@ -472,10 +490,12 @@ public class MacroRecorder : IMacroRecorder, IDisposable
         }
         else
         {
+            // Relative mode: store raw deltas
+            macroEvent.X = _pendingRelX;
+            macroEvent.Y = _pendingRelY;
+            // Still track cumulative for button events
             _cachedX += _pendingRelX;
             _cachedY += _pendingRelY;
-            macroEvent.X = _cachedX;
-            macroEvent.Y = _cachedY;
         }
 
         AddMacroEvent(macroEvent);
@@ -549,6 +569,8 @@ public class MacroRecorder : IMacroRecorder, IDisposable
 
         if (_currentSequence != null && _stopwatch != null)
         {
+
+
             _currentSequence.CalculateDuration();
             
             _currentSequence.RecordedAt = DateTime.UtcNow;

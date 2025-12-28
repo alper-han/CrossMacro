@@ -50,6 +50,17 @@ public class AppSettings
     /// </summary>
     public bool IsKeyboardRecordingEnabled { get; set; } = true;
     
+    /// <summary>
+    /// Force using relative coordinates even when absolute coordinates are supported
+    /// </summary>
+    public bool ForceRelativeCoordinates { get; set; } = false;
+    
+    /// <summary>
+    /// Skip moving to 0,0 coordinate when recording starts (only applies when ForceRelativeCoordinates is true)
+    /// When false, cursor moves to 0,0 at recording start for consistent baseline
+    /// </summary>
+    public bool SkipInitialZeroZero { get; set; } = false;
+    
     // Text Expansion Settings
     
     /// <summary>

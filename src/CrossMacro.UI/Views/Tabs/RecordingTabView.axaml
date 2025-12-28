@@ -126,6 +126,53 @@
                             </Grid>
                         </Border>
                     </Grid>
+                    
+                    <!-- Coordinate Settings -->
+                    <StackPanel Spacing="8">
+                        <Border Background="#0F172A" 
+                                CornerRadius="6" 
+                                Padding="12,8"
+                                IsVisible="{Binding IsForceRelativeSupported}">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <TextBlock Text="📍" FontSize="16"/>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Force Relative Coordinates" FontWeight="Medium" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Use relative mouse position even if absolute is supported" 
+                                                  FontSize="10" 
+                                                  Opacity="0.6"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" 
+                                             IsChecked="{Binding ForceRelativeCoordinates}"
+                                             OnContent="" OffContent=""
+                                             VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        
+                        <!-- Skip 0,0 option - only visible when Force Relative is enabled -->
+                        <Border Background="#0F172A" 
+                                CornerRadius="6" 
+                                Padding="12,8"
+                                Margin="24,0,0,0"
+                                IsVisible="{Binding ShowSkipZeroZeroOption}">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <TextBlock Text="↗️" FontSize="16"/>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Skip Initial 0,0 Position" FontWeight="Medium" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Don't move cursor to origin when recording starts" 
+                                                  FontSize="10" 
+                                                  Opacity="0.6"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" 
+                                             IsChecked="{Binding SkipInitialZeroZero}"
+                                             OnContent="" OffContent=""
+                                             VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
 
                     <!-- Action Button (Toggle) -->
                     <Button Name="RecordingToggleButton"

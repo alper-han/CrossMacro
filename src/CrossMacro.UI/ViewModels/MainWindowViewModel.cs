@@ -3,7 +3,8 @@ using Avalonia.Threading;
 using Avalonia.Controls.Notifications;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Wayland;
+using CrossMacro.Platform.Linux.DisplayServer;
+using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 using CrossMacro.UI.Models;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -40,7 +41,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     
     public bool IsCloseButtonVisible { get; }
 
-    private bool _isPaneOpen = true;
+    private bool _isPaneOpen = false;
     public bool IsPaneOpen
     {
         get => _isPaneOpen;

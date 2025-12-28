@@ -4,6 +4,7 @@ using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using CrossMacro.Core.Services;
@@ -11,10 +12,11 @@ using CrossMacro.Core.Models;
 using CrossMacro.UI.ViewModels;
 using CrossMacro.UI.Views;
 using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Wayland;
+using CrossMacro.Platform.Linux.DisplayServer;
 using CrossMacro.UI.Services;
 using CrossMacro.Platform.Linux;
 using CrossMacro.Platform.Windows;
+using CrossMacro.Platform.Windows.Services;
 using CrossMacro.Platform.MacOS;
 
 namespace CrossMacro.UI;
@@ -66,7 +68,7 @@ public partial class App : Application
         else if (OperatingSystem.IsMacOS())
         {
             services.AddMacOSServices();
-            services.AddSingleton<IKeyboardLayoutService, KeyboardLayoutService>();
+            services.AddSingleton<IKeyboardLayoutService, CrossMacro.Platform.MacOS.MacKeyboardLayoutService>();
 
             // Register factories for macOS
             services.AddTransient<Func<IInputSimulator>>(sp => () => sp.GetRequiredService<IInputSimulator>());
@@ -82,7 +84,7 @@ public partial class App : Application
         }
         else
         {
-            services.AddSingleton<IKeyboardLayoutService, KeyboardLayoutService>();
+            services.AddSingleton<IKeyboardLayoutService, CrossMacro.Platform.Linux.Services.LinuxKeyboardLayoutService>();
             services.AddSingleton<IProcessRunner, ProcessRunner>();
             
             services.AddSingleton<CrossMacro.Platform.Linux.Ipc.IpcClient>();
@@ -149,7 +151,24 @@ public partial class App : Application
         
         services.AddTransient<PlaybackValidator>();
         
-        services.AddTransient<IMacroPlayer, MacroPlayer>();
+        if (OperatingSystem.IsLinux())
+        {
+            // InputSimulatorPool
+            services.AddSingleton<InputSimulatorPool>(sp =>
+            {
+                var factory = sp.GetRequiredService<Func<IInputSimulator>>();
+                return new InputSimulatorPool(factory);
+            });
+        }
+        
+        services.AddTransient<IMacroPlayer>(sp =>
+        {
+            var positionProvider = sp.GetRequiredService<IMousePositionProvider>();
+            var validator = sp.GetRequiredService<PlaybackValidator>();
+            var factory = sp.GetService<Func<IInputSimulator>>();
+            var pool = sp.GetService<InputSimulatorPool>();
+            return new MacroPlayer(positionProvider, validator, factory, pool);
+        });
         
         // Factory for creating new player instances (used by SchedulerService)
         services.AddSingleton<Func<IMacroPlayer>>(sp => () => sp.GetRequiredService<IMacroPlayer>());
@@ -214,6 +233,37 @@ public partial class App : Application
             var trayIconService = _serviceProvider.GetRequiredService<ITrayIconService>();
             trayIconService.Initialize();
             
+            // Warm up InputSimulatorPool
+            var simulatorPool = _serviceProvider.GetService<InputSimulatorPool>();
+            if (simulatorPool != null)
+            {
+
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var positionProvider = _serviceProvider.GetService<IMousePositionProvider>();
+                        int width = 0, height = 0;
+                        
+                        if (positionProvider?.IsSupported == true)
+                        {
+                            var resolution = await positionProvider.GetScreenResolutionAsync();
+                            if (resolution.HasValue)
+                            {
+                                width = resolution.Value.Width;
+                                height = resolution.Value.Height;
+                            }
+                        }
+                        
+                        await simulatorPool.WarmUpAsync(width, height);
+                    }
+                    catch (Exception ex)
+                    {
+                        Serilog.Log.Error(ex, "[App] Failed to warm up InputSimulatorPool");
+                    }
+                });
+            }
+            
             var expansionService = _serviceProvider.GetRequiredService<ITextExpansionService>();
             _ = System.Threading.Tasks.Task.Run(() => expansionService.Start());
             
@@ -240,7 +290,7 @@ public partial class App : Application
 
         if (OperatingSystem.IsMacOS())
         {
-             if (!CrossMacro.Platform.MacOS.MacOSPermissionChecker.IsAccessibilityTrusted())
+             if (!CrossMacro.Platform.MacOS.Helpers.MacOSPermissionChecker.IsAccessibilityTrusted())
              {
                  var dialogService = _serviceProvider?.GetRequiredService<IDialogService>();
                  if (dialogService != null)
@@ -254,7 +304,7 @@ public partial class App : Application
                         
                         if (result)
                         {
-                            CrossMacro.Platform.MacOS.MacOSPermissionChecker.OpenAccessibilitySettings();
+                            CrossMacro.Platform.MacOS.Helpers.MacOSPermissionChecker.OpenAccessibilitySettings();
                         }
                      });
                  }

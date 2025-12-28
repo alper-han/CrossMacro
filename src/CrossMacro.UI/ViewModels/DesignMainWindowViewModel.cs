@@ -163,7 +163,7 @@ public class DesignMainWindowViewModel : MainWindowViewModel
 #pragma warning disable CS0067 // Event is never used (design-time mock)
         public event EventHandler<MacroEvent>? EventRecorded;
 #pragma warning restore CS0067
-        public Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, IEnumerable<int>? ignoredKeys = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, IEnumerable<int>? ignoredKeys = null, bool forceRelative = false, bool skipInitialZero = false, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public MacroSequence StopRecording() => new MacroSequence();
         public MacroSequence? GetCurrentRecording() => null;
         public void Dispose() { }

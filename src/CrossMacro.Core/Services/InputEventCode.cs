@@ -123,4 +123,45 @@ public static class InputEventCode
     public const int KEY_MINUS = 12;
     
     public const int KEY_EQUAL = 13;
+
+    // Lock keys
+    public const int KEY_NUMLOCK = 69;
+    public const int KEY_SCROLLLOCK = 70;
+    
+    // Numpad keys
+    public const int KEY_KP7 = 71;
+    public const int KEY_KP8 = 72;
+    public const int KEY_KP9 = 73;
+    public const int KEY_KPMINUS = 74;
+    public const int KEY_KP4 = 75;
+    public const int KEY_KP5 = 76;
+    public const int KEY_KP6 = 77;
+    public const int KEY_KPPLUS = 78;
+    public const int KEY_KP1 = 79;
+    public const int KEY_KP2 = 80;
+    public const int KEY_KP3 = 81;
+    public const int KEY_KP0 = 82;
+    public const int KEY_KPDOT = 83;
+    public const int KEY_KPENTER = 96;
+    public const int KEY_KPSLASH = 98;
+    public const int KEY_KPASTERISK = 55;
+    public const int KEY_KPEQUAL = 117;
+    
+    // Special keys
+    public const int KEY_SYSRQ = 99;
+    public const int KEY_PAUSE = 119;
+    
+    // Extended Function Keys
+    public const int KEY_F13 = 183;
+    public const int KEY_F14 = 184;
+    public const int KEY_F15 = 185;
+    public const int KEY_F16 = 186;
+    public const int KEY_F17 = 187;
+    public const int KEY_F18 = 188;
+    public const int KEY_F19 = 189;
+    public const int KEY_F20 = 190;
+    public const int KEY_F21 = 191;
+    public const int KEY_F22 = 192;
+    public const int KEY_F23 = 193;
+    public const int KEY_F24 = 194;
 }

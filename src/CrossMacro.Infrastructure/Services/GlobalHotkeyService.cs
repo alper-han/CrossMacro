@@ -455,6 +455,23 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             "Down" => 108,
             "Left" => 105,
             "Right" => 106,
+            
+            // Lock keys
+            "CapsLock" => 58,
+            "NumLock" => 69,
+            "ScrollLock" => 70,
+            
+            // Special keys
+            "PrintScreen" or "PrtSc" => 99,
+            "Pause" => 119,
+            
+            // Numpad
+            "Numpad7" => 71, "Numpad8" => 72, "Numpad9" => 73, "Numpad-" => 74,
+            "Numpad4" => 75, "Numpad5" => 76, "Numpad6" => 77, "Numpad+" => 78,
+            "Numpad1" => 79, "Numpad2" => 80, "Numpad3" => 81,
+            "Numpad0" => 82, "Numpad." => 83, "NumpadEnter" => 96, "Numpad/" => 98,
+            "Numpad*" => 55, "Numpad=" => 117,
+
             // Mouse buttons (BTN_LEFT=272 through BTN_TASK=279)
             "Mouse Left" => 272,
             "Mouse Right" => 273,

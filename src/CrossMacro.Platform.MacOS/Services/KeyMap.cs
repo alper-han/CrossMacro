@@ -105,6 +105,36 @@ internal static class KeyMap
         { InputEventCode.KEY_RIGHT, 0x7C },
         { InputEventCode.KEY_DOWN, 0x7D },
         { InputEventCode.KEY_UP, 0x7E },
+        
+        // Numpad
+        { InputEventCode.KEY_KP0, 0x52 },
+        { InputEventCode.KEY_KP1, 0x53 },
+        { InputEventCode.KEY_KP2, 0x54 },
+        { InputEventCode.KEY_KP3, 0x55 },
+        { InputEventCode.KEY_KP4, 0x56 },
+        { InputEventCode.KEY_KP5, 0x57 },
+        { InputEventCode.KEY_KP6, 0x58 },
+        { InputEventCode.KEY_KP7, 0x59 },
+        { InputEventCode.KEY_KP8, 0x5B },
+        { InputEventCode.KEY_KP9, 0x5C },
+        { InputEventCode.KEY_KPDOT, 0x41 },
+        { InputEventCode.KEY_KPASTERISK, 0x43 },
+        { InputEventCode.KEY_KPPLUS, 0x45 },
+        { InputEventCode.KEY_KPMINUS, 0x4E },
+        { InputEventCode.KEY_KPENTER, 0x4C },
+        { InputEventCode.KEY_KPSLASH, 0x4B },
+        { InputEventCode.KEY_KPEQUAL, 0x51 },
+        { InputEventCode.KEY_NUMLOCK, 0x47 }, // Clear/NumLock
+        
+        // Extended Function Keys
+        { InputEventCode.KEY_F13, 0x69 },
+        { InputEventCode.KEY_F14, 0x6B },
+        { InputEventCode.KEY_F15, 0x71 },
+        { InputEventCode.KEY_F16, 0x6A },
+        { InputEventCode.KEY_F17, 0x40 },
+        { InputEventCode.KEY_F18, 0x4F },
+        { InputEventCode.KEY_F19, 0x50 },
+        { InputEventCode.KEY_F20, 0x5A },
     };
     
     private static readonly Dictionary<ushort, int> _fromMac = new();

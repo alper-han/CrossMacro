@@ -87,4 +87,18 @@ public class GlobalHotkeyServiceTests
         // Assert
         Assert.False(eventFired);
     }
+    [Fact]
+    public void UpdateHotkeys_ParsesNumpadKeys_Correctly()
+    {
+        // Arrange
+        // Mock layout service to return -1 (not found) to ensure GlobalHotkeyService's internal logic is used
+        _layout.GetKeyCode(Arg.Any<string>()).Returns(-1);
+
+        // Act
+        // Set Numpad0 (which maps to 82 in our internal list)
+        _service.UpdateHotkeys("Numpad0", "F10", "F11");
+
+        // Assert
+        Assert.Equal(82, _service.RecordingHotkeyCode);
+    }
 }

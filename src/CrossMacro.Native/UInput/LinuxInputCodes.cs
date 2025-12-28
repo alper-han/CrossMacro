@@ -199,6 +199,22 @@ public static class LinuxInputCodes
             KEY_MUTE => "MUTE", KEY_VOLUMEDOWN => "VOL_DOWN", KEY_VOLUMEUP => "VOL_UP",
             KEY_LEFTMETA => "LEFT_SUPER", KEY_RIGHTMETA => "RIGHT_SUPER",
             KEY_RIGHTCTRL => "RIGHT_CTRL", KEY_RIGHTALT => "RIGHT_ALT",
+            
+            // Numpad
+            KEY_KP0 => "NUMPAD_0", KEY_KP1 => "NUMPAD_1", KEY_KP2 => "NUMPAD_2",
+            KEY_KP3 => "NUMPAD_3", KEY_KP4 => "NUMPAD_4", KEY_KP5 => "NUMPAD_5",
+            KEY_KP6 => "NUMPAD_6", KEY_KP7 => "NUMPAD_7", KEY_KP8 => "NUMPAD_8",
+            KEY_KP9 => "NUMPAD_9", KEY_KPDOT => "NUMPAD_DOT",
+            KEY_KPPLUS => "NUMPAD_PLUS", KEY_KPMINUS => "NUMPAD_MINUS",
+            KEY_KPASTERISK => "NUMPAD_ASTERISK", KEY_KPSLASH => "NUMPAD_SLASH",
+            KEY_KPENTER => "NUMPAD_ENTER", KEY_KPEQUAL => "NUMPAD_EQUAL",
+            
+            // Extended F-Keys
+            KEY_F13 => "F13", KEY_F14 => "F14", KEY_F15 => "F15", KEY_F16 => "F16",
+            KEY_F17 => "F17", KEY_F18 => "F18", KEY_F19 => "F19", KEY_F20 => "F20",
+            KEY_F21 => "F21", KEY_F22 => "F22", KEY_F23 => "F23", KEY_F24 => "F24",
+            
+            KEY_SYSRQ => "PRINT_SCREEN", KEY_PAUSE => "PAUSE",
             _ => $"KEY_{keyCode}"
         };
     }

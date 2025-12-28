@@ -99,26 +99,45 @@ internal static class WindowsKeyMap
         Add(InputEventCode.KEY_DOT, 0xBE);      
         Add(InputEventCode.KEY_SLASH, 0xBF);    
         
-        Add(71, 0x67);  
-        Add(72, 0x68);  
-        Add(73, 0x69);  
-        Add(74, 0x6D);  
-        Add(75, 0x64);  
-        Add(76, 0x65);  
-        Add(77, 0x66);  
-        Add(78, 0x6B);  
-        Add(79, 0x61);  
-        Add(80, 0x62);  
-        Add(81, 0x63);  
-        Add(82, 0x60);  
-        Add(83, 0x6E);  
-        Add(96, 0x0D);  
-        Add(98, 0x6F);  
-        Add(55, 0x6A);  
-        Add(69, 0x90);  
-        Add(70, 0x91);  
-        Add(99, 0x2C);  
-        Add(119, 0x13);
+        // Numpad Support
+        Add(InputEventCode.KEY_KP0, 0x60);      // VK_NUMPAD0
+        Add(InputEventCode.KEY_KP1, 0x61);      // VK_NUMPAD1
+        Add(InputEventCode.KEY_KP2, 0x62);      // VK_NUMPAD2
+        Add(InputEventCode.KEY_KP3, 0x63);      // VK_NUMPAD3
+        Add(InputEventCode.KEY_KP4, 0x64);      // VK_NUMPAD4
+        Add(InputEventCode.KEY_KP5, 0x65);      // VK_NUMPAD5
+        Add(InputEventCode.KEY_KP6, 0x66);      // VK_NUMPAD6
+        Add(InputEventCode.KEY_KP7, 0x67);      // VK_NUMPAD7
+        Add(InputEventCode.KEY_KP8, 0x68);      // VK_NUMPAD8
+        Add(InputEventCode.KEY_KP9, 0x69);      // VK_NUMPAD9
+        Add(InputEventCode.KEY_KPASTERISK, 0x6A); // VK_MULTIPLY
+        Add(InputEventCode.KEY_KPPLUS, 0x6B);   // VK_ADD
+        Add(InputEventCode.KEY_KPENTER, 0x0D);  // VK_RETURN (Extended)
+        Add(InputEventCode.KEY_KPMINUS, 0x6D);  // VK_SUBTRACT
+        Add(InputEventCode.KEY_KPDOT, 0x6E);    // VK_DECIMAL
+        Add(InputEventCode.KEY_KPSLASH, 0x6F);  // VK_DIVIDE
+        
+        // Lock & Special Keys
+        Add(InputEventCode.KEY_NUMLOCK, 0x90);  // VK_NUMLOCK
+        Add(InputEventCode.KEY_SCROLLLOCK, 0x91); // VK_SCROLL
+        Add(InputEventCode.KEY_SYSRQ, 0x2C);    // VK_SNAPSHOT (PrintScreen)
+        Add(InputEventCode.KEY_PAUSE, 0x13);    // VK_PAUSE
+        
+        // Extended Function Keys
+        Add(InputEventCode.KEY_F13, 0x7C);
+        Add(InputEventCode.KEY_F14, 0x7D);
+        Add(InputEventCode.KEY_F15, 0x7E);
+        Add(InputEventCode.KEY_F16, 0x7F);
+        Add(InputEventCode.KEY_F17, 0x80);
+        Add(InputEventCode.KEY_F18, 0x81);
+        Add(InputEventCode.KEY_F19, 0x82);
+        Add(InputEventCode.KEY_F20, 0x83);
+        Add(InputEventCode.KEY_F21, 0x84);
+        Add(InputEventCode.KEY_F22, 0x85);
+        Add(InputEventCode.KEY_F23, 0x86);
+        Add(InputEventCode.KEY_F24, 0x87);
+
+        // Previous hardcoded mappings replaced/merged above
     }
 
     private static void Add(int evdev, ushort vk)

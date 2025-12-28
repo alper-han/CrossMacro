@@ -253,7 +253,22 @@ public class KeyboardLayoutService : IKeyboardLayoutService, IDisposable
 
     public string GetKeyName(int keyCode)
     {
-         // Special overrides for non-printable keys
+        // Modifier keys - always return consistent names
+        var modifierName = keyCode switch
+        {
+            29 => "Ctrl",      // KEY_LEFTCTRL
+            97 => "Ctrl",      // KEY_RIGHTCTRL
+            42 => "Shift",     // KEY_LEFTSHIFT
+            54 => "Shift",     // KEY_RIGHTSHIFT
+            56 => "Alt",       // KEY_LEFTALT
+            100 => "AltGr",    // KEY_RIGHTALT
+            125 => "Super",    // KEY_LEFTMETA
+            126 => "Super",    // KEY_RIGHTMETA
+            _ => null
+        };
+        if (modifierName != null) return modifierName;
+
+        // Special/Navigation keys
         var special = keyCode switch
         {
             57 => "Space",
@@ -271,10 +286,44 @@ public class KeyboardLayoutService : IKeyboardLayoutService, IDisposable
             108 => "Down",
             105 => "Left",
             106 => "Right",
+            58 => "CapsLock",
+            69 => "NumLock",
+            70 => "ScrollLock",
+            99 => "PrintScreen",
+            119 => "Pause",
             _ => null
         };
-
         if (special != null) return special;
+
+        // Function keys (F1-F10: 59-68, F11: 87, F12: 88, F13-F24: 183-194)
+        if (keyCode >= 59 && keyCode <= 68) return "F" + (keyCode - 58);
+        if (keyCode == 87) return "F11";
+        if (keyCode == 88) return "F12";
+        if (keyCode >= 183 && keyCode <= 194) return "F" + (keyCode - 170);
+
+        // Numpad keys
+        var numpad = keyCode switch
+        {
+            71 => "Numpad7",
+            72 => "Numpad8",
+            73 => "Numpad9",
+            74 => "Numpad-",
+            75 => "Numpad4",
+            76 => "Numpad5",
+            77 => "Numpad6",
+            78 => "Numpad+",
+            79 => "Numpad1",
+            80 => "Numpad2",
+            81 => "Numpad3",
+            82 => "Numpad0",
+            83 => "Numpad.",
+            96 => "NumpadEnter",
+            98 => "Numpad/",
+            55 => "Numpad*",
+            117 => "Numpad=",
+            _ => null
+        };
+        if (numpad != null) return numpad;
 
         // Try XKB
         if (_xkbState != IntPtr.Zero)
@@ -289,9 +338,6 @@ public class KeyboardLayoutService : IKeyboardLayoutService, IDisposable
         }
 
         // Use hardcoded fallback only if XKB failed or returns nothing
-        // Reverse mapping
-        if (keyCode >= 59 && keyCode <= 82) return "F" + (keyCode - 59 + 1); // F1-F24
-        
         // Digits
         if (keyCode == 11) return "0";
         if (keyCode >= 2 && keyCode <= 10) return (keyCode - 1).ToString();
@@ -336,8 +382,10 @@ public class KeyboardLayoutService : IKeyboardLayoutService, IDisposable
         // Function keys
         if (keyName.StartsWith("F", StringComparison.OrdinalIgnoreCase) && int.TryParse(keyName[1..], out var fNum))
         {
-            if (fNum >= 1 && fNum <= 24)
-                return 59 + fNum - 1; // F1 = 59, F2 = 60, etc.
+            if (fNum >= 1 && fNum <= 10) return 59 + fNum - 1;
+            if (fNum == 11) return 87;
+            if (fNum == 12) return 88;
+            if (fNum >= 13 && fNum <= 24) return 183 + fNum - 13;
         }
 
         // Special keys overrides
@@ -358,6 +406,19 @@ public class KeyboardLayoutService : IKeyboardLayoutService, IDisposable
             "Down" => 108,
             "Left" => 105,
             "Right" => 106,
+            "CapsLock" => 58,
+            "NumLock" => 69,
+            "ScrollLock" => 70,
+            "PrintScreen" or "PrtSc" => 99,
+            "Pause" => 119,
+            
+            // Numpad
+            "Numpad7" => 71, "Numpad8" => 72, "Numpad9" => 73, "Numpad-" => 74,
+            "Numpad4" => 75, "Numpad5" => 76, "Numpad6" => 77, "Numpad+" => 78,
+            "Numpad1" => 79, "Numpad2" => 80, "Numpad3" => 81,
+            "Numpad0" => 82, "Numpad." => 83, "NumpadEnter" => 96, "Numpad/" => 98,
+            "Numpad*" => 55, "Numpad=" => 117,
+            
             _ => -1
         };
         if (special != -1) return special;

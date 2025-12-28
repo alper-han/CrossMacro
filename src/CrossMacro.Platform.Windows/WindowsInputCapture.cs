@@ -288,6 +288,15 @@ public class WindowsInputCapture : IInputCapture
             {
                 int evdevCode = WindowsKeyMap.GetEvdevCode((ushort)hookStruct.vkCode);
                 
+                // Handle Extended Keys (distinguish Numpad vs Standard)
+                bool isExtended = (hookStruct.flags & 1) == 1; // LLKHF_EXTENDED is bit 0 in flags
+                
+                // Numpad Enter (Extended) vs Return
+                if (hookStruct.vkCode == 0x0D && isExtended)
+                {
+                    evdevCode = InputEventCode.KEY_KPENTER; 
+                }
+                
                 if (evdevCode != 0)
                 {
                     var args = new InputCaptureEventArgs

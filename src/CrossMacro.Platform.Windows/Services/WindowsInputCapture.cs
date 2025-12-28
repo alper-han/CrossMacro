@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using CrossMacro.Core.Services;
 using CrossMacro.Platform.Windows.Helpers;
 using CrossMacro.Platform.Windows.Native;
+using Serilog;
 
 namespace CrossMacro.Platform.Windows.Services;
 
@@ -227,7 +228,7 @@ public class WindowsInputCapture : IInputCapture
                     {
                         var xArgs = new InputCaptureEventArgs
                         {
-                            Type = (InputEventType)InputEventCode.EV_REL,
+                            Type = InputEventType.MouseMove,
                             Code = InputEventCode.REL_X,
                             Value = deltaX,
                             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
@@ -240,13 +241,27 @@ public class WindowsInputCapture : IInputCapture
                     {
                         var yArgs = new InputCaptureEventArgs
                         {
-                            Type = (InputEventType)InputEventCode.EV_REL,
+                            Type = InputEventType.MouseMove,
                             Code = InputEventCode.REL_Y,
                             Value = deltaY,
                             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                             DeviceName = "VirtualMouse"
                         };
                         InputReceived?.Invoke(this, yArgs);
+                    }
+                    
+                    // Emit SYNC to flush the movement buffer in MacroRecorder
+                    if (deltaX != 0 || deltaY != 0)
+                    {
+                        var syncArgs = new InputCaptureEventArgs
+                        {
+                            Type = InputEventType.Sync,
+                            Code = 0,
+                            Value = 0,
+                            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                            DeviceName = "VirtualMouse"
+                        };
+                        InputReceived?.Invoke(this, syncArgs);
                     }
                     
                     evdevCode = 0; 
@@ -258,6 +273,7 @@ public class WindowsInputCapture : IInputCapture
                 // Mouse buttons should use MouseButton type, not Key
                 var eventType = (type == InputEventCode.EV_KEY && evdevCode >= 272 && evdevCode <= 279)
                     ? InputEventType.MouseButton
+                    : (type == InputEventCode.EV_REL && evdevCode == InputEventCode.REL_WHEEL) ? InputEventType.MouseScroll 
                     : (InputEventType)type;
                 
                 var args = new InputCaptureEventArgs
@@ -288,9 +304,27 @@ public class WindowsInputCapture : IInputCapture
             {
                 int evdevCode = WindowsKeyMap.GetEvdevCode((ushort)hookStruct.vkCode);
                 
+                // Debug logging for key analysis
+                if (isDown)
+                {
+                    Log.Debug("[WindowsInputCapture] KeyDown: VK={VK} (0x{VKHex}), Scan={Scan}, Flags={Flags}, Mapped={Evdev}", 
+                        hookStruct.vkCode, hookStruct.vkCode.ToString("X"), hookStruct.scanCode, hookStruct.flags, evdevCode);
+                }
+                
                 // Handle Extended Keys (distinguish Numpad vs Standard)
                 bool isExtended = (hookStruct.flags & 1) == 1; // LLKHF_EXTENDED is bit 0 in flags
                 
+                // Fix for Right Alt (AltGr) appearing as Generic Menu (0x12) or Left Alt (0xA4) with Extended flag
+                if ((hookStruct.vkCode == 0x12 || hookStruct.vkCode == 0xA4) && isExtended)
+                {
+                    evdevCode = InputEventCode.KEY_RIGHTALT;
+                }
+                // Fix for Right Ctrl appearing as Generic Control (0x11) or Left Ctrl (0xA2) with Extended flag
+                if ((hookStruct.vkCode == 0x11 || hookStruct.vkCode == 0xA2) && isExtended)
+                {
+                    evdevCode = InputEventCode.KEY_RIGHTCTRL;
+                }
+
                 // Numpad Enter (Extended) vs Return
                 if (hookStruct.vkCode == 0x0D && isExtended)
                 {
@@ -308,6 +342,10 @@ public class WindowsInputCapture : IInputCapture
                         DeviceName = "VirtualKeyboard"
                     };
                     InputReceived?.Invoke(this, args);
+                }
+                else if (isDown)
+                {
+                    Log.Warning("[WindowsInputCapture] Unmapped key: VK={VK} (0x{VKHex})", hookStruct.vkCode, hookStruct.vkCode.ToString("X"));
                 }
             }
         }

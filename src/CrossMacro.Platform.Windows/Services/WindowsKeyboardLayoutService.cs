@@ -8,10 +8,36 @@ namespace CrossMacro.Platform.Windows.Services;
 
 public class WindowsKeyboardLayoutService : IKeyboardLayoutService
 {
+    // TODO: Keyboard control is not yet fully accurate. Needs dedicated time for comprehensive testing to ensure correct behavior across all keyboard layouts.
     public string GetKeyName(int keyCode)
     {
         ushort vk = WindowsKeyMap.GetVirtualKey(keyCode);
         if (vk == 0) return $"Key_{keyCode}";
+        if (vk == 0x13) return "Pause";
+        if (vk == 0x2C) return "PrintScreen";
+        if (vk == 0x90) return "NumLock";
+        if (vk == 0x91) return "ScrollLock";
+        if (vk == 0x14) return "CapsLock";
+        
+        // Modifiers
+        if (vk == 0xA0 || vk == 0x10) return "LeftShift";
+        if (vk == 0xA1) return "RightShift";
+        if (vk == 0xA2 || vk == 0x11) return "LeftCtrl";
+        if (vk == 0xA3) return "RightCtrl";
+        if (vk == 0xA4 || vk == 0x12) return "LeftAlt";
+        if (vk == 0xA5) return "RightAlt";
+        if (vk == 0x5B) return "LeftWin";
+        if (vk == 0x5C) return "RightWin";
+        if (vk == 0x5D) return "Menu";
+
+        // Media
+        if (vk == 0xAD) return "VolumeMute";
+        if (vk == 0xAE) return "VolumeDown";
+        if (vk == 0xAF) return "VolumeUp";
+        if (vk == 0xB3) return "PlayPause";
+        if (vk == 0xB0) return "MediaNext";
+        if (vk == 0xB1) return "MediaPrev";
+        if (vk == 0xB2) return "MediaStop";
         
         uint scanCode = User32.MapVirtualKey(vk, User32.MAPVK_VK_TO_VSC);
         
@@ -41,7 +67,7 @@ public class WindowsKeyboardLayoutService : IKeyboardLayoutService
         return 0;
     }
 
-    public char? GetCharFromKeyCode(int keyCode, bool shift, bool altGr, bool capsLock)
+    public char? GetCharFromKeyCode(int keyCode, bool leftShift, bool rightShift, bool rightAlt, bool leftAlt, bool leftCtrl, bool capsLock)
     {
         ushort vk = WindowsKeyMap.GetVirtualKey(keyCode);
         if (vk == 0) return null;
@@ -49,17 +75,60 @@ public class WindowsKeyboardLayoutService : IKeyboardLayoutService
         uint scanCode = User32.MapVirtualKey(vk, User32.MAPVK_VK_TO_VSC);
         
         byte[] keyState = new byte[256];
-        if (shift) keyState[0x10] = 0x80; 
-        if (altGr) 
+        
+        // Exact modifier mapping
+        if (leftShift) 
         {
-            keyState[0x11] = 0x80; 
-            keyState[0x12] = 0x80; 
+            keyState[0x10] = 0x80; // VK_SHIFT
+            keyState[0xA0] = 0x80; // VK_LSHIFT
         }
-        if (capsLock) keyState[0x14] = 0x01;
+        if (rightShift)
+        {
+            keyState[0x10] = 0x80; // VK_SHIFT
+            keyState[0xA1] = 0x80; // VK_RSHIFT
+        }
+        
+        if (leftCtrl)
+        {
+            keyState[0x11] = 0x80; // VK_CONTROL
+            keyState[0xA2] = 0x80; // VK_LCONTROL
+        }
+
+        if (leftAlt) 
+        {
+             keyState[0x12] = 0x80; // VK_MENU
+             keyState[0xA4] = 0x80; // VK_LMENU
+        }
+        
+        // AltGr / Right Alt Logic
+        if (rightAlt)
+        {
+            // For AltGr, Windows expects Ctrl+Alt OR specific Right Alt handling depending on layout
+            // Safe bet: Set generic Ctrl+Alt and specific Right Alt/Left Ctrl
+            keyState[0x11] = 0x80; // VK_CONTROL
+            keyState[0x12] = 0x80; // VK_MENU
+            keyState[0xA2] = 0x80; // VK_LCONTROL (AltGr usually triggers this)
+            keyState[0xA5] = 0x80; // VK_RMENU
+        }
+        
+        if (capsLock) 
+        {
+            keyState[0x14] = 0x01; // VK_CAPITAL
+        }
 
         var sb = new StringBuilder(5);
-        IntPtr layout = User32.GetKeyboardLayout(0);
         
+        // Get layout from the foreground window
+        IntPtr hwnd = User32.GetForegroundWindow();
+        uint threadId = User32.GetWindowThreadProcessId(hwnd, IntPtr.Zero);
+        IntPtr layout = User32.GetKeyboardLayout(threadId);
+        
+        // Fallback to own thread if external lookup failed
+        if (layout == IntPtr.Zero)
+        {
+            layout = User32.GetKeyboardLayout(0);
+        }
+
         int result = User32.ToUnicodeEx(vk, scanCode, keyState, sb, sb.Capacity, 0, layout);
         
         if (result > 0)

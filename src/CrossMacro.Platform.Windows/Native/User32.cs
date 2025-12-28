@@ -80,4 +80,10 @@ internal static partial class User32
 
     public const int SM_CXSCREEN = 0;
     public const int SM_CYSCREEN = 1;
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    public static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr ProcessId);
 }

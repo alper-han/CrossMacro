@@ -480,8 +480,11 @@ public class LinuxKeyboardLayoutService : IKeyboardLayoutService, IDisposable
     private uint _modIndexAltGr;
     private uint _modIndexCtrl;
 
-    public char? GetCharFromKeyCode(int keyCode, bool shift, bool altGr, bool capsLock)
+    public char? GetCharFromKeyCode(int keyCode, bool leftShift, bool rightShift, bool rightAlt, bool leftAlt, bool leftCtrl, bool capsLock)
     {
+        bool shift = leftShift || rightShift;
+        bool altGr = rightAlt; // AltGr is usually Right Alt
+        
         // Don't produce chars for modifiers
         if (IsModifier(keyCode)) return null;
 
@@ -562,7 +565,8 @@ public class LinuxKeyboardLayoutService : IKeyboardLayoutService, IDisposable
 
     private void TryAddCharToCache(int code, bool shift, bool altGr)
     {
-        var c = GetCharFromKeyCode(code, shift, altGr, false);
+        // Internal cache building: Map simple flags to primary granular modifiers
+        var c = GetCharFromKeyCode(code, shift, false, altGr, false, false, false);
         if (c.HasValue && !_charToInputCache!.ContainsKey(c.Value))
         {
             _charToInputCache[c.Value] = (code, shift, altGr);

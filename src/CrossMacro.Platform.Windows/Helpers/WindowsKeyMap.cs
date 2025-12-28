@@ -138,12 +138,34 @@ internal static class WindowsKeyMap
         Add(InputEventCode.KEY_F24, 0x87);
 
         // Previous hardcoded mappings replaced/merged above
+        
+        // Media Keys
+        Add(InputEventCode.KEY_MUTE, 0xAD);         // VK_VOLUME_MUTE
+        Add(InputEventCode.KEY_VOLUMEDOWN, 0xAE);   // VK_VOLUME_DOWN
+        Add(InputEventCode.KEY_VOLUMEUP, 0xAF);     // VK_VOLUME_UP
+        Add(InputEventCode.KEY_NEXTSONG, 0xB0);     // VK_MEDIA_NEXT_TRACK
+        Add(InputEventCode.KEY_PREVIOUSSONG, 0xB1); // VK_MEDIA_PREV_TRACK
+        Add(InputEventCode.KEY_STOPCD, 0xB2);       // VK_MEDIA_STOP
+        Add(InputEventCode.KEY_PLAYPAUSE, 0xB3);    // VK_MEDIA_PLAY_PAUSE
+        Add(InputEventCode.KEY_MENU, 0x5D);         // VK_APPS (Context Menu)
+        
+        // Generic Modifiers (Fail-safe) removed to prevent overwriting explicit mappings
+        // The explicit mappings (0xA0 etc) should be prioritized for GetVirtualKey
+        
+        // Browser Keys
+        Add(InputEventCode.KEY_WWW, 0xAC);          // VK_BROWSER_HOME
+        Add(InputEventCode.KEY_MAIL, 0xB4);         // VK_LAUNCH_MAIL
+        
+        // Forced Overrides for critical keys
+        Add(InputEventCode.KEY_CAPSLOCK, 0x14);     // VK_CAPITAL
+        Add(InputEventCode.KEY_SCROLLLOCK, 0x91);   // VK_SCROLL
     }
 
     private static void Add(int evdev, ushort vk)
     {
-        if (!_evdevToVk.ContainsKey(evdev)) _evdevToVk[evdev] = vk;
-        if (!_vkToEvdev.ContainsKey(vk)) _vkToEvdev[vk] = evdev;
+        // Last-one-wins strategy for reliability
+        _evdevToVk[evdev] = vk;
+        _vkToEvdev[vk] = evdev;
     }
 
     public static ushort GetVirtualKey(int evdevCode)

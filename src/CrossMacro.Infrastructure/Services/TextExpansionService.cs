@@ -36,8 +36,13 @@ public class TextExpansionService : ITextExpansionService
     private readonly SemaphoreSlim _outputLock; // Use SemaphoreSlim for async operations
 
     // Modifier state
-    private bool _isShiftPressed;
-    private bool _isAltGrPressed;
+    private bool _isLeftShiftPressed;
+    private bool _isRightShiftPressed;
+    private bool _isRightAltPressed; // AltGr
+    private bool _isLeftAltPressed;
+    private bool _isLeftCtrlPressed;
+    private bool _isRightCtrlPressed;
+    private bool _isAltGrPressed; // Computed
     private bool _isCapsLockOn;
 
     public bool IsRunning => _isRunning;
@@ -167,19 +172,40 @@ public class TextExpansionService : ITextExpansionService
         
         lock (_lock)
         {
-            // Update shift state
-            if (e.Code == 42 || e.Code == 54) // Left/Right Shift
+            // Update Modifier State (Granular)
+            if (e.Code == 42) // Left Shift
             {
-                // value 1=down, 2=repeat, 0=up
-                _isShiftPressed = e.Value == 1 || e.Value == 2;
+                _isLeftShiftPressed = e.Value == 1 || e.Value == 2;
                 return;
             }
-            // Update AltGr state (Right Alt = 100)
-            if (e.Code == 100)
+            if (e.Code == 54) // Right Shift
             {
-                _isAltGrPressed = e.Value == 1 || e.Value == 2;
+                _isRightShiftPressed = e.Value == 1 || e.Value == 2;
                 return;
             }
+            if (e.Code == 100) // Right Alt (AltGr)
+            {
+                _isRightAltPressed = e.Value == 1 || e.Value == 2;
+                // Treat Right Alt as AltGr
+                _isAltGrPressed = _isRightAltPressed;
+                return;
+            }
+            if (e.Code == 56) // Left Alt
+            {
+                _isLeftAltPressed = e.Value == 1 || e.Value == 2;
+                return;
+            }
+             if (e.Code == 29) // Left Ctrl
+            {
+                _isLeftCtrlPressed = e.Value == 1 || e.Value == 2;
+                return;
+            }
+            if (e.Code == 97) // Right Ctrl 
+            {
+                _isRightCtrlPressed = e.Value == 1 || e.Value == 2;
+                return;
+            }
+
             // Update CapsLock state (Toggle on Press)
             if (e.Code == 58 && e.Value == 1) // Caps Lock Press
             {
@@ -192,38 +218,40 @@ public class TextExpansionService : ITextExpansionService
             if (e.Value != 1) return;
 
             // Debouncing check
-            // If same key is pressed very quickly, assume it's a duplicate event from dual interfaces
             long now = DateTime.UtcNow.Ticks;
             if (e.Code == _lastKey && (now - _lastPressTime) < DebounceTicks)
             {
-               // Duplicate event, ignore
                return;
             }
             _lastKey = e.Code;
             _lastPressTime = now;
 
-            // Map key to char using IKeyboardLayoutService (XKB aware)
-            var charValue = _layoutService.GetCharFromKeyCode(e.Code, _isShiftPressed, _isAltGrPressed, _isCapsLockOn);
+            // Map key to char using IKeyboardLayoutService (XKB aware) with precise state
+            var charValue = _layoutService.GetCharFromKeyCode(e.Code, 
+                _isLeftShiftPressed, _isRightShiftPressed, 
+                _isRightAltPressed, _isLeftAltPressed, _isLeftCtrlPressed, _isCapsLockOn);
+            
+            // Debug logging 
+            Log.Debug("[TextExpansion] Input: Code={Code} LShift={LS} RShift={RS} AltGr={AltGr} -> Char={Char}", 
+                e.Code, _isLeftShiftPressed, _isRightShiftPressed, _isAltGrPressed, charValue.HasValue ? charValue.Value : "null");
 
             // Manage buffer
             if (charValue.HasValue)
             {
                 AppendToBuffer(charValue.Value);
+                // Log.Debug("[TextExpansion] Buffer: {Buffer}", _buffer.ToString());
                 CheckForExpansion();
             }
             else if (e.Code == 14) // Backspace
             {
-                // Remove last char from buffer if possible
                 if (_buffer.Length > 0) _buffer.Length--;
             }
             else if (e.Code == 28 || e.Code == 57) // Enter or Space
             {
-                 // Reset usage on Enter logic can stay
                  if (e.Code == 28) _buffer.Clear();
-                 // Space (57) special handling
                  if (e.Code == 57)
                  {
-                    var spaceChar = _layoutService.GetCharFromKeyCode(57, false, false, false);
+                    var spaceChar = _layoutService.GetCharFromKeyCode(57, false, false, false, false, false, false);
                     if (spaceChar.HasValue) 
                     {
                         AppendToBuffer(spaceChar.Value);
@@ -289,7 +317,7 @@ public class TextExpansionService : ITextExpansionService
                 // 0. Wait for Modifiers (AltGr AND Shift) to be released
                 int timeoutMs = 2000;
                 int elapsed = 0;
-                while ((_isAltGrPressed || _isShiftPressed) && elapsed < timeoutMs)
+                while ((_isAltGrPressed || _isLeftShiftPressed || _isRightShiftPressed) && elapsed < timeoutMs)
                 {
                     await Task.Delay(50);
                     elapsed += 50;

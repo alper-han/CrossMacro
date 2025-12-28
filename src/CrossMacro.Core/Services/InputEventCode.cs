@@ -164,4 +164,19 @@ public static class InputEventCode
     public const int KEY_F22 = 192;
     public const int KEY_F23 = 193;
     public const int KEY_F24 = 194;
+
+    // Media & System Keys
+    public const int KEY_MUTE = 113;
+    public const int KEY_VOLUMEDOWN = 114;
+    public const int KEY_VOLUMEUP = 115;
+    public const int KEY_POWER = 116;
+    public const int KEY_MENU = 139; // Context Menu
+    public const int KEY_PAUSE_BREAK = 119; // Alias
+    
+    public const int KEY_PLAYPAUSE = 164;
+    public const int KEY_PREVIOUSSONG = 165;
+    public const int KEY_NEXTSONG = 163;
+    public const int KEY_STOPCD = 166;
+    public const int KEY_MAIL = 155;
+    public const int KEY_WWW = 150;
 }

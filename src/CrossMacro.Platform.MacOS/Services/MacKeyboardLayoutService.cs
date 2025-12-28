@@ -43,9 +43,44 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService
             14 => "Backspace",
             1 => "Escape",
             29 => "Ctrl",
+            97 => "Ctrl",      // Right Ctrl
             42 => "Shift",
+            54 => "Shift",     // Right Shift
             56 => "Alt",
+            100 => "Alt",      // Right Alt
             125 => "Command",
+            126 => "Command",  // Right Command
+            
+            // Navigation
+            103 => "Up",
+            108 => "Down",
+            105 => "Left",
+            106 => "Right",
+            104 => "PageUp",
+            109 => "PageDown",
+            102 => "Home",
+            107 => "End",
+            110 => "Insert",
+            111 => "Delete",
+            
+            // Function Keys
+            59 => "F1", 60 => "F2", 61 => "F3", 62 => "F4", 
+            63 => "F5", 64 => "F6", 65 => "F7", 66 => "F8", 
+            67 => "F9", 68 => "F10", 87 => "F11", 88 => "F12",
+            
+            // Locks & Special
+            58 => "CapsLock",
+            69 => "NumLock",
+            70 => "ScrollLock",
+            99 => "PrintScreen",
+            119 => "Pause",
+            
+            // Numpad
+            71 => "Numpad7", 72 => "Numpad8", 73 => "Numpad9", 74 => "Numpad-",
+            75 => "Numpad4", 76 => "Numpad5", 77 => "Numpad6", 78 => "Numpad+",
+            79 => "Numpad1", 80 => "Numpad2", 81 => "Numpad3",
+            82 => "Numpad0", 83 => "Numpad.", 96 => "NumpadEnter",
+             
             _ => $"Key{keyCode}"
         };
     }
@@ -79,10 +114,11 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService
         };
     }
 
-    public char? GetCharFromKeyCode(int keyCode, bool shift, bool altGr, bool capsLock)
+    public char? GetCharFromKeyCode(int keyCode, bool leftShift, bool rightShift, bool rightAlt, bool leftAlt, bool leftCtrl, bool capsLock)
     {
         // Minimal implementation
-        return null;
+        // For now, map simple keys if feasible or return null
+        return null; // TODO: Implement macOS Quartz event mapping
     }
 
     public (int KeyCode, bool Shift, bool AltGr)? GetInputForChar(char c)

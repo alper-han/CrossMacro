@@ -18,7 +18,7 @@ public interface IKeyboardLayoutService
     /// <summary>
     /// Gets the character produced by a key code with given modifiers (e.g. 51 -> 'ö', 51+Shift -> 'Ö')
     /// </summary>
-    char? GetCharFromKeyCode(int keyCode, bool shift, bool altGr, bool capsLock);
+    char? GetCharFromKeyCode(int keyCode, bool leftShift, bool rightShift, bool rightAlt, bool leftAlt, bool leftCtrl, bool capsLock);
 
     /// <summary>
     /// Finds the key code and modifiers required to produce a specific character

@@ -21,7 +21,7 @@ public class MacOSInputCapture : IInputCapture
     private CoreGraphics.CGEventTapCallBack _callbackDelegate;
 
     public string ProviderName => "macOS CoreGraphics";
-    public bool IsSupported => RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+    public bool IsSupported => OperatingSystem.IsMacOS();
 
     public event EventHandler<InputCaptureEventArgs>? InputReceived;
     public event EventHandler<string>? Error;

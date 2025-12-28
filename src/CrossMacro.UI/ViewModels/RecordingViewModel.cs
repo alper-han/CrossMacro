@@ -9,12 +9,13 @@ namespace CrossMacro.UI.ViewModels;
 /// <summary>
 /// ViewModel for the Recording tab - handles macro recording functionality
 /// </summary>
-public class RecordingViewModel : ViewModelBase
+public class RecordingViewModel : ViewModelBase, IDisposable
 {
     private readonly IMacroRecorder _recorder;
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ISettingsService _settingsService;
     
+    private bool _disposed;
     private bool _isRecording;
     private int _eventCount;
     private int _mouseEventCount;
@@ -310,5 +311,14 @@ public class RecordingViewModel : ViewModelBase
             StopRecording();
         else if (CanStartRecording && CanStartRecordingExternal)
             _ = StartRecordingAsync();
+    }
+    
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        
+        // Unsubscribe from events to prevent memory leaks
+        _recorder.EventRecorded -= OnEventRecorded;
     }
 }

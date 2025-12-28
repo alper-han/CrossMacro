@@ -7,6 +7,10 @@ namespace CrossMacro.Daemon.Security;
 /// <summary>
 /// Audit logger for security-relevant events.
 /// Logs connection attempts, capture operations, and simulation events.
+/// 
+/// NOTE: This class is designed specifically for the Linux daemon and uses
+/// Linux-specific paths (systemd runtime directory, XDG state home).
+/// It is not intended to be used on Windows or macOS.
 /// </summary>
 public class AuditLogger
 {

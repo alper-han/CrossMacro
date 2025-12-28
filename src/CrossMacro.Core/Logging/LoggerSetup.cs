@@ -29,7 +29,10 @@ public static class LoggerSetup
     }
     
     /// <summary>
-    /// Get platform-specific log directory
+    /// Get platform-specific log directory following platform conventions:
+    /// - Windows: %LOCALAPPDATA%\crossmacro\logs
+    /// - Linux: XDG_DATA_HOME/crossmacro/logs or ~/.local/share/crossmacro/logs
+    /// - macOS: ~/Library/Logs/crossmacro
     /// </summary>
     private static string GetLogDirectory()
     {
@@ -40,9 +43,16 @@ public static class LoggerSetup
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 AppConstants.AppIdentifier, "logs");
         }
+        else if (OperatingSystem.IsMacOS())
+        {
+            // macOS: ~/Library/Logs/crossmacro (Apple standard log location)
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Library", "Logs", AppConstants.AppIdentifier);
+        }
         else
         {
-            // Linux: XDG_DATA_HOME/crossmacro/logs or ~/.local/share/crossmacro/logs
+            // Linux and others: XDG_DATA_HOME/crossmacro/logs or ~/.local/share/crossmacro/logs
             var xdgDataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
             
             if (!string.IsNullOrEmpty(xdgDataHome))

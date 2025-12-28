@@ -17,7 +17,7 @@
                 <StackPanel Spacing="12">
                     <Grid ColumnDefinitions="*,Auto,Auto">
                         <TextBlock Grid.Column="0"
-                                  Text="KEYBOARD SHORTCUTS" 
+                                  Text="SHORTCUTS" 
                                   FontWeight="SemiBold" 
                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" 
                                   FontSize="12"
@@ -162,7 +162,7 @@
                     
                     <!-- Hotkey Capture -->
                     <StackPanel Spacing="4">
-                        <TextBlock Text="Keyboard Shortcut" FontSize="12" Opacity="0.7"/>
+                        <TextBlock Text="Trigger (Keyboard/Mouse)" FontSize="12" Opacity="0.7"/>
                         <controls:HotkeyCapture x:Name="HotkeyInput"
                                                Hotkey="{Binding SelectedHotkeyString, Mode=TwoWay}"
                                                HotkeyChanged="OnHotkeyChanged"/>

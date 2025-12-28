@@ -13,7 +13,7 @@ namespace CrossMacro.UI.ViewModels;
 /// <summary>
 /// Coordinator ViewModel - manages child ViewModels and cross-cutting concerns
 /// </summary>
-public class MainWindowViewModel : ViewModelBase
+public class MainWindowViewModel : ViewModelBase, IDisposable
 {
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly IMousePositionProvider _positionProvider;
@@ -21,8 +21,8 @@ public class MainWindowViewModel : ViewModelBase
     private string? _extensionWarning;
     private bool _hasExtensionWarning;
     
-    // Warning sources
     private string? _gnomeWarning;
+    private bool _disposed;
 
     private string _globalStatus = "Ready";
     
@@ -450,5 +450,27 @@ public class MainWindowViewModel : ViewModelBase
         {
             Playback.TogglePause();
         });
+    }
+    
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        
+        // Unsubscribe from hotkey events
+        _hotkeyService.ToggleRecordingRequested -= OnToggleRecordingRequested;
+        _hotkeyService.TogglePlaybackRequested -= OnTogglePlaybackRequested;
+        _hotkeyService.TogglePauseRequested -= OnTogglePauseRequested;
+        
+        // Unsubscribe from extension status events
+        if (_positionProvider is GnomePositionProvider gnomeProvider)
+        {
+            gnomeProvider.ExtensionStatusChanged -= OnExtensionStatusChanged;
+        }
+        
+        // Dispose child ViewModels that implement IDisposable
+        Recording.Dispose();
+        Schedule.Dispose();
+        Shortcuts.Dispose();
     }
 }

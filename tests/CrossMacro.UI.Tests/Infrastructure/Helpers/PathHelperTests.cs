@@ -34,14 +34,20 @@ public class PathHelperTests
     }
     
     [Fact]
-    public void GetConfigDirectory_RespectsXDGConfigHome_WhenSet()
+    public void GetConfigDirectory_RespectsXDGConfigHome_WhenSetOnLinux()
     {
+        // Skip on non-Linux platforms since XDG is Linux-specific
+        if (!OperatingSystem.IsLinux())
+        {
+            return; // Test not applicable on Windows/macOS
+        }
+        
         // Note: Environment variables are process-wide. 
         // We set it, test, and perform cleanup in a try/finally block.
         // Parallel execution might be an issue, but xUnit runs classes in parallel, methods sequentially by default.
         // Use a unique value to be sure.
         
-        string originalValue = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+        string? originalValue = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
         string testPath = Path.Combine(Path.GetTempPath(), "CrossMacroTestXDG");
         
         try

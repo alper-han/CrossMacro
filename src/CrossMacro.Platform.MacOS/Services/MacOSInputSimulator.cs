@@ -8,7 +8,7 @@ namespace CrossMacro.Platform.MacOS.Services;
 public class MacOSInputSimulator : IInputSimulator
 {
     public string ProviderName => "macOS CoreGraphics";
-    public bool IsSupported => RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+    public bool IsSupported => OperatingSystem.IsMacOS();
 
     public void Initialize(int screenWidth = 0, int screenHeight = 0)
     {

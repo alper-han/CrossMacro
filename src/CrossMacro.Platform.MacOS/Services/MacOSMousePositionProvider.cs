@@ -9,7 +9,7 @@ namespace CrossMacro.Platform.MacOS.Services;
 public class MacOSMousePositionProvider : IMousePositionProvider
 {
     public string ProviderName => "macOS CoreGraphics";
-    public bool IsSupported => RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+    public bool IsSupported => OperatingSystem.IsMacOS();
 
     public Task<(int X, int Y)?> GetAbsolutePositionAsync()
     {

@@ -133,8 +133,8 @@
                                 CornerRadius="6" 
                                 Padding="12,8"
                                 IsVisible="{Binding IsForceRelativeSupported}">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Grid ColumnDefinitions="*,Auto,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                     <TextBlock Text="📍" FontSize="16"/>
                                     <StackPanel Spacing="2">
                                         <TextBlock Text="Force Relative Coordinates" FontWeight="Medium" VerticalAlignment="Center"/>
@@ -143,7 +143,24 @@
                                                   Opacity="0.6"/>
                                     </StackPanel>
                                 </StackPanel>
-                                <ToggleSwitch Grid.Column="1" 
+
+                                <!-- Help Tooltip -->
+                                <Border Grid.Column="1" 
+                                        Margin="0,0,12,0" 
+                                        Background="#334155" 
+                                        CornerRadius="10" 
+                                        Width="20" Height="20"
+                                        VerticalAlignment="Center"
+                                        ToolTip.Tip="Required to use macros in-game.">
+                                    <TextBlock Text="?" 
+                                               HorizontalAlignment="Center" 
+                                               VerticalAlignment="Center" 
+                                               FontSize="12" 
+                                               FontWeight="Bold" 
+                                               Foreground="#94A3B8"/>
+                                </Border>
+
+                                <ToggleSwitch Grid.Column="2" 
                                              IsChecked="{Binding ForceRelativeCoordinates}"
                                              OnContent="" OffContent=""
                                              VerticalAlignment="Center"/>

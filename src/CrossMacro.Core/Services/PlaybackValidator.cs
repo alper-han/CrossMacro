@@ -36,6 +36,16 @@ public class PlaybackValidator
             return result;
         }
 
+        if (macro.Events.Any(e => e.Type == EventType.None && !IsSpecialControlEvent(e)))
+        {
+            result.AddWarning("Macro contains events with Type 'None'");
+        }
+
+        if (macro.Events.Any(e => !Enum.IsDefined(typeof(EventType), e.Type)))
+        {
+            result.AddError("Macro contains invalid/undefined EventType values");
+        }
+
         if (OperatingSystem.IsLinux() && !CanAccessUInput())
         {
             result.AddError("/dev/uinput not accessible - check permissions");
@@ -83,5 +93,10 @@ public class PlaybackValidator
         {
             return false;
         }
+    }
+
+    private bool IsSpecialControlEvent(MacroEvent e)
+    {
+        return false;
     }
 }

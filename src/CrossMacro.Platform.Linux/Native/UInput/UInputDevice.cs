@@ -101,7 +101,7 @@ namespace CrossMacro.Platform.Linux.Native.UInput
                 }
 
                 // Write device setup
-                IntPtr size = (IntPtr)Marshal.SizeOf(typeof(UInputNative.uinput_user_dev));
+                IntPtr size = (IntPtr)Marshal.SizeOf<UInputNative.uinput_user_dev>();
                 
                 // Use the specific write_setup method for uinput_user_dev
                 IntPtr result = UInputNative.write_setup(_fd, ref uidev, size);
@@ -158,7 +158,7 @@ namespace CrossMacro.Platform.Linux.Native.UInput
                 time_usec = IntPtr.Zero
             };
 
-            IntPtr size = (IntPtr)Marshal.SizeOf(typeof(UInputNative.input_event));
+            IntPtr size = (IntPtr)Marshal.SizeOf<UInputNative.input_event>();
             IntPtr result = UInputNative.write(_fd, ref ev, size);
             
             if (result.ToInt32() < 0)

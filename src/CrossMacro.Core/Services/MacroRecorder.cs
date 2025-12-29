@@ -283,8 +283,11 @@ public class MacroRecorder : IMacroRecorder, IDisposable
                     {
                         using (_eventLock.EnterScope())
                         {
-                            Log.Debug("[MacroRecorder] Position change detected: ({OldX},{OldY}) -> ({NewX},{NewY}), distance={Drift}px", 
-                                _cachedX, _cachedY, actualPos.Value.X, actualPos.Value.Y, totalDrift);
+                            if (Log.IsEnabled(Serilog.Events.LogEventLevel.Debug))
+                            {
+                                Log.Debug("[MacroRecorder] Position change detected: ({OldX},{OldY}) -> ({NewX},{NewY}), distance={Drift}px", 
+                                    _cachedX, _cachedY, actualPos.Value.X, actualPos.Value.Y, totalDrift);
+                            }
                             
                             if (_isRecording && _currentSequence != null && _stopwatch != null)
                             {
@@ -419,8 +422,11 @@ public class MacroRecorder : IMacroRecorder, IDisposable
                                 Button = MouseButton.None
                             };
                             
-                            Log.Information("[MacroRecorder] Keyboard event: {Type} Key={Code}", 
-                                keyEvent.Type, keyEvent.KeyCode);
+                            if (Log.IsEnabled(Serilog.Events.LogEventLevel.Information))
+                            {
+                                Log.Information("[MacroRecorder] Keyboard event: {Type} Key={Code}", 
+                                    keyEvent.Type, keyEvent.KeyCode);
+                            }
                             
                             AddMacroEvent(keyEvent);
                         }
@@ -464,8 +470,11 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             buttonEvent.Y = 0;
         }
         
-        Log.Debug("[MacroRecorder] Mouse button: {Button} {Type} at ({X}, {Y})", 
-            buttonEvent.Button, buttonEvent.Type, buttonEvent.X, buttonEvent.Y);
+        if (Log.IsEnabled(Serilog.Events.LogEventLevel.Debug))
+        {
+            Log.Debug("[MacroRecorder] Mouse button: {Button} {Type} at ({X}, {Y})", 
+                buttonEvent.Button, buttonEvent.Type, buttonEvent.X, buttonEvent.Y);
+        }
         
         AddMacroEvent(buttonEvent);
     }

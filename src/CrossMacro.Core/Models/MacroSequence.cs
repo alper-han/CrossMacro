@@ -22,7 +22,7 @@ public class MacroSequence
     /// <summary>
     /// List of events in the macro
     /// </summary>
-    public List<MacroEvent> Events { get; set; } = new();
+    public List<MacroEvent> Events { get; set; } = new(10000);
     
     /// <summary>
     /// When the macro was created

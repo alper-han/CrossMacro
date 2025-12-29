@@ -5,7 +5,7 @@ namespace CrossMacro.Core.Models;
 /// <summary>
 /// Represents a single mouse event in a macro sequence
 /// </summary>
-public class MacroEvent
+public struct MacroEvent
 {
     /// <summary>
     /// Type of the event
@@ -49,6 +49,11 @@ public class MacroEvent
 /// </summary>
 public enum EventType
 {
+    /// <summary>
+    /// No event / default state
+    /// </summary>
+    None = 0,
+
     /// <summary>
     /// Mouse button pressed
     /// </summary>

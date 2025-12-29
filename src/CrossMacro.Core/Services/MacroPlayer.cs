@@ -219,7 +219,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable
                 e.Type == EventType.ButtonRelease || 
                 e.Type == EventType.Click);
             
-            if (firstMouseEvent != null)
+            if (firstMouseEvent.Type != EventType.None)
             {
                 // Only move to start position for absolute coordinate macros
                 if (macro.IsAbsoluteCoordinates)
@@ -297,7 +297,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable
                     {
                         // Absolute mode: move to first event's position
                         var firstEvent = macro.Events.FirstOrDefault(e => e.Type == EventType.MouseMove);
-                        if (firstEvent != null)
+                        if (firstEvent.Type != EventType.None)
                         {
                             int startX = Math.Clamp(firstEvent.X, 0, _cachedScreenWidth);
                             int startY = Math.Clamp(firstEvent.Y, 0, _cachedScreenHeight);
@@ -511,7 +511,10 @@ public class MacroPlayer : IMacroPlayer, IDisposable
         switch (ev.Type)
         {
             case EventType.ButtonPress:
-                Log.Information("[MacroPlayer] ButtonPress: {Button} at ({X}, {Y})", ev.Button, ev.X, ev.Y);
+                if (Log.IsEnabled(Serilog.Events.LogEventLevel.Information))
+                {
+                    Log.Information("[MacroPlayer] ButtonPress: {Button} at ({X}, {Y})", ev.Button, ev.X, ev.Y);
+                }
                 var pressButton = MapButton(ev.Button);
                 _inputSimulator.MouseButton(pressButton, true);
                 _pressedButtons.TryAdd((ushort)pressButton, 0);
@@ -519,7 +522,10 @@ public class MacroPlayer : IMacroPlayer, IDisposable
                 break;
                 
             case EventType.ButtonRelease:
-                Log.Information("[MacroPlayer] ButtonRelease: {Button} at ({X}, {Y})", ev.Button, ev.X, ev.Y);
+                if (Log.IsEnabled(Serilog.Events.LogEventLevel.Information))
+                {
+                    Log.Information("[MacroPlayer] ButtonRelease: {Button} at ({X}, {Y})", ev.Button, ev.X, ev.Y);
+                }
                 var releaseButton = MapButton(ev.Button);
                 _inputSimulator.MouseButton(releaseButton, false);
                 _pressedButtons.TryRemove((ushort)releaseButton, out _);
@@ -565,17 +571,26 @@ public class MacroPlayer : IMacroPlayer, IDisposable
             case EventType.Click:
                 if (ev.Button == MouseButton.ScrollUp)
                 {
-                    Log.Information("[MacroPlayer] SCROLL UP");
+                    if (Log.IsEnabled(Serilog.Events.LogEventLevel.Information))
+                    {
+                        Log.Information("[MacroPlayer] SCROLL UP");
+                    }
                     _inputSimulator.Scroll(1);
                 }
                 else if (ev.Button == MouseButton.ScrollDown)
                 {
-                    Log.Information("[MacroPlayer] SCROLL DOWN");
+                    if (Log.IsEnabled(Serilog.Events.LogEventLevel.Information))
+                    {
+                        Log.Information("[MacroPlayer] SCROLL DOWN");
+                    }
                     _inputSimulator.Scroll(-1);
                 }
                 else
                 {
-                    Log.Information("[MacroPlayer] CLICK: {Button} at ({X}, {Y})", ev.Button, ev.X, ev.Y);
+                    if (Log.IsEnabled(Serilog.Events.LogEventLevel.Information))
+                    {
+                        Log.Information("[MacroPlayer] CLICK: {Button} at ({X}, {Y})", ev.Button, ev.X, ev.Y);
+                    }
                     var clickButton = MapButton(ev.Button);
                     _inputSimulator.MouseButton(clickButton, true);
                     _inputSimulator.MouseButton(clickButton, false);
@@ -583,13 +598,19 @@ public class MacroPlayer : IMacroPlayer, IDisposable
                 break;
                 
             case EventType.KeyPress:
-                Log.Information("[MacroPlayer] KeyPress: KeyCode={KeyCode}", ev.KeyCode);
+                if (Log.IsEnabled(Serilog.Events.LogEventLevel.Information))
+                {
+                    Log.Information("[MacroPlayer] KeyPress: KeyCode={KeyCode}", ev.KeyCode);
+                }
                 _inputSimulator.KeyPress(ev.KeyCode, true);
                 _pressedKeys.TryAdd(ev.KeyCode, 0);
                 break;
                 
             case EventType.KeyRelease:
-                Log.Information("[MacroPlayer] KeyRelease: KeyCode={KeyCode}", ev.KeyCode);
+                if (Log.IsEnabled(Serilog.Events.LogEventLevel.Information))
+                {
+                    Log.Information("[MacroPlayer] KeyRelease: KeyCode={KeyCode}", ev.KeyCode);
+                }
                 _inputSimulator.KeyPress(ev.KeyCode, false);
                 _pressedKeys.TryRemove(ev.KeyCode, out _);
                 break;

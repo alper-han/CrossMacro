@@ -2,7 +2,7 @@ using System;
 
 namespace CrossMacro.Core.Services;
 
-public class InputCaptureEventArgs : EventArgs
+public readonly struct InputCaptureEventArgs
 {
     public InputEventType Type { get; init; }
     

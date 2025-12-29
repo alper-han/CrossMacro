@@ -111,7 +111,10 @@ public class FilesViewModel : ViewModelBase
                 new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "*.macro" } }
             };
 
-            var filePath = await _dialogService.ShowSaveFileDialogAsync("Save Macro", $"{MacroName}.macro", filters);
+            var baseName = MacroName.EndsWith(".macro", StringComparison.OrdinalIgnoreCase)
+                ? MacroName[..^6]
+                : MacroName;
+            var filePath = await _dialogService.ShowSaveFileDialogAsync("Save Macro", $"{baseName}.macro", filters);
             
             if (string.IsNullOrEmpty(filePath))
             {

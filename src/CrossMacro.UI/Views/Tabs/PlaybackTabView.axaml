@@ -57,7 +57,6 @@
                 <Grid ColumnDefinitions="*,*">
                     <Button Grid.Column="0" Grid.ColumnSpan="2"
                            Classes="primary"
-                       Background="{StaticResource AccentBrush}"
                            Content="▶ Play Macro"
                            Command="{Binding PlayMacroAsync}"
                            IsEnabled="{Binding CanPlayMacro}"

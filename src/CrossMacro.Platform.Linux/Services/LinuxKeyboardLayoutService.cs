@@ -243,10 +243,11 @@ public class LinuxKeyboardLayoutService : IKeyboardLayoutService, IDisposable
         };
         if (special != null) return special;
 
-        // 3. Function keys (F1-F10: 59-68, F11: 87, F12: 88)
+        // 3. Function keys (F1-F10: 59-68, F11: 87, F12: 88, F13-F24: 183-194)
         if (keyCode >= 59 && keyCode <= 68) return "F" + (keyCode - 58);
         if (keyCode == 87) return "F11";
         if (keyCode == 88) return "F12";
+        if (keyCode >= 183 && keyCode <= 194) return "F" + (keyCode - 170); // 183->13, 194->24
 
         // 4. Numpad
         var numpad = keyCode switch
@@ -255,7 +256,7 @@ public class LinuxKeyboardLayoutService : IKeyboardLayoutService, IDisposable
             75 => "Numpad4", 76 => "Numpad5", 77 => "Numpad6", 78 => "Numpad+",
             79 => "Numpad1", 80 => "Numpad2", 81 => "Numpad3",
             82 => "Numpad0", 83 => "Numpad.", 96 => "NumpadEnter",
-            98 => "Numpad/", 55 => "Numpad*",
+            98 => "Numpad/", 55 => "Numpad*", 117 => "Numpad=",
             _ => null
         };
         if (numpad != null) return numpad;

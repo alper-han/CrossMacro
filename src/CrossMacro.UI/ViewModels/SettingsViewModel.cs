@@ -1,6 +1,7 @@
 using System;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Infrastructure.Services;
 using Serilog;
 
 namespace CrossMacro.UI.ViewModels;
@@ -12,6 +13,7 @@ public class SettingsViewModel : ViewModelBase
 {
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ISettingsService _settingsService;
+    private readonly ITextExpansionService _textExpansionService;
     private readonly HotkeySettings _hotkeySettings;
     
     private string _recordingHotkey;
@@ -27,10 +29,12 @@ public class SettingsViewModel : ViewModelBase
     public SettingsViewModel(
         IGlobalHotkeyService hotkeyService,
         ISettingsService settingsService,
+        ITextExpansionService textExpansionService,
         HotkeySettings hotkeySettings)
     {
         _hotkeyService = hotkeyService;
         _settingsService = settingsService;
+        _textExpansionService = textExpansionService;
         _hotkeySettings = hotkeySettings;
         
         // Initialize hotkey properties
@@ -117,6 +121,16 @@ public class SettingsViewModel : ViewModelBase
             {
                 _settingsService.Current.EnableTextExpansion = value;
                 OnPropertyChanged();
+                
+                // Toggle service immediately
+                if (value)
+                {
+                    System.Threading.Tasks.Task.Run(() => _textExpansionService.Start());
+                }
+                else
+                {
+                    System.Threading.Tasks.Task.Run(() => _textExpansionService.Stop());
+                }
                 
                 // Save settings asynchronously
                 _ = _settingsService.SaveAsync();

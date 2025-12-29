@@ -96,6 +96,7 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         public DesignSettingsViewModel() : base(
             new MockGlobalHotkeyService(),
             new MockSettingsService(),
+            new MockTextExpansionService(),
             new HotkeySettings())
         {
         }
@@ -231,6 +232,14 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         public AppSettings Load() => Current;
         public Task SaveAsync() => Task.CompletedTask;
         public void Save() { }
+    }
+
+    private class MockTextExpansionService : ITextExpansionService
+    {
+        public bool IsRunning => false;
+        public void Start() { }
+        public void Stop() { }
+        public void Dispose() { }
     }
 
 

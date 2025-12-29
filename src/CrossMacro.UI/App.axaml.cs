@@ -275,15 +275,6 @@ public partial class App : Application
             };
 
             var settingsVM = _serviceProvider.GetRequiredService<SettingsViewModel>();
-            settingsVM.PropertyChanged += (sender, e) => {
-                if (e.PropertyName == nameof(SettingsViewModel.EnableTextExpansion))
-                {
-                     _ = System.Threading.Tasks.Task.Run(() => {
-                         if (settingsVM.EnableTextExpansion) expansionService.Start();
-                         else expansionService.Stop();
-                     });
-                }
-            };
             
 
         }

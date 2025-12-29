@@ -64,9 +64,10 @@ public class MainWindowViewModelTests
         _shortcutService = Substitute.For<IShortcutService>();
         _shortcutViewModel = new ShortcutViewModel(_shortcutService, dialogService);
 
-        // Fix: SettingsViewModel takes (IGlobalHotkeyService, ISettingsService, HotkeySettings)
+        // Fix: SettingsViewModel takes (IGlobalHotkeyService, ISettingsService, ITextExpansionService, HotkeySettings)
         var hotkeySettings = new HotkeySettings();
-        _settingsViewModel = new SettingsViewModel(_hotkeyService, _settingsService, hotkeySettings);
+        var textExpansionService = Substitute.For<ITextExpansionService>();
+        _settingsViewModel = new SettingsViewModel(_hotkeyService, _settingsService, textExpansionService, hotkeySettings);
 
         // Create SUT
         _viewModel = new MainWindowViewModel(

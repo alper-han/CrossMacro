@@ -14,6 +14,7 @@ public class SettingsViewModelTests
 {
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ISettingsService _settingsService;
+    private readonly ITextExpansionService _textExpansionService;
     private readonly HotkeySettings _hotkeySettings;
     private readonly SettingsViewModel _viewModel;
 
@@ -21,6 +22,7 @@ public class SettingsViewModelTests
     {
         _hotkeyService = Substitute.For<IGlobalHotkeyService>();
         _settingsService = Substitute.For<ISettingsService>();
+        _textExpansionService = Substitute.For<ITextExpansionService>();
         _hotkeySettings = new HotkeySettings();
         
         // Setup initial settings
@@ -29,6 +31,7 @@ public class SettingsViewModelTests
         _viewModel = new SettingsViewModel(
             _hotkeyService, 
             _settingsService, 
+            _textExpansionService,
             _hotkeySettings);
     }
 
@@ -88,14 +91,26 @@ public class SettingsViewModelTests
     }
 
     [Fact]
-    public void EnableTextExpansion_WhenChanged_SavesSettings()
+    public void EnableTextExpansion_WhenChanged_SavesSettingsAndTogglesService()
     {
-        // Act
+        // Act - Enable
         _viewModel.EnableTextExpansion = true;
 
-        // Assert
+        // Assert - Enable
         _settingsService.Current.EnableTextExpansion.Should().BeTrue();
         _settingsService.Received(1).SaveAsync();
+        
+        // Wait for async task
+        System.Threading.Thread.Sleep(50);
+        _textExpansionService.Received(1).Start();
+
+        // Act - Disable
+        _viewModel.EnableTextExpansion = false;
+        
+        // Assert - Disable
+        _settingsService.Current.EnableTextExpansion.Should().BeFalse();
+        System.Threading.Thread.Sleep(50);
+        _textExpansionService.Received(1).Stop();
     }
 
     [Fact]

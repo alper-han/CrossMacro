@@ -197,10 +197,12 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         public event EventHandler? TogglePlaybackRequested;
         public event EventHandler? TogglePauseRequested;
         public event EventHandler<RawHotkeyInputEventArgs>? RawInputReceived;
+        public event EventHandler<string>? ErrorOccurred;
 #pragma warning restore CS0067
         public int RecordingHotkeyCode => 0;
         public int PlaybackHotkeyCode => 0;
         public int PauseHotkeyCode => 0;
+        public string? LastError => null;
         public bool IsRunning => false;
         public void Start() { }
         public void Stop() { }

@@ -190,6 +190,15 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         // Subscribe to extension status events
         SetupExtensionStatusHandling();
         
+        // Subscribe to global hotkey errors
+        _hotkeyService.ErrorOccurred += OnGlobalHotkeyError;
+        
+        // Check for existing errors (in case service started before we subscribed)
+        if (!string.IsNullOrEmpty(_hotkeyService.LastError))
+        {
+            OnGlobalHotkeyError(this, _hotkeyService.LastError);
+        }
+
         // Forward tray icon changes
         Settings.TrayIconEnabledChanged += (s, enabled) => TrayIconEnabledChanged?.Invoke(this, enabled);
         
@@ -206,6 +215,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             new NavigationItem { Label = "Shortcuts", Icon = "⌨️", ViewModel = Shortcuts },
             new NavigationItem { Label = "Schedule", Icon = "🕐", ViewModel = Schedule }
         };
+        
+
 
         BottomNavigationItems = new ObservableCollection<NavigationItem>
         {
@@ -459,6 +470,25 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             Playback.TogglePause();
         });
     }
+
+    private void OnGlobalHotkeyError(object? sender, string error)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            // Suggest fix for common daemon error
+            string message = error;
+            if (error.Contains("daemon") || error.Contains("socket"))
+            {
+                message += "\n\nTry running: sudo systemctl start crossmacro";
+            }
+            
+            NotificationManager?.Show(new Notification(
+                "Backend Error",
+                message,
+                NotificationType.Error,
+                TimeSpan.FromSeconds(10)));
+        });
+    }
     
     public void Dispose()
     {
@@ -469,6 +499,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _hotkeyService.ToggleRecordingRequested -= OnToggleRecordingRequested;
         _hotkeyService.TogglePlaybackRequested -= OnTogglePlaybackRequested;
         _hotkeyService.TogglePauseRequested -= OnTogglePauseRequested;
+        _hotkeyService.ErrorOccurred -= OnGlobalHotkeyError;
         
         // Unsubscribe from extension status events
         if (_positionProvider is GnomePositionProvider gnomeProvider)

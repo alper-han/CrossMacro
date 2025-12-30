@@ -43,6 +43,18 @@ public interface IGlobalHotkeyService : IDisposable
     /// Event fired for all key presses, allowing other services to listen
     /// </summary>
     event EventHandler<RawHotkeyInputEventArgs>? RawInputReceived;
+
+
+    /// <summary>
+    /// Event fired when a critical error occurs (e.g., daemon connection failure)
+    /// </summary>
+    event EventHandler<string>? ErrorOccurred;
+    
+    /// <summary>
+    /// The last critical error message encountered, if any.
+    /// </summary>
+    string? LastError { get; }
+
     
     bool IsRunning { get; }
     

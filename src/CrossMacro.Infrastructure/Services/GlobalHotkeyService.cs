@@ -320,9 +320,15 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         };
     }
 
+    public event EventHandler<string>? ErrorOccurred;
+    
+    public string? LastError { get; private set; }
+
     private void OnInputCaptureError(object? sender, string errorMessage)
     {
         Log.Error("[GlobalHotkeyService] Input capture error: {Error}", errorMessage);
+        LastError = errorMessage;
+        ErrorOccurred?.Invoke(this, errorMessage);
     }
 
     private string BuildHotkeyString(int keyCode)

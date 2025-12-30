@@ -7,7 +7,7 @@
     <ApplicationIcon>Assets\mouse-icon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <Version>0.8.0</Version>
+    <Version>0.8.1</Version>
     <Description>Cross-platform mouse and keyboard macro automation tool with text expansion support.</Description>
   </PropertyGroup>
 

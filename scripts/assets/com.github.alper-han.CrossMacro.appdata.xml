@@ -47,6 +47,11 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.8.1" date="2025-12-30">
+      <description>
+        <p>Version 0.8.1 - Bug fixes and improvements.</p>
+      </description>
+    </release>
     <release version="0.8.0" date="2025-12-29">
       <description>
         <p>Version 0.8.0 - Added Shortcuts and Scheduling features.</p>

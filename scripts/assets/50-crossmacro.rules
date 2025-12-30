@@ -1,0 +1,11 @@
+/* CrossMacro Polkit Rules - Allow group members without password for local active sessions */
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.crossmacro.input-capture" || 
+        action.id == "org.crossmacro.input-simulate") {
+        
+        if (subject.isInGroup("crossmacro") && subject.local && subject.active) {
+            return polkit.Result.YES;
+        }
+        return polkit.Result.AUTH_ADMIN;
+    }
+});

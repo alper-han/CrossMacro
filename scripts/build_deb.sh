@@ -41,7 +41,7 @@ Version: $VERSION
 Section: utils
 Priority: optional
 Architecture: $ARCH
-Depends: libc6, libstdc++6, polkitd | policykit-1
+Depends: libc6, libstdc++6, polkitd | policykit-1, libxtst6
 Recommends: libx11-6, libice6, libsm6, libfontconfig1
 Maintainer: Zynix <crossmacro@zynix.net>
 Description: Mouse and Keyboard Macro Automation Tool
@@ -168,6 +168,11 @@ cp "daemon/crossmacro.service" "$DEB_DIR/usr/lib/systemd/system/crossmacro.servi
 echo "Copying Polkit Policy..."
 mkdir -p "$DEB_DIR/usr/share/polkit-1/actions"
 cp "assets/org.crossmacro.policy" "$DEB_DIR/usr/share/polkit-1/actions/org.crossmacro.policy"
+
+# Copy Polkit Rules
+echo "Copying Polkit Rules..."
+mkdir -p "$DEB_DIR/usr/share/polkit-1/rules.d"
+cp "assets/50-crossmacro.rules" "$DEB_DIR/usr/share/polkit-1/rules.d/50-crossmacro.rules"
 
 # Copy udev rules
 echo "Copying udev rules..."

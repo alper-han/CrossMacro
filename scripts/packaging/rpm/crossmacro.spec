@@ -8,10 +8,11 @@ URL:            https://github.com/alper-han/CrossMacro
 Source0:        %{name}-%{version}.tar.gz
 Source1:        99-crossmacro.rules
 Source2:        crossmacro.te
+Source3:        50-crossmacro.rules
 
 BuildArch:      x86_64
 AutoReqProv:    no
-Requires:       glibc, libstdc++, polkit
+Requires:       glibc, libstdc++, polkit, libXtst
 BuildRequires:  checkpolicy, semodule-utils, systemd-rpm-macros
 
 %{?systemd_requires}
@@ -39,6 +40,7 @@ mkdir -p %{buildroot}/usr/lib/udev/rules.d
 mkdir -p %{buildroot}/usr/share/icons/hicolor
 mkdir -p %{buildroot}/usr/share/selinux/packages/%{name}
 mkdir -p %{buildroot}/usr/share/polkit-1/actions
+mkdir -p %{buildroot}/usr/share/polkit-1/rules.d
 
 # Copy UI
 cp -r %{_sourcedir}/publish/* %{buildroot}/usr/lib/%{name}/
@@ -51,6 +53,7 @@ cp %{_sourcedir}/crossmacro.service %{buildroot}/usr/lib/systemd/system/crossmac
 install -m 0644 %{_sourcedir}/99-crossmacro.rules %{buildroot}/usr/lib/udev/rules.d/99-crossmacro.rules
 install -m 0644 crossmacro.pp %{buildroot}/usr/share/selinux/packages/%{name}/crossmacro.pp
 install -m 0644 %{_sourcedir}/org.crossmacro.policy %{buildroot}/usr/share/polkit-1/actions/org.crossmacro.policy
+install -m 0644 %{_sourcedir}/50-crossmacro.rules %{buildroot}/usr/share/polkit-1/rules.d/50-crossmacro.rules
 
 ln -s /usr/lib/%{name}/CrossMacro.UI %{buildroot}/usr/bin/%{name}
 # Copy icons
@@ -95,6 +98,7 @@ fi
 /usr/share/icons/hicolor/*/apps/%{name}.png
 /usr/share/selinux/packages/%{name}/crossmacro.pp
 /usr/share/polkit-1/actions/org.crossmacro.policy
+/usr/share/polkit-1/rules.d/50-crossmacro.rules
 
 %changelog
 * Sat Dec 21 2025 Zynix <crossmacro@zynix.net> - 0.6.0-1

@@ -52,6 +52,7 @@
             xorg.libXrandr
             xorg.libXrender
             xorg.libXfixes
+            xorg.libXtst
 
             # GLib for GIO
             glib
@@ -109,6 +110,7 @@
                   # Install polkit policy file
                   postInstall = ''
                     install -Dm644 scripts/assets/org.crossmacro.policy $out/share/polkit-1/actions/org.crossmacro.policy
+                    install -Dm644 scripts/assets/50-crossmacro.rules $out/share/polkit-1/rules.d/50-crossmacro.rules
                   '';
 
                   meta = with pkgs.lib; {
@@ -290,6 +292,9 @@
 
               # Install polkit policy for authorization dialogs
               environment.etc."polkit-1/actions/org.crossmacro.policy".source = "${cfg.daemonPackage}/share/polkit-1/actions/org.crossmacro.policy";
+              
+              # Install polkit rules for passwordless auth (local active sessions only)
+              environment.etc."polkit-1/rules.d/50-crossmacro.rules".source = "${cfg.daemonPackage}/share/polkit-1/rules.d/50-crossmacro.rules";
 
               users.groups.crossmacro = { };
 

@@ -71,6 +71,10 @@ sudo apt install ./crossmacro-*_amd64.deb
 # Add yourself to the crossmacro group (required for daemon communication)
 sudo usermod -aG crossmacro $USER
 
+
+# Enable and start the background service (important for daemon functionality)
+sudo systemctl enable --now crossmacro.service
+
 # Reboot your system for group changes to take effect, then start the app
 ```
 
@@ -85,6 +89,10 @@ sudo dnf install ./crossmacro-*.x86_64.rpm
 
 # Add yourself to the crossmacro group (required for daemon communication)
 sudo usermod -aG crossmacro $USER
+
+
+# Enable and start the background service (important for daemon functionality)
+sudo systemctl enable --now crossmacro.service
 
 # Reboot your system for group changes to take effect, then start the app
 ```
@@ -101,6 +109,9 @@ yay -S crossmacro
 
 # Using paru
 paru -S crossmacro
+
+# Enable and start the background service (important for daemon functionality)
+sudo systemctl enable --now crossmacro.service
 
 # After installation, add yourself to the group
 sudo usermod -aG crossmacro $USER
@@ -368,6 +379,7 @@ Some applications lock input devices to prevent them from being used by other pr
 To temporarily stop the conflicting service and record your macros:
 ```bash
 systemctl --user stop gpu-screen-recorder
+pkill -9 -f gpu-screen-recorder
 ```
 
 After you're done recording, you can restart the service with:

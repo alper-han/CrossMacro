@@ -169,8 +169,15 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _positionProvider = positionProvider;
         
         // Hide close button on Hyprland
-        var compositor = CompositorDetector.DetectCompositor();
-        IsCloseButtonVisible = compositor != CompositorType.HYPRLAND;
+        if (OperatingSystem.IsLinux())
+        {
+            var compositor = CompositorDetector.DetectCompositor();
+            IsCloseButtonVisible = compositor != CompositorType.HYPRLAND;
+        }
+        else
+        {
+            IsCloseButtonVisible = true;
+        }
         
         // Wire up cross-ViewModel communication
         SetupViewModelCommunication();

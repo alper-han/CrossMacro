@@ -13,6 +13,11 @@ namespace CrossMacro.Platform.Linux.DisplayServer
         /// </summary>
         private static readonly Lazy<CompositorType> _current = new(() =>
         {
+            if (!OperatingSystem.IsLinux())
+            {
+                return CompositorType.Unknown;
+            }
+
             // Check session type (X11 vs Wayland)
             var sessionType = Environment.GetEnvironmentVariable("XDG_SESSION_TYPE");
             var waylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");

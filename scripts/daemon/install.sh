@@ -91,10 +91,40 @@ echo ""
 echo "Installing systemd service..."
 
 cp "$SCRIPT_DIR/crossmacro.service" /etc/systemd/system/crossmacro.service
+# Fix path for manual /opt install
+sed -i "s|ExecStart=/usr/lib/crossmacro/daemon/CrossMacro.Daemon|ExecStart=$INSTALL_DIR/CrossMacro.Daemon|g" /etc/systemd/system/crossmacro.service
 systemctl daemon-reload
 systemctl enable crossmacro.service
 systemctl restart crossmacro.service
 
+# -----------------------------------------------------------------------------
+# 4. Install Polkit Rules
+# -----------------------------------------------------------------------------
+echo ""
+echo "Installing Polkit rules..."
+
+# Install Policy (Action Definitions)
+# This allows the "org.crossmacro.input-capture" actions to be known to the system.
+cp "$REPO_ROOT/scripts/assets/org.crossmacro.policy" /usr/share/polkit-1/actions/org.crossmacro.policy
+chmod 644 /usr/share/polkit-1/actions/org.crossmacro.policy
+
+# Install Rules (Authorization Logic)
+# This allows the 'crossmacro' group members to bypass password prompt.
+# Note: Debian-based systems use .pkla (LocalAuthority), but newer ones and Arch use .rules (JavaScript).
+# We install the .rules file. If the system is old (pre-2012 polkit), this might be ignored, 
+# but most modern distros (Ubuntu 20.04+, Arch, Fedora) use .rules.
+if [ -d "/etc/polkit-1/rules.d" ]; then
+    cp "$REPO_ROOT/scripts/assets/50-crossmacro.rules" /etc/polkit-1/rules.d/50-crossmacro.rules
+    chmod 644 /etc/polkit-1/rules.d/50-crossmacro.rules
+    echo "   Installed JS rules to /etc/polkit-1/rules.d/"
+else
+    echo "   Warning: /etc/polkit-1/rules.d not found. Polkit auto-auth might not work."
+fi
+
+# Restart polkit to extract changes immediately (though it usually watches files)
+if systemctl is-active --quiet polkit; then
+    systemctl restart polkit || true
+fi
 # -----------------------------------------------------------------------------
 # 4. Done
 # -----------------------------------------------------------------------------

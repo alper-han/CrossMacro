@@ -6,6 +6,8 @@ polkit.addRule(function(action, subject) {
         if (subject.isInGroup("crossmacro") && subject.local && subject.active) {
             return polkit.Result.YES;
         }
-        return polkit.Result.AUTH_ADMIN;
+        
+        // Fallback to policy defaults (auth_self) if not in group
+        return null;
     }
 });

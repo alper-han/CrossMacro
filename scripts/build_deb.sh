@@ -41,7 +41,7 @@ Version: $VERSION
 Section: utils
 Priority: optional
 Architecture: $ARCH
-Depends: libc6, libstdc++6, polkitd | policykit-1, libxtst6
+Depends: libc6, libstdc++6, polkitd | policykit-1, libxtst6, zlib1g, libssl3 | libssl1.1
 Recommends: libx11-6, libice6, libsm6, libfontconfig1
 Maintainer: Zynix <crossmacro@zynix.net>
 Description: Mouse and Keyboard Macro Automation Tool

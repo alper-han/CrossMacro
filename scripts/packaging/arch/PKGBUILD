@@ -61,9 +61,7 @@ package() {
     install -Dm644 "scripts/daemon/crossmacro.service" \
         "$pkgdir/usr/lib/systemd/system/crossmacro.service"
         
-    # Fix ExecStart path in service file
-    sed -i "s|ExecStart=/opt/crossmacro/daemon/CrossMacro.Daemon|ExecStart=/usr/lib/$pkgname/daemon/CrossMacro.Daemon|g" \
-        "$pkgdir/usr/lib/systemd/system/crossmacro.service"
+
         
     # Install sysusers config
     install -Dm644 "$srcdir/crossmacro.sysusers" \

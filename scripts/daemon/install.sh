@@ -85,23 +85,10 @@ chmod +x "$INSTALL_DIR/CrossMacro.Daemon"
 echo "   Daemon installed to $INSTALL_DIR"
 
 # -----------------------------------------------------------------------------
-# 3. Install systemd service
+# 3. Install Polkit & Udev Rules
 # -----------------------------------------------------------------------------
 echo ""
-echo "Installing systemd service..."
-
-cp "$SCRIPT_DIR/crossmacro.service" /etc/systemd/system/crossmacro.service
-# Fix path for manual /opt install
-sed -i "s|ExecStart=/usr/lib/crossmacro/daemon/CrossMacro.Daemon|ExecStart=$INSTALL_DIR/CrossMacro.Daemon|g" /etc/systemd/system/crossmacro.service
-systemctl daemon-reload
-systemctl enable crossmacro.service
-systemctl restart crossmacro.service
-
-# -----------------------------------------------------------------------------
-# 4. Install Polkit Rules
-# -----------------------------------------------------------------------------
-echo ""
-echo "Installing Polkit rules..."
+echo "Installing Polkit & Udev rules..."
 
 
 # Install UDev Rules (Permissions for /dev/uinput)
@@ -115,8 +102,12 @@ fi
 
 # Install Modules Load Config (Load uinput on boot)
 if [ -d "/etc/modules-load.d" ]; then
-    cp "$REPO_ROOT/scripts/assets/crossmacro-modules.conf" /etc/modules-load.d/crossmacro.conf
-    echo "   Installed modules-load config to /etc/modules-load.d/"
+    if [ -f "$REPO_ROOT/scripts/assets/crossmacro-modules.conf" ]; then
+        cp "$REPO_ROOT/scripts/assets/crossmacro-modules.conf" /etc/modules-load.d/crossmacro.conf
+        echo "   Installed modules-load config to /etc/modules-load.d/"
+    else 
+        echo "   Warning: scripts/assets/crossmacro-modules.conf not found. Skipping."
+    fi
 else
     echo "   Warning: /etc/modules-load.d not found. You may need to load 'uinput' manually."
 fi
@@ -154,7 +145,20 @@ echo "   Loading uinput kernel module..."
 modprobe uinput || echo "   Warning: Failed to load uinput module. Reboot may be required."
 
 # -----------------------------------------------------------------------------
-# 4. Done
+# 4. Install systemd service
+# -----------------------------------------------------------------------------
+echo ""
+echo "Installing systemd service..."
+
+cp "$SCRIPT_DIR/crossmacro.service" /etc/systemd/system/crossmacro.service
+# Fix path for manual /opt install
+sed -i "s|ExecStart=/usr/lib/crossmacro/daemon/CrossMacro.Daemon|ExecStart=$INSTALL_DIR/CrossMacro.Daemon|g" /etc/systemd/system/crossmacro.service
+systemctl daemon-reload
+systemctl enable crossmacro.service
+systemctl restart crossmacro.service
+
+# -----------------------------------------------------------------------------
+# 5. Done
 # -----------------------------------------------------------------------------
 echo ""
 echo "------------------------------------------------------------------------------"

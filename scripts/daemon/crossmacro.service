@@ -1,7 +1,7 @@
 [Unit]
 Description=CrossMacro Input Daemon Service
 Documentation=https://github.com/alper-han/CrossMacro
-After=network.target polkit.service
+After=polkit.service
 Wants=polkit.service
 
 [Service]

@@ -12,7 +12,7 @@ Source3:        50-crossmacro.rules
 
 BuildArch:      x86_64
 AutoReqProv:    no
-Requires:       glibc, libstdc++, polkit, libXtst
+Requires:       glibc, libstdc++, polkit, libXtst, zlib, openssl-libs
 BuildRequires:  checkpolicy, semodule-utils, systemd-rpm-macros
 
 %{?systemd_requires}

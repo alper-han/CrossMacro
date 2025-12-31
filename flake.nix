@@ -101,6 +101,11 @@
                   nativeBuildInputs = with pkgs; [
                     clang
                     zlib
+                    autoPatchelfHook
+                  ];
+
+                  buildInputs = with pkgs; [
+                    systemd
                   ];
 
                   dotnetFlags = [
@@ -111,6 +116,12 @@
                   postInstall = ''
                     install -Dm644 scripts/assets/org.crossmacro.policy $out/share/polkit-1/actions/org.crossmacro.policy
                     install -Dm644 scripts/assets/50-crossmacro.rules $out/share/polkit-1/rules.d/50-crossmacro.rules
+                    
+                    # Force dependency on libsystemd for runtime P/Invoke resolution
+                    # This tells autoPatchelfHook to link systemd even though it's not a build-time dep
+                    if [ -f $out/lib/crossmacro-daemon/CrossMacro.Daemon ]; then
+                       patchelf --add-needed libsystemd.so.0 $out/lib/crossmacro-daemon/CrossMacro.Daemon
+                    fi
                   '';
 
                   meta = with pkgs.lib; {
@@ -332,7 +343,7 @@
                 ];
                 path = [ pkgs.polkit ]; # For pkcheck command
                 serviceConfig = {
-                  Type = "simple";
+                  Type = "notify";
                   User = "crossmacro";
                   Group = "input";
                   ExecStart = "${lib.getExe cfg.daemonPackage}";

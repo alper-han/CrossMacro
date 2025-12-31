@@ -9,10 +9,11 @@ Source0:        %{name}-%{version}.tar.gz
 Source1:        99-crossmacro.rules
 Source2:        crossmacro.te
 Source3:        50-crossmacro.rules
+Source4:        crossmacro-modules.conf
 
 BuildArch:      x86_64
 AutoReqProv:    no
-Requires:       glibc, libstdc++, polkit, libXtst, zlib, openssl-libs
+Requires:       glibc, libstdc++, polkit, libXtst, zlib, openssl-libs, systemd-libs
 BuildRequires:  checkpolicy, semodule-utils, systemd-rpm-macros
 
 %{?systemd_requires}
@@ -54,6 +55,10 @@ install -m 0644 %{_sourcedir}/99-crossmacro.rules %{buildroot}/usr/lib/udev/rule
 install -m 0644 crossmacro.pp %{buildroot}/usr/share/selinux/packages/%{name}/crossmacro.pp
 install -m 0644 %{_sourcedir}/org.crossmacro.policy %{buildroot}/usr/share/polkit-1/actions/org.crossmacro.policy
 install -m 0644 %{_sourcedir}/50-crossmacro.rules %{buildroot}/usr/share/polkit-1/rules.d/50-crossmacro.rules
+
+# Install modules-load config
+mkdir -p %{buildroot}/usr/lib/modules-load.d
+install -m 0644 %{_sourcedir}/crossmacro-modules.conf %{buildroot}/usr/lib/modules-load.d/crossmacro.conf
 
 ln -s /usr/lib/%{name}/CrossMacro.UI %{buildroot}/usr/bin/%{name}
 # Copy icons
@@ -99,6 +104,7 @@ fi
 /usr/share/selinux/packages/%{name}/crossmacro.pp
 /usr/share/polkit-1/actions/org.crossmacro.policy
 /usr/share/polkit-1/rules.d/50-crossmacro.rules
+/usr/lib/modules-load.d/crossmacro.conf
 
 %changelog
 * Sat Dec 21 2025 Zynix <crossmacro@zynix.net> - 0.6.0-1

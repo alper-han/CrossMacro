@@ -41,7 +41,7 @@ Version: $VERSION
 Section: utils
 Priority: optional
 Architecture: $ARCH
-Depends: libc6, libstdc++6, polkitd | policykit-1, libxtst6, zlib1g, libssl3 | libssl1.1
+Depends: libc6, libstdc++6, polkitd | policykit-1, libxtst6, zlib1g, libssl3 | libssl1.1, libsystemd0
 Recommends: libx11-6, libice6, libsm6, libfontconfig1
 Maintainer: Zynix <crossmacro@zynix.net>
 Description: Mouse and Keyboard Macro Automation Tool
@@ -177,6 +177,11 @@ cp "assets/50-crossmacro.rules" "$DEB_DIR/usr/share/polkit-1/rules.d/50-crossmac
 # Copy udev rules
 echo "Copying udev rules..."
 cp "assets/99-crossmacro.rules" "$DEB_DIR/usr/lib/udev/rules.d/99-crossmacro.rules"
+
+# Copy modules-load config
+echo "Copying modules-load config..."
+mkdir -p "$DEB_DIR/usr/lib/modules-load.d"
+cp "assets/crossmacro-modules.conf" "$DEB_DIR/usr/lib/modules-load.d/crossmacro.conf"
 
 # Create symlink in /usr/bin
 ln -s "/usr/lib/$APP_NAME/CrossMacro.UI" "$DEB_DIR/usr/bin/$APP_NAME"

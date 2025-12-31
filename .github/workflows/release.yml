@@ -354,6 +354,7 @@ jobs:
         cp scripts/packaging/arch/PKGBUILD aur-repo/
         cp scripts/packaging/arch/crossmacro.install aur-repo/
         cp scripts/packaging/arch/crossmacro.sysusers aur-repo/
+        cp scripts/assets/crossmacro-modules.conf aur-repo/
         
         cd aur-repo
         
@@ -363,7 +364,7 @@ jobs:
         # Calculate and update checksum for source tarball only
         wget "https://github.com/alper-han/CrossMacro/archive/v$VERSION.tar.gz" -O source.tar.gz
         SHA256=$(sha256sum source.tar.gz | cut -d' ' -f1)
-        sed -i "/^sha256sums=/,/)$/c\\sha256sums=('$SHA256'\n            'SKIP')  # sysusers file checksum (local file)" PKGBUILD
+        sed -i "/^sha256sums=/,/)$/c\\sha256sums=('$SHA256'\n            'SKIP'\n            'SKIP')  # sysusers and modules config checksums (local files)" PKGBUILD
         rm source.tar.gz
         
         # Update .SRCINFO
@@ -383,7 +384,7 @@ jobs:
         git config --global init.defaultBranch master
         git config --global --add safe.directory $(pwd)
         
-        git add PKGBUILD .SRCINFO crossmacro.install crossmacro.sysusers
+        git add PKGBUILD .SRCINFO crossmacro.install crossmacro.sysusers crossmacro-modules.conf
         
         if ! git diff --quiet --cached; then
           git commit -m "Update to version $VERSION"

@@ -54,7 +54,7 @@ public class ShortcutService : IShortcutService
         _hotkeyService = hotkeyService;
         _syncContext = SynchronizationContext.Current;
         
-        _shortcutsFilePath = PathHelper.GetConfigFilePath("shortcuts.json");
+        _shortcutsFilePath = PathHelper.GetConfigFilePath(ConfigFileNames.Shortcuts);
     }
     
     public void AddTask(ShortcutTask task)

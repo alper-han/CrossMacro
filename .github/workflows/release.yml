@@ -214,6 +214,41 @@ jobs:
           scripts/*.AppImage
         retention-days: 1
 
+  package-flatpak:
+    name: Package Flatpak
+    needs: build-core
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+    
+    - name: Download Linux binary
+      uses: actions/download-artifact@v7
+      with:
+        name: linux-binary
+        path: publish/
+    
+    - name: Install Flatpak tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y flatpak flatpak-builder
+        flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+        flatpak install --user -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
+    
+    - name: Build Flatpak
+      run: |
+        cd scripts
+        chmod +x build_flatpak.sh
+        VERSION="${{ needs.build-core.outputs.version }}" PUBLISH_DIR="../publish" ./build_flatpak.sh
+    
+    - name: Upload Flatpak artifact
+      uses: actions/upload-artifact@v6
+      with:
+        name: flatpak-package
+        path: |
+          flatpak/*.flatpak
+        retention-days: 1
+
   package-windows:
     name: Package Windows
     needs: build-core
@@ -404,7 +439,7 @@ jobs:
   # ============================================
   create-release:
     name: Create Release
-    needs: [build-core, package-deb, package-rpm, package-appimage, package-windows, build-macos-arm64, build-macos-x64]
+    needs: [build-core, package-deb, package-rpm, package-appimage, package-flatpak, package-windows, build-macos-arm64, build-macos-x64]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:

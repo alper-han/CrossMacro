@@ -173,7 +173,7 @@
                       install -Dm644 src/CrossMacro.UI/Assets/icons/${size}x${size}/apps/crossmacro.png $out/share/icons/hicolor/${size}x${size}/apps/crossmacro.png
                     '') [ "16" "32" "48" "64" "128" "256" "512" ]}
 
-                    install -Dm644 scripts/assets/com.github.alper-han.CrossMacro.appdata.xml $out/share/metainfo/com.github.alper-han.CrossMacro.appdata.xml
+                    install -Dm644 scripts/assets/io.github.alper-han.CrossMacro.metainfo.xml $out/share/metainfo/io.github.alper-han.CrossMacro.metainfo.xml
                   ''
                 else
                   # macOS specific post-install could go here (e.g. bundle creation)
@@ -297,8 +297,10 @@
 
               # Fix uinput permissions - NixOS default uses ACLs but group perms are ---
               # This ensures the input group has read/write access
+              # Also disable mouse acceleration for CrossMacro virtual device (flat profile)
               services.udev.extraRules = ''
                 KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"
+                ACTION=="add|change", KERNEL=="event*", ATTRS{name}=="CrossMacro Virtual Input Device", ENV{LIBINPUT_ATTR_POINTER_ACCEL}="0"
               '';
 
               # Install polkit policy for authorization dialogs

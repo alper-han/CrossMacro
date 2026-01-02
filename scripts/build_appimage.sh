@@ -50,7 +50,7 @@ cp "../src/CrossMacro.UI/Assets/icons/256x256/apps/crossmacro.png" "$APP_DIR/.Di
 cp -r "../src/CrossMacro.UI/Assets/icons/"* "$APP_DIR/usr/share/icons/hicolor/"
 cp "assets/$APP_NAME.desktop" "$APP_DIR/$APP_NAME.desktop"
 cp "assets/$APP_NAME.desktop" "$APP_DIR/usr/share/applications/$APP_NAME.desktop"
-cp "assets/com.github.alper-han.CrossMacro.appdata.xml" "$APP_DIR/usr/share/metainfo/"
+cp "assets/io.github.alper-han.CrossMacro.metainfo.xml" "$APP_DIR/usr/share/metainfo/"
 
 chmod +x "$APP_DIR/usr/bin/CrossMacro.UI"
 ln -s "usr/bin/CrossMacro.UI" "$APP_DIR/AppRun"

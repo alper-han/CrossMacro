@@ -148,6 +148,13 @@ scripts/build_arch_output/
 scripts/build_appimage_output/
 scripts/AppDir/
 
+# Flatpak
+flatpak/.flatpak-builder/
+flatpak/build-dir/
+flatpak/repo/
+flatpak/*.flatpak
+scripts/flatpak-source/
+
 # SELinux build artifacts
 *.pp
 *.mod
@@ -188,6 +195,7 @@ Desktop.ini
 *.tmp
 *.temp
 *.bak
+*.swp
 *.swp
 *~.nib
 local.properties

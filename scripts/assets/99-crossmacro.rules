@@ -1,1 +1,6 @@
+# Grant access to /dev/uinput for input group
 KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"
+
+# Disable mouse acceleration for CrossMacro virtual device (flat profile = 1:1 movement)
+# This prevents double-acceleration when playing back relative mouse movements
+ACTION=="add|change", KERNEL=="event*", ATTRS{name}=="CrossMacro Virtual Input Device", ENV{LIBINPUT_ATTR_POINTER_ACCEL}="0"

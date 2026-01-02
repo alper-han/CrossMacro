@@ -16,7 +16,7 @@ namespace CrossMacro.Infrastructure.Services;
 /// </summary>
 public class SettingsService : ISettingsService
 {
-    private const string SettingsFileName = "settings.json";
+    private const string SettingsFileName = ConfigFileNames.Settings;
     private readonly string _configDirectory;
     private readonly string _settingsFilePath;
     private AppSettings _currentSettings;

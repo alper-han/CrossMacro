@@ -9,6 +9,10 @@ using Serilog;
 
 namespace CrossMacro.Infrastructure.Services;
 
+/// <summary>
+/// Manages global hotkeys for recording, playback, and pause actions.
+/// Refactored to delegate responsibilities to specialized services.
+/// </summary>
 public class GlobalHotkeyService : IGlobalHotkeyService
 {
     private IInputCapture? _inputCapture;
@@ -16,41 +20,55 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     private readonly Lock _lock = new();
     private CancellationTokenSource? _captureCts;
 
-    private readonly IKeyboardLayoutService _layoutService;
+    // Injected services
+    private readonly IHotkeyConfigurationService _configService;
+    private readonly IHotkeyParser _hotkeyParser;
+    private readonly IHotkeyMatcher _hotkeyMatcher;
+    private readonly IModifierStateTracker _modifierTracker;
+    private readonly IHotkeyStringBuilder _hotkeyStringBuilder;
+    private readonly IMouseButtonMapper _mouseButtonMapper;
     private readonly Func<IInputCapture>? _inputCaptureFactory;
     
+    // Hotkey mappings
     private HotkeyMapping _recordingHotkey = new();
     private HotkeyMapping _playbackHotkey = new();
     private HotkeyMapping _pauseHotkey = new();
     
-    private readonly HashSet<int> _pressedModifiers = new();
-    
-    private readonly Dictionary<string, DateTime> _lastHotkeyPressTimes = new();
-    private const int DebounceIntervalMs = 300;
-    private readonly TimeSpan _debounceInterval = TimeSpan.FromMilliseconds(DebounceIntervalMs);
-    
     private bool _playbackPauseHotkeysEnabled = true;
     
+    // Events
     public event EventHandler? ToggleRecordingRequested;
     public event EventHandler? TogglePlaybackRequested;
     public event EventHandler? TogglePauseRequested;
     public event EventHandler<RawHotkeyInputEventArgs>? RawInputReceived;
+    public event EventHandler<string>? ErrorOccurred;
     
+    // Properties
     public int RecordingHotkeyCode => _recordingHotkey.MainKey;
     public int PlaybackHotkeyCode => _playbackHotkey.MainKey;
     public int PauseHotkeyCode => _pauseHotkey.MainKey;
-    
     public bool IsRunning => _isRunning;
+    public string? LastError { get; private set; }
 
-    private readonly IHotkeyConfigurationService _configService;
+    // Capture mode
+    private TaskCompletionSource<string>? _captureTcs;
+    private bool _isCapturing;
 
     public GlobalHotkeyService(
-        IHotkeyConfigurationService configService, 
-        IKeyboardLayoutService layoutService,
+        IHotkeyConfigurationService configService,
+        IHotkeyParser hotkeyParser,
+        IHotkeyMatcher hotkeyMatcher,
+        IModifierStateTracker modifierTracker,
+        IHotkeyStringBuilder hotkeyStringBuilder,
+        IMouseButtonMapper mouseButtonMapper,
         Func<IInputCapture>? inputCaptureFactory = null)
     {
         _configService = configService;
-        _layoutService = layoutService;
+        _hotkeyParser = hotkeyParser;
+        _hotkeyMatcher = hotkeyMatcher;
+        _modifierTracker = modifierTracker;
+        _hotkeyStringBuilder = hotkeyStringBuilder;
+        _mouseButtonMapper = mouseButtonMapper;
         _inputCaptureFactory = inputCaptureFactory;
         
         var settings = _configService.Load();
@@ -72,22 +90,6 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             _inputCapture.Configure(captureMouse: true, captureKeyboard: true);
             _inputCapture.InputReceived += OnInputReceived;
             _inputCapture.Error += OnInputCaptureError;
-            
-            var devices = _inputCapture.GetAvailableDevices();
-            var keyboards = devices.Where(d => d.IsKeyboard).ToList();
-            
-            if (keyboards.Count == 0)
-            {
-                _inputCapture.Dispose();
-                _inputCapture = null;
-                throw new InvalidOperationException("No keyboard devices found");
-            }
-            
-            Log.Information("[GlobalHotkeyService] Found {Count} keyboard device(s):", keyboards.Count);
-            foreach (var kbd in keyboards)
-            {
-                Log.Information("  - {Name} ({Path})", kbd.Name, kbd.Path);
-            }
             
             _captureCts = new CancellationTokenSource();
             _ = _inputCapture.StartAsync(_captureCts.Token);
@@ -137,9 +139,9 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     {
         using (_lock.EnterScope())
         {
-            _recordingHotkey = ParseHotkey(recordingHotkey);
-            _playbackHotkey = ParseHotkey(playbackHotkey);
-            _pauseHotkey = ParseHotkey(pauseHotkey);
+            _recordingHotkey = _hotkeyParser.Parse(recordingHotkey);
+            _playbackHotkey = _hotkeyParser.Parse(playbackHotkey);
+            _pauseHotkey = _hotkeyParser.Parse(pauseHotkey);
             
             Log.Information("[GlobalHotkeyService] Updated hotkeys: Recording={Recording}, Playback={Playback}, Pause={Pause}",
                 recordingHotkey, playbackHotkey, pauseHotkey);
@@ -166,18 +168,12 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         }
     }
 
-    private TaskCompletionSource<string>? _captureTcs;
-    private bool _isCapturing;
-
     public async Task<string> CaptureNextKeyAsync(CancellationToken cancellationToken = default)
     {
         _captureTcs = new TaskCompletionSource<string>();
         _isCapturing = true;
         
-        using (_lock.EnterScope())
-        {
-            _pressedModifiers.Clear();
-        }
+        _modifierTracker.Clear();
 
         using (cancellationToken.Register(() => _captureTcs.TrySetCanceled()))
         {
@@ -195,193 +191,131 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
     private void OnInputReceived(object? sender, InputCaptureEventArgs e)
     {
-        // Handle keyboard events
         if (e.Type == InputEventType.Key)
         {
             HandleKeyboardInput(e);
             return;
         }
         
-        // Handle mouse button events (for shortcuts only, not global hotkeys)
         if (e.Type == InputEventType.MouseButton)
         {
             HandleMouseButtonInput(e);
-            return;
         }
     }
     
     private void HandleKeyboardInput(InputCaptureEventArgs e)
     {
-        using (_lock.EnterScope())
+        // Track modifier state
+        if (e.Value == 1)
         {
-            if (IsModifierKeyCode(e.Code))
-            {
-                if (e.Value == 1) 
-                {
-                    _pressedModifiers.Add(e.Code);
-                }
-                else if (e.Value == 0) 
-                {
-                    _pressedModifiers.Remove(e.Code);
-                }
-                return;
-            }
-
-            if (e.Value != 1)
-                return;
-            
-            // Block pure mouse left (272) and right (273) clicks without modifiers
-            // These may come as Key events on some platforms
-            bool hasModifiers = _pressedModifiers.Count > 0;
-            if ((e.Code == 272 || e.Code == 273) && !hasModifiers)
-                return;
-
-            if (_isCapturing && _captureTcs != null)
-            {
-                var hotkeyString = BuildHotkeyString(e.Code);
-                Task.Run(() => _captureTcs.TrySetResult(hotkeyString));
-                return;
-            }
-
-            CheckHotkeyMatch(e.Code, "Recording", _recordingHotkey, () => ToggleRecordingRequested?.Invoke(this, EventArgs.Empty));
-            
-            if (_playbackPauseHotkeysEnabled)
-            {
-                CheckHotkeyMatch(e.Code, "Playback", _playbackHotkey, () => TogglePlaybackRequested?.Invoke(this, EventArgs.Empty));
-                CheckHotkeyMatch(e.Code, "Pause", _pauseHotkey, () => TogglePauseRequested?.Invoke(this, EventArgs.Empty));
-            }
-            
-            // Raise raw input event for other services (e.g., ShortcutService)
-            var hotkeyStr = BuildHotkeyString(e.Code);
-            RawInputReceived?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, _pressedModifiers, hotkeyStr));
+            _modifierTracker.OnKeyPressed(e.Code);
         }
+        else if (e.Value == 0)
+        {
+            _modifierTracker.OnKeyReleased(e.Code);
+        }
+        
+        // Only process on key down (non-modifier)
+        if (e.Value != 1)
+            return;
+        
+        // Skip if this is a modifier key
+        var currentModifiers = _modifierTracker.CurrentModifiers;
+        if (currentModifiers.Contains(e.Code))
+            return;
+            
+        // Block pure mouse left (BTN_LEFT) and right (BTN_RIGHT) clicks without modifiers
+        if ((e.Code == InputEventCode.BTN_LEFT || e.Code == InputEventCode.BTN_RIGHT) && !_modifierTracker.HasModifiers)
+            return;
+
+        // Build hotkey string
+        var hotkeyString = _hotkeyStringBuilder.Build(e.Code, currentModifiers);
+
+        if (_isCapturing && _captureTcs != null)
+        {
+            Task.Run(() => _captureTcs.TrySetResult(hotkeyString));
+            return;
+        }
+
+        // Check hotkey matches
+        if (_hotkeyMatcher.TryMatch(e.Code, currentModifiers, _recordingHotkey, "Recording"))
+        {
+            Log.Information("[GlobalHotkeyService] Recording Hotkey Pressed");
+            ToggleRecordingRequested?.Invoke(this, EventArgs.Empty);
+        }
+        
+        if (_playbackPauseHotkeysEnabled)
+        {
+            if (_hotkeyMatcher.TryMatch(e.Code, currentModifiers, _playbackHotkey, "Playback"))
+            {
+                Log.Information("[GlobalHotkeyService] Playback Hotkey Pressed");
+                TogglePlaybackRequested?.Invoke(this, EventArgs.Empty);
+            }
+            
+            if (_hotkeyMatcher.TryMatch(e.Code, currentModifiers, _pauseHotkey, "Pause"))
+            {
+                Log.Information("[GlobalHotkeyService] Pause Hotkey Pressed");
+                TogglePauseRequested?.Invoke(this, EventArgs.Empty);
+            }
+        }
+        
+        // Broadcast raw input
+        RawInputReceived?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, currentModifiers, hotkeyString));
     }
     
     private void HandleMouseButtonInput(InputCaptureEventArgs e)
     {
-        // Only handle button press (Value == 1)
         if (e.Value != 1)
             return;
         
-        using (_lock.EnterScope())
+        var currentModifiers = _modifierTracker.CurrentModifiers;
+        
+        // Block pure left/right click without modifiers
+        if ((e.Code == InputEventCode.BTN_LEFT || e.Code == InputEventCode.BTN_RIGHT) && !_modifierTracker.HasModifiers)
+            return;
+        
+        var mouseButtonName = _mouseButtonMapper.GetMouseButtonName(e.Code);
+        if (string.IsNullOrEmpty(mouseButtonName))
+            return;
+        
+        var hotkeyString = _hotkeyStringBuilder.BuildForMouse(mouseButtonName, currentModifiers);
+        
+        if (_isCapturing && _captureTcs != null)
         {
-            // Block pure left click (272) and right click (273) without modifiers
-            // But allow them if combined with keyboard modifiers (Ctrl, Shift, Alt, etc.)
-            bool hasModifiers = _pressedModifiers.Count > 0;
-            if ((e.Code == 272 || e.Code == 273) && !hasModifiers)
-                return;
-            
-            var mouseButtonName = GetMouseButtonName(e.Code);
-            if (string.IsNullOrEmpty(mouseButtonName))
-                return;
-            
-            // Build hotkey string with modifiers
-            var hotkeyString = BuildMouseHotkeyString(mouseButtonName);
-            
-            if (_isCapturing && _captureTcs != null)
+            Task.Run(() => _captureTcs.TrySetResult(hotkeyString));
+            return;
+        }
+        
+        // Check hotkey matches
+        if (_hotkeyMatcher.TryMatch(e.Code, currentModifiers, _recordingHotkey, "Recording"))
+        {
+            Log.Information("[GlobalHotkeyService] Recording Hotkey Pressed");
+            ToggleRecordingRequested?.Invoke(this, EventArgs.Empty);
+        }
+        
+        if (_playbackPauseHotkeysEnabled)
+        {
+            if (_hotkeyMatcher.TryMatch(e.Code, currentModifiers, _playbackHotkey, "Playback"))
             {
-                Task.Run(() => _captureTcs.TrySetResult(hotkeyString));
-                return;
+                Log.Information("[GlobalHotkeyService] Playback Hotkey Pressed");
+                TogglePlaybackRequested?.Invoke(this, EventArgs.Empty);
             }
             
-            // Raise raw input event for ShortcutService
-            RawInputReceived?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, _pressedModifiers, hotkeyString));
+            if (_hotkeyMatcher.TryMatch(e.Code, currentModifiers, _pauseHotkey, "Pause"))
+            {
+                Log.Information("[GlobalHotkeyService] Pause Hotkey Pressed");
+                TogglePauseRequested?.Invoke(this, EventArgs.Empty);
+            }
         }
+        
+        RawInputReceived?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, currentModifiers, hotkeyString));
     }
-    
-    private string BuildMouseHotkeyString(string mouseButtonName)
-    {
-        List<string> parts = [];
-
-        if (_pressedModifiers.Contains(29) || _pressedModifiers.Contains(97)) parts.Add("Ctrl");
-        if (_pressedModifiers.Contains(42) || _pressedModifiers.Contains(54)) parts.Add("Shift");
-        if (_pressedModifiers.Contains(56)) parts.Add("Alt");
-        if (_pressedModifiers.Contains(100)) parts.Add("AltGr");
-        if (_pressedModifiers.Contains(125) || _pressedModifiers.Contains(126)) parts.Add("Super");
-
-        parts.Add(mouseButtonName);
-
-        return string.Join("+", parts);
-    }
-    
-    private static string GetMouseButtonName(int buttonCode)
-    {
-        return buttonCode switch
-        {
-            272 => "Mouse Left",
-            273 => "Mouse Right",
-            274 => "Mouse Middle",
-            275 => "Mouse Side",      // BTN_SIDE (often "back" button)
-            276 => "Mouse Extra",     // BTN_EXTRA (often "forward" button)
-            277 => "Mouse Forward",   // BTN_FORWARD
-            278 => "Mouse Back",      // BTN_BACK
-            279 => "Mouse Task",      // BTN_TASK
-            _ => $"Mouse{buttonCode - 271}"  // Generic fallback
-        };
-    }
-
-    public event EventHandler<string>? ErrorOccurred;
-    
-    public string? LastError { get; private set; }
 
     private void OnInputCaptureError(object? sender, string errorMessage)
     {
         Log.Error("[GlobalHotkeyService] Input capture error: {Error}", errorMessage);
         LastError = errorMessage;
         ErrorOccurred?.Invoke(this, errorMessage);
-    }
-
-    private string BuildHotkeyString(int keyCode)
-    {
-        List<string> parts = [];
-
-        if (_pressedModifiers.Contains(29) || _pressedModifiers.Contains(97)) parts.Add("Ctrl");
-        if (_pressedModifiers.Contains(42) || _pressedModifiers.Contains(54)) parts.Add("Shift");
-        if (_pressedModifiers.Contains(56)) parts.Add("Alt");
-        if (_pressedModifiers.Contains(100)) parts.Add("AltGr");
-        if (_pressedModifiers.Contains(125) || _pressedModifiers.Contains(126)) parts.Add("Super");
-
-        parts.Add(GetKeyName(keyCode));
-
-        return string.Join("+", parts);
-    }
-
-    private string GetKeyName(int keyCode)
-    {
-         return _layoutService.GetKeyName(keyCode);
-    }
-
-    private void CheckHotkeyMatch(int keyCode, string actionName, HotkeyMapping mapping, Action action)
-    {
-        if (mapping.MainKey != keyCode)
-            return;
-
-        if (!mapping.RequiredModifiers.All(m => _pressedModifiers.Contains(m)))
-            return;
-
-        if (_pressedModifiers.Except(mapping.RequiredModifiers).Any())
-            return;
-
-        var now = DateTime.UtcNow;
-        if (_lastHotkeyPressTimes.TryGetValue(actionName, out var lastTime))
-        {
-            if (now - lastTime < _debounceInterval)
-            {
-                return;
-            }
-        }
-        _lastHotkeyPressTimes[actionName] = now;
-
-        Log.Information("[GlobalHotkeyService] {Action} Hotkey Pressed", actionName);
-        action();
-    }
-
-    private static bool IsModifierKeyCode(int code)
-    {
-        return code is 29 or 97   
-            or 42 or 54           
-            or 56 or 100          
-            or 125 or 126;        
     }
 
     public void SetPlaybackPauseHotkeysEnabled(bool enabled)
@@ -396,151 +330,5 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     public void Dispose()
     {
         Stop();
-    }
-
-    private HotkeyMapping ParseHotkey(string hotkeyString)
-    {
-        var mapping = new HotkeyMapping();
-        var parts = hotkeyString.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        
-        foreach (var part in parts)
-        {
-            var keyCode = GetKeyCode(part);
-            if (keyCode == -1)
-            {
-                Log.Warning("[GlobalHotkeyService] Unknown key: {Key}", part);
-                continue;
-            }
-
-            if (IsModifierKeyCode(keyCode))
-            {
-                mapping.RequiredModifiers.Add(keyCode);
-            }
-            else
-            {
-                mapping.MainKey = keyCode;
-            }
-        }
-
-        return mapping;
-    }
-
-    private int GetKeyCode(string keyName)
-    {
-        if (keyName.Equals("Ctrl", StringComparison.OrdinalIgnoreCase))
-            return 29; 
-        if (keyName.Equals("Shift", StringComparison.OrdinalIgnoreCase))
-            return 42; 
-        if (keyName.Equals("Alt", StringComparison.OrdinalIgnoreCase))
-            return 56; 
-        if (keyName.Equals("AltGr", StringComparison.OrdinalIgnoreCase))
-            return 100; 
-        if (keyName.Equals("Super", StringComparison.OrdinalIgnoreCase) || keyName.Equals("Meta", StringComparison.OrdinalIgnoreCase))
-            return 125; 
-
-        if (keyName.StartsWith("F", StringComparison.OrdinalIgnoreCase) && int.TryParse(keyName[1..], out var fNum))
-        {
-            if (fNum >= 1 && fNum <= 24)
-                return 59 + fNum - 1; 
-        }
-
-        var special = keyName switch
-        {
-            "Space" => 57,
-            "Enter" => 28,
-            "Tab" => 15,
-            "Backspace" => 14,
-            "Escape" or "Esc" => 1,
-            "Delete" or "Del" => 111,
-            "Insert" or "Ins" => 110,
-            "Home" => 102,
-            "End" => 107,
-            "PageUp" or "PgUp" => 104,
-            "PageDown" or "PgDn" => 109,
-            "Up" => 103,
-            "Down" => 108,
-            "Left" => 105,
-            "Right" => 106,
-            
-            // Lock keys
-            "CapsLock" => 58,
-            "NumLock" => 69,
-            "ScrollLock" => 70,
-            
-            // Special keys
-            "PrintScreen" or "PrtSc" => 99,
-            "Pause" => 119,
-            
-            // Numpad
-            "Numpad7" => 71, "Numpad8" => 72, "Numpad9" => 73, "Numpad-" => 74,
-            "Numpad4" => 75, "Numpad5" => 76, "Numpad6" => 77, "Numpad+" => 78,
-            "Numpad1" => 79, "Numpad2" => 80, "Numpad3" => 81,
-            "Numpad0" => 82, "Numpad." => 83, "NumpadEnter" => 96, "Numpad/" => 98,
-            "Numpad*" => 55, "Numpad=" => 117,
-
-            // Mouse buttons (BTN_LEFT=272 through BTN_TASK=279)
-            "Mouse Left" => 272,
-            "Mouse Right" => 273,
-            "Mouse Middle" => 274,
-            "Mouse Side" => 275,
-            "Mouse Extra" => 276,
-            "Mouse Forward" => 277,
-            "Mouse Back" => 278,
-            "Mouse Task" => 279,
-            _ => -1
-        };
-        if (special != -1) return special;
-
-        for (int i = 0; i < 256; i++)
-        {
-            var name = GetKeyName(i);
-            if (string.Equals(name, keyName, StringComparison.OrdinalIgnoreCase))
-            {
-                return i;
-            }
-        }
-
-        var code = _layoutService.GetKeyCode(keyName);
-        if (code != -1) return code;
-
-        if (keyName.Length == 1 && char.IsLetter(keyName[0]))
-        {
-            return char.ToUpper(keyName[0]) switch
-            {
-                'Q' => 16, 'W' => 17, 'E' => 18, 'R' => 19, 'T' => 20, 'Y' => 21, 'U' => 22, 'I' => 23, 'O' => 24, 'P' => 25,
-                'A' => 30, 'S' => 31, 'D' => 32, 'F' => 33, 'G' => 34, 'H' => 35, 'J' => 36, 'K' => 37, 'L' => 38,
-                'Z' => 44, 'X' => 45, 'C' => 46, 'V' => 47, 'B' => 48, 'N' => 49, 'M' => 50,
-                _ => -1
-            };
-        }
-
-        if (keyName.Length == 1 && char.IsDigit(keyName[0]))
-        {
-            var digit = keyName[0] - '0';
-            return digit == 0 ? 11 : 2 + digit - 1; 
-        }
-
-        return keyName switch
-        {
-            "," => 51,
-            "." => 52,
-            "-" => 12,
-            "=" => 13,
-            ";" => 39,
-            "'" => 40,
-            "[" => 26,
-            "]" => 27,
-            "\\" => 43,
-            "/" => 53,
-            "`" => 41,
-            
-            _ => -1
-        };
-    }
-
-    private class HotkeyMapping
-    {
-        public int MainKey { get; set; } = -1;
-        public HashSet<int> RequiredModifiers { get; set; } = new();
     }
 }

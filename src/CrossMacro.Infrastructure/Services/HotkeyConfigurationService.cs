@@ -30,7 +30,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
             Directory.CreateDirectory(configRootPath);
         }
 
-        _configPath = Path.Combine(configRootPath, "hotkeys.json");
+        _configPath = Path.Combine(configRootPath, ConfigFileNames.Hotkeys);
     }
 
     public HotkeySettings Load()

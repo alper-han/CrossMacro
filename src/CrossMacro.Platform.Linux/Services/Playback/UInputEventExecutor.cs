@@ -2,6 +2,8 @@ using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using CrossMacro.Platform.Linux.Native.UInput;
+using CrossMacro.Core.Models;
+using CrossMacro.Core.Services;
 using CrossMacro.Core.Services.Playback;
 using Serilog;
 
@@ -124,6 +126,81 @@ public class UInputEventExecutor : IEventExecutor
         }
         
         Log.Debug("[UInputEventExecutor] Released all inputs");
+    }
+    
+    public void Execute(MacroEvent ev, bool isRecordedAbsolute)
+    {
+        // Handle implicit movement for non-MouseMove events
+        if (ev.Type != EventType.MouseMove && !isRecordedAbsolute)
+        {
+            if (ev.X != 0 || ev.Y != 0)
+            {
+                MoveRelative(ev.X, ev.Y);
+            }
+        }
+
+        switch (ev.Type)
+        {
+            case EventType.ButtonPress:
+                var pressButton = MapButton(ev.Button);
+                EmitButton(pressButton, true);
+                break;
+
+            case EventType.ButtonRelease:
+                var releaseButton = MapButton(ev.Button);
+                EmitButton(releaseButton, false);
+                break;
+
+            case EventType.MouseMove:
+                if (isRecordedAbsolute)
+                    MoveAbsolute(ev.X, ev.Y);
+                else
+                    MoveRelative(ev.X, ev.Y);
+                break;
+
+            case EventType.Click:
+                ExecuteClick(ev);
+                break;
+
+            case EventType.KeyPress:
+                EmitKey(ev.KeyCode, true);
+                break;
+
+            case EventType.KeyRelease:
+                EmitKey(ev.KeyCode, false);
+                break;
+        }
+    }
+    
+    private void ExecuteClick(MacroEvent ev)
+    {
+        switch (ev.Button)
+        {
+            case MouseButton.ScrollUp:
+                EmitScroll(1);
+                break;
+            case MouseButton.ScrollDown:
+                EmitScroll(-1);
+                break;
+            default:
+                var button = MapButton(ev.Button);
+                EmitButton(button, true);
+                EmitButton(button, false);
+                break;
+        }
+    }
+    
+    private static ushort MapButton(MouseButton button)
+    {
+        return button switch
+        {
+            MouseButton.Left => UInputNative.BTN_LEFT,
+            MouseButton.Right => UInputNative.BTN_RIGHT,
+            MouseButton.Middle => UInputNative.BTN_MIDDLE,
+            MouseButton.Side1 => UInputNative.BTN_SIDE,
+            MouseButton.Side2 => UInputNative.BTN_EXTRA,
+            _ => UInputNative.BTN_LEFT
+        };
     }
     
     public void Dispose()

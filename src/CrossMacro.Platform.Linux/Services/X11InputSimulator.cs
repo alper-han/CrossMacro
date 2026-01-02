@@ -2,6 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using CrossMacro.Core.Services;
 using CrossMacro.Platform.Linux.Native.X11;
+using CrossMacro.Platform.Linux.Native.UInput;
 using Serilog;
 
 namespace CrossMacro.Platform.Linux.Services
@@ -68,7 +69,20 @@ namespace CrossMacro.Platform.Linux.Services
         {
             if (!_isSupported) return;
 
-            // XTest requires absolute coordinates, so we query the current position and apply the delta.
+            try
+            {
+                int result = X11Native.XTestFakeRelativeMotionEvent(_display, dx, dy, 0);
+                if (result != 0)
+                {
+                     X11Native.XFlush(_display);
+                     return;
+                }
+            }
+            catch (EntryPointNotFoundException)
+            {
+                Log.Warning("[X11InputSimulator] XTestFakeRelativeMotionEvent not found, falling back to absolute simulation.");
+            }
+
             var root = X11Native.XDefaultRootWindow(_display);
             if (X11Native.XQueryPointer(_display, root, out _, out _, out int rx, out int ry, out _, out _, out _))
             {
@@ -80,17 +94,15 @@ namespace CrossMacro.Platform.Linux.Services
         {
             if (!_isSupported) return;
 
-            // Map Linux kernel keycodes to X11 button indices
             uint x11Button = 0;
             switch(button)
             {
-                case 272: x11Button = 1; break; // Left
-                case 273: x11Button = 3; break; // Right
-                case 274: x11Button = 2; break; // Middle
-                case 275: x11Button = 8; break; // Side/Back
-                case 276: x11Button = 9; break; // Extra/Forward
+                case UInputNative.BTN_LEFT: x11Button = 1; break; 
+                case UInputNative.BTN_RIGHT: x11Button = 3; break; 
+                case UInputNative.BTN_MIDDLE: x11Button = 2; break; 
+                case UInputNative.BTN_SIDE: x11Button = 8; break; 
+                case UInputNative.BTN_EXTRA: x11Button = 9; break; 
                 default: 
-                    // Unknown button codes are ignored
                     break;
             }
 
@@ -101,12 +113,19 @@ namespace CrossMacro.Platform.Linux.Services
             }
         }
 
-        public void Scroll(int delta)
+        public void Scroll(int delta, bool isHorizontal = false)
         {
             if (!_isSupported) return;
 
-            // X11 represents scroll as buttons 4 (up) and 5 (down)
-            uint button = delta > 0 ? 4u : 5u;
+            uint button;
+            if (isHorizontal)
+            {
+                 button = delta > 0 ? 7u : 6u;
+            }
+            else
+            {
+                 button = delta > 0 ? 4u : 5u;
+            }
             
             X11Native.XTestFakeButtonEvent(_display, button, true, 0);
             X11Native.XTestFakeButtonEvent(_display, button, false, 0);
@@ -117,7 +136,6 @@ namespace CrossMacro.Platform.Linux.Services
         {
             if (!_isSupported) return;
 
-            // Convert Linux Kernel Keycode to X11 Keycode (+8 offset)
             uint x11Keycode = (uint)keyCode + 8;
             X11Native.XTestFakeKeyEvent(_display, x11Keycode, pressed, 0);
             X11Native.XFlush(_display);

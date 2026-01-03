@@ -44,7 +44,12 @@ public class SettingsViewModel : ViewModelBase
         
         // Initialize tray icon setting
         _enableTrayIcon = _settingsService.Current.EnableTrayIcon;
+        
+        // Hide update settings if running as Flatpak
+        IsUpdateSettingsVisible = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FLATPAK_ID"));
     }
+    
+    public bool IsUpdateSettingsVisible { get; }
     
     public string RecordingHotkey
     {

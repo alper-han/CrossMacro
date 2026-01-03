@@ -77,7 +77,7 @@
                         </Grid>
                         
                         <!-- Update Check -->
-                        <Grid ColumnDefinitions="*,Auto">
+                        <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsUpdateSettingsVisible}">
                             <TextBlock Grid.Column="0" 
                                       Text="Check for Updates at Startup" 
                                       FontWeight="Medium" 

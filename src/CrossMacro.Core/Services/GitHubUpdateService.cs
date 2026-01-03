@@ -31,6 +31,13 @@ public class GitHubUpdateService : IUpdateService
 
     public async Task<UpdateCheckResult> CheckForUpdatesAsync()
     {
+        // Skip update check if running as Flatpak
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FLATPAK_ID")))
+        {
+            Log.Information("Running as Flatpak, skipping update check.");
+            return new UpdateCheckResult { HasUpdate = false };
+        }
+
         try
         {
             using var client = CreateClient();

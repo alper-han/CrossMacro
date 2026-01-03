@@ -60,6 +60,7 @@ modules:
       - type: git
         url: https://github.com/alper-han/CrossMacro.git
         tag: v0.8.4
+        commit: b6a223eadb7e566a8456ed98da7b01f9cd8eaee2
       
       # NuGet packages (offline)
       - nuget-sources.json

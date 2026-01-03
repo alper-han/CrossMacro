@@ -10,9 +10,11 @@ public class ProcessRunner : IProcessRunner
     {
         try
         {
+            var fileName = System.OperatingSystem.IsWindows() ? "where" : "which";
+            
             using var proc = Process.Start(new ProcessStartInfo
             {
-                FileName = "which",
+                FileName = fileName,
                 Arguments = command,
                 RedirectStandardOutput = true,
                 UseShellExecute = false,

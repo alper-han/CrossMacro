@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-APP_ID="io.github.alper-han.CrossMacro"
+APP_ID="io.github.alper_han.crossmacro"
 VERSION="${VERSION:-0.8.3}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"

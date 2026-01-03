@@ -1,4 +1,4 @@
-app-id: io.github.alper-han.CrossMacro
+app-id: io.github.alper_han.crossmacro
 runtime: org.freedesktop.Platform
 runtime-version: '25.08'
 sdk: org.freedesktop.Sdk
@@ -9,15 +9,12 @@ finish-args:
   - --share=ipc
   - --socket=x11
   
-  # Network access (Update check)
-  - --share=network
-  
   # - IBus for input method detection
   - --talk-name=org.kde.keyboard
   
   # User files (macro save/load)
-  - --filesystem=xdg-documents/CrossMacro:create
-  - --filesystem=xdg-config/CrossMacro:create
+  - --filesystem=xdg-documents/crossmacro:create
+  - --filesystem=xdg-config/crossmacro:create
 
 modules:
   - name: crossmacro
@@ -38,15 +35,18 @@ modules:
       - chmod +x /app/bin/crossmacro
       
       # Desktop entry
-      - install -Dm644 io.github.alper-han.CrossMacro.desktop /app/share/applications/io.github.alper-han.CrossMacro.desktop
+      - install -Dm644 io.github.alper_han.crossmacro.desktop /app/share/applications/io.github.alper_han.crossmacro.desktop
       
       # Icons
-      - install -Dm644 icons/512x512/apps/crossmacro.png /app/share/icons/hicolor/512x512/apps/io.github.alper-han.CrossMacro.png
-      - install -Dm644 icons/256x256/apps/crossmacro.png /app/share/icons/hicolor/256x256/apps/io.github.alper-han.CrossMacro.png
-      - install -Dm644 icons/128x128/apps/crossmacro.png /app/share/icons/hicolor/128x128/apps/io.github.alper-han.CrossMacro.png
+      - install -Dm644 icons/512x512/apps/crossmacro.png /app/share/icons/hicolor/512x512/apps/io.github.alper_han.crossmacro.png
+      - install -Dm644 icons/256x256/apps/crossmacro.png /app/share/icons/hicolor/256x256/apps/io.github.alper_han.crossmacro.png
+      - install -Dm644 icons/128x128/apps/crossmacro.png /app/share/icons/hicolor/128x128/apps/io.github.alper_han.crossmacro.png
       
       # Metainfo
-      - install -Dm644 io.github.alper-han.CrossMacro.metainfo.xml /app/share/metainfo/io.github.alper-han.CrossMacro.metainfo.xml
+      - install -Dm644 io.github.alper_han.crossmacro.metainfo.xml /app/share/metainfo/io.github.alper_han.crossmacro.metainfo.xml
+      
+      # License
+      - install -Dm644 LICENSE /app/share/licenses/io.github.alper_han.crossmacro/LICENSE
 
     sources:
       - type: dir

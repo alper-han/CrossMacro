@@ -190,6 +190,11 @@ This allows you to run the app normally (just double-click) without needing sudo
 
 Download the `.exe` file from [GitHub Releases](https://github.com/alper-han/CrossMacro/releases) and run it directly.
 
+**Alternative (Winget):**
+```powershell
+winget install -e --id AlperHan.CrossMacro
+```
+
 > **Note:** No installation required. The executable is self-contained and doesn't require .NET to be installed.
 
 </details>

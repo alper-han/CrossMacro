@@ -28,7 +28,6 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     
     public WindowNotificationManager? NotificationManager { get; set; }
     
-    // Child ViewModels
     public RecordingViewModel Recording { get; }
     public PlaybackViewModel Playback { get; }
     public FilesViewModel Files { get; }
@@ -36,6 +35,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     public ScheduleViewModel Schedule { get; }
     public ShortcutViewModel Shortcuts { get; }
     public SettingsViewModel Settings { get; }
+    public EditorViewModel Editor { get; }
     
     
     public bool IsCloseButtonVisible { get; }
@@ -154,6 +154,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         ScheduleViewModel schedule,
         ShortcutViewModel shortcuts,
         SettingsViewModel settings,
+        EditorViewModel editor,
         IGlobalHotkeyService hotkeyService,
         IMousePositionProvider positionProvider,
         IEnvironmentInfoProvider environmentInfo,
@@ -166,6 +167,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         Schedule = schedule;
         Shortcuts = shortcuts;
         Settings = settings;
+        Editor = editor;
         _hotkeyService = hotkeyService;
         _positionProvider = positionProvider;
         _extensionNotifier = extensionNotifier;
@@ -207,7 +209,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             new NavigationItem { Label = "Files", Icon = "💾", ViewModel = Files },
             new NavigationItem { Label = "Text Expansion", Icon = "📝", ViewModel = TextExpansion },
             new NavigationItem { Label = "Shortcuts", Icon = "⌨️", ViewModel = Shortcuts },
-            new NavigationItem { Label = "Schedule", Icon = "🕐", ViewModel = Schedule }
+            new NavigationItem { Label = "Schedule", Icon = "🕐", ViewModel = Schedule },
+            new NavigationItem { Label = "Editor", Icon = "🛠️", ViewModel = Editor }
         };
         
 
@@ -338,6 +341,14 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             GlobalStatus = $"Loaded: {macro.Name}";
         };
         
+        // When a macro is created in Editor, update Files and Playback
+        Editor.MacroCreated += (s, macro) =>
+        {
+            Files.SetMacro(macro);
+            Playback.SetMacro(macro);
+            GlobalStatus = $"Created: {macro.Name} ({macro.EventCount} events)";
+        };
+        
         // Forward status changes
         Recording.PropertyChanged += (s, e) =>
         {
@@ -348,6 +359,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         Playback.StatusChanged += (s, status) => GlobalStatus = status;
         Files.StatusChanged += (s, status) => GlobalStatus = status;
         Schedule.StatusChanged += (s, status) => GlobalStatus = status;
+        Editor.StatusChanged += (s, status) => GlobalStatus = status;
     }
     
     private void SetupExtensionStatusHandling()

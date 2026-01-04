@@ -73,10 +73,12 @@ public class MainWindowViewModelTests
         var textExpansionService = Substitute.For<ITextExpansionService>();
         _settingsViewModel = new SettingsViewModel(_hotkeyService, _settingsService, textExpansionService, hotkeySettings);
 
-        // Environment info provider mock (reusing existing mock)
-        // var environmentInfo = Substitute.For<IEnvironmentInfoProvider>();
-        // environmentInfo.WindowManagerHandlesCloseButton.Returns(false);
-        // environmentInfo.CurrentEnvironment.Returns(DisplayEnvironment.Windows);
+        // EditorViewModel
+        var editorConverter = Substitute.For<IEditorActionConverter>();
+        var editorValidator = Substitute.For<IEditorActionValidator>();
+        var captureService = Substitute.For<ICoordinateCaptureService>();
+        var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
+        var editorViewModel = new EditorViewModel(editorConverter, editorValidator, captureService, _fileManager, dialogService, keyCodeMapper);
 
         // Create SUT
         _viewModel = new MainWindowViewModel(
@@ -87,6 +89,7 @@ public class MainWindowViewModelTests
             _scheduleViewModel,
             _shortcutViewModel,
             _settingsViewModel,
+            editorViewModel,
             _hotkeyService,
             _positionProvider,
             environmentInfo,

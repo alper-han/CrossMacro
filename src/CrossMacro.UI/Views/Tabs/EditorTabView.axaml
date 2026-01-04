@@ -1,0 +1,379 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:local="using:CrossMacro.UI.Views.Tabs"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="500"
+             x:Class="CrossMacro.UI.Views.Tabs.EditorTabView"
+             x:DataType="vm:EditorViewModel">
+
+    <UserControl.Resources>
+        <local:NullableIntConverter x:Key="NullableIntConverter"/>
+    </UserControl.Resources>
+
+    <Grid RowDefinitions="*,Auto">
+        
+        <!-- Main Content: Action List + Properties -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,320">
+            
+            <!-- Left: Action List -->
+            <Border Background="#1E293B" CornerRadius="8" Padding="12" Margin="0,0,8,0">
+                <Grid RowDefinitions="Auto,*,Auto">
+                    <TextBlock Grid.Row="0" Text="Actions" FontWeight="Bold" Foreground="White" Margin="0,0,0,8"/>
+                    
+                    <ListBox Grid.Row="1" 
+                             ItemsSource="{Binding Actions}" 
+                             SelectedItem="{Binding SelectedAction}"
+                             Background="Transparent"
+                             SelectionMode="Single">
+                        <ListBox.Styles>
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="Padding" Value="8,6"/>
+                                <Setter Property="Margin" Value="0,2"/>
+                                <Setter Property="CornerRadius" Value="4"/>
+                                <Setter Property="Background" Value="#334155"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Style>
+                            <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                                <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+                            </Style>
+                            <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                                <Setter Property="Background" Value="#475569"/>
+                            </Style>
+                        </ListBox.Styles>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Border Background="#475569" 
+                                            CornerRadius="3" 
+                                            Padding="6,2"
+                                            VerticalAlignment="Center"
+                                            MinWidth="24">
+                                        <TextBlock Text="{Binding Index}" 
+                                                   FontSize="10" 
+                                                   Foreground="#94A3B8"
+                                                   FontWeight="SemiBold"
+                                                   HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{Binding DisplayName}" 
+                                               TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    
+                    <!-- Action List Buttons -->
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4" Margin="0,8,0,0">
+                        <Button Command="{Binding RemoveAction}"
+                                IsEnabled="{Binding HasSelectedAction}"
+                                ToolTip.Tip="Remove Action"
+                                Background="#EF4444"
+                                Foreground="White"
+                                Padding="8,4"
+                                CornerRadius="4">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="−"/>
+                                <TextBlock Text="Remove"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding MoveUp}"
+                                IsEnabled="{Binding HasSelectedAction}"
+                                ToolTip.Tip="Move Up"
+                                Background="#334155"
+                                Foreground="White"
+                                Padding="8,4"
+                                CornerRadius="4">
+                            <TextBlock Text="↑"/>
+                        </Button>
+                        <Button Command="{Binding MoveDown}"
+                                IsEnabled="{Binding HasSelectedAction}"
+                                ToolTip.Tip="Move Down"
+                                Background="#334155"
+                                Foreground="White"
+                                Padding="8,4"
+                                CornerRadius="4">
+                            <TextBlock Text="↓"/>
+                        </Button>
+                        <Button Command="{Binding DuplicateAction}"
+                                IsEnabled="{Binding HasSelectedAction}"
+                                ToolTip.Tip="Duplicate"
+                                Background="#334155"
+                                Foreground="White"
+                                Padding="8,4"
+                                CornerRadius="4">
+                            <TextBlock Text="📋" FontFamily="{StaticResource EmojiFont}"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+            
+            <!-- Right: Properties Panel -->
+            <Border Grid.Column="1" Background="#1E293B" CornerRadius="8" Padding="12" Margin="8,0,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="16">
+                        
+                        <!-- Add New Action Section -->
+                        <Border Background="#334155" CornerRadius="6" Padding="12">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Add New Action" FontWeight="SemiBold" Foreground="White"/>
+                                <ComboBox ItemsSource="{Binding ActionTypes}" 
+                                          SelectedItem="{Binding NewActionType}"
+                                          Background="#475569"
+                                          Foreground="White"
+                                          HorizontalAlignment="Stretch">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button Command="{Binding AddAction}"
+                                        Background="#22C55E"
+                                        Foreground="White"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Center"
+                                        Padding="8,6"
+                                        CornerRadius="4">
+                                    <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+                                        <TextBlock Text="+"/>
+                                        <TextBlock Text="Add Action"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Selected Action Properties -->
+                        <StackPanel Spacing="12" IsVisible="{Binding HasSelectedAction}">
+                            <TextBlock Text="Selected Action Properties" FontWeight="SemiBold" Foreground="White"/>
+                            
+                            <!-- Action Type (Read-only display) -->
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Type:" Foreground="#94A3B8" FontSize="12"/>
+                                <Border Background="#475569" CornerRadius="4" Padding="8,6">
+                                    <TextBlock Text="{Binding SelectedAction.Type}" 
+                                               Foreground="White" 
+                                               FontWeight="SemiBold"/>
+                                </Border>
+                            </StackPanel>
+                            
+                            <!-- Coordinates (MouseMove, MouseClick, MouseDown, MouseUp) -->
+                            <StackPanel Spacing="4" IsVisible="{Binding ShowCoordinates}">
+                                <TextBlock Text="Coordinates:" Foreground="#94A3B8" FontSize="12"/>
+                                <Grid ColumnDefinitions="*,8,*">
+                                    <TextBox Text="{Binding SelectedAction.X, Converter={StaticResource NullableIntConverter}}" 
+                                             Watermark="X"
+                                             Background="#334155"
+                                             Foreground="White"
+                                             BorderThickness="0"
+                                             CornerRadius="4"
+                                             Padding="8,6"/>
+                                    <TextBox Grid.Column="2" 
+                                             Text="{Binding SelectedAction.Y, Converter={StaticResource NullableIntConverter}}" 
+                                             Watermark="Y"
+                                             Background="#334155"
+                                             Foreground="White"
+                                             BorderThickness="0"
+                                             CornerRadius="4"
+                                             Padding="8,6"/>
+                                </Grid>
+                                <Button Command="{Binding CaptureMouseAsync}"
+                                        IsVisible="{Binding !IsCapturing}"
+                                        Background="#3B82F6"
+                                        Foreground="White"
+                                        HorizontalAlignment="Stretch"
+                                        Padding="8,6"
+                                        CornerRadius="4">
+                                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                        <TextBlock Text="📍" FontFamily="{StaticResource EmojiFont}"/>
+                                        <TextBlock Text="Capture Position"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Command="{Binding CancelCapture}"
+                                        IsVisible="{Binding IsCapturing}"
+                                        Background="#EF4444"
+                                        Foreground="White"
+                                        HorizontalAlignment="Stretch"
+                                        Padding="8,6"
+                                        CornerRadius="4">
+                                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                        <TextBlock Text="❌" FontFamily="{StaticResource EmojiFont}"/>
+                                        <TextBlock Text="Cancel Capture"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                            
+                            <!-- Absolute/Relative Toggle (MouseMove only) -->
+                            <StackPanel Spacing="4" IsVisible="{Binding ShowCoordModeToggle}">
+                                <TextBlock Text="Coordinate Mode:" Foreground="#94A3B8" FontSize="12"/>
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <RadioButton GroupName="CoordMode" 
+                                                 IsChecked="{Binding SelectedAction.IsAbsolute}" 
+                                                 Foreground="White">
+                                        <TextBlock Text="Absolute" FontSize="12"/>
+                                    </RadioButton>
+                                    <RadioButton GroupName="CoordMode" 
+                                                 IsChecked="{Binding !SelectedAction.IsAbsolute}" 
+                                                 Foreground="White">
+                                        <TextBlock Text="Relative" FontSize="12"/>
+                                    </RadioButton>
+                                </StackPanel>
+                            </StackPanel>
+                            
+                            <!-- Mouse Button (MouseClick, MouseDown, MouseUp) -->
+                            <StackPanel Spacing="4" IsVisible="{Binding ShowMouseButton}">
+                                <TextBlock Text="Mouse Button:" Foreground="#94A3B8" FontSize="12"/>
+                                <ComboBox ItemsSource="{Binding MouseButtons}" 
+                                          SelectedItem="{Binding SelectedAction.Button}"
+                                          Background="#334155"
+                                          Foreground="White"
+                                          HorizontalAlignment="Stretch"/>
+                            </StackPanel>
+                            
+                            <!-- Key Code (KeyPress, KeyDown, KeyUp) -->
+                            <StackPanel Spacing="4" IsVisible="{Binding ShowKeyCode}">
+                                <TextBlock Text="Key:" Foreground="#94A3B8" FontSize="12"/>
+                                <Grid ColumnDefinitions="80,8,*">
+                                    <TextBox Text="{Binding SelectedAction.KeyCode, Converter={StaticResource NullableIntConverter}}" 
+                                             Watermark="Code"
+                                             Background="#334155"
+                                             Foreground="White"
+                                             BorderThickness="0"
+                                             CornerRadius="4"
+                                             Padding="8,6"
+                                             MaxLength="3"/>
+                                    <Border Grid.Column="2" 
+                                            Background="#475569" 
+                                            CornerRadius="4" 
+                                            Padding="12,6">
+                                        <TextBlock Text="{Binding SelectedAction.KeyName, FallbackValue='(enter code)'}" 
+                                                   Foreground="White" 
+                                                   FontWeight="SemiBold"
+                                                   HorizontalAlignment="Center"/>
+                                    </Border>
+                                </Grid>
+                                <Button Command="{Binding CaptureKeyAsync}"
+                                        IsVisible="{Binding !IsCapturing}"
+                                        Background="#3B82F6"
+                                        Foreground="White"
+                                        HorizontalAlignment="Stretch"
+                                        Padding="8,6"
+                                        CornerRadius="4">
+                                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                        <TextBlock Text="⌨️" FontFamily="{StaticResource EmojiFont}"/>
+                                        <TextBlock Text="Capture Key"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                            
+                            <!-- Delay (Delay action only) -->
+                            <StackPanel Spacing="4" IsVisible="{Binding ShowDelay}">
+                                <TextBlock Text="Delay (ms):" Foreground="#94A3B8" FontSize="12"/>
+                                <TextBox Text="{Binding SelectedAction.DelayMs, Converter={StaticResource NullableIntConverter}}" 
+                                         Watermark="ms"
+                                         Background="#334155"
+                                         Foreground="White"
+                                         BorderThickness="0"
+                                         CornerRadius="4"
+                                         Padding="8,6"/>
+                            </StackPanel>
+                            
+                            <!-- Scroll Amount (ScrollVertical, ScrollHorizontal) -->
+                            <StackPanel Spacing="4" IsVisible="{Binding ShowScrollAmount}">
+                                <TextBlock Text="Scroll Amount:" Foreground="#94A3B8" FontSize="12"/>
+                                <TextBox Text="{Binding SelectedAction.ScrollAmount, Converter={StaticResource NullableIntConverter}}" 
+                                         Watermark="Amount"
+                                         Background="#334155"
+                                         Foreground="White"
+                                         BorderThickness="0"
+                                         CornerRadius="4"
+                                         Padding="8,6"/>
+                                <TextBlock Text="(+) up/right, (-) down/left" Foreground="#64748B" FontSize="11"/>
+                            </StackPanel>
+                        </StackPanel>
+                        
+                        <!-- No Selection Message -->
+                        <TextBlock Text="Select an action to edit its properties"
+                                   IsVisible="{Binding !HasSelectedAction}"
+                                   Foreground="#64748B"
+                                   FontStyle="Italic"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,20"/>
+                        
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+        
+        <!-- Footer: Status + Actions -->
+        <Border Grid.Row="2" Margin="0,16,0,0">
+            <Grid ColumnDefinitions="*,Auto">
+                <!-- Undo/Redo + Clear -->
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Command="{Binding Undo}"
+                            IsEnabled="{Binding CanUndo}"
+                            ToolTip.Tip="Undo"
+                            Background="#334155"
+                            Foreground="White"
+                            Padding="12,8"
+                            CornerRadius="4">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="↩"/>
+                            <TextBlock Text="Undo"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding Redo}"
+                            IsEnabled="{Binding CanRedo}"
+                            ToolTip.Tip="Redo"
+                            Background="#334155"
+                            Foreground="White"
+                            Padding="12,8"
+                            CornerRadius="4">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="↪"/>
+                            <TextBlock Text="Redo"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding ClearAll}"
+                            IsEnabled="{Binding HasActions}"
+                            ToolTip.Tip="Clear All"
+                            Background="#334155"
+                            Foreground="White"
+                            Padding="12,8"
+                            CornerRadius="4">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="🗑️" FontFamily="{StaticResource EmojiFont}"/>
+                            <TextBlock Text="Clear"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+                
+                <!-- Save/Load -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button Command="{Binding LoadMacroAsync}"
+                            Background="#334155"
+                            Foreground="White"
+                            Padding="12,8"
+                            CornerRadius="4">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="📂" FontFamily="{StaticResource EmojiFont}"/>
+                            <TextBlock Text="Load"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding SaveMacroAsync}"
+                            IsEnabled="{Binding HasActions}"
+                            Background="#22C55E"
+                            Foreground="White"
+                            Padding="12,8"
+                            CornerRadius="4">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="💾" FontFamily="{StaticResource EmojiFont}"/>
+                            <TextBlock Text="Save"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

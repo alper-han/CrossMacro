@@ -22,6 +22,7 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         new DesignScheduleViewModel(),
         new DesignShortcutViewModel(),
         new DesignSettingsViewModel(),
+        new DesignEditorViewModel(),
         new MockGlobalHotkeyService(),
         new MockMousePositionProvider(),
         new MockEnvironmentInfoProvider(),
@@ -61,7 +62,47 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         }
     }
 
+    private class DesignEditorViewModel : EditorViewModel
+    {
+        public DesignEditorViewModel() : base(
+            new MockEditorActionConverter(),
+            new MockEditorActionValidator(),
+            new MockCoordinateCaptureService(),
+            new MockMacroFileManager(),
+            new MockDialogService(),
+            new MockKeyCodeMapper())
+        {
+        }
+    }
 
+    private class MockKeyCodeMapper : IKeyCodeMapper
+    {
+        public string GetKeyName(int keyCode) => $"Key{keyCode}";
+        public int GetKeyCode(string keyName) => 0;
+        public bool IsModifierKeyCode(int code) => false;
+    }
+
+    private class MockEditorActionConverter : IEditorActionConverter
+    {
+        public List<MacroEvent> ToMacroEvents(EditorAction action) => new();
+        public EditorAction FromMacroEvent(MacroEvent ev, MacroEvent? nextEvent = null) => new() { Type = EditorActionType.Delay };
+        public MacroSequence ToMacroSequence(IEnumerable<EditorAction> actions, string name, bool isAbsolute, bool skipInitialZeroZero = false) => new() { Name = name };
+        public List<EditorAction> FromMacroSequence(MacroSequence sequence) => new();
+    }
+
+    private class MockEditorActionValidator : IEditorActionValidator
+    {
+        public (bool IsValid, string? Error) Validate(EditorAction action) => (true, null);
+        public (bool IsValid, List<string> Errors) ValidateAll(IEnumerable<EditorAction> actions) => (true, new List<string>());
+    }
+
+    private class MockCoordinateCaptureService : ICoordinateCaptureService
+    {
+        public bool IsCapturing => false;
+        public Task<(int X, int Y)?> CaptureMousePositionAsync(CancellationToken ct = default) => Task.FromResult<(int, int)?>(null);
+        public Task<int?> CaptureKeyCodeAsync(CancellationToken ct = default) => Task.FromResult<int?>(null);
+        public void CancelCapture() { }
+    }
 
     private class MockDialogService : IDialogService
     {

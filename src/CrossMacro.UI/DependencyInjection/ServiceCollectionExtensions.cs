@@ -151,6 +151,16 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ITextExpansionService, TextExpansionService>();
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton<IUpdateService, GitHubUpdateService>();
+        
+        // Editor services
+        services.AddSingleton<IEditorActionConverter, EditorActionConverter>();
+        services.AddSingleton<IEditorActionValidator, EditorActionValidator>();
+        services.AddSingleton<ICoordinateCaptureService>(sp =>
+        {
+            var positionProvider = sp.GetRequiredService<IMousePositionProvider>();
+            var captureFactory = sp.GetService<Func<IInputCapture>>();
+            return new CoordinateCaptureService(positionProvider, captureFactory);
+        });
 
         return services;
     }
@@ -167,6 +177,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ScheduleViewModel>();
         services.AddSingleton<ShortcutViewModel>();
         services.AddSingleton<SettingsViewModel>();
+        services.AddSingleton<EditorViewModel>();
         services.AddSingleton<MainWindowViewModel>();
         
         return services;

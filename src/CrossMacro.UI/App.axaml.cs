@@ -43,6 +43,22 @@ public partial class App : Application
             {
                 throw new InvalidOperationException("Service provider is not initialized");
             }
+
+            // Check if current display session is supported (Wayland guard for Flatpak)
+            var displaySessionService = _serviceProvider.GetRequiredService<IDisplaySessionService>();
+            if (!displaySessionService.IsSessionSupported(out var reason))
+            {
+                // Show error dialog as the main window. 
+                // When user closes this dialog, the application will exit (ShutdownMode.OnMainWindowClose)
+                desktop.MainWindow = new CrossMacro.UI.Views.Dialogs.ConfirmationDialog(
+                    "Unsupported Session", 
+                    reason, 
+                    "Exit", 
+                    null);
+                
+                // Prevent further initialization
+                return;
+            }
             
             var settingsService = _serviceProvider.GetRequiredService<ISettingsService>();
             settingsService.Load();

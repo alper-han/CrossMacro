@@ -28,5 +28,6 @@ public class WindowsServiceRegistrar : IPlatformServiceRegistrar
         services.AddTransient<Func<IInputCapture>>(sp => () => new WindowsInputCapture());
         
         services.AddSingleton<ICoordinateStrategyFactory, WindowsCoordinateStrategyFactory>();
+        services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
     }
 }

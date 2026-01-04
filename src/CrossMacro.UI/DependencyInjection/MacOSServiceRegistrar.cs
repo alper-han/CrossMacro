@@ -30,5 +30,6 @@ public class MacOSServiceRegistrar : IPlatformServiceRegistrar
         services.AddTransient<Func<IInputCapture>>(sp => () => new MacOSInputCapture());
         
         services.AddSingleton<ICoordinateStrategyFactory, MacOSCoordinateStrategyFactory>();
+        services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
     }
 }

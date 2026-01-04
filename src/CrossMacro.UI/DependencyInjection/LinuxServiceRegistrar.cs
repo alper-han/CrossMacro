@@ -69,6 +69,9 @@ public class LinuxServiceRegistrar : IPlatformServiceRegistrar
 
         // Register permission checker
         services.AddSingleton<IPermissionChecker, LinuxPermissionChecker>();
+        
+        // Register display session service (Wayland guard for Flatpak)
+        services.AddSingleton<IDisplaySessionService, LinuxDisplaySessionService>();
     }
 
     private static void RegisterLegacyImplementations(IServiceCollection services)

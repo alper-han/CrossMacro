@@ -74,6 +74,14 @@ public class AppSettings
     /// Whether to check for updates on startup
     /// </summary>
     public bool CheckForUpdates { get; set; } = false;
+    
+    // Logging Settings
+    
+    /// <summary>
+    /// Minimum log level for the application.
+    /// Valid values: Debug, Information, Warning, Error
+    /// </summary>
+    public string LogLevel { get; set; } = "Information";
 
 }
 

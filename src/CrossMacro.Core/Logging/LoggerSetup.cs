@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using Serilog;
+using Serilog.Core;
+using Serilog.Events;
 
 namespace CrossMacro.Core.Logging;
 
@@ -9,23 +11,67 @@ namespace CrossMacro.Core.Logging;
 /// </summary>
 public static class LoggerSetup
 {
+    private static LoggingLevelSwitch? _levelSwitch;
+    
+    /// <summary>
+    /// Gets the logging level switch for runtime level changes
+    /// </summary>
+    public static LoggingLevelSwitch? LevelSwitch => _levelSwitch;
+    
     /// <summary>
     /// Initialize Serilog with cross-platform log directory support
     /// </summary>
-    public static void Initialize()
+    /// <param name="logLevel">Initial log level (Debug, Information, Warning, Error)</param>
+    public static void Initialize(string logLevel = "Information")
     {
         var logDir = GetLogDirectory();
         Directory.CreateDirectory(logDir);
         
         var logPath = Path.Combine(logDir, "log-.txt");
         
+        _levelSwitch = new LoggingLevelSwitch(ParseLogLevel(logLevel));
+        
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
+            .MinimumLevel.ControlledBy(_levelSwitch)
             .WriteTo.Console()
             .WriteTo.Async(a => a.File(logPath, rollingInterval: RollingInterval.Day))
             .CreateLogger();
         
-        Log.Information("Logger initialized. Log directory: {LogDirectory}", logDir);
+        Log.Information("Logger initialized. Log directory: {LogDirectory}, Level: {Level}", logDir, logLevel);
+    }
+    
+    /// <summary>
+    /// Change log level at runtime
+    /// </summary>
+    /// <param name="logLevel">New log level (Debug, Information, Warning, Error)</param>
+    public static void SetLogLevel(string logLevel)
+    {
+        if (_levelSwitch == null)
+            return;
+            
+        var newLevel = ParseLogLevel(logLevel);
+        if (_levelSwitch.MinimumLevel != newLevel)
+        {
+            _levelSwitch.MinimumLevel = newLevel;
+            Log.Information("Log level changed to {Level}", logLevel);
+        }
+    }
+    
+    /// <summary>
+    /// Parse string to LogEventLevel with fallback to Information
+    /// </summary>
+    private static LogEventLevel ParseLogLevel(string level)
+    {
+        return level?.ToLowerInvariant() switch
+        {
+            "verbose" => LogEventLevel.Verbose,
+            "debug" => LogEventLevel.Debug,
+            "information" => LogEventLevel.Information,
+            "warning" => LogEventLevel.Warning,
+            "error" => LogEventLevel.Error,
+            "fatal" => LogEventLevel.Fatal,
+            _ => LogEventLevel.Information
+        };
     }
     
     /// <summary>

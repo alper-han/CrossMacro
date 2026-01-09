@@ -2,6 +2,7 @@
 using System;
 using Serilog;
 using CrossMacro.Core.Logging;
+using CrossMacro.Infrastructure.Services;
 
 namespace CrossMacro.UI;
 
@@ -13,8 +14,11 @@ sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        // Initialize logger (configured in Core layer)
-        LoggerSetup.Initialize();
+        // Load log level from settings before logger initialization
+        var logLevel = SettingsService.TryLoadLogLevelEarly();
+        
+        // Initialize logger with user's preferred level
+        LoggerSetup.Initialize(logLevel);
 
         try
         {

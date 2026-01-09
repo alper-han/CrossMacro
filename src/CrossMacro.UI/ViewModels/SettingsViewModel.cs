@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
@@ -20,6 +22,7 @@ public class SettingsViewModel : ViewModelBase
     private string _playbackHotkey;
     private string _pauseHotkey;
     private bool _enableTrayIcon;
+    private string _selectedLogLevel;
     
     /// <summary>
     /// Event fired when tray icon setting changes
@@ -44,6 +47,9 @@ public class SettingsViewModel : ViewModelBase
         
         // Initialize tray icon setting
         _enableTrayIcon = _settingsService.Current.EnableTrayIcon;
+        
+        // Initialize log level setting
+        _selectedLogLevel = _settingsService.Current.LogLevel;
         
         // Hide update settings if running as Flatpak
         IsUpdateSettingsVisible = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FLATPAK_ID"));
@@ -158,6 +164,40 @@ public class SettingsViewModel : ViewModelBase
             }
         }
     }
+    
+    /// <summary>
+    /// Selected log level for the application
+    /// </summary>
+    public string SelectedLogLevel
+    {
+        get => _selectedLogLevel;
+        set
+        {
+            if (_selectedLogLevel != value)
+            {
+                _selectedLogLevel = value;
+                _settingsService.Current.LogLevel = value;
+                OnPropertyChanged();
+                
+                // Apply log level change immediately at runtime
+                LoggerSetup.SetLogLevel(value);
+                
+                // Save settings asynchronously
+                _ = _settingsService.SaveAsync();
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Available log levels for the ComboBox
+    /// </summary>
+    public IEnumerable<string> LogLevels { get; } = new[]
+    {
+        "Debug",
+        "Information",
+        "Warning",
+        "Error"
+    };
     
     private void UpdateHotkeys()
     {

@@ -90,6 +90,24 @@
                                          OffContent=""
                                          VerticalAlignment="Center"/>
                         </Grid>
+                        
+                        <!-- Log Level -->
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="2">
+                                <TextBlock Text="Log Level" 
+                                          FontWeight="Medium" 
+                                          Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+                                <TextBlock Text="Controls amount of diagnostic information logged" 
+                                          FontSize="12"
+                                          Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                            </StackPanel>
+                            
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding LogLevels}"
+                                      SelectedItem="{Binding SelectedLogLevel}"
+                                      MinWidth="130"
+                                      VerticalAlignment="Center"/>
+                        </Grid>
                     </StackPanel>
                 </Border>
 

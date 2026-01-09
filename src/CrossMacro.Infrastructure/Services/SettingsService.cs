@@ -42,6 +42,32 @@ public class SettingsService : ISettingsService
         
         _currentSettings = new AppSettings();
     }
+    
+    /// <summary>
+    /// Try to read log level from settings file before logger is initialized.
+    /// This is a static method that doesn't use logging to avoid chicken-and-egg problem.
+    /// </summary>
+    /// <returns>Log level string or default "Information"</returns>
+    public static string TryLoadLogLevelEarly()
+    {
+        try
+        {
+            var settingsPath = Path.Combine(PathHelper.GetConfigDirectory(), ConfigFileNames.Settings);
+            
+            if (!File.Exists(settingsPath))
+                return "Information";
+            
+            var json = File.ReadAllText(settingsPath);
+            var settings = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.AppSettings);
+            
+            return settings?.LogLevel ?? "Information";
+        }
+        catch
+        {
+            // Silently fail and use default - logger isn't initialized yet
+            return "Information";
+        }
+    }
 
     public async Task<AppSettings> LoadAsync()
     {

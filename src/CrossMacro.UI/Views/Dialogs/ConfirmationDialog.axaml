@@ -9,25 +9,25 @@
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         SystemDecorations="BorderOnly"
-        Background="#0F172A"
+        Background="{DynamicResource BackgroundColor}"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1">
 
-    <Border BorderBrush="#334155" BorderThickness="1">
+    <Border BorderBrush="{DynamicResource SurfaceHoverColor}" BorderThickness="1">
         <StackPanel Spacing="20" Margin="24">
             <!-- Header -->
             <TextBlock Name="TitleText"
                        Text="Confirm Action"
                        FontSize="18"
                        FontWeight="Bold"
-                       Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+                       Foreground="{DynamicResource TextPrimaryBrush}"/>
 
             <!-- Message -->
             <TextBlock Name="MessageText"
                        Text="Are you sure you want to maintain this?"
                        TextWrapping="Wrap"
-                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                       Foreground="{DynamicResource TextSecondaryBrush}"/>
 
             <!-- Buttons -->
             <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" Margin="0,12,0,0">
@@ -35,22 +35,22 @@
                         Content="No"
                         Click="NoButton_Click"
                         Background="Transparent"
-                        BorderBrush="#334155"
+                        BorderBrush="{DynamicResource SurfaceHoverBrush}"
                         BorderThickness="1"
                         CornerRadius="4"
-                        Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                        Foreground="{DynamicResource TextPrimaryBrush}"
                         Padding="16,8"/>
                 
                 <Button Name="YesButton"
                         Content="Yes"
                         Click="YesButton_Click"
-                        Background="#EF4444" 
-                        Foreground="White"
+                        Background="{DynamicResource DangerBrush}" 
+                        Foreground="{DynamicResource TextOnColorBrush}"
                         CornerRadius="4"
                         Padding="16,8">
                     <Button.Styles>
                         <Style Selector="Button:pointerover /template/ ContentPresenter">
-                            <Setter Property="Background" Value="#DC2626"/>
+                            <Setter Property="Background" Value="{DynamicResource DangerHoverBrush}"/>
                         </Style>
                     </Button.Styles>
                 </Button>

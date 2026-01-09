@@ -1,54 +1,15 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     
-    <!-- Color Palette - Modern Dark Theme -->
-    <Style>
-        <Style.Resources>
-            <!-- Primary Colors -->
-            <Color x:Key="PrimaryColor">#6366F1</Color>
-            <Color x:Key="PrimaryHoverColor">#818CF8</Color>
-            <Color x:Key="PrimaryPressedColor">#4F46E5</Color>
-            
-            <!-- Success/Recording -->
-            <Color x:Key="SuccessColor">#10B981</Color>
-            <Color x:Key="SuccessHoverColor">#34D399</Color>
-            
-            <!-- Danger/Stop -->
-            <Color x:Key="DangerColor">#EF4444</Color>
-            <Color x:Key="DangerHoverColor">#F87171</Color>
-            
-            <!-- Background -->
-            <Color x:Key="BackgroundColor">#0F172A</Color>
-            <Color x:Key="SurfaceColor">#1E293B</Color>
-            <Color x:Key="SurfaceHoverColor">#334155</Color>
-            
-            <!-- Text -->
-            <Color x:Key="TextPrimaryColor">#F1F5F9</Color>
-            <Color x:Key="TextSecondaryColor">#94A3B8</Color>
-            
-            <!-- Accent -->
-            <Color x:Key="AccentColor">#8B5CF6</Color>
-            
-            <!-- Convert to Brushes -->
-            <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PrimaryColor}"/>
-            <SolidColorBrush x:Key="PrimaryHoverBrush" Color="{StaticResource PrimaryHoverColor}"/>
-            <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}"/>
-            <SolidColorBrush x:Key="SuccessHoverBrush" Color="{StaticResource SuccessHoverColor}"/>
-            <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}"/>
-            <SolidColorBrush x:Key="DangerHoverBrush" Color="{StaticResource DangerHoverColor}"/>
-            <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}"/>
-            <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
-            <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverColor}"/>
-            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}"/>
-            <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}"/>
-            <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
-        </Style.Resources>
+    <!-- Global TextBlock Style - Ensures all text uses theme colors -->
+    <Style Selector="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
     </Style>
     
     <!-- Modern Button Styles -->
     <Style Selector="Button.primary">
-        <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
-        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextOnColorBrush}"/>
         <Setter Property="Padding" Value="16,10"/>
         <Setter Property="CornerRadius" Value="8"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
@@ -63,7 +24,7 @@
     </Style>
     
     <Style Selector="Button.primary:pointerover">
-        <Setter Property="Background" Value="{StaticResource PrimaryHoverBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource PrimaryHoverBrush}"/>
     </Style>
     
     <Style Selector="Button.primary:pressed">
@@ -71,8 +32,8 @@
     </Style>
     
     <Style Selector="Button.success">
-        <Setter Property="Background" Value="{StaticResource SuccessBrush}"/>
-        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextOnColorBrush}"/>
         <Setter Property="Padding" Value="20,12"/>
         <Setter Property="CornerRadius" Value="10"/>
         <Setter Property="FontWeight" Value="Bold"/>
@@ -88,11 +49,11 @@
     </Style>
     
     <Style Selector="Button.success:pointerover">
-        <Setter Property="Background" Value="{StaticResource SuccessHoverBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource PrimaryHoverBrush}"/>
     </Style>
     
     <Style Selector="Button.success:pointerover /template/ ContentPresenter">
-        <Setter Property="Background" Value="{StaticResource SuccessHoverBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource PrimaryHoverBrush}"/>
     </Style>
     
     <Style Selector="Button.success:pressed">
@@ -100,8 +61,8 @@
     </Style>
     
     <Style Selector="Button.danger">
-        <Setter Property="Background" Value="{StaticResource DangerBrush}"/>
-        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Background" Value="{DynamicResource DangerBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextOnColorBrush}"/>
         <Setter Property="Padding" Value="20,12"/>
         <Setter Property="CornerRadius" Value="10"/>
         <Setter Property="FontWeight" Value="Bold"/>
@@ -117,11 +78,11 @@
     </Style>
     
     <Style Selector="Button.danger:pointerover">
-        <Setter Property="Background" Value="{StaticResource DangerHoverBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource DangerHoverBrush}"/>
     </Style>
     
     <Style Selector="Button.danger:pointerover /template/ ContentPresenter">
-        <Setter Property="Background" Value="{StaticResource DangerHoverBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource DangerHoverBrush}"/>
     </Style>
     
     <Style Selector="Button.danger:pressed">
@@ -129,8 +90,8 @@
     </Style>
     
     <Style Selector="Button.secondary">
-        <Setter Property="Background" Value="#334155"/>
-        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         <Setter Property="Padding" Value="16,10"/>
         <Setter Property="CornerRadius" Value="8"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
@@ -144,21 +105,16 @@
     </Style>
     
     <Style Selector="Button.secondary:pointerover">
-        <Setter Property="Background" Value="#475569"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
     </Style>
     
     <!-- Glass Panel Style -->
     <Style Selector="Border.glass-panel">
-        <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
         <Setter Property="CornerRadius" Value="16"/>
         <Setter Property="Padding" Value="24"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="BorderBrush">
-            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                <GradientStop Color="#334155" Offset="0"/>
-                <GradientStop Color="#475569" Offset="1"/>
-            </LinearGradientBrush>
-        </Setter>
+        <Setter Property="BorderBrush" Value="{DynamicResource SurfaceHoverBrush}"/>
         <Setter Property="BoxShadow" Value="0 10 30 5 #00000040"/>
     </Style>
     
@@ -166,31 +122,31 @@
     <Style Selector="TextBlock.title">
         <Setter Property="FontSize" Value="24"/>
         <Setter Property="FontWeight" Value="Bold"/>
-        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
     </Style>
     
     <Style Selector="TextBlock.subtitle">
         <Setter Property="FontSize" Value="18"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
     </Style>
     
     <Style Selector="TextBlock.label">
         <Setter Property="FontSize" Value="14"/>
         <Setter Property="FontWeight" Value="Medium"/>
-        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
     </Style>
     
     <Style Selector="TextBlock.value">
         <Setter Property="FontSize" Value="20"/>
         <Setter Property="FontWeight" Value="Bold"/>
-        <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
 
     <!-- NumericUpDown Style -->
     <Style Selector="NumericUpDown">
-        <Setter Property="Background" Value="#334155"/>
-        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="6"/>
@@ -198,13 +154,13 @@
     </Style>
     
     <Style Selector="NumericUpDown:pointerover /template/ Border#PART_BorderElement">
-        <Setter Property="Background" Value="#475569"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
     
     <Style Selector="NumericUpDown:focus /template/ Border#PART_BorderElement">
-        <Setter Property="Background" Value="#475569"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
     
     <Style Selector="NumericUpDown /template/ Border#PART_BorderElement">
@@ -219,24 +175,24 @@
     
     <!-- TextBox Style -->
     <Style Selector="TextBox">
-        <Setter Property="Background" Value="#334155"/>
-        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="6"/>
         <Setter Property="Padding" Value="8"/>
-        <Setter Property="CaretBrush" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
-        <Setter Property="SelectionBrush" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource TextPrimaryBrush}"/>
+        <Setter Property="SelectionBrush" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
     
     <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
-        <Setter Property="Background" Value="#475569"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
     
     <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
-        <Setter Property="Background" Value="#475569"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
     
     <Style Selector="TextBox /template/ Border#PART_BorderElement">
@@ -251,21 +207,44 @@
     
     <!-- CheckBox Style -->
     <Style Selector="CheckBox">
-        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+    </Style>
+    
+    <Style Selector="CheckBox /template/ ContentPresenter#ContentPresenter">
+        <Setter Property="TextBlock.Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
     </Style>
     
     <!-- CheckBox Hover - Subtle Effect -->
     <Style Selector="CheckBox:pointerover /template/ Border#NormalRectangle">
-        <Setter Property="Opacity" Value="0.8"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+    </Style>
+
+    <Style Selector="CheckBox:checked /template/ Border#NormalRectangle">
+        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+    </Style>
+
+    <Style Selector="CheckBox:checked /template/ Path#CheckGlyph">
+        <Setter Property="Fill" Value="{DynamicResource TextOnColorBrush}"/>
     </Style>
     
-    <!-- ToggleSwitch Hover - Subtle Effect -->
-    <Style Selector="ToggleSwitch:pointerover /template/ Border#SwitchKnobBounds">
-        <Setter Property="Opacity" Value="0.9"/>
+    <!-- ToggleSwitch - Custom Colors -->
+    <Style Selector="ToggleSwitch:checked /template/ Border#SwitchKnobBounds">
+        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+    </Style>
+
+    <Style Selector="ToggleSwitch:checked /template/ Border#SwitchKnob">
+        <Setter Property="Background" Value="{DynamicResource TextOnColorBrush}"/>
     </Style>
     
-    <Style Selector="ToggleSwitch:pointerover /template/ Border#OuterBorder">
-        <Setter Property="Opacity" Value="0.9"/>
+    <Style Selector="ToggleSwitch /template/ Border#SwitchKnobBounds">
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SurfaceHoverBrush}"/>
+    </Style>
+
+    <Style Selector="ToggleSwitch /template/ Border#SwitchKnob">
+        <Setter Property="Background" Value="{DynamicResource TextSecondaryBrush}"/>
     </Style>
     
     <!-- Custom ScrollBar Style - ALWAYS use SystemAccentColor -->
@@ -283,7 +262,7 @@
     
     <!-- BASE Thumb Style - Always Accent Color -->
     <Style Selector="ScrollBar /template/ Thumb">
-        <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
         <Setter Property="CornerRadius" Value="6"/>
         <Setter Property="Opacity" Value="0.6"/>
         <Setter Property="Template">
@@ -297,34 +276,34 @@
     
     <!-- Hover: Full Opacity -->
     <Style Selector="ScrollBar:pointerover /template/ Thumb">
-        <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
         <Setter Property="Opacity" Value="1"/>
     </Style>
     
     <Style Selector="ScrollBar /template/ Thumb:pointerover">
-        <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
         <Setter Property="Opacity" Value="1"/>
     </Style>
     
     <!-- Pressed: Full Opacity -->
     <Style Selector="ScrollBar:pressed /template/ Thumb">
-        <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
         <Setter Property="Opacity" Value="1"/>
     </Style>
     
     <!-- Border inside Thumb - pointerover -->
     <Style Selector="ScrollBar /template/ Thumb /template/ Border:pointerover">
-        <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
     
     <Style Selector="ScrollBar:pointerover /template/ Thumb /template/ Border">
-        <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
     
     <!-- ComboBox Style -->
     <Style Selector="ComboBox">
-        <Setter Property="Background" Value="#334155"/>
-        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="6"/>
@@ -332,18 +311,18 @@
     </Style>
     
     <Style Selector="ComboBox:pointerover /template/ Border#Background">
-        <Setter Property="Background" Value="#475569"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
     
     <Style Selector="ComboBox:focus /template/ Border#Background">
-        <Setter Property="Background" Value="#475569"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
     
     <Style Selector="ComboBox:pressed /template/ Border#Background">
-        <Setter Property="Background" Value="#475569"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
     
     <Style Selector="ComboBox /template/ Border#Background">
@@ -357,46 +336,47 @@
     
     <!-- ComboBox Popup Style -->
     <Style Selector="ComboBox /template/ Popup Border">
-        <Setter Property="Background" Value="#1E293B"/>
-        <Setter Property="BorderBrush" Value="#334155"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceColor}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SurfaceHoverColor}"/>
         <Setter Property="CornerRadius" Value="6"/>
     </Style>
     
     <Style Selector="ComboBoxItem">
         <Setter Property="Padding" Value="12,8"/>
-        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceColor}"/>
     </Style>
     
     <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter">
-        <Setter Property="Background" Value="#334155"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
     </Style>
     
     <Style Selector="ComboBoxItem:selected /template/ ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
     
     <!-- TimePicker Style -->
     <Style Selector="TimePicker">
-        <Setter Property="Background" Value="#334155"/>
-        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="6"/>
     </Style>
     
     <Style Selector="TimePicker:pointerover /template/ Border#PART_BorderElement">
-        <Setter Property="Background" Value="#475569"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
     
     <Style Selector="TimePicker:focus /template/ Border#PART_BorderElement">
-        <Setter Property="Background" Value="#475569"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
     
     <Style Selector="TimePicker:pressed /template/ Border#PART_BorderElement">
-        <Setter Property="Background" Value="#475569"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
     
     <Style Selector="TimePicker /template/ Border#PART_BorderElement">
@@ -410,32 +390,32 @@
     
     <!-- TimePicker Flyout/Popup Style -->
     <Style Selector="TimePickerPresenter">
-        <Setter Property="Background" Value="#1E293B"/>
-        <Setter Property="BorderBrush" Value="#334155"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceColor}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SurfaceHoverColor}"/>
     </Style>
     
     <!-- DatePicker Style -->
     <Style Selector="DatePicker">
-        <Setter Property="Background" Value="#334155"/>
-        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="6"/>
     </Style>
     
     <Style Selector="DatePicker:pointerover /template/ Border#PART_BorderElement">
-        <Setter Property="Background" Value="#475569"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
     
     <Style Selector="DatePicker:focus /template/ Border#PART_BorderElement">
-        <Setter Property="Background" Value="#475569"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
     
     <Style Selector="DatePicker:pressed /template/ Border#PART_BorderElement">
-        <Setter Property="Background" Value="#475569"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
     
     <Style Selector="DatePicker /template/ Border#PART_BorderElement">
@@ -449,16 +429,16 @@
     
     <!-- DatePicker Flyout/Calendar Style -->
     <Style Selector="DatePickerPresenter">
-        <Setter Property="Background" Value="#1E293B"/>
-        <Setter Property="BorderBrush" Value="#334155"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceColor}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SurfaceHoverColor}"/>
     </Style>
     
     <Style Selector="CalendarDayButton:pointerover /template/ ContentPresenter">
-        <Setter Property="Background" Value="#334155"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
     </Style>
     
     <Style Selector="CalendarDayButton:selected /template/ ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
 
 </Styles>

@@ -111,9 +111,11 @@ public partial class HotkeyCapture : UserControl
         
         if (border != null)
         {
-            border.Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#475569"));
-            border.BorderBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#64748B"));
-            border.BoxShadow = Avalonia.Media.BoxShadows.Parse("0 0 0 2 #1A94A3B8");
+            if (Application.Current != null && Application.Current.Resources.TryGetResource("SurfaceBrush", null, out var bgBrush))
+                border.Background = bgBrush as Avalonia.Media.IBrush;
+                
+            if (Application.Current != null && Application.Current.Resources.TryGetResource("AccentBrush", null, out var borderBrush))
+                border.BorderBrush = borderBrush as Avalonia.Media.IBrush;
         }
         
         if (icon != null)
@@ -129,8 +131,10 @@ public partial class HotkeyCapture : UserControl
         
         if (border != null)
         {
-            border.Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#334155"));
-            border.BorderBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("Transparent"));
+            if (Application.Current != null && Application.Current.Resources.TryGetResource("SurfaceHoverBrush", null, out var bgBrush))
+                border.Background = bgBrush as Avalonia.Media.IBrush;
+                
+            border.BorderBrush = Avalonia.Media.Brushes.Transparent;
             border.BoxShadow = default;
         }
         
@@ -260,7 +264,9 @@ public partial class HotkeyCapture : UserControl
         
         if (border != null)
         {
-            border.BorderBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#EF4444"));
+            if (Application.Current != null && Application.Current.Resources.TryGetResource("DangerBrush", null, out var borderBrush))
+                border.BorderBrush = borderBrush as Avalonia.Media.IBrush;
+                
             border.BorderThickness = new Thickness(2);
         }
     }
@@ -271,7 +277,7 @@ public partial class HotkeyCapture : UserControl
         
         if (border != null)
         {
-            border.BorderBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("Transparent"));
+            border.BorderBrush = Avalonia.Media.Brushes.Transparent;
             border.BorderThickness = new Thickness(1);
         }
     }

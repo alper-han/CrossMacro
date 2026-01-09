@@ -1,0 +1,52 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Nord Palette -->
+    <!-- Primary Colors (Nord8 - Frost) -->
+    <Color x:Key="PrimaryColor">#88c0d0</Color>
+    <Color x:Key="PrimaryHoverColor">#8fbcbb</Color>
+    <Color x:Key="PrimaryPressedColor">#81a1c1</Color>
+
+    <!-- Success/Recording (Nord14 - Aurora Green) -->
+    <Color x:Key="SuccessColor">#a3be8c</Color>
+    <Color x:Key="SuccessHoverColor">#b1d196</Color>
+
+    <!-- Danger/Stop (Nord11 - Aurora Red) -->
+    <Color x:Key="DangerColor">#bf616a</Color>
+    <Color x:Key="DangerHoverColor">#d06f79</Color>
+
+    <!-- Background (Nord0 - Polar Night) -->
+    <Color x:Key="BackgroundColor">#2e3440</Color>
+    <Color x:Key="SurfaceColor">#3b4252</Color> <!-- Nord1 -->
+    <Color x:Key="SurfaceHoverColor">#434c5e</Color> <!-- Nord2 -->
+
+    <!-- Text (Nord6 - Snow Storm) -->
+    <Color x:Key="TextPrimaryColor">#eceff4</Color>
+    <Color x:Key="TextSecondaryColor">#d8dee9</Color> <!-- Nord4 -->
+
+    <!-- Warning (Nord12 - Aurora Orange) -->
+    <Color x:Key="WarningColor">#d08770</Color>
+    <Color x:Key="WarningHoverColor">#ebcb8b</Color> <!-- Nord13 Yellow -->
+
+    <!-- Accent (Nord9 - Frost) -->
+    <Color x:Key="AccentColor">#81a1c1</Color>
+
+    <!-- Text on colored backgrounds (buttons, toggles, badges) -->
+    <Color x:Key="TextOnColorColor">#2e3440</Color>
+
+    <!-- Brushes -->
+    <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PrimaryColor}"/>
+    <SolidColorBrush x:Key="PrimaryHoverBrush" Color="{StaticResource PrimaryHoverColor}"/>
+    <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}"/>
+    <SolidColorBrush x:Key="SuccessHoverBrush" Color="{StaticResource SuccessHoverColor}"/>
+    <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}"/>
+    <SolidColorBrush x:Key="DangerHoverBrush" Color="{StaticResource DangerHoverColor}"/>
+    <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}"/>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
+    <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverColor}"/>
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}"/>
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}"/>
+    <SolidColorBrush x:Key="WarningHoverBrush" Color="{StaticResource WarningHoverColor}"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
+    <SolidColorBrush x:Key="TextOnColorBrush" Color="{StaticResource TextOnColorColor}"/>
+</ResourceDictionary>

@@ -11,29 +11,29 @@
         <StackPanel Spacing="16" Margin="0,0,0,50">
             
             <!-- Task List Section -->
-            <Border Background="#1E293B" CornerRadius="12" Padding="16"
+            <Border Background="{DynamicResource SurfaceColor}" CornerRadius="12" Padding="16"
                     x:Name="TaskListBorder">
                 <StackPanel Spacing="12">
                     <Grid ColumnDefinitions="*,Auto,Auto">
                         <TextBlock Grid.Column="0"
                                   Text="SCHEDULED TASKS" 
                                   FontWeight="SemiBold" 
-                                  Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" 
+                                  Foreground="{DynamicResource TextSecondaryBrush}" 
                                   FontSize="12"
                                   VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1"
                                   Text="{Binding Tasks.Count, StringFormat='{}{0} items'}"
                                   VerticalAlignment="Center"
-                                  Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                  Foreground="{DynamicResource TextSecondaryBrush}"
                                   FontSize="12"
                                   Margin="0,0,12,0"/>
                         <Button Grid.Column="2" 
                                Command="{Binding AddTaskCommand}"
-                               Background="#334155"
+                               Background="{DynamicResource SurfaceHoverBrush}"
                                CornerRadius="6"
                                Padding="8,4"
                                Cursor="Hand">
-                            <TextBlock Text="+" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource SystemAccentColor}"/>
+                            <TextBlock Text="+" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrush}"/>
                         </Button>
                     </Grid>
                     
@@ -43,10 +43,10 @@
                                 <Border Padding="10,8" 
                                         CornerRadius="8" 
                                         Margin="0,2"
-                                        Background="#0F172A">
+                                        Background="{DynamicResource BackgroundBrush}">
                                     <Border.Styles>
                                         <Style Selector="Border:pointerover">
-                                            <Setter Property="Background" Value="#1A2744"/>
+                                            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
                                         </Style>
                                     </Border.Styles>
                                     <Grid ColumnDefinitions="*,Auto,Auto,Auto">
@@ -70,7 +70,7 @@
                                                           FontSize="13"
                                                           TextTrimming="CharacterEllipsis"/>
                                                 <TextBlock FontSize="11" 
-                                                          Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                          Foreground="{DynamicResource TextSecondaryBrush}"
                                                           TextTrimming="CharacterEllipsis">
                                                     <TextBlock.Text>
                                                         <MultiBinding StringFormat="{}{0} • {1}">
@@ -101,7 +101,7 @@
                                             <TextBlock Text="✏️" FontSize="12" FontFamily="{StaticResource EmojiFont}"/>
                                             <Button.Styles>
                                                 <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                    <Setter Property="Background" Value="#334155"/>
+                                                    <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
                                                 </Style>
                                             </Button.Styles>
                                         </Button>
@@ -114,13 +114,13 @@
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
                                                 ToolTip.Tip="Delete task">
-                                            <TextBlock Text="🗑" FontSize="12" FontFamily="{StaticResource EmojiFont}" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                            <TextBlock Text="🗑" FontSize="12" FontFamily="{StaticResource EmojiFont}" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                             <Button.Styles>
                                                 <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                    <Setter Property="Background" Value="#334155"/>
+                                                    <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
                                                 </Style>
                                                 <Style Selector="Button:pointerover TextBlock">
-                                                    <Setter Property="Foreground" Value="#EF4444"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
                                                 </Style>
                                             </Button.Styles>
                                         </Button>
@@ -133,14 +133,14 @@
             </Border>
             
             <!-- Task Settings Section (visible when task selected) -->
-            <Border Background="#1E293B" 
+            <Border Background="{DynamicResource SurfaceColor}" 
                     CornerRadius="12" 
                     Padding="16"
                     IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Spacing="16">
                     <TextBlock Text="TASK SETTINGS" 
                               FontWeight="SemiBold" 
-                              Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" 
+                              Foreground="{DynamicResource TextSecondaryBrush}" 
                               FontSize="12"/>
                     
                     <!-- Task Name -->
@@ -158,7 +158,7 @@
                                       Text="{Binding SelectedTask.PlaybackSpeed, StringFormat='{}{0:0.0}x', FallbackValue='1.0x'}" 
                                       FontWeight="Medium"
                                       FontSize="16"
-                                      Foreground="{DynamicResource SystemAccentColor}"/>
+                                      Foreground="{DynamicResource PrimaryBrush}"/>
                         </Grid>
                         <Slider Value="{Binding SelectedTask.PlaybackSpeed, Mode=TwoWay, FallbackValue=1.0}"
                                Minimum="0.1" 
@@ -172,7 +172,7 @@
                         <TextBlock Text="Macro File" FontSize="12" Opacity="0.7"/>
                         <Grid ColumnDefinitions="*,Auto">
                             <Border Grid.Column="0" 
-                                   Background="#0F172A" 
+                                   Background="{DynamicResource BackgroundBrush}" 
                                    CornerRadius="6" 
                                    Padding="12,8"
                                    Margin="0,0,8,0">
@@ -215,7 +215,7 @@
             </Border>
             
             <!-- Interval Settings -->
-            <Border Background="#1E293B" 
+            <Border Background="{DynamicResource SurfaceColor}" 
                    CornerRadius="12" 
                    Padding="16">
                 <Border.IsVisible>
@@ -227,7 +227,7 @@
                 <StackPanel Spacing="12">
                     <TextBlock Text="INTERVAL SETTINGS" 
                               FontWeight="SemiBold" 
-                              Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                              Foreground="{DynamicResource TextSecondaryBrush}"
                               FontSize="12"/>
                     <TextBlock Text="Run macro every:" FontSize="12" Opacity="0.7"/>
                     <StackPanel Orientation="Horizontal" Spacing="12">
@@ -245,7 +245,7 @@
             </Border>
             
             <!-- DateTime Settings -->
-            <Border Background="#1E293B" 
+            <Border Background="{DynamicResource SurfaceColor}" 
                    CornerRadius="12" 
                    Padding="16">
                 <Border.IsVisible>
@@ -257,7 +257,7 @@
                 <StackPanel Spacing="12">
                     <TextBlock Text="DATE/TIME SETTINGS" 
                               FontWeight="SemiBold" 
-                              Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                              Foreground="{DynamicResource TextSecondaryBrush}"
                               FontSize="12"/>
                     <TextBlock Text="Run macro at:" FontSize="12" Opacity="0.7"/>
                     <StackPanel Orientation="Vertical" Spacing="12" HorizontalAlignment="Left">
@@ -275,14 +275,14 @@
             </Border>
             
             <!-- Status Section -->
-            <Border Background="#1E293B" 
+            <Border Background="{DynamicResource SurfaceColor}" 
                    CornerRadius="12" 
                    Padding="16"
                    IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Spacing="8">
                     <TextBlock Text="STATUS" 
                               FontWeight="SemiBold" 
-                              Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                              Foreground="{DynamicResource TextSecondaryBrush}"
                               FontSize="12"/>
                     <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Last Run:" FontSize="12" Opacity="0.7"/>
@@ -315,7 +315,7 @@
             </Button>
             
             <!-- Empty State -->
-            <Border Background="#1E293B" 
+            <Border Background="{DynamicResource SurfaceColor}" 
                     CornerRadius="12" 
                     Padding="32"
                     IsVisible="{Binding !HasSelectedTask}">

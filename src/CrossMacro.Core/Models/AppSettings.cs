@@ -81,7 +81,15 @@ public class AppSettings
     /// Minimum log level for the application.
     /// Valid values: Debug, Information, Warning, Error
     /// </summary>
+    /// <summary>
+    /// Minimum log level for the application.
+    /// Valid values: Debug, Information, Warning, Error
+    /// </summary>
     public string LogLevel { get; set; } = "Information";
 
+    /// <summary>
+    /// Current UI Theme (Classic, Latte, Mocha, Dracula, Nord)
+    /// </summary>
+    public string Theme { get; set; } = "Classic";
 }
 

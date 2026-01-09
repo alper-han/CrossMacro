@@ -3,9 +3,8 @@
              x:Class="CrossMacro.UI.App"
              xmlns:local="using:CrossMacro.UI"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
-             xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
-             RequestedThemeVariant="Dark">
-
+             xmlns:tabs="using:CrossMacro.UI.Views.Tabs">
+    
     <Application.DataTemplates>
         <DataTemplate DataType="{x:Type vm:RecordingViewModel}">
             <tabs:RecordingTabView/>
@@ -17,7 +16,7 @@
             <tabs:FilesTabView/>
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:TextExpansionViewModel}">
-             <tabs:TextExpansionTabView/>
+            <tabs:TextExpansionTabView/>
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
             <tabs:SettingsTabView/>
@@ -26,7 +25,13 @@
     </Application.DataTemplates>
   
     <Application.Resources>
-        <FontFamily x:Key="EmojiFont">avares://CrossMacro.UI/Assets/Fonts/NotoColorEmoji.ttf#Noto Color Emoji</FontFamily>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="/Themes/Classic.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <FontFamily x:Key="StandardFont">Inter, Segoe UI, DejaVu Sans, Noto Sans, Liberation Sans, sans-serif</FontFamily>
+            <FontFamily x:Key="EmojiFont">avares://CrossMacro.UI/Assets/Fonts/NotoColorEmoji.ttf#Noto Color Emoji</FontFamily>
+        </ResourceDictionary>
     </Application.Resources>
   
     <Application.Styles>

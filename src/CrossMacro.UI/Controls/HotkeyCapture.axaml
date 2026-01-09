@@ -8,7 +8,7 @@
              Focusable="True">
     
     <Border x:Name="HotkeyBorder"
-            Background="#334155"
+            Background="{DynamicResource SurfaceHoverBrush}"
             BorderBrush="Transparent"
             BorderThickness="1"
             CornerRadius="6" 
@@ -18,8 +18,8 @@
         <Border.Styles>
             <!-- Hover Effect on Border -->
             <Style Selector="Border:pointerover">
-                <Setter Property="Background" Value="#475569"/>
-                <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+                <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
             </Style>
             
             <!-- Hover Effect on Icon -->
@@ -42,7 +42,7 @@
                        x:Name="DisplayText"
                        Text="{Binding #Root.DisplayString}"
                        FontWeight="Bold" 
-                       Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" 
+                       Foreground="{DynamicResource TextPrimaryBrush}" 
                        FontFamily="Consolas,Courier New,monospace"
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center"
@@ -56,7 +56,7 @@
                 <Canvas Width="24" Height="24">
                     <Path x:Name="EditIcon"
                           Data="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
-                          Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                          Fill="{DynamicResource TextSecondaryBrush}"
                           Opacity="0.5">
                         <Path.Transitions>
                             <Transitions>

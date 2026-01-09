@@ -11,12 +11,12 @@
         Title="CrossMacro"
         Width="700" Height="600"
         MinWidth="700" MinHeight="600"
-        Background="#0F172A"
+        Background="{DynamicResource BackgroundBrush}"
         TransparencyLevelHint="AcrylicBlur"
         ExtendClientAreaToDecorationsHint="True"
         SystemDecorations="None"
         CanResize="False"
-        FontFamily="Inter, Segoe UI, DejaVu Sans, Noto Sans, Liberation Sans, sans-serif">
+        FontFamily="{StaticResource StandardFont}">
 
     <Design.DataContext>
         <vm:DesignMainWindowViewModel/>
@@ -26,8 +26,8 @@
                IsPaneOpen="{Binding IsPaneOpen}"
                OpenPaneLength="200"
                CompactPaneLength="76"
-               Background="#0F172A"
-               PaneBackground="#1E293B">
+               Background="{DynamicResource BackgroundBrush}"
+               PaneBackground="{DynamicResource SurfaceBrush}">
         
         <SplitView.Pane>
             <Grid RowDefinitions="Auto,*,Auto">
@@ -42,17 +42,17 @@
                                   HorizontalAlignment="Left">
                          <ToggleButton.Styles>
                             <Style Selector="ToggleButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-                                <Setter Property="Background" Value="#334155"/>
+                                <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
                             </Style>
                             <Style Selector="ToggleButton:checked /template/ ContentPresenter#PART_ContentPresenter">
                                 <Setter Property="Background" Value="Transparent"/>
                             </Style>
                              <Style Selector="ToggleButton:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-                                <Setter Property="Background" Value="#334155"/>
+                                <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
                             </Style>
                         </ToggleButton.Styles>
                         <PathIcon Data="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"
-                                  Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}"
                                   Width="16" Height="16"/>
                     </ToggleButton>
                     
@@ -60,7 +60,7 @@
                     <TextBlock Text="CrossMacro"
                                FontSize="16"
                                FontWeight="Bold"
-                               Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
                                VerticalAlignment="Center"
                                Margin="12,0,0,0"
                                IsVisible="{Binding IsPaneOpen}"/>
@@ -81,22 +81,22 @@
                              <Setter Property="CornerRadius" Value="0"/>
                              <Setter Property="Margin" Value="0,2,0,2"/>
                              <Setter Property="Cursor" Value="Hand"/>
-                             <Setter Property="Foreground" Value="#94A3B8"/> <!-- Slate-400 -->
+                             <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/> <!-- Slate-400 -->
                              <Setter Property="Background" Value="Transparent"/>
                              <Setter Property="BorderThickness" Value="3,0,3,0"/>
                              <Setter Property="BorderBrush" Value="Transparent"/>
                          </Style>
                          <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-                             <Setter Property="Background" Value="#334155"/> <!-- Slate-700 -->
-                             <Setter Property="Foreground" Value="White"/>
+                             <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/> <!-- Slate-700 -->
+                             <Setter Property="Foreground" Value="{DynamicResource TextOnColorBrush}"/>
                          </Style>
                          <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-                             <Setter Property="Background" Value="#0F172A"/> <!-- Slate-900 (Darker) -->
-                             <Setter Property="Foreground" Value="White"/>
+                             <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/> <!-- Slate-900 (Darker) -->
+                             <Setter Property="Foreground" Value="{DynamicResource TextOnColorBrush}"/>
                          </Style>
                          <Style Selector="ListBoxItem:selected">
                              <Setter Property="BorderThickness" Value="3,0,3,0"/>
-                             <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+                             <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
                          </Style>
                     </ListBox.Styles>
                     <ListBox.ItemTemplate>
@@ -137,22 +137,22 @@
                              <Setter Property="CornerRadius" Value="0"/>
                              <Setter Property="Margin" Value="0,2,0,2"/>
                              <Setter Property="Cursor" Value="Hand"/>
-                             <Setter Property="Foreground" Value="#94A3B8"/> <!-- Slate-400 -->
+                             <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/> <!-- Slate-400 -->
                              <Setter Property="Background" Value="Transparent"/>
                              <Setter Property="BorderThickness" Value="3,0,3,0"/>
                              <Setter Property="BorderBrush" Value="Transparent"/>
                          </Style>
                          <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-                             <Setter Property="Background" Value="#334155"/> <!-- Slate-700 -->
-                             <Setter Property="Foreground" Value="White"/>
+                             <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/> <!-- Slate-700 -->
+                             <Setter Property="Foreground" Value="{DynamicResource TextOnColorBrush}"/>
                          </Style>
                          <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-                             <Setter Property="Background" Value="#0F172A"/> <!-- Slate-900 (Darker) -->
-                             <Setter Property="Foreground" Value="White"/>
+                             <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/> <!-- Slate-900 (Darker) -->
+                             <Setter Property="Foreground" Value="{DynamicResource TextOnColorBrush}"/>
                          </Style>
                          <Style Selector="ListBoxItem:selected">
                              <Setter Property="BorderThickness" Value="3,0,3,0"/>
-                             <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+                             <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
                          </Style>
                     </ListBox.Styles>
                     <ListBox.ItemTemplate>
@@ -197,7 +197,7 @@
                         <!-- Minimize Button -->
                         <Button Width="32" Height="32"
                                 Background="Transparent"
-                                Foreground="#94A3B8"
+                                Foreground="{DynamicResource TextSecondaryBrush}"
                                 Click="OnMinimizeWindow"
                                 ToolTip.Tip="Minimize">
                             <TextBlock Text="─" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -206,15 +206,15 @@
                         <!-- Close Button -->
                         <Button Width="32" Height="32"
                                 Background="Transparent"
-                                Foreground="#94A3B8"
+                                Foreground="{DynamicResource TextSecondaryBrush}"
                                 Click="OnCloseApp"
                                 ToolTip.Tip="Close">
                              <Button.Styles>
                                 <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                    <Setter Property="Background" Value="#EF4444"/>
+                                    <Setter Property="Background" Value="{DynamicResource DangerBrush}"/>
                                 </Style>
                                 <Style Selector="Button:pointerover">
-                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource TextOnColorBrush}"/>
                                 </Style>
                             </Button.Styles>
                             <TextBlock Text="✕" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -224,7 +224,7 @@
 
                 <!-- Warning Banner -->
                 <Border Grid.Row="1" 
-                        Background="#F59E0B" 
+                        Background="{DynamicResource WarningBrush}" 
                         Padding="12,8"
                         IsVisible="{Binding HasExtensionWarning}"
                         Margin="0,0,0,10">
@@ -255,13 +255,13 @@
                 <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" Margin="24,0,24,20" VerticalAlignment="Bottom">
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="🖱️ " FontSize="12" FontFamily="{StaticResource EmojiFont}"/>
-                        <TextBlock FontSize="12" FontWeight="Bold" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}">
+                        <TextBlock FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}">
                             <Run Text="CrossMacro "/><Run Text="{Binding AppVersion}"/>
                         </TextBlock>
                     </StackPanel>
                     <TextBlock Grid.Column="2" 
                                Text="{Binding GlobalStatus}" 
-                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" 
+                               Foreground="{DynamicResource TextSecondaryBrush}" 
                                FontSize="11" 
                                HorizontalAlignment="Right"
                                VerticalAlignment="Center"/>
@@ -269,8 +269,8 @@
                 
                 <!-- Update Notification (Overlay) -->
                 <Border Grid.Row="2"
-                        Background="#1E293B"
-                        BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                        Background="{DynamicResource SurfaceColor}"
+                        BorderBrush="{DynamicResource TextSecondaryBrush}"
                         BorderThickness="1"
                         CornerRadius="8"
                         Padding="12"
@@ -289,10 +289,10 @@
                     <StackPanel Spacing="8" Width="240">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2">
-                                <TextBlock Text="Update Available" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                <TextBlock Text="Update Available" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding LatestVersion, StringFormat='v0 is available'}" 
                                           FontSize="12" 
-                                          Foreground="#94A3B8"/>
+                                          Foreground="{DynamicResource TextSecondaryBrush}"/>
                             </StackPanel>
                             
                             <Button Grid.Column="1" 
@@ -301,14 +301,14 @@
                                     Padding="4"
                                     VerticalAlignment="Top"
                                     Margin="8,-4,-4,0">
-                                <TextBlock Text="✕" FontSize="11" Foreground="#64748B"/>
+                                <TextBlock Text="✕" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                             </Button>
                         </Grid>
                         
                         <Button Command="{Binding OpenUpdateUrl}"
                                 HorizontalAlignment="Stretch"
-                                Background="{DynamicResource SystemAccentColor}"
-                                Foreground="White"
+                                Background="{DynamicResource PrimaryBrush}"
+                                Foreground="{DynamicResource TextOnColorBrush}"
                                 CornerRadius="4"
                                 Padding="6">
                             <TextBlock Text="View on GitHub" 

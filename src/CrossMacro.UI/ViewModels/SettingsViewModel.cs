@@ -50,6 +50,10 @@ public class SettingsViewModel : ViewModelBase
         
         // Initialize log level setting
         _selectedLogLevel = _settingsService.Current.LogLevel;
+
+        // Initialize theme setting
+        _selectedTheme = _settingsService.Current.Theme;
+        ChangeTheme(_selectedTheme);
         
         // Hide update settings if running as Flatpak
         IsUpdateSettingsVisible = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FLATPAK_ID"));
@@ -198,6 +202,56 @@ public class SettingsViewModel : ViewModelBase
         "Warning",
         "Error"
     };
+
+    private string _selectedTheme;
+    public string SelectedTheme
+    {
+        get => _selectedTheme;
+        set
+        {
+            if (_selectedTheme != value)
+            {
+                _selectedTheme = value;
+                _settingsService.Current.Theme = value;
+                OnPropertyChanged();
+                
+                // Apply theme change
+                ChangeTheme(value);
+                
+                // Save settings asynchronously
+                _ = _settingsService.SaveAsync();
+            }
+        }
+    }
+
+    public IEnumerable<string> AvailableThemes { get; } = new[]
+    {
+        "Classic",
+        "Latte",
+        "Mocha",
+        "Dracula",
+        "Nord"
+    };
+
+    private void ChangeTheme(string theme)
+    {
+        try
+        {
+            if (Avalonia.Application.Current?.Resources?.MergedDictionaries is { } dictionaries)
+            {
+                dictionaries.Clear();
+                dictionaries.Add(new Avalonia.Markup.Xaml.Styling.ResourceInclude(new Uri($"avares://CrossMacro.UI/Themes/{theme}.axaml"))
+                {
+                    Source = new Uri($"avares://CrossMacro.UI/Themes/{theme}.axaml")
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to change theme to {Theme}", theme);
+        }
+    }
+
     
     private void UpdateHotkeys()
     {

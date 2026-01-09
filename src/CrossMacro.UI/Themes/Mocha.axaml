@@ -1,0 +1,52 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Catppuccin Mocha Palette -->
+    <!-- Primary Colors (Blue for Primary) -->
+    <Color x:Key="PrimaryColor">#cba6f7</Color>
+    <Color x:Key="PrimaryHoverColor">#f5c2e7</Color>
+    <Color x:Key="PrimaryPressedColor">#b4befe</Color>
+
+    <!-- Success/Recording (Green) -->
+    <Color x:Key="SuccessColor">#a6e3a1</Color>
+    <Color x:Key="SuccessHoverColor">#94e2d5</Color>
+
+    <!-- Danger/Stop (Red) -->
+    <Color x:Key="DangerColor">#f38ba8</Color>
+    <Color x:Key="DangerHoverColor">#eba0ac</Color>
+
+    <!-- Background (Base) -->
+    <Color x:Key="BackgroundColor">#1e1e2e</Color>
+    <Color x:Key="SurfaceColor">#181825</Color> <!-- Mantle -->
+    <Color x:Key="SurfaceHoverColor">#11111b</Color> <!-- Crust -->
+
+    <!-- Text -->
+    <Color x:Key="TextPrimaryColor">#cdd6f4</Color>
+    <Color x:Key="TextSecondaryColor">#a6adc8</Color> <!-- Subtext0 -->
+
+    <!-- Warning (Yellow/Peach) -->
+    <Color x:Key="WarningColor">#f9e2af</Color>
+    <Color x:Key="WarningHoverColor">#fab387</Color> <!-- Peach -->
+
+    <!-- Accent (Mauve) -->
+    <Color x:Key="AccentColor">#cba6f7</Color>
+
+    <!-- Text on colored backgrounds (buttons, toggles, badges) -->
+    <Color x:Key="TextOnColorColor">#1e1e2e</Color>
+
+    <!-- Brushes -->
+    <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PrimaryColor}"/>
+    <SolidColorBrush x:Key="PrimaryHoverBrush" Color="{StaticResource PrimaryHoverColor}"/>
+    <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}"/>
+    <SolidColorBrush x:Key="SuccessHoverBrush" Color="{StaticResource SuccessHoverColor}"/>
+    <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}"/>
+    <SolidColorBrush x:Key="DangerHoverBrush" Color="{StaticResource DangerHoverColor}"/>
+    <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}"/>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
+    <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverColor}"/>
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}"/>
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}"/>
+    <SolidColorBrush x:Key="WarningHoverBrush" Color="{StaticResource WarningHoverColor}"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
+    <SolidColorBrush x:Key="TextOnColorBrush" Color="{StaticResource TextOnColorColor}"/>
+</ResourceDictionary>

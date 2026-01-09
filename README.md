@@ -244,9 +244,9 @@ dotnet run --project src/CrossMacro.UI/
 ## ⚙️ How It Works
 
 <details>
-<summary><strong>Linux</strong></summary>
+<summary><strong>Linux (Wayland)</strong></summary>
 
-CrossMacro uses a **secure daemon architecture** on Linux:
+CrossMacro uses a **secure daemon architecture** on Wayland:
 
 ```
 ┌─────────────────┐     IPC Socket      ┌──────────────────────┐
@@ -261,7 +261,40 @@ CrossMacro uses a **secure daemon architecture** on Linux:
 
 - **Daemon** runs as a system service with `input` group privileges
 - **UI** runs as your normal user, communicates via Unix socket
-- **Security**: Your user never needs direct access to input devices
+- **Security**: Wayland's strict security model prevents direct input access, so a privileged daemon handles input capture/simulation
+- **Position**: Mouse position is obtained via compositor-specific protocols (Hyprland IPC, KDE D-Bus, GNOME Shell Extension)
+
+</details>
+
+<details>
+<summary><strong>Linux (X11)</strong></summary>
+
+CrossMacro uses **native X11 APIs** for direct input handling on X11:
+
+```
+┌─────────────────────────────────────┐
+│         CrossMacro UI               │
+│  (Single Process Architecture)      │
+└─────────────────────────────────────┘
+              │
+              ▼
+       X11 Server (Xlib)
+       ├─ XTest Extension (simulation)
+       │  ├─ XTestFakeKeyEvent()
+       │  ├─ XTestFakeButtonEvent()
+       │  └─ XTestFakeMotionEvent()
+       │
+       └─ XInput2 Extension (capture)
+          ├─ XI_RawKeyPress/Release
+          ├─ XI_RawButtonPress/Release
+          └─ XI_RawMotion
+```
+
+- **Single Process**: No separate daemon required (but daemon is still supported for unified experience)
+- **XTest**: Simulates keyboard, mouse, and scroll events directly to X server
+- **XInput2**: Captures raw input events from all master devices
+- **Position**: `XQueryPointer()` provides accurate cursor position
+- **Permissions**: Runs with normal user privileges through X protocol
 
 </details>
 

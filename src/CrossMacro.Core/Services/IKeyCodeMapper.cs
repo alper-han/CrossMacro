@@ -26,4 +26,33 @@ public interface IKeyCodeMapper
     /// <param name="code">The key code to check</param>
     /// <returns>True if the key is a modifier</returns>
     bool IsModifierKeyCode(int code);
+    
+    /// <summary>
+    /// Gets the key code for a character.
+    /// </summary>
+    /// <param name="character">The character to get key code for</param>
+    /// <returns>The key code, or -1 if not mappable</returns>
+    int GetKeyCodeForCharacter(char character);
+    
+    /// <summary>
+    /// Determines if a character requires Shift modifier.
+    /// </summary>
+    /// <param name="character">The character to check</param>
+    /// <returns>True if Shift is required to type this character</returns>
+    bool RequiresShift(char character);
+    
+    /// <summary>
+    /// Gets the character for a key code (reverse mapping).
+    /// </summary>
+    /// <param name="keyCode">The key code</param>
+    /// <param name="withShift">Whether Shift modifier is active</param>
+    /// <returns>The character, or null if not a printable character</returns>
+    char? GetCharacterForKeyCode(int keyCode, bool withShift = false);
+    
+    /// <summary>
+    /// Determines if a character requires AltGr modifier (for non-US layouts).
+    /// </summary>
+    /// <param name="character">The character to check</param>
+    /// <returns>True if AltGr is required to type this character</returns>
+    bool RequiresAltGr(char character);
 }

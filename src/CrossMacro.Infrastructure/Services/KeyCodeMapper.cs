@@ -90,6 +90,42 @@ public class KeyCodeMapper : IKeyCodeMapper
         return ModifierKeyCodes.Contains(code);
     }
     
+    public int GetKeyCodeForCharacter(char character)
+    {
+        // Use layout service for proper keyboard layout support
+        var result = _layoutService.GetInputForChar(character);
+        return result?.KeyCode ?? -1;
+    }
+    
+    public bool RequiresShift(char character)
+    {
+        // Use layout service for proper keyboard layout support
+        var result = _layoutService.GetInputForChar(character);
+        return result?.Shift ?? false;
+    }
+    
+    /// <summary>
+    /// Gets whether a character requires AltGr modifier (for non-US layouts).
+    /// </summary>
+    public bool RequiresAltGr(char character)
+    {
+        var result = _layoutService.GetInputForChar(character);
+        return result?.AltGr ?? false;
+    }
+    
+    public char? GetCharacterForKeyCode(int keyCode, bool withShift = false)
+    {
+        // Use layout service for proper keyboard layout support
+        return _layoutService.GetCharFromKeyCode(
+            keyCode,
+            leftShift: withShift,
+            rightShift: false,
+            rightAlt: false,
+            leftAlt: false,
+            leftCtrl: false,
+            capsLock: false);
+    }
+    
     private static int GetSpecialKeyCode(string keyName)
     {
         return keyName switch
@@ -179,3 +215,4 @@ public class KeyCodeMapper : IKeyCodeMapper
         };
     }
 }
+

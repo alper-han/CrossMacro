@@ -14,6 +14,13 @@ public class EditorActionConverter : IEditorActionConverter
 {
     private const int DefaultKeyPressDelayMs = 10;
     
+    private readonly IKeyCodeMapper _keyCodeMapper;
+    
+    public EditorActionConverter(IKeyCodeMapper keyCodeMapper)
+    {
+        _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
+    }
+    
     /// <inheritdoc/>
     public List<MacroEvent> ToMacroEvents(EditorAction action)
     {
@@ -131,6 +138,76 @@ public class EditorActionConverter : IEditorActionConverter
                         Button = hScrollButton,
                         DelayMs = i == 0 ? action.DelayMs : 0
                     });
+                }
+                break;
+                
+            case EditorActionType.TextInput:
+                bool isFirst = true;
+                foreach (var c in action.Text)
+                {
+                    var keyCode = _keyCodeMapper.GetKeyCodeForCharacter(c);
+                    if (keyCode == -1) continue; // Skip unmappable characters
+                    
+                    var needsShift = _keyCodeMapper.RequiresShift(c);
+                    var needsAltGr = _keyCodeMapper.RequiresAltGr(c);
+                    
+                    // Press modifiers first
+                    if (needsShift)
+                    {
+                        events.Add(new MacroEvent
+                        {
+                            Type = EventType.KeyPress,
+                            KeyCode = InputEventCode.KEY_LEFTSHIFT,
+                            DelayMs = 0
+                        });
+                    }
+                    
+                    if (needsAltGr)
+                    {
+                        events.Add(new MacroEvent
+                        {
+                            Type = EventType.KeyPress,
+                            KeyCode = InputEventCode.KEY_RIGHTALT,
+                            DelayMs = 0
+                        });
+                    }
+                    
+                    // Press and release the actual key
+                    events.Add(new MacroEvent
+                    {
+                        Type = EventType.KeyPress,
+                        KeyCode = keyCode,
+                        DelayMs = isFirst ? action.DelayMs : DefaultKeyPressDelayMs
+                    });
+                    events.Add(new MacroEvent
+                    {
+                        Type = EventType.KeyRelease,
+                        KeyCode = keyCode,
+                        DelayMs = 0
+                    });
+                    
+                    // Release modifiers in reverse order
+                    if (needsAltGr)
+                    {
+                        events.Add(new MacroEvent
+                        {
+                            Type = EventType.KeyRelease,
+                            KeyCode = InputEventCode.KEY_RIGHTALT,
+                            DelayMs = 0
+                        });
+                    }
+                    
+                    if (needsShift)
+                    {
+                        events.Add(new MacroEvent
+                        {
+                            Type = EventType.KeyRelease,
+                            KeyCode = InputEventCode.KEY_LEFTSHIFT,
+                            DelayMs = 0
+                        });
+                    }
+                    
+                    isFirst = false;
                 }
                 break;
         }
@@ -268,13 +345,29 @@ public class EditorActionConverter : IEditorActionConverter
             var ev = events[i];
             var nextEvent = i + 1 < events.Count ? events[i + 1] : (MacroEvent?)null;
             
-            // Skip KeyRelease if it was merged with previous KeyPress
+            // Skip KeyRelease if it was merged with previous KeyPress or TextInput
             if (ev.Type == EventType.KeyRelease && i > 0)
             {
                 var prevAction = actions.LastOrDefault();
                 if (prevAction?.Type == EditorActionType.KeyPress && prevAction.KeyCode == ev.KeyCode)
                 {
                     continue; // Already merged
+                }
+                if (prevAction?.Type == EditorActionType.TextInput)
+                {
+                    continue; // Part of text input sequence
+                }
+            }
+            
+            // Try to detect and merge consecutive KeyPress events into TextInput
+            if (ev.Type == EventType.KeyPress && CanStartTextInputMerge(events, i))
+            {
+                var (textAction, consumed) = MergeConsecutiveKeyPresses(events, i);
+                if (textAction != null && consumed > 0)
+                {
+                    actions.Add(textAction);
+                    i += consumed - 1; // -1 because loop will increment
+                    continue;
                 }
             }
             
@@ -292,9 +385,107 @@ public class EditorActionConverter : IEditorActionConverter
         return actions;
     }
     
+    /// <summary>
+    /// Determines if the current position can start a TextInput merge.
+    /// Requires at least 2 consecutive printable character KeyPress events.
+    /// </summary>
+    private bool CanStartTextInputMerge(List<MacroEvent> events, int startIndex)
+    {
+        int printableCount = 0;
+        
+        for (int i = startIndex; i < events.Count && printableCount < 2; i++)
+        {
+            var ev = events[i];
+            
+            // Skip shift key events
+            if (IsShiftKey(ev.KeyCode))
+                continue;
+            
+            // Must be KeyPress or KeyRelease
+            if (ev.Type != EventType.KeyPress && ev.Type != EventType.KeyRelease)
+                break;
+            
+            // For KeyPress, check if it's a printable character
+            if (ev.Type == EventType.KeyPress)
+            {
+                var c = _keyCodeMapper.GetCharacterForKeyCode(ev.KeyCode, false);
+                if (!c.HasValue)
+                    break;
+                printableCount++;
+            }
+        }
+        
+        return printableCount >= 2;
+    }
+    
+    /// <summary>
+    /// Merges consecutive KeyPress events into a single TextInput action.
+    /// </summary>
+    private (EditorAction?, int) MergeConsecutiveKeyPresses(List<MacroEvent> events, int startIndex)
+    {
+        var text = new System.Text.StringBuilder();
+        int consumed = 0;
+        bool shiftActive = false;
+        int initialDelayMs = 0;
+        bool isFirst = true;
+        
+        for (int i = startIndex; i < events.Count; i++)
+        {
+            var ev = events[i];
+            
+            // Track Shift state
+            if (IsShiftKey(ev.KeyCode))
+            {
+                shiftActive = ev.Type == EventType.KeyPress;
+                consumed++;
+                continue;
+            }
+            
+            // Only process KeyPress (skip KeyRelease)
+            if (ev.Type == EventType.KeyRelease)
+            {
+                consumed++;
+                continue;
+            }
+            
+            if (ev.Type != EventType.KeyPress)
+                break;
+            
+            var c = _keyCodeMapper.GetCharacterForKeyCode(ev.KeyCode, shiftActive);
+            if (!c.HasValue)
+                break;
+            
+            // Capture delay from first character
+            if (isFirst)
+            {
+                initialDelayMs = ev.DelayMs;
+                isFirst = false;
+            }
+            
+            text.Append(c.Value);
+            consumed++;
+        }
+        
+        if (text.Length < 2)
+            return (null, 0);
+        
+        return (new EditorAction
+        {
+            Type = EditorActionType.TextInput,
+            Text = text.ToString(),
+            DelayMs = initialDelayMs
+        }, consumed);
+    }
+    
+    private static bool IsShiftKey(int keyCode)
+    {
+        return keyCode == InputEventCode.KEY_LEFTSHIFT || keyCode == InputEventCode.KEY_RIGHTSHIFT;
+    }
+    
     private static bool IsScrollButton(MouseButton button)
     {
         return button is MouseButton.ScrollUp or MouseButton.ScrollDown 
             or MouseButton.ScrollLeft or MouseButton.ScrollRight;
     }
 }
+

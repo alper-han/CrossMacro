@@ -10,6 +10,11 @@ namespace CrossMacro.Infrastructure.Services;
 /// </summary>
 public class EditorActionValidator : IEditorActionValidator
 {
+    /// <summary>
+    /// Maximum allowed length for TextInput content.
+    /// </summary>
+    public const int MaxTextInputLength = 500;
+    
     /// <inheritdoc/>
     public (bool IsValid, string? Error) Validate(EditorAction action)
     {
@@ -23,6 +28,7 @@ public class EditorActionValidator : IEditorActionValidator
             EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal => ValidateScroll(action),
             EditorActionType.MouseMove => ValidateMouseMove(action),
             EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp => ValidateMouseButton(action),
+            EditorActionType.TextInput => ValidateTextInput(action),
             _ => (true, null)
         };
     }
@@ -128,6 +134,17 @@ public class EditorActionValidator : IEditorActionValidator
         if (action.Button is MouseButton.ScrollUp or MouseButton.ScrollDown 
             or MouseButton.ScrollLeft or MouseButton.ScrollRight)
             return (false, ValidationMessages.UseScrollActionForScrollButtons);
+        
+        return (true, null);
+    }
+    
+    private static (bool IsValid, string? Error) ValidateTextInput(EditorAction action)
+    {
+        if (string.IsNullOrEmpty(action.Text))
+            return (false, "Text content is required for TextInput action");
+        
+        if (action.Text.Length > MaxTextInputLength)
+            return (false, $"Text content exceeds maximum length of {MaxTextInputLength} characters");
         
         return (true, null);
     }

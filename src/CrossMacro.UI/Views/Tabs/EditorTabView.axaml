@@ -291,6 +291,24 @@
                                          Padding="8,6"/>
                                 <TextBlock Text="(+) up/right, (-) down/left" Foreground="#64748B" FontSize="11"/>
                             </StackPanel>
+                            
+                            <!-- Text Input (TextInput action only) -->
+                            <StackPanel Spacing="4" IsVisible="{Binding ShowTextInput}">
+                                <TextBlock Text="Text to Type:" Foreground="#94A3B8" FontSize="12"/>
+                                <TextBox Text="{Binding SelectedAction.Text}" 
+                                         Watermark="Enter text to type..."
+                                         Background="#334155"
+                                         Foreground="White"
+                                         BorderThickness="0"
+                                         CornerRadius="4"
+                                         Padding="8,6"
+                                         AcceptsReturn="False"
+                                         TextWrapping="NoWrap"
+                                         MaxLength="500"/>
+                                <TextBlock Text="Each character is typed as a separate key press (max 500 chars)" 
+                                           Foreground="#64748B" 
+                                           FontSize="11"/>
+                            </StackPanel>
                         </StackPanel>
                         
                         <!-- No Selection Message -->

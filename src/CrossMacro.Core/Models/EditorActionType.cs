@@ -53,5 +53,12 @@ public enum EditorActionType
     /// <summary>
     /// Scroll horizontally (left/right).
     /// </summary>
-    ScrollHorizontal
+    ScrollHorizontal,
+    
+    /// <summary>
+    /// Type a sequence of characters as KeyPress events.
+    /// Expands to multiple KeyPress events when saving.
+    /// Consecutive KeyPress events are merged into this type when loading.
+    /// </summary>
+    TextInput
 }

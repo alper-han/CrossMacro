@@ -247,6 +247,11 @@ public class EditorViewModel : ViewModelBase, IDisposable
         EditorActionType.ScrollVertical or 
         EditorActionType.ScrollHorizontal;
     
+    /// <summary>
+    /// Show text input field for: TextInput action only
+    /// </summary>
+    public bool ShowTextInput => SelectedAction?.Type == EditorActionType.TextInput;
+    
     private void NotifyVisibilityChanged()
     {
         OnPropertyChanged(nameof(ShowCoordinates));
@@ -255,6 +260,7 @@ public class EditorViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ShowKeyCode));
         OnPropertyChanged(nameof(ShowDelay));
         OnPropertyChanged(nameof(ShowScrollAmount));
+        OnPropertyChanged(nameof(ShowTextInput));
     }
     
     #endregion

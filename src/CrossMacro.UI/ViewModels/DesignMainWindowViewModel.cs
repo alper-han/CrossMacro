@@ -80,6 +80,10 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         public string GetKeyName(int keyCode) => $"Key{keyCode}";
         public int GetKeyCode(string keyName) => 0;
         public bool IsModifierKeyCode(int code) => false;
+        public int GetKeyCodeForCharacter(char character) => character;
+        public bool RequiresShift(char character) => char.IsUpper(character);
+        public bool RequiresAltGr(char character) => false;
+        public char? GetCharacterForKeyCode(int keyCode, bool withShift = false) => (char)keyCode;
     }
 
     private class MockEditorActionConverter : IEditorActionConverter

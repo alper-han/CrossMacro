@@ -23,6 +23,7 @@ public class EditorAction : INotifyPropertyChanged
     private int _scrollAmount = 1;
     private string? _keyName;
     private int _index;
+    private string _text = string.Empty;
     
     public event PropertyChangedEventHandler? PropertyChanged;
     
@@ -214,6 +215,24 @@ public class EditorAction : INotifyPropertyChanged
     }
     
     /// <summary>
+    /// Text content (for TextInput action).
+    /// Each character will be converted to a KeyPress event when saving.
+    /// </summary>
+    public string Text
+    {
+        get => _text;
+        set 
+        { 
+            if (_text != value)
+            {
+                _text = value ?? string.Empty; 
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DisplayName));
+            }
+        }
+    }
+    
+    /// <summary>
     /// Gets a human-readable description of this action.
     /// </summary>
     public string DisplayName => GenerateDisplayName();
@@ -233,6 +252,9 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.Delay => $"Wait {DelayMs}ms",
             EditorActionType.ScrollVertical => ScrollAmount > 0 ? $"Scroll Up {ScrollAmount}" : $"Scroll Down {Math.Abs(ScrollAmount)}",
             EditorActionType.ScrollHorizontal => ScrollAmount > 0 ? $"Scroll Right {ScrollAmount}" : $"Scroll Left {Math.Abs(ScrollAmount)}",
+            EditorActionType.TextInput => string.IsNullOrEmpty(Text) 
+                ? "Text Input (empty)" 
+                : $"Type \"{(Text.Length > 25 ? Text[..25] + "..." : Text)}\"",
             _ => "Unknown Action"
         };
     }
@@ -248,6 +270,7 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.Delay => DelayMs >= 0,
             EditorActionType.KeyPress or EditorActionType.KeyDown or EditorActionType.KeyUp => KeyCode > 0,
             EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal => ScrollAmount != 0,
+            EditorActionType.TextInput => !string.IsNullOrEmpty(Text),
             _ => true
         };
     }
@@ -265,7 +288,8 @@ public class EditorAction : INotifyPropertyChanged
             _keyCode = KeyCode,
             _delayMs = DelayMs,
             _scrollAmount = ScrollAmount,
-            _keyName = KeyName
+            _keyName = KeyName,
+            _text = Text
         };
     }
 }

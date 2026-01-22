@@ -1,5 +1,6 @@
 ﻿using Avalonia;
 using System;
+using Avalonia.Media;
 using Serilog;
 using CrossMacro.Core.Logging;
 using CrossMacro.Infrastructure.Services;
@@ -40,5 +41,13 @@ sealed class Program
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
-            .LogToTrace();
+            .LogToTrace()
+            .With(new FontManagerOptions
+            {
+                DefaultFamilyName = "avares://Avalonia.Fonts.Inter/Assets#Inter",
+                FontFallbacks = 
+                [
+                    new FontFallback { FontFamily = new FontFamily("avares://Avalonia.Fonts.Inter/Assets#Inter") }
+                ]
+            });
 }

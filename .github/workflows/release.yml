@@ -259,17 +259,58 @@ jobs:
       with:
         name: windows-binary
         path: publish-windows/
-    
+
     - name: Rename executable
       run: |
         mv publish-windows/CrossMacro.UI.exe publish-windows/CrossMacro-${{ needs.build-core.outputs.version }}-win-x64.exe
-    
+
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v6
       with:
         name: windows-package
         path: |
           publish-windows/*.exe
+        retention-days: 1
+
+  package-msix:
+    name: Package MSIX (Store)
+    needs: build-core
+    runs-on: windows-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Download Windows binary
+      uses: actions/download-artifact@v7
+      with:
+        name: windows-binary
+        path: msix-content/
+
+    - name: Prepare MSIX content
+      shell: pwsh
+      run: |
+        $version = "${{ needs.build-core.outputs.version }}.0"
+
+        # Copy assets
+        Copy-Item -Path "scripts/msix/Assets" -Destination "msix-content/Assets" -Recurse
+
+        # Update manifest with correct version
+        $manifest = Get-Content "scripts/msix/AppxManifest.xml" -Raw
+        $manifest = $manifest -replace 'Version="0.9.0.0"', "Version=`"$version`""
+        $manifest | Out-File -FilePath "msix-content/AppxManifest.xml" -Encoding utf8
+
+    - name: Create MSIX package
+      shell: pwsh
+      run: |
+        $sdkPath = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\10.*\x64\makeappx.exe" |
+                   Sort-Object -Descending | Select-Object -First 1
+        & $sdkPath pack /d msix-content /p CrossMacro-${{ needs.build-core.outputs.version }}.msix /nv
+
+    - name: Upload MSIX artifact
+      uses: actions/upload-artifact@v6
+      with:
+        name: msix-package
+        path: "*.msix"
         retention-days: 1
 
   # macOS builds run on macOS runner (can't cross-compile from Linux)
@@ -339,7 +380,7 @@ jobs:
 
   update-aur:
     name: Update AUR
-    needs: build-core
+    needs: create-release
     runs-on: ubuntu-latest
     container: archlinux:base-devel
     steps:

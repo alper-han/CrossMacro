@@ -280,11 +280,25 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v6
 
-    - name: Download Windows binary
-      uses: actions/download-artifact@v7
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
       with:
-        name: windows-binary
-        path: msix-content/
+        dotnet-version: '10.0.x'
+
+    - name: Build Windows binary for MSIX
+      shell: pwsh
+      run: |
+        dotnet publish src/CrossMacro.UI/CrossMacro.UI.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          -p:PublishSingleFile=false `
+          -p:PublishTrimmed=false `
+          -p:PublishReadyToRun=true `
+          -p:DebugType=None `
+          -p:DebugSymbols=false `
+          -p:Version=${{ needs.build-core.outputs.version }} `
+          -o msix-content/
 
     - name: Prepare MSIX content
       shell: pwsh

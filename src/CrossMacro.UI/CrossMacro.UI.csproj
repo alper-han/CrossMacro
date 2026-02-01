@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -6,6 +6,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\mouse-icon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <AvaloniaStatsTaskEnabled>false</AvaloniaStatsTaskEnabled>
     <InvariantGlobalization>true</InvariantGlobalization>
     <Version>0.9.0</Version>
     <Description>Cross-platform mouse and keyboard macro automation tool with text expansion support.</Description>

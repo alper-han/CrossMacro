@@ -44,6 +44,11 @@ public interface IGlobalHotkeyService : IDisposable
     /// </summary>
     event EventHandler<RawHotkeyInputEventArgs>? RawInputReceived;
 
+    /// <summary>
+    /// Event fired when a key is released (same hotkey string as when pressed)
+    /// </summary>
+    event EventHandler<RawHotkeyInputEventArgs>? RawKeyReleased;
+
 
     /// <summary>
     /// Event fired when a critical error occurs (e.g., daemon connection failure)

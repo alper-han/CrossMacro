@@ -250,6 +250,7 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         public event EventHandler? TogglePlaybackRequested;
         public event EventHandler? TogglePauseRequested;
         public event EventHandler<RawHotkeyInputEventArgs>? RawInputReceived;
+        public event EventHandler<RawHotkeyInputEventArgs>? RawKeyReleased;
         public event EventHandler<string>? ErrorOccurred;
 #pragma warning restore CS0067
         public int RecordingHotkeyCode => 0;

@@ -182,6 +182,36 @@
                                IsSnapToTickEnabled="True"/>
                     </StackPanel>
                     
+                    <!-- Loop Playback (same pattern as Playback tab) -->
+                    <StackPanel Spacing="12">
+                        <CheckBox Content="Loop Playback"
+                                  IsChecked="{Binding SelectedTask.IsLoopEnabled, Mode=TwoWay}"/>
+                        <StackPanel Spacing="8" IsVisible="{Binding SelectedTask.IsLoopEnabled, FallbackValue=False}">
+                            <RadioButton GroupName="LoopTrigger"
+                                         Content="Press to start/stop"
+                                         IsChecked="{Binding SelectedTask.LoopEnabled, Mode=TwoWay}"
+                                         ToolTip.Tip="Press shortcut to start looping; press again to stop."/>
+                            <RadioButton GroupName="LoopTrigger"
+                                         Content="Run when held"
+                                         IsChecked="{Binding SelectedTask.RunWhileHeld, Mode=TwoWay}"
+                                         ToolTip.Tip="Hold shortcut to run; release to stop. Keyboard trigger only."/>
+                            <Grid ColumnDefinitions="*,*">
+                                <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
+                                    <TextBlock Classes="label" Text="Loop Count"/>
+                                    <NumericUpDown Value="{Binding SelectedTask.RepeatCount, Mode=TwoWay}" Minimum="0" Maximum="10000" FormatString="0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="4" Margin="8,0,0,0">
+                                    <TextBlock Classes="label" Text="Loop Delay (ms)"/>
+                                    <NumericUpDown Value="{Binding SelectedTask.RepeatDelayMs, Mode=TwoWay}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
+                                </StackPanel>
+                            </Grid>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4" Margin="0,4,0,0">
+                                <TextBlock Text="💡" FontSize="12" FontFamily="{StaticResource EmojiFont}" Opacity="0.7"/>
+                                <TextBlock Text="Tip: Loop Count 0 means infinite loop" Classes="label" FontSize="12" Opacity="0.7"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                    
                     <!-- Macro File -->
                     <StackPanel Spacing="4">
                         <TextBlock Text="Macro File" FontSize="12" Opacity="0.7"/>

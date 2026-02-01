@@ -89,6 +89,10 @@ public class ShortcutService : IShortcutService
                 existing.HotkeyString = task.HotkeyString;
                 existing.PlaybackSpeed = task.PlaybackSpeed;
                 existing.IsEnabled = task.IsEnabled;
+                existing.LoopEnabled = task.LoopEnabled;
+                existing.RepeatCount = task.RepeatCount;
+                existing.RepeatDelayMs = task.RepeatDelayMs;
+                existing.RunWhileHeld = task.RunWhileHeld;
             }
         }
     }
@@ -110,6 +114,7 @@ public class ShortcutService : IShortcutService
         if (_isListening) return;
         
         _hotkeyService.RawInputReceived += OnRawInputReceived;
+        _hotkeyService.RawKeyReleased += OnRawKeyReleased;
         _isListening = true;
         
         Logger.Information("[ShortcutService] Started listening for shortcuts");
@@ -120,6 +125,7 @@ public class ShortcutService : IShortcutService
         if (!_isListening) return;
         
         _hotkeyService.RawInputReceived -= OnRawInputReceived;
+        _hotkeyService.RawKeyReleased -= OnRawKeyReleased;
         _isListening = false;
         
         Logger.Information("[ShortcutService] Stopped listening for shortcuts");
@@ -140,12 +146,13 @@ public class ShortcutService : IShortcutService
             
             if (matchingTask == null) return;
             
-            // Toggle behavior: if already executing, stop it
-            if (_activePlayers.TryGetValue(matchingTask.Id, out playerToStop))
+            if (matchingTask.RunWhileHeld && _activePlayers.ContainsKey(matchingTask.Id))
+                return;
+            
+            if (!matchingTask.RunWhileHeld && _activePlayers.TryGetValue(matchingTask.Id, out playerToStop))
             {
                 Logger.Information("[ShortcutService] Stopping {TaskName} - toggle triggered", matchingTask.Name);
                 _activePlayers.Remove(matchingTask.Id);
-                // Will stop outside lock
             }
             else
             {
@@ -171,11 +178,27 @@ public class ShortcutService : IShortcutService
             return;
         }
         
-        // Execute asynchronously to not block input handling
         if (shouldStart)
         {
             _ = ExecuteTaskAsync(matchingTask);
         }
+    }
+    
+    private void OnRawKeyReleased(object? sender, RawHotkeyInputEventArgs e)
+    {
+        IMacroPlayer? playerToStop = null;
+        lock (_lock)
+        {
+            var task = Tasks.FirstOrDefault(t =>
+                t.IsEnabled &&
+                t.RunWhileHeld &&
+                string.Equals(t.HotkeyString, e.HotkeyString, StringComparison.OrdinalIgnoreCase));
+            if (task == null) return;
+            if (!_activePlayers.TryGetValue(task.Id, out var player)) return;
+            _activePlayers.Remove(task.Id);
+            playerToStop = player;
+        }
+        playerToStop?.Stop();
     }
     
     private async Task ExecuteTaskAsync(ShortcutTask task)
@@ -222,9 +245,14 @@ public class ShortcutService : IShortcutService
                 _activePlayers[task.Id] = player;
             }
             
+            var loop = task.RunWhileHeld || task.LoopEnabled;
+            var repeatCount = task.RunWhileHeld ? 0 : (task.LoopEnabled ? task.RepeatCount : 1);
             var options = new PlaybackOptions
             {
-                SpeedMultiplier = task.PlaybackSpeed
+                SpeedMultiplier = task.PlaybackSpeed,
+                Loop = loop,
+                RepeatCount = repeatCount,
+                RepeatDelayMs = task.RepeatDelayMs
             };
             
             await player.PlayAsync(macro, options);

@@ -41,6 +41,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     public event EventHandler? TogglePlaybackRequested;
     public event EventHandler? TogglePauseRequested;
     public event EventHandler<RawHotkeyInputEventArgs>? RawInputReceived;
+    public event EventHandler<RawHotkeyInputEventArgs>? RawKeyReleased;
     public event EventHandler<string>? ErrorOccurred;
     
     // Properties
@@ -205,17 +206,21 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     
     private void HandleKeyboardInput(InputCaptureEventArgs e)
     {
-        // Track modifier state
         if (e.Value == 1)
         {
             _modifierTracker.OnKeyPressed(e.Code);
         }
         else if (e.Value == 0)
         {
+            var releaseModifiers = _modifierTracker.CurrentModifiers;
+            if (!releaseModifiers.Contains(e.Code))
+            {
+                var releaseHotkeyString = _hotkeyStringBuilder.Build(e.Code, releaseModifiers);
+                RawKeyReleased?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, releaseModifiers, releaseHotkeyString));
+            }
             _modifierTracker.OnKeyReleased(e.Code);
         }
         
-        // Only process on key down (non-modifier)
         if (e.Value != 1)
             return;
         

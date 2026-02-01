@@ -94,7 +94,62 @@ public class ShortcutTask : INotifyPropertyChanged
     /// Whether the task can be enabled (has both macro file path and hotkey)
     /// </summary>
     public bool CanBeEnabled => !string.IsNullOrEmpty(MacroFilePath) && !string.IsNullOrEmpty(HotkeyString);
-    
+
+    private bool _loopEnabled;
+    public bool LoopEnabled
+    {
+        get => _loopEnabled;
+        set
+        {
+            if (_loopEnabled == value) return;
+            _loopEnabled = value;
+            if (value) { _runWhileHeld = false; OnPropertyChanged(nameof(RunWhileHeld)); }
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsLoopEnabled));
+        }
+    }
+
+    private int _repeatCount = 0;
+    public int RepeatCount
+    {
+        get => _repeatCount;
+        set { _repeatCount = value; OnPropertyChanged(); }
+    }
+
+    private int _repeatDelayMs = 0;
+    public int RepeatDelayMs
+    {
+        get => _repeatDelayMs;
+        set { _repeatDelayMs = value; OnPropertyChanged(); }
+    }
+
+    private bool _runWhileHeld;
+    public bool RunWhileHeld
+    {
+        get => _runWhileHeld;
+        set
+        {
+            if (_runWhileHeld == value) return;
+            _runWhileHeld = value;
+            if (value) { _loopEnabled = false; OnPropertyChanged(nameof(LoopEnabled)); }
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsLoopEnabled));
+        }
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsLoopEnabled
+    {
+        get => _loopEnabled || _runWhileHeld;
+        set
+        {
+            if (value == IsLoopEnabled) return;
+            if (value) { _loopEnabled = true; _runWhileHeld = false; OnPropertyChanged(nameof(LoopEnabled)); OnPropertyChanged(nameof(RunWhileHeld)); }
+            else { _loopEnabled = false; _runWhileHeld = false; OnPropertyChanged(nameof(LoopEnabled)); OnPropertyChanged(nameof(RunWhileHeld)); }
+            OnPropertyChanged();
+        }
+    }
+
     /// <summary>
     /// Status message from last execution
     /// </summary>

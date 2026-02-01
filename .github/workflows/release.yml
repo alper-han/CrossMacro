@@ -394,7 +394,7 @@ jobs:
 
   update-aur:
     name: Update AUR
-    needs: create-release
+    needs: [create-release, build-core]
     runs-on: ubuntu-latest
     container: archlinux:base-devel
     steps:

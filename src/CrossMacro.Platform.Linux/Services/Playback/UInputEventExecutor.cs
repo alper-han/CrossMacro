@@ -130,8 +130,8 @@ public class UInputEventExecutor : IEventExecutor
     
     public void Execute(MacroEvent ev, bool isRecordedAbsolute)
     {
-        // Handle implicit movement for non-MouseMove events
-        if (ev.Type != EventType.MouseMove && !isRecordedAbsolute)
+        // Handle implicit movement for mouse button events (not keyboard)
+        if (ev.Type is EventType.ButtonPress or EventType.ButtonRelease or EventType.Click && !isRecordedAbsolute)
         {
             if (ev.X != 0 || ev.Y != 0)
             {

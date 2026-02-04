@@ -91,24 +91,31 @@ public class MacroEventExecutor : IEventExecutor
     /// </summary>
     public void Execute(MacroEvent ev, bool isRecordedAbsolute)
     {
-        // Handle implicit movement for non-MouseMove events
-        if (ev.Type != EventType.MouseMove)
+        // Handle implicit movement for mouse button events (not keyboard, not scroll)
+        if (ev.Type is EventType.ButtonPress or EventType.ButtonRelease or EventType.Click)
         {
-            if (isRecordedAbsolute)
+            // Skip scroll events - they don't have meaningful coordinates
+            bool isScroll = ev.Button is MouseButton.ScrollUp or MouseButton.ScrollDown
+                or MouseButton.ScrollLeft or MouseButton.ScrollRight;
+
+            if (!isScroll)
             {
-                // Absolute mode: calculate delta and move
-                int dx = ev.X - _coordinator.CurrentX;
-                int dy = ev.Y - _coordinator.CurrentY;
-                if (dx != 0 || dy != 0)
+                if (isRecordedAbsolute)
                 {
-                    _simulator.MoveRelative(dx, dy);
-                    _coordinator.UpdatePosition(ev.X, ev.Y);
+                    // Absolute mode: calculate delta and move
+                    int dx = ev.X - _coordinator.CurrentX;
+                    int dy = ev.Y - _coordinator.CurrentY;
+                    if (dx != 0 || dy != 0)
+                    {
+                        _simulator.MoveRelative(dx, dy);
+                        _coordinator.UpdatePosition(ev.X, ev.Y);
+                    }
                 }
-            }
-            else if (ev.X != 0 || ev.Y != 0)
-            {
-                // Relative mode: use delta directly
-                MoveRelative(ev.X, ev.Y);
+                else if (ev.X != 0 || ev.Y != 0)
+                {
+                    // Relative mode: use delta directly
+                    MoveRelative(ev.X, ev.Y);
+                }
             }
         }
 

@@ -60,6 +60,7 @@ public static class UInputNative
     
     // SYN events
     public const ushort SYN_REPORT = 0;
+    public const ushort SYN_DROPPED = 3;
     
     // Input properties
     public const ushort INPUT_PROP_POINTER = 0x00;

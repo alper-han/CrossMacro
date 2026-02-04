@@ -10,10 +10,15 @@ public static class EvdevNative
     public const ulong EVIOCGNAME_256 = 0x81004506; 
     
     public const ulong EVIOCGBIT_EV = 0x80044520;
-    public const ulong EVIOCGBIT_KEY = 0x80044521; 
-    public const ulong EVIOCGBIT_REL = 0x80044522; 
-    public const ulong EVIOCGBIT_ABS = 0x80044523; 
-    public const ulong EVIOCGPROP = 0x80044509;    
+    public const ulong EVIOCGBIT_KEY = 0x80044521;
+    public const ulong EVIOCGBIT_REL = 0x80044522;
+    public const ulong EVIOCGBIT_ABS = 0x80044523;
+    public const ulong EVIOCGPROP = 0x80044509;
+
+    // Get current key/button state (for SYN_DROPPED resync)
+    // _IOC(_IOC_READ, 'E', 0x18, KEY_MAX/8+1) where KEY_MAX=0x2FF
+    // Result: 96 bytes bitmap of currently pressed keys
+    public const ulong EVIOCGKEY = 0x80604518;    
 
     [DllImport(LibC, SetLastError = true)]
     public static extern int open(string pathname, int flags);

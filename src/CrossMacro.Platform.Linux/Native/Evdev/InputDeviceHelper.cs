@@ -261,7 +261,10 @@ public class InputDeviceHelper
 
     private static bool HasCapability(int fd, ulong type, int code)
     {
-        byte[] mask = new byte[64];
+        // Buffer size must accommodate KEY_MAX (0x2FF = 767)
+        // Required: (767 / 8) + 1 = 96 bytes minimum
+        // Using 96 bytes to cover all possible key codes including gaming mouse buttons
+        byte[] mask = new byte[96];
         int len = EvdevNative.ioctl(fd, type, mask);
         if (len < 0) return false;
 

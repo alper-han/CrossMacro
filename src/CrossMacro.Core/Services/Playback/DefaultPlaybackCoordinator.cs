@@ -152,8 +152,8 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
     }
 
     public async Task PrepareIterationAsync(
-        int iteration, 
-        MacroSequence macro, 
+        int iteration,
+        MacroSequence macro,
         IInputSimulator simulator,
         int screenWidth,
         int screenHeight,
@@ -165,6 +165,26 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
 
         if (macro.IsAbsoluteCoordinates && screenWidth > 0 && screenHeight > 0)
         {
+            // Sync position from provider to prevent desync between tracked and actual cursor position
+            if (_positionProvider != null && _positionProvider.IsSupported)
+            {
+                try
+                {
+                    var pos = await _positionProvider.GetAbsolutePositionAsync();
+                    if (pos.HasValue)
+                    {
+                        CurrentX = pos.Value.X;
+                        CurrentY = pos.Value.Y;
+                        Log.Debug("[PlaybackCoordinator] Iteration {I}: Position synced ({X}, {Y})",
+                            iteration + 1, CurrentX, CurrentY);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "[PlaybackCoordinator] Failed to sync position from provider");
+                }
+            }
+
             var firstEvent = macro.Events.FirstOrDefault(e => e.Type == EventType.MouseMove);
             if (firstEvent.Type != EventType.None)
             {

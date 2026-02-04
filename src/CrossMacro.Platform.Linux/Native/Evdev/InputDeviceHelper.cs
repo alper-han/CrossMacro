@@ -202,11 +202,24 @@ public class InputDeviceHelper
 
     private static bool CheckIsMouse(int fd)
     {
-        return HasCapability(fd, EvdevNative.EVIOCGBIT_EV, UInputNative.EV_REL) &&
-               HasCapability(fd, EvdevNative.EVIOCGBIT_EV, UInputNative.EV_KEY) &&
-               HasCapability(fd, EvdevNative.EVIOCGBIT_KEY, UInputNative.BTN_LEFT) &&
-               HasCapability(fd, EvdevNative.EVIOCGBIT_REL, UInputNative.REL_X) &&
-               HasCapability(fd, EvdevNative.EVIOCGBIT_REL, UInputNative.REL_Y);
+        // Must have REL and KEY event types
+        if (!HasCapability(fd, EvdevNative.EVIOCGBIT_EV, UInputNative.EV_REL) ||
+            !HasCapability(fd, EvdevNative.EVIOCGBIT_EV, UInputNative.EV_KEY))
+            return false;
+
+        // Must have REL_X and REL_Y for movement
+        if (!HasCapability(fd, EvdevNative.EVIOCGBIT_REL, UInputNative.REL_X) ||
+            !HasCapability(fd, EvdevNative.EVIOCGBIT_REL, UInputNative.REL_Y))
+            return false;
+
+        // Check for any mouse button (BTN_LEFT to BTN_TASK)
+        // Gaming mice may not report BTN_LEFT on main pointer interface
+        for (int btn = UInputNative.BTN_LEFT; btn <= UInputNative.BTN_TASK; btn++)
+        {
+            if (HasCapability(fd, EvdevNative.EVIOCGBIT_KEY, btn))
+                return true;
+        }
+        return false;
     }
 
     private static bool CheckIsTouchpad(int fd)

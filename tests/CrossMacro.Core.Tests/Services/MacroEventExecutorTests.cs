@@ -49,17 +49,17 @@ public class MacroEventExecutorTests
     }
 
     [Fact]
-    public void Execute_MouseMove_Absolute_WithScreenSize_MovesAbsoluteAndUpdatesCoordinator()
+    public void Execute_MouseMove_Absolute_WithScreenSize_MovesRelativeAndUpdatesCoordinator()
     {
         // Arrange
-        var ev = new MacroEvent { Type = EventType.MouseMove, X = 500, Y = 500 };
-        
+        var ev = new MacroEvent { Type = EventType.MouseMove, X = 100, Y = 80 };
+
         // Act
         _executor.Execute(ev, isRecordedAbsolute: true);
 
         // Assert
-        _simulator.Received(1).MoveAbsolute(500, 500);
-        _coordinator.Received(1).UpdatePosition(500, 500);
+        _simulator.Received(1).MoveRelative(100, 80);
+        _coordinator.Received(1).UpdatePosition(100, 80);
     }
 
     [Fact]

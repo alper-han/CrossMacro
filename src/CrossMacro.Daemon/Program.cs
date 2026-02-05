@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using CrossMacro.Daemon.Services;
 using CrossMacro.Platform.Linux.Native.Systemd;
+using CrossMacro.Core.Logging;
 using Serilog;
 
 namespace CrossMacro.Daemon;
@@ -12,9 +13,9 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        Log.Logger = new LoggerConfiguration()
-            .WriteTo.Console()
-            .CreateLogger();
+        // Use shared logger setup with environment variable support
+        var logLevel = Environment.GetEnvironmentVariable("CROSSMACRO_LOG_LEVEL") ?? "Information";
+        LoggerSetup.Initialize(logLevel);
 
         Log.Information("Starting CrossMacro.Daemon...");
 

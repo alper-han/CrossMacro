@@ -283,11 +283,14 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
     private async Task PlayOnceAsync(MacroSequence macro, double speedMultiplier, CancellationToken cancellationToken)
     {
         int eventCount = 0;
+        int totalEvents = macro.Events.Count;
         bool isFirstEvent = true;
-        
+
         // Accumulate fractional delays to prevent drift from truncation
         // Example: 100 events with 0.9ms each = 90ms total, not 0ms
         double delayAccumulator = 0.0;
+
+        Log.Debug("[MacroPlayer] Starting playback of {Total} events at {Speed}x speed", totalEvents, speedMultiplier);
 
         foreach (var ev in macro.Events)
         {
@@ -295,7 +298,9 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
 
             if (_isPaused)
             {
+                Log.Debug("[MacroPlayer] Paused at event {Current}/{Total}", eventCount, totalEvents);
                 await Task.Run(() => _pauseEvent.Wait(cancellationToken), cancellationToken);
+                Log.Debug("[MacroPlayer] Resumed playback");
             }
 
             eventCount++;
@@ -323,12 +328,12 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
 
                 // Add accumulated fractional delay from previous truncations
                 adjustedDelay += delayAccumulator;
-                
+
                 int delayToWait = (int)adjustedDelay;
-                
+
                 // Carry over the fractional part for next iteration
                 delayAccumulator = adjustedDelay - delayToWait;
-                
+
                 if (delayToWait > 0)
                 {
                     await _timingService.WaitAsync(delayToWait, this, cancellationToken);
@@ -341,11 +346,14 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
 
             try
             {
+                Log.Debug("[MacroPlayer] Executing {Current}/{Total}: {Type} | X={X} Y={Y} | Key={Key} Button={Button}",
+                    eventCount, totalEvents, ev.Type, ev.X, ev.Y, ev.KeyCode, ev.Button);
+
                 _eventExecutor!.Execute(ev, macro.IsAbsoluteCoordinates);
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[MacroPlayer] Error executing event: {Type}", ev.Type);
+                Log.Error(ex, "[MacroPlayer] Error executing event {Current}/{Total}: {Type}", eventCount, totalEvents, ev.Type);
                 if (++_errorCount > MaxPlaybackErrors)
                 {
                     Log.Fatal("[MacroPlayer] Too many errors ({Count}), aborting", _errorCount);
@@ -355,6 +363,8 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
 
             isFirstEvent = false;
         }
+
+        Log.Debug("[MacroPlayer] Completed playback of {Total} events", totalEvents);
     }
 
     public void Pause()
@@ -370,8 +380,8 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
             _eventExecutor?.ReleaseAll();
             _pauseEvent.Reset();
 
-            Log.Information("[MacroPlayer] Paused (saved {ButtonCount} buttons, {KeyCount} keys)",
-                _pausedButtons.Length, _pausedKeys.Length);
+            Log.Information("[MacroPlayer] Paused at loop {Loop}/{Total} (saved {ButtonCount} buttons, {KeyCount} keys)",
+                CurrentLoop, TotalLoops, _pausedButtons.Length, _pausedKeys.Length);
         }
     }
 

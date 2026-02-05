@@ -38,43 +38,51 @@ public class UInputEventExecutor : IEventExecutor
     public void MoveAbsolute(int x, int y)
     {
         _device?.MoveAbsolute(x, y);
+        Log.Debug("[UInputEventExecutor] MoveAbsolute: X={X} Y={Y}", x, y);
     }
-    
+
     public void MoveRelative(int dx, int dy)
     {
         _device?.Move(dx, dy);
+        Log.Debug("[UInputEventExecutor] MoveRelative: dX={dX} dY={dY}", dx, dy);
     }
-    
+
     public void EmitButton(ushort button, bool pressed)
     {
         if (_device == null) return;
-        
+
         _device.EmitButton(button, pressed);
-        
+
         if (pressed)
             _pressedButtons.TryAdd(button, 0);
         else
             _pressedButtons.TryRemove(button, out _);
+
+        Log.Debug("[UInputEventExecutor] Button: {Button} State={State}", button, pressed ? "Pressed" : "Released");
     }
-    
+
     public void EmitScroll(int value)
     {
         if (_device == null) return;
-        
+
         _device.SendEvent(UInputNative.EV_REL, UInputNative.REL_WHEEL, value);
         _device.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+
+        Log.Debug("[UInputEventExecutor] Scroll: {Value}", value > 0 ? "Up" : "Down");
     }
-    
+
     public void EmitKey(int keyCode, bool pressed)
     {
         if (_device == null) return;
-        
+
         _device.EmitKey(keyCode, pressed);
-        
+
         if (pressed)
             _pressedKeys.TryAdd(keyCode, 0);
         else
             _pressedKeys.TryRemove(keyCode, out _);
+
+        Log.Debug("[UInputEventExecutor] Key: {KeyCode} State={State}", keyCode, pressed ? "Pressed" : "Released");
     }
     
     public void ReleaseAll()

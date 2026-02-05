@@ -209,6 +209,8 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         if (e.Value == 1)
         {
             _modifierTracker.OnKeyPressed(e.Code);
+            Log.Debug("[GlobalHotkeyService] Key pressed: Code={Code}, CurrentModifiers=[{Modifiers}]",
+                e.Code, string.Join("+", _modifierTracker.CurrentModifiers));
         }
         else if (e.Value == 0)
         {
@@ -218,15 +220,15 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             RawKeyReleased?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, releaseModifiers, string.Empty));
             _modifierTracker.OnKeyReleased(e.Code);
         }
-        
+
         if (e.Value != 1)
             return;
-        
+
         // Skip if this is a modifier key
         var currentModifiers = _modifierTracker.CurrentModifiers;
         if (currentModifiers.Contains(e.Code))
             return;
-            
+
         // Block pure mouse left (BTN_LEFT) and right (BTN_RIGHT) clicks without modifiers
         if ((e.Code == InputEventCode.BTN_LEFT || e.Code == InputEventCode.BTN_RIGHT) && !_modifierTracker.HasModifiers)
             return;
@@ -234,8 +236,11 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         // Build hotkey string
         var hotkeyString = _hotkeyStringBuilder.Build(e.Code, currentModifiers);
 
+        Log.Debug("[GlobalHotkeyService] Hotkey candidate: {HotkeyString} (Code={Code})", hotkeyString, e.Code);
+
         if (_isCapturing && _captureTcs != null)
         {
+            Log.Debug("[GlobalHotkeyService] Captured hotkey: {HotkeyString}", hotkeyString);
             Task.Run(() => _captureTcs.TrySetResult(hotkeyString));
             return;
         }
@@ -243,25 +248,25 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         // Check hotkey matches
         if (_hotkeyMatcher.TryMatch(e.Code, currentModifiers, _recordingHotkey, "Recording"))
         {
-            Log.Information("[GlobalHotkeyService] Recording Hotkey Pressed");
+            Log.Information("[GlobalHotkeyService] Recording Hotkey Pressed: {Hotkey}", hotkeyString);
             ToggleRecordingRequested?.Invoke(this, EventArgs.Empty);
         }
-        
+
         if (_playbackPauseHotkeysEnabled)
         {
             if (_hotkeyMatcher.TryMatch(e.Code, currentModifiers, _playbackHotkey, "Playback"))
             {
-                Log.Information("[GlobalHotkeyService] Playback Hotkey Pressed");
+                Log.Information("[GlobalHotkeyService] Playback Hotkey Pressed: {Hotkey}", hotkeyString);
                 TogglePlaybackRequested?.Invoke(this, EventArgs.Empty);
             }
-            
+
             if (_hotkeyMatcher.TryMatch(e.Code, currentModifiers, _pauseHotkey, "Pause"))
             {
-                Log.Information("[GlobalHotkeyService] Pause Hotkey Pressed");
+                Log.Information("[GlobalHotkeyService] Pause Hotkey Pressed: {Hotkey}", hotkeyString);
                 TogglePauseRequested?.Invoke(this, EventArgs.Empty);
             }
         }
-        
+
         // Broadcast raw input
         RawInputReceived?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, currentModifiers, hotkeyString));
     }

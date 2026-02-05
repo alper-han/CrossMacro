@@ -146,16 +146,20 @@ public class TextExpansionService : ITextExpansionService
     {
         // Update Buffer
         _bufferState.Append(c);
-        
+
+        Log.Debug("[TextExpansionService] Buffer: '{Buffer}' (added: '{Char}')",
+            _bufferState.ToString(), c);
+
         // Check for Trigger
         var expansions = _storageService.GetCurrent();
         if (_bufferState.TryGetMatch(expansions, out var match) && match != null)
         {
-             Log.Information("[TextExpansionService] Trigger detected: {Trigger}", match.Trigger);
-             
+             Log.Information("[TextExpansionService] Trigger detected: '{Trigger}' -> expanding to '{Replacement}'",
+                 match.Trigger, match.Replacement.Length > 50 ? match.Replacement[..50] + "..." : match.Replacement);
+
              // Clear buffer immediately to prevent re-triggering
              _bufferState.Clear();
-             
+
              // Run Execution
              Task.Run(() => PerformExpansionAsync(match));
         }
@@ -166,10 +170,12 @@ public class TextExpansionService : ITextExpansionService
         if (keyCode == 14) // Backspace
         {
             _bufferState.Backspace();
+            Log.Debug("[TextExpansionService] Backspace - Buffer: '{Buffer}'", _bufferState.ToString());
         }
         else if (keyCode == 28) // Enter
         {
              _bufferState.Clear();
+             Log.Debug("[TextExpansionService] Enter - Buffer cleared");
         }
     }
 
@@ -188,7 +194,12 @@ public class TextExpansionService : ITextExpansionService
                 elapsed += 50;
             }
 
+            Log.Debug("[TextExpansionService] Executing expansion: '{Trigger}' -> {ReplacementLength} chars",
+                expansion.Trigger, expansion.Replacement.Length);
+
             await _startExecutor.ExpandAsync(expansion);
+
+            Log.Debug("[TextExpansionService] Expansion completed: '{Trigger}'", expansion.Trigger);
         }
         finally
         {

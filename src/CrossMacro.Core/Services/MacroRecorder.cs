@@ -49,14 +49,19 @@ public class MacroRecorder : IMacroRecorder, IDisposable
     {
         if (_isRecording)
             return;
-            
+
         if (!recordMouse && !recordKeyboard)
             throw new ArgumentException("At least one recording type (mouse or keyboard) must be enabled");
 
         _isRecording = true;
-        
+
         bool useAbsoluteCoordinates = !forceRelative; // Strategy Factory handles the rest
-        
+
+        var ignoredKeysList = ignoredKeys?.ToList();
+        Log.Debug("[MacroRecorder] Configuration: Mouse={Mouse}, Keyboard={Keyboard}, Absolute={Absolute}, ForceRelative={ForceRelative}, SkipInitialZero={SkipZero}, IgnoredKeys={IgnoredKeys}",
+            recordMouse, recordKeyboard, useAbsoluteCoordinates, forceRelative, skipInitialZero,
+            ignoredKeysList != null ? string.Join(",", ignoredKeysList) : "none");
+
         _currentSequence = new MacroSequence
         {
             Name = "New Macro",
@@ -64,7 +69,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             IsAbsoluteCoordinates = useAbsoluteCoordinates,
             SkipInitialZeroZero = skipInitialZero
         };
-        
+
         _stopwatch = Stopwatch.StartNew();
 
         try
@@ -163,6 +168,11 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             }
 
             _currentSequence.Events.Add(macroEvent);
+
+            Log.Debug("[MacroRecorder] Event #{Count}: {Type} | X={X} Y={Y} | Key={Key} Button={Button} | Delay={Delay}ms",
+                _currentSequence.Events.Count, macroEvent.Type, macroEvent.X, macroEvent.Y,
+                macroEvent.KeyCode, macroEvent.Button, macroEvent.DelayMs);
+
             EventRecorded?.Invoke(this, macroEvent);
         }
     }

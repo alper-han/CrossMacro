@@ -15,6 +15,10 @@ public static class EvdevNative
     public const ulong EVIOCGBIT_ABS = 0x80044523;
     public const ulong EVIOCGPROP = 0x80044509;
 
+    // Get device ID (vendor, product, version)
+    // _IOC(_IOC_READ, 'E', 0x02, sizeof(input_id)) = 8 bytes
+    public const ulong EVIOCGID = 0x80084502;
+
     // Get current key/button state (for SYN_DROPPED resync)
     // _IOC(_IOC_READ, 'E', 0x18, KEY_MAX/8+1) where KEY_MAX=0x2FF
     // Result: 96 bytes bitmap of currently pressed keys

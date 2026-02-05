@@ -101,7 +101,7 @@ public class IpcClient : IDisposable
             while (!token.IsCancellationRequested && _reader != null)
             {
                 var opcode = (IpcOpCode)_reader.ReadByte();
-                
+
                 switch (opcode)
                 {
                     case IpcOpCode.InputEvent:
@@ -109,7 +109,9 @@ public class IpcClient : IDisposable
                         var code = _reader.ReadInt32();
                         var value = _reader.ReadInt32();
                         var timestamp = _reader.ReadInt64();
-                        
+
+                        Log.Debug("[IpcClient] RX: InputEvent Type={Type} Code={Code} Value={Value}", type, code, value);
+
                         InputReceived?.Invoke(this, new InputCaptureEventArgs
                         {
                             Type = type,
@@ -119,14 +121,15 @@ public class IpcClient : IDisposable
                             DeviceName = "Daemon Device"
                         });
                         break;
-                        
+
                     case IpcOpCode.Error:
                         var msg = _reader.ReadString();
+                        Log.Warning("[IpcClient] RX: Error from daemon: {Message}", msg);
                         ErrorOccurred?.Invoke(this, msg);
                         break;
-                        
+
                     default:
-                        Log.Warning("Unknown opcode received from Daemon: {Op}", opcode);
+                        Log.Warning("[IpcClient] RX: Unknown opcode: {Op}", opcode);
                         break;
                 }
             }
@@ -135,7 +138,7 @@ public class IpcClient : IDisposable
         {
             if (!token.IsCancellationRequested)
             {
-                Log.Error(ex, "IPC Read Loop Error");
+                Log.Error(ex, "[IpcClient] Read loop error");
                 ErrorOccurred?.Invoke(this, "Connection lost: " + ex.Message);
             }
         }
@@ -151,6 +154,7 @@ public class IpcClient : IDisposable
             _captureRequestCount++;
             if (_captureRequestCount == 1)
             {
+                Log.Debug("[IpcClient] TX: StartCapture Mouse={Mouse} Keyboard={Keyboard}", mouse, keyboard);
                 Send(IpcOpCode.StartCapture, w =>
                 {
                     w.Write(mouse);
@@ -160,6 +164,7 @@ public class IpcClient : IDisposable
             else if (mouse || keyboard)
             {
                 // Re-send to update capture flags
+                Log.Debug("[IpcClient] TX: StartCapture (update) Mouse={Mouse} Keyboard={Keyboard}", mouse, keyboard);
                 Send(IpcOpCode.StartCapture, w =>
                 {
                     w.Write(mouse);
@@ -177,9 +182,10 @@ public class IpcClient : IDisposable
             {
                 _captureRequestCount--;
             }
-            
+
             if (_captureRequestCount == 0)
             {
+                Log.Debug("[IpcClient] TX: StopCapture");
                 Send(IpcOpCode.StopCapture);
             }
         }
@@ -187,6 +193,7 @@ public class IpcClient : IDisposable
 
     public void SimulateEvent(ushort type, ushort code, int value)
     {
+        Log.Debug("[IpcClient] TX: SimulateEvent Type={Type} Code={Code} Value={Value}", type, code, value);
         Send(IpcOpCode.SimulateEvent, w =>
         {
             w.Write(type);

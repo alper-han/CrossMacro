@@ -39,12 +39,15 @@ public class EvdevReader : IDisposable
         _fd = EvdevNative.open(_devicePath, EvdevNative.O_RDONLY);
         if (_fd < 0)
         {
+            Log.Error("[EvdevReader] Failed to open device {Path} - Check permissions (need input group)", _devicePath);
             throw new InvalidOperationException($"Failed to open device {_devicePath}. Check permissions (need input group).");
         }
 
         _cts = new CancellationTokenSource();
         IsListening = true;
         _readTask = Task.Run(() => ReadLoop(_cts.Token));
+
+        Log.Debug("[EvdevReader] Started reading from {Device} ({Path})", DeviceName, _devicePath);
     }
 
     public void Stop()
@@ -62,6 +65,7 @@ public class EvdevReader : IDisposable
         catch (AggregateException) { }
 
         IsListening = false;
+        Log.Debug("[EvdevReader] Stopped reading from {Device}", DeviceName);
     }
 
     private void CloseDevice()
@@ -175,7 +179,7 @@ public class EvdevReader : IDisposable
             // On first resync, emit current state for all pressed keys
             EmitCurrentKeyState(currentKeyState);
             Array.Copy(currentKeyState, _lastKeyState, 96);
-            Log.Information("[{Device}] Initial key state sync completed", DeviceName);
+            Log.Debug("[{Device}] Initial key state sync completed", DeviceName);
             return;
         }
 
@@ -207,7 +211,7 @@ public class EvdevReader : IDisposable
 
         // Update last known state
         Array.Copy(currentKeyState, _lastKeyState, 96);
-        Log.Information("[{Device}] Resync completed after SYN_DROPPED", DeviceName);
+        Log.Debug("[{Device}] Resync completed after SYN_DROPPED", DeviceName);
     }
 
     /// <summary>

@@ -24,20 +24,26 @@ public static class LoggerSetup
     /// <param name="logLevel">Initial log level (Debug, Information, Warning, Error)</param>
     public static void Initialize(string logLevel = "Information")
     {
-        var logDir = GetLogDirectory();
-        Directory.CreateDirectory(logDir);
-        
-        var logPath = Path.Combine(logDir, "log-.txt");
-        
         _levelSwitch = new LoggingLevelSwitch(ParseLogLevel(logLevel));
-        
-        Log.Logger = new LoggerConfiguration()
+
+        var config = new LoggerConfiguration()
             .MinimumLevel.ControlledBy(_levelSwitch)
-            .WriteTo.Console()
-            .WriteTo.Async(a => a.File(logPath, rollingInterval: RollingInterval.Day))
-            .CreateLogger();
-        
-        Log.Information("Logger initialized. Log directory: {LogDirectory}, Level: {Level}", logDir, logLevel);
+            .WriteTo.Console();
+
+        try
+        {
+            var logDir = GetLogDirectory();
+            Directory.CreateDirectory(logDir);
+            var logPath = Path.Combine(logDir, "log-.txt");
+            config = config.WriteTo.Async(a => a.File(logPath, rollingInterval: RollingInterval.Day));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[LoggerSetup] File logging disabled: {ex.Message}");
+        }
+
+        Log.Logger = config.CreateLogger();
+        Log.Debug("Logger initialized. Level: {Level}", logLevel);
     }
     
     /// <summary>

@@ -412,6 +412,19 @@ pkcheck --version
 </details>
 
 <details>
+<summary><strong>Enable Debug Logging</strong></summary>
+
+To enable debug logging for troubleshooting:
+```bash
+sudo systemctl kill -s USR1 crossmacro
+journalctl -u crossmacro -f
+```
+
+Send the signal again to switch back to normal logging.
+
+</details>
+
+<details>
 <summary><strong>Keyboard Events Not Recording (Mouse Works)</strong></summary>
 
 Some applications lock input devices to prevent them from being used by other programs. One such application is **GPU Screen Recorder**.

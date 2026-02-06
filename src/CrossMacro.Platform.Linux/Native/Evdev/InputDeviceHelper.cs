@@ -45,7 +45,7 @@ public class InputDeviceHelper
     {
         List<InputDevice> devices = [];
         List<InputDevice> skippedDevices = [];
-        List<InputDevice> inaccessibleDevices = [];
+        List<(InputDevice device, int errno)> inaccessibleDevices = [];
         var inputDir = "/dev/input";
 
         Log.Information("[InputDeviceHelper] Scanning input devices in {InputDir}...", inputDir);
@@ -78,14 +78,14 @@ public class InputDeviceHelper
 
                 if (device.IsMouse || device.IsKeyboard)
                 {
-                    if (CanOpenForReading(file))
+                    var (canOpen, errno) = CanOpenForReading(file);
+                    if (canOpen)
                     {
                         devices.Add(device);
                     }
                     else
                     {
-                        // Input device detected but cannot be opened (permission issue)
-                        inaccessibleDevices.Add(device);
+                        inaccessibleDevices.Add((device, errno));
                     }
                 }
                 else
@@ -116,11 +116,19 @@ public class InputDeviceHelper
 
         if (inaccessibleDevices.Count > 0)
         {
-            Log.Warning("[InputDeviceHelper] --- Inaccessible Devices (permission denied?) ---");
-            foreach (var dev in inaccessibleDevices)
+            Log.Warning("[InputDeviceHelper] --- Inaccessible Devices ---");
+            foreach (var (dev, errno) in inaccessibleDevices)
             {
-                Log.Warning("[InputDeviceHelper]   [{Type}] {Name} ({Path}) | VID:0x{VID:X4} PID:0x{PID:X4} - Cannot open for reading!",
-                    dev.DeviceType, dev.Name, dev.Path, dev.VendorId, dev.ProductId);
+                if (errno == 16) // EBUSY - device is grabbed
+                {
+                    Log.Warning("[InputDeviceHelper]   [{Type}] {Name} ({Path}) - Device is exclusively grabbed. Run: sudo fuser -v {Path}",
+                        dev.DeviceType, dev.Name, dev.Path, dev.Path);
+                }
+                else
+                {
+                    Log.Warning("[InputDeviceHelper]   [{Type}] {Name} ({Path}) | VID:0x{VID:X4} PID:0x{PID:X4} - Cannot open (errno: {Errno})",
+                        dev.DeviceType, dev.Name, dev.Path, dev.VendorId, dev.ProductId, errno);
+                }
             }
         }
 
@@ -459,13 +467,16 @@ public class InputDeviceHelper
         return false;
     }
 
-    private static bool CanOpenForReading(string devicePath)
+    private static (bool canOpen, int errno) CanOpenForReading(string devicePath)
     {
         int fd = -1;
         try
         {
             fd = EvdevNative.open(devicePath, EvdevNative.O_RDONLY | EvdevNative.O_NONBLOCK);
-            if (fd < 0) return false;
+            if (fd < 0)
+            {
+                return (false, Marshal.GetLastWin32Error());
+            }
 
             IntPtr bufferPtr = Marshal.AllocHGlobal(24);
             try
@@ -474,9 +485,11 @@ public class InputDeviceHelper
                 if (result.ToInt32() < 0)
                 {
                     int errno = Marshal.GetLastWin32Error();
-                    return errno == 11 || errno == 0; // EAGAIN veya başarılı
+                    if (errno == 11 || errno == 0) // EAGAIN or success
+                        return (true, 0);
+                    return (false, errno);
                 }
-                return true;
+                return (true, 0);
             }
             finally
             {
@@ -485,7 +498,7 @@ public class InputDeviceHelper
         }
         catch
         {
-            return false;
+            return (false, -1);
         }
         finally
         {

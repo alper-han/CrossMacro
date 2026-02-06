@@ -31,8 +31,8 @@ RestrictSUIDSGID=yes
 RestrictNamespaces=yes
 
 # Capability restrictions (only necessary ones)
-CapabilityBoundingSet=CAP_SYS_ADMIN CAP_SETUID CAP_SETGID CAP_CHOWN
-AmbientCapabilities=CAP_SYS_ADMIN CAP_CHOWN
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_SETUID CAP_SETGID CAP_CHOWN CAP_DAC_READ_SEARCH
+AmbientCapabilities=CAP_SYS_ADMIN CAP_CHOWN CAP_DAC_READ_SEARCH
 
 # Allow write to /dev/input and /dev/uinput
 ReadWritePaths=/dev/input /dev/uinput /run/crossmacro

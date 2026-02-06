@@ -353,6 +353,8 @@
                   RestartSec = 5;
                   RuntimeDirectory = "crossmacro";
                   RuntimeDirectoryMode = "0755";
+                  CapabilityBoundingSet = [ "CAP_SYS_ADMIN" "CAP_SETUID" "CAP_SETGID" "CAP_CHOWN" "CAP_DAC_READ_SEARCH" ];
+                  AmbientCapabilities = [ "CAP_SYS_ADMIN" "CAP_CHOWN" "CAP_DAC_READ_SEARCH" ];
                 };
               };
             };

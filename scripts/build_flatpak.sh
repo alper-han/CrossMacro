@@ -2,7 +2,7 @@
 set -e
 
 APP_ID="io.github.alper_han.crossmacro"
-VERSION="${VERSION="0.9.3"}"
+VERSION="${VERSION="0.9.4"}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 FLATPAK_DIR="$PROJECT_ROOT/flatpak"

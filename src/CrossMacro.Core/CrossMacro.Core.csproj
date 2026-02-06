@@ -11,7 +11,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>0.9.3</Version>
+    <Version>0.9.4</Version>
     <Description>Core logic for CrossMacro, a cross-platform mouse and keyboard macro automation tool.</Description>
   </PropertyGroup>
 

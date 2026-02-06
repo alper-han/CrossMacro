@@ -8,7 +8,7 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <AvaloniaStatsTaskEnabled>false</AvaloniaStatsTaskEnabled>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <Version>0.9.3</Version>
+    <Version>0.9.4</Version>
     <Description>Cross-platform mouse and keyboard macro automation tool with text expansion support.</Description>
   </PropertyGroup>
 

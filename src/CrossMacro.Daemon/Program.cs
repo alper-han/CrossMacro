@@ -6,6 +6,7 @@ using CrossMacro.Daemon.Services;
 using CrossMacro.Platform.Linux.Native.Systemd;
 using CrossMacro.Core.Logging;
 using Serilog;
+using Serilog.Events;
 
 namespace CrossMacro.Daemon;
 
@@ -30,12 +31,32 @@ class Program
             cts.Cancel();
         });
         
-        using var sigIntInfo = PosixSignalRegistration.Create(PosixSignal.SIGINT, ctx => 
+        using var sigIntInfo = PosixSignalRegistration.Create(PosixSignal.SIGINT, ctx =>
         {
             ctx.Cancel = true;
             Log.Information("Received SIGINT, stopping daemon...");
             SystemdNotify.Stopping();
             cts.Cancel();
+        });
+
+        // SIGUSR1 (10): Toggle debug logging at runtime - usage: sudo pkill -USR1 crossmacro
+        using var sigUsr1Info = PosixSignalRegistration.Create((PosixSignal)10, ctx =>
+        {
+            ctx.Cancel = true;
+
+            var levelSwitch = LoggerSetup.LevelSwitch;
+            if (levelSwitch == null) return;
+
+            if (levelSwitch.MinimumLevel == LogEventLevel.Debug)
+            {
+                LoggerSetup.SetLogLevel("Information");
+                Log.Information("[LogLevel] Switched to Information (send SIGUSR1 again for Debug)");
+            }
+            else
+            {
+                LoggerSetup.SetLogLevel("Debug");
+                Log.Information("[LogLevel] Switched to Debug (send SIGUSR1 again for Information)");
+            }
         });
 
         AppDomain.CurrentDomain.ProcessExit += (s, e) =>

@@ -74,14 +74,19 @@ public class SessionHandler : ISessionHandler
             
 
             object writerLock = new object();
+            bool disconnected = false;
 
             // Define the capture callback here to close over 'writer' and 'writerLock'
-            Action<UInputNative.input_event> onEventValue = (e) => 
+            Action<UInputNative.input_event> onEventValue = (e) =>
             {
-                try 
+                if (disconnected) return;
+
+                try
                 {
                     lock (writerLock)
                     {
+                        if (disconnected) return;
+
                         writer.Write((byte)IpcOpCode.InputEvent);
                         writer.Write((byte)GetEventType(e.type, e.code));
                         writer.Write((int)e.code);
@@ -90,13 +95,19 @@ public class SessionHandler : ISessionHandler
                         stream.Flush();
                     }
                 }
+                catch (IOException)
+                {
+                    disconnected = true;
+                    Log.Debug("[SessionHandler] Stream closed, stopping event forwarding");
+                }
                 catch (Exception ex)
                 {
-                    Log.Debug(ex, "[SessionHandler] Failed to write input event (stream likely closed)");
+                    disconnected = true;
+                    Log.Debug(ex, "[SessionHandler] Failed to write input event");
                 }
             };
 
-            await Task.Run(() => ReadLoop(reader, uid, pid, onEventValue, clientCts.Token), clientCts.Token);
+            await Task.Run(() => ReadLoop(reader, uid, pid, onEventValue, () => disconnected = true, clientCts.Token), clientCts.Token);
         }
         catch (Exception ex)
         {
@@ -104,13 +115,11 @@ public class SessionHandler : ISessionHandler
         }
         finally
         {
-            // Ensure capture/device cleanup 
-            _inputCapture.StopCapture();
-
+            // Cleanup is handled in ReadLoop's finally block
         }
     }
 
-    private void ReadLoop(BinaryReader reader, uint uid, int pid, Action<UInputNative.input_event> onEvent, CancellationToken token)
+    private void ReadLoop(BinaryReader reader, uint uid, int pid, Action<UInputNative.input_event> onEvent, Action onDisconnect, CancellationToken token)
     {
         try
         {
@@ -167,6 +176,11 @@ public class SessionHandler : ISessionHandler
         catch (Exception ex)
         {
             Log.Error(ex, "Error in ReadLoop");
+        }
+        finally
+        {
+            onDisconnect();
+            _inputCapture.StopCapture();
         }
     }
 

@@ -102,14 +102,9 @@ public class MacroEventExecutor : IEventExecutor
             {
                 if (isRecordedAbsolute)
                 {
-                    // Absolute mode: calculate delta and move
-                    int dx = ev.X - _coordinator.CurrentX;
-                    int dy = ev.Y - _coordinator.CurrentY;
-                    if (dx != 0 || dy != 0)
-                    {
-                        _simulator.MoveRelative(dx, dy);
-                        _coordinator.UpdatePosition(ev.X, ev.Y);
-                    }
+                    // Use absolute for button positioning - ensures correct click location
+                    _simulator.MoveAbsolute(ev.X, ev.Y);
+                    _coordinator.UpdatePosition(ev.X, ev.Y);
                 }
                 else if (ev.X != 0 || ev.Y != 0)
                 {
@@ -164,7 +159,11 @@ public class MacroEventExecutor : IEventExecutor
         {
             if (_buttonTracker.IsAnyPressed)
             {
-                // Button pressed - use relative to avoid Wayland drawing issues
+                // Button pressed - use relative for smooth Wayland curves
+                // First sync to previous position with absolute (drift correction)
+                _simulator.MoveAbsolute(_coordinator.CurrentX, _coordinator.CurrentY);
+
+                // Then apply relative delta for smooth curve
                 int dx = ev.X - _coordinator.CurrentX;
                 int dy = ev.Y - _coordinator.CurrentY;
                 if (dx != 0 || dy != 0)

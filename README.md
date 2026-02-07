@@ -17,26 +17,23 @@ A modern mouse and keyboard macro recording and playback application for Linux (
 
 ## 🖥️ Supported Platforms
 
-### Full Support (Absolute Positioning)
-- **Linux**
-  - Hyprland (Wayland) ✓
-  - KDE Plasma (Wayland & X11) ✓
-  - GNOME (Wayland & X11) ✓
-  - X11 (All other desktop environments) ✓
+- **Linux** (X11 & Wayland) ✓
 - **Windows** ✓
 - **macOS** ✓
 
-
-### Partial Support (Relative Positioning)
-- **Linux**
-  - Other Wayland compositors (fallback mode)
-
 <details>
-<summary><strong>What is the difference?</strong></summary>
+<summary><strong>About Mouse Position Tracking on Wayland</strong></summary>
 
-Relative positioning works flawlessly for reproducing input. However, in **Fallback Mode**, the cursor must **reset to the top-left corner (0,0)** at the start of every recording and playback session.
+CrossMacro works on all Wayland compositors. However, due to Wayland's security model, how we track mouse position varies:
 
-This is required because standard Wayland security protocols prevent applications from reading the current mouse position on these compositors, so the app must force a known reference point (0,0) to calculate relative movements correctly.
+**Absolute positioning** — We can read the cursor position directly. Supported on:
+- Hyprland (via IPC)
+- KDE Plasma (via D-Bus)
+- GNOME (via Shell Extension)
+
+**Relative positioning (fallback)** — For other compositors, the cursor resets to the top-left corner (0,0) at the start of every recording and playback session. This is needed because we can't read the current mouse position, so we use a known reference point to calculate movements.
+
+Both modes work reliably for macro recording and playback.
 
 </details>
 
@@ -48,6 +45,9 @@ This is required because standard Wayland security protocols prevent application
 - **Keyboard Event Recording**: Record keyboard key presses
 - **Text Expansion**: Create text shortcuts for quick insertions (e.g. :mail -> email@example.com)
 - **Shortcuts**: Assign macros to keyboard keys, mouse buttons, or combinations for instant execution
+  - Toggle mode: Press to start, press again to stop
+  - Run while held: Runs while the key is pressed, stops on release
+  - Loop support with customizable repeat count and delay
 - **Scheduling**: Run macros automatically at specific times or intervals
 - **Macro Editor**: Powerful built-in editor with undo/redo, smart coordinate capture, and action reordering to fine-tune your macros
 - **Playback**: Replay recorded macros with pause/resume support
@@ -152,7 +152,7 @@ Then in your NixOS configuration:
 }
 ```
 
-> **Note:** The NixOS module automatically sets up the daemon service, user, groups, and adds specified users to the `crossmacro` group.
+> **Note:** The NixOS module automatically sets up the daemon service, user, groups, and adds specified users to the `crossmacro` group. Reboot your system for group changes to take effect.
 
 </details>
 
@@ -414,28 +414,34 @@ pkcheck --version
 <details>
 <summary><strong>Enable Debug Logging</strong></summary>
 
-To enable debug logging for troubleshooting:
+If something isn't working, checking the logs is the best place to start. Both the daemon and UI can provide useful information.
+
+**Daemon logs (debug level):**
 ```bash
 sudo systemctl kill -s USR1 crossmacro
 journalctl -u crossmacro -f
 ```
-
 Send the signal again to switch back to normal logging.
+
+**UI logs:**
+Run the application from terminal to see output directly.
+
+Look for permission errors, device detection issues, or any error messages that point to the problem.
 
 </details>
 
 <details>
-<summary><strong>Keyboard Events Not Recording (Mouse Works)</strong></summary>
+<summary><strong>Input Not Working (Keyboard or Mouse)</strong></summary>
 
-Some applications lock input devices to prevent them from being used by other programs. One such application is **GPU Screen Recorder**.
+If your keyboard or mouse inputs aren't being captured, first check the daemon and UI logs (see **Enable Debug Logging** above).
 
-To temporarily stop the conflicting service and record your macros:
+One known cause is **GPU Screen Recorder**, which locks input devices exclusively. Stop it temporarily:
 ```bash
 systemctl --user stop gpu-screen-recorder
 pkill -9 -f gpu-screen-recorder
 ```
 
-After you're done recording, you can restart the service with:
+Restart after you're done:
 ```bash
 systemctl --user start gpu-screen-recorder
 ```

@@ -10,7 +10,16 @@ This section guides you through submitting a bug report for CrossMacro.
 
 - **Use the Bug Report template**: When you open a new issue, select "Bug Report".
 - **Provide specific details**: Include your platform (Windows, Linux X11, or Wayland compositor), OS version, and steps to reproduce.
-- **Include logs**: If possible, run the application from the terminal and include the output.
+- **Include logs**: Logs help us diagnose issues quickly. Please include both UI and daemon logs if possible:
+
+  **UI logs:** Run the application from terminal to see output directly.
+
+  **Daemon logs (Linux):** Enable debug logging and capture the output:
+  ```bash
+  sudo systemctl kill -s USR1 crossmacro
+  journalctl -u crossmacro -f
+  ```
+  Send the signal again to switch back to normal logging.
 
 ## 💡 Suggesting Enhancements
 

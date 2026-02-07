@@ -5,7 +5,7 @@
 
   <Identity Name="CrossMacro.CrossMacro"
             Publisher="CN=FE9E81DC-2233-4DB9-B5D4-E11AFD6462CF"
-            Version="0.9.5.0"
+            Version="0.9.6.0"
             ProcessorArchitecture="x64"/>
 
   <Properties>

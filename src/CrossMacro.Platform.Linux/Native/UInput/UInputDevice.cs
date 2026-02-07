@@ -90,19 +90,18 @@ namespace CrossMacro.Platform.Linux.Native.UInput
 
             if (_width > 0 && _height > 0)
             {
-                // ABSOLUTE MODE
+                // ABSOLUTE MODE (no INPUT_PROP_DIRECT - causes touchscreen behavior)
                 EnableBit(UInputNative.UI_SET_EVBIT, UInputNative.EV_ABS);
                 EnableBit(UInputNative.UI_SET_ABSBIT, UInputNative.ABS_X);
                 EnableBit(UInputNative.UI_SET_ABSBIT, UInputNative.ABS_Y);
-                EnableBit(UInputNative.UI_SET_PROPBIT, UInputNative.INPUT_PROP_DIRECT);
-                
+
                 // REL mode (Scroll + Relative Movements even in Absolute mode)
                 EnableBit(UInputNative.UI_SET_EVBIT, UInputNative.EV_REL);
                 EnableBit(UInputNative.UI_SET_RELBIT, UInputNative.REL_WHEEL);
                 EnableBit(UInputNative.UI_SET_RELBIT, UInputNative.REL_X);
                 EnableBit(UInputNative.UI_SET_RELBIT, UInputNative.REL_Y);
-                
-                Log.Information("[UInputDevice] Creating ABSOLUTE mode device (EV_ABS + INPUT_PROP_DIRECT)");
+
+                Log.Information("[UInputDevice] Creating ABSOLUTE mode device (EV_ABS + EV_REL hybrid)");
             }
             else
             {

@@ -162,17 +162,22 @@ public class MacroEventExecutor : IEventExecutor
     {
         if (isRecordedAbsolute)
         {
-            // Always use relative movements even for absolute coordinates
-            // This avoids issues with hybrid ABS+REL devices on Wayland compositors
-            // Calculate delta from tracked position to target
-            int dx = ev.X - _coordinator.CurrentX;
-            int dy = ev.Y - _coordinator.CurrentY;
-
-            if (dx != 0 || dy != 0)
+            if (_buttonTracker.IsAnyPressed)
             {
-                _simulator.MoveRelative(dx, dy);
+                // Button pressed - use relative to avoid Wayland drawing issues
+                int dx = ev.X - _coordinator.CurrentX;
+                int dy = ev.Y - _coordinator.CurrentY;
+                if (dx != 0 || dy != 0)
+                {
+                    _simulator.MoveRelative(dx, dy);
+                }
             }
-            _coordinator.UpdatePosition(ev.X, ev.Y);  // Force exact position
+            else
+            {
+                // Button not pressed - use absolute for drift correction
+                _simulator.MoveAbsolute(ev.X, ev.Y);
+            }
+            _coordinator.UpdatePosition(ev.X, ev.Y);
         }
         else
         {

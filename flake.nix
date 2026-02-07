@@ -43,16 +43,16 @@
             expat
 
             # X11 dependencies (Required by Avalonia/SkiaSharp)
-            xorg.libX11
-            xorg.libICE
-            xorg.libSM
-            xorg.libXi
-            xorg.libXcursor
-            xorg.libXext
-            xorg.libXrandr
-            xorg.libXrender
-            xorg.libXfixes
-            xorg.libXtst
+            libx11
+            libice
+            libsm
+            libxi
+            libxcursor
+            libxext
+            libxrandr
+            libxrender
+            libxfixes
+            libxtst
 
             # GLib for GIO
             glib

@@ -46,17 +46,17 @@
                 <!-- Tray Icon Settings -->
                 <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="12">
                     <StackPanel Spacing="16">
-                        <!-- Tray Icon -->
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Grid.Column="0" 
-                                      Text="Enable Tray Icon" 
-                                      FontWeight="Medium" 
+                        <!-- Tray Icon (hidden in Flatpak - D-Bus StatusNotifierItem not supported) -->
+                        <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsTraySettingsVisible}">
+                            <TextBlock Grid.Column="0"
+                                      Text="Enable Tray Icon"
+                                      FontWeight="Medium"
                                       Foreground="{DynamicResource TextPrimaryBrush}"
                                       VerticalAlignment="Center"/>
-                                      
-                            <ToggleSwitch Grid.Column="1" 
+
+                            <ToggleSwitch Grid.Column="1"
                                          IsChecked="{Binding EnableTrayIcon}"
-                                         OnContent="" 
+                                         OnContent=""
                                          OffContent=""
                                          VerticalAlignment="Center"/>
                         </Grid>

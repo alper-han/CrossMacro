@@ -7,29 +7,55 @@ sdk-extensions:
 command: crossmacro
 
 finish-args:
-  # X11 Access (Required for XTest, XInput2)
-  - --share=ipc
+  # Display
   - --socket=x11
+  - --socket=wayland
+  - --share=ipc
 
-  # GPU Acceleration (Recommended for Avalonia UI)
+  # Input devices (required for Wayland macro recording/playback)
+  - --device=all
+
+  # GPU acceleration
   - --device=dri
 
-  # Detect keyboard layout on KDE Plasma
+  # D-Bus: KDE Plasma
   - --talk-name=org.kde.keyboard
+  - --talk-name=org.kde.KWin
+  - --own-name=org.crossmacro.Tracker
 
-  # User files (macro save/load)
-  - --filesystem=xdg-documents/crossmacro:create
+  # D-Bus: GNOME
+  - --talk-name=org.gnome.Shell
+  - --talk-name=org.gnome.Shell.Extensions
 
-  # .NET runtime location
+  # D-Bus: Freedesktop
+  - --talk-name=org.freedesktop.Notifications
+
+
+  # Filesystem: Compositor IPC
+  - --filesystem=xdg-run/hypr:ro
+
+  # Filesystem: Daemon socket (hybrid mode)
+  - --filesystem=/run/crossmacro:rw
+
+  # Filesystem: GNOME Shell extension (auto-install for Wayland support)
+  - --filesystem=~/.local/share/gnome-shell/extensions:create
+
+  # Environment
   - --env=DOTNET_ROOT=/app/lib/dotnet
+  - --env=CROSSMACRO_FLATPAK=1
 
 build-options:
   prepend-path: /usr/lib/sdk/dotnet10/bin
   append-ld-library-path: /usr/lib/sdk/dotnet10/lib
   prepend-pkg-config-path: /usr/lib/sdk/dotnet10/lib/pkgconfig
+  strip: true
   env:
     DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+cleanup:
+  - /lib/debug
+  - '*.pdb'
 
 modules:
   # .NET Runtime Installation (Framework-Dependent approach)
@@ -41,7 +67,7 @@ modules:
   - name: crossmacro
     buildsystem: simple
     build-commands:
-      # Publish as framework-dependent (no runtime bundled)
+      # Publish as framework-dependent (supports both x86_64 and aarch64)
       - dotnet publish src/CrossMacro.UI/CrossMacro.UI.csproj -c Release --no-self-contained -p:PublishReadyToRun=false -p:PublishTrimmed=false --source nuget-sources -o /app/lib/crossmacro
 
       # Install launcher script
@@ -65,7 +91,7 @@ modules:
       # Main source from GitHub
       - type: git
         url: https://github.com/alper-han/CrossMacro.git
-        tag: v0.8.5
+        tag: v0.9.7
         x-checker-data:
           type: git
           tag-pattern: ^v([\d.]+)$

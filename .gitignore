@@ -155,6 +155,7 @@ flatpak/build-dir/
 flatpak/repo/
 flatpak/*.flatpak
 scripts/flatpak-source/
+repo/
 
 # SELinux build artifacts
 *.pp

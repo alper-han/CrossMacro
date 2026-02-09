@@ -4,6 +4,7 @@ using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.UI.Services;
 using Serilog;
 
 namespace CrossMacro.UI.ViewModels;
@@ -57,9 +58,17 @@ public class SettingsViewModel : ViewModelBase
         
         // Hide update settings if running as Flatpak
         IsUpdateSettingsVisible = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FLATPAK_ID"));
+
+        // Hide tray settings if tray is not supported (Flatpak sandbox blocks D-Bus StatusNotifierItem)
+        IsTraySettingsVisible = TrayIconService.IsTraySupported();
     }
-    
+
     public bool IsUpdateSettingsVisible { get; }
+
+    /// <summary>
+    /// Tray icon settings are hidden in Flatpak where StatusNotifierItem is not supported
+    /// </summary>
+    public bool IsTraySettingsVisible { get; }
     
     public string RecordingHotkey
     {

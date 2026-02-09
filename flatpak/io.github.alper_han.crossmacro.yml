@@ -7,29 +7,55 @@ sdk-extensions:
 command: crossmacro
 
 finish-args:
-  # X11 Access (Required for XTest, XInput2)
-  - --share=ipc
+  # Display
   - --socket=x11
-  
-  # Detect keyboard layout on KDE Plasma
-  - --talk-name=org.kde.keyboard
-  
-  # User files (macro save/load)
-  - --filesystem=xdg-documents/crossmacro:create
+  - --socket=wayland
+  - --share=ipc
 
-  # GPU Acceleration (Recommended for Avalonia UI)
+  # Input devices (required for Wayland macro recording/playback)
+  - --device=all
+
+  # GPU acceleration
   - --device=dri
 
-  # .NET runtime location
+  # D-Bus: KDE Plasma
+  - --talk-name=org.kde.keyboard
+  - --talk-name=org.kde.KWin
+  - --own-name=org.crossmacro.Tracker
+
+  # D-Bus: GNOME
+  - --talk-name=org.gnome.Shell
+  - --talk-name=org.gnome.Shell.Extensions
+
+  # D-Bus: Freedesktop
+  - --talk-name=org.freedesktop.Notifications
+
+
+  # Filesystem: Compositor IPC
+  - --filesystem=xdg-run/hypr:ro
+
+  # Filesystem: Daemon socket (hybrid mode)
+  - --filesystem=/run/crossmacro:rw
+
+  # Filesystem: GNOME Shell extension (auto-install for Wayland support)
+  - --filesystem=~/.local/share/gnome-shell/extensions:create
+
+  # Environment
   - --env=DOTNET_ROOT=/app/lib/dotnet
+  - --env=CROSSMACRO_FLATPAK=1
 
 build-options:
   prepend-path: /usr/lib/sdk/dotnet10/bin
   append-ld-library-path: /usr/lib/sdk/dotnet10/lib
   prepend-pkg-config-path: /usr/lib/sdk/dotnet10/lib/pkgconfig
+  strip: true
   env:
     DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+cleanup:
+  - /lib/debug
+  - '*.pdb'
 
 modules:
   # .NET Runtime Installation (Framework-Dependent approach)
@@ -41,28 +67,30 @@ modules:
   - name: crossmacro
     buildsystem: simple
     build-commands:
-      # Copy all app files to lib directory (keeps DLLs together with binary)
-      - mkdir -p /app/lib/crossmacro
-      - cp -r * /app/lib/crossmacro/ || true
-      - chmod +x /app/lib/crossmacro/CrossMacro.UI
-      
+      # Publish as framework-dependent (supports both x86_64 and aarch64)
+      - dotnet publish src/CrossMacro.UI/CrossMacro.UI.csproj -c Release --no-self-contained -p:PublishReadyToRun=false -p:PublishTrimmed=false --source nuget-sources -o /app/lib/crossmacro
+
       # Install launcher script
-      - install -Dm755 crossmacro.sh /app/bin/crossmacro
-      
+      - install -Dm755 flatpak/crossmacro.sh /app/bin/crossmacro
+
       # Desktop entry
-      - install -Dm644 io.github.alper_han.crossmacro.desktop /app/share/applications/io.github.alper_han.crossmacro.desktop
-      
+      - install -Dm644 flatpak/io.github.alper_han.crossmacro.desktop /app/share/applications/io.github.alper_han.crossmacro.desktop
+
       # Icons
-      - install -Dm644 icons/512x512/apps/crossmacro.png /app/share/icons/hicolor/512x512/apps/io.github.alper_han.crossmacro.png
-      - install -Dm644 icons/256x256/apps/crossmacro.png /app/share/icons/hicolor/256x256/apps/io.github.alper_han.crossmacro.png
-      - install -Dm644 icons/128x128/apps/crossmacro.png /app/share/icons/hicolor/128x128/apps/io.github.alper_han.crossmacro.png
-      
+      - install -Dm644 src/CrossMacro.UI/Assets/icons/512x512/apps/crossmacro.png /app/share/icons/hicolor/512x512/apps/io.github.alper_han.crossmacro.png
+      - install -Dm644 src/CrossMacro.UI/Assets/icons/256x256/apps/crossmacro.png /app/share/icons/hicolor/256x256/apps/io.github.alper_han.crossmacro.png
+      - install -Dm644 src/CrossMacro.UI/Assets/icons/128x128/apps/crossmacro.png /app/share/icons/hicolor/128x128/apps/io.github.alper_han.crossmacro.png
+
       # Metainfo
-      - install -Dm644 io.github.alper_han.crossmacro.metainfo.xml /app/share/metainfo/io.github.alper_han.crossmacro.metainfo.xml
-      
+      - install -Dm644 flatpak/io.github.alper_han.crossmacro.metainfo.xml /app/share/metainfo/io.github.alper_han.crossmacro.metainfo.xml
+
       # License
       - install -Dm644 LICENSE /app/share/licenses/io.github.alper_han.crossmacro/LICENSE
 
     sources:
+      # Local source directory
       - type: dir
-        path: ../scripts/flatpak-source
+        path: ..
+
+      # NuGet packages (offline)
+      - nuget-sources.json

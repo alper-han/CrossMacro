@@ -1,8 +1,8 @@
 [Desktop Entry]
 Name=CrossMacro
 GenericName=Macro Automation Tool
-Comment=Mouse and keyboard macro automation tool for X11
-Keywords=macro;keyboard;mouse;automation;
+Comment=Mouse and keyboard macro automation tool for Linux, Windows, and macOS
+Keywords=macro;keyboard;mouse;automation;wayland;x11;
 Exec=crossmacro
 Icon=io.github.alper_han.crossmacro
 Type=Application
@@ -10,3 +10,4 @@ Categories=Utility;Accessibility;
 Terminal=false
 StartupNotify=true
 StartupWMClass=CrossMacro
+X-Flatpak=io.github.alper_han.crossmacro

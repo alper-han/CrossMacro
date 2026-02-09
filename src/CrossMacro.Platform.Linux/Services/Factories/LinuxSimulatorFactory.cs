@@ -35,16 +35,28 @@ public class LinuxSimulatorFactory
 
     /// <summary>
     /// Creates the appropriate input simulator for the current environment.
-    /// Priority: Wayland -> X11 Native -> Fallback (Legacy or IPC based on capabilities)
+    /// Priority: Wayland (Daemon or Legacy) -> X11 Native -> Fallback (Legacy or IPC based on capabilities)
     /// </summary>
     public IInputSimulator Create()
     {
-        // 1. Wayland -> Force Daemon (IPC)
+        // 1. Wayland -> Check capabilities (Daemon or Legacy fallback)
         if (_environmentDetector.IsWayland)
         {
-            LoggingExtensions.LogOnce("LinuxSimulatorFactory_Wayland", "[LinuxSimulatorFactory] Wayland detected ({0}), using IPC Simulator", 
+            var mode = _capabilityDetector.DetermineMode();
+
+            if (mode == InputProviderMode.Daemon)
+            {
+                LoggingExtensions.LogOnce("LinuxSimulatorFactory_Wayland_Daemon",
+                    "[LinuxSimulatorFactory] Wayland detected ({0}), using IPC Simulator (Daemon mode)",
+                    _environmentDetector.DetectedCompositor);
+                return _ipcFactory();
+            }
+
+            // Fallback to legacy evdev (works with input group or Flatpak --device=all)
+            LoggingExtensions.LogOnce("LinuxSimulatorFactory_Wayland_Legacy",
+                "[LinuxSimulatorFactory] Wayland detected ({0}), daemon not available, using Legacy evdev Simulator",
                 _environmentDetector.DetectedCompositor);
-            return _ipcFactory();
+            return _legacyFactory();
         }
 
         // 2. X11 -> Try Native X11
@@ -56,11 +68,11 @@ public class LinuxSimulatorFactory
         }
 
         // 3. Fallback -> Legacy or Daemon based on capabilities
-        var mode = _capabilityDetector.DetermineMode();
-        LoggingExtensions.LogOnce("LinuxSimulatorFactory_Fallback", "[LinuxSimulatorFactory] Fallback mode: {0}", mode);
-        
-        return mode == InputProviderMode.Legacy 
-            ? _legacyFactory() 
+        var fallbackMode = _capabilityDetector.DetermineMode();
+        LoggingExtensions.LogOnce("LinuxSimulatorFactory_Fallback", "[LinuxSimulatorFactory] Fallback mode: {0}", fallbackMode);
+
+        return fallbackMode == InputProviderMode.Legacy
+            ? _legacyFactory()
             : _ipcFactory();
     }
 

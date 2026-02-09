@@ -2,25 +2,60 @@
 <component type="desktop-application">
   <id>io.github.alper_han.crossmacro</id>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>GPL-3.0</project_license>
+  <project_license>GPL-3.0-or-later</project_license>
   <name>CrossMacro</name>
   <developer id="io.github.alper_han">
     <name>Alper Han</name>
   </developer>
-  <summary>Mouse and keyboard macro automation tool for X11</summary>
+  <summary>Mouse and keyboard macro automation tool</summary>
+  <keywords>
+    <keyword>crossmacro</keyword>
+    <keyword>macro</keyword>
+    <keyword>automation</keyword>
+    <keyword>keyboard</keyword>
+    <keyword>mouse</keyword>
+    <keyword>recording</keyword>
+    <keyword>playback</keyword>
+    <keyword>text expansion</keyword>
+    <keyword>wayland</keyword>
+    <keyword>x11</keyword>
+  </keywords>
+  <branding>
+    <color type="primary" scheme_preference="light">#3584e4</color>
+    <color type="primary" scheme_preference="dark">#1a5fb4</color>
+  </branding>
   <description>
     <p>
-      CrossMacro is a powerful mouse and keyboard macro recording and playback tool.
-      This Flatpak version supports X11 sessions only. Wayland is not supported due to protocol restrictions.
-      Please use an X11 session to run this application.
+      CrossMacro is a powerful mouse and keyboard macro recording and playback tool
+      that works on both Wayland and X11 sessions. It provides a modern, cross-platform
+      solution for automating repetitive tasks.
     </p>
     <p>Features:</p>
     <ul>
       <li>Record and replay mouse movements, clicks, and keyboard events</li>
-      <li>Text Expansion support for productivity</li>
-      <li>Global hotkeys for control</li>
-      <li>Adjustable playback speed and loop mode</li>
+      <li>Text Expansion support for productivity (e.g., :mail → email@example.com)</li>
+      <li>Assign macros to keyboard shortcuts with toggle or hold-to-run modes</li>
+      <li>Schedule macros to run at specific times or intervals</li>
+      <li>Macro editor with undo/redo and action reordering</li>
+      <li>Playback with pause/resume, adjustable speed (0.1x to 10x), and loop mode</li>
+      <li>Save and load macros in .macro format</li>
+      <li>Global hotkeys for control (F8: Record, F9: Play, F10: Pause)</li>
+      <li>Multiple themes: Classic, Latte, Mocha, Dracula, Nord</li>
     </ul>
+    <p>Wayland Support:</p>
+    <p>
+      This Flatpak supports both Wayland and X11 sessions. On Wayland, it uses
+      direct input device access for macro functionality. Mouse position tracking
+      works natively on Hyprland (IPC), KDE Plasma (D-Bus), and GNOME (Shell Extension).
+    </p>
+    <p>
+      On GNOME, a Shell Extension is automatically installed on first run.
+      A logout/login may be required for the extension to take effect.
+    </p>
+    <p>
+      Wayland requires one of: (1) User in "input" group: sudo usermod -aG input $USER,
+      or (2) CrossMacro daemon service installed from native packages (deb, rpm, AUR).
+    </p>
   </description>
   <launchable type="desktop-id">io.github.alper_han.crossmacro.desktop</launchable>
   <url type="homepage">https://github.com/alper-han/CrossMacro</url>
@@ -40,19 +75,22 @@
       <image>https://raw.githubusercontent.com/alper-han/CrossMacro/main/screenshots/text-expansion-tab.png</image>
     </screenshot>
     <screenshot>
+      <caption>Shortcuts Tab - Assign macros to keyboard shortcuts</caption>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/main/screenshots/shortcuts-tab.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Schedule Tab - Run macros at specific times</caption>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/main/screenshots/schedule-tab.png</image>
+    </screenshot>
+    <screenshot>
       <caption>Settings Tab - Configure application preferences</caption>
       <image>https://raw.githubusercontent.com/alper-han/CrossMacro/main/screenshots/settings-tab.png</image>
     </screenshot>
   </screenshots>
   <releases>
-    <release version="0.9.0" date="2026-01-10">
+    <release version="0.9.7" date="2026-02-08">
       <description>
-        <p>Version 0.9.0 - Major update with Macro Editor and Themes support.</p>
-      </description>
-    </release>
-    <release version="0.8.4" date="2026-01-03">
-      <description>
-        <p>Version 0.8.4 - Bug fixes and improvements.</p>
+        <p>This release adds full Flatpak support with Wayland compatibility.</p>
       </description>
     </release>
   </releases>

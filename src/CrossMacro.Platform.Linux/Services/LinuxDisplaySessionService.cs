@@ -15,7 +15,7 @@ namespace CrossMacro.Platform.Linux.Services
             var flatpakId = Environment.GetEnvironmentVariable("FLATPAK_ID");
             bool isFlatpak = !string.IsNullOrEmpty(flatpakId);
 
-            Log.Information("[LinuxDisplaySessionService] Checking Session Support. Flatpak: {IsFlatpak}, ID: {FlatpakId}", 
+            Log.Information("[LinuxDisplaySessionService] Checking Session Support. Flatpak: {IsFlatpak}, ID: {FlatpakId}",
                 isFlatpak, flatpakId ?? "null");
 
             if (!isFlatpak)
@@ -23,46 +23,38 @@ namespace CrossMacro.Platform.Linux.Services
                 return true;
             }
 
-            // We are in Flatpak. Check for Wayland.
+            // Flatpak with hybrid mode support
+            // Check if daemon is available for secure Wayland operation
+            var useDaemon = Environment.GetEnvironmentVariable("CROSSMACRO_USE_DAEMON");
+            bool hasDaemon = useDaemon == "1";
+
             var compositor = CompositorDetector.DetectCompositor();
-            
-            // Explicitly allow X11
-            if (compositor == CompositorType.X11)
+            var sessionType = Environment.GetEnvironmentVariable("XDG_SESSION_TYPE");
+            bool isWaylandSession = string.Equals(sessionType, "wayland", StringComparison.OrdinalIgnoreCase);
+
+            // X11 session - always supported
+            if (compositor == CompositorType.X11 && !isWaylandSession)
             {
                 Log.Information("[LinuxDisplaySessionService] Flatpak running on X11. Supported.");
                 return true;
             }
 
-            var sessionType = Environment.GetEnvironmentVariable("XDG_SESSION_TYPE");
-            bool isWaylandSession = string.Equals(sessionType, "wayland", StringComparison.OrdinalIgnoreCase);
-
-            if (isWaylandSession || 
-                compositor == CompositorType.KDE || 
-                compositor == CompositorType.GNOME || 
-                compositor == CompositorType.HYPRLAND || 
-                compositor == CompositorType.Other) 
+            // Wayland session with daemon - supported (hybrid secure mode)
+            if (isWaylandSession && hasDaemon)
             {
-                 if (isWaylandSession)
-                 {
-                     reason = "CrossMacro Flatpak requires a native X11 session.\n\n" +
-                              "Wayland is not supported due to sandbox restrictions which prevent global input automation.\n\n" +
-                              "Please log out and select 'X11' or 'Xorg' session from your login screen.";
-                     
-                     Log.Error("[LinuxDisplaySessionService] Unsupported Session in Flatpak. Wayland detected. Blocking start.");
-                     return false;
-                 }
+                Log.Information("[LinuxDisplaySessionService] Flatpak on Wayland with daemon. Supported (hybrid secure mode).");
+                return true;
             }
 
-            var waylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
-            if (!string.IsNullOrEmpty(waylandDisplay))
+            // Wayland session without daemon - supported with device permissions
+            if (isWaylandSession)
             {
-                 reason = "CrossMacro Flatpak requires a native X11 session.\n\n" +
-                          "Wayland is not supported due to sandbox restrictions.\n\n" +
-                          "Please use an X11 session.";
-                 Log.Error("[LinuxDisplaySessionService] Wayland display detected in Flatpak. Blocking.");
-                 return false;
+                Log.Information("[LinuxDisplaySessionService] Flatpak on Wayland without daemon. Using direct device access.");
+                return true;
             }
 
+            // Any other compositor - allow with warning
+            Log.Information("[LinuxDisplaySessionService] Flatpak on {Compositor}. Allowing.", compositor);
             return true;
         }
     }

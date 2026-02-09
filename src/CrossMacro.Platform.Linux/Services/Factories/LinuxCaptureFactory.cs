@@ -35,16 +35,28 @@ public class LinuxCaptureFactory
 
     /// <summary>
     /// Creates the appropriate input capture for the current environment.
-    /// Priority: Wayland -> X11 Native -> Fallback (Legacy or IPC based on capabilities)
+    /// Priority: Wayland (Daemon or Legacy) -> X11 Native -> Fallback (Legacy or IPC based on capabilities)
     /// </summary>
     public IInputCapture Create()
     {
-        // 1. Wayland -> Force Daemon (IPC)
+        // 1. Wayland -> Check capabilities (Daemon or Legacy fallback)
         if (_environmentDetector.IsWayland)
         {
-            LoggingExtensions.LogOnce("LinuxCaptureFactory_Wayland", "[LinuxCaptureFactory] Wayland detected ({0}), using IPC Capture", 
+            var mode = _capabilityDetector.DetermineMode();
+
+            if (mode == InputProviderMode.Daemon)
+            {
+                LoggingExtensions.LogOnce("LinuxCaptureFactory_Wayland_Daemon",
+                    "[LinuxCaptureFactory] Wayland detected ({0}), using IPC Capture (Daemon mode)",
+                    _environmentDetector.DetectedCompositor);
+                return _ipcFactory();
+            }
+
+            // Fallback to legacy evdev (works with input group or Flatpak --device=all)
+            LoggingExtensions.LogOnce("LinuxCaptureFactory_Wayland_Legacy",
+                "[LinuxCaptureFactory] Wayland detected ({0}), daemon not available, using Legacy evdev Capture",
                 _environmentDetector.DetectedCompositor);
-            return _ipcFactory();
+            return _legacyFactory();
         }
 
         // 2. X11 -> Try Native X11
@@ -56,11 +68,11 @@ public class LinuxCaptureFactory
         }
 
         // 3. Fallback -> Legacy or Daemon based on capabilities
-        var mode = _capabilityDetector.DetermineMode();
-        LoggingExtensions.LogOnce("LinuxCaptureFactory_Fallback", "[LinuxCaptureFactory] Fallback mode: {0}", mode);
-        
-        return mode == InputProviderMode.Legacy 
-            ? _legacyFactory() 
+        var fallbackMode = _capabilityDetector.DetermineMode();
+        LoggingExtensions.LogOnce("LinuxCaptureFactory_Fallback", "[LinuxCaptureFactory] Fallback mode: {0}", fallbackMode);
+
+        return fallbackMode == InputProviderMode.Legacy
+            ? _legacyFactory()
             : _ipcFactory();
     }
 

@@ -29,6 +29,27 @@ public class TrayIconService : ITrayIconService
         _viewModel = viewModel;
     }
 
+    private static bool IsFlatpakEnvironment()
+    {
+        // Check for Flatpak environment variables
+        var flatpakId = Environment.GetEnvironmentVariable("FLATPAK_ID");
+        if (!string.IsNullOrEmpty(flatpakId))
+            return true;
+
+        var crossmacroFlatpak = Environment.GetEnvironmentVariable("CROSSMACRO_FLATPAK");
+        if (crossmacroFlatpak == "1")
+            return true;
+
+        // Check if running inside Flatpak sandbox
+        return System.IO.File.Exists("/.flatpak-info");
+    }
+
+    /// <summary>
+    /// Returns true if tray icon is supported in the current environment.
+    /// Flatpak lacks StatusNotifierItem portal: https://github.com/flatpak/xdg-desktop-portal/issues/266
+    /// </summary>
+    public static bool IsTraySupported() => !IsFlatpakEnvironment();
+
     public void Initialize()
     {
         try
@@ -36,7 +57,7 @@ public class TrayIconService : ITrayIconService
             if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 _mainWindow = desktop.MainWindow;
-                
+
                 if (_mainWindow != null)
                 {
                     _mainWindow.Closing += OnWindowClosing;
@@ -45,52 +66,95 @@ public class TrayIconService : ITrayIconService
                 desktop.ShutdownRequested += OnShutdownRequested;
             }
 
-            _trayIcon = new TrayIcon
+            // Try to create and initialize tray icon
+            // This may fail in sandboxed environments (Flatpak) where D-Bus access is restricted
+            if (!TryInitializeTrayIcon())
             {
-                Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://CrossMacro.UI/Assets/mouse-icon.png"))),
-                ToolTipText = AppConstants.AppName,
-                IsVisible = true
-            };
+                Log.Warning("Tray icon not available - running without system tray support");
+                _isEnabled = false;
+                return;
+            }
 
-            var menu = new NativeMenu();
-            
-            var showHideItem = new NativeMenuItem { Header = "Show/Hide" };
-            showHideItem.Click += OnShowHideClicked;
-            menu.Add(showHideItem);
-            
-            menu.Add(new NativeMenuItemSeparator());
-            
-            // Use actual hotkey values from settings
-            _startRecordingItem = new NativeMenuItem { Header = $"Start Recording ({_viewModel.Settings.RecordingHotkey})" };
-            _startRecordingItem.Click += OnStartRecordingClicked;
-            menu.Add(_startRecordingItem);
-            
-            _startPlaybackItem = new NativeMenuItem { Header = $"Start Playback ({_viewModel.Settings.PlaybackHotkey})" };
-            _startPlaybackItem.Click += OnStartPlaybackClicked;
-            menu.Add(_startPlaybackItem);
-            
-            _stopItem = new NativeMenuItem { Header = $"Stop ({_viewModel.Settings.PauseHotkey})" };
-            _stopItem.Click += OnStopClicked;
-            menu.Add(_stopItem);
-            
-            menu.Add(new NativeMenuItemSeparator());
-            
-            var exitItem = new NativeMenuItem { Header = "Exit" };
-            exitItem.Click += OnExitClicked;
-            menu.Add(exitItem);
-            
-            _trayIcon.Menu = menu;
-            
-            _trayIcon.Clicked += OnTrayIconClicked;
-            
             // Subscribe to hotkey changes
             _viewModel.Settings.PropertyChanged += OnSettingsPropertyChanged;
-            
+
             Log.Information("Tray icon initialized successfully");
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to initialize tray icon");
+            _isEnabled = false;
+        }
+    }
+
+    private bool TryInitializeTrayIcon()
+    {
+        try
+        {
+            // Flatpak sandbox blocks D-Bus StatusNotifierItem dynamic name registration
+            // (org.kde.StatusNotifierItem-{PID}-{ID}) which cannot be permitted with wildcards.
+            // See: https://github.com/flatpak/xdg-desktop-portal/issues/266
+            if (IsFlatpakEnvironment())
+            {
+                Log.Information("Tray icon disabled in Flatpak (D-Bus StatusNotifierItem not supported in sandbox)");
+                return false;
+            }
+
+            _trayIcon = new TrayIcon
+            {
+                Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://CrossMacro.UI/Assets/mouse-icon.png"))),
+                ToolTipText = AppConstants.AppName
+            };
+
+            var menu = new NativeMenu();
+
+            var showHideItem = new NativeMenuItem { Header = "Show/Hide" };
+            showHideItem.Click += OnShowHideClicked;
+            menu.Add(showHideItem);
+
+            menu.Add(new NativeMenuItemSeparator());
+
+            // Use actual hotkey values from settings
+            _startRecordingItem = new NativeMenuItem { Header = $"Start Recording ({_viewModel.Settings.RecordingHotkey})" };
+            _startRecordingItem.Click += OnStartRecordingClicked;
+            menu.Add(_startRecordingItem);
+
+            _startPlaybackItem = new NativeMenuItem { Header = $"Start Playback ({_viewModel.Settings.PlaybackHotkey})" };
+            _startPlaybackItem.Click += OnStartPlaybackClicked;
+            menu.Add(_startPlaybackItem);
+
+            _stopItem = new NativeMenuItem { Header = $"Stop ({_viewModel.Settings.PauseHotkey})" };
+            _stopItem.Click += OnStopClicked;
+            menu.Add(_stopItem);
+
+            menu.Add(new NativeMenuItemSeparator());
+
+            var exitItem = new NativeMenuItem { Header = "Exit" };
+            exitItem.Click += OnExitClicked;
+            menu.Add(exitItem);
+
+            _trayIcon.Menu = menu;
+            _trayIcon.Clicked += OnTrayIconClicked;
+
+            // This is where D-Bus connection is typically established
+            // and may throw in Flatpak sandbox
+            _trayIcon.IsVisible = true;
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // Log the specific error for debugging
+            Log.Warning(ex, "Could not initialize tray icon (this is expected in Flatpak sandbox)");
+
+            // Clean up partial initialization
+            if (_trayIcon != null)
+            {
+                try { _trayIcon.Dispose(); } catch { }
+                _trayIcon = null;
+            }
+
+            return false;
         }
     }
     

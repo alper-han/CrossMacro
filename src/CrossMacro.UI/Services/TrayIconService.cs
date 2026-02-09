@@ -316,13 +316,12 @@ public class TrayIconService : ITrayIconService
 
     public void SetEnabled(bool enabled)
     {
+        if (_trayIcon == null)
+            return;
+
         _isEnabled = enabled;
-        
-        if (_trayIcon != null)
-        {
-            _trayIcon.IsVisible = enabled;
-            Log.Information("Tray icon {Status}", enabled ? "enabled" : "disabled");
-        }
+        _trayIcon.IsVisible = enabled;
+        Log.Information("Tray icon {Status}", enabled ? "enabled" : "disabled");
     }
 
     public void Dispose()

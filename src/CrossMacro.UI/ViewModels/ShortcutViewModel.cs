@@ -144,7 +144,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         
         var filters = new FileDialogFilter[]
         {
-            new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "json" } }
+            new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "*.macro" } }
         };
         
         var filePath = await _dialogService.ShowOpenFileDialogAsync(

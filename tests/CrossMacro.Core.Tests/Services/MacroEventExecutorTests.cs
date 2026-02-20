@@ -49,16 +49,37 @@ public class MacroEventExecutorTests
     }
 
     [Fact]
-    public void Execute_MouseMove_Absolute_WithScreenSize_MovesRelativeAndUpdatesCoordinator()
+    public void Execute_MouseMove_Absolute_NoButtonPressed_UsesAbsoluteAndUpdatesCoordinator()
     {
         // Arrange
+        // No button pressed → IsAnyPressed returns false (default NSubstitute behaviour)
         var ev = new MacroEvent { Type = EventType.MouseMove, X = 100, Y = 80 };
 
         // Act
         _executor.Execute(ev, isRecordedAbsolute: true);
 
-        // Assert
-        _simulator.Received(1).MoveRelative(100, 80);
+        // Assert: absolute path – no button held, so MoveAbsolute is used for drift correction
+        _simulator.Received(1).MoveAbsolute(100, 80);
+        _simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
+        _coordinator.Received(1).UpdatePosition(100, 80);
+    }
+
+    [Fact]
+    public void Execute_MouseMove_Absolute_ButtonPressed_UsesRelativeDeltaForSmoothCurve()
+    {
+        // Arrange: simulate a button being held and the coordinator reporting previous position
+        _buttonTracker.IsAnyPressed.Returns(true);
+        _coordinator.CurrentX.Returns(60);
+        _coordinator.CurrentY.Returns(40);
+
+        var ev = new MacroEvent { Type = EventType.MouseMove, X = 100, Y = 80 };
+
+        // Act
+        _executor.Execute(ev, isRecordedAbsolute: true);
+
+        // Assert: drift-correction absolute first, then relative delta (100-60=40, 80-40=40)
+        _simulator.Received(1).MoveAbsolute(60, 40);
+        _simulator.Received(1).MoveRelative(40, 40);
         _coordinator.Received(1).UpdatePosition(100, 80);
     }
 

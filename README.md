@@ -236,7 +236,7 @@ cd CrossMacro
 sudo ./scripts/daemon/install.sh
 
 # Run the application
-dotnet run --project src/CrossMacro.UI/
+dotnet run --project src/CrossMacro.UI.Linux/
 ```
 
 </details>

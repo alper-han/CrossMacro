@@ -52,7 +52,7 @@ This section guides you through submitting a bug report for CrossMacro.
 4. **Build and run the UI**:
    ```bash
    dotnet build
-   dotnet run --project src/CrossMacro.UI/
+   dotnet run --project src/CrossMacro.UI.Linux/
    ```
 
 ### Windows Setup
@@ -60,7 +60,7 @@ This section guides you through submitting a bug report for CrossMacro.
 1. **Build and run**:
    ```bash
    dotnet build
-   dotnet run --project src/CrossMacro.UI/
+   dotnet run --project src/CrossMacro.UI.Windows/
    ```
    
    No additional setup required - Windows uses API hooks directly.
@@ -70,7 +70,7 @@ This section guides you through submitting a bug report for CrossMacro.
 1. **Build and run**:
    ```bash
    dotnet build
-   dotnet run --project src/CrossMacro.UI/
+   dotnet run --project src/CrossMacro.UI.MacOS/
    ```
 
    **Permissions**: You will be prompted to grant Accessibility permissions on the first run. This is required for CGEvent Taps to function.
@@ -85,4 +85,3 @@ This section guides you through submitting a bug report for CrossMacro.
 
 ### PR Checks
 We have a GitHub Action that automatically builds your PR. Make sure this check passes.
-

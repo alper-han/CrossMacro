@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="FluentAssertions" Version="8.8.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
     <PackageReference Include="NSubstitute" Version="5.3.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
@@ -23,9 +23,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\CrossMacro.UI\CrossMacro.UI.csproj" />
+    <ProjectReference Include="..\..\src\CrossMacro.Platform.Windows\CrossMacro.Platform.Windows.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Core\CrossMacro.Core.csproj" />
-    <ProjectReference Include="..\..\src\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

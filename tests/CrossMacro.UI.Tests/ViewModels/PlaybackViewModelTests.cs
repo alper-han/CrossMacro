@@ -111,4 +111,52 @@ public class PlaybackViewModelTests
         _player.Received(1).Resume();
         Assert.False(_viewModel.IsPaused);
     }
+
+    [Fact]
+    public void StopPlayback_WhenPlaying_StopsPlayerAndSetsStatus()
+    {
+        // Arrange
+        _viewModel.GetType().GetProperty("IsPlaying")?.SetValue(_viewModel, true);
+
+        // Act
+        _viewModel.StopPlayback();
+
+        // Assert
+        _player.Received(1).Stop();
+        Assert.False(_viewModel.IsPlaying);
+        Assert.Equal("Playback stopped", _viewModel.PlaybackStatus);
+    }
+
+    [Fact]
+    public async Task PlayMacroAsync_WhenPlayerThrows_SetsErrorStatus_AndResetsPlaying()
+    {
+        // Arrange
+        var macro = new MacroSequence { Events = { new MacroEvent() } };
+        _viewModel.SetMacro(macro);
+        _viewModel.CanPlayMacroExternal = true;
+        _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>())
+            .Returns(Task.FromException(new InvalidOperationException("simulator failed")));
+
+        // Act
+        await _viewModel.PlayMacroAsync();
+
+        // Assert
+        Assert.False(_viewModel.IsPlaying);
+        Assert.Contains("Playback error", _viewModel.PlaybackStatus, StringComparison.Ordinal);
+        Assert.Contains("simulator failed", _viewModel.PlaybackStatus, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TogglePlayback_WhenCannotPlay_DoesNotInvokePlayer()
+    {
+        // Arrange
+        _viewModel.CanPlayMacroExternal = false;
+
+        // Act
+        _viewModel.TogglePlayback();
+
+        // Assert
+        _player.DidNotReceive().Stop();
+        _ = _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>());
+    }
 }

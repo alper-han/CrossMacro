@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using CrossMacro.Core;
 using CrossMacro.Infrastructure.Helpers;
+using CrossMacro.TestInfrastructure;
 using Xunit;
 
 namespace CrossMacro.UI.Tests.Infrastructure.Helpers;
@@ -33,15 +34,9 @@ public class PathHelperTests
         Assert.Equal(expected, result);
     }
     
-    [Fact]
+    [LinuxFact]
     public void GetConfigDirectory_RespectsXDGConfigHome_WhenSetOnLinux()
     {
-        // Skip on non-Linux platforms since XDG is Linux-specific
-        if (!OperatingSystem.IsLinux())
-        {
-            return; // Test not applicable on Windows/macOS
-        }
-        
         // Note: Environment variables are process-wide. 
         // We set it, test, and perform cleanup in a try/finally block.
         // Parallel execution might be an issue, but xUnit runs classes in parallel, methods sequentially by default.

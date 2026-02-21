@@ -138,4 +138,45 @@ public class TextExpansionViewModelTests
         // We just verify it saves the current state
         await _storageService.Received(1).SaveAsync(Arg.Any<IEnumerable<TextExpansion>>());
     }
+
+    [Theory]
+    [InlineData(DisplayEnvironment.LinuxX11, true)]
+    [InlineData(DisplayEnvironment.LinuxWayland, true)]
+    [InlineData(DisplayEnvironment.Windows, false)]
+    [InlineData(DisplayEnvironment.MacOS, false)]
+    public void IsPasteMethodVisible_ReflectsEnvironment(DisplayEnvironment environment, bool expected)
+    {
+        // Arrange
+        var envProvider = Substitute.For<IEnvironmentInfoProvider>();
+        envProvider.CurrentEnvironment.Returns(environment);
+        var vm = new TextExpansionViewModel(_storageService, _dialogService, envProvider);
+
+        // Assert
+        vm.IsPasteMethodVisible.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task AddExpansion_ResetsSelectedPasteMethodToDefault()
+    {
+        // Arrange
+        _viewModel.SelectedPasteMethod = PasteMethod.ShiftInsert;
+        _viewModel.TriggerInput = ":x";
+        _viewModel.ReplacementInput = "value";
+
+        // Act
+        await _viewModel.AddExpansionCommand.ExecuteAsync(null);
+
+        // Assert
+        _viewModel.SelectedPasteMethod.Should().Be(PasteMethod.CtrlV);
+    }
+
+    [Fact]
+    public async Task ToggleExpansion_WhenExpansionIsNull_DoesNotSave()
+    {
+        // Act
+        await _viewModel.ToggleExpansionCommand.ExecuteAsync(null);
+
+        // Assert
+        await _storageService.DidNotReceive().SaveAsync(Arg.Any<IEnumerable<TextExpansion>>());
+    }
 }

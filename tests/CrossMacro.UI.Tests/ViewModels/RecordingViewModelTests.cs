@@ -101,6 +101,41 @@ public class RecordingViewModelTests
     }
 
     [Fact]
+    public void StopRecording_WhenRecordingCompletedHandlerThrows_DoesNotConvertSuccessToError()
+    {
+        // Arrange
+        var expectedMacro = new MacroSequence();
+        expectedMacro.Events.Add(new MacroEvent { Type = EventType.MouseMove });
+        _recorder.StopRecording().Returns(expectedMacro);
+        _viewModel.RecordingCompleted += (_, _) => throw new NullReferenceException("handler failure");
+        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, true);
+
+        // Act
+        var result = _viewModel.StopRecording();
+
+        // Assert
+        Assert.Equal(expectedMacro, result);
+        Assert.Equal("Recorded 1 events", _viewModel.RecordingStatus);
+        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(true);
+    }
+
+    [Fact]
+    public void StopRecording_WhenMacroEventsCollectionIsNull_DoesNotThrowOrSetErrorStatus()
+    {
+        // Arrange
+        _recorder.StopRecording().Returns(new MacroSequence { Events = null! });
+        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, true);
+
+        // Act
+        var result = _viewModel.StopRecording();
+
+        // Assert
+        Assert.Null(result);
+        Assert.Equal("Ready", _viewModel.RecordingStatus);
+        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(true);
+    }
+
+    [Fact]
     public void StopRecording_WhenNotRecording_ReturnsNull()
     {
         // Arrange
@@ -141,5 +176,92 @@ public class RecordingViewModelTests
 
         // Assert
         Assert.True(_viewModel.IsRecording);
+    }
+
+    [Fact]
+    public async Task StartRecordingAsync_WhenRecorderThrows_ReenablesHotkeysAndResetsState()
+    {
+        // Arrange
+        _viewModel.CanStartRecordingExternal = true;
+        _recorder.StartRecordingAsync(
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<IEnumerable<int>>(),
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new InvalidOperationException("start failed")));
+
+        // Act
+        await _viewModel.StartRecordingAsync();
+
+        // Assert
+        Assert.False(_viewModel.IsRecording);
+        Assert.Equal("Ready", _viewModel.RecordingStatus);
+        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(false);
+        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(true);
+    }
+
+    [Fact]
+    public async Task StartRecordingAsync_UsesForceRelativeAndSkipInitialZeroSettings()
+    {
+        // Arrange
+        _viewModel.CanStartRecordingExternal = true;
+        _viewModel.ForceRelativeCoordinates = true;
+        _viewModel.SkipInitialZeroZero = true;
+
+        // Act
+        await _viewModel.StartRecordingAsync();
+
+        // Assert
+        await _recorder.Received(1).StartRecordingAsync(
+            Arg.Any<bool>(),
+            Arg.Any<bool>(),
+            Arg.Any<IEnumerable<int>>(),
+            _viewModel.ForceRelativeCoordinates,
+            _viewModel.SkipInitialZeroZero,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void StopRecording_WhenRecorderThrows_ReturnsNullAndResetsState()
+    {
+        // Arrange
+        _recorder.StopRecording().Returns(_ => throw new InvalidOperationException("stop failed"));
+        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, true);
+
+        // Act
+        var result = _viewModel.StopRecording();
+
+        // Assert
+        Assert.Null(result);
+        Assert.False(_viewModel.IsRecording);
+        Assert.Equal("Ready", _viewModel.RecordingStatus);
+        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(true);
+    }
+
+    [Fact]
+    public void SetMacro_UpdatesEventCountersByType()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Events =
+            {
+                new MacroEvent { Type = EventType.MouseMove },
+                new MacroEvent { Type = EventType.ButtonPress },
+                new MacroEvent { Type = EventType.KeyPress },
+                new MacroEvent { Type = EventType.KeyRelease }
+            }
+        };
+
+        // Act
+        _viewModel.SetMacro(macro);
+
+        // Assert
+        Assert.Equal(4, _viewModel.EventCount);
+        Assert.Equal(2, _viewModel.MouseEventCount);
+        Assert.Equal(2, _viewModel.KeyboardEventCount);
+        Assert.Equal("Loaded 4 events", _viewModel.RecordingStatus);
     }
 }

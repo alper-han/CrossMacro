@@ -51,6 +51,21 @@ public class FilesViewModelTests
     }
 
     [Fact]
+    public void SetMacro_WhenEventsCollectionIsNull_DoesNotThrowAndMarksAsNoRecordedMacro()
+    {
+        // Arrange
+        var macro = new MacroSequence { Name = "Corrupted", Events = null! };
+
+        // Act
+        Action act = () => _viewModel.SetMacro(macro);
+
+        // Assert
+        act.Should().NotThrow();
+        _viewModel.GetCurrentMacro().Should().Be(macro);
+        _viewModel.HasRecordedMacro.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task SaveMacroAsync_WhenNoMacro_DoesNothing()
     {
         // Act
@@ -135,5 +150,42 @@ public class FilesViewModelTests
         _viewModel.HasRecordedMacro.Should().BeTrue();
         _viewModel.Status.Should().Contain("Loaded");
         eventFired.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SaveMacroAsync_WhenFileManagerThrows_UpdatesErrorStatus()
+    {
+        // Arrange
+        var macro = new MacroSequence { Events = { new MacroEvent() } };
+        _viewModel.SetMacro(macro);
+
+        _dialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .Returns(Task.FromResult<string?>("/tmp/fail.macro"));
+        _fileManager.SaveAsync(Arg.Any<MacroSequence>(), Arg.Any<string>())
+            .Returns(Task.FromException(new InvalidOperationException("write failed")));
+
+        // Act
+        await _viewModel.SaveMacroAsync();
+
+        // Assert
+        _viewModel.Status.Should().Contain("Save error");
+        _viewModel.Status.Should().Contain("write failed");
+    }
+
+    [Fact]
+    public async Task LoadMacroAsync_WhenFileManagerThrows_UpdatesErrorStatus()
+    {
+        // Arrange
+        _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .Returns(Task.FromResult<string?>("/tmp/fail.macro"));
+        _fileManager.LoadAsync("/tmp/fail.macro")
+            .Returns(Task.FromException<MacroSequence?>(new InvalidOperationException("read failed")));
+
+        // Act
+        await _viewModel.LoadMacroAsync();
+
+        // Assert
+        _viewModel.Status.Should().Contain("Load error");
+        _viewModel.Status.Should().Contain("read failed");
     }
 }

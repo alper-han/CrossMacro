@@ -93,15 +93,18 @@ public class SettingsViewModelTests
     [Fact]
     public async Task EnableTextExpansion_WhenChanged_SavesSettingsAndTogglesService()
     {
+        var startCalled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stopCalled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _textExpansionService.When(x => x.Start()).Do(_ => startCalled.TrySetResult(true));
+        _textExpansionService.When(x => x.Stop()).Do(_ => stopCalled.TrySetResult(true));
+
         // Act - Enable
         _viewModel.EnableTextExpansion = true;
 
         // Assert - Enable
         _settingsService.Current.EnableTextExpansion.Should().BeTrue();
         _ = _settingsService.Received(1).SaveAsync();
-        
-        // Wait for async task with polling
-        await WaitFor(() => _textExpansionService.ReceivedCalls().Any(c => c.GetMethodInfo().Name == "Start"));
+        await startCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
         _textExpansionService.Received(1).Start();
 
         // Act - Disable
@@ -109,18 +112,8 @@ public class SettingsViewModelTests
         
         // Assert - Disable
         _settingsService.Current.EnableTextExpansion.Should().BeFalse();
-        await WaitFor(() => _textExpansionService.ReceivedCalls().Any(c => c.GetMethodInfo().Name == "Stop"));
+        await stopCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
         _textExpansionService.Received(1).Stop();
-    }
-
-    private static async Task WaitFor(Func<bool> condition, int timeoutMs = 500)
-    {
-        var start = DateTime.UtcNow;
-        while ((DateTime.UtcNow - start).TotalMilliseconds < timeoutMs)
-        {
-            if (condition()) return;
-            await Task.Delay(10);
-        }
     }
 
     [Fact]
@@ -131,5 +124,51 @@ public class SettingsViewModelTests
 
         // Assert
         _hotkeyService.Received(1).Start();
+    }
+
+    [Fact]
+    public void SelectedLogLevel_WhenChanged_UpdatesSettingsAndSaves()
+    {
+        // Act
+        _viewModel.SelectedLogLevel = "Warning";
+
+        // Assert
+        _settingsService.Current.LogLevel.Should().Be("Warning");
+        _settingsService.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public void CheckForUpdates_WhenChanged_UpdatesSettingsAndSaves()
+    {
+        // Arrange
+        _settingsService.Current.CheckForUpdates = true;
+
+        // Act
+        _viewModel.CheckForUpdates = false;
+
+        // Assert
+        _settingsService.Current.CheckForUpdates.Should().BeFalse();
+        _settingsService.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public void SelectedTheme_WhenChanged_UpdatesSettingsAndSaves()
+    {
+        // Act
+        _viewModel.SelectedTheme = "Nord";
+
+        // Assert
+        _settingsService.Current.Theme.Should().Be("Nord");
+        _settingsService.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public void OpenGitHub_DoesNotThrow()
+    {
+        // Act
+        var act = () => _viewModel.OpenGitHub();
+
+        // Assert
+        act.Should().NotThrow();
     }
 }

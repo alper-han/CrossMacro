@@ -62,6 +62,7 @@ public class MainWindowViewModelTests
 
         // ScheduleViewModel
         _schedulerService = Substitute.For<ISchedulerService>();
+        _schedulerService.LoadAsync().Returns(System.Threading.Tasks.Task.CompletedTask);
         _scheduleViewModel = new ScheduleViewModel(_schedulerService, dialogService);
 
         // ShortcutViewModel
@@ -165,5 +166,45 @@ public class MainWindowViewModelTests
 
         // Assert
         Assert.Equal("Loaded: TestMacro", _viewModel.GlobalStatus);
+    }
+
+    [Fact]
+    public void DismissUpdateNotification_HidesNotification()
+    {
+        // Arrange
+        _viewModel.IsUpdateNotificationVisible = true;
+
+        // Act
+        _viewModel.DismissUpdateNotification();
+
+        // Assert
+        Assert.False(_viewModel.IsUpdateNotificationVisible);
+    }
+
+    [Fact]
+    public void OpenUpdateUrl_AlwaysDismissesNotification()
+    {
+        // Arrange
+        _viewModel.IsUpdateNotificationVisible = true;
+
+        // Act
+        _viewModel.OpenUpdateUrl();
+
+        // Assert
+        Assert.False(_viewModel.IsUpdateNotificationVisible);
+    }
+
+    [Fact]
+    public void Dispose_CanBeCalledMultipleTimes()
+    {
+        // Act
+        var act = () =>
+        {
+            _viewModel.Dispose();
+            _viewModel.Dispose();
+        };
+
+        // Assert
+        Assert.Null(Record.Exception(act));
     }
 }

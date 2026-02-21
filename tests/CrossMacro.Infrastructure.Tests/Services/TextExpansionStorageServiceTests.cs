@@ -155,4 +155,30 @@ public class TextExpansionStorageServiceTests : IDisposable
         current.Should().HaveCount(1);
         current[0].Trigger.Should().Be(":test");
     }
+
+    [Fact]
+    public async Task SaveAsync_WhenEnumerationThrows_PropagatesException_AndKeepsCache()
+    {
+        // Arrange
+        var service = new TextExpansionStorageService();
+        var baseline = new List<TextExpansion> { new(":ok", "value") };
+        await service.SaveAsync(baseline);
+
+        // Act
+        var act = async () => await service.SaveAsync(new ThrowingExpansionEnumerable());
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("enumeration failed");
+
+        var current = service.GetCurrent();
+        current.Should().HaveCount(1);
+        current[0].Trigger.Should().Be(":ok");
+    }
+
+    private sealed class ThrowingExpansionEnumerable : IEnumerable<TextExpansion>
+    {
+        public IEnumerator<TextExpansion> GetEnumerator() => throw new InvalidOperationException("enumeration failed");
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
 }

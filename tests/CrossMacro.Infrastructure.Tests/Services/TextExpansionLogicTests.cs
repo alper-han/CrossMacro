@@ -7,7 +7,6 @@ using CrossMacro.Core.Services;
 using CrossMacro.Core.Services.TextExpansion;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Infrastructure.Services.TextExpansion;
-using FluentAssertions;
 using NSubstitute;
 using Xunit;
 
@@ -62,21 +61,26 @@ public class TextExpansionLogicTests
         // Arrange
         var expansion = new Core.Models.TextExpansion("abc", "expanded");
         _storageService.GetCurrent().Returns(new List<Core.Models.TextExpansion> { expansion });
+        var expansionTriggered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _executor
+            .ExpandAsync(expansion)
+            .Returns(_ =>
+            {
+                expansionTriggered.TrySetResult(true);
+                return Task.CompletedTask;
+            });
         
         SetupKey(30, 'a');
         SetupKey(48, 'b');
         SetupKey(46, 'c');
 
         // Act
-        RaiseKey(30); await Task.Delay(25);
-        RaiseKey(48); await Task.Delay(25);
-        RaiseKey(46); await Task.Delay(25);
-        
-        // Wait for async execution
-        await Task.Delay(100);
+        RaiseKey(30);
+        RaiseKey(48);
+        RaiseKey(46);
+        await expansionTriggered.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         // Assert
-        // Executor should be called
         await _executor.Received(1).ExpandAsync(expansion);
     }
     
@@ -86,35 +90,38 @@ public class TextExpansionLogicTests
         // Arrange
         var expansion = new Core.Models.TextExpansion("abc", "expanded");
         _storageService.GetCurrent().Returns(new List<Core.Models.TextExpansion> { expansion });
+        var expansionCount = 0;
+        var secondExpansionTriggered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _executor
+            .ExpandAsync(expansion)
+            .Returns(_ =>
+            {
+                var currentCount = Interlocked.Increment(ref expansionCount);
+                if (currentCount == 2)
+                {
+                    secondExpansionTriggered.TrySetResult(true);
+                }
+                return Task.CompletedTask;
+            });
         
         SetupKey(30, 'a');
         SetupKey(48, 'b');
         SetupKey(46, 'c');
         SetupKey(32, 'd');
 
-        // Act - Trigger once
-        RaiseKey(30); await Task.Delay(25);
-        RaiseKey(48); await Task.Delay(25);
-        RaiseKey(46); await Task.Delay(25);
-        
-        await Task.Delay(50);
-        await _executor.Received(1).ExpandAsync(expansion);
-        _executor.ClearReceivedCalls();
+        // Act - Trigger once, then continue typing and trigger again.
+        RaiseKey(30);
+        RaiseKey(48);
+        RaiseKey(46);
 
-        // Act - Continue typing 'd'
-        RaiseKey(32); await Task.Delay(25);
-        
-        // Ensure that typing 'abc' again triggers it again (proving buffer was reset, not stale)
-        // If buffer wasn't cleared, it would be "abcd..."
-        
-        RaiseKey(30); await Task.Delay(25);
-        RaiseKey(48); await Task.Delay(25);
-        RaiseKey(46); await Task.Delay(25);
-        
-        await Task.Delay(50);
+        RaiseKey(32);
+        RaiseKey(30);
+        RaiseKey(48);
+        RaiseKey(46);
+        await secondExpansionTriggered.Task.WaitAsync(TimeSpan.FromSeconds(2));
         
         // Assert - Should trigger again
-        await _executor.Received(1).ExpandAsync(expansion);
+        await _executor.Received(2).ExpandAsync(expansion);
     }
 
     private void SetupKey(int code, char c)

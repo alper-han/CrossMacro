@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
@@ -123,5 +125,40 @@ public class GlobalHotkeyServiceTests
         // GlobalHotkeyService.RecordingHotkeyCode property uses _recordingHotkey.MainKey
         // _recordingHotkey is set via _parser.Parse("Numpad0")
         Assert.Equal(82, _service.RecordingHotkeyCode);
+    }
+
+    [Fact]
+    public async Task OnInputCaptureError_ShouldAttemptSingleRestart()
+    {
+        var firstCapture = Substitute.For<IInputCapture>();
+        var secondCapture = Substitute.For<IInputCapture>();
+        firstCapture.ProviderName.Returns("first");
+        secondCapture.ProviderName.Returns("second");
+        firstCapture.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+
+        var secondStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        secondCapture.StartAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask)
+            .AndDoes(_ => secondStarted.TrySetResult(true));
+
+        var factoryCall = 0;
+        var restartingService = new GlobalHotkeyService(
+            _config,
+            _parser,
+            _matcher,
+            _modifierTracker,
+            _stringBuilder,
+            _mouseButtonMapper,
+            () => ++factoryCall == 1 ? firstCapture : secondCapture);
+
+        restartingService.Start();
+
+        firstCapture.Error += Raise.Event<EventHandler<string>>(this, "simulated capture error");
+        await secondStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        firstCapture.Received(1).Stop();
+        firstCapture.Received(1).Dispose();
+        secondCapture.Received(1).Configure(true, true);
+        await secondCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
     }
 }

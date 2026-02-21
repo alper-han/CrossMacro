@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
-using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
@@ -75,44 +75,45 @@ public class ShortcutServiceTests
         { 
             Name = "Test", 
             MacroFilePath = "test.macro", 
-            HotkeyString = "F5" 
+            HotkeyString = "F5",
+            PlaybackSpeed = 0.0
         };
-        // Use property setter if possible or reflection to set IsEnabled/Valid state
-        // ShortcutTask validates MacroFilePath and HotkeyString for CanBeEnabled.
-        // So we can just set IsEnabled = true.
         task.IsEnabled = true;
         _service.AddTask(task);
 
-        _fileManager.LoadAsync(Arg.Any<string>()).Returns(Task.FromResult<MacroSequence?>(new MacroSequence { Events = { new MacroEvent() } }));
+        _fileManager.LoadAsync(Arg.Any<string>())
+            .Returns(Task.FromResult<MacroSequence?>(new MacroSequence { Events = { new MacroEvent() } }));
+        _player
+            .PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>())
+            .Returns(Task.CompletedTask);
 
-        bool executed = false;
-        _service.ShortcutExecuted += (s, e) => {
-            if (e.Success) executed = true;
+        var executed = new TaskCompletionSource<ShortcutExecutedEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _service.ShortcutExecuted += (_, e) =>
+        {
+            if (e.Task.Id == task.Id)
+            {
+                executed.TrySetResult(e);
+            }
         };
 
         _service.Start();
 
         var tempFile = Path.GetTempFileName();
-        // Rename and use matching extension if needed, or just use tempFile. 
-        // Service just checks File.Exists(path).
-        // Check if logic requires specific extension? No, LoadAsync logic might but File.Exists doesn't.
-        // But LoadAsync is mocked. So just File.Exists needs to pass.
         task.MacroFilePath = tempFile;
 
         try
         {
             // Act
-            // Raise event on _hotkeyService
             _hotkeyService.RawInputReceived += Raise.Event<EventHandler<RawHotkeyInputEventArgs>>(
                 this, 
-                new RawHotkeyInputEventArgs(0, new HashSet<int>(), "F5")); // Code doesn't matter much if string matches
-
-            // Wait for async execution via polling
-            await WaitFor(() => executed);
+                new RawHotkeyInputEventArgs(0, new HashSet<int>(), "F5"));
+            var result = await executed.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
             // Assert
-            executed.Should().BeTrue($"Task status: {task.LastStatus}. Should be Success or similar. If IsEnabled={task.IsEnabled}, Hotkey={task.HotkeyString}");
-            await _player.Received(1).PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>());
+            result.Success.Should().BeTrue();
+            await _player.Received(1).PlayAsync(
+                Arg.Any<MacroSequence>(),
+                Arg.Is<PlaybackOptions>(o => o.SpeedMultiplier == PlaybackOptions.MinSpeedMultiplier));
         }
         finally
         {
@@ -139,20 +140,68 @@ public class ShortcutServiceTests
             this, 
             new RawHotkeyInputEventArgs(0, new HashSet<int>(), "F5"));
 
-        // For negative verification (DidNotReceive), we still need a small delay to ensure it didn't happen
-        // But we can reduce it if we are sure the event dispatch is fast. 50ms is reasonable for negative test.
-        await Task.Delay(50);
-
         // Assert
         await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>());
     }
-    private async Task WaitFor(Func<bool> condition, int timeoutMs = 2000)
+
+    [Fact]
+    public async Task OnRawKeyReleased_RunWhileHeldHotkey_DoesNotThrowAndStopsPlayer()
     {
-        var start = DateTime.UtcNow;
-        while ((DateTime.UtcNow - start).TotalMilliseconds < timeoutMs)
+        // Arrange
+        var task = new ShortcutTask
         {
-            if (condition()) return;
-            await Task.Delay(10);
+            Name = "Held Macro",
+            HotkeyString = "Ctrl+F5",
+            RunWhileHeld = true
+        };
+
+        var tempFile = Path.GetTempFileName();
+        task.MacroFilePath = tempFile;
+        task.IsEnabled = true;
+        _service.AddTask(task);
+
+        var startedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releasePlaybackTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        _fileManager.LoadAsync(tempFile).Returns(Task.FromResult<MacroSequence?>(new MacroSequence
+        {
+            Events = { new MacroEvent { Type = EventType.KeyPress, KeyCode = 30, Timestamp = 0 } }
+        }));
+
+        _player
+            .PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                startedTcs.TrySetResult(true);
+                return releasePlaybackTcs.Task;
+            });
+
+        _service.Start();
+
+        try
+        {
+            _hotkeyService.RawInputReceived += Raise.Event<EventHandler<RawHotkeyInputEventArgs>>(
+                this,
+                new RawHotkeyInputEventArgs(63, new HashSet<int> { 29 }, "Ctrl+F5"));
+
+            await startedTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+            var releaseException = Record.Exception(() =>
+                _hotkeyService.RawKeyReleased += Raise.Event<EventHandler<RawHotkeyInputEventArgs>>(
+                    this,
+                    new RawHotkeyInputEventArgs(63, new HashSet<int> { 29 }, string.Empty)));
+
+            releaseException.Should().BeNull();
+
+            _player.Received(1).Stop();
+        }
+        finally
+        {
+            releasePlaybackTcs.TrySetResult(true);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 }

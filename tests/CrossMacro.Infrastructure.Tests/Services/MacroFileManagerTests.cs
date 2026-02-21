@@ -334,4 +334,31 @@ M,100,100";
         loaded!.Events.Should().HaveCount(2);
         loaded.Events[1].DelayMs.Should().Be(500);
     }
+
+    [Fact]
+    public async Task Load_WhenMalformedEventAppears_DoesNotLeakDelayToNextValidEvent()
+    {
+        // Arrange
+        var filePath = GetTempFilePath();
+        var content = @"# Name: Delay Leak Test
+# Created: 2024-01-01T00:00:00Z
+# DurationMs: 1000
+# IsAbsolute: True
+# Format: Cmd,Args...
+M,0,0
+W,500
+P,invalid,10,Left
+M,100,100";
+
+        await File.WriteAllTextAsync(filePath, content);
+
+        // Act
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.Events.Should().HaveCount(2);
+        loaded.Events[0].DelayMs.Should().Be(0);
+        loaded.Events[1].DelayMs.Should().Be(0);
+    }
 }

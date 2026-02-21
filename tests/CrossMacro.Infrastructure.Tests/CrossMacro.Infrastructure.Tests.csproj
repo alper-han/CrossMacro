@@ -28,4 +28,8 @@
     <ProjectReference Include="..\..\src\CrossMacro.Platform.Linux\CrossMacro.Platform.Linux.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\TestInfrastructure\PlatformFactAttributes.cs" Link="TestInfrastructure\PlatformFactAttributes.cs" />
+  </ItemGroup>
+
 </Project>

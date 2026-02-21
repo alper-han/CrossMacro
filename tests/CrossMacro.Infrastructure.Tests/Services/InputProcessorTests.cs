@@ -169,9 +169,6 @@ public class InputProcessorTests
         // Act - press CapsLock then type 'a'
         var capsLockPress = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 58, Value = 1 };
         _processor.ProcessEvent(capsLockPress);
-
-        // Wait to avoid debounce
-        System.Threading.Thread.Sleep(30);
         
         var keyEvent = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 30, Value = 1 };
         _processor.ProcessEvent(keyEvent);

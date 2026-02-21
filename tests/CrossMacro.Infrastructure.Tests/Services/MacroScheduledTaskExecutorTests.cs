@@ -177,4 +177,35 @@ public class MacroScheduledTaskExecutorTests
             if (File.Exists(tempFile)) File.Delete(tempFile);
         }
     }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenTaskSpeedIsInvalid_UsesNormalizedPlaybackSpeed()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var task = new ScheduledTask
+            {
+                MacroFilePath = tempFile,
+                PlaybackSpeed = 0.0,
+                IsEnabled = true
+            };
+
+            var macro = new MacroSequence { Events = { new MacroEvent { Type = EventType.MouseMove, X = 0, Y = 0 } } };
+            _fileManager.LoadAsync(tempFile).Returns(macro);
+
+            // Act
+            await _executor.ExecuteAsync(task);
+
+            // Assert
+            await _player.Received(1).PlayAsync(
+                macro,
+                Arg.Is<PlaybackOptions>(o => o.SpeedMultiplier == PlaybackOptions.MinSpeedMultiplier));
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
 }

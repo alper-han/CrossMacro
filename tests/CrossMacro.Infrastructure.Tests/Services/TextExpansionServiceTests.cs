@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
@@ -99,5 +100,40 @@ public class TextExpansionServiceTests
 
         // Assert
         _inputProcessor.Received(1).ProcessEvent(eventArgs);
+    }
+
+    [Fact]
+    public async Task Expansion_WhenExecutorThrows_ExceptionIsHandledAndSubsequentExpansionStillRuns()
+    {
+        // Arrange
+        _service.Start();
+
+        var expansion = new TextExpansion { Trigger = ":a", Replacement = "alpha" };
+        _storageService.GetCurrent().Returns(new List<TextExpansion> { expansion });
+        _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansion>>(), out Arg.Any<TextExpansion?>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = expansion;
+                return true;
+            });
+
+        var invocationCount = 0;
+        _executor.ExpandAsync(Arg.Any<TextExpansion>())
+            .Returns(_ =>
+            {
+                invocationCount++;
+                return invocationCount == 1
+                    ? Task.FromException(new InvalidOperationException("boom"))
+                    : Task.CompletedTask;
+            });
+
+        // Act
+        _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
+        _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
+
+        // Assert
+        await Task.Delay(200);
+        await _executor.Received(2).ExpandAsync(Arg.Any<TextExpansion>());
+        Assert.True(_service.IsRunning);
     }
 }

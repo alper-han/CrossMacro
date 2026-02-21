@@ -88,7 +88,7 @@
     </screenshot>
   </screenshots>
   <releases>
-    <release version="0.9.7" date="2026-02-08">
+    <release version="0.9.7" date="2026-02-22">
       <description>
         <p>This release adds full Flatpak support with Wayland compatibility.</p>
       </description>

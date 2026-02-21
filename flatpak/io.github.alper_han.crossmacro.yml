@@ -68,7 +68,7 @@ modules:
     buildsystem: simple
     build-commands:
       # Publish as framework-dependent (supports both x86_64 and aarch64)
-      - dotnet publish src/CrossMacro.UI/CrossMacro.UI.csproj -c Release --no-self-contained -p:PublishReadyToRun=false -p:PublishTrimmed=false --source nuget-sources -o /app/lib/crossmacro
+      - dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj -c Release --no-self-contained -p:PublishReadyToRun=false -p:PublishTrimmed=false --source nuget-sources -o /app/lib/crossmacro
 
       # Install launcher script
       - install -Dm755 flatpak/crossmacro.sh /app/bin/crossmacro

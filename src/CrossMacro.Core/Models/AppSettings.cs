@@ -9,14 +9,19 @@ public class AppSettings
     /// Whether the system tray icon is enabled
     /// When disabled, closing the window will exit the application instead of minimizing to tray
     /// </summary>
-    public bool EnableTrayIcon { get; set; } = true;
+    public bool EnableTrayIcon { get; set; } = false;
     
     // Playback Settings
     
     /// <summary>
     /// Playback speed multiplier (1.0 = normal speed)
     /// </summary>
-    public double PlaybackSpeed { get; set; } = 1.0;
+    private double _playbackSpeed = PlaybackOptions.DefaultSpeedMultiplier;
+    public double PlaybackSpeed
+    {
+        get => _playbackSpeed;
+        set => _playbackSpeed = PlaybackOptions.NormalizeSpeedMultiplier(value);
+    }
     
     /// <summary>
     /// Whether to loop the macro
@@ -81,10 +86,6 @@ public class AppSettings
     /// Minimum log level for the application.
     /// Valid values: Debug, Information, Warning, Error
     /// </summary>
-    /// <summary>
-    /// Minimum log level for the application.
-    /// Valid values: Debug, Information, Warning, Error
-    /// </summary>
     public string LogLevel { get; set; } = "Information";
 
     /// <summary>
@@ -92,4 +93,3 @@ public class AppSettings
     /// </summary>
     public string Theme { get; set; } = "Classic";
 }
-

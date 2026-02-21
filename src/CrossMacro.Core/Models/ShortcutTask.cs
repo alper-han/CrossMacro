@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
@@ -67,7 +68,15 @@ public class ShortcutTask : INotifyPropertyChanged
     public double PlaybackSpeed 
     { 
         get => _playbackSpeed;
-        set { _playbackSpeed = value; OnPropertyChanged(); }
+        set
+        {
+            var normalized = PlaybackOptions.NormalizeSpeedMultiplier(value);
+            if (Math.Abs(_playbackSpeed - normalized) > double.Epsilon)
+            {
+                _playbackSpeed = normalized;
+                OnPropertyChanged();
+            }
+        }
     }
     
     /// <summary>

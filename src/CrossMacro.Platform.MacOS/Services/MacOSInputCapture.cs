@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,8 +9,7 @@ namespace CrossMacro.Platform.MacOS.Services;
 
 public class MacOSInputCapture : IInputCapture
 {
-
-
+    private readonly Lock _stateLock = new();
     private IntPtr _eventTap;
     private IntPtr _runLoopSource;
     private IntPtr _runLoop;
@@ -19,6 +17,8 @@ public class MacOSInputCapture : IInputCapture
     private bool _captureMouse = true;
     private bool _captureKeyboard = true;
     private volatile bool _stopRequested;
+    private bool _disposed;
+    private CancellationTokenRegistration _startCancellationRegistration;
     
     private CoreGraphics.CGEventTapCallBack _callbackDelegate;
 
@@ -43,15 +43,35 @@ public class MacOSInputCapture : IInputCapture
 
     public Task StartAsync(CancellationToken ct)
     {
-        if (_captureThread != null && _captureThread.IsAlive)
-            return Task.CompletedTask;
-
-        _captureThread = new Thread(CaptureLoop)
+        lock (_stateLock)
         {
-            IsBackground = true,
-            Name = "MacOSInputCapture"
-        };
-        _captureThread.Start();
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(nameof(MacOSInputCapture));
+            }
+
+            if (!IsSupported)
+            {
+                Error?.Invoke(this, "Input capture is only supported on macOS.");
+                return Task.CompletedTask;
+            }
+
+            if (_captureThread != null && _captureThread.IsAlive)
+            {
+                return Task.CompletedTask;
+            }
+
+            _stopRequested = false;
+            _startCancellationRegistration.Dispose();
+            _startCancellationRegistration = ct.Register(Stop);
+
+            _captureThread = new Thread(CaptureLoop)
+            {
+                IsBackground = true,
+                Name = "MacOSInputCapture"
+            };
+            _captureThread.Start();
+        }
 
         return Task.CompletedTask;
     }
@@ -59,6 +79,7 @@ public class MacOSInputCapture : IInputCapture
     public void Stop()
     {
         _stopRequested = true;
+        _startCancellationRegistration.Dispose();
         
         if (_eventTap != IntPtr.Zero)
         {
@@ -69,59 +90,85 @@ public class MacOSInputCapture : IInputCapture
         {
             CoreFoundation.CFRunLoopStop(_runLoop);
         }
+
+        var captureThread = _captureThread;
+        if (captureThread != null &&
+            captureThread.IsAlive &&
+            !ReferenceEquals(Thread.CurrentThread, captureThread))
+        {
+            captureThread.Join(500);
+        }
     }
 
     private void CaptureLoop()
     {
-        _runLoop = CoreFoundation.CFRunLoopGetCurrent();
-        if (_stopRequested) return;
-
-        var eventsOfInterest = (ulong)(
-            (1 << (int)CoreGraphics.CGEventType.KeyDown) |
-            (1 << (int)CoreGraphics.CGEventType.KeyUp) |
-            (1 << (int)CoreGraphics.CGEventType.FlagsChanged) |
-            (1 << (int)CoreGraphics.CGEventType.LeftMouseDown) |
-            (1 << (int)CoreGraphics.CGEventType.LeftMouseUp) |
-            (1 << (int)CoreGraphics.CGEventType.RightMouseDown) |
-            (1 << (int)CoreGraphics.CGEventType.RightMouseUp) |
-            (1 << (int)CoreGraphics.CGEventType.OtherMouseDown) |
-            (1 << (int)CoreGraphics.CGEventType.OtherMouseUp) |
-            (1 << (int)CoreGraphics.CGEventType.MouseMoved) |
-            (1 << (int)CoreGraphics.CGEventType.LeftMouseDragged) |
-            (1 << (int)CoreGraphics.CGEventType.RightMouseDragged) |
-            (1 << (int)CoreGraphics.CGEventType.OtherMouseDragged) |
-            (1 << (int)CoreGraphics.CGEventType.ScrollWheel)
-        );
-
-        _eventTap = CoreGraphics.CGEventTapCreate(
-            CoreGraphics.CGEventTapLocation.HIDEventTap, 
-            CoreGraphics.CGEventTapPlacement.HeadInsertEventTap,
-            CoreGraphics.CGEventTapOptions.Default,
-            eventsOfInterest,
-            _callbackDelegate,
-            IntPtr.Zero
-        );
-
-        if (_eventTap == IntPtr.Zero)
+        try
         {
-            Error?.Invoke(this, "Failed to create CGEventTap. Check Accessibility permissions.");
-            return;
-        }
+            _runLoop = CoreFoundation.CFRunLoopGetCurrent();
+            if (_stopRequested) return;
 
-        _runLoopSource = CoreFoundation.CFMachPortCreateRunLoopSource(IntPtr.Zero, _eventTap, IntPtr.Zero);
-        CoreFoundation.CFRunLoopAddSource(_runLoop, _runLoopSource, CoreFoundation.kCFRunLoopCommonModes);
-        
-        CoreGraphics.CGEventTapEnable(_eventTap, true);
-        
-        if (_stopRequested) return;
-        
-        CoreFoundation.CFRunLoopRun();
-        
-        if (_runLoopSource != IntPtr.Zero) CoreFoundation.CFRelease(_runLoopSource);
-        if (_eventTap != IntPtr.Zero) CoreFoundation.CFRelease(_eventTap);
-        
-        _runLoopSource = IntPtr.Zero;
-        _eventTap = IntPtr.Zero;
+            var eventsOfInterest = (ulong)(
+                (1 << (int)CoreGraphics.CGEventType.KeyDown) |
+                (1 << (int)CoreGraphics.CGEventType.KeyUp) |
+                (1 << (int)CoreGraphics.CGEventType.FlagsChanged) |
+                (1 << (int)CoreGraphics.CGEventType.LeftMouseDown) |
+                (1 << (int)CoreGraphics.CGEventType.LeftMouseUp) |
+                (1 << (int)CoreGraphics.CGEventType.RightMouseDown) |
+                (1 << (int)CoreGraphics.CGEventType.RightMouseUp) |
+                (1 << (int)CoreGraphics.CGEventType.OtherMouseDown) |
+                (1 << (int)CoreGraphics.CGEventType.OtherMouseUp) |
+                (1 << (int)CoreGraphics.CGEventType.MouseMoved) |
+                (1 << (int)CoreGraphics.CGEventType.LeftMouseDragged) |
+                (1 << (int)CoreGraphics.CGEventType.RightMouseDragged) |
+                (1 << (int)CoreGraphics.CGEventType.OtherMouseDragged) |
+                (1 << (int)CoreGraphics.CGEventType.ScrollWheel)
+            );
+
+            _eventTap = CoreGraphics.CGEventTapCreate(
+                CoreGraphics.CGEventTapLocation.HIDEventTap,
+                CoreGraphics.CGEventTapPlacement.HeadInsertEventTap,
+                CoreGraphics.CGEventTapOptions.Default,
+                eventsOfInterest,
+                _callbackDelegate,
+                IntPtr.Zero
+            );
+
+            if (_eventTap == IntPtr.Zero)
+            {
+                Error?.Invoke(this, "Failed to create CGEventTap. Check Accessibility permissions.");
+                return;
+            }
+
+            _runLoopSource = CoreFoundation.CFMachPortCreateRunLoopSource(IntPtr.Zero, _eventTap, IntPtr.Zero);
+            CoreFoundation.CFRunLoopAddSource(_runLoop, _runLoopSource, CoreFoundation.kCFRunLoopCommonModes);
+
+            CoreGraphics.CGEventTapEnable(_eventTap, true);
+
+            if (_stopRequested) return;
+
+            CoreFoundation.CFRunLoopRun();
+        }
+        catch (Exception ex)
+        {
+            Error?.Invoke(this, $"Capture loop error: {ex.Message}");
+        }
+        finally
+        {
+            if (_runLoopSource != IntPtr.Zero) CoreFoundation.CFRelease(_runLoopSource);
+            if (_eventTap != IntPtr.Zero) CoreFoundation.CFRelease(_eventTap);
+
+            _runLoopSource = IntPtr.Zero;
+            _eventTap = IntPtr.Zero;
+            _runLoop = IntPtr.Zero;
+
+            lock (_stateLock)
+            {
+                if (ReferenceEquals(_captureThread, Thread.CurrentThread))
+                {
+                    _captureThread = null;
+                }
+            }
+        }
     }
 
     private IntPtr EventTapCallback(IntPtr proxy, CoreGraphics.CGEventType type, IntPtr eventRef, IntPtr userInfo)
@@ -274,6 +321,13 @@ public class MacOSInputCapture : IInputCapture
 
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
         Stop();
+        GC.SuppressFinalize(this);
     }
 }

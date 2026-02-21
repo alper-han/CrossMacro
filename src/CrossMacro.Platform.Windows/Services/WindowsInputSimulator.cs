@@ -113,8 +113,6 @@ public class WindowsInputSimulator : IInputSimulator
 
     public void Scroll(int delta, bool isHorizontal = false)
     {
-        if (isHorizontal) return; // TODO: Implement MOUSEEVENTF_HWHEEL
-
         int normalizedDelta = Math.Abs(delta) <= 10 ? delta * WHEEL_DELTA : delta;
         
         var input = new INPUT
@@ -125,7 +123,7 @@ public class WindowsInputSimulator : IInputSimulator
                 mi = new MOUSEINPUT
                 {
                     mouseData = (uint)normalizedDelta,
-                    dwFlags = MouseEventFlags.MOUSEEVENTF_WHEEL,
+                    dwFlags = isHorizontal ? MouseEventFlags.MOUSEEVENTF_HWHEEL : MouseEventFlags.MOUSEEVENTF_WHEEL,
                     time = 0,
                     dwExtraInfo = IntPtr.Zero
                 }

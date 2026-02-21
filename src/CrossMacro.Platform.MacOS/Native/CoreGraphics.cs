@@ -48,6 +48,14 @@ internal static class CoreGraphics
         uint wheelCount,
         int wheel1);
 
+    [DllImport(CoreGraphicsLib, EntryPoint = "CGEventCreateScrollWheelEvent")]
+    public static extern IntPtr CGEventCreateScrollWheelEvent2(
+        IntPtr source,
+        CGScrollEventUnit units,
+        uint wheelCount,
+        int wheel1,
+        int wheel2);
+
     [DllImport(CoreGraphicsLib)]
     public static extern void CGEventSetFlags(IntPtr eventRef, CGEventFlags flags);
     

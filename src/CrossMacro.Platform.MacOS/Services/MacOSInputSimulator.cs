@@ -74,14 +74,19 @@ public class MacOSInputSimulator : IInputSimulator
 
     public void Scroll(int delta, bool isHorizontal = false)
     {
-        if (isHorizontal) return; // TODO: Implement Horizontal Scroll
+        var eventRef = isHorizontal
+            ? CoreGraphics.CGEventCreateScrollWheelEvent2(
+                IntPtr.Zero,
+                CoreGraphics.CGScrollEventUnit.Line,
+                2,
+                0,
+                delta)
+            : CoreGraphics.CGEventCreateScrollWheelEvent(
+                IntPtr.Zero,
+                CoreGraphics.CGScrollEventUnit.Line,
+                1,
+                delta);
 
-        var eventRef = CoreGraphics.CGEventCreateScrollWheelEvent(
-            IntPtr.Zero,
-            CoreGraphics.CGScrollEventUnit.Line,
-            1,
-            delta
-        );
         CoreGraphics.CGEventPost(CoreGraphics.CGEventTapLocation.HIDEventTap, eventRef);
         CoreFoundation.CFRelease(eventRef);
     }

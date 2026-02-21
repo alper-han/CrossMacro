@@ -111,7 +111,10 @@ public class EditorActionConverter : IEditorActionConverter
                 events.Add(new MacroEvent
                 {
                     Type = EventType.None,
-                    DelayMs = action.DelayMs
+                    DelayMs = action.UseRandomDelay ? 0 : action.DelayMs,
+                    HasRandomDelay = action.UseRandomDelay,
+                    RandomDelayMinMs = action.UseRandomDelay ? action.RandomDelayMinMs : 0,
+                    RandomDelayMaxMs = action.UseRandomDelay ? action.RandomDelayMaxMs : 0
                 });
                 break;
                 
@@ -220,7 +223,10 @@ public class EditorActionConverter : IEditorActionConverter
     {
         var action = new EditorAction
         {
-            DelayMs = ev.DelayMs
+            DelayMs = ev.DelayMs,
+            UseRandomDelay = ev.HasRandomDelay,
+            RandomDelayMinMs = ev.RandomDelayMinMs,
+            RandomDelayMaxMs = ev.RandomDelayMaxMs
         };
         
         switch (ev.Type)
@@ -302,6 +308,9 @@ public class EditorActionConverter : IEditorActionConverter
         
         long timestamp = 0;
         int pendingDelay = 0;
+        bool hasPendingRandomDelay = false;
+        int pendingRandomDelayMinMs = 0;
+        int pendingRandomDelayMaxMs = 0;
         
         foreach (var action in actions)
         {
@@ -313,24 +322,46 @@ public class EditorActionConverter : IEditorActionConverter
                 if (ev.Type == EventType.None)
                 {
                     pendingDelay += ev.DelayMs;
+                    if (ev.HasRandomDelay)
+                    {
+                        hasPendingRandomDelay = true;
+                        pendingRandomDelayMinMs += ev.RandomDelayMinMs;
+                        pendingRandomDelayMaxMs += ev.RandomDelayMaxMs;
+                    }
                     continue;
                 }
 
                 var eventToAdd = ev;
                 eventToAdd.DelayMs += pendingDelay;
+                if (hasPendingRandomDelay)
+                {
+                    eventToAdd.HasRandomDelay = true;
+                    eventToAdd.RandomDelayMinMs += pendingRandomDelayMinMs;
+                    eventToAdd.RandomDelayMaxMs += pendingRandomDelayMaxMs;
+                }
                 eventToAdd.Timestamp = timestamp;
 
                 timestamp += eventToAdd.DelayMs;
+                if (eventToAdd.HasRandomDelay)
+                {
+                    timestamp += eventToAdd.RandomDelayMinMs;
+                }
                 pendingDelay = 0;
+                hasPendingRandomDelay = false;
+                pendingRandomDelayMinMs = 0;
+                pendingRandomDelayMaxMs = 0;
 
                 sequence.Events.Add(eventToAdd);
             }
         }
 
         // Preserve trailing delay for looped macros
-        if (pendingDelay > 0)
+        if (pendingDelay > 0 || hasPendingRandomDelay)
         {
             sequence.TrailingDelayMs = pendingDelay;
+            sequence.HasTrailingRandomDelay = hasPendingRandomDelay;
+            sequence.TrailingDelayMinMs = pendingRandomDelayMinMs;
+            sequence.TrailingDelayMaxMs = pendingRandomDelayMaxMs;
         }
         
         sequence.CalculateDuration();
@@ -371,6 +402,16 @@ public class EditorActionConverter : IEditorActionConverter
                 var (textAction, consumed) = MergeConsecutiveKeyPresses(events, i);
                 if (textAction != null && consumed > 0)
                 {
+                    AppendDelayActions(
+                        actions,
+                        ev.DelayMs,
+                        ev.HasRandomDelay,
+                        ev.RandomDelayMinMs,
+                        ev.RandomDelayMaxMs);
+                    textAction.DelayMs = 0;
+                    textAction.UseRandomDelay = false;
+                    textAction.RandomDelayMinMs = 0;
+                    textAction.RandomDelayMaxMs = 0;
                     actions.Add(textAction);
                     i += consumed - 1; // -1 because loop will increment
                     continue;
@@ -384,19 +425,36 @@ public class EditorActionConverter : IEditorActionConverter
             {
                 action.IsAbsolute = sequence.IsAbsoluteCoordinates;
             }
-            
+
+            if (action.Type == EditorActionType.Delay)
+            {
+                if (action.DelayMs > 0 || action.UseRandomDelay)
+                {
+                    actions.Add(action);
+                }
+                continue;
+            }
+
+            AppendDelayActions(
+                actions,
+                action.DelayMs,
+                action.UseRandomDelay,
+                action.RandomDelayMinMs,
+                action.RandomDelayMaxMs);
+            action.DelayMs = 0;
+            action.UseRandomDelay = false;
+            action.RandomDelayMinMs = 0;
+            action.RandomDelayMaxMs = 0;
             actions.Add(action);
         }
 
-        // Add trailing delay as a Delay action if present
-        if (sequence.TrailingDelayMs > 0)
-        {
-            actions.Add(new EditorAction
-            {
-                Type = EditorActionType.Delay,
-                DelayMs = sequence.TrailingDelayMs
-            });
-        }
+        // Add trailing delay as Delay action(s) if present.
+        AppendDelayActions(
+            actions,
+            sequence.TrailingDelayMs,
+            sequence.HasTrailingRandomDelay,
+            sequence.TrailingDelayMinMs,
+            sequence.TrailingDelayMaxMs);
 
         return actions;
     }
@@ -442,8 +500,6 @@ public class EditorActionConverter : IEditorActionConverter
         var text = new System.Text.StringBuilder();
         int consumed = 0;
         bool shiftActive = false;
-        int initialDelayMs = 0;
-        bool isFirst = true;
         
         for (int i = startIndex; i < events.Count; i++)
         {
@@ -470,14 +526,7 @@ public class EditorActionConverter : IEditorActionConverter
             var c = _keyCodeMapper.GetCharacterForKeyCode(ev.KeyCode, shiftActive);
             if (!c.HasValue)
                 break;
-            
-            // Capture delay from first character
-            if (isFirst)
-            {
-                initialDelayMs = ev.DelayMs;
-                isFirst = false;
-            }
-            
+
             text.Append(c.Value);
             consumed++;
         }
@@ -488,9 +537,37 @@ public class EditorActionConverter : IEditorActionConverter
         return (new EditorAction
         {
             Type = EditorActionType.TextInput,
-            Text = text.ToString(),
-            DelayMs = initialDelayMs
+            Text = text.ToString()
         }, consumed);
+    }
+
+    private static void AppendDelayActions(
+        ICollection<EditorAction> actions,
+        int fixedDelayMs,
+        bool hasRandomDelay,
+        int randomDelayMinMs,
+        int randomDelayMaxMs)
+    {
+        if (fixedDelayMs > 0)
+        {
+            actions.Add(new EditorAction
+            {
+                Type = EditorActionType.Delay,
+                DelayMs = fixedDelayMs,
+                UseRandomDelay = false
+            });
+        }
+
+        if (hasRandomDelay)
+        {
+            actions.Add(new EditorAction
+            {
+                Type = EditorActionType.Delay,
+                UseRandomDelay = true,
+                RandomDelayMinMs = randomDelayMinMs,
+                RandomDelayMaxMs = randomDelayMaxMs
+            });
+        }
     }
     
     private static bool IsShiftKey(int keyCode)
@@ -504,4 +581,3 @@ public class EditorActionConverter : IEditorActionConverter
             or MouseButton.ScrollLeft or MouseButton.ScrollRight;
     }
 }
-

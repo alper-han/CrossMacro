@@ -45,6 +45,46 @@ public class EditorActionValidatorTests
     }
 
     [Fact]
+    public void Validate_DelayWithRandomBounds_ReturnsValid()
+    {
+        // Arrange
+        var action = new EditorAction
+        {
+            Type = EditorActionType.Delay,
+            UseRandomDelay = true,
+            RandomDelayMinMs = 100,
+            RandomDelayMaxMs = 250
+        };
+
+        // Act
+        var result = _validator.Validate(action);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+        result.Error.Should().BeNull();
+    }
+
+    [Fact]
+    public void Validate_DelayWithInvalidRandomBounds_ReturnsInvalid()
+    {
+        // Arrange
+        var action = new EditorAction
+        {
+            Type = EditorActionType.Delay,
+            UseRandomDelay = true,
+            RandomDelayMinMs = 300,
+            RandomDelayMaxMs = 100
+        };
+
+        // Act
+        var result = _validator.Validate(action);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("maximum");
+    }
+
+    [Fact]
     public void ValidateAll_WhenMixedCoordinateModes_ReturnsError()
     {
         // Arrange

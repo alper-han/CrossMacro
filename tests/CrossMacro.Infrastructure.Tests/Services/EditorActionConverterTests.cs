@@ -42,6 +42,30 @@ public class EditorActionConverterTests
     }
 
     [Fact]
+    public void ToMacroEvents_DelayWithRandom_ProducesPlaceholderWithRandomMetadata()
+    {
+        // Arrange
+        var action = new EditorAction
+        {
+            Type = EditorActionType.Delay,
+            UseRandomDelay = true,
+            RandomDelayMinMs = 100,
+            RandomDelayMaxMs = 200
+        };
+
+        // Act
+        var events = _converter.ToMacroEvents(action);
+
+        // Assert
+        events.Should().HaveCount(1);
+        events[0].Type.Should().Be(EventType.None);
+        events[0].DelayMs.Should().Be(0);
+        events[0].HasRandomDelay.Should().BeTrue();
+        events[0].RandomDelayMinMs.Should().Be(100);
+        events[0].RandomDelayMaxMs.Should().Be(200);
+    }
+
+    [Fact]
     public void ToMacroSequence_WhenDelayIsTrailing_SetsTrailingDelayMs()
     {
         // Arrange
@@ -58,6 +82,61 @@ public class EditorActionConverterTests
         sequence.Events.Should().HaveCount(1);
         sequence.Events[0].Type.Should().Be(EventType.MouseMove);
         sequence.TrailingDelayMs.Should().Be(250);
+    }
+
+    [Fact]
+    public void ToMacroSequence_WhenRandomDelayIsTrailing_SetsTrailingRandomDelay()
+    {
+        // Arrange
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.MouseMove, X = 10, Y = 20, DelayMs = 0 },
+            new EditorAction
+            {
+                Type = EditorActionType.Delay,
+                UseRandomDelay = true,
+                RandomDelayMinMs = 50,
+                RandomDelayMaxMs = 120
+            }
+        };
+
+        // Act
+        var sequence = _converter.ToMacroSequence(actions, "Test", isAbsolute: true);
+
+        // Assert
+        sequence.Events.Should().HaveCount(1);
+        sequence.TrailingDelayMs.Should().Be(0);
+        sequence.HasTrailingRandomDelay.Should().BeTrue();
+        sequence.TrailingDelayMinMs.Should().Be(50);
+        sequence.TrailingDelayMaxMs.Should().Be(120);
+    }
+
+    [Fact]
+    public void ToMacroSequence_WhenFixedAndRandomDelayBeforeEvent_PreservesBoth()
+    {
+        // Arrange
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.Delay, DelayMs = 30 },
+            new EditorAction
+            {
+                Type = EditorActionType.Delay,
+                UseRandomDelay = true,
+                RandomDelayMinMs = 10,
+                RandomDelayMaxMs = 20
+            },
+            new EditorAction { Type = EditorActionType.MouseMove, X = 10, Y = 20, DelayMs = 0 }
+        };
+
+        // Act
+        var sequence = _converter.ToMacroSequence(actions, "Test", isAbsolute: true);
+
+        // Assert
+        sequence.Events.Should().HaveCount(1);
+        sequence.Events[0].DelayMs.Should().Be(30);
+        sequence.Events[0].HasRandomDelay.Should().BeTrue();
+        sequence.Events[0].RandomDelayMinMs.Should().Be(10);
+        sequence.Events[0].RandomDelayMaxMs.Should().Be(20);
     }
 
     [Fact]
@@ -98,9 +177,44 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(1);
-        actions[0].Type.Should().Be(EditorActionType.TextInput);
-        actions[0].Text.Should().Be("ab");
+        actions.Should().HaveCount(2);
+        actions[0].Type.Should().Be(EditorActionType.Delay);
         actions[0].DelayMs.Should().Be(12);
+        actions[1].Type.Should().Be(EditorActionType.TextInput);
+        actions[1].Text.Should().Be("ab");
+        actions[1].DelayMs.Should().Be(0);
+    }
+
+    [Fact]
+    public void FromMacroSequence_WhenEventContainsRandomDelay_AddsRandomDelayActionBeforeEvent()
+    {
+        // Arrange
+        var sequence = new MacroSequence
+        {
+            Events =
+            [
+                new MacroEvent
+                {
+                    Type = EventType.MouseMove,
+                    X = 10,
+                    Y = 20,
+                    DelayMs = 0,
+                    HasRandomDelay = true,
+                    RandomDelayMinMs = 70,
+                    RandomDelayMaxMs = 130
+                }
+            ]
+        };
+
+        // Act
+        var actions = _converter.FromMacroSequence(sequence);
+
+        // Assert
+        actions.Should().HaveCount(2);
+        actions[0].Type.Should().Be(EditorActionType.Delay);
+        actions[0].UseRandomDelay.Should().BeTrue();
+        actions[0].RandomDelayMinMs.Should().Be(70);
+        actions[0].RandomDelayMaxMs.Should().Be(130);
+        actions[1].Type.Should().Be(EditorActionType.MouseMove);
     }
 }

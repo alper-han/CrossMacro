@@ -70,6 +70,55 @@ public class MacroSequenceTests
     }
 
     [Fact]
+    public void IsValid_EventWithInvalidRandomDelayBounds_ReturnsFalse()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Events = new List<MacroEvent>
+            {
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    Timestamp = 0,
+                    DelayMs = 0,
+                    HasRandomDelay = true,
+                    RandomDelayMinMs = 200,
+                    RandomDelayMaxMs = 100
+                }
+            }
+        };
+
+        // Act
+        var result = macro.IsValid();
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsValid_TrailingRandomDelayWithInvalidBounds_ReturnsFalse()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            HasTrailingRandomDelay = true,
+            TrailingDelayMinMs = 300,
+            TrailingDelayMaxMs = 100,
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, Timestamp = 0, DelayMs = 0 }
+            }
+        };
+
+        // Act
+        var result = macro.IsValid();
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Fact]
     public void IsValid_ValidEvents_ReturnsTrue()
     {
         // Arrange

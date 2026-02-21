@@ -13,6 +13,9 @@ namespace CrossMacro.Infrastructure.Services;
 /// </summary>
 public class MacroFileManager : IMacroFileManager
 {
+    private const string TrailingDelayHeader = "# TrailingDelayMs: ";
+    private const string TrailingRandomDelayHeader = "# TrailingRandomDelayMs: ";
+
     public MacroFileManager()
     {
     }
@@ -48,7 +51,11 @@ public class MacroFileManager : IMacroFileManager
         await writer.WriteLineAsync($"# SkipInitialZero: {macro.SkipInitialZeroZero}");
         if (macro.TrailingDelayMs > 0)
         {
-            await writer.WriteLineAsync($"# TrailingDelayMs: {macro.TrailingDelayMs}");
+            await writer.WriteLineAsync($"{TrailingDelayHeader}{macro.TrailingDelayMs}");
+        }
+        if (macro.HasTrailingRandomDelay)
+        {
+            await writer.WriteLineAsync($"{TrailingRandomDelayHeader}{macro.TrailingDelayMinMs},{macro.TrailingDelayMaxMs}");
         }
         await writer.WriteLineAsync("# Format: Cmd,Args...");
         
@@ -59,6 +66,10 @@ public class MacroFileManager : IMacroFileManager
             if (ev.DelayMs > 0)
             {
                 await writer.WriteLineAsync($"W,{ev.DelayMs}");
+            }
+            if (ev.HasRandomDelay)
+            {
+                await writer.WriteLineAsync($"WR,{ev.RandomDelayMinMs},{ev.RandomDelayMaxMs}");
             }
 
             switch (ev.Type)
@@ -111,6 +122,9 @@ public class MacroFileManager : IMacroFileManager
         var lines = await File.ReadAllLinesAsync(filePath);
         
         int currentDelay = 0;
+        bool currentHasRandomDelay = false;
+        int currentRandomDelayMinMs = 0;
+        int currentRandomDelayMaxMs = 0;
         
         foreach (var line in lines)
         {
@@ -129,8 +143,21 @@ public class MacroFileManager : IMacroFileManager
                     macro.IsAbsoluteCoordinates = isAbs;
                 else if (line.StartsWith("# SkipInitialZero: ") && bool.TryParse(line.Substring(19).Trim(), out var skipZero))
                     macro.SkipInitialZeroZero = skipZero;
-                else if (line.StartsWith("# TrailingDelayMs: ") && int.TryParse(line.Substring(19).Trim(), out var trailingDelay))
+                else if (line.StartsWith(TrailingDelayHeader, StringComparison.Ordinal)
+                    && int.TryParse(line.Substring(TrailingDelayHeader.Length).Trim(), out var trailingDelay))
                     macro.TrailingDelayMs = trailingDelay;
+                else if (line.StartsWith(TrailingRandomDelayHeader, StringComparison.Ordinal))
+                {
+                    var trailingRandomParts = line.Substring(TrailingRandomDelayHeader.Length).Trim().Split(',');
+                    if (trailingRandomParts.Length >= 2
+                        && int.TryParse(trailingRandomParts[0], out var trailingRandomMin)
+                        && int.TryParse(trailingRandomParts[1], out var trailingRandomMax))
+                    {
+                        macro.HasTrailingRandomDelay = true;
+                        macro.TrailingDelayMinMs = trailingRandomMin;
+                        macro.TrailingDelayMaxMs = trailingRandomMax;
+                    }
+                }
                 
                 continue;
             }
@@ -150,10 +177,26 @@ public class MacroFileManager : IMacroFileManager
                 }
                 continue;
             }
+            if ((type == "WR" || type == "WAITRANDOM") && parts.Length >= 3)
+            {
+                if (int.TryParse(parts[1], out int randomMinDelay) && int.TryParse(parts[2], out int randomMaxDelay))
+                {
+                    currentHasRandomDelay = true;
+                    currentRandomDelayMinMs += randomMinDelay;
+                    currentRandomDelayMaxMs += randomMaxDelay;
+                }
+                continue;
+            }
             
             try
             {
-                var ev = new MacroEvent { DelayMs = currentDelay };
+                var ev = new MacroEvent
+                {
+                    DelayMs = currentDelay,
+                    HasRandomDelay = currentHasRandomDelay,
+                    RandomDelayMinMs = currentRandomDelayMinMs,
+                    RandomDelayMaxMs = currentRandomDelayMaxMs
+                };
                 bool validEvent = false;
 
                 // Handle Move
@@ -208,6 +251,10 @@ public class MacroFileManager : IMacroFileManager
                     if (macro.Events.Count > 0)
                     {
                         ev.Timestamp = macro.Events[^1].Timestamp + ev.DelayMs;
+                        if (ev.HasRandomDelay)
+                        {
+                            ev.Timestamp += ev.RandomDelayMinMs;
+                        }
                     }
                     else
                     {
@@ -216,17 +263,26 @@ public class MacroFileManager : IMacroFileManager
                     
                     macro.Events.Add(ev);
                     currentDelay = 0; // Reset delay after consuming it
+                    currentHasRandomDelay = false;
+                    currentRandomDelayMinMs = 0;
+                    currentRandomDelayMaxMs = 0;
                 }
                 else
                 {
                     Log.Warning("Ignoring unsupported or malformed event line: {Line}", line);
                     currentDelay = 0;
+                    currentHasRandomDelay = false;
+                    currentRandomDelayMinMs = 0;
+                    currentRandomDelayMaxMs = 0;
                 }
             }
             catch (Exception ex)
             {
                 Log.Warning(ex, "Error parsing line: {Line}", line);
                 currentDelay = 0;
+                currentHasRandomDelay = false;
+                currentRandomDelayMinMs = 0;
+                currentRandomDelayMaxMs = 0;
             }
         }
         

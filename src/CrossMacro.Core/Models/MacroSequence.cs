@@ -81,6 +81,21 @@ public class MacroSequence
     /// Useful for looped macros where you want a pause before the next iteration.
     /// </summary>
     public int TrailingDelayMs { get; set; }
+
+    /// <summary>
+    /// Whether trailing delay includes a randomized component.
+    /// </summary>
+    public bool HasTrailingRandomDelay { get; set; }
+
+    /// <summary>
+    /// Minimum randomized trailing delay in milliseconds.
+    /// </summary>
+    public int TrailingDelayMinMs { get; set; }
+
+    /// <summary>
+    /// Maximum randomized trailing delay in milliseconds.
+    /// </summary>
+    public int TrailingDelayMaxMs { get; set; }
     
     /// <summary>
     /// Validates the macro sequence
@@ -91,8 +106,22 @@ public class MacroSequence
         if (Events == null || Events.Count == 0)
             return false;
             
-        // Check that all events have valid timestamps
-        return Events.All(e => e.Timestamp >= 0 && e.DelayMs >= 0);
+        if (!Events.All(IsEventTimingValid))
+            return false;
+
+        return !HasTrailingRandomDelay
+            || (TrailingDelayMinMs >= 0 && TrailingDelayMaxMs >= TrailingDelayMinMs);
+    }
+
+    private static bool IsEventTimingValid(MacroEvent ev)
+    {
+        if (ev.Timestamp < 0 || ev.DelayMs < 0)
+            return false;
+
+        if (!ev.HasRandomDelay)
+            return true;
+
+        return ev.RandomDelayMinMs >= 0 && ev.RandomDelayMaxMs >= ev.RandomDelayMinMs;
     }
     
     /// <summary>

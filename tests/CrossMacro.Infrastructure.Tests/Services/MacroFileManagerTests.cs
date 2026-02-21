@@ -361,4 +361,98 @@ M,100,100";
         loaded.Events[0].DelayMs.Should().Be(0);
         loaded.Events[1].DelayMs.Should().Be(0);
     }
+
+    [Fact]
+    public async Task SaveAndLoad_RoundTrip_PreservesRandomDelayMetadata()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Random Delay Test",
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 0, Y = 0, Timestamp = 0, DelayMs = 0 },
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 10,
+                    Y = 10,
+                    Timestamp = 100,
+                    DelayMs = 40,
+                    HasRandomDelay = true,
+                    RandomDelayMinMs = 60,
+                    RandomDelayMaxMs = 120
+                }
+            }
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        await _manager.SaveAsync(macro, filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.Events.Should().HaveCount(2);
+        loaded.Events[1].DelayMs.Should().Be(40);
+        loaded.Events[1].HasRandomDelay.Should().BeTrue();
+        loaded.Events[1].RandomDelayMinMs.Should().Be(60);
+        loaded.Events[1].RandomDelayMaxMs.Should().Be(120);
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_RoundTrip_PreservesTrailingRandomDelayMetadata()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Trailing Random Delay Test",
+            HasTrailingRandomDelay = true,
+            TrailingDelayMinMs = 25,
+            TrailingDelayMaxMs = 75,
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 0, Y = 0, Timestamp = 0, DelayMs = 0 }
+            }
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        await _manager.SaveAsync(macro, filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.HasTrailingRandomDelay.Should().BeTrue();
+        loaded.TrailingDelayMinMs.Should().Be(25);
+        loaded.TrailingDelayMaxMs.Should().Be(75);
+    }
+
+    [Fact]
+    public async Task Load_ParsesRandomWaitCommands()
+    {
+        // Arrange
+        var filePath = GetTempFilePath();
+        var content = @"# Name: Wait Random Test
+# Created: 2024-01-01T00:00:00Z
+# DurationMs: 1000
+# IsAbsolute: True
+# Format: Cmd,Args...
+M,0,0
+WR,100,250
+M,100,100";
+
+        await File.WriteAllTextAsync(filePath, content);
+
+        // Act
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.Events.Should().HaveCount(2);
+        loaded.Events[1].DelayMs.Should().Be(0);
+        loaded.Events[1].HasRandomDelay.Should().BeTrue();
+        loaded.Events[1].RandomDelayMinMs.Should().Be(100);
+        loaded.Events[1].RandomDelayMaxMs.Should().Be(250);
+    }
 }

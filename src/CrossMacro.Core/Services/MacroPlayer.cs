@@ -36,6 +36,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
     private bool _resolutionCached;
 
     private int _errorCount;
+    private readonly Random _random = Random.Shared;
 
     private const int VirtualDeviceCreationDelayMs = 50;
     private const double MinEnforcedDelayMs = 1.0;
@@ -182,9 +183,15 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
                 await PlayOnceAsync(macro, normalizedSpeed, _cts.Token);
 
                 // Apply trailing delay after the macro completes (before next iteration or end)
-                if (macro.TrailingDelayMs > 0 && !_cts.Token.IsCancellationRequested)
+                int trailingDelaySource = ResolveDelayMs(
+                    macro.TrailingDelayMs,
+                    macro.HasTrailingRandomDelay,
+                    macro.TrailingDelayMinMs,
+                    macro.TrailingDelayMaxMs);
+
+                if (trailingDelaySource > 0 && !_cts.Token.IsCancellationRequested)
                 {
-                    int trailingDelay = (int)(macro.TrailingDelayMs / normalizedSpeed);
+                    int trailingDelay = (int)(trailingDelaySource / normalizedSpeed);
                     if (trailingDelay > 0)
                     {
                         await _timingService.WaitAsync(trailingDelay, this, _cts.Token);
@@ -316,7 +323,13 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
                 await Task.Yield();
             }
 
-            if (!isFirstEvent && ev.DelayMs > 0)
+            int eventDelaySource = ResolveDelayMs(
+                ev.DelayMs,
+                ev.HasRandomDelay,
+                ev.RandomDelayMinMs,
+                ev.RandomDelayMaxMs);
+
+            if (!isFirstEvent && eventDelaySource > 0)
             {
                 double effectiveSpeed = speedMultiplier;
 
@@ -326,7 +339,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
                     effectiveSpeed = MaxInitialSpeedMultiplier;
                 }
 
-                double adjustedDelay = ev.DelayMs / effectiveSpeed;
+                double adjustedDelay = eventDelaySource / effectiveSpeed;
 
                 if (_eventExecutor!.IsMouseButtonPressed && adjustedDelay < MinEnforcedDelayMs)
                 {
@@ -372,6 +385,34 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
         }
 
         Log.Debug("[MacroPlayer] Completed playback of {Total} events", totalEvents);
+    }
+
+    private int ResolveDelayMs(int fixedDelayMs, bool hasRandomDelay, int randomDelayMinMs, int randomDelayMaxMs)
+    {
+        int randomDelay = 0;
+        if (hasRandomDelay)
+        {
+            int min = Math.Min(randomDelayMinMs, randomDelayMaxMs);
+            int max = Math.Max(randomDelayMinMs, randomDelayMaxMs);
+            if (min == max)
+            {
+                randomDelay = min;
+            }
+            else if (max == int.MaxValue)
+            {
+                randomDelay = (int)_random.NextInt64(min, (long)max + 1);
+            }
+            else
+            {
+                randomDelay = _random.Next(min, max + 1);
+            }
+        }
+
+        long totalDelay = (long)fixedDelayMs + randomDelay;
+        if (totalDelay <= 0)
+            return 0;
+
+        return totalDelay > int.MaxValue ? int.MaxValue : (int)totalDelay;
     }
 
     public void Pause()

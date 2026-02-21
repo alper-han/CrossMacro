@@ -12,6 +12,7 @@ public static class ValidationMessages
     public const string DelayMustBeNonNegative = "Delay must be non-negative";
     public const string DelayMustBePositive = "Delay must be greater than 0ms";
     public const string DelayTooLong = "Delay cannot exceed 1 hour";
+    public const string RandomDelayBoundsInvalid = "Random delay maximum must be greater than or equal to minimum";
     
     // Key Actions
     public const string KeyCodeMustBePositive = "Key code must be positive";

@@ -36,6 +36,21 @@ public struct MacroEvent
     /// Delay until next event (milliseconds)
     /// </summary>
     public int DelayMs { get; set; }
+
+    /// <summary>
+    /// Whether the delay includes a randomized component.
+    /// </summary>
+    public bool HasRandomDelay { get; set; }
+
+    /// <summary>
+    /// Minimum randomized delay in milliseconds.
+    /// </summary>
+    public int RandomDelayMinMs { get; set; }
+
+    /// <summary>
+    /// Maximum randomized delay in milliseconds.
+    /// </summary>
+    public int RandomDelayMaxMs { get; set; }
     
     /// <summary>
     /// Keyboard key code (for key press/release events)

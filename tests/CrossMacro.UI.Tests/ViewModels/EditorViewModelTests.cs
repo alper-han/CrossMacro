@@ -144,4 +144,24 @@ public class EditorViewModelTests
         _viewModel.SelectedAction.Should().NotBeNull();
         _viewModel.HasActions.Should().BeTrue();
     }
+
+    [Fact]
+    public void DelayVisibility_TogglesBetweenFixedAndRandomInputs()
+    {
+        // Arrange
+        _viewModel.NewActionType = EditorActionType.Delay;
+        _viewModel.AddAction();
+
+        // Assert
+        _viewModel.ShowDelay.Should().BeTrue();
+        _viewModel.ShowFixedDelayInput.Should().BeTrue();
+        _viewModel.ShowRandomDelayOptions.Should().BeFalse();
+
+        // Act
+        _viewModel.SelectedAction!.UseRandomDelay = true;
+
+        // Assert
+        _viewModel.ShowFixedDelayInput.Should().BeFalse();
+        _viewModel.ShowRandomDelayOptions.Should().BeTrue();
+    }
 }

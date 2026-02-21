@@ -18,6 +18,9 @@ public class MacroEventTests
         ev.Button.Should().Be(MouseButton.None);
         ev.Timestamp.Should().Be(0);
         ev.DelayMs.Should().Be(0);
+        ev.HasRandomDelay.Should().BeFalse();
+        ev.RandomDelayMinMs.Should().Be(0);
+        ev.RandomDelayMaxMs.Should().Be(0);
         ev.KeyCode.Should().Be(0);
     }
 

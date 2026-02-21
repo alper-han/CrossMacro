@@ -269,14 +269,41 @@
                             
                             <!-- Delay (Delay action only) -->
                             <StackPanel Spacing="4" IsVisible="{Binding ShowDelay}">
-                                <TextBlock Text="Delay (ms):" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
-                                <TextBox Text="{Binding SelectedAction.DelayMs, Converter={StaticResource NullableIntConverter}}" 
-                                         Watermark="ms"
-                                         Background="{DynamicResource SurfaceHoverBrush}"
-                                         Foreground="{DynamicResource TextPrimaryBrush}"
-                                         BorderThickness="0"
-                                         CornerRadius="4"
-                                         Padding="8,6"/>
+                                <CheckBox IsChecked="{Binding SelectedAction.UseRandomDelay}"
+                                          Content="Randomize delay"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+                                <StackPanel Spacing="4" IsVisible="{Binding ShowFixedDelayInput}">
+                                    <TextBlock Text="Delay (ms):" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                    <TextBox Text="{Binding SelectedAction.DelayMs, Converter={StaticResource NullableIntConverter}}" 
+                                             Watermark="ms"
+                                             Background="{DynamicResource SurfaceHoverBrush}"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"
+                                             BorderThickness="0"
+                                             CornerRadius="4"
+                                             Padding="8,6"/>
+                                </StackPanel>
+
+                                <StackPanel Spacing="4" IsVisible="{Binding ShowRandomDelayOptions}">
+                                    <TextBlock Text="Random Delay Range (ms):" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                    <Grid ColumnDefinitions="*,8,*">
+                                        <TextBox Text="{Binding SelectedAction.RandomDelayMinMs, Converter={StaticResource NullableIntConverter}}"
+                                                 Watermark="Min"
+                                                 Background="{DynamicResource SurfaceHoverBrush}"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderThickness="0"
+                                                 CornerRadius="4"
+                                                 Padding="8,6"/>
+                                        <TextBox Grid.Column="2"
+                                                 Text="{Binding SelectedAction.RandomDelayMaxMs, Converter={StaticResource NullableIntConverter}}"
+                                                 Watermark="Max"
+                                                 Background="{DynamicResource SurfaceHoverBrush}"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderThickness="0"
+                                                 CornerRadius="4"
+                                                 Padding="8,6"/>
+                                    </Grid>
+                                </StackPanel>
                             </StackPanel>
                             
                             <!-- Scroll Amount (ScrollVertical, ScrollHorizontal) -->

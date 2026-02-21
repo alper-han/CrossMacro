@@ -219,6 +219,76 @@ public class MacroPlayerTests
     }
 
     [Fact]
+    public async Task PlayAsync_WhenEventHasRandomDelay_UsesFixedPlusRandomDelay()
+    {
+        // Arrange
+        var simulator = Substitute.For<IInputSimulator>();
+        simulator.ProviderName.Returns("MockSimulator");
+        var timing = new RecordingTimingService();
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            timingService: timing,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 },
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 20,
+                    Y = 20,
+                    DelayMs = 30,
+                    HasRandomDelay = true,
+                    RandomDelayMinMs = 20,
+                    RandomDelayMaxMs = 20
+                }
+            }
+        };
+
+        // Act
+        await player.PlayAsync(macro);
+
+        // Assert
+        timing.WaitCalls.Should().Contain(50);
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenMacroHasTrailingRandomDelay_UsesFixedPlusRandomDelay()
+    {
+        // Arrange
+        var simulator = Substitute.For<IInputSimulator>();
+        simulator.ProviderName.Returns("MockSimulator");
+        var timing = new RecordingTimingService();
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            timingService: timing,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            TrailingDelayMs = 15,
+            HasTrailingRandomDelay = true,
+            TrailingDelayMinMs = 25,
+            TrailingDelayMaxMs = 25,
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 }
+            }
+        };
+
+        // Act
+        await player.PlayAsync(macro);
+
+        // Assert
+        timing.WaitCalls.Should().Contain(40);
+    }
+
+    [Fact]
     public async Task PlayAsync_WhenAlreadyPlaying_ThrowsInvalidOperationException()
     {
         // Arrange

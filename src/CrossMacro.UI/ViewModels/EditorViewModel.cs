@@ -122,6 +122,11 @@ public class EditorViewModel : ViewModelBase, IDisposable
         {
             NotifyVisibilityChanged();
         }
+
+        if (e.PropertyName == nameof(EditorAction.UseRandomDelay))
+        {
+            NotifyVisibilityChanged();
+        }
         
         // When KeyCode changes manually, update KeyName
         if (e.PropertyName == nameof(EditorAction.KeyCode) && sender is EditorAction action)
@@ -239,6 +244,16 @@ public class EditorViewModel : ViewModelBase, IDisposable
     /// Show delay for: Delay action only (other actions have timing handled differently)
     /// </summary>
     public bool ShowDelay => SelectedAction?.Type == EditorActionType.Delay;
+
+    /// <summary>
+    /// Show fixed delay value when random delay is disabled.
+    /// </summary>
+    public bool ShowFixedDelayInput => ShowDelay && SelectedAction?.UseRandomDelay != true;
+
+    /// <summary>
+    /// Show random delay bounds when random delay is enabled.
+    /// </summary>
+    public bool ShowRandomDelayOptions => ShowDelay && SelectedAction?.UseRandomDelay == true;
     
     /// <summary>
     /// Show scroll amount for: ScrollVertical, ScrollHorizontal
@@ -259,6 +274,8 @@ public class EditorViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ShowMouseButton));
         OnPropertyChanged(nameof(ShowKeyCode));
         OnPropertyChanged(nameof(ShowDelay));
+        OnPropertyChanged(nameof(ShowFixedDelayInput));
+        OnPropertyChanged(nameof(ShowRandomDelayOptions));
         OnPropertyChanged(nameof(ShowScrollAmount));
         OnPropertyChanged(nameof(ShowTextInput));
     }
@@ -295,6 +312,9 @@ public class EditorViewModel : ViewModelBase, IDisposable
             Type = NewActionType,
             IsAbsolute = true, // Default to absolute
             DelayMs = NewActionType == EditorActionType.Delay ? 100 : 0,
+            UseRandomDelay = false,
+            RandomDelayMinMs = 50,
+            RandomDelayMaxMs = 150,
             ScrollAmount = NewActionType is EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal ? 1 : 0
         };
         

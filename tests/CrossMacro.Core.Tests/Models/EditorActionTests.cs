@@ -19,6 +19,9 @@ public class EditorActionTests
             KeyCode = 30,
             KeyName = "A",
             DelayMs = 25,
+            UseRandomDelay = true,
+            RandomDelayMinMs = 50,
+            RandomDelayMaxMs = 150,
             ScrollAmount = -2,
             Text = "hello"
         };
@@ -37,6 +40,9 @@ public class EditorActionTests
         clone.KeyCode.Should().Be(source.KeyCode);
         clone.KeyName.Should().Be(source.KeyName);
         clone.DelayMs.Should().Be(source.DelayMs);
+        clone.UseRandomDelay.Should().Be(source.UseRandomDelay);
+        clone.RandomDelayMinMs.Should().Be(source.RandomDelayMinMs);
+        clone.RandomDelayMaxMs.Should().Be(source.RandomDelayMaxMs);
         clone.ScrollAmount.Should().Be(source.ScrollAmount);
         clone.Text.Should().Be(source.Text);
     }
@@ -64,10 +70,18 @@ public class EditorActionTests
     {
         // Arrange
         var delay = new EditorAction { Type = EditorActionType.Delay, DelayMs = -1 };
+        var randomDelay = new EditorAction
+        {
+            Type = EditorActionType.Delay,
+            UseRandomDelay = true,
+            RandomDelayMinMs = 200,
+            RandomDelayMaxMs = 100
+        };
         var scroll = new EditorAction { Type = EditorActionType.ScrollVertical, ScrollAmount = 0 };
 
         // Assert
         delay.IsValid().Should().BeFalse();
+        randomDelay.IsValid().Should().BeFalse();
         scroll.IsValid().Should().BeFalse();
     }
 }

@@ -70,12 +70,29 @@ public class EditorActionValidator : IEditorActionValidator
     
     private static (bool IsValid, string? Error) ValidateDelay(EditorAction action)
     {
+        if (action.UseRandomDelay)
+        {
+            if (action.RandomDelayMinMs < 0 || action.RandomDelayMaxMs < 0)
+                return (false, ValidationMessages.DelayMustBeNonNegative);
+
+            if (action.RandomDelayMaxMs < action.RandomDelayMinMs)
+                return (false, ValidationMessages.RandomDelayBoundsInvalid);
+
+            if (action.RandomDelayMinMs == 0 && action.RandomDelayMaxMs == 0)
+                return (false, ValidationMessages.DelayMustBePositive);
+
+            if (action.RandomDelayMaxMs > 3600000) // 1 hour max
+                return (false, ValidationMessages.DelayTooLong);
+
+            return (true, null);
+        }
+
         if (action.DelayMs < 0)
             return (false, ValidationMessages.DelayMustBeNonNegative);
-        
+
         if (action.DelayMs == 0)
             return (false, ValidationMessages.DelayMustBePositive);
-        
+
         if (action.DelayMs > 3600000) // 1 hour max
             return (false, ValidationMessages.DelayTooLong);
         
@@ -149,4 +166,3 @@ public class EditorActionValidator : IEditorActionValidator
         return (true, null);
     }
 }
-

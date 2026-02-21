@@ -20,6 +20,9 @@ public class EditorAction : INotifyPropertyChanged
     private MouseButton _button = MouseButton.Left;
     private int _keyCode;
     private int _delayMs;
+    private bool _useRandomDelay;
+    private int _randomDelayMinMs;
+    private int _randomDelayMaxMs;
     private int _scrollAmount = 1;
     private string? _keyName;
     private int _index;
@@ -163,6 +166,58 @@ public class EditorAction : INotifyPropertyChanged
             }
         }
     }
+
+    /// <summary>
+    /// Whether delay should be randomized between min/max bounds.
+    /// Only applicable for Delay action.
+    /// </summary>
+    public bool UseRandomDelay
+    {
+        get => _useRandomDelay;
+        set
+        {
+            if (_useRandomDelay != value)
+            {
+                _useRandomDelay = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DisplayName));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Minimum randomized delay in milliseconds.
+    /// </summary>
+    public int RandomDelayMinMs
+    {
+        get => _randomDelayMinMs;
+        set
+        {
+            if (_randomDelayMinMs != value)
+            {
+                _randomDelayMinMs = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DisplayName));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Maximum randomized delay in milliseconds.
+    /// </summary>
+    public int RandomDelayMaxMs
+    {
+        get => _randomDelayMaxMs;
+        set
+        {
+            if (_randomDelayMaxMs != value)
+            {
+                _randomDelayMaxMs = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DisplayName));
+            }
+        }
+    }
     
     /// <summary>
     /// Scroll amount (positive = up/right, negative = down/left).
@@ -249,6 +304,7 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.KeyPress => $"Press '{KeyName ?? KeyCode.ToString()}'",
             EditorActionType.KeyDown => $"Hold '{KeyName ?? KeyCode.ToString()}'",
             EditorActionType.KeyUp => $"Release '{KeyName ?? KeyCode.ToString()}'",
+            EditorActionType.Delay when UseRandomDelay => $"Wait {RandomDelayMinMs}-{RandomDelayMaxMs}ms (random)",
             EditorActionType.Delay => $"Wait {DelayMs}ms",
             EditorActionType.ScrollVertical => ScrollAmount > 0 ? $"Scroll Up {ScrollAmount}" : $"Scroll Down {Math.Abs(ScrollAmount)}",
             EditorActionType.ScrollHorizontal => ScrollAmount > 0 ? $"Scroll Right {ScrollAmount}" : $"Scroll Left {Math.Abs(ScrollAmount)}",
@@ -267,6 +323,10 @@ public class EditorAction : INotifyPropertyChanged
     {
         return Type switch
         {
+            EditorActionType.Delay when UseRandomDelay =>
+                RandomDelayMinMs >= 0
+                && RandomDelayMaxMs >= RandomDelayMinMs
+                && !(RandomDelayMinMs == 0 && RandomDelayMaxMs == 0),
             EditorActionType.Delay => DelayMs >= 0,
             EditorActionType.KeyPress or EditorActionType.KeyDown or EditorActionType.KeyUp => KeyCode > 0,
             EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal => ScrollAmount != 0,
@@ -287,6 +347,9 @@ public class EditorAction : INotifyPropertyChanged
             _button = Button,
             _keyCode = KeyCode,
             _delayMs = DelayMs,
+            _useRandomDelay = UseRandomDelay,
+            _randomDelayMinMs = RandomDelayMinMs,
+            _randomDelayMaxMs = RandomDelayMaxMs,
             _scrollAmount = ScrollAmount,
             _keyName = KeyName,
             _text = Text

@@ -77,12 +77,14 @@ public class SettingsService : ISettingsService
             {
                 Log.Information("Settings file not found, using defaults");
                 _currentSettings = new AppSettings();
+                NormalizeSettings(_currentSettings);
                 await SaveAsync();
                 return _currentSettings;
             }
 
             var json = await File.ReadAllTextAsync(_settingsFilePath);
             _currentSettings = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.AppSettings) ?? new AppSettings();
+            NormalizeSettings(_currentSettings);
             
             Log.Information("Settings loaded from {Path}", _settingsFilePath);
             return _currentSettings;
@@ -91,6 +93,7 @@ public class SettingsService : ISettingsService
         {
             Log.Error(ex, "Failed to load settings, using defaults");
             _currentSettings = new AppSettings();
+            NormalizeSettings(_currentSettings);
             return _currentSettings;
         }
     }
@@ -103,12 +106,14 @@ public class SettingsService : ISettingsService
             {
                 Log.Information("Settings file not found, using defaults");
                 _currentSettings = new AppSettings();
+                NormalizeSettings(_currentSettings);
                 Save(); // Use synchronous save to avoid deadlock
                 return _currentSettings;
             }
 
             var json = File.ReadAllText(_settingsFilePath);
             _currentSettings = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.AppSettings) ?? new AppSettings();
+            NormalizeSettings(_currentSettings);
             
             Log.Information("Settings loaded from {Path}", _settingsFilePath);
             return _currentSettings;
@@ -117,6 +122,7 @@ public class SettingsService : ISettingsService
         {
             Log.Error(ex, "Failed to load settings, using defaults");
             _currentSettings = new AppSettings();
+            NormalizeSettings(_currentSettings);
             return _currentSettings;
         }
     }
@@ -157,5 +163,10 @@ public class SettingsService : ISettingsService
             Log.Error(ex, "Failed to save settings");
             throw;
         }
+    }
+
+    private static void NormalizeSettings(AppSettings settings)
+    {
+        settings.PlaybackSpeed = PlaybackOptions.NormalizeSpeedMultiplier(settings.PlaybackSpeed);
     }
 }

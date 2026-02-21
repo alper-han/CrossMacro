@@ -199,6 +199,7 @@ public class ShortcutService : IShortcutService
     private void OnRawKeyReleased(object? sender, RawHotkeyInputEventArgs e)
     {
         List<(Guid taskId, IMacroPlayer player)> playersToStop = new();
+        List<Guid> hotkeysToRemove = new();
 
         lock (_lock)
         {
@@ -212,8 +213,13 @@ public class ShortcutService : IShortcutService
                         playersToStop.Add((taskId, player));
                         _activePlayers.Remove(taskId);
                     }
-                    _activeHotkeyKeys.Remove(taskId);
+                    hotkeysToRemove.Add(taskId);
                 }
+            }
+
+            foreach (var taskId in hotkeysToRemove)
+            {
+                _activeHotkeyKeys.Remove(taskId);
             }
         }
 
@@ -271,7 +277,7 @@ public class ShortcutService : IShortcutService
             var repeatCount = task.RunWhileHeld ? 0 : (task.LoopEnabled ? task.RepeatCount : 1);
             var options = new PlaybackOptions
             {
-                SpeedMultiplier = task.PlaybackSpeed,
+                SpeedMultiplier = PlaybackOptions.NormalizeSpeedMultiplier(task.PlaybackSpeed),
                 Loop = loop,
                 RepeatCount = repeatCount,
                 RepeatDelayMs = task.RepeatDelayMs

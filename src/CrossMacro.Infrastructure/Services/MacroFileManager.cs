@@ -217,10 +217,16 @@ public class MacroFileManager : IMacroFileManager
                     macro.Events.Add(ev);
                     currentDelay = 0; // Reset delay after consuming it
                 }
+                else
+                {
+                    Log.Warning("Ignoring unsupported or malformed event line: {Line}", line);
+                    currentDelay = 0;
+                }
             }
             catch (Exception ex)
             {
                 Log.Warning(ex, "Error parsing line: {Line}", line);
+                currentDelay = 0;
             }
         }
         

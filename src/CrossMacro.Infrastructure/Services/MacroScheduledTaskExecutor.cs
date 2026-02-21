@@ -81,7 +81,7 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
             // Apply task-specific playback speed
             var options = new PlaybackOptions
             {
-                SpeedMultiplier = task.PlaybackSpeed
+                SpeedMultiplier = PlaybackOptions.NormalizeSpeedMultiplier(task.PlaybackSpeed)
             };
             
             await player.PlayAsync(macro, options);

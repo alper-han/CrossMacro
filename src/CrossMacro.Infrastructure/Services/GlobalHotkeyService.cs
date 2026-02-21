@@ -17,8 +17,10 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 {
     private IInputCapture? _inputCapture;
     private bool _isRunning;
+    private bool _disposed;
     private readonly Lock _lock = new();
     private CancellationTokenSource? _captureCts;
+    private int _restartInProgress;
 
     // Injected services
     private readonly IHotkeyConfigurationService _configService;
@@ -87,16 +89,10 @@ public class GlobalHotkeyService : IGlobalHotkeyService
                 throw new InvalidOperationException("No input capture factory configured");
             }
 
-            _inputCapture = _inputCaptureFactory();
-            _inputCapture.Configure(captureMouse: true, captureKeyboard: true);
-            _inputCapture.InputReceived += OnInputReceived;
-            _inputCapture.Error += OnInputCaptureError;
-            
-            _captureCts = new CancellationTokenSource();
-            _ = _inputCapture.StartAsync(_captureCts.Token);
+            StartCapture_NoLock();
             
             _isRunning = true;
-            Log.Information("[GlobalHotkeyService] Started via {ProviderName}", _inputCapture.ProviderName);
+            Log.Information("[GlobalHotkeyService] Started via {ProviderName}", _inputCapture?.ProviderName ?? "Unknown");
         }
     }
 
@@ -110,16 +106,12 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             {
                 try
                 {
-                    _inputCapture.InputReceived -= OnInputReceived;
-                    _inputCapture.Error -= OnInputCaptureError;
-                    _inputCapture.Stop();
-                    _inputCapture.Dispose();
+                    StopCapture_NoLock();
                 }
                 catch (Exception ex)
                 {
                     Log.Error(ex, "[GlobalHotkeyService] Error stopping input capture");
                 }
-                _inputCapture = null;
             }
             
             _captureCts?.Cancel();
@@ -324,6 +316,11 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         Log.Error("[GlobalHotkeyService] Input capture error: {Error}", errorMessage);
         LastError = errorMessage;
         ErrorOccurred?.Invoke(this, errorMessage);
+
+        if (_isRunning)
+        {
+            _ = TryRestartCaptureAsync(errorMessage);
+        }
     }
 
     public void SetPlaybackPauseHotkeysEnabled(bool enabled)
@@ -337,6 +334,80 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
         Stop();
+    }
+
+    private void StartCapture_NoLock()
+    {
+        _inputCapture = _inputCaptureFactory!();
+        _inputCapture.Configure(captureMouse: true, captureKeyboard: true);
+        _inputCapture.InputReceived += OnInputReceived;
+        _inputCapture.Error += OnInputCaptureError;
+
+        _captureCts = new CancellationTokenSource();
+        _ = _inputCapture.StartAsync(_captureCts.Token);
+    }
+
+    private void StopCapture_NoLock()
+    {
+        if (_inputCapture == null)
+        {
+            return;
+        }
+
+        _inputCapture.InputReceived -= OnInputReceived;
+        _inputCapture.Error -= OnInputCaptureError;
+        _inputCapture.Stop();
+        _inputCapture.Dispose();
+        _inputCapture = null;
+    }
+
+    private async Task TryRestartCaptureAsync(string cause)
+    {
+        if (Interlocked.CompareExchange(ref _restartInProgress, 1, 0) != 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await Task.Delay(250);
+
+            using (_lock.EnterScope())
+            {
+                if (!_isRunning || _inputCaptureFactory == null)
+                {
+                    return;
+                }
+
+                Log.Warning("[GlobalHotkeyService] Restarting input capture after error: {Cause}", cause);
+
+                try
+                {
+                    StopCapture_NoLock();
+                    _captureCts?.Cancel();
+                    _captureCts?.Dispose();
+                    _captureCts = null;
+                    StartCapture_NoLock();
+                    LastError = null;
+                }
+                catch (Exception ex)
+                {
+                    LastError = $"Restart failed: {ex.Message}";
+                    ErrorOccurred?.Invoke(this, LastError);
+                    Log.Error(ex, "[GlobalHotkeyService] Failed to restart input capture");
+                }
+            }
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _restartInProgress, 0);
+        }
     }
 }

@@ -458,12 +458,25 @@ jobs:
     
     - name: Test SSH Connection
       run: |
-        ssh -i ~/.ssh/id_aur \
+        set +e
+        SSH_OUTPUT=$(ssh -i ~/.ssh/id_aur \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile=$HOME/.ssh/known_hosts \
             -o HostKeyAlgorithms=ssh-ed25519 \
-            -T aur@aur.archlinux.org
+            -T aur@aur.archlinux.org 2>&1)
+        SSH_STATUS=$?
+        set -e
+
+        echo "$SSH_OUTPUT"
+
+        # AUR commonly returns exit code 1 even for successful auth when interactive shell is disabled.
+        if echo "$SSH_OUTPUT" | grep -q "Welcome to AUR"; then
+          echo "AUR SSH authentication verified."
+          exit 0
+        fi
+
+        exit $SSH_STATUS
     
     - name: Clone AUR repository
       env:

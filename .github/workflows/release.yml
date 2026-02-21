@@ -8,9 +8,18 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version (without v prefix, e.g., 1.0.0)'
+        description: 'Optional override, must match VERSION file (X.Y.Z)'
         required: false
-        default: '1.0.0'
+        default: ''
+      publish_prerelease:
+        description: 'Create a GitHub pre-release from this commit'
+        type: boolean
+        required: false
+        default: false
+      prerelease_tag:
+        description: 'Optional pre-release tag (default: vX.Y.Z-pre.<run_number>)'
+        required: false
+        default: ''
 
 jobs:
   # ============================================
@@ -21,6 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      is_prerelease_release: ${{ steps.version.outputs.is_prerelease_release }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
@@ -28,14 +38,44 @@ jobs:
     - name: Extract version
       id: version
       run: |
-        if [ "${{ github.event_name }}" == "push" ]; then
-          VERSION=${GITHUB_REF#refs/tags/}
-          VERSION=${VERSION#v}
-          VERSION=${VERSION#.}
-        else
-          VERSION="${{ github.event.inputs.version }}"
+        REPO_VERSION="$(tr -d '\r\n[:space:]' < VERSION)"
+        IS_PRERELEASE_RELEASE="false"
+        if ! [[ "$REPO_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "Invalid VERSION file value: '$REPO_VERSION'"
+          exit 1
         fi
+
+        if [ "${{ github.event_name }}" == "push" ]; then
+          TAG_VERSION="${GITHUB_REF#refs/tags/}"
+          TAG_VERSION="${TAG_VERSION#v}"
+          TAG_VERSION="${TAG_VERSION#.}"
+          BASE_TAG_VERSION="${TAG_VERSION%%-*}"
+          if [ "$BASE_TAG_VERSION" != "$REPO_VERSION" ]; then
+            echo "Tag version '$TAG_VERSION' does not match VERSION file '$REPO_VERSION' (or X.Y.Z-suffix form)"
+            exit 1
+          fi
+          if [ "$TAG_VERSION" != "$BASE_TAG_VERSION" ]; then
+            IS_PRERELEASE_RELEASE="true"
+          fi
+        else
+          INPUT_VERSION="${{ github.event.inputs.version }}"
+          if [ -n "$INPUT_VERSION" ] && [ "$INPUT_VERSION" != "$REPO_VERSION" ]; then
+            echo "workflow_dispatch version '$INPUT_VERSION' does not match VERSION file '$REPO_VERSION'"
+            exit 1
+          fi
+          if [ "${{ github.event.inputs.publish_prerelease }}" = "true" ]; then
+            IS_PRERELEASE_RELEASE="true"
+          fi
+        fi
+        VERSION="$REPO_VERSION"
+        echo "Using version: $VERSION (prerelease=$IS_PRERELEASE_RELEASE)"
         echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "is_prerelease_release=$IS_PRERELEASE_RELEASE" >> $GITHUB_OUTPUT
+
+    - name: Sync versioned manifests
+      run: |
+        chmod +x scripts/sync-version.sh
+        VERSION="${{ steps.version.outputs.version }}" ./scripts/sync-version.sh --check
     
     - name: Setup .NET
       uses: actions/setup-dotnet@v5
@@ -44,7 +84,7 @@ jobs:
     
     - name: Build Linux UI binary
       run: |
-        dotnet publish src/CrossMacro.UI/CrossMacro.UI.csproj \
+        dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj \
           -c Release \
           -r linux-x64 \
           --self-contained true \
@@ -58,7 +98,7 @@ jobs:
     
     - name: Build Windows UI binary
       run: |
-        dotnet publish src/CrossMacro.UI/CrossMacro.UI.csproj \
+        dotnet publish src/CrossMacro.UI.Windows/CrossMacro.UI.Windows.csproj \
           -c Release \
           -r win-x64 \
           --self-contained true \
@@ -198,7 +238,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libfuse2 file desktop-file-utils patchelf
+        sudo apt-get install -y libfuse2 file desktop-file-utils patchelf jq
     
     - name: Build AppImage
       run: |
@@ -288,7 +328,7 @@ jobs:
     - name: Build Windows binary for MSIX
       shell: pwsh
       run: |
-        dotnet publish src/CrossMacro.UI/CrossMacro.UI.csproj `
+        dotnet publish src/CrossMacro.UI.Windows/CrossMacro.UI.Windows.csproj `
           -c Release `
           -r win-x64 `
           --self-contained true `
@@ -303,15 +343,7 @@ jobs:
     - name: Prepare MSIX content
       shell: pwsh
       run: |
-        $version = "${{ needs.build-core.outputs.version }}.0"
-
-        # Copy assets
-        Copy-Item -Path "scripts/msix/Assets" -Destination "msix-content/Assets" -Recurse
-
-        # Update manifest with correct version
-        $manifest = Get-Content "scripts/msix/AppxManifest.xml" -Raw
-        $manifest = $manifest -replace 'Version="0.9.0.0"', "Version=`"$version`""
-        $manifest | Out-File -FilePath "msix-content/AppxManifest.xml" -Encoding utf8
+        ./scripts/msix/prepare-msix.ps1 -Version "${{ needs.build-core.outputs.version }}" -OutputDir "msix-content"
 
     - name: Create MSIX package
       shell: pwsh
@@ -395,6 +427,7 @@ jobs:
   update-aur:
     name: Update AUR
     needs: [create-release, build-core]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && needs.build-core.outputs.is_prerelease_release != 'true'
     runs-on: ubuntu-latest
     container: archlinux:base-devel
     steps:
@@ -409,19 +442,26 @@ jobs:
       env:
         AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
       run: |
+        umask 077
         mkdir -p ~/.ssh
         echo "$AUR_SSH_KEY" > ~/.ssh/id_aur
         chmod 600 ~/.ssh/id_aur
+
+    - name: Add AUR host key
+      run: |
+        touch ~/.ssh/known_hosts
+        ssh-keyscan -t ed25519,rsa aur.archlinux.org >> ~/.ssh/known_hosts
+        chmod 600 ~/.ssh/known_hosts
         
 
     
     - name: Test SSH Connection
       run: |
-        ssh -i ~/.ssh/id_aur -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -T aur@aur.archlinux.org || true
+        ssh -i ~/.ssh/id_aur -o IdentitiesOnly=yes -T aur@aur.archlinux.org || true
     
     - name: Clone AUR repository
       env:
-        GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+        GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
       run: |
         # Set default branch name to suppress Git 3.0 warning
         git config --global init.defaultBranch master
@@ -464,7 +504,7 @@ jobs:
     
     - name: Commit and push to AUR
       env:
-        GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+        GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
       run: |
         VERSION=${{ needs.build-core.outputs.version }}
         cd aur-repo
@@ -486,7 +526,8 @@ jobs:
     - name: Cleanup
       if: always()
       run: |
-        rm -rf ~/.ssh/aur
+        rm -f ~/.ssh/id_aur
+        rm -f ~/.ssh/known_hosts
         rm -rf aur-repo
 
   # ============================================
@@ -495,11 +536,42 @@ jobs:
   create-release:
     name: Create Release
     needs: [build-core, package-deb, package-rpm, package-appimage, package-flatpak, package-windows, build-macos-arm64, build-macos-x64]
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_prerelease == 'true')
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+    - name: Resolve release metadata
+      id: release_meta
+      run: |
+        VERSION="${{ needs.build-core.outputs.version }}"
+        IS_PRERELEASE="${{ needs.build-core.outputs.is_prerelease_release }}"
+        if [ "${{ github.event_name }}" = "push" ]; then
+          TAG="${GITHUB_REF#refs/tags/}"
+        else
+          INPUT_TAG="${{ github.event.inputs.prerelease_tag }}"
+          if [ -n "$INPUT_TAG" ]; then
+            TAG="$INPUT_TAG"
+          else
+            TAG="v${VERSION}-pre.${{ github.run_number }}"
+          fi
+        fi
+
+        if [ "$IS_PRERELEASE" = "true" ]; then
+          PRERELEASE="true"
+          MAKE_LATEST="false"
+          RELEASE_NAME="CrossMacro v${VERSION} (Pre-release)"
+        else
+          PRERELEASE="false"
+          MAKE_LATEST="true"
+          RELEASE_NAME="CrossMacro v${VERSION}"
+        fi
+
+        echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+        echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
+        echo "make_latest=${MAKE_LATEST}" >> "$GITHUB_OUTPUT"
+        echo "release_name=${RELEASE_NAME}" >> "$GITHUB_OUTPUT"
+
     - name: Download all artifacts
       uses: actions/download-artifact@v7
       with:
@@ -518,10 +590,12 @@ jobs:
     - name: Upload to Release
       uses: softprops/action-gh-release@v2
       with:
-        name: CrossMacro v${{ needs.build-core.outputs.version }}
+        name: ${{ steps.release_meta.outputs.release_name }}
+        tag_name: ${{ steps.release_meta.outputs.tag }}
+        target_commitish: ${{ github.sha }}
         draft: false
-        prerelease: false
-        make_latest: true
+        prerelease: ${{ steps.release_meta.outputs.prerelease }}
+        make_latest: ${{ steps.release_meta.outputs.make_latest }}
         files: |
           artifacts/deb-package/*.deb
           artifacts/crossmacro-deb.sha256
@@ -541,9 +615,9 @@ jobs:
 
   publish-winget:
     name: Publish to Winget
-    needs: create-release
+    needs: [create-release, build-core]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && needs.build-core.outputs.is_prerelease_release != 'true'
     steps:
       - name: Publish to Winget
         uses: alper-han/winget-releaser@main

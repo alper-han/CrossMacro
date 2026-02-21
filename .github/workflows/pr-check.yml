@@ -5,9 +5,49 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
-    name: Build and Test
+  build-linux:
+    name: Build and Test (Linux)
     runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Verify version sync
+      run: |
+        chmod +x scripts/sync-version.sh
+        ./scripts/sync-version.sh --check
+
+    - name: Verify version sync write idempotency
+      run: |
+        VERSION="$(tr -d '\r\n[:space:]' < VERSION)" ./scripts/sync-version.sh --write
+        git diff --exit-code -- scripts/packaging/arch/PKGBUILD scripts/msix/AppxManifest.xml flatpak/io.github.alper_han.crossmacro.flathub.yml
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration Debug --no-restore
+
+    - name: Smoke Publish (Linux)
+      run: dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj --configuration Debug --no-restore -r linux-x64 --self-contained false -o publish-smoke
+
+    - name: Run Tests (Linux-compatible suites)
+      run: |
+        dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Platform.Linux.Tests/CrossMacro.Platform.Linux.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj --configuration Debug --no-build --verbosity normal
+
+  build-windows:
+    name: Build (Windows)
+    runs-on: windows-latest
 
     steps:
     - name: Checkout code
@@ -24,6 +64,58 @@ jobs:
     - name: Build
       run: dotnet build --configuration Debug --no-restore
 
-    - name: Run Tests
-      run: dotnet test --configuration Debug --no-build --verbosity normal
+    - name: Validate MSIX prepare script idempotency
+      shell: pwsh
+      run: |
+        $version = (Get-Content VERSION -Raw).Trim()
+        $outputDir = Join-Path $env:RUNNER_TEMP "msix-prepare-test"
+        Remove-Item -LiteralPath $outputDir -Recurse -Force -ErrorAction SilentlyContinue
 
+        ./scripts/msix/prepare-msix.ps1 -Version $version -OutputDir $outputDir
+        ./scripts/msix/prepare-msix.ps1 -Version $version -OutputDir $outputDir
+
+        [xml]$manifest = Get-Content -LiteralPath (Join-Path $outputDir "AppxManifest.xml") -Raw
+        $namespaceManager = New-Object System.Xml.XmlNamespaceManager($manifest.NameTable)
+        $namespaceManager.AddNamespace("appx", "http://schemas.microsoft.com/appx/manifest/foundation/windows10")
+        $identity = $manifest.SelectSingleNode("/appx:Package/appx:Identity", $namespaceManager)
+        if ($null -eq $identity) {
+          throw "Prepared manifest does not contain Identity node."
+        }
+        if ($identity.Version -ne "$version.0") {
+          throw "Prepared manifest version '$($identity.Version)' does not match expected '$version.0'."
+        }
+
+    - name: Run Tests (Windows-compatible suites)
+      run: |
+        dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Platform.Windows.Tests/CrossMacro.Platform.Windows.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj --configuration Debug --no-build --verbosity normal
+
+  build-macos:
+    name: Build (macOS)
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration Debug --no-restore
+
+    - name: Run Tests (macOS-compatible suites)
+      run: |
+        dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Platform.MacOS.Tests/CrossMacro.Platform.MacOS.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj --configuration Debug --no-build --verbosity normal

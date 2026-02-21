@@ -2,9 +2,11 @@
 set -e
 
 APP_NAME="CrossMacro"
-VERSION="${VERSION:-0.9.6}"
 BUNDLE_ID="net.crossmacro.CrossMacro"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/version.sh
+source "$SCRIPT_DIR/lib/version.sh"
+VERSION="$(get_version)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 OUTPUT_DIR="${OUTPUT_DIR:-$SCRIPT_DIR/macos_output}"
 APP_BUNDLE="$OUTPUT_DIR/$APP_NAME.app"
@@ -24,7 +26,7 @@ echo "Building for Runtime: $RID"
 
 PUBLISH_DIR="$OUTPUT_DIR/publish"
 
-dotnet publish "$PROJECT_ROOT/src/CrossMacro.UI/CrossMacro.UI.csproj" \
+dotnet publish "$PROJECT_ROOT/src/CrossMacro.UI.MacOS/CrossMacro.UI.MacOS.csproj" \
     -c Release \
     -r "$RID" \
     --self-contained true \

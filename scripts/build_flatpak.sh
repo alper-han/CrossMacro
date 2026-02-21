@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 set -e
 
-APP_ID="io.github.alper_han.crossmacro"
-VERSION="${VERSION="0.9.6"}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/version.sh
+source "$SCRIPT_DIR/lib/version.sh"
+
+APP_ID="io.github.alper_han.crossmacro"
+VERSION="$(get_version)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 FLATPAK_DIR="$PROJECT_ROOT/flatpak"
 BUILD_DIR="$SCRIPT_DIR/flatpak-source"
@@ -17,7 +20,7 @@ echo "App ID: $APP_ID"
 if [ ! -d "$PUBLISH_DIR" ]; then
     echo "Error: Publish directory not found: $PUBLISH_DIR"
     echo "Build first with:"
-    echo "  dotnet publish src/CrossMacro.UI/CrossMacro.UI.csproj -c Release -r linux-x64 --self-contained -o publish"
+    echo "  dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj -c Release -r linux-x64 --self-contained -o publish"
     exit 1
 fi
 

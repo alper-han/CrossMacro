@@ -26,19 +26,22 @@ Arguments:
     PROJECT     One or more .csproj files to process
 
 Options:
-    -r, --runtime RUNTIME     Target runtime (default: linux-x64)
+    -r, --runtime RUNTIME     Target runtime (repeatable, comma-separated supported;
+                              defaults: linux-x64,linux-arm64)
     -f, --freedesktop VER     Freedesktop SDK version (default: $FREEDESKTOP_DEFAULT)
     -d, --dotnet VER          .NET SDK version (default: $DOTNET_DEFAULT)
     -h, --help                Show this help message
 
 Example:
-    $(basename "$0") nuget-sources.json src/MyApp/MyApp.csproj -r linux-x64
+    $(basename "$0") nuget-sources.json src/MyApp/MyApp.csproj
+    $(basename "$0") nuget-sources.json src/MyApp/MyApp.csproj -r linux-x64 -r linux-arm64
 EOF
     exit 1
 }
 
 # Parse arguments
-RUNTIME="linux-x64"
+RUNTIMES=("linux-x64" "linux-arm64")
+RUNTIME_OVERRIDDEN=false
 FREEDESKTOP="$FREEDESKTOP_DEFAULT"
 DOTNET="$DOTNET_DEFAULT"
 OUTPUT=""
@@ -47,7 +50,17 @@ PROJECTS=()
 while [[ $# -gt 0 ]]; do
     case $1 in
         -r|--runtime)
-            RUNTIME="$2"
+            if [[ "$RUNTIME_OVERRIDDEN" == "false" ]]; then
+                RUNTIMES=()
+                RUNTIME_OVERRIDDEN=true
+            fi
+
+            IFS=',' read -r -a parsed_runtimes <<< "$2"
+            for parsed_runtime in "${parsed_runtimes[@]}"; do
+                if [[ -n "$parsed_runtime" ]]; then
+                    RUNTIMES+=("$parsed_runtime")
+                fi
+            done
             shift 2
             ;;
         -f|--freedesktop)
@@ -82,10 +95,15 @@ if [[ -z "$OUTPUT" ]] || [[ ${#PROJECTS[@]} -eq 0 ]]; then
     usage
 fi
 
+if [[ ${#RUNTIMES[@]} -eq 0 ]]; then
+    echo -e "${RED}Error: At least one runtime must be provided${NC}" >&2
+    usage
+fi
+
 echo -e "${GREEN}=== Flatpak .NET NuGet Sources Generator ===${NC}"
 echo "Output: $OUTPUT"
 echo "Projects: ${PROJECTS[*]}"
-echo "Runtime: $RUNTIME"
+echo "Runtimes: ${RUNTIMES[*]}"
 echo "Freedesktop: $FREEDESKTOP"
 echo ".NET: $DOTNET"
 echo
@@ -99,18 +117,20 @@ echo -e "${YELLOW}Restoring NuGet packages in Flatpak sandbox...${NC}"
 
 # Restore each project
 for PROJECT in "${PROJECTS[@]}"; do
-    echo "  Restoring: $PROJECT"
-    
-    flatpak run \
-        --env=DOTNET_CLI_TELEMETRY_OPTOUT=true \
-        --env=DOTNET_SKIP_FIRST_TIME_EXPERIENCE=true \
-        --command=sh \
-        --runtime="org.freedesktop.Sdk//${FREEDESKTOP}" \
-        --share=network \
-        --filesystem=host \
-        "org.freedesktop.Sdk.Extension.dotnet${DOTNET}//${FREEDESKTOP}" \
-        -c "PATH=\"\${PATH}:/usr/lib/sdk/dotnet${DOTNET}/bin\" LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:/usr/lib/sdk/dotnet${DOTNET}/lib\" dotnet restore --packages \"$TMPDIR\" \"$PROJECT\" -r \"$RUNTIME\"" \
-        2>&1 || true
+    for RUNTIME in "${RUNTIMES[@]}"; do
+        echo "  Restoring: $PROJECT (RID: $RUNTIME)"
+
+        flatpak run \
+            --env=DOTNET_CLI_TELEMETRY_OPTOUT=true \
+            --env=DOTNET_SKIP_FIRST_TIME_EXPERIENCE=true \
+            --command=sh \
+            --runtime="org.freedesktop.Sdk//${FREEDESKTOP}" \
+            --share=network \
+            --filesystem=host \
+            "org.freedesktop.Sdk.Extension.dotnet${DOTNET}//${FREEDESKTOP}" \
+            -c "PATH=\"\${PATH}:/usr/lib/sdk/dotnet${DOTNET}/bin\" LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:/usr/lib/sdk/dotnet${DOTNET}/lib\" dotnet restore --packages \"$TMPDIR\" \"$PROJECT\" -r \"$RUNTIME\"" \
+            2>&1 || true
+    done
 done
 
 echo -e "${YELLOW}Generating JSON from downloaded packages...${NC}"

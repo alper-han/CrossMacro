@@ -51,18 +51,34 @@ fi
 echo -e "${GREEN}✓ All tools found${NC}"
 echo ""
 
-# Restore project (to generate project.assets.json)
-echo -e "${BLUE}Restoring project...${NC}"
-dotnet restore src/CrossMacro.UI/CrossMacro.UI.csproj
+# Restore projects used by flake targets (Linux + macOS UI hosts, plus daemon)
+echo -e "${BLUE}Restoring projects...${NC}"
+PROJECTS=(
+  "src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj"
+  "src/CrossMacro.UI.MacOS/CrossMacro.UI.MacOS.csproj"
+  "src/CrossMacro.Daemon/CrossMacro.Daemon.csproj"
+)
 
-# Find the specific project.assets.json
-ASSETS_FILE="src/CrossMacro.UI/obj/project.assets.json"
-if [ ! -f "$ASSETS_FILE" ]; then
-    echo -e "${RED}Error: $ASSETS_FILE not found after restore${NC}"
-    exit 1
-fi
+for project in "${PROJECTS[@]}"; do
+    echo "  restoring: $project"
+    dotnet restore "$project" /p:RestoreUseStaticGraphEvaluation=false /m:1
+done
 
-echo -e "${GREEN}✓ Found: $ASSETS_FILE${NC}"
+# Collect project.assets.json files
+ASSETS_FILES=(
+  "src/CrossMacro.UI.Linux/obj/project.assets.json"
+  "src/CrossMacro.UI.MacOS/obj/project.assets.json"
+  "src/CrossMacro.Daemon/obj/project.assets.json"
+)
+
+for assets_file in "${ASSETS_FILES[@]}"; do
+    if [ ! -f "$assets_file" ]; then
+        echo -e "${RED}Error: $assets_file not found after restore${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Found: $assets_file${NC}"
+done
+
 echo ""
 
 # Generate deps.json (new format - recommended by nixpkgs)
@@ -74,13 +90,25 @@ trap "rm -f $TEMP_DEPS" EXIT
 
 echo "[" > "$TEMP_DEPS"
 
-# Extract packages
-mapfile -t PACKAGES < <(jq -r '
-  .libraries
-  | to_entries[]
-  | select(.value.type == "package")
-  | "\(.key)"
-' "$ASSETS_FILE" | sort -u)
+# Extract packages from all assets files
+# Exclude SDK-provided toolchain packages that are already injected by nixpkgs
+# buildDotnetModule (adding them to deps.json causes duplicate fallback links).
+mapfile -t PACKAGES < <(
+  for assets_file in "${ASSETS_FILES[@]}"; do
+    jq -r '
+      def excluded: [
+        "Microsoft.NET.ILLink.Tasks",
+        "Microsoft.DotNet.ILCompiler"
+      ];
+      .libraries
+      | to_entries[]
+      | select(.value.type == "package")
+      | (.key | split("/") | .[0]) as $name
+      | select((excluded | index($name)) | not)
+      | "\(.key)"
+    ' "$assets_file"
+  done | sort -u
+)
 
 TOTAL=${#PACKAGES[@]}
 CURRENT=0
@@ -201,8 +229,8 @@ echo "  Total packages: $CURRENT"
 echo "  Failed: $FAILED"
 echo "  Output: deps.json ($PKG_COUNT packages)"
 echo ""
-echo "Note: Both UI and Daemon use this single deps.json"
-echo "      (Daemon dependencies are a subset of UI)"
+echo "Note: deps.json now includes Linux host + macOS host + daemon dependencies."
+echo "      Windows-specific host dependencies are intentionally excluded from this script."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo -e "${GREEN}✓ Done! You can now run:${NC}"

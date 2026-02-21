@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/version.sh
+source "$SCRIPT_DIR/lib/version.sh"
+
 # Configuration
 APP_NAME="crossmacro"
-VERSION="${VERSION="0.9.6"}"
+VERSION="$(get_version)"
 PUBLISH_DIR="${PUBLISH_DIR:-../publish}"  # Use env var or default to ../publish
 RPM_BUILD_DIR="rpm_build"
 ICON_PATH="../src/CrossMacro.UI/Assets/mouse-icon.png"

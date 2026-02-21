@@ -1,10 +1,76 @@
 #!/usr/bin/env bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/version.sh
+source "$SCRIPT_DIR/lib/version.sh"
+
 APP_NAME="CrossMacro"
-VERSION="${VERSION="0.9.6"}"
+VERSION="$(get_version)"
 PUBLISH_DIR="${PUBLISH_DIR:-../publish}"
 APP_DIR="AppDir"
+APPIMAGETOOL_NAME="appimagetool-x86_64.AppImage"
+APPIMAGETOOL_RELEASE_API="https://api.github.com/repos/AppImage/appimagetool/releases/tags/continuous"
+
+resolve_appimagetool_sha256() {
+    if [ -n "${APPIMAGETOOL_SHA256:-}" ]; then
+        echo "$APPIMAGETOOL_SHA256"
+        return 0
+    fi
+
+    if ! command -v jq >/dev/null 2>&1; then
+        echo "Error: APPIMAGETOOL_SHA256 is not set and 'jq' is unavailable to resolve a trusted digest from GitHub API."
+        return 1
+    fi
+
+    local release_json
+    if ! release_json="$(curl -fsSL "$APPIMAGETOOL_RELEASE_API")"; then
+        echo "Error: Failed to fetch appimagetool release metadata."
+        return 1
+    fi
+
+    local digest
+    digest="$(printf '%s' "$release_json" | jq -r --arg name "$APPIMAGETOOL_NAME" \
+        '.assets[] | select(.name == $name) | .digest // empty' \
+        | sed -n 's/^sha256:\([0-9a-fA-F]\{64\}\)$/\1/p' | head -n1)"
+
+    if [ -z "$digest" ]; then
+        echo "Error: Could not resolve SHA256 digest for $APPIMAGETOOL_NAME from GitHub API. Set APPIMAGETOOL_SHA256 manually."
+        return 1
+    fi
+
+    echo "$digest"
+}
+
+calculate_sha256() {
+    local file="$1"
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$file" | awk '{print $1}'
+        return 0
+    fi
+
+    if command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$file" | awk '{print $1}'
+        return 0
+    fi
+
+    echo "Error: Neither sha256sum nor shasum is available for checksum verification."
+    return 1
+}
+
+verify_sha256() {
+    local file="$1"
+    local expected="$2"
+    local actual
+
+    actual="$(calculate_sha256 "$file")" || return 1
+    if [ "$actual" != "$expected" ]; then
+        echo "Error: Checksum verification failed for $file"
+        echo "Expected: $expected"
+        echo "Actual:   $actual"
+        return 1
+    fi
+}
 
 rm -rf "$APP_DIR"
 
@@ -55,17 +121,21 @@ cp "assets/io.github.alper-han.CrossMacro.metainfo.xml" "$APP_DIR/usr/share/meta
 chmod +x "$APP_DIR/usr/bin/CrossMacro.UI"
 ln -s "usr/bin/CrossMacro.UI" "$APP_DIR/AppRun"
 
-if [ ! -f "appimagetool-x86_64.AppImage" ]; then
-    curl -L -o appimagetool-x86_64.AppImage \
-        "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
-    chmod +x appimagetool-x86_64.AppImage
+APPIMAGETOOL_SHA256_RESOLVED="$(resolve_appimagetool_sha256)"
+
+if [ ! -f "$APPIMAGETOOL_NAME" ]; then
+    curl -fL -o "$APPIMAGETOOL_NAME" \
+        "https://github.com/AppImage/appimagetool/releases/download/continuous/$APPIMAGETOOL_NAME"
 fi
 
+verify_sha256 "$APPIMAGETOOL_NAME" "$APPIMAGETOOL_SHA256_RESOLVED"
+chmod +x "$APPIMAGETOOL_NAME"
+
 export ARCH=x86_64 PATH=$PWD:$PATH
-TOOL_CMD="./appimagetool-x86_64.AppImage"
+TOOL_CMD="./$APPIMAGETOOL_NAME"
 command -v appimage-run &>/dev/null && TOOL_CMD="appimage-run $TOOL_CMD"
 
 $TOOL_CMD --no-appstream "$APP_DIR" "CrossMacro-$VERSION-x86_64.AppImage"
 
-rm -f appimagetool-x86_64.AppImage
+rm -f "$APPIMAGETOOL_NAME"
 echo "Build complete!"

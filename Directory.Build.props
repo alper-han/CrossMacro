@@ -1,4 +1,15 @@
 <Project>
+  <PropertyGroup>
+    <!-- This repository doesn't use optional .NET workloads (Android/iOS/etc.).
+         Disabling the workload resolver avoids SDK-locator failures on minimal SDK distributions (e.g., Nix). -->
+    <MSBuildEnableWorkloadResolver>false</MSBuildEnableWorkloadResolver>
+    <RepositoryVersionFile>$([System.IO.Path]::Combine('$(MSBuildThisFileDirectory)', 'VERSION'))</RepositoryVersionFile>
+    <CrossMacroVersion>$([System.IO.File]::ReadAllText('$(RepositoryVersionFile)').Trim())</CrossMacroVersion>
+    <Version Condition="'$(Version)' == ''">$(CrossMacroVersion)</Version>
+    <FileVersion Condition="'$(FileVersion)' == ''">$(CrossMacroVersion).0</FileVersion>
+    <AssemblyVersion Condition="'$(AssemblyVersion)' == ''">$(CrossMacroVersion).0</AssemblyVersion>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">
      <RuntimeIdentifier Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X64'">linux-x64</RuntimeIdentifier>
      <RuntimeIdentifier Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">linux-arm64</RuntimeIdentifier>

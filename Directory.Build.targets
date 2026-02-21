@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <!-- Disable Avalonia telemetry task writes to user profile paths in restricted environments. -->
+    <UsedAvaloniaProducts></UsedAvaloniaProducts>
+  </PropertyGroup>
+
+  <Target Name="AvaloniaStats" />
+</Project>

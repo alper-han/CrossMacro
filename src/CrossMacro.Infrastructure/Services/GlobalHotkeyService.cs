@@ -265,10 +265,18 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     
     private void HandleMouseButtonInput(InputCaptureEventArgs e)
     {
+        var currentModifiers = _modifierTracker.CurrentModifiers;
+
+        if (e.Value == 0)
+        {
+            // Always fire RawKeyReleased for mouse buttons
+            // so RunWhileHeld shortcuts can stop when the button is released
+            RawKeyReleased?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, currentModifiers, string.Empty));
+            return;
+        }
+
         if (e.Value != 1)
             return;
-        
-        var currentModifiers = _modifierTracker.CurrentModifiers;
         
         // Block pure left/right click without modifiers
         if ((e.Code == InputEventCode.BTN_LEFT || e.Code == InputEventCode.BTN_RIGHT) && !_modifierTracker.HasModifiers)

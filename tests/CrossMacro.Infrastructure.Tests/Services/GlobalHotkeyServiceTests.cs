@@ -56,6 +56,9 @@ public class GlobalHotkeyServiceTests
         // Setup Modifier Tracker
         _modifierTracker.CurrentModifiers.Returns(new HashSet<int>());
 
+        _mouseButtonMapper.GetMouseButtonName(InputEventCode.BTN_EXTRA).Returns("Mouse Extra");
+        _stringBuilder.BuildForMouse("Mouse Extra", Arg.Any<IReadOnlySet<int>>()).Returns("Mouse Extra");
+
         _inputCapture = Substitute.For<IInputCapture>();
 
 
@@ -112,6 +115,52 @@ public class GlobalHotkeyServiceTests
 
         // Assert
         Assert.False(eventFired);
+    }
+
+    [Fact]
+    public void OnInputReceived_MouseButtonPress_RaisesRawInputReceived()
+    {
+        // Arrange
+        _service.Start();
+        RawHotkeyInputEventArgs? received = null;
+        _service.RawInputReceived += (_, e) => received = e;
+
+        // Act
+        var args = new InputCaptureEventArgs
+        {
+            Type = InputEventType.MouseButton,
+            Code = InputEventCode.BTN_EXTRA,
+            Value = 1
+        };
+        _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(this, args);
+
+        // Assert
+        Assert.NotNull(received);
+        Assert.Equal(InputEventCode.BTN_EXTRA, received!.KeyCode);
+        Assert.Equal("Mouse Extra", received.HotkeyString);
+    }
+
+    [Fact]
+    public void OnInputReceived_MouseButtonRelease_RaisesRawKeyReleased()
+    {
+        // Arrange
+        _service.Start();
+        RawHotkeyInputEventArgs? released = null;
+        _service.RawKeyReleased += (_, e) => released = e;
+
+        // Act
+        var args = new InputCaptureEventArgs
+        {
+            Type = InputEventType.MouseButton,
+            Code = InputEventCode.BTN_EXTRA,
+            Value = 0
+        };
+        _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(this, args);
+
+        // Assert
+        Assert.NotNull(released);
+        Assert.Equal(InputEventCode.BTN_EXTRA, released!.KeyCode);
+        Assert.Equal(string.Empty, released.HotkeyString);
     }
     
     [Fact]

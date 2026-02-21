@@ -194,7 +194,7 @@
                             <RadioButton GroupName="LoopTrigger"
                                          Content="Run when held"
                                          IsChecked="{Binding SelectedTask.RunWhileHeld, Mode=TwoWay}"
-                                         ToolTip.Tip="Hold shortcut to run; release to stop. Keyboard trigger only."/>
+                                         ToolTip.Tip="Hold shortcut to run; release to stop."/>
                             <Grid ColumnDefinitions="*,*">
                                 <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0"
                                             IsVisible="{Binding SelectedTask.LoopEnabled}">

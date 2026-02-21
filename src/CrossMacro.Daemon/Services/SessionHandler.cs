@@ -31,6 +31,23 @@ public class SessionHandler : ISessionHandler
         using var stream = new NetworkStream(client);
         using var reader = new BinaryReader(stream);
         using var writer = new BinaryWriter(stream);
+        using var clientCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+        using var cancelRegistration = clientCts.Token.Register(static state =>
+        {
+            if (state is not Socket socket)
+            {
+                return;
+            }
+
+            try
+            {
+                socket.Dispose();
+            }
+            catch
+            {
+                // Best effort to unblock any pending stream reads on shutdown.
+            }
+        }, client);
 
         // Handshake
         try 
@@ -69,10 +86,6 @@ public class SessionHandler : ISessionHandler
                 return;
             }
 
-            // Read loop task
-            var clientCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-            
-
             object writerLock = new object();
             bool disconnected = false;
 
@@ -107,7 +120,13 @@ public class SessionHandler : ISessionHandler
                 }
             };
 
-            await Task.Run(() => ReadLoop(reader, uid, pid, onEventValue, () => disconnected = true, clientCts.Token), clientCts.Token);
+            await Task.Run(
+                () => ReadLoop(reader, uid, pid, onEventValue, () => disconnected = true, clientCts.Token),
+                clientCts.Token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            Log.Debug("[SessionHandler] Session canceled");
         }
         catch (Exception ex)
         {
@@ -117,6 +136,7 @@ public class SessionHandler : ISessionHandler
         {
             // Cleanup is handled in ReadLoop's finally block
         }
+
     }
 
     private void ReadLoop(BinaryReader reader, uint uid, int pid, Action<UInputNative.input_event> onEvent, Action onDisconnect, CancellationToken token)

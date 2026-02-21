@@ -12,6 +12,7 @@ public class RateLimiter
 {
     private readonly Dictionary<uint, ConnectionRecord> _connectionAttempts = new();
     private readonly Lock _lock = new();
+    private readonly Func<DateTime> _utcNow;
     
     private readonly int _maxConnectionsPerWindow;
     private readonly TimeSpan _windowDuration;
@@ -23,11 +24,17 @@ public class RateLimiter
     /// <param name="maxConnectionsPerWindow">Maximum connections allowed in the time window</param>
     /// <param name="windowSeconds">Time window duration in seconds</param>
     /// <param name="banSeconds">Ban duration in seconds after limit exceeded</param>
-    public RateLimiter(int maxConnectionsPerWindow = 10, int windowSeconds = 60, int banSeconds = 60)
+    /// <param name="utcNow">Optional current time provider used for deterministic testing</param>
+    public RateLimiter(
+        int maxConnectionsPerWindow = 10,
+        int windowSeconds = 60,
+        int banSeconds = 60,
+        Func<DateTime>? utcNow = null)
     {
         _maxConnectionsPerWindow = maxConnectionsPerWindow;
         _windowDuration = TimeSpan.FromSeconds(windowSeconds);
         _banDuration = TimeSpan.FromSeconds(banSeconds);
+        _utcNow = utcNow ?? (() => DateTime.UtcNow);
     }
 
     /// <summary>
@@ -39,7 +46,7 @@ public class RateLimiter
     {
         lock (_lock)
         {
-            var now = DateTime.UtcNow;
+            var now = _utcNow();
             CleanupExpired(now);
 
             if (_connectionAttempts.TryGetValue(uid, out var record))
@@ -50,6 +57,15 @@ public class RateLimiter
                     var remaining = record.BannedUntil.Value - now;
                     Log.Warning("[RateLimiter] UID {Uid} is banned for {Seconds}s more", uid, (int)remaining.TotalSeconds);
                     return true;
+                }
+
+                // Ban period elapsed: start a fresh window for the next attempt.
+                if (record.BannedUntil.HasValue)
+                {
+                    record.BannedUntil = null;
+                    record.WindowStart = now;
+                    record.Count = 1;
+                    return false;
                 }
 
                 // Reset if window expired
@@ -111,7 +127,7 @@ public class RateLimiter
         {
             if (_connectionAttempts.TryGetValue(uid, out var record))
             {
-                var isBanned = record.BannedUntil.HasValue && DateTime.UtcNow < record.BannedUntil.Value;
+                var isBanned = record.BannedUntil.HasValue && _utcNow() < record.BannedUntil.Value;
                 return (record.Count, isBanned);
             }
             return (0, false);

@@ -109,13 +109,15 @@ public class MacroRecorder : IMacroRecorder, IDisposable
 
             // 3. Initialize Capture
             _inputCapture = _inputCaptureFactory();
-            _inputCapture.Configure(recordMouse, recordKeyboard);
-            _inputCapture.InputReceived += OnInputReceived;
-            _inputCapture.Error += OnInputCaptureError;
-            
-            await _inputCapture.StartAsync(cancellationToken);
-            
-            Log.Information("[MacroRecorder] Recording started via {ProviderName}", _inputCapture.ProviderName);
+            var inputCapture = _inputCapture;
+            var providerName = inputCapture.ProviderName;
+            inputCapture.Configure(recordMouse, recordKeyboard);
+            inputCapture.InputReceived += OnInputReceived;
+            inputCapture.Error += OnInputCaptureError;
+
+            // StartAsync can complete after StopRecording() cleanup; keep a local reference to avoid races.
+            Log.Information("[MacroRecorder] Recording started via {ProviderName}", providerName);
+            await inputCapture.StartAsync(cancellationToken);
         }
         catch (Exception)
         {
@@ -243,9 +245,8 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             {
                 _inputCapture.InputReceived -= OnInputReceived;
                 _inputCapture.Error -= OnInputCaptureError;
-                // NOTE: Do NOT call Stop() or Dispose() here!
-                // LinuxIpcInputCapture is now a Singleton shared with GlobalHotkeyService.
-                // GlobalHotkeyService manages the capture lifecycle.
+                _inputCapture.Stop();
+                _inputCapture.Dispose();
             }
             catch (Exception ex)
             {

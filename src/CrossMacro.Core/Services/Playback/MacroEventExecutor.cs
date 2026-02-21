@@ -15,6 +15,7 @@ public class MacroEventExecutor : IEventExecutor
     private readonly IKeyStateTracker _keyTracker;
     private readonly IPlaybackMouseButtonMapper _buttonMapper;
     private readonly IPlaybackCoordinator _coordinator;
+    private readonly bool _useHybridAbsoluteDragMovement;
     
     private int _screenWidth;
     private int _screenHeight;
@@ -25,13 +26,15 @@ public class MacroEventExecutor : IEventExecutor
         IButtonStateTracker buttonTracker,
         IKeyStateTracker keyTracker,
         IPlaybackMouseButtonMapper buttonMapper,
-        IPlaybackCoordinator coordinator)
+        IPlaybackCoordinator coordinator,
+        bool useHybridAbsoluteDragMovement = true)
     {
         _simulator = simulator ?? throw new ArgumentNullException(nameof(simulator));
         _buttonTracker = buttonTracker ?? throw new ArgumentNullException(nameof(buttonTracker));
         _keyTracker = keyTracker ?? throw new ArgumentNullException(nameof(keyTracker));
         _buttonMapper = buttonMapper ?? throw new ArgumentNullException(nameof(buttonMapper));
         _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+        _useHybridAbsoluteDragMovement = useHybridAbsoluteDragMovement;
     }
 
     public bool IsMouseButtonPressed => _buttonTracker.IsAnyPressed;
@@ -157,7 +160,7 @@ public class MacroEventExecutor : IEventExecutor
     {
         if (isRecordedAbsolute)
         {
-            if (_buttonTracker.IsAnyPressed)
+            if (_buttonTracker.IsAnyPressed && _useHybridAbsoluteDragMovement)
             {
                 // Button pressed - use relative for smooth Wayland curves
                 // First sync to previous position with absolute (drift correction)
@@ -173,7 +176,7 @@ public class MacroEventExecutor : IEventExecutor
             }
             else
             {
-                // Button not pressed - use absolute for drift correction
+                // Default absolute path (used on non-Linux to avoid ABS+REL jitter while dragging)
                 _simulator.MoveAbsolute(ev.X, ev.Y);
             }
             _coordinator.UpdatePosition(ev.X, ev.Y);

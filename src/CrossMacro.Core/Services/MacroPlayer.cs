@@ -20,6 +20,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
     private readonly Func<IButtonStateTracker> _buttonTrackerFactory;
     private readonly Func<IKeyStateTracker> _keyTrackerFactory;
     private readonly IPlaybackMouseButtonMapper _buttonMapper;
+    private readonly bool _useLinuxRelativeAbsolutePlayback;
 
     private IInputSimulator? _inputSimulator;
     private IEventExecutor? _eventExecutor;
@@ -73,10 +74,14 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
         _inputSimulatorFactory = inputSimulatorFactory;
         _simulatorPool = simulatorPool;
+        _useLinuxRelativeAbsolutePlayback = OperatingSystem.IsLinux();
 
         // Use provided services or create defaults
         _timingService = timingService ?? new PlaybackTimingService();
-        _coordinatorFactory = coordinatorFactory ?? (() => new DefaultPlaybackCoordinator(positionProvider));
+        _coordinatorFactory = coordinatorFactory
+            ?? (() => new DefaultPlaybackCoordinator(
+                positionProvider,
+                preferRelativeForAbsoluteMoves: _useLinuxRelativeAbsolutePlayback));
         _buttonTrackerFactory = buttonTrackerFactory ?? (() => new ButtonStateTracker());
         _keyTrackerFactory = keyTrackerFactory ?? (() => new KeyStateTracker());
         _buttonMapper = buttonMapper ?? new DefaultPlaybackMouseButtonMapper();
@@ -135,6 +140,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
         }
 
         options ??= new PlaybackOptions();
+        double normalizedSpeed = PlaybackOptions.NormalizeSpeedMultiplier(options.SpeedMultiplier);
 
         int repeatCount = options.Loop ? options.RepeatCount : 1;
         bool infiniteLoop = options.Loop && repeatCount == 0;
@@ -173,12 +179,12 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
                         _cachedScreenWidth, _cachedScreenHeight, _cts.Token);
                 }
 
-                await PlayOnceAsync(macro, options.SpeedMultiplier, _cts.Token);
+                await PlayOnceAsync(macro, normalizedSpeed, _cts.Token);
 
                 // Apply trailing delay after the macro completes (before next iteration or end)
                 if (macro.TrailingDelayMs > 0 && !_cts.Token.IsCancellationRequested)
                 {
-                    int trailingDelay = (int)(macro.TrailingDelayMs / options.SpeedMultiplier);
+                    int trailingDelay = (int)(macro.TrailingDelayMs / normalizedSpeed);
                     if (trailingDelay > 0)
                     {
                         await _timingService.WaitAsync(trailingDelay, this, _cts.Token);
@@ -271,7 +277,8 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
             _buttonTracker,
             _keyTracker,
             _buttonMapper,
-            _coordinator);
+            _coordinator,
+            useHybridAbsoluteDragMovement: _useLinuxRelativeAbsolutePlayback);
 
         _eventExecutor.Initialize(_cachedScreenWidth, _cachedScreenHeight);
 

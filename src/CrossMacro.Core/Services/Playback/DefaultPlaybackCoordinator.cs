@@ -14,13 +14,17 @@ namespace CrossMacro.Core.Services.Playback;
 public class DefaultPlaybackCoordinator : IPlaybackCoordinator
 {
     private readonly IMousePositionProvider? _positionProvider;
+    private readonly bool _preferRelativeForAbsoluteMoves;
     
     public int CurrentX { get; private set; }
     public int CurrentY { get; private set; }
     
-    public DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider = null)
+    public DefaultPlaybackCoordinator(
+        IMousePositionProvider? positionProvider = null,
+        bool preferRelativeForAbsoluteMoves = true)
     {
         _positionProvider = positionProvider;
+        _preferRelativeForAbsoluteMoves = preferRelativeForAbsoluteMoves;
     }
     
     public void UpdatePosition(int x, int y)
@@ -103,12 +107,20 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
             int dx = startX - CurrentX;
             int dy = startY - CurrentY;
 
-            Log.Information("[PlaybackCoordinator] Moving to start position: ({X}, {Y}) via delta ({DX}, {DY})",
-                startX, startY, dx, dy);
-
             if (dx != 0 || dy != 0)
             {
-                simulator.MoveRelative(dx, dy);
+                if (_preferRelativeForAbsoluteMoves)
+                {
+                    Log.Information("[PlaybackCoordinator] Moving to start position: ({X}, {Y}) via relative delta ({DX}, {DY})",
+                        startX, startY, dx, dy);
+                    simulator.MoveRelative(dx, dy);
+                }
+                else
+                {
+                    Log.Information("[PlaybackCoordinator] Moving to start position: ({X}, {Y}) via absolute move",
+                        startX, startY);
+                    simulator.MoveAbsolute(startX, startY);
+                }
             }
             CurrentX = startX;
             CurrentY = startY;
@@ -191,13 +203,19 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
                 int startX = Math.Clamp(firstEvent.X, 0, screenWidth);
                 int startY = Math.Clamp(firstEvent.Y, 0, screenHeight);
 
-                // Use relative movement to avoid hybrid ABS+REL device issues on Wayland
                 int dx = startX - CurrentX;
                 int dy = startY - CurrentY;
 
                 if (dx != 0 || dy != 0)
                 {
-                    simulator.MoveRelative(dx, dy);
+                    if (_preferRelativeForAbsoluteMoves)
+                    {
+                        simulator.MoveRelative(dx, dy);
+                    }
+                    else
+                    {
+                        simulator.MoveAbsolute(startX, startY);
+                    }
                 }
                 CurrentX = startX;
                 CurrentY = startY;

@@ -46,6 +46,7 @@ public class InputDeviceHelper
         List<InputDevice> devices = [];
         List<InputDevice> skippedDevices = [];
         List<(InputDevice device, int errno)> inaccessibleDevices = [];
+        var readErrors = 0;
         var inputDir = "/dev/input";
 
         Log.Information("[InputDeviceHelper] Scanning input devices in {InputDir}...", inputDir);
@@ -95,14 +96,15 @@ public class InputDeviceHelper
             }
             catch (Exception ex)
             {
+                readErrors++;
                 Log.Error(ex, "[InputDeviceHelper] Error reading {File}", file);
             }
         }
 
         // Log summary
         Log.Information("[InputDeviceHelper] ========== Device Summary ==========");
-        Log.Information("[InputDeviceHelper] Total: {Total} | Usable: {Usable} | Inaccessible: {Inaccessible} | Skipped: {Skipped}",
-            files.Length, devices.Count, inaccessibleDevices.Count, skippedDevices.Count);
+        Log.Information("[InputDeviceHelper] Total: {Total} | Usable: {Usable} | Inaccessible: {Inaccessible} | Skipped: {Skipped} | ReadErrors: {ReadErrors}",
+            files.Length, devices.Count, inaccessibleDevices.Count, skippedDevices.Count, readErrors);
 
         if (devices.Count > 0)
         {

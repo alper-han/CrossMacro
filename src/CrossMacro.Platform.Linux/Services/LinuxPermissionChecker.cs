@@ -58,15 +58,8 @@ public class LinuxPermissionChecker : IPermissionChecker
 
     public void OpenAccessibilitySettings()
     {
-
-        try 
-        {
-
-             System.Diagnostics.Process.Start("xdg-open", "settings://");
-        }
-        catch(Exception ex)
-        {
-             Log.Error(ex, "Failed to open accessibility settings");
-        }
+        // Linux path is intentionally no-op.
+        // Permission guidance is handled via uinput/group/polkit flows, not a universal settings URI.
+        Log.Debug("OpenAccessibilitySettings is not applicable on Linux");
     }
 }

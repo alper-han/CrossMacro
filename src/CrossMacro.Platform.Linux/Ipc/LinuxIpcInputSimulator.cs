@@ -1,5 +1,5 @@
 using System;
-using System.Threading.Tasks;
+using System.Threading;
 using CrossMacro.Core.Services;
 using Serilog;
 
@@ -32,6 +32,7 @@ public class LinuxIpcInputSimulator : IInputSimulator
     private const ushort ABS_Y = 0x01;
     
     private const ushort SYN_REPORT = 0x00;
+    private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(2);
 
     public void Initialize(int screenWidth = 0, int screenHeight = 0)
     {
@@ -42,51 +43,32 @@ public class LinuxIpcInputSimulator : IInputSimulator
         // Ensure connection
         if (!_client.IsConnected)
         {
-            // Fix: Block until connected to avoid race condition where simulation starts before connection.
-            // Using a timeout to prevent hanging the UI indefinitely if daemon is down.
-            try 
+            try
             {
-                 var connectTask = Task.Run(async () => 
-                 {
-                     try 
-                     { 
-                         await _client.ConnectAsync(System.Threading.CancellationToken.None);
-                         // If we have resolution, send it
-                         if (screenWidth > 0 && screenHeight > 0)
-                         {
-                             _client.ConfigureResolution(screenWidth, screenHeight);
-                         }
-                     }
-                     catch (Exception ex)
-                     {
-                         if (ex is System.IO.IOException || 
-                             ex.InnerException is System.IO.IOException ||
-                             ex.InnerException is System.Net.Sockets.SocketException)
-                         {
-                             Log.Warning("[LinuxIpcInputSimulator] Connection rejected by daemon. Polkit authorization was denied or timed out.");
-                         }
-                         else
-                         {
-                             Log.Warning(ex, "[LinuxIpcInputSimulator] Failed to connect to daemon");
-                         }
-                     }
-                 });
-                 
-                 // Wait up to 2 seconds
-                 if (!connectTask.Wait(2000))
-                 {
-                     Log.Warning("[LinuxIpcInputSimulator] Daemon connection timeout (2s)");
-                 }
+                using var timeoutCts = new CancellationTokenSource(ConnectTimeout);
+                _client.ConnectAsync(timeoutCts.Token).GetAwaiter().GetResult();
+            }
+            catch (OperationCanceledException)
+            {
+                Log.Warning("[LinuxIpcInputSimulator] Daemon connection timeout ({TimeoutMs}ms)", ConnectTimeout.TotalMilliseconds);
+            }
+            catch (IpcClientException ex) when (ex.Reason == IpcClientFailureReason.Timeout)
+            {
+                Log.Warning("[LinuxIpcInputSimulator] Daemon handshake timeout ({TimeoutMs}ms)", ConnectTimeout.TotalMilliseconds);
+            }
+            catch (IpcClientException ex)
+            {
+                Log.Warning(ex, "[LinuxIpcInputSimulator] Failed to connect to daemon ({Reason})", ex.Reason);
             }
             catch (Exception ex)
             {
                 Log.Warning(ex, "[LinuxIpcInputSimulator] Error during initialization");
             }
         }
-        else if (screenWidth > 0 && screenHeight > 0)
+
+        if (_client.IsConnected && screenWidth > 0 && screenHeight > 0)
         {
-             // Already connected, just configure
-             _client.ConfigureResolution(screenWidth, screenHeight);
+            _client.ConfigureResolution(screenWidth, screenHeight);
         }
     }
 

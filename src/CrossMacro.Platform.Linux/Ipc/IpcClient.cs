@@ -11,87 +11,178 @@ namespace CrossMacro.Platform.Linux.Ipc;
 
 public class IpcClient : IDisposable
 {
+    private readonly Func<string> _socketPathResolver;
+    private readonly bool _autoReconnect;
     private Socket? _socket;
     private NetworkStream? _stream;
     private BinaryReader? _reader;
     private BinaryWriter? _writer;
     private CancellationTokenSource? _cts;
+    private readonly CancellationTokenSource _reconnectCts = new();
+    private readonly SemaphoreSlim _connectGate = new(1, 1);
+    private readonly Lock _reconnectLock = new();
     private Task? _readTask;
+    private Task? _reconnectTask;
     private readonly Lock _writeLock = new();
+    private readonly CaptureSubscriptionCoordinator _captureCoordinator = new();
+    private bool _disposed;
+    private bool _reconnectEnabled = true;
+    private const string DefaultConsumerId = "default";
+    private const int HandshakeTimeoutMs = 5000;
 
     public event EventHandler<InputCaptureEventArgs>? InputReceived;
     public event EventHandler<string>? ErrorOccurred;
 
     public bool IsConnected => _socket?.Connected ?? false;
 
+    public IpcClient(Func<string>? socketPathResolver = null, bool autoReconnect = true)
+    {
+        _socketPathResolver = socketPathResolver ?? ResolveSocketPath;
+        _autoReconnect = autoReconnect;
+    }
+
     public async Task ConnectAsync(CancellationToken token)
     {
-        if (IsConnected) return;
-
-        // Try primary systemd-managed path first, then fallback
-        string socketPath;
-        if (File.Exists(IpcProtocol.DefaultSocketPath))
-        {
-            socketPath = IpcProtocol.DefaultSocketPath;
-        }
-        else if (File.Exists(IpcProtocol.FallbackSocketPath))
-        {
-            socketPath = IpcProtocol.FallbackSocketPath;
-            Log.Information("Using fallback socket path: {Path}", socketPath);
-        }
-        else
-        {
-            throw new FileNotFoundException(
-                $"Daemon socket not found. Checked:\n" +
-                $"  - {IpcProtocol.DefaultSocketPath}\n" +
-                $"  - {IpcProtocol.FallbackSocketPath}\n" +
-                $"Is the CrossMacro daemon service running?");
-        }
-
+        ThrowIfDisposed();
+        var gateAcquired = false;
         try
         {
-            _socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-            await _socket.ConnectAsync(new UnixDomainSocketEndPoint(socketPath), token);
-            
-            _stream = new NetworkStream(_socket);
-            _reader = new BinaryReader(_stream);
-            _writer = new BinaryWriter(_stream);
+            await _connectGate.WaitAsync(token);
+            gateAcquired = true;
 
-            // Handshake
-            lock (_writeLock)
-            {
-                _writer.Write((byte)IpcOpCode.Handshake);
-                _writer.Write(IpcProtocol.ProtocolVersion);
-                _stream.Flush();
-            }
+            if (IsConnected) return;
 
-            var opcode = (IpcOpCode)_reader.ReadByte();
-            if (opcode == IpcOpCode.Error)
-            {
-                var msg = _reader.ReadString();
-                throw new Exception($"Daemon handshake error: {msg}");
-            }
-            if (opcode != IpcOpCode.Handshake)
-            {
-                throw new Exception($"Unexpected handshake opcode: {opcode}");
-            }
-            var version = _reader.ReadInt32();
-            if (version != IpcProtocol.ProtocolVersion)
-            {
-                throw new Exception($"Protocol version mismatch. Daemon: {version}, Client: {IpcProtocol.ProtocolVersion}");
-            }
+            var socketPath = _socketPathResolver();
 
-            Log.Information("Connected to CrossMacro Daemon");
+            try
+            {
+                _socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+                await _socket.ConnectAsync(new UnixDomainSocketEndPoint(socketPath), token);
 
-            // Start read loop
-            _cts = new CancellationTokenSource();
-            _readTask = Task.Run(() => ReadLoop(_cts.Token));
+                // Handshake uses explicit timeout to avoid hanging forever on partial connections.
+                _socket.ReceiveTimeout = HandshakeTimeoutMs;
+                _socket.SendTimeout = HandshakeTimeoutMs;
+                
+                _stream = new NetworkStream(_socket);
+                _reader = new BinaryReader(_stream);
+                _writer = new BinaryWriter(_stream);
+
+                // Handshake
+                lock (_writeLock)
+                {
+                    _writer.Write((byte)IpcOpCode.Handshake);
+                    _writer.Write(IpcProtocol.ProtocolVersion);
+                    _stream.Flush();
+                }
+
+                var opcode = (IpcOpCode)_reader.ReadByte();
+                if (opcode == IpcOpCode.Error)
+                {
+                    var msg = _reader.ReadString();
+                    throw new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Daemon handshake error: {msg}");
+                }
+                if (opcode != IpcOpCode.Handshake)
+                {
+                    throw new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Unexpected handshake opcode: {opcode}");
+                }
+                var version = _reader.ReadInt32();
+                if (version != IpcProtocol.ProtocolVersion)
+                {
+                    throw new IpcClientException(
+                        IpcClientFailureReason.ProtocolMismatch,
+                        $"Protocol version mismatch. Daemon: {version}, Client: {IpcProtocol.ProtocolVersion}");
+                }
+
+                // Reset to infinite timeout for normal long-running event stream reads.
+                _socket.ReceiveTimeout = 0;
+                _socket.SendTimeout = 0;
+
+                Log.Information("Connected to CrossMacro Daemon");
+
+                // Start read loop
+                _cts = new CancellationTokenSource();
+                _readTask = Task.Run(() => ReadLoop(_cts.Token));
+
+                lock (_captureLock)
+                {
+                    SendCaptureCommand(_captureCoordinator.ResetTransportStateAndGetCommand());
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Cleanup(clearSubscriptions: false, disableReconnect: false);
+                throw;
+            }
+            catch (IpcClientException)
+            {
+                Cleanup(clearSubscriptions: false, disableReconnect: false);
+                throw;
+            }
+            catch (Exception ex) when (IsTimeoutException(ex))
+            {
+                Cleanup(clearSubscriptions: false, disableReconnect: false);
+                throw new IpcClientException(
+                    IpcClientFailureReason.Timeout,
+                    "Timed out while connecting to or handshaking with CrossMacro daemon.",
+                    ex);
+            }
+            catch (Exception ex)
+            {
+                Cleanup(clearSubscriptions: false, disableReconnect: false);
+                throw new IpcClientException(IpcClientFailureReason.ConnectFailed, "Failed to connect to daemon.", ex);
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            Cleanup();
-            throw new Exception("Failed to connect to daemon", ex);
+            if (gateAcquired)
+            {
+                _connectGate.Release();
+            }
         }
+    }
+
+    private static string ResolveSocketPath()
+    {
+        if (File.Exists(IpcProtocol.DefaultSocketPath))
+        {
+            return IpcProtocol.DefaultSocketPath;
+        }
+
+        if (File.Exists(IpcProtocol.FallbackSocketPath))
+        {
+            Log.Information("Using fallback socket path: {Path}", IpcProtocol.FallbackSocketPath);
+            return IpcProtocol.FallbackSocketPath;
+        }
+
+        throw new IpcClientException(
+            IpcClientFailureReason.SocketNotFound,
+            $"Daemon socket not found. Checked:\n" +
+            $"  - {IpcProtocol.DefaultSocketPath}\n" +
+            $"  - {IpcProtocol.FallbackSocketPath}\n" +
+            $"Is the CrossMacro daemon service running?");
+    }
+
+    private static bool IsTimeoutException(Exception ex)
+    {
+        if (ex is TimeoutException)
+        {
+            return true;
+        }
+
+        if (ex is IOException ioEx &&
+            ioEx.InnerException is SocketException ioSocketEx &&
+            ioSocketEx.SocketErrorCode == SocketError.TimedOut)
+        {
+            return true;
+        }
+
+        if (ex is SocketException socketEx &&
+            socketEx.SocketErrorCode == SocketError.TimedOut)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private void ReadLoop(CancellationToken token)
@@ -140,54 +231,69 @@ public class IpcClient : IDisposable
             {
                 Log.Error(ex, "[IpcClient] Read loop error");
                 ErrorOccurred?.Invoke(this, "Connection lost: " + ex.Message);
+                Cleanup(clearSubscriptions: false, disableReconnect: false);
+                StartReconnectLoop();
             }
         }
     }
 
-    private int _captureRequestCount = 0;
     private readonly Lock _captureLock = new();
 
     public void StartCapture(bool mouse, bool keyboard)
     {
+        StartCapture(DefaultConsumerId, mouse, keyboard);
+    }
+
+    public void StartCapture(string consumerId, bool mouse, bool keyboard)
+    {
+        if (string.IsNullOrWhiteSpace(consumerId))
+        {
+            throw new ArgumentException("Consumer id cannot be null or whitespace.", nameof(consumerId));
+        }
+
         lock (_captureLock)
         {
-            _captureRequestCount++;
-            if (_captureRequestCount == 1)
-            {
-                Log.Debug("[IpcClient] TX: StartCapture Mouse={Mouse} Keyboard={Keyboard}", mouse, keyboard);
-                Send(IpcOpCode.StartCapture, w =>
-                {
-                    w.Write(mouse);
-                    w.Write(keyboard);
-                });
-            }
-            else if (mouse || keyboard)
-            {
-                // Re-send to update capture flags
-                Log.Debug("[IpcClient] TX: StartCapture (update) Mouse={Mouse} Keyboard={Keyboard}", mouse, keyboard);
-                Send(IpcOpCode.StartCapture, w =>
-                {
-                    w.Write(mouse);
-                    w.Write(keyboard);
-                });
-            }
+            var command = _captureCoordinator.SetSubscription(consumerId, mouse, keyboard);
+            SendCaptureCommand(command);
         }
     }
 
     public void StopCapture()
     {
+        StopCapture(DefaultConsumerId);
+    }
+
+    public void StopCapture(string consumerId)
+    {
+        if (string.IsNullOrWhiteSpace(consumerId))
+        {
+            return;
+        }
+
         lock (_captureLock)
         {
-            if (_captureRequestCount > 0)
-            {
-                _captureRequestCount--;
-            }
+            var command = _captureCoordinator.RemoveSubscription(consumerId);
+            SendCaptureCommand(command);
+        }
+    }
 
-            if (_captureRequestCount == 0)
-            {
+    private void SendCaptureCommand(CaptureCommand command)
+    {
+        switch (command.Type)
+        {
+            case CaptureCommandType.Start:
+                Log.Debug("[IpcClient] TX: StartCapture Mouse={Mouse} Keyboard={Keyboard}",
+                    command.CaptureMouse, command.CaptureKeyboard);
+                Send(IpcOpCode.StartCapture, w =>
+                {
+                    w.Write(command.CaptureMouse);
+                    w.Write(command.CaptureKeyboard);
+                }, throwOnFailure: false);
+                break;
+            case CaptureCommandType.Stop:
                 Log.Debug("[IpcClient] TX: StopCapture");
-                Send(IpcOpCode.StopCapture);
-            }
+                Send(IpcOpCode.StopCapture, throwOnFailure: false);
+                break;
         }
     }
 
@@ -199,12 +305,17 @@ public class IpcClient : IDisposable
             w.Write(type);
             w.Write(code);
             w.Write(value);
-        });
+        }, throwOnFailure: true);
     }
 
     public void SimulateEvents(ReadOnlySpan<(ushort Type, ushort Code, int Value)> events)
     {
-        if (!IsConnected) return;
+        if (!IsConnected)
+        {
+            throw new IpcClientException(
+                IpcClientFailureReason.ConnectFailed,
+                "Failed to send simulated events because the daemon connection is not available.");
+        }
 
         lock (_writeLock)
         {
@@ -221,7 +332,7 @@ public class IpcClient : IDisposable
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to send batch IPC messages");
+                HandleSendFailure(ex, IpcOpCode.SimulateEvent, throwOnFailure: true);
             }
         }
     }
@@ -232,12 +343,24 @@ public class IpcClient : IDisposable
         {
             w.Write(width);
             w.Write(height);
-        });
+        }, throwOnFailure: true);
     }
 
-    private void Send(IpcOpCode op, Action<BinaryWriter>? writerAction = null)
+    private void Send(
+        IpcOpCode op,
+        Action<BinaryWriter>? writerAction = null,
+        bool throwOnFailure = false)
     {
-        if (!IsConnected) return;
+        if (!IsConnected)
+        {
+            if (throwOnFailure)
+            {
+                throw new IpcClientException(
+                    IpcClientFailureReason.ConnectFailed,
+                    $"Failed to send '{op}' because the daemon connection is not available.");
+            }
+            return;
+        }
 
         lock (_writeLock)
         {
@@ -249,21 +372,158 @@ public class IpcClient : IDisposable
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to send IPC message");
+                HandleSendFailure(ex, op, throwOnFailure);
             }
         }
     }
 
     public void Cleanup()
     {
+        Cleanup(clearSubscriptions: true, disableReconnect: true);
+    }
+
+    private void Cleanup(bool clearSubscriptions, bool disableReconnect)
+    {
+        DropTransport();
+
+        if (disableReconnect)
+        {
+            lock (_reconnectLock)
+            {
+                _reconnectEnabled = false;
+            }
+            _reconnectCts.Cancel();
+        }
+
+        lock (_captureLock)
+        {
+            if (clearSubscriptions)
+            {
+                _captureCoordinator.Clear();
+            }
+            else
+            {
+                _captureCoordinator.ResetTransportStateAndGetCommand();
+            }
+        }
+    }
+
+    private void HandleSendFailure(Exception ex, IpcOpCode op, bool throwOnFailure)
+    {
+        Log.Error(ex, "Failed to send IPC message: {OpCode}", op);
+        ErrorOccurred?.Invoke(this, $"IPC send failed ({op}): {ex.Message}");
+
+        DropTransport();
+        StartReconnectLoop();
+
+        if (throwOnFailure)
+        {
+            throw new IpcClientException(
+                IpcClientFailureReason.ConnectFailed,
+                $"Failed to send IPC command '{op}'.",
+                ex);
+        }
+    }
+
+    private void DropTransport()
+    {
         _cts?.Cancel();
+        _reader?.Dispose();
+        _writer?.Dispose();
+        _stream?.Dispose();
         _socket?.Dispose();
+        _cts?.Dispose();
+
+        _reader = null;
+        _writer = null;
+        _stream = null;
         _socket = null;
+        _cts = null;
+        _readTask = null;
+    }
+
+    private void StartReconnectLoop()
+    {
+        if (!_autoReconnect)
+        {
+            return;
+        }
+
+        lock (_reconnectLock)
+        {
+            if (!_reconnectEnabled || _disposed)
+            {
+                return;
+            }
+
+            if (_reconnectTask is { IsCompleted: false })
+            {
+                return;
+            }
+
+            _reconnectTask = Task.Run(() => ReconnectLoopAsync(_reconnectCts.Token));
+        }
+    }
+
+    private async Task ReconnectLoopAsync(CancellationToken token)
+    {
+        var delay = TimeSpan.FromMilliseconds(250);
+        var maxDelay = TimeSpan.FromSeconds(5);
+
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    await ConnectAsync(token);
+                    Log.Information("[IpcClient] Reconnected to daemon");
+                    return;
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "[IpcClient] Reconnect attempt failed");
+                }
+
+                await Task.Delay(delay, token);
+                delay = TimeSpan.FromMilliseconds(Math.Min(maxDelay.TotalMilliseconds, delay.TotalMilliseconds * 2));
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            lock (_reconnectLock)
+            {
+                _reconnectTask = null;
+            }
+        }
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(IpcClient));
+        }
     }
 
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
         Cleanup();
+        _reconnectCts.Dispose();
+        _connectGate.Dispose();
         GC.SuppressFinalize(this);
     }
 }

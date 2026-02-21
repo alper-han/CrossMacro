@@ -34,7 +34,7 @@ public interface ILinuxInputCapabilityDetector
     
     /// <summary>
     /// Determines the appropriate input provider mode based on available capabilities.
-    /// Result is cached after first determination.
+    /// Result is cached briefly and refreshed periodically.
     /// </summary>
     InputProviderMode DetermineMode();
 }

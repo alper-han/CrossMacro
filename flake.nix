@@ -26,7 +26,14 @@
           ...
         }:
         let
-          crossmacroVersion = "0.9.6";
+          versionFileContent = builtins.readFile ./VERSION;
+          normalizedVersion = builtins.replaceStrings [ "\n" "\r" " " "\t" ] [ "" "" "" "" ] versionFileContent;
+          versionMatch = builtins.match "([0-9]+\\.[0-9]+\\.[0-9]+)" normalizedVersion;
+          crossmacroVersion =
+            if versionMatch == null then
+              throw "Invalid VERSION file format. Expected X.Y.Z"
+            else
+              builtins.elemAt versionMatch 0;
 
           # Core system libraries required by .NET on both Linux and macOS
           commonLibs = with pkgs; [
@@ -68,6 +75,11 @@
 
           # Runtime libraries
           runtimeLibs = commonLibs ++ (if pkgs.stdenv.isLinux then linuxLibs else [ ]);
+          uiHostProject =
+            if pkgs.stdenv.isDarwin then
+              "src/CrossMacro.UI.MacOS/CrossMacro.UI.MacOS.csproj"
+            else
+              "src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj";
 
           commonDotnetModule = {
             pname = "crossmacro";
@@ -141,7 +153,7 @@
             // {
               pname = "crossmacro";
 
-              projectFile = "src/CrossMacro.UI/CrossMacro.UI.csproj";
+              projectFile = uiHostProject;
 
               # .NET 10 Preview support
               dotnet-runtime = pkgs.dotnet-runtime_10;
@@ -227,7 +239,7 @@
               ${pkgs.lib.optionalString pkgs.stdenv.isLinux "echo \"Systemd service required for Input Access.\""}
               echo ""
               echo "Commands:"
-              echo "  dotnet run --project src/CrossMacro.UI/CrossMacro.UI.csproj"
+              echo "  dotnet run --project ${uiHostProject}"
               echo "  dotnet build"
               echo ""
             '';

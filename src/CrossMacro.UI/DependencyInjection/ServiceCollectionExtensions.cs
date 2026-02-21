@@ -20,10 +20,14 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Main entry point - registers all services for the application.
     /// </summary>
-    public static IServiceCollection AddCrossMacroServices(this IServiceCollection services)
+    public static IServiceCollection AddCrossMacroServices(
+        this IServiceCollection services,
+        IPlatformServiceRegistrar platformServiceRegistrar)
     {
+        ArgumentNullException.ThrowIfNull(platformServiceRegistrar);
+
         services.AddCommonServices();
-        services.AddPlatformServices();
+        platformServiceRegistrar.RegisterPlatformServices(services);
         services.AddSharedPostPlatformServices();
         services.AddViewModels();
         
@@ -61,16 +65,6 @@ public static class ServiceCollectionExtensions
                 simulatorFactory);
         });
         
-        return services;
-    }
-
-    /// <summary>
-    /// Detects current platform and registers appropriate services.
-    /// </summary>
-    public static IServiceCollection AddPlatformServices(this IServiceCollection services)
-    {
-        IPlatformServiceRegistrar registrar = GetPlatformRegistrar();
-        registrar.RegisterPlatformServices(services);
         return services;
     }
 
@@ -132,6 +126,7 @@ public static class ServiceCollectionExtensions
         }
         else
         {
+            services.AddSingleton<IProcessRunner, ProcessRunner>();
             services.AddSingleton<LinuxShellClipboardService>();
             services.AddSingleton<IClipboardService, CompositeClipboardService>();
         }
@@ -183,13 +178,4 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    private static IPlatformServiceRegistrar GetPlatformRegistrar()
-    {
-        if (OperatingSystem.IsWindows())
-            return new WindowsServiceRegistrar();
-        if (OperatingSystem.IsMacOS())
-            return new MacOSServiceRegistrar();
-        
-        return new LinuxServiceRegistrar();
-    }
 }

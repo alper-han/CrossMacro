@@ -1,14 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>CrossMacro.UI.Core</AssemblyName>
     <Nullable>enable</Nullable>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Assets\mouse-icon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <AvaloniaStatsTaskEnabled>false</AvaloniaStatsTaskEnabled>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <Version>0.9.6</Version>
     <Description>Cross-platform mouse and keyboard macro automation tool with text expansion support.</Description>
   </PropertyGroup>
 
@@ -20,53 +18,29 @@
     <TrimMode>partial</TrimMode>
   </PropertyGroup>
 
-  <!-- Avalonia trimmer configuration to prevent essential assemblies from being trimmed -->
-  <ItemGroup Condition="'$(PublishTrimmed)' == 'true'">
-    <TrimmerRootAssembly Include="Avalonia" />
-    <TrimmerRootAssembly Include="Avalonia.Desktop" />
-    <TrimmerRootAssembly Include="Avalonia.Themes.Fluent" />
-    <TrimmerRootAssembly Include="Avalonia.Fonts.Inter" />
-  </ItemGroup>
+  <!-- Trimmer roots are defined in host entry projects (UI.Windows/UI.Linux/UI.MacOS),
+       because trimming decisions are made against the published entry assembly. -->
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.3.11" />
+    <PackageReference Include="Avalonia" Version="11.3.12" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.12" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.12" />
 
-    <PackageReference Include="Avalonia.Desktop" Version="11.3.11">
-      <ExcludeAssets>native</ExcludeAssets>
-    </PackageReference>
-
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.11" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.11" />
-
-    <PackageReference Include="Avalonia.Diagnostics" Version="11.3.11">
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.3.12">
       <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.2" />
-    <PackageReference Include="Serilog" Version="4.3.0" />
-
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.9" />
-
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.9">
-      <ExcludeAssets>all</ExcludeAssets>
-    </PackageReference>
-
-    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="8.3.1.1" />
-
-    <PackageReference Include="HarfBuzzSharp.NativeAssets.Win32" Version="8.3.1.1" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.9" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
+    <PackageReference Include="Serilog" Version="4.3.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../CrossMacro.Core/CrossMacro.Core.csproj" />
     <ProjectReference Include="../CrossMacro.Infrastructure/CrossMacro.Infrastructure.csproj" />
-    <ProjectReference Include="../CrossMacro.Platform.Linux/CrossMacro.Platform.Linux.csproj" />
-    <ProjectReference Include="../CrossMacro.Platform.Windows/CrossMacro.Platform.Windows.csproj" />
-    <ProjectReference Include="../CrossMacro.Platform.MacOS/CrossMacro.Platform.MacOS.csproj" />
   </ItemGroup>
 </Project>

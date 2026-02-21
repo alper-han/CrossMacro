@@ -21,16 +21,50 @@
         <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
             <tabs:SettingsTabView/>
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ScheduleViewModel}">
+            <tabs:ScheduleTabView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ShortcutViewModel}">
+            <tabs:ShortcutTabView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:EditorViewModel}">
+            <tabs:EditorTabView/>
+        </DataTemplate>
         <local:ViewLocator/>
     </Application.DataTemplates>
   
     <Application.Resources>
         <ResourceDictionary>
+            <ResourceDictionary x:Key="Theme.Classic">
+                <ResourceDictionary.MergedDictionaries>
+                    <ResourceInclude Source="/Themes/Classic.axaml" />
+                </ResourceDictionary.MergedDictionaries>
+            </ResourceDictionary>
+            <ResourceDictionary x:Key="Theme.Latte">
+                <ResourceDictionary.MergedDictionaries>
+                    <ResourceInclude Source="/Themes/Latte.axaml" />
+                </ResourceDictionary.MergedDictionaries>
+            </ResourceDictionary>
+            <ResourceDictionary x:Key="Theme.Mocha">
+                <ResourceDictionary.MergedDictionaries>
+                    <ResourceInclude Source="/Themes/Mocha.axaml" />
+                </ResourceDictionary.MergedDictionaries>
+            </ResourceDictionary>
+            <ResourceDictionary x:Key="Theme.Dracula">
+                <ResourceDictionary.MergedDictionaries>
+                    <ResourceInclude Source="/Themes/Dracula.axaml" />
+                </ResourceDictionary.MergedDictionaries>
+            </ResourceDictionary>
+            <ResourceDictionary x:Key="Theme.Nord">
+                <ResourceDictionary.MergedDictionaries>
+                    <ResourceInclude Source="/Themes/Nord.axaml" />
+                </ResourceDictionary.MergedDictionaries>
+            </ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceInclude Source="/Themes/Classic.axaml" />
             </ResourceDictionary.MergedDictionaries>
             <FontFamily x:Key="StandardFont">Inter, Segoe UI, DejaVu Sans, Noto Sans, Liberation Sans, sans-serif</FontFamily>
-            <FontFamily x:Key="EmojiFont">avares://CrossMacro.UI/Assets/Fonts/NotoColorEmoji.ttf#Noto Color Emoji</FontFamily>
+            <FontFamily x:Key="EmojiFont">avares://CrossMacro.UI.Core/Assets/Fonts/NotoColorEmoji.ttf#Noto Color Emoji</FontFamily>
         </ResourceDictionary>
     </Application.Resources>
   

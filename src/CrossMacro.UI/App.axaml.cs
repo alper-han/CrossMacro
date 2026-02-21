@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
@@ -17,6 +18,7 @@ namespace CrossMacro.UI;
 
 public partial class App : Application
 {
+    internal static IPlatformServiceRegistrar? PlatformServiceRegistrar { get; set; }
     private IServiceProvider? _serviceProvider;
     public IServiceProvider? Services => _serviceProvider;
     
@@ -28,8 +30,15 @@ public partial class App : Application
     
     private void ConfigureServices()
     {
+        if (PlatformServiceRegistrar == null)
+        {
+            // Allow tooling/design-time hosts to construct App without a platform host project.
+            _serviceProvider = new ServiceCollection().BuildServiceProvider();
+            return;
+        }
+
         var services = new ServiceCollection();
-        services.AddCrossMacroServices();
+        services.AddCrossMacroServices(PlatformServiceRegistrar);
         _serviceProvider = services.BuildServiceProvider();
     }
     
@@ -37,6 +46,12 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            if (!Design.IsDesignMode && PlatformServiceRegistrar == null)
+            {
+                throw new InvalidOperationException(
+                    "Platform service registrar is not configured. Start the app via a platform host project.");
+            }
+
             DisableAvaloniaDataAnnotationValidation();
             
             if (_serviceProvider == null)
@@ -105,7 +120,7 @@ public partial class App : Application
             }
             
             var expansionService = _serviceProvider.GetRequiredService<ITextExpansionService>();
-            _ = System.Threading.Tasks.Task.Run(() => expansionService.Start());
+            expansionService.Start();
             
             trayIconService.SetEnabled(settingsService.Current.EnableTrayIcon);
             
@@ -113,9 +128,6 @@ public partial class App : Application
             {
                 trayIconService.SetEnabled(enabled);
             };
-
-            var settingsVM = _serviceProvider.GetRequiredService<SettingsViewModel>();
-            
 
         }
 

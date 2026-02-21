@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>CrossMacro.UI</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ApplicationManifest>..\CrossMacro.UI\app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\CrossMacro.UI\Assets\mouse-icon.ico</ApplicationIcon>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CrossMacro.UI\CrossMacro.UI.csproj" />
+    <ProjectReference Include="..\CrossMacro.Platform.Windows\CrossMacro.Platform.Windows.csproj" />
+    <ProjectReference Include="..\CrossMacro.Core\CrossMacro.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Win32" Version="11.3.12" />
+    <PackageReference Include="Avalonia.Skia" Version="11.3.12" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(PublishTrimmed)' == 'true'">
+    <TrimmerRootAssembly Include="CrossMacro.UI.Core" />
+    <TrimmerRootAssembly Include="Avalonia" />
+    <TrimmerRootAssembly Include="Avalonia.Skia" />
+    <TrimmerRootAssembly Include="Avalonia.Themes.Fluent" />
+    <TrimmerRootAssembly Include="Avalonia.Fonts.Inter" />
+    <TrimmerRootAssembly Include="Avalonia.Win32" />
+    <TrimmerRootAssembly Include="Serilog" />
+    <TrimmerRootAssembly Include="Serilog.Sinks.Console" />
+    <TrimmerRootAssembly Include="Serilog.Sinks.File" />
+    <TrimmerRootAssembly Include="Serilog.Sinks.Async" />
+  </ItemGroup>
+</Project>

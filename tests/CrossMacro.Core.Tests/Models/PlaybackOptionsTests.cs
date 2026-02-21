@@ -1,3 +1,5 @@
+using System;
+
 namespace CrossMacro.Core.Tests.Models;
 
 using CrossMacro.Core.Models;
@@ -99,12 +101,14 @@ public class PlaybackOptionsTests
     }
 
     [Theory]
-    [InlineData(0.1)]
+    [InlineData(-5.0, 0.1)]
+    [InlineData(0.0, 0.1)]
     [InlineData(0.5)]
     [InlineData(1.0)]
     [InlineData(2.0)]
     [InlineData(10.0)]
-    public void PlaybackOptions_AcceptsVariousSpeedMultipliers(double speed)
+    [InlineData(25.0, 10.0)]
+    public void PlaybackOptions_NormalizesSpeedMultipliers(double speed, double? expected = null)
     {
         // Arrange
         var options = new PlaybackOptions();
@@ -113,6 +117,19 @@ public class PlaybackOptionsTests
         options.SpeedMultiplier = speed;
 
         // Assert
-        options.SpeedMultiplier.Should().Be(speed);
+        options.SpeedMultiplier.Should().Be(expected ?? speed);
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void PlaybackOptions_NormalizeSpeedMultiplier_WhenValueIsNotFinite_UsesDefault(double speed)
+    {
+        // Act
+        var normalized = PlaybackOptions.NormalizeSpeedMultiplier(speed);
+
+        // Assert
+        normalized.Should().Be(PlaybackOptions.DefaultSpeedMultiplier);
     }
 }

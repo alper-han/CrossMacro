@@ -12,7 +12,7 @@ public class AppSettingsTests
         var settings = new AppSettings();
 
         // Assert - Tray Settings
-        settings.EnableTrayIcon.Should().BeTrue();
+        settings.EnableTrayIcon.Should().BeFalse();
 
         // Assert - Playback Settings
         settings.PlaybackSpeed.Should().Be(1.0);

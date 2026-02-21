@@ -171,4 +171,76 @@ public class MacroRecorderTests
         
         await _strategy.Received(1).InitializeAsync(Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task StartRecordingAsync_WhenCaptureCompletesAfterStop_DoesNotThrow()
+    {
+        // Arrange
+        var captureRunTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _capture.ProviderName.Returns("TestCapture");
+        _capture.StartAsync(Arg.Any<CancellationToken>()).Returns(captureRunTcs.Task);
+
+        var recorder = CreateRecorder();
+
+        // Act
+        var startTask = recorder.StartRecordingAsync(true, true);
+        await Task.Yield();
+        var stopResult = recorder.StopRecording();
+        captureRunTcs.SetResult();
+
+        // Assert
+        stopResult.Should().NotBeNull();
+        Func<Task> act = async () => await startTask;
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task StartRecordingAsync_WhenInputCaptureFactoryMissing_ThrowsAndResetsState()
+    {
+        // Arrange
+        var recorder = new MacroRecorder(null, _strategyFactory, _processorFactory);
+
+        // Act
+        var act = async () => await recorder.StartRecordingAsync(true, true);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*No input capture factory configured*");
+        recorder.IsRecording.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task StartRecordingAsync_WhenCaptureStartThrows_CleansUpAndRethrows()
+    {
+        // Arrange
+        _capture.StartAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new InvalidOperationException("start failed")));
+        var recorder = CreateRecorder();
+
+        // Act
+        var act = async () => await recorder.StartRecordingAsync(true, true);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("start failed");
+        recorder.IsRecording.Should().BeFalse();
+        _capture.Received(1).Stop();
+        _capture.Received(1).Dispose();
+    }
+
+    [Fact]
+    public async Task StopRecording_WhenCaptureStopThrows_ReturnsRecordedMacro()
+    {
+        // Arrange
+        var recorder = CreateRecorder();
+        await recorder.StartRecordingAsync(true, true);
+        _capture.When(x => x.Stop()).Do(_ => throw new Exception("stop fail"));
+
+        // Act
+        var result = recorder.StopRecording();
+
+        // Assert
+        result.Should().NotBeNull();
+        recorder.IsRecording.Should().BeFalse();
+    }
 }

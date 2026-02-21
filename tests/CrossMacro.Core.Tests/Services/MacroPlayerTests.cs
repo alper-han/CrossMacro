@@ -2,6 +2,7 @@ namespace CrossMacro.Core.Tests.Services;
 
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Core.Services.Playback;
 using FluentAssertions;
 using NSubstitute;
 
@@ -180,5 +181,142 @@ public class MacroPlayerTests
         
         // Verify KeyPress
         simulator.Received().KeyPress(30, true);
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenLooping_UsesRepeatDelayFromOptions()
+    {
+        // Arrange
+        var simulator = Substitute.For<IInputSimulator>();
+        simulator.ProviderName.Returns("MockSimulator");
+        var timing = new RecordingTimingService();
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            timingService: timing,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10 }
+            }
+        };
+
+        var options = new PlaybackOptions
+        {
+            Loop = true,
+            RepeatCount = 2,
+            RepeatDelayMs = 123
+        };
+
+        // Act
+        await player.PlayAsync(macro, options);
+
+        // Assert
+        timing.WaitCalls.Should().Contain(123);
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenAlreadyPlaying_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var simulator = Substitute.For<IInputSimulator>();
+        simulator.ProviderName.Returns("MockSimulator");
+        var timing = new RecordingTimingService();
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            timingService: timing,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10 },
+                new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 1 }
+            }
+        };
+
+        // Block timing service so first playback remains in-progress.
+        timing.WaitEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        timing.ContinueWait = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var firstPlayback = player.PlayAsync(macro);
+        await timing.WaitEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Act
+        var act = async () => await player.PlayAsync(macro);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*already in progress*");
+
+        player.Stop();
+        timing.ContinueWait.TrySetResult(true);
+        await firstPlayback;
+    }
+
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(-3.0)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public async Task PlayAsync_WhenSpeedMultiplierIsInvalid_NormalizesAndPlays(double speedMultiplier)
+    {
+        // Arrange
+        var simulator = Substitute.For<IInputSimulator>();
+        simulator.ProviderName.Returns("MockSimulator");
+
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 },
+                new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 100 }
+            }
+        };
+
+        var options = new PlaybackOptions
+        {
+            SpeedMultiplier = speedMultiplier
+        };
+
+        // Act
+        var act = async () => await player.PlayAsync(macro, options);
+
+        // Assert
+        await act.Should().NotThrowAsync();
+        simulator.Received().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    private sealed class RecordingTimingService : IPlaybackTimingService
+    {
+        public List<int> WaitCalls { get; } = new();
+        public TaskCompletionSource<bool>? WaitEntered { get; set; }
+        public TaskCompletionSource<bool>? ContinueWait { get; set; }
+
+        public async Task WaitAsync(int delayMs, IPlaybackPauseToken pauseToken, CancellationToken cancellationToken)
+        {
+            WaitCalls.Add(delayMs);
+            WaitEntered?.TrySetResult(true);
+
+            if (ContinueWait != null)
+            {
+                await ContinueWait.Task.WaitAsync(cancellationToken);
+            }
+
+            if (pauseToken.IsPaused)
+            {
+                await pauseToken.WaitIfPausedAsync(cancellationToken);
+            }
+        }
     }
 }

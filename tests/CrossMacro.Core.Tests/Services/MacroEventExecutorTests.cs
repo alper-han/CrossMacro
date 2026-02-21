@@ -84,6 +84,34 @@ public class MacroEventExecutorTests
     }
 
     [Fact]
+    public void Execute_MouseMove_Absolute_ButtonPressed_WhenHybridDisabled_UsesAbsoluteOnly()
+    {
+        // Arrange
+        _buttonTracker.IsAnyPressed.Returns(true);
+        _coordinator.CurrentX.Returns(60);
+        _coordinator.CurrentY.Returns(40);
+
+        var executor = new MacroEventExecutor(
+            _simulator,
+            _buttonTracker,
+            _keyTracker,
+            _buttonMapper,
+            _coordinator,
+            useHybridAbsoluteDragMovement: false);
+        executor.Initialize(1920, 1080);
+
+        var ev = new MacroEvent { Type = EventType.MouseMove, X = 100, Y = 80 };
+
+        // Act
+        executor.Execute(ev, isRecordedAbsolute: true);
+
+        // Assert
+        _simulator.Received(1).MoveAbsolute(100, 80);
+        _simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
+        _coordinator.Received(1).UpdatePosition(100, 80);
+    }
+
+    [Fact]
     public void Execute_ButtonPress_MapsButtonAndEmits()
     {
         // Arrange

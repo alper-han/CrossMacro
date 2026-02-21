@@ -25,6 +25,8 @@ public class TextExpansionService : ITextExpansionService
     
     // Lifecycle management
     private IInputCapture? _inputCapture;
+    private CancellationTokenSource? _captureCts;
+    private Task? _captureTask;
     private readonly Lock _lock;
     private bool _isRunning;
     private readonly SemaphoreSlim _expansionLock; 
@@ -74,8 +76,9 @@ public class TextExpansionService : ITextExpansionService
                 _inputCapture.Configure(captureMouse: false, captureKeyboard: true);
                 _inputCapture.InputReceived += OnInputReceived;
                 _inputCapture.Error += OnInputCaptureError;
-                
-                _ = _inputCapture.StartAsync(CancellationToken.None);
+                _captureCts = new CancellationTokenSource();
+                _captureTask = _inputCapture.StartAsync(_captureCts.Token) ?? Task.CompletedTask;
+                _ = ObserveCaptureTaskAsync(_captureTask, _captureCts.Token);
                 
                 // Reset State
                 _inputProcessor.Reset();
@@ -100,6 +103,8 @@ public class TextExpansionService : ITextExpansionService
 
             try 
             {
+                _captureCts?.Cancel();
+
                 if (_inputCapture != null)
                 {
                     _inputCapture.InputReceived -= OnInputReceived;
@@ -108,6 +113,10 @@ public class TextExpansionService : ITextExpansionService
                     _inputCapture.Dispose();
                     _inputCapture = null;
                 }
+
+                _captureCts?.Dispose();
+                _captureCts = null;
+                _captureTask = null;
             }
             catch (Exception ex)
             {
@@ -130,6 +139,23 @@ public class TextExpansionService : ITextExpansionService
     private void OnInputCaptureError(object? sender, string error)
     {
         Log.Error("[TextExpansionService] Capture error: {Error}", error);
+    }
+
+    private async Task ObserveCaptureTaskAsync(Task captureTask, CancellationToken token)
+    {
+        try
+        {
+            await captureTask.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // Normal shutdown path.
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[TextExpansionService] Capture task faulted");
+            OnInputCaptureError(this, ex.Message);
+        }
     }
 
     private void OnInputReceived(object? sender, InputCaptureEventArgs e)
@@ -161,7 +187,7 @@ public class TextExpansionService : ITextExpansionService
              _bufferState.Clear();
 
              // Run Execution
-             Task.Run(() => PerformExpansionAsync(match));
+             _ = Task.Run(() => RunExpansionSafelyAsync(match));
         }
     }
 
@@ -204,6 +230,18 @@ public class TextExpansionService : ITextExpansionService
         finally
         {
             _expansionLock.Release();
+        }
+    }
+
+    private async Task RunExpansionSafelyAsync(Core.Models.TextExpansion expansion)
+    {
+        try
+        {
+            await PerformExpansionAsync(expansion).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[TextExpansionService] Expansion failed for trigger '{Trigger}'", expansion.Trigger);
         }
     }
 }

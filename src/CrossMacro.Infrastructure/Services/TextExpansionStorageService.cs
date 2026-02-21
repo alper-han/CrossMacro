@@ -18,7 +18,6 @@ namespace CrossMacro.Infrastructure.Services;
 public class TextExpansionStorageService : ITextExpansionStorageService
 
 {
-    private const string AppName = "crossmacro";
     private const string ExpansionsFileName = ConfigFileNames.TextExpansions;
     private readonly string _configDirectory;
     private readonly string _filePath;

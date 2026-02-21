@@ -149,11 +149,11 @@ public class SettingsViewModel : ViewModelBase
                 // Toggle service immediately
                 if (value)
                 {
-                    System.Threading.Tasks.Task.Run(() => _textExpansionService.Start());
+                    _textExpansionService.Start();
                 }
                 else
                 {
-                    System.Threading.Tasks.Task.Run(() => _textExpansionService.Stop());
+                    _textExpansionService.Stop();
                 }
                 
                 // Save settings asynchronously
@@ -213,6 +213,8 @@ public class SettingsViewModel : ViewModelBase
     };
 
     private string _selectedTheme;
+    private const string ThemeResourcePrefix = "Theme.";
+
     public string SelectedTheme
     {
         get => _selectedTheme;
@@ -246,13 +248,20 @@ public class SettingsViewModel : ViewModelBase
     {
         try
         {
-            if (Avalonia.Application.Current?.Resources?.MergedDictionaries is { } dictionaries)
+            if (Avalonia.Application.Current?.Resources is { } appResources &&
+                appResources.MergedDictionaries is { } dictionaries)
             {
-                dictionaries.Clear();
-                dictionaries.Add(new Avalonia.Markup.Xaml.Styling.ResourceInclude(new Uri($"avares://CrossMacro.UI/Themes/{theme}.axaml"))
+                string themeKey = $"{ThemeResourcePrefix}{theme}";
+                if (appResources.TryGetResource(themeKey, null, out var themeResource) &&
+                    themeResource is Avalonia.Controls.ResourceDictionary themeDictionary)
                 {
-                    Source = new Uri($"avares://CrossMacro.UI/Themes/{theme}.axaml")
-                });
+                    dictionaries.Clear();
+                    dictionaries.Add(themeDictionary);
+                }
+                else
+                {
+                    Log.Warning("Theme resource not found: {ThemeKey}", themeKey);
+                }
             }
         }
         catch (Exception ex)

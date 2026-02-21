@@ -100,10 +100,11 @@ public class PlaybackViewModel : ViewModelBase
         get => _playbackSpeed;
         set
         {
-            if (Math.Abs(_playbackSpeed - value) > 0.01)
+            var normalized = PlaybackOptions.NormalizeSpeedMultiplier(value);
+            if (Math.Abs(_playbackSpeed - normalized) > 0.01)
             {
-                _playbackSpeed = value;
-                _settingsService.Current.PlaybackSpeed = value;
+                _playbackSpeed = normalized;
+                _settingsService.Current.PlaybackSpeed = normalized;
                 OnPropertyChanged();
                 _ = _settingsService.SaveAsync();
             }
@@ -212,7 +213,7 @@ public class PlaybackViewModel : ViewModelBase
         }
     }
     
-    public bool HasMacro => _currentMacro != null && _currentMacro.EventCount > 0;
+    public bool HasMacro => (_currentMacro?.Events?.Count ?? 0) > 0;
     
     public bool CanPlayMacro => HasMacro && !IsPlaying && CanPlayMacroExternal;
     
@@ -274,7 +275,7 @@ public class PlaybackViewModel : ViewModelBase
             
             var options = new PlaybackOptions
             {
-                SpeedMultiplier = PlaybackSpeed,
+                SpeedMultiplier = PlaybackOptions.NormalizeSpeedMultiplier(PlaybackSpeed),
                 Loop = IsLooping,
                 RepeatCount = LoopCount,
                 RepeatDelayMs = LoopDelayMs ?? 0

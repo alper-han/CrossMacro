@@ -17,6 +17,14 @@ public class AvaloniaClipboardService : IClipboardService
     public async Task SetTextAsync(string text)
     {
         Log.Debug("[AvaloniaClipboard] SetTextAsync called for length {Length}", text.Length);
+
+        var desktop = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+        if (desktop?.MainWindow == null)
+        {
+            Log.Warning("[AvaloniaClipboard] SetTextAsync skipped because desktop main window is unavailable");
+            return;
+        }
+
         await Dispatcher.UIThread.InvokeAsync(async () =>
         {
             Log.Debug("[AvaloniaClipboard] SetTextAsync running on UI thread");
@@ -44,6 +52,14 @@ public class AvaloniaClipboardService : IClipboardService
     public async Task<string?> GetTextAsync()
     {
         Log.Debug("[AvaloniaClipboard] GetTextAsync called");
+
+        var desktop = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+        if (desktop?.MainWindow == null)
+        {
+            Log.Warning("[AvaloniaClipboard] GetTextAsync skipped because desktop main window is unavailable");
+            return null;
+        }
+
         return await Dispatcher.UIThread.InvokeAsync(async () =>
         {
             try

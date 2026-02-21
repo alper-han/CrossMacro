@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.UI.Services;
+using Serilog;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -89,13 +90,21 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         _shortcutService.ShortcutExecuted += OnShortcutExecuted;
         
         // Load saved shortcuts and start listening
-        _ = InitializeAsync();
+        _ = InitializeAsyncSafe();
     }
     
-    private async Task InitializeAsync()
+    private async Task InitializeAsyncSafe()
     {
-        await _shortcutService.LoadAsync();
-        _shortcutService.Start();
+        try
+        {
+            await _shortcutService.LoadAsync();
+            _shortcutService.Start();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[ShortcutViewModel] Failed to initialize shortcuts");
+            RaiseStatus($"Shortcut: failed to initialize ({ex.Message})");
+        }
     }
     
     [RelayCommand]
@@ -125,7 +134,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         {
             SelectedTask = Tasks.FirstOrDefault();
         }
-        _ = _shortcutService.SaveAsync();
+        await SaveChangesAsync(showSuccessStatus: false);
     }
     
     [RelayCommand]
@@ -144,7 +153,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         
         var filters = new FileDialogFilter[]
         {
-            new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "*.macro" } }
+            new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "macro" } }
         };
         
         var filePath = await _dialogService.ShowOpenFileDialogAsync(
@@ -160,7 +169,33 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task SaveAsync()
     {
-        await _shortcutService.SaveAsync();
+        await SaveChangesAsync(showSuccessStatus: true);
+    }
+
+    private async Task SaveChangesAsync(bool showSuccessStatus)
+    {
+        try
+        {
+            await _shortcutService.SaveAsync();
+            if (showSuccessStatus)
+            {
+                RaiseStatus("Shortcut: changes saved");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[ShortcutViewModel] Failed to save shortcut tasks");
+            var status = $"Shortcut: failed to save changes ({ex.Message})";
+            RaiseStatus(status);
+            try
+            {
+                await _dialogService.ShowMessageAsync("Shortcut Save Failed", status);
+            }
+            catch (Exception dialogEx)
+            {
+                Log.Warning(dialogEx, "[ShortcutViewModel] Failed to show save error dialog");
+            }
+        }
     }
     
     public void OnHotkeyChanged(string newHotkey)
@@ -172,7 +207,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     {
         Dispatcher.UIThread.Post(() =>
         {
-            StatusChanged?.Invoke(this, $"Shortcut: Running {task.Name}...");
+            RaiseStatus($"Shortcut: Running {task.Name}...");
             
             if (SelectedTask?.Id == task.Id)
             {
@@ -188,13 +223,24 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
             var statusText = e.Success 
                 ? $"Shortcut: {e.Task.Name} completed" 
                 : $"Shortcut: {e.Task.Name} - {e.Message}";
-            StatusChanged?.Invoke(this, statusText);
+            RaiseStatus(statusText);
             
             if (SelectedTask?.Id == e.Task.Id)
             {
                 OnPropertyChanged(nameof(SelectedTask));
             }
         });
+    }
+
+    private void RaiseStatus(string message)
+    {
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            StatusChanged?.Invoke(this, message);
+            return;
+        }
+
+        Dispatcher.UIThread.Post(() => StatusChanged?.Invoke(this, message));
     }
     
     public void Dispose()

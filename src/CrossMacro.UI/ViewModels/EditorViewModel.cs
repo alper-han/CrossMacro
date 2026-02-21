@@ -559,7 +559,7 @@ public class EditorViewModel : ViewModelBase, IDisposable
         {
             var filters = new[]
             {
-                new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "*.macro" } }
+                new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "macro" } }
             };
             
             var baseName = MacroName.EndsWith(".macro", StringComparison.OrdinalIgnoreCase)
@@ -594,7 +594,7 @@ public class EditorViewModel : ViewModelBase, IDisposable
         {
             var filters = new[]
             {
-                new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "*.macro" } }
+                new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "macro" } }
             };
             
             var filePath = await _dialogService.ShowOpenFileDialogAsync("Load Macro", filters);

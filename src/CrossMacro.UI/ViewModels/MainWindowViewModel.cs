@@ -222,9 +222,14 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
         SelectedTopItem = TopNavigationItems.First();
 
-        // Check for updates
-        _ = CheckForUpdatesAsync();
+        _ = InitializeBackgroundServicesAsync();
 
+    }
+
+    private async System.Threading.Tasks.Task InitializeBackgroundServicesAsync()
+    {
+        await Schedule.InitializeAsync();
+        await CheckForUpdatesAsync();
     }
 
     // Update Notification Properties
@@ -316,9 +321,26 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         // When recording completes, update Files and Playback
         Recording.RecordingCompleted += (s, macro) =>
         {
-            Files.SetMacro(macro);
-            Playback.SetMacro(macro);
-            GlobalStatus = $"Recorded {macro.EventCount} events";
+            try
+            {
+                Files.SetMacro(macro);
+            }
+            catch (Exception ex)
+            {
+                Serilog.Log.Error(ex, "[MainWindowViewModel] Failed to sync recorded macro to FilesViewModel");
+            }
+
+            try
+            {
+                Playback.SetMacro(macro);
+            }
+            catch (Exception ex)
+            {
+                Serilog.Log.Error(ex, "[MainWindowViewModel] Failed to sync recorded macro to PlaybackViewModel");
+            }
+
+            var eventCount = macro?.Events?.Count ?? 0;
+            SetGlobalStatusThreadSafe($"Recorded {eventCount} events");
         };
         
         // When recording state changes, update Playback's ability to start
@@ -338,7 +360,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         {
             Playback.SetMacro(macro);
             Recording.SetMacro(macro);
-            GlobalStatus = $"Loaded: {macro.Name}";
+            SetGlobalStatusThreadSafe($"Loaded: {macro.Name}");
         };
         
         // When a macro is created in Editor, update Files and Playback
@@ -346,20 +368,31 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         {
             Files.SetMacro(macro);
             Playback.SetMacro(macro);
-            GlobalStatus = $"Created: {macro.Name} ({macro.EventCount} events)";
+            SetGlobalStatusThreadSafe($"Created: {macro.Name} ({macro.EventCount} events)");
         };
         
         // Forward status changes
         Recording.PropertyChanged += (s, e) =>
         {
             if (e.PropertyName == nameof(Recording.RecordingStatus))
-                GlobalStatus = Recording.RecordingStatus;
+                SetGlobalStatusThreadSafe(Recording.RecordingStatus);
         };
         
-        Playback.StatusChanged += (s, status) => GlobalStatus = status;
-        Files.StatusChanged += (s, status) => GlobalStatus = status;
-        Schedule.StatusChanged += (s, status) => GlobalStatus = status;
-        Editor.StatusChanged += (s, status) => GlobalStatus = status;
+        Playback.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
+        Files.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
+        Schedule.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
+        Editor.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
+    }
+
+    private void SetGlobalStatusThreadSafe(string status)
+    {
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            GlobalStatus = status;
+            return;
+        }
+
+        Dispatcher.UIThread.Post(() => GlobalStatus = status);
     }
     
     private void SetupExtensionStatusHandling()

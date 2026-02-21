@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using Serilog;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -288,23 +289,15 @@ public class RecordingViewModel : ViewModelBase, IDisposable
     {
         if (!IsRecording)
             return null;
-            
+
+        MacroSequence? macro;
         try
         {
-            var macro = _recorder.StopRecording();
-            IsRecording = false;
-            
-            if (macro != null && macro.EventCount > 0)
-            {
-                RecordingStatus = $"Recorded {macro.EventCount} events";
-                RecordingCompleted?.Invoke(this, macro);
-                return macro;
-            }
-            
-            return null;
+            macro = _recorder.StopRecording();
         }
         catch (Exception ex)
         {
+            Log.Error(ex, "[RecordingViewModel] StopRecording failed");
             RecordingStatus = $"Error: {ex.Message}";
             IsRecording = false;
             return null;
@@ -312,8 +305,42 @@ public class RecordingViewModel : ViewModelBase, IDisposable
         finally
         {
             // Re-enable playback and pause hotkeys after recording stops
-            _hotkeyService.SetPlaybackPauseHotkeysEnabled(true);
+            try
+            {
+                _hotkeyService.SetPlaybackPauseHotkeysEnabled(true);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "[RecordingViewModel] Failed to re-enable playback/pause hotkeys");
+            }
         }
+
+        IsRecording = false;
+
+        if (macro == null)
+        {
+            return null;
+        }
+
+        var eventCount = macro.Events?.Count ?? 0;
+        if (eventCount <= 0)
+        {
+            return null;
+        }
+
+        RecordingStatus = $"Recorded {eventCount} events";
+
+        try
+        {
+            RecordingCompleted?.Invoke(this, macro);
+        }
+        catch (Exception ex)
+        {
+            // Keep recording result intact; only downstream synchronization failed.
+            Log.Error(ex, "[RecordingViewModel] RecordingCompleted handler failed");
+        }
+
+        return macro;
     }
     
     /// <summary>
@@ -324,11 +351,13 @@ public class RecordingViewModel : ViewModelBase, IDisposable
         if (macro == null)
             return;
 
-        EventCount = macro.EventCount;
+        var events = macro.Events ?? [];
+
+        EventCount = events.Count;
         MouseEventCount = 0;
         KeyboardEventCount = 0;
 
-        foreach (var e in macro.Events)
+        foreach (var e in events)
         {
             switch (e.Type)
             {
@@ -345,7 +374,7 @@ public class RecordingViewModel : ViewModelBase, IDisposable
             }
         }
 
-        RecordingStatus = $"Loaded {macro.EventCount} events";
+        RecordingStatus = $"Loaded {events.Count} events";
     }
     
     /// <summary>

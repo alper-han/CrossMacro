@@ -11,30 +11,30 @@ public class DialogService : IDialogService
 {
     public async Task<bool> ShowConfirmationAsync(string title, string message, string yesText = "Yes", string noText = "No")
     {
-        var dialog = new ConfirmationDialog(title, message, yesText, noText);
-        
         var desktop = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-        var owner = desktop?.MainWindow; // Or try to find the active window if needed
+        var owner = desktop?.MainWindow;
 
-        if (owner != null)
+        if (owner == null)
         {
-            var result = await dialog.ShowDialog<bool>(owner);
-            return result;
+            return false;
         }
-        
-        return false;
+
+        var dialog = new ConfirmationDialog(title, message, yesText, noText);
+        return await dialog.ShowDialog<bool>(owner);
     }
+
     public async Task ShowMessageAsync(string title, string message, string buttonText = "OK")
     {
-        var dialog = new ConfirmationDialog(title, message, buttonText, null); 
-        
         var desktop = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-        var owner = desktop?.MainWindow; // Or try to find the active window if needed
+        var owner = desktop?.MainWindow;
 
-        if (owner != null)
+        if (owner == null)
         {
-            await dialog.ShowDialog<bool>(owner);
+            return;
         }
+
+        var dialog = new ConfirmationDialog(title, message, buttonText, null);
+        await dialog.ShowDialog<bool>(owner);
     }
 
     public async Task<string?> ShowSaveFileDialogAsync(string title, string defaultFileName, FileDialogFilter[] filters)
@@ -46,7 +46,7 @@ public class DialogService : IDialogService
 
         var fileTypeChoices = filters.Select(f => new Avalonia.Platform.Storage.FilePickerFileType(f.Name)
         {
-            Patterns = f.Extensions
+            Patterns = FileDialogFilter.NormalizePatterns(f.Extensions)
         }).ToList();
 
         var options = new Avalonia.Platform.Storage.FilePickerSaveOptions
@@ -69,7 +69,7 @@ public class DialogService : IDialogService
 
         var fileTypeFilters = filters.Select(f => new Avalonia.Platform.Storage.FilePickerFileType(f.Name)
         {
-            Patterns = f.Extensions
+            Patterns = FileDialogFilter.NormalizePatterns(f.Extensions)
         }).ToList();
 
         var options = new Avalonia.Platform.Storage.FilePickerOpenOptions

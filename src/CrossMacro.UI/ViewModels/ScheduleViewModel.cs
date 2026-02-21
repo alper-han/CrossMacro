@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.UI.Services;
+using Serilog;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -18,6 +19,8 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
 {
     private readonly ISchedulerService _schedulerService;
     private readonly IDialogService _dialogService;
+    private readonly object _initializeLock = new();
+    private Task? _initializeTask;
     private ScheduledTask? _selectedTask;
     private bool _isIntervalSelected = true;
     private bool _isDateTimeSelected;
@@ -115,14 +118,28 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         _schedulerService.TaskStarting += OnTaskStarting;
         _schedulerService.TaskExecuted += OnTaskExecuted;
         
-        // Load saved tasks and start scheduler
-        _ = InitializeAsync();
     }
     
-    private async Task InitializeAsync()
+    public Task InitializeAsync()
     {
-        await _schedulerService.LoadAsync();
-        _schedulerService.Start();
+        lock (_initializeLock)
+        {
+            _initializeTask ??= InitializeCoreAsync();
+            return _initializeTask;
+        }
+    }
+
+    private async Task InitializeCoreAsync()
+    {
+        try
+        {
+            await _schedulerService.LoadAsync();
+            _schedulerService.Start();
+        }
+        catch (Exception ex)
+        {
+            RaiseStatus($"Schedule: failed to initialize ({ex.Message})");
+        }
     }
     
     public DateTimeOffset? ScheduledDate
@@ -218,8 +235,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         {
             SelectedTask = Tasks.FirstOrDefault();
         }
-        // Fire-and-forget save
-        _ = _schedulerService.SaveAsync();
+        await SaveChangesAsync(showSuccessStatus: false);
     }
     
     [RelayCommand]
@@ -239,7 +255,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         
         var filters = new FileDialogFilter[]
         {
-            new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "json" } }
+            new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "macro" } }
         };
         
         var filePath = await _dialogService.ShowOpenFileDialogAsync(
@@ -255,11 +271,44 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task SaveAsync()
     {
-        await _schedulerService.SaveAsync();
+        await SaveChangesAsync(showSuccessStatus: true);
+    }
+
+    private async Task SaveChangesAsync(bool showSuccessStatus)
+    {
+        try
+        {
+            await _schedulerService.SaveAsync();
+            if (showSuccessStatus)
+            {
+                RaiseStatus("Schedule: changes saved");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[ScheduleViewModel] Failed to save scheduled tasks");
+            var status = $"Schedule: failed to save changes ({ex.Message})";
+            RaiseStatus(status);
+            try
+            {
+                await _dialogService.ShowMessageAsync("Schedule Save Failed", status);
+            }
+            catch (Exception dialogEx)
+            {
+                Log.Warning(dialogEx, "[ScheduleViewModel] Failed to show save error dialog");
+            }
+        }
     }
     
     public void OnTaskEnabledChanged(ScheduledTask task)
     {
+        if (task.IsEnabled &&
+            !string.IsNullOrWhiteSpace(task.MacroFilePath) &&
+            !task.MacroFilePath.EndsWith(".macro", StringComparison.OrdinalIgnoreCase))
+        {
+            RaiseStatus("Schedule: macro file extension is not .macro (still allowed)");
+        }
+
         _schedulerService.SetTaskEnabled(task.Id, task.IsEnabled);
     }
     
@@ -267,7 +316,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     {
         Dispatcher.UIThread.Post(() =>
         {
-            StatusChanged?.Invoke(this, $"Schedule: Running {task.Name}...");
+            RaiseStatus($"Schedule: Running {task.Name}...");
             
             // Refresh the selected task to update status display
             if (SelectedTask?.Id == task.Id)
@@ -285,7 +334,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             var statusText = e.Success 
                 ? $"Schedule: {e.Task.Name} completed" 
                 : $"Schedule: {e.Task.Name} - {e.Message}";
-            StatusChanged?.Invoke(this, statusText);
+            RaiseStatus(statusText);
             
             // Refresh the selected task to update LastRunTime display
             if (SelectedTask?.Id == e.Task.Id)
@@ -293,6 +342,17 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(SelectedTask));
             }
         });
+    }
+
+    private void RaiseStatus(string message)
+    {
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            StatusChanged?.Invoke(this, message);
+            return;
+        }
+
+        Dispatcher.UIThread.Post(() => StatusChanged?.Invoke(this, message));
     }
     
     public void Dispose()

@@ -102,7 +102,7 @@ public class TrayIconService : ITrayIconService
 
             _trayIcon = new TrayIcon
             {
-                Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://CrossMacro.UI/Assets/mouse-icon.png"))),
+                Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://CrossMacro.UI.Core/Assets/mouse-icon.png"))),
                 ToolTipText = AppConstants.AppName
             };
 

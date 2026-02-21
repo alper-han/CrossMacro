@@ -91,7 +91,8 @@ public class FilesViewModel : ViewModelBase
     public void SetMacro(MacroSequence? macro)
     {
         _currentMacro = macro;
-        HasRecordedMacro = macro != null && macro.EventCount > 0;
+        var eventCount = macro?.Events?.Count ?? 0;
+        HasRecordedMacro = eventCount > 0;
         
         if (_currentMacro != null)
         {
@@ -108,7 +109,7 @@ public class FilesViewModel : ViewModelBase
         {
             var filters = new[]
             {
-                new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "*.macro" } }
+                new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "macro" } }
             };
 
             var baseName = MacroName.EndsWith(".macro", StringComparison.OrdinalIgnoreCase)
@@ -139,7 +140,7 @@ public class FilesViewModel : ViewModelBase
         {
             var filters = new[]
             {
-                new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "*.macro" } }
+                new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "macro" } }
             };
 
             var filePath = await _dialogService.ShowOpenFileDialogAsync("Load Macro", filters);

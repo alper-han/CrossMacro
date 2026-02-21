@@ -449,32 +449,31 @@ jobs:
 
     - name: Add AUR host key
       run: |
-        touch ~/.ssh/known_hosts
-        ssh-keyscan -t ed25519,rsa aur.archlinux.org >> ~/.ssh/known_hosts
+        mkdir -p ~/.ssh
+        ssh-keyscan -H -t ed25519 aur.archlinux.org > ~/.ssh/known_hosts
+        grep -q "ssh-ed25519" ~/.ssh/known_hosts
         chmod 600 ~/.ssh/known_hosts
         
 
     
     - name: Test SSH Connection
       run: |
-        ssh -i ~/.ssh/id_aur -o IdentitiesOnly=yes -T aur@aur.archlinux.org || true
+        ssh -i ~/.ssh/id_aur \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=$HOME/.ssh/known_hosts \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -T aur@aur.archlinux.org
     
     - name: Clone AUR repository
       env:
-        GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
+        GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o HostKeyAlgorithms=ssh-ed25519
       run: |
         # Set default branch name to suppress Git 3.0 warning
         git config --global init.defaultBranch master
-        
-        # Try to clone. If it fails (new package), init a new repo
-        if ! git clone ssh://aur@aur.archlinux.org/crossmacro.git aur-repo; then
-          echo "Clone failed or repo does not exist. Initializing new repo..."
-          mkdir aur-repo
-          cd aur-repo
-          git init
-          git remote add origin ssh://aur@aur.archlinux.org/crossmacro.git
-          git checkout -b master
-        fi
+
+        # Fail fast on SSH/auth/host-key problems instead of masking with fallback init.
+        git clone ssh://aur@aur.archlinux.org/crossmacro.git aur-repo
     
     - name: Prepare Package Files
       run: |
@@ -504,7 +503,7 @@ jobs:
     
     - name: Commit and push to AUR
       env:
-        GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
+        GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o HostKeyAlgorithms=ssh-ed25519
       run: |
         VERSION=${{ needs.build-core.outputs.version }}
         cd aur-repo

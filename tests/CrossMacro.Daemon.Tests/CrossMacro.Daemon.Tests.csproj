@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -9,7 +9,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
-    <PackageReference Include="NSubstitute" Version="5.3.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
       <PrivateAssets>all</PrivateAssets>
@@ -22,8 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\CrossMacro.Platform.Linux\CrossMacro.Platform.Linux.csproj" />
-    <ProjectReference Include="..\..\src\CrossMacro.Core\CrossMacro.Core.csproj" />
+    <ProjectReference Include="..\..\src\CrossMacro.Daemon\CrossMacro.Daemon.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -6,6 +6,7 @@ using CrossMacro.Platform.Linux.DisplayServer.X11;
 using CrossMacro.Platform.Linux.Services;
 using CrossMacro.Platform.Linux.Services.Factories;
 using CrossMacro.Platform.Linux.Services.Factories.Selectors;
+using CrossMacro.TestInfrastructure;
 using NSubstitute;
 using Xunit;
 
@@ -28,7 +29,7 @@ public class LinuxPositionProviderFactoryTests
         _factory = new LinuxPositionProviderFactory(_selectors, _mockEnvironmentDetector);
     }
 
-    [Fact]
+    [LinuxFact]
     public void Create_ShouldUseHighPrioritySelector_WhenHandlesCheckPasses()
     {
         // Arrange
@@ -54,7 +55,7 @@ public class LinuxPositionProviderFactoryTests
         Assert.Same(expectedProvider, result);
     }
 
-    [Fact]
+    [LinuxFact]
     public void Create_ShouldSelectCorrectSelector_BasedOnCompositor()
     {
         // Arrange
@@ -79,7 +80,7 @@ public class LinuxPositionProviderFactoryTests
         Assert.Same(gnomeProvider, result);
     }
 
-    [Fact]
+    [LinuxFact]
     public void Create_ShouldReturnFallback_WhenNoSelectorMatches()
     {
         // Arrange
@@ -92,5 +93,30 @@ public class LinuxPositionProviderFactoryTests
 
         // Assert
         Assert.IsType<FallbackPositionProvider>(result);
+    }
+
+    [LinuxFact]
+    public void Create_ShouldReturnFallback_WhenSelectorsExistButNoneCanHandle()
+    {
+        // Arrange
+        _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.KDE);
+
+        var selectorA = Substitute.For<IPositionProviderSelector>();
+        selectorA.CanHandle(CompositorType.KDE).Returns(false);
+
+        var selectorB = Substitute.For<IPositionProviderSelector>();
+        selectorB.CanHandle(CompositorType.KDE).Returns(false);
+
+        _selectors.Add(selectorA);
+        _selectors.Add(selectorB);
+        SetupFactory();
+
+        // Act
+        var result = _factory!.Create();
+
+        // Assert
+        Assert.IsType<FallbackPositionProvider>(result);
+        selectorA.DidNotReceive().Create();
+        selectorB.DidNotReceive().Create();
     }
 }

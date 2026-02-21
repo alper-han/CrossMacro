@@ -6,6 +6,7 @@ using CrossMacro.Platform.Linux.DisplayServer;
 using CrossMacro.Platform.Linux.Services;
 using CrossMacro.Platform.Linux.Strategies;
 using CrossMacro.Platform.Linux.Strategies.Selectors;
+using CrossMacro.TestInfrastructure;
 using NSubstitute;
 using Xunit;
 
@@ -38,7 +39,7 @@ public class LinuxCoordinateStrategyFactoryTests
         _factory = new LinuxCoordinateStrategyFactory(_selectors, _mockEnvironmentDetector);
     }
 
-    [Fact]
+    [LinuxFact]
     public void ForceRelative_ShouldReturnRelativeStrategy_WhenRequested()
     {
         // Arrange
@@ -53,7 +54,7 @@ public class LinuxCoordinateStrategyFactoryTests
         Assert.IsType<RelativeCoordinateStrategy>(result);
     }
 
-    [Fact]
+    [LinuxFact]
     public void Wayland_Absolute_ShouldReturnEvdevAbsoluteStrategy()
     {
         // Arrange
@@ -67,7 +68,7 @@ public class LinuxCoordinateStrategyFactoryTests
         Assert.IsType<EvdevAbsoluteStrategy>(result);
     }
 
-    [Fact]
+    [LinuxFact]
     public void Wayland_Relative_ShouldReturnRelativeStrategy()
     {
         // Arrange
@@ -81,7 +82,7 @@ public class LinuxCoordinateStrategyFactoryTests
         Assert.IsType<RelativeCoordinateStrategy>(result);
     }
 
-    [Fact]
+    [LinuxFact]
     public void X11_Absolute_ShouldReturnAbsoluteStrategy()
     {
         // Arrange
@@ -95,7 +96,7 @@ public class LinuxCoordinateStrategyFactoryTests
         Assert.IsType<AbsoluteCoordinateStrategy>(result);
     }
 
-    [Fact]
+    [LinuxFact]
     public void X11_Relative_ShouldReturnRelativeStrategy()
     {
         // Arrange
@@ -107,5 +108,47 @@ public class LinuxCoordinateStrategyFactoryTests
 
         // Assert
         Assert.IsType<RelativeCoordinateStrategy>(result);
+    }
+
+    [LinuxFact]
+    public void Create_WhenNoSelectorMatches_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.Unknown);
+        _mockEnvironmentDetector.IsWayland.Returns(false);
+        var factory = new LinuxCoordinateStrategyFactory(new List<ICoordinateStrategySelector>(), _mockEnvironmentDetector);
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: false));
+
+        Assert.Contains("No coordinate strategy found", ex.Message, StringComparison.Ordinal);
+    }
+
+    [LinuxFact]
+    public void Create_ForwardsSkipInitialZeroIntoSelectorContext()
+    {
+        // Arrange
+        var selector = Substitute.For<ICoordinateStrategySelector>();
+        selector.Priority.Returns(10);
+        selector.CanHandle(Arg.Any<StrategyContext>()).Returns(true);
+
+        var expected = Substitute.For<ICoordinateStrategy>();
+        selector.Create(Arg.Any<StrategyContext>()).Returns(expected);
+
+        _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.GNOME);
+        _mockEnvironmentDetector.IsWayland.Returns(true);
+        var factory = new LinuxCoordinateStrategyFactory(new[] { selector }, _mockEnvironmentDetector);
+
+        // Act
+        var result = factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: true);
+
+        // Assert
+        Assert.Same(expected, result);
+        selector.Received(1).CanHandle(Arg.Is<StrategyContext>(c =>
+            c.SkipInitialZero &&
+            c.IsWayland &&
+            c.Compositor == CompositorType.GNOME &&
+            c.UseAbsoluteCoordinates));
     }
 }

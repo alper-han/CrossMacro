@@ -9,14 +9,10 @@ command: crossmacro
 finish-args:
   # Display
   - --socket=x11
-  - --socket=wayland
   - --share=ipc
 
   # Input devices (required for Wayland macro recording/playback)
   - --device=all
-
-  # GPU acceleration
-  - --device=dri
 
   # D-Bus: KDE Plasma
   - --talk-name=org.kde.keyboard
@@ -24,10 +20,6 @@ finish-args:
 
   # D-Bus: GNOME
   - --talk-name=org.gnome.Shell
-  - --talk-name=org.gnome.Shell.Extensions
-
-  # D-Bus: Freedesktop
-  - --talk-name=org.freedesktop.Notifications
 
 
   # Filesystem: Compositor IPC

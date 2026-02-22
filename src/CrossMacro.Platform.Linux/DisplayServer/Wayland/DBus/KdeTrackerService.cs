@@ -6,7 +6,8 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 
 public class KdeTrackerService : IMouseTrackerService
 {
-    public ObjectPath ObjectPath => new ObjectPath("/Tracker");
+    public const string TrackerObjectPath = "/io/github/alper_han/crossmacro/Tracker";
+    public ObjectPath ObjectPath => new ObjectPath(TrackerObjectPath);
     private readonly Action<int, int> _onPositionUpdate;
     private readonly Action<int, int> _onResolutionUpdate;
 

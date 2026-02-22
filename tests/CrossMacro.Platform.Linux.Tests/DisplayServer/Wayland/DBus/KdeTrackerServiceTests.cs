@@ -19,6 +19,6 @@ public class KdeTrackerServiceTests
 
         Assert.Equal((120, 240), lastPosition);
         Assert.Equal((1920, 1080), lastResolution);
-        Assert.Equal("/Tracker", service.ObjectPath.ToString());
+        Assert.Equal(KdeTrackerService.TrackerObjectPath, service.ObjectPath.ToString());
     }
 }

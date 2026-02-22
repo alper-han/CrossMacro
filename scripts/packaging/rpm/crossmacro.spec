@@ -10,6 +10,7 @@ Source1:        99-crossmacro.rules
 Source2:        crossmacro.te
 Source3:        50-crossmacro.rules
 Source4:        crossmacro-modules.conf
+Source5:        io.github.alper_han.crossmacro.policy
 
 BuildArch:      x86_64
 AutoReqProv:    no
@@ -55,7 +56,7 @@ cp -r %{_sourcedir}/daemon/* %{buildroot}/usr/lib/%{name}/daemon/
 cp %{_sourcedir}/crossmacro.service %{buildroot}/usr/lib/systemd/system/crossmacro.service
 install -m 0644 %{_sourcedir}/99-crossmacro.rules %{buildroot}/usr/lib/udev/rules.d/99-crossmacro.rules
 install -m 0644 crossmacro.pp %{buildroot}/usr/share/selinux/packages/%{name}/crossmacro.pp
-install -m 0644 %{_sourcedir}/org.crossmacro.policy %{buildroot}/usr/share/polkit-1/actions/org.crossmacro.policy
+install -m 0644 %{_sourcedir}/io.github.alper_han.crossmacro.policy %{buildroot}/usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy
 install -m 0644 %{_sourcedir}/50-crossmacro.rules %{buildroot}/usr/share/polkit-1/rules.d/50-crossmacro.rules
 
 # Install modules-load config
@@ -117,7 +118,7 @@ fi
 /usr/share/applications/%{name}.desktop
 /usr/share/icons/hicolor/*/apps/%{name}.png
 /usr/share/selinux/packages/%{name}/crossmacro.pp
-/usr/share/polkit-1/actions/org.crossmacro.policy
+/usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy
 /usr/share/polkit-1/rules.d/50-crossmacro.rules
 /usr/lib/modules-load.d/crossmacro.conf
 

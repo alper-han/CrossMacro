@@ -18,7 +18,7 @@ public static class AppConstants
     /// <summary>
     /// DBus service namespace for inter-process communication
     /// </summary>
-    public const string DBusNamespace = "org.crossmacro";
+    public const string DBusNamespace = "io.github.alper_han.crossmacro";
     
     /// <summary>
     /// Default recording hotkey

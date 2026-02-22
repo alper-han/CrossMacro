@@ -113,9 +113,9 @@ else
 fi
 
 # Install Policy (Action Definitions)
-# This allows the "org.crossmacro.input-capture" actions to be known to the system.
-cp "$REPO_ROOT/scripts/assets/org.crossmacro.policy" /usr/share/polkit-1/actions/org.crossmacro.policy
-chmod 644 /usr/share/polkit-1/actions/org.crossmacro.policy
+# Install canonical policy.
+cp "$REPO_ROOT/scripts/assets/io.github.alper_han.crossmacro.policy" /usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy
+chmod 644 /usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy
 
 
 # Install Rules (Authorization Logic)
@@ -176,4 +176,3 @@ echo ""
 if [ -n "$SUDO_USER" ]; then
     echo "User '$SUDO_USER' has been added to the 'crossmacro' group."
 fi
-

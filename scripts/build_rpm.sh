@@ -62,7 +62,7 @@ cp "assets/CrossMacro.desktop" "$RPM_BUILD_DIR/SOURCES/CrossMacro.desktop"
 cp "daemon/crossmacro.service" "$RPM_BUILD_DIR/SOURCES/crossmacro.service"
 cp "assets/99-crossmacro.rules" "$RPM_BUILD_DIR/SOURCES/99-crossmacro.rules"
 cp "packaging/rpm/crossmacro.te" "$RPM_BUILD_DIR/SOURCES/crossmacro.te"
-cp "assets/org.crossmacro.policy" "$RPM_BUILD_DIR/SOURCES/org.crossmacro.policy"
+cp "assets/io.github.alper_han.crossmacro.policy" "$RPM_BUILD_DIR/SOURCES/io.github.alper_han.crossmacro.policy"
 cp "assets/50-crossmacro.rules" "$RPM_BUILD_DIR/SOURCES/50-crossmacro.rules"
 cp "assets/crossmacro-modules.conf" "$RPM_BUILD_DIR/SOURCES/crossmacro-modules.conf"
 

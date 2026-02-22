@@ -9,7 +9,7 @@ namespace CrossMacro.Daemon.Security;
 
 /// <summary>
 /// Polkit authorization checker using pkcheck command.
-/// Requires polkitd to be running and org.crossmacro.policy to be installed.
+/// Requires polkitd to be running and a CrossMacro polkit policy file to be installed.
 /// Uses auth_self_keep - user enters their own password, cached for 5 minutes.
 /// 
 /// This implementation uses pkcheck instead of D-Bus for simplicity and
@@ -22,8 +22,8 @@ public static class PolkitChecker
     /// </summary>
     public static class Actions
     {
-        public const string InputCapture = "org.crossmacro.input-capture";
-        public const string InputSimulate = "org.crossmacro.input-simulate";
+        public const string InputCapture = "io.github.alper_han.crossmacro.input-capture";
+        public const string InputSimulate = "io.github.alper_han.crossmacro.input-simulate";
     }
 
     private static bool _polkitAvailable = true;
@@ -38,7 +38,7 @@ public static class PolkitChecker
     /// </summary>
     /// <param name="uid">User ID of the process</param>
     /// <param name="pid">Process ID</param>
-    /// <param name="actionId">Polkit action ID (e.g., org.crossmacro.input-capture)</param>
+    /// <param name="actionId">Polkit action ID (e.g., io.github.alper_han.crossmacro.input-capture)</param>
     /// <returns>True if authorized, false otherwise</returns>
     public static async Task<bool> CheckAuthorizationAsync(uint uid, int pid, string actionId)
     {

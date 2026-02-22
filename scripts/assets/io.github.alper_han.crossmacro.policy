@@ -6,17 +6,17 @@
   <vendor>CrossMacro</vendor>
   <vendor_url>https://github.com/alper-han/CrossMacro</vendor_url>
 
-  <!-- 
+  <!--
     CrossMacro Polkit Actions
-    
+
     auth_self = User enters their OWN password (not root)
     auth_self_keep = Same as auth_self, but cached for 5 minutes
-    
+
     This means users don't need root/admin password,
     just their own login password.
   -->
 
-  <action id="org.crossmacro.input-capture">
+  <action id="io.github.alper_han.crossmacro.input-capture">
     <description>Capture keyboard and mouse input</description>
     <message>CrossMacro needs permission to record your keyboard and mouse input.</message>
     <icon_name>input-keyboard</icon_name>
@@ -29,10 +29,10 @@
     </defaults>
     <!-- Allow the 'crossmacro' user (daemon) to check authorization for other users -->
     <annotate key="org.freedesktop.policykit.owner">unix-user:crossmacro</annotate>
-    <annotate key="org.freedesktop.policykit.imply">org.crossmacro.input-simulate</annotate>
+    <annotate key="org.freedesktop.policykit.imply">io.github.alper_han.crossmacro.input-simulate</annotate>
   </action>
 
-  <action id="org.crossmacro.input-simulate">
+  <action id="io.github.alper_han.crossmacro.input-simulate">
     <description>Simulate keyboard and mouse input</description>
     <message>CrossMacro needs permission to control your keyboard and mouse.</message>
     <icon_name>input-mouse</icon_name>

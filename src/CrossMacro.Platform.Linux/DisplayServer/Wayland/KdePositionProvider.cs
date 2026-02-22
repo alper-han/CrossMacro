@@ -10,6 +10,8 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
 {
     public class KdePositionProvider : IMousePositionProvider
     {
+        private const string TrackerServiceName = "io.github.alper_han.crossmacro.Tracker";
+
         private static readonly string ScriptDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "crossmacro", "scripts");
@@ -88,18 +90,18 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
                 await _dbusConnection.RegisterObjectAsync(_trackerService);
                 
                 // Register the service name so KWin can find it
-                await _dbusConnection.RegisterServiceAsync("org.crossmacro.Tracker");
-                Log.Information("[KdePositionProvider] DBus service registered at org.crossmacro.Tracker");
+                await _dbusConnection.RegisterServiceAsync(TrackerServiceName);
+                Log.Information("[KdePositionProvider] DBus service registered at {ServiceName}", TrackerServiceName);
 
                 ct.ThrowIfCancellationRequested();
 
                 // 2. Create KWin script with DBus calls
                 _tempJsFile = GetSafeScriptPath($"kde_tracker_{Guid.NewGuid()}.js");
                 
-                await File.WriteAllTextAsync(_tempJsFile, @"
-var dbusService = 'org.crossmacro.Tracker';
-var dbusPath = '/Tracker';
-var dbusInterface = 'org.crossmacro.Tracker';
+                var scriptContent = @"
+var dbusService = 'io.github.alper_han.crossmacro.Tracker';
+var dbusPath = '__TRACKER_OBJECT_PATH__';
+var dbusInterface = 'io.github.alper_han.crossmacro.Tracker';
 
 console.error('[CrossMacro] Script started, attempting DBus connection...');
 
@@ -142,7 +144,9 @@ timer.timeout.connect(function() {
 });
 timer.start();
 console.error('[CrossMacro] Position tracking started');
-", ct);
+";
+                scriptContent = scriptContent.Replace("__TRACKER_OBJECT_PATH__", KdeTrackerService.TrackerObjectPath, StringComparison.Ordinal);
+                await File.WriteAllTextAsync(_tempJsFile, scriptContent, ct);
                 
                 await Task.Delay(200, ct);
 

@@ -9,7 +9,7 @@ using Tmds.DBus;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
 {
-    [DBusInterface("org.crossmacro.Tracker")]
+    [DBusInterface("io.github.alper_han.crossmacro.Tracker")]
     public interface IGnomeTrackerService : IDBusObject
     {
         Task<(int x, int y)> GetPositionAsync();
@@ -18,7 +18,10 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
 
     public class GnomePositionProvider : IMousePositionProvider, IExtensionStatusNotifier
     {
-        // Embedded GNOME Shell Extension files - auto-deployed if missing
+        private const string TrackerServiceName = "io.github.alper_han.crossmacro.Tracker";
+        private const string TrackerObjectPath = "/io/github/alper_han/crossmacro/Tracker";
+
+        // Embedded GNOME Shell Extension files - auto-installed/updated when needed
         private const string EXTENSION_JS = @"import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -26,7 +29,7 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const MouseInterface = `
 <node>
-  <interface name=""org.crossmacro.Tracker"">
+  <interface name=""io.github.alper_han.crossmacro.Tracker"">
     <method name=""GetPosition"">
       <arg type=""i"" direction=""out"" name=""x""/>
       <arg type=""i"" direction=""out"" name=""y""/>
@@ -41,10 +44,10 @@ const MouseInterface = `
 export default class CursorSpyExtension extends Extension {
     enable() {
         this._dbusImpl = Gio.DBusExportedObject.wrapJSObject(MouseInterface, this);
-        this._dbusImpl.export(Gio.DBus.session, '/org/crossmacro/Tracker');
+        this._dbusImpl.export(Gio.DBus.session, '/io/github/alper_han/crossmacro/Tracker');
 
         Gio.DBus.session.own_name(
-            'org.crossmacro.Tracker',
+            'io.github.alper_han.crossmacro.Tracker',
             Gio.BusNameOwnerFlags.NONE,
             null,
             null
@@ -126,48 +129,51 @@ export default class CursorSpyExtension extends Extension {
         {
             try
             {
-                bool extensionFilesExist = Directory.Exists(ExtensionPath) && 
-                    File.Exists(ExtensionJsPath) &&
-                    File.Exists(MetadataJsonPath);
-                
-                if (!extensionFilesExist)
-                {
+                bool jsExisted = File.Exists(ExtensionJsPath);
+                bool metadataExisted = File.Exists(MetadataJsonPath);
+                bool wasFreshInstall = !jsExisted || !metadataExisted;
+
+                if (wasFreshInstall)
                     Log.Information("[GnomePositionProvider] Installing GNOME Shell extension to {Path}", ExtensionPath);
-                    Directory.CreateDirectory(ExtensionPath);
-                    
-                    await File.WriteAllTextAsync(ExtensionJsPath, EXTENSION_JS);
-                    await File.WriteAllTextAsync(MetadataJsonPath, METADATA_JSON);
-                    
-                    // Wait for files to be fully written to disk
-                    const int maxWaitMs = 3000;
-                    var elapsedMs = 0;
-                    
-                    while (elapsedMs < maxWaitMs)
-                    {
-                        var jsInfo = new FileInfo(ExtensionJsPath);
-                        var metaInfo = new FileInfo(MetadataJsonPath);
-                        
-                        if (jsInfo.Exists && jsInfo.Length > 0 &&
-                            metaInfo.Exists && metaInfo.Length > 0)
-                        {
-                            Log.Debug("[GnomePositionProvider] Files verified on disk after {Ms}ms", elapsedMs);
-                            break;
-                        }
-                        
-                        await Task.Delay(100);
-                        elapsedMs += 100;
-                    }
-                    
-                    if (elapsedMs >= maxWaitMs)
-                    {
-                        Log.Warning("[GnomePositionProvider] File verification timeout, proceeding anyway");
-                    }
-                    
-                    Log.Information("[GnomePositionProvider] Extension files installed successfully");
+
+                Directory.CreateDirectory(ExtensionPath);
+
+                bool jsUpdated = await EnsureFileContentAsync(ExtensionJsPath, EXTENSION_JS);
+                bool metadataUpdated = await EnsureFileContentAsync(MetadataJsonPath, METADATA_JSON);
+
+                if (jsUpdated || metadataUpdated)
+                {
+                    var action = wasFreshInstall ? "installed" : "updated";
+                    Log.Information("[GnomePositionProvider] Extension files {Action} successfully", action);
                 }
                 else
                 {
-                    Log.Debug("[GnomePositionProvider] Extension files already exist at {Path}", ExtensionPath);
+                    Log.Debug("[GnomePositionProvider] Extension files already up to date at {Path}", ExtensionPath);
+                }
+
+                // Wait for files to be fully written to disk
+                const int maxWaitMs = 3000;
+                var elapsedMs = 0;
+
+                while (elapsedMs < maxWaitMs)
+                {
+                    var jsInfo = new FileInfo(ExtensionJsPath);
+                    var metaInfo = new FileInfo(MetadataJsonPath);
+
+                    if (jsInfo.Exists && jsInfo.Length > 0 &&
+                        metaInfo.Exists && metaInfo.Length > 0)
+                    {
+                        Log.Debug("[GnomePositionProvider] Files verified on disk after {Ms}ms", elapsedMs);
+                        break;
+                    }
+
+                    await Task.Delay(100);
+                    elapsedMs += 100;
+                }
+
+                if (elapsedMs >= maxWaitMs)
+                {
+                    Log.Warning("[GnomePositionProvider] File verification timeout, proceeding anyway");
                 }
             }
             catch (Exception ex)
@@ -175,6 +181,19 @@ export default class CursorSpyExtension extends Extension {
                 Log.Error(ex, "[GnomePositionProvider] Failed to install GNOME extension");
                 ExtensionStatusChanged?.Invoke(this, "Failed to install GNOME extension");
             }
+        }
+
+        internal static async Task<bool> EnsureFileContentAsync(string filePath, string expectedContent)
+        {
+            if (File.Exists(filePath))
+            {
+                var existingContent = await File.ReadAllTextAsync(filePath);
+                if (string.Equals(existingContent, expectedContent, StringComparison.Ordinal))
+                    return false;
+            }
+
+            await File.WriteAllTextAsync(filePath, expectedContent);
+            return true;
         }
         
         private async Task<bool> CheckExtensionEnabledAsync()
@@ -284,7 +303,7 @@ export default class CursorSpyExtension extends Extension {
                 // Now that we are connected, check status via DBus
                 await ValidateExtensionStatusAsync();
                 
-                _proxy = _connection.CreateProxy<IGnomeTrackerService>("org.crossmacro.Tracker", "/org/crossmacro/Tracker");
+                _proxy = _connection.CreateProxy<IGnomeTrackerService>(TrackerServiceName, TrackerObjectPath);
                 _isInitialized = true;
                 _initializationTcs.SetResult(true);
                 Log.Information("[GnomePositionProvider] Connected to DBus service");

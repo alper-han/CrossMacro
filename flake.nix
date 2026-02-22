@@ -126,7 +126,7 @@
 
                   # Install polkit policy file
                   postInstall = ''
-                    install -Dm644 scripts/assets/org.crossmacro.policy $out/share/polkit-1/actions/org.crossmacro.policy
+                    install -Dm644 scripts/assets/io.github.alper_han.crossmacro.policy $out/share/polkit-1/actions/io.github.alper_han.crossmacro.policy
                     install -Dm644 scripts/assets/50-crossmacro.rules $out/share/polkit-1/rules.d/50-crossmacro.rules
                     
                     # Force dependency on libsystemd for runtime P/Invoke resolution
@@ -315,8 +315,8 @@
                 ACTION=="add|change", KERNEL=="event*", ATTRS{name}=="CrossMacro Virtual Input Device", ENV{LIBINPUT_ATTR_POINTER_ACCEL}="0"
               '';
 
-              # Install polkit policy for authorization dialogs
-              environment.etc."polkit-1/actions/org.crossmacro.policy".source = "${cfg.daemonPackage}/share/polkit-1/actions/org.crossmacro.policy";
+              # Install canonical polkit policy for authorization dialogs
+              environment.etc."polkit-1/actions/io.github.alper_han.crossmacro.policy".source = "${cfg.daemonPackage}/share/polkit-1/actions/io.github.alper_han.crossmacro.policy";
               
               # Install polkit rules for passwordless auth (local active sessions only)
               environment.etc."polkit-1/rules.d/50-crossmacro.rules".source = "${cfg.daemonPackage}/share/polkit-1/rules.d/50-crossmacro.rules";

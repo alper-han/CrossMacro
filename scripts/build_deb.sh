@@ -171,7 +171,7 @@ cp "daemon/crossmacro.service" "$DEB_DIR/usr/lib/systemd/system/crossmacro.servi
 # Copy Polkit Policy
 echo "Copying Polkit Policy..."
 mkdir -p "$DEB_DIR/usr/share/polkit-1/actions"
-cp "assets/org.crossmacro.policy" "$DEB_DIR/usr/share/polkit-1/actions/org.crossmacro.policy"
+cp "assets/io.github.alper_han.crossmacro.policy" "$DEB_DIR/usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy"
 
 # Copy Polkit Rules
 echo "Copying Polkit Rules..."

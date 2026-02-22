@@ -21,8 +21,8 @@ public class AppConstantsTests
     [Fact]
     public void DBusNamespace_HasCorrectFormat()
     {
-        AppConstants.DBusNamespace.Should().Be("org.crossmacro");
-        AppConstants.DBusNamespace.Should().StartWith("org.");
+        AppConstants.DBusNamespace.Should().Be("io.github.alper_han.crossmacro");
+        AppConstants.DBusNamespace.Should().StartWith("io.");
     }
 
     [Fact]

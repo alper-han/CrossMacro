@@ -21,7 +21,6 @@ finish-args:
   # D-Bus: KDE Plasma
   - --talk-name=org.kde.keyboard
   - --talk-name=org.kde.KWin
-  - --own-name=org.crossmacro.Tracker
 
   # D-Bus: GNOME
   - --talk-name=org.gnome.Shell
@@ -54,7 +53,6 @@ build-options:
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
 
 cleanup:
-  - /lib/debug
   - '*.pdb'
 
 modules:

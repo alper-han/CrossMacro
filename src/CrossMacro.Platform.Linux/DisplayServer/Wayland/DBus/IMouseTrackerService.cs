@@ -3,7 +3,7 @@ using Tmds.DBus;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 
-[DBusInterface("org.crossmacro.Tracker")]
+[DBusInterface("io.github.alper_han.crossmacro.Tracker")]
 public interface IMouseTrackerService : IDBusObject
 {
     Task UpdatePositionAsync(int x, int y);

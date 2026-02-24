@@ -49,6 +49,7 @@ jobs:
         REPO_VERSION="$(tr -d '\r\n[:space:]' < VERSION)"
         IS_PRERELEASE_RELEASE="false"
         SOURCE_TAG=""
+        ALLOW_PRERELEASE_VERSION_DRIFT="false"
         if ! [[ "$REPO_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
           echo "Invalid VERSION file value: '$REPO_VERSION'"
           exit 1
@@ -80,6 +81,7 @@ jobs:
             INPUT_TAG="${{ github.event.inputs.prerelease_tag }}"
             if [ -n "$INPUT_TAG" ]; then
               SOURCE_TAG="$INPUT_TAG"
+              ALLOW_PRERELEASE_VERSION_DRIFT="true"
               if [[ "$SOURCE_TAG" != v* ]]; then
                 SOURCE_TAG="v$SOURCE_TAG"
               fi
@@ -94,8 +96,12 @@ jobs:
         PACKAGE_VERSION_CANONICAL="${SOURCE_TAG#v}"
         BASE_VERSION="${PACKAGE_VERSION_CANONICAL%%[-+]*}"
         if [ "$BASE_VERSION" != "$REPO_VERSION" ]; then
-          echo "Resolved source tag '$SOURCE_TAG' does not match VERSION '$REPO_VERSION'"
-          exit 1
+          if [ "$ALLOW_PRERELEASE_VERSION_DRIFT" = "true" ]; then
+            echo "Warning: prerelease tag base '$BASE_VERSION' differs from VERSION '$REPO_VERSION' (allowed for manual prerelease)."
+          else
+            echo "Resolved source tag '$SOURCE_TAG' does not match VERSION '$REPO_VERSION'"
+            exit 1
+          fi
         fi
 
         PRERELEASE_LABEL=""

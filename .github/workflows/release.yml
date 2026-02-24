@@ -16,6 +16,11 @@ on:
         type: boolean
         required: false
         default: false
+      publish_aur:
+        description: 'Manually update AUR (disabled by default)'
+        type: boolean
+        required: false
+        default: false
       prerelease_tag:
         description: 'Optional pre-release tag (default: vX.Y.Z-pre.<run_number>)'
         required: false
@@ -427,7 +432,9 @@ jobs:
   update-aur:
     name: Update AUR
     needs: [create-release, build-core]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && needs.build-core.outputs.is_prerelease_release != 'true'
+    if: |
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && needs.build-core.outputs.is_prerelease_release != 'true') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_prerelease == 'true' && github.event.inputs.publish_aur == 'true')
     runs-on: ubuntu-latest
     container: archlinux:base-devel
     steps:

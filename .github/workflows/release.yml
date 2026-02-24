@@ -563,6 +563,9 @@ jobs:
         sed -i "s/pkgver=.*/pkgver=$AUR_PKGVER/" PKGBUILD
         # Pin source tarball to the exact release/pre-release tag used in this run.
         sed -i -E "s#(https://github.com/alper-han/CrossMacro/archive/)[^\" ]+(\\.tar\\.gz)#\\1${SOURCE_TAG}\\2#" PKGBUILD
+        # GitHub tag archives extract into CrossMacro-<tag-without-v>, which differs from normalized AUR pkgver on prereleases.
+        AUR_SRC_DIR="${SOURCE_TAG#v}"
+        sed -i "s#cd \\\"CrossMacro-\\\${pkgver}\\\"#cd \\\"CrossMacro-${AUR_SRC_DIR}\\\"#g" PKGBUILD
         
         # Calculate and update checksum for source tarball only
         wget "https://github.com/alper-han/CrossMacro/archive/$SOURCE_TAG.tar.gz" -O source.tar.gz

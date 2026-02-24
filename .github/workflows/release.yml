@@ -498,6 +498,27 @@ jobs:
     - name: Prepare Package Files
       run: |
         VERSION=${{ needs.build-core.outputs.version }}
+        IS_PRERELEASE="${{ needs.build-core.outputs.is_prerelease_release }}"
+
+        if [ "${{ github.event_name }}" = "push" ]; then
+          SOURCE_TAG="${GITHUB_REF#refs/tags/}"
+        elif [ "$IS_PRERELEASE" = "true" ]; then
+          INPUT_TAG="${{ github.event.inputs.prerelease_tag }}"
+          if [ -n "$INPUT_TAG" ]; then
+            SOURCE_TAG="$INPUT_TAG"
+          else
+            SOURCE_TAG="v${VERSION}-pre.${{ github.run_number }}"
+          fi
+        else
+          SOURCE_TAG="v$VERSION"
+        fi
+
+        AUR_PKGVER="${SOURCE_TAG#v}"
+        AUR_PKGVER="$(echo "$AUR_PKGVER" | sed -E 's/[-+]/./g; s/[^0-9A-Za-z._]/./g; s/\.+/./g; s/^\.//; s/\.$//')"
+        if [ -z "$AUR_PKGVER" ]; then
+          echo "Failed to derive AUR pkgver from tag '$SOURCE_TAG'"
+          exit 1
+        fi
         
         # Copy PKGBUILD and install files from source if not present or to overwrite
         cp scripts/packaging/arch/PKGBUILD aur-repo/
@@ -508,10 +529,12 @@ jobs:
         cd aur-repo
         
         # Update PKGBUILD version
-        sed -i "s/pkgver=.*/pkgver=$VERSION/" PKGBUILD
+        sed -i "s/pkgver=.*/pkgver=$AUR_PKGVER/" PKGBUILD
+        # Pin source tarball to the exact release/pre-release tag used in this run.
+        sed -i -E "s#(https://github.com/alper-han/CrossMacro/archive/)[^\" ]+(\\.tar\\.gz)#\\1${SOURCE_TAG}\\2#" PKGBUILD
         
         # Calculate and update checksum for source tarball only
-        wget "https://github.com/alper-han/CrossMacro/archive/v$VERSION.tar.gz" -O source.tar.gz
+        wget "https://github.com/alper-han/CrossMacro/archive/$SOURCE_TAG.tar.gz" -O source.tar.gz
         SHA256=$(sha256sum source.tar.gz | cut -d' ' -f1)
         sed -i "/^sha256sums=/,/)$/c\\sha256sums=('$SHA256'\n            'SKIP'\n            'SKIP')  # sysusers and modules config checksums (local files)" PKGBUILD
         rm source.tar.gz
@@ -526,6 +549,21 @@ jobs:
         GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o HostKeyAlgorithms=ssh-ed25519
       run: |
         VERSION=${{ needs.build-core.outputs.version }}
+        IS_PRERELEASE="${{ needs.build-core.outputs.is_prerelease_release }}"
+        if [ "${{ github.event_name }}" = "push" ]; then
+          SOURCE_TAG="${GITHUB_REF#refs/tags/}"
+        elif [ "$IS_PRERELEASE" = "true" ]; then
+          INPUT_TAG="${{ github.event.inputs.prerelease_tag }}"
+          if [ -n "$INPUT_TAG" ]; then
+            SOURCE_TAG="$INPUT_TAG"
+          else
+            SOURCE_TAG="v${VERSION}-pre.${{ github.run_number }}"
+          fi
+        else
+          SOURCE_TAG="v$VERSION"
+        fi
+        AUR_PKGVER="${SOURCE_TAG#v}"
+        AUR_PKGVER="$(echo "$AUR_PKGVER" | sed -E 's/[-+]/./g; s/[^0-9A-Za-z._]/./g; s/\.+/./g; s/^\.//; s/\.$//')"
         cd aur-repo
         
         git config --global user.name "GitHub Actions"
@@ -536,7 +574,7 @@ jobs:
         git add PKGBUILD .SRCINFO crossmacro.install crossmacro.sysusers crossmacro-modules.conf
         
         if ! git diff --quiet --cached; then
-          git commit -m "Update to version $VERSION"
+          git commit -m "Update to version $AUR_PKGVER (source $SOURCE_TAG)"
           git push origin master
         else
           echo "No changes to commit."

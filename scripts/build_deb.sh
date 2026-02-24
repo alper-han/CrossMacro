@@ -8,13 +8,16 @@ source "$SCRIPT_DIR/lib/version.sh"
 # Configuration
 APP_NAME="crossmacro"
 VERSION="$(get_version)"
+PACKAGE_VERSION="$(to_filename_version)"
+DEB_VERSION="$(to_deb_version)"
 ARCH="amd64"
 PUBLISH_DIR="${PUBLISH_DIR:-../publish}"  # Use env var or default to ../publish
 DEB_DIR="deb_package"
 ICON_PATH="../src/CrossMacro.UI/Assets/mouse-icon.png"
+OUTPUT_DEB="${APP_NAME}-${DEB_VERSION}_${ARCH}.deb"
 
 # Clean previous build
-rm -rf "$DEB_DIR" "${APP_NAME}-${VERSION}_${ARCH}.deb"
+rm -rf "$DEB_DIR" "$OUTPUT_DEB"
 
 # Verify publish directory exists
 if [ ! -d "$PUBLISH_DIR" ]; then
@@ -41,7 +44,7 @@ mkdir -p "$DEB_DIR/usr/share/icons/hicolor"
 echo "Creating control file..."
 cat > "$DEB_DIR/DEBIAN/control" << EOF
 Package: $APP_NAME
-Version: $VERSION
+Version: $DEB_VERSION
 Section: utils
 Priority: optional
 Architecture: $ARCH
@@ -201,8 +204,8 @@ cp "assets/CrossMacro.desktop" "$DEB_DIR/usr/share/applications/$APP_NAME.deskto
 # 5. Build DEB Package
 echo "Building DEB package..."
 if command -v dpkg-deb &> /dev/null; then
-    dpkg-deb --build "$DEB_DIR" "${APP_NAME}-${VERSION}_${ARCH}.deb"
-    echo "DEB package created: ${APP_NAME}-${VERSION}_${ARCH}.deb"
+    dpkg-deb --build "$DEB_DIR" "$OUTPUT_DEB"
+    echo "DEB package created: $OUTPUT_DEB (tag version: $PACKAGE_VERSION)"
 else
     echo "Error: dpkg-deb not found. Cannot build .deb package."
     echo "The directory structure is ready in '$DEB_DIR'."

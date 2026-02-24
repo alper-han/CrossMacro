@@ -7,6 +7,7 @@ source "$SCRIPT_DIR/lib/version.sh"
 
 APP_NAME="CrossMacro"
 VERSION="$(get_version)"
+PACKAGE_VERSION="$(to_filename_version)"
 PUBLISH_DIR="${PUBLISH_DIR:-../publish}"
 APP_DIR="AppDir"
 APPIMAGETOOL_NAME="appimagetool-x86_64.AppImage"
@@ -135,7 +136,7 @@ export ARCH=x86_64 PATH=$PWD:$PATH
 TOOL_CMD="./$APPIMAGETOOL_NAME"
 command -v appimage-run &>/dev/null && TOOL_CMD="appimage-run $TOOL_CMD"
 
-$TOOL_CMD --no-appstream "$APP_DIR" "CrossMacro-$VERSION-x86_64.AppImage"
+$TOOL_CMD --no-appstream "$APP_DIR" "CrossMacro-$PACKAGE_VERSION-x86_64.AppImage"
 
 rm -f "$APPIMAGETOOL_NAME"
 echo "Build complete!"

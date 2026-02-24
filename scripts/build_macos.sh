@@ -7,12 +7,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/version.sh
 source "$SCRIPT_DIR/lib/version.sh"
 VERSION="$(get_version)"
+PACKAGE_VERSION="$(to_filename_version)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 OUTPUT_DIR="${OUTPUT_DIR:-$SCRIPT_DIR/macos_output}"
 APP_BUNDLE="$OUTPUT_DIR/$APP_NAME.app"
 
 echo "=== CrossMacro macOS Build Script ==="
-echo "Version: $VERSION"
+echo "Version: $PACKAGE_VERSION"
 echo "Output: $OUTPUT_DIR"
 
 rm -rf "$OUTPUT_DIR"
@@ -127,7 +128,7 @@ echo ""
 echo "=== Packaging ==="
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    DMG_NAME="$APP_NAME-$VERSION-$RID.dmg"
+    DMG_NAME="$APP_NAME-$PACKAGE_VERSION-$RID.dmg"
     DMG_PATH="$OUTPUT_DIR/$DMG_NAME"
     
     echo "Creating DMG: $DMG_PATH"
@@ -175,7 +176,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 else
     echo "Not running on macOS, skipping DMG creation."
     
-    ARCHIVE_NAME="$APP_NAME-$VERSION-$RID-macos.zip"
+    ARCHIVE_NAME="$APP_NAME-$PACKAGE_VERSION-$RID-macos.zip"
     ARCHIVE_PATH="$OUTPUT_DIR/$ARCHIVE_NAME"
     
     echo "Creating ZIP archive: $ARCHIVE_PATH"

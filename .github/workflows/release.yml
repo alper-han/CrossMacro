@@ -36,6 +36,9 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       is_prerelease_release: ${{ steps.version.outputs.is_prerelease_release }}
+      source_tag: ${{ steps.version.outputs.source_tag }}
+      package_version_canonical: ${{ steps.version.outputs.package_version_canonical }}
+      prerelease_label: ${{ steps.version.outputs.prerelease_label }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
@@ -45,21 +48,25 @@ jobs:
       run: |
         REPO_VERSION="$(tr -d '\r\n[:space:]' < VERSION)"
         IS_PRERELEASE_RELEASE="false"
+        SOURCE_TAG=""
         if ! [[ "$REPO_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
           echo "Invalid VERSION file value: '$REPO_VERSION'"
           exit 1
         fi
 
         if [ "${{ github.event_name }}" == "push" ]; then
-          TAG_VERSION="${GITHUB_REF#refs/tags/}"
-          TAG_VERSION="${TAG_VERSION#v}"
-          TAG_VERSION="${TAG_VERSION#.}"
-          BASE_TAG_VERSION="${TAG_VERSION%%-*}"
+          SOURCE_TAG="${GITHUB_REF#refs/tags/}"
+          if [[ "$SOURCE_TAG" != v* ]]; then
+            echo "Tag '$SOURCE_TAG' must start with 'v'"
+            exit 1
+          fi
+          TAG_VERSION="${SOURCE_TAG#v}"
+          BASE_TAG_VERSION="${TAG_VERSION%%[-+]*}"
           if [ "$BASE_TAG_VERSION" != "$REPO_VERSION" ]; then
             echo "Tag version '$TAG_VERSION' does not match VERSION file '$REPO_VERSION' (or X.Y.Z-suffix form)"
             exit 1
           fi
-          if [ "$TAG_VERSION" != "$BASE_TAG_VERSION" ]; then
+          if [[ "$TAG_VERSION" == *-* ]]; then
             IS_PRERELEASE_RELEASE="true"
           fi
         else
@@ -70,12 +77,43 @@ jobs:
           fi
           if [ "${{ github.event.inputs.publish_prerelease }}" = "true" ]; then
             IS_PRERELEASE_RELEASE="true"
+            INPUT_TAG="${{ github.event.inputs.prerelease_tag }}"
+            if [ -n "$INPUT_TAG" ]; then
+              SOURCE_TAG="$INPUT_TAG"
+              if [[ "$SOURCE_TAG" != v* ]]; then
+                SOURCE_TAG="v$SOURCE_TAG"
+              fi
+            else
+              SOURCE_TAG="v${REPO_VERSION}-pre.${{ github.run_number }}"
+            fi
+          else
+            SOURCE_TAG="v$REPO_VERSION"
           fi
         fi
+
+        PACKAGE_VERSION_CANONICAL="${SOURCE_TAG#v}"
+        BASE_VERSION="${PACKAGE_VERSION_CANONICAL%%[-+]*}"
+        if [ "$BASE_VERSION" != "$REPO_VERSION" ]; then
+          echo "Resolved source tag '$SOURCE_TAG' does not match VERSION '$REPO_VERSION'"
+          exit 1
+        fi
+
+        PRERELEASE_LABEL=""
+        if [ "$PACKAGE_VERSION_CANONICAL" != "$BASE_VERSION" ] && [[ "$PACKAGE_VERSION_CANONICAL" == *-* ]]; then
+          PRERELEASE_LABEL="${PACKAGE_VERSION_CANONICAL#*-}"
+          PRERELEASE_LABEL="${PRERELEASE_LABEL%%+*}"
+        fi
+        if [ "$IS_PRERELEASE_RELEASE" = "false" ] && [ -n "$PRERELEASE_LABEL" ]; then
+          IS_PRERELEASE_RELEASE="true"
+        fi
+
         VERSION="$REPO_VERSION"
-        echo "Using version: $VERSION (prerelease=$IS_PRERELEASE_RELEASE)"
+        echo "Using version: $VERSION (source_tag=$SOURCE_TAG prerelease=$IS_PRERELEASE_RELEASE)"
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "is_prerelease_release=$IS_PRERELEASE_RELEASE" >> $GITHUB_OUTPUT
+        echo "source_tag=$SOURCE_TAG" >> $GITHUB_OUTPUT
+        echo "package_version_canonical=$PACKAGE_VERSION_CANONICAL" >> $GITHUB_OUTPUT
+        echo "prerelease_label=$PRERELEASE_LABEL" >> $GITHUB_OUTPUT
 
     - name: Sync versioned manifests
       run: |
@@ -177,7 +215,7 @@ jobs:
       run: |
         cd scripts
         chmod +x build_deb.sh
-        VERSION="${{ needs.build-core.outputs.version }}" PUBLISH_DIR="../publish" DAEMON_DIR="../publish-daemon" ./build_deb.sh
+        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" PUBLISH_DIR="../publish" DAEMON_DIR="../publish-daemon" ./build_deb.sh
     
     - name: Upload DEB artifact
       uses: actions/upload-artifact@v6
@@ -216,7 +254,7 @@ jobs:
       run: |
         cd scripts
         chmod +x build_rpm.sh
-        VERSION="${{ needs.build-core.outputs.version }}" PUBLISH_DIR="../publish" DAEMON_DIR="../publish-daemon" ./build_rpm.sh
+        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" PUBLISH_DIR="../publish" DAEMON_DIR="../publish-daemon" ./build_rpm.sh
     
     - name: Upload RPM artifact
       uses: actions/upload-artifact@v6
@@ -249,7 +287,7 @@ jobs:
       run: |
         cd scripts
         chmod +x build_appimage.sh
-        VERSION="${{ needs.build-core.outputs.version }}" PUBLISH_DIR="../publish" ./build_appimage.sh
+        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" PUBLISH_DIR="../publish" ./build_appimage.sh
     
     - name: Upload AppImage artifact
       uses: actions/upload-artifact@v6
@@ -284,7 +322,7 @@ jobs:
       run: |
         cd scripts
         chmod +x build_flatpak.sh
-        VERSION="${{ needs.build-core.outputs.version }}" PUBLISH_DIR="../publish" ./build_flatpak.sh
+        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" PUBLISH_DIR="../publish" ./build_flatpak.sh
     
     - name: Upload Flatpak artifact
       uses: actions/upload-artifact@v6
@@ -307,7 +345,7 @@ jobs:
 
     - name: Rename executable
       run: |
-        mv publish-windows/CrossMacro.UI.exe publish-windows/CrossMacro-${{ needs.build-core.outputs.version }}-win-x64.exe
+        mv publish-windows/CrossMacro.UI.exe publish-windows/CrossMacro-${{ needs.build-core.outputs.package_version_canonical }}-win-x64.exe
 
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v6
@@ -355,7 +393,7 @@ jobs:
       run: |
         $sdkPath = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\10.*\x64\makeappx.exe" |
                    Sort-Object -Descending | Select-Object -First 1
-        & $sdkPath pack /d msix-content /p CrossMacro-${{ needs.build-core.outputs.version }}.msix /nv
+        & $sdkPath pack /d msix-content /p CrossMacro-${{ needs.build-core.outputs.package_version_canonical }}.msix /nv
 
     - name: Upload MSIX artifact
       uses: actions/upload-artifact@v6
@@ -389,6 +427,8 @@ jobs:
       env:
         RID: osx-arm64
         VERSION: ${{ needs.build-core.outputs.version }}
+        SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
+        PACKAGE_VERSION_CANONICAL: ${{ needs.build-core.outputs.package_version_canonical }}
     
     - name: Upload macOS ARM64 DMG
       uses: actions/upload-artifact@v6
@@ -421,6 +461,8 @@ jobs:
       env:
         RID: osx-x64
         VERSION: ${{ needs.build-core.outputs.version }}
+        SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
+        PACKAGE_VERSION_CANONICAL: ${{ needs.build-core.outputs.package_version_canonical }}
     
     - name: Upload macOS x64 DMG
       uses: actions/upload-artifact@v6
@@ -497,28 +539,11 @@ jobs:
     
     - name: Prepare Package Files
       run: |
-        VERSION=${{ needs.build-core.outputs.version }}
-        IS_PRERELEASE="${{ needs.build-core.outputs.is_prerelease_release }}"
-
-        if [ "${{ github.event_name }}" = "push" ]; then
-          SOURCE_TAG="${GITHUB_REF#refs/tags/}"
-        elif [ "$IS_PRERELEASE" = "true" ]; then
-          INPUT_TAG="${{ github.event.inputs.prerelease_tag }}"
-          if [ -n "$INPUT_TAG" ]; then
-            SOURCE_TAG="$INPUT_TAG"
-          else
-            SOURCE_TAG="v${VERSION}-pre.${{ github.run_number }}"
-          fi
-        else
-          SOURCE_TAG="v$VERSION"
-        fi
-
-        AUR_PKGVER="${SOURCE_TAG#v}"
-        AUR_PKGVER="$(echo "$AUR_PKGVER" | sed -E 's/[-+]/./g; s/[^0-9A-Za-z._]/./g; s/\.+/./g; s/^\.//; s/\.$//')"
-        if [ -z "$AUR_PKGVER" ]; then
-          echo "Failed to derive AUR pkgver from tag '$SOURCE_TAG'"
-          exit 1
-        fi
+        SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}"
+        # shellcheck source=scripts/lib/version.sh
+        source scripts/lib/version.sh
+        export SOURCE_TAG
+        AUR_PKGVER="$(to_aur_pkgver)"
         
         # Copy PKGBUILD and install files from source if not present or to overwrite
         cp scripts/packaging/arch/PKGBUILD aur-repo/
@@ -548,22 +573,11 @@ jobs:
       env:
         GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o HostKeyAlgorithms=ssh-ed25519
       run: |
-        VERSION=${{ needs.build-core.outputs.version }}
-        IS_PRERELEASE="${{ needs.build-core.outputs.is_prerelease_release }}"
-        if [ "${{ github.event_name }}" = "push" ]; then
-          SOURCE_TAG="${GITHUB_REF#refs/tags/}"
-        elif [ "$IS_PRERELEASE" = "true" ]; then
-          INPUT_TAG="${{ github.event.inputs.prerelease_tag }}"
-          if [ -n "$INPUT_TAG" ]; then
-            SOURCE_TAG="$INPUT_TAG"
-          else
-            SOURCE_TAG="v${VERSION}-pre.${{ github.run_number }}"
-          fi
-        else
-          SOURCE_TAG="v$VERSION"
-        fi
-        AUR_PKGVER="${SOURCE_TAG#v}"
-        AUR_PKGVER="$(echo "$AUR_PKGVER" | sed -E 's/[-+]/./g; s/[^0-9A-Za-z._]/./g; s/\.+/./g; s/^\.//; s/\.$//')"
+        SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}"
+        # shellcheck source=scripts/lib/version.sh
+        source scripts/lib/version.sh
+        export SOURCE_TAG
+        AUR_PKGVER="$(to_aur_pkgver)"
         cd aur-repo
         
         git config --global user.name "GitHub Actions"
@@ -602,22 +616,14 @@ jobs:
       id: release_meta
       run: |
         VERSION="${{ needs.build-core.outputs.version }}"
+        PACKAGE_VERSION="${{ needs.build-core.outputs.package_version_canonical }}"
+        TAG="${{ needs.build-core.outputs.source_tag }}"
         IS_PRERELEASE="${{ needs.build-core.outputs.is_prerelease_release }}"
-        if [ "${{ github.event_name }}" = "push" ]; then
-          TAG="${GITHUB_REF#refs/tags/}"
-        else
-          INPUT_TAG="${{ github.event.inputs.prerelease_tag }}"
-          if [ -n "$INPUT_TAG" ]; then
-            TAG="$INPUT_TAG"
-          else
-            TAG="v${VERSION}-pre.${{ github.run_number }}"
-          fi
-        fi
 
         if [ "$IS_PRERELEASE" = "true" ]; then
           PRERELEASE="true"
           MAKE_LATEST="false"
-          RELEASE_NAME="CrossMacro v${VERSION} (Pre-release)"
+          RELEASE_NAME="CrossMacro v${PACKAGE_VERSION} (Pre-release)"
         else
           PRERELEASE="false"
           MAKE_LATEST="true"

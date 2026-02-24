@@ -7,13 +7,14 @@ source "$SCRIPT_DIR/lib/version.sh"
 
 APP_ID="io.github.alper_han.crossmacro"
 VERSION="$(get_version)"
+PACKAGE_VERSION="$(to_filename_version)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 FLATPAK_DIR="$PROJECT_ROOT/flatpak"
 BUILD_DIR="$SCRIPT_DIR/flatpak-source"
 PUBLISH_DIR="${PUBLISH_DIR:-$PROJECT_ROOT/publish}"
 
 echo "=== CrossMacro Flatpak Builder ==="
-echo "Version: $VERSION"
+echo "Version: $PACKAGE_VERSION"
 echo "App ID: $APP_ID"
 
 # Verify publish directory
@@ -78,17 +79,17 @@ flatpak-builder --force-clean --user \
 # Create repo and bundle
 echo "Creating Flatpak bundle..."
 flatpak-builder --repo=repo --force-clean --disable-updates build-dir "$APP_ID.yml"
-flatpak build-bundle repo "$APP_ID-$VERSION.flatpak" "$APP_ID"
+flatpak build-bundle repo "$APP_ID-$PACKAGE_VERSION.flatpak" "$APP_ID"
 
 # Cleanup
 rm -rf build-dir repo "$BUILD_DIR" crossmacro-flatpak-source.tar.gz
 
 echo ""
 echo "=== Build Complete ==="
-echo "Output: $FLATPAK_DIR/$APP_ID-$VERSION.flatpak"
+echo "Output: $FLATPAK_DIR/$APP_ID-$PACKAGE_VERSION.flatpak"
 echo ""
 echo "To install locally:"
-echo "  flatpak --user install $FLATPAK_DIR/$APP_ID-$VERSION.flatpak"
+echo "  flatpak --user install $FLATPAK_DIR/$APP_ID-$PACKAGE_VERSION.flatpak"
 echo ""
 echo "To run:"
 echo "  flatpak run $APP_ID"

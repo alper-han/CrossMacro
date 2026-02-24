@@ -1,6 +1,6 @@
 Name:           crossmacro
 Version:        %{version}
-Release:        1%{?dist}
+Release:        %{?release}%{!?release:1}%{?dist}
 Summary:        Mouse and Keyboard Macro Automation Tool
 
 License:        GPL-3.0

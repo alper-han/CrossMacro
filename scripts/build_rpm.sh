@@ -8,6 +8,9 @@ source "$SCRIPT_DIR/lib/version.sh"
 # Configuration
 APP_NAME="crossmacro"
 VERSION="$(get_version)"
+RPM_VERSION="$(to_rpm_version)"
+RPM_RELEASE="$(to_rpm_release)"
+PACKAGE_VERSION="$(to_filename_version)"
 PUBLISH_DIR="${PUBLISH_DIR:-../publish}"  # Use env var or default to ../publish
 RPM_BUILD_DIR="rpm_build"
 ICON_PATH="../src/CrossMacro.UI/Assets/mouse-icon.png"
@@ -78,13 +81,14 @@ echo "Building RPM package..."
 if command -v rpmbuild &> /dev/null; then
     rpmbuild --define "_topdir $(pwd)/$RPM_BUILD_DIR" \
              --define "_sourcedir $(pwd)/$RPM_BUILD_DIR/SOURCES" \
-             --define "version $VERSION" \
+             --define "version $RPM_VERSION" \
+             --define "release $RPM_RELEASE" \
              --nodeps \
              -bb "$RPM_BUILD_DIR/SPECS/crossmacro.spec"
     
     # Copy RPM to scripts directory for GitHub release
     cp "$RPM_BUILD_DIR"/RPMS/x86_64/*.rpm .
-    echo "RPM package created: $(ls *.rpm)"
+    echo "RPM package created for version: $PACKAGE_VERSION"
 else
     echo "Error: rpmbuild not found. Cannot build .rpm package."
     echo "The directory structure is ready in '$RPM_BUILD_DIR'."

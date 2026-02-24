@@ -31,12 +31,12 @@
     <TrimmerRootAssembly Include="Serilog.Sinks.Async" />
   </ItemGroup>
 
-  <!-- Tmds.DBus relies on reflection/Emit; keep it untrimmed for stable Linux DBus behavior. -->
-  <Target Name="DisableTrimmingForTmdsDbus"
+  <!-- DBus stack relies on dynamic access; keep critical Linux DBus assemblies untrimmed. -->
+  <Target Name="KeepDbusPathUntrimmed"
           AfterTargets="_ComputeManagedAssemblyToLink"
           Condition="'$(PublishTrimmed)' == 'true'">
     <ItemGroup>
-      <ManagedAssemblyToLink Condition="'%(ManagedAssemblyToLink.Filename)' == 'Tmds.DBus'">
+      <ManagedAssemblyToLink Condition="'%(ManagedAssemblyToLink.Filename)' == 'Tmds.DBus' or '%(ManagedAssemblyToLink.Filename)' == 'Tmds.DBus.Protocol' or '%(ManagedAssemblyToLink.Filename)' == 'CrossMacro.Platform.Linux'">
         <TrimMode>copy</TrimMode>
       </ManagedAssemblyToLink>
     </ItemGroup>

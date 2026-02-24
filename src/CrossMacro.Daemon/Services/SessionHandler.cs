@@ -219,6 +219,13 @@ public class SessionHandler : ISessionHandler
                 return (byte)InputEventType.MouseScroll;
             return (byte)InputEventType.MouseMove;
         }
+
+        if (type == UInputNative.EV_ABS)
+        {
+            // Some devices (e.g. QEMU USB Tablet) report pointer motion as ABS_X/ABS_Y.
+            if (code == UInputNative.ABS_X || code == UInputNative.ABS_Y)
+                return (byte)InputEventType.MouseMove;
+        }
         
         if (type == UInputNative.EV_SYN) 
             return (byte)InputEventType.Sync;

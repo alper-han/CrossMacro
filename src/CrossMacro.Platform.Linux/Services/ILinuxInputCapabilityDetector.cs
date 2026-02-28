@@ -13,7 +13,12 @@ public enum InputProviderMode
     /// <summary>
     /// Use direct /dev/uinput access (requires root or input group).
     /// </summary>
-    Legacy
+    Legacy,
+
+    /// <summary>
+    /// No usable input backend is available.
+    /// </summary>
+    None
 }
 
 /// <summary>

@@ -10,6 +10,7 @@ public class LinuxIpcInputCapture : IInputCapture
 {
     private static int _captureInstanceSequence;
     private readonly IpcClient _client;
+    private readonly Func<bool> _isSupportedProbe;
     private readonly string _consumerId;
     private readonly Lock _stateLock = new();
     private bool _captureMouse = true;
@@ -19,14 +20,15 @@ public class LinuxIpcInputCapture : IInputCapture
 
     public string ProviderName => "Secure Daemon (Evdev)";
 
-    public bool IsSupported => true; // If daemon is installed
+    public bool IsSupported => !_disposed && (_client.IsConnected || IsProbeSupported());
 
     public event EventHandler<InputCaptureEventArgs>? InputReceived;
     public event EventHandler<string>? Error;
 
-    public LinuxIpcInputCapture(IpcClient client, string? consumerId = null)
+    public LinuxIpcInputCapture(IpcClient client, string? consumerId = null, Func<bool>? isSupportedProbe = null)
     {
         _client = client;
+        _isSupportedProbe = isSupportedProbe ?? (() => true);
         _consumerId = string.IsNullOrWhiteSpace(consumerId)
             ? $"linux-ipc-capture-{Interlocked.Increment(ref _captureInstanceSequence)}"
             : consumerId;
@@ -163,5 +165,17 @@ public class LinuxIpcInputCapture : IInputCapture
         _client.ErrorOccurred -= OnClientErrorOccurred;
         _disposed = true;
         GC.SuppressFinalize(this);
+    }
+
+    private bool IsProbeSupported()
+    {
+        try
+        {
+            return _isSupportedProbe();
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

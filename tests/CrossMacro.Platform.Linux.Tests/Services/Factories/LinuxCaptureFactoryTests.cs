@@ -73,4 +73,31 @@ public class LinuxCaptureFactoryTests
         Assert.Same(legacy, result);
         Assert.False(x11FactoryCalled);
     }
+
+    [LinuxFact]
+    public void Create_WhenWaylandAndNoneMode_ReturnsUnsupportedCapture()
+    {
+        // Arrange
+        var env = Substitute.For<ILinuxEnvironmentDetector>();
+        env.IsWayland.Returns(true);
+        var capability = Substitute.For<ILinuxInputCapabilityDetector>();
+        capability.DetermineMode().Returns(InputProviderMode.None);
+
+        var legacy = new LinuxInputCapture();
+        using var ipc = new LinuxIpcInputCapture(new IpcClient(() => "/tmp/non-existent.sock"), "test-capture");
+
+        var factory = new LinuxCaptureFactory(
+            env,
+            capability,
+            () => legacy,
+            () => ipc,
+            () => throw new InvalidOperationException("X11 factory should not be used in wayland path"));
+
+        // Act
+        var result = factory.Create();
+
+        // Assert
+        Assert.False(result.IsSupported);
+        Assert.IsType<UnavailableInputCapture>(result);
+    }
 }

@@ -52,6 +52,14 @@ public class LinuxSimulatorFactory
                 return _ipcFactory();
             }
 
+            if (mode == InputProviderMode.None)
+            {
+                LoggingExtensions.LogOnce("LinuxSimulatorFactory_Wayland_None",
+                    "[LinuxSimulatorFactory] Wayland detected ({0}), no usable input backend found. Returning unsupported simulator.",
+                    _environmentDetector.DetectedCompositor);
+                return new UnavailableInputSimulator();
+            }
+
             // Fallback to legacy evdev (works with input group or Flatpak --device=all)
             LoggingExtensions.LogOnce("LinuxSimulatorFactory_Wayland_Legacy",
                 "[LinuxSimulatorFactory] Wayland detected ({0}), daemon not available, using Legacy evdev Simulator",
@@ -71,9 +79,12 @@ public class LinuxSimulatorFactory
         var fallbackMode = _capabilityDetector.DetermineMode();
         LoggingExtensions.LogOnce("LinuxSimulatorFactory_Fallback", "[LinuxSimulatorFactory] Fallback mode: {0}", fallbackMode);
 
-        return fallbackMode == InputProviderMode.Legacy
-            ? _legacyFactory()
-            : _ipcFactory();
+        return fallbackMode switch
+        {
+            InputProviderMode.Legacy => _legacyFactory(),
+            InputProviderMode.Daemon => _ipcFactory(),
+            _ => new UnavailableInputSimulator()
+        };
     }
 
 }

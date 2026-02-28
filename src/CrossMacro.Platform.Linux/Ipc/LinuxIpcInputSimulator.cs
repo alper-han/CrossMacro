@@ -8,14 +8,16 @@ namespace CrossMacro.Platform.Linux.Ipc;
 public class LinuxIpcInputSimulator : IInputSimulator
 {
     private readonly IpcClient _client;
+    private readonly Func<bool> _isSupportedProbe;
     private bool _disposed;
 
     public string ProviderName => "Secure Daemon (UInput)";
-    public bool IsSupported => true; // Assuming daemon handles checks
+    public bool IsSupported => !_disposed && (_client.IsConnected || IsProbeSupported());
 
-    public LinuxIpcInputSimulator(IpcClient client)
+    public LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSupportedProbe = null)
     {
         _client = client;
+        _isSupportedProbe = isSupportedProbe ?? (() => true);
     }
 
     private const ushort EV_KEY = 0x01;
@@ -136,6 +138,18 @@ public class LinuxIpcInputSimulator : IInputSimulator
         {
             // Client lifecycle is likely external or shared
             _disposed = true;
+        }
+    }
+
+    private bool IsProbeSupported()
+    {
+        try
+        {
+            return _isSupportedProbe();
+        }
+        catch
+        {
+            return false;
         }
     }
 }

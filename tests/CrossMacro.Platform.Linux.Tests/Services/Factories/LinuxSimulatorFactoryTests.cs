@@ -73,4 +73,31 @@ public class LinuxSimulatorFactoryTests
         Assert.Same(legacy, result);
         Assert.False(x11FactoryCalled);
     }
+
+    [LinuxFact]
+    public void Create_WhenWaylandAndNoneMode_ReturnsUnsupportedSimulator()
+    {
+        // Arrange
+        var env = Substitute.For<ILinuxEnvironmentDetector>();
+        env.IsWayland.Returns(true);
+        var capability = Substitute.For<ILinuxInputCapabilityDetector>();
+        capability.DetermineMode().Returns(InputProviderMode.None);
+
+        var legacy = new LinuxInputSimulator();
+        using var ipc = new LinuxIpcInputSimulator(new IpcClient(() => "/tmp/non-existent.sock"));
+
+        var factory = new LinuxSimulatorFactory(
+            env,
+            capability,
+            () => legacy,
+            () => ipc,
+            () => throw new InvalidOperationException("X11 factory should not be used in wayland path"));
+
+        // Act
+        var result = factory.Create();
+
+        // Assert
+        Assert.False(result.IsSupported);
+        Assert.IsType<UnavailableInputSimulator>(result);
+    }
 }

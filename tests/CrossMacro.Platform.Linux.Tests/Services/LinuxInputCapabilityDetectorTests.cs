@@ -64,7 +64,7 @@ public class LinuxInputCapabilityDetectorTests
     }
 
     [LinuxFact]
-    public void DetermineMode_WhenSocketExistsButHandshakeFailsAndUInputUnavailable_KeepsDaemonMode()
+    public void DetermineMode_WhenSocketExistsButHandshakeFailsAndUInputUnavailable_ReturnsNone()
     {
         // Arrange
         var detector = new LinuxInputCapabilityDetector(
@@ -78,7 +78,26 @@ public class LinuxInputCapabilityDetectorTests
 
         // Assert
         Assert.False(detector.CanConnectToDaemon);
-        Assert.Equal(InputProviderMode.Daemon, mode);
+        Assert.Equal(InputProviderMode.None, mode);
+    }
+
+    [LinuxFact]
+    public void DetermineMode_WhenNoDaemonAndNoUInput_ReturnsNone()
+    {
+        // Arrange
+        var detector = new LinuxInputCapabilityDetector(
+            fileExists: _ => false,
+            canOpenForWrite: _ => false,
+            daemonHandshakeProbe: _ => false,
+            utcNow: () => DateTime.UtcNow);
+
+        // Act
+        var mode = detector.DetermineMode();
+
+        // Assert
+        Assert.False(detector.CanConnectToDaemon);
+        Assert.False(detector.CanUseDirectUInput);
+        Assert.Equal(InputProviderMode.None, mode);
     }
 
     [LinuxFact]

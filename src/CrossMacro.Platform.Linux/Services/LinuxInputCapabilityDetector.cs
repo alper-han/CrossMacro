@@ -153,10 +153,10 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
             if (!_canUseDirectUInput.Value && IsDaemonSocketPresent())
             {
                 Log.Warning(
-                    "[LinuxInputCapabilityDetector] Daemon handshake probe failed, but daemon socket is present and direct uinput is unavailable. Keeping DAEMON mode to avoid unusable LEGACY fallback.");
-                _cachedMode = InputProviderMode.Daemon;
+                    "[LinuxInputCapabilityDetector] Daemon socket is present but handshake failed and direct uinput is unavailable. Returning NONE mode for fail-fast handling.");
+                _cachedMode = InputProviderMode.None;
                 _lastModeResolutionUtc = now;
-                return InputProviderMode.Daemon;
+                return InputProviderMode.None;
             }
 
             if (_canUseDirectUInput.Value)
@@ -171,12 +171,12 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
             }
 
             Log.Warning(
-                "[LinuxInputCapabilityDetector] Neither daemon handshake nor uinput write access available ({Primary}, {Alternate}). Defaulting to LEGACY mode.",
+                "[LinuxInputCapabilityDetector] Neither daemon handshake nor uinput write access available ({Primary}, {Alternate}). Returning NONE mode for fail-fast handling.",
                 LinuxConstants.UInputDevicePath,
                 LinuxConstants.UInputAlternatePath);
-            _cachedMode = InputProviderMode.Legacy;
+            _cachedMode = InputProviderMode.None;
             _lastModeResolutionUtc = now;
-            return InputProviderMode.Legacy;
+            return InputProviderMode.None;
         }
     }
 

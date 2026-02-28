@@ -73,11 +73,17 @@ public sealed class LinuxPlatformServiceRegistrar : IPlatformServiceRegistrar
 
     private static void RegisterIpcImplementations(IServiceCollection services)
     {
-        services.AddTransient<LinuxIpcInputSimulator>();
+        services.AddTransient<LinuxIpcInputSimulator>(sp =>
+            new LinuxIpcInputSimulator(
+                sp.GetRequiredService<IpcClient>(),
+                () => sp.GetRequiredService<ILinuxInputCapabilityDetector>().CanConnectToDaemon));
         services.AddSingleton<Func<LinuxIpcInputSimulator>>(sp =>
             () => sp.GetRequiredService<LinuxIpcInputSimulator>());
 
-        services.AddTransient<LinuxIpcInputCapture>();
+        services.AddTransient<LinuxIpcInputCapture>(sp =>
+            new LinuxIpcInputCapture(
+                sp.GetRequiredService<IpcClient>(),
+                isSupportedProbe: () => sp.GetRequiredService<ILinuxInputCapabilityDetector>().CanConnectToDaemon));
         services.AddSingleton<Func<LinuxIpcInputCapture>>(sp =>
             () => sp.GetRequiredService<LinuxIpcInputCapture>());
     }

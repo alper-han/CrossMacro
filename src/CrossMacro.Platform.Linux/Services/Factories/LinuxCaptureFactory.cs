@@ -52,6 +52,14 @@ public class LinuxCaptureFactory
                 return _ipcFactory();
             }
 
+            if (mode == InputProviderMode.None)
+            {
+                LoggingExtensions.LogOnce("LinuxCaptureFactory_Wayland_None",
+                    "[LinuxCaptureFactory] Wayland detected ({0}), no usable input backend found. Returning unsupported capture.",
+                    _environmentDetector.DetectedCompositor);
+                return new UnavailableInputCapture();
+            }
+
             // Fallback to legacy evdev (works with input group or Flatpak --device=all)
             LoggingExtensions.LogOnce("LinuxCaptureFactory_Wayland_Legacy",
                 "[LinuxCaptureFactory] Wayland detected ({0}), daemon not available, using Legacy evdev Capture",
@@ -71,9 +79,12 @@ public class LinuxCaptureFactory
         var fallbackMode = _capabilityDetector.DetermineMode();
         LoggingExtensions.LogOnce("LinuxCaptureFactory_Fallback", "[LinuxCaptureFactory] Fallback mode: {0}", fallbackMode);
 
-        return fallbackMode == InputProviderMode.Legacy
-            ? _legacyFactory()
-            : _ipcFactory();
+        return fallbackMode switch
+        {
+            InputProviderMode.Legacy => _legacyFactory(),
+            InputProviderMode.Daemon => _ipcFactory(),
+            _ => new UnavailableInputCapture()
+        };
     }
 
 }

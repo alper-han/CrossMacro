@@ -236,8 +236,8 @@ console.error('[CrossMacro] Position tracking started');
                     return res;
             }
             
-            Log.Warning("[KdePositionProvider] Resolution detection timed out. Using fallback (5120x1440).");
-            return (5120, 1440);
+            Log.Warning("[KdePositionProvider] Resolution detection timed out; downgrading to unknown resolution mode.");
+            return null;
         }
 
         public void Dispose()

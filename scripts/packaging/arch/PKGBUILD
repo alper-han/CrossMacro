@@ -97,6 +97,10 @@ package() {
     # Install desktop file
     install -Dm644 "scripts/assets/CrossMacro.desktop" \
         "$pkgdir/usr/share/applications/$pkgname.desktop"
+
+    # Install man page
+    install -Dm644 "docs/man/crossmacro.1" \
+        "$pkgdir/usr/share/man/man1/crossmacro.1"
     
     # Install license
     install -Dm644 "LICENSE" \

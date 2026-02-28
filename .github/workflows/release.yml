@@ -222,6 +222,12 @@ jobs:
         cd scripts
         chmod +x build_deb.sh
         VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" PUBLISH_DIR="../publish" DAEMON_DIR="../publish-daemon" ./build_deb.sh
+
+    - name: Verify DEB man page
+      run: |
+        set -euo pipefail
+        deb_file="$(ls -1 scripts/*.deb | head -n 1)"
+        dpkg-deb -c "$deb_file" | grep -E '/usr/share/man/man1/crossmacro\.1\.gz$'
     
     - name: Upload DEB artifact
       uses: actions/upload-artifact@v6
@@ -261,6 +267,12 @@ jobs:
         cd scripts
         chmod +x build_rpm.sh
         VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" PUBLISH_DIR="../publish" DAEMON_DIR="../publish-daemon" ./build_rpm.sh
+
+    - name: Verify RPM man page
+      run: |
+        set -euo pipefail
+        rpm_file="$(ls -1 scripts/*.rpm | head -n 1)"
+        rpm -qpl "$rpm_file" | grep -E '^/usr/share/man/man1/crossmacro\.1(\.gz)?$'
     
     - name: Upload RPM artifact
       uses: actions/upload-artifact@v6

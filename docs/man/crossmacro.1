@@ -1,0 +1,204 @@
+.TH CROSSMACRO 1 "2026-02-28" "CrossMacro" "User Commands"
+.SH NAME
+crossmacro \- keyboard and mouse macro automation CLI
+.SH SYNOPSIS
+.B crossmacro
+[\fB\-h\fR|\fB\-\-help\fR] [\fB\-v\fR|\fB\-\-version\fR]
+.br
+.B crossmacro
+(no arguments) starts GUI mode
+.br
+.B crossmacro
+\fBplay\fR \fIMACRO_FILE\fR [\fB\-\-speed\fR \fIN\fR] [\fB\-\-loop\fR] [\fB\-\-repeat\fR \fIN\fR]
+[\fB\-\-repeat-delay-ms\fR \fIMS\fR] [\fB\-\-countdown\fR \fISEC\fR] [\fB\-\-timeout\fR \fISEC\fR]
+[\fB\-\-dry-run\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBmacro validate\fR \fIMACRO_FILE\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBmacro info\fR \fIMACRO_FILE\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBdoctor\fR [\fB\-\-verbose\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBsettings get\fR [\fIKEY\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBsettings set\fR \fIKEY\fR \fIVALUE\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBschedule list\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBschedule run\fR \fITASK_ID\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBshortcut list\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBshortcut run\fR \fITASK_ID\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBrecord\fR (\fB\-\-output\fR|\fB\-o\fR) \fIMACRO_FILE\fR [\fB\-\-mouse\fR \fIBOOL\fR] [\fB\-\-keyboard\fR \fIBOOL\fR]
+[\fB\-\-mode\fR \fIauto|absolute|relative\fR] [\fB\-\-skip-initial-zero\fR] [\fB\-\-duration\fR \fISEC\fR]
+[\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBrun\fR [\fB\-\-step\fR \fISTEP\fR]... [\fB\-\-file\fR \fISTEPS_FILE\fR]
+[\fB\-\-speed\fR \fIN\fR] [\fB\-\-countdown\fR \fISEC\fR] [\fB\-\-timeout\fR \fISEC\fR]
+[\fB\-\-dry-run\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBrun\fR \fISTEP_COMMAND\fR [\fISTEP_COMMAND\fR]... [\fB\-\-file\fR \fISTEPS_FILE\fR]
+[\fB\-\-speed\fR \fIN\fR] [\fB\-\-countdown\fR \fISEC\fR] [\fB\-\-timeout\fR \fISEC\fR]
+[\fB\-\-dry-run\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBheadless\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fB\-\-headless\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.SH DESCRIPTION
+CrossMacro provides GUI and CLI workflows for macro playback, validation, recording,
+environment diagnostics, and background headless runtime.
+If no CLI command is provided, CrossMacro starts GUI mode.
+.SH OPTIONS
+.TP
+.B \-h, \-\-help
+Show command help.
+.TP
+.B \-v, \-\-version
+Show version.
+.TP
+.B \-\-json
+Print command output as JSON.
+.TP
+.B \-\-log-level \fILEVEL\fR
+Override logging level for the current command.
+Supported values: Verbose, Debug, Information, Warning, Error, Fatal.
+.SH HELP AND ROUTING POLICY
+.TP
+.B crossmacro \-\-help
+Shows top-level help.
+.TP
+.B crossmacro <command> \-\-help
+Shows help for that command topic (for example \fBrun\fR or \fBrecord\fR).
+.TP
+.B Standalone command options
+Standalone CLI-only options such as \fB\-\-json\fR and \fB\-\-log-level\fR require a command and return exit code 2.
+.TP
+.B Non-CLI startup switches
+Known GUI startup switches are routed to GUI startup (for example \fB--drm\fR, \fB--fbdev\fR, \fB--display\fR, Finder-style \fB-psn_*\fR).
+.TP
+.B Unknown tokens
+Unknown commands/options return CLI parse error (exit code 2) instead of falling through to GUI.
+.SH OPTION ALIASES
+.TP
+.B record \-\-output, \-o
+Both forms are accepted and required for output path selection.
+.TP
+.B headless, \-\-headless
+Both forms start headless runtime mode.
+.SH VALUE RULES
+.TP
+.B play
+\fB\-\-repeat\fR, \fB\-\-repeat-delay-ms\fR, \fB\-\-countdown\fR, and \fB\-\-timeout\fR must be >= 0.
+Providing \fB\-\-loop\fR without \fB\-\-repeat\fR means infinite loop mode.
+Providing \fB\-\-repeat\fR with value > 0 implies loop semantics for that playback run.
+\fB\-\-repeat 0\fR requires \fB\-\-loop\fR (infinite mode).
+.TP
+.B run
+\fB\-\-speed\fR must be between 0.1 and 10.0.
+\fB\-\-countdown\fR and \fB\-\-timeout\fR must be >= 0.
+.TP
+.B record
+\fB\-\-duration\fR must be >= 0, and at least one of \fB\-\-mouse\fR or \fB\-\-keyboard\fR must be true.
+.SH COMMANDS
+.TP
+.B play
+Load and play a macro file without starting GUI.
+.TP
+.B macro validate
+Validate macro syntax and playback compatibility.
+.TP
+.B macro info
+Show macro metadata and event breakdown.
+.TP
+.B doctor
+Run environment and input capability diagnostics.
+.TP
+.B settings get|set
+Read or update scriptable settings keys.
+.TP
+.B schedule list|run
+Inspect schedule tasks or trigger a schedule task manually.
+.TP
+.B shortcut list|run
+Inspect shortcut tasks or trigger a shortcut task manually.
+.TP
+.B record
+Record input events and save a macro file.
+.TP
+.B run
+Run inline event steps directly from CLI (without a .macro file).
+Supported steps:
+\fBmove abs|rel\fR, \fBdown\fR, \fBup\fR, \fBclick\fR, \fBscroll\fR,
+\fBkey down|up\fR, \fBtap\fR, \fBdelay\fR, \fBtype\fR,
+\fBset\fR variables, and \fBrepeat\fR blocks.
+Randomized timing is supported with
+\fBdelay random <min> <max>\fR or \fBdelay random <min>..<max>\fR.
+.TP
+.B headless
+Run background services without GUI (hotkeys, scheduler, shortcuts, text expansion)
+until interrupted.
+Recording hotkey toggles capture start/stop.
+Playback hotkey toggles play/stop for the last macro recorded in the same headless session.
+Pause hotkey toggles pause/resume for active playback.
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.TP
+.B 2
+Invalid arguments or parsing error.
+.TP
+.B 3
+File access/read error.
+.TP
+.B 4
+Macro validation error.
+.TP
+.B 5
+Environment/permission/runtime readiness error.
+.TP
+.B 6
+Runtime playback or capture error.
+.TP
+.B 130
+Interrupted by signal (for example Ctrl+C).
+.SH EXAMPLES
+.TP
+.B crossmacro play ./demo.macro --speed 1.25 --repeat 3
+Play a macro file three times.
+.TP
+.B crossmacro doctor --json
+Run diagnostics and print JSON.
+.TP
+.B crossmacro run --step "move abs 800 400" --step "click left" --dry-run
+Compile and validate direct run steps without sending input.
+.TP
+.B crossmacro run move rel 100 0 delay 30 click left
+Execute chained inline run steps in sequence.
+.TP
+.B crossmacro run --step "set n=3" --step "repeat $n {" --step "click left" --step "delay random 20 50" --step "}"
+Run a repeated block with variable substitution and randomized delay.
+.TP
+.B crossmacro run --file ./steps.txt
+Load run steps from a plain text file (one step per line, '#' comments allowed).
+.TP
+.B crossmacro headless
+Start headless runtime and keep running until interrupted.
+.SH SEE ALSO
+Project repository: https://github.com/alper-han/CrossMacro

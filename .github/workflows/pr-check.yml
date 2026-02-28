@@ -28,6 +28,10 @@ jobs:
         VERSION="$(tr -d '\r\n[:space:]' < VERSION)" ./scripts/sync-version.sh --write
         git diff --exit-code -- scripts/packaging/arch/PKGBUILD scripts/msix/AppxManifest.xml flatpak/io.github.alper_han.crossmacro.flathub.yml
 
+    - name: Validate man page source
+      run: |
+        man -l docs/man/crossmacro.1 > /dev/null
+
     - name: Restore dependencies
       run: dotnet restore
 
@@ -37,9 +41,74 @@ jobs:
     - name: Smoke Publish (Linux)
       run: dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj --configuration Debug --no-restore -r linux-x64 --self-contained false -o publish-smoke
 
+    - name: CLI Smoke (Linux)
+      run: |
+        set -euo pipefail
+        PROJECT="src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj"
+
+        help_output="$(dotnet run --no-build --project "$PROJECT" -- --help 2>&1)"
+        echo "$help_output"
+        echo "$help_output" | grep -F "Usage:"
+
+        set +e
+        json_parse_output="$(dotnet run --no-build --project "$PROJECT" -- --json 2>&1)"
+        json_parse_code=$?
+        set -e
+        echo "$json_parse_output"
+        test "$json_parse_code" -eq 2
+        echo "$json_parse_output" | grep -F '"status": "error"'
+        echo "$json_parse_output" | grep -F '"code": 2'
+
+        set +e
+        dry_run_output="$(dotnet run --no-build --project "$PROJECT" -- run --step "move abs 10 10" --dry-run --json 2>&1)"
+        dry_run_code=$?
+        set -e
+        echo "$dry_run_output"
+        echo "$dry_run_output" | grep -F '"status":'
+        echo "$dry_run_output" | grep -F "\"code\": $dry_run_code"
+
+    - name: CLI Daemon Smoke (Linux, env-gated)
+      if: ${{ vars.CROSSMACRO_LINUX_DAEMON_SMOKE == '1' }}
+      run: |
+        set -euo pipefail
+        UI_PROJECT="src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj"
+        DAEMON_PROJECT="src/CrossMacro.Daemon/CrossMacro.Daemon.csproj"
+
+        dotnet run --no-build --project "$DAEMON_PROJECT" > daemon-smoke.log 2>&1 &
+        daemon_pid=$!
+
+        cleanup() {
+          kill "$daemon_pid" 2>/dev/null || true
+          wait "$daemon_pid" 2>/dev/null || true
+        }
+        trap cleanup EXIT
+
+        for i in $(seq 1 30); do
+          if [ -S "/run/crossmacro/crossmacro.sock" ] || [ -S "/tmp/crossmacro.sock" ]; then
+            break
+          fi
+          sleep 1
+        done
+
+        if ! [ -S "/run/crossmacro/crossmacro.sock" ] && ! [ -S "/tmp/crossmacro.sock" ]; then
+          echo "Daemon socket was not created."
+          cat daemon-smoke.log || true
+          exit 1
+        fi
+
+        set +e
+        doctor_output="$(dotnet run --no-build --project "$UI_PROJECT" -- doctor --json --verbose 2>&1)"
+        doctor_code=$?
+        set -e
+        echo "$doctor_output"
+        echo "doctor exit code: $doctor_code"
+        echo "$doctor_output" | grep -F '"name": "linux-daemon-handshake"'
+        echo "$doctor_output" | grep -F 'Daemon handshake probe succeeded.'
+
     - name: Run Tests (Linux-compatible suites)
       run: |
         dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Platform.Linux.Tests/CrossMacro.Platform.Linux.Tests.csproj --configuration Debug --no-build --verbosity normal
@@ -85,9 +154,41 @@ jobs:
           throw "Prepared manifest version '$($identity.Version)' does not match expected '$version.0'."
         }
 
+    - name: CLI Smoke (Windows)
+      shell: pwsh
+      run: |
+        $project = "src/CrossMacro.UI.Windows/CrossMacro.UI.Windows.csproj"
+
+        $helpOutput = (& dotnet run --no-build --project $project -- --help 2>&1 | Out-String)
+        if (-not ($helpOutput -match "Usage:")) {
+          throw "Top-level help output does not contain Usage."
+        }
+
+        $jsonParseOutput = (& dotnet run --no-build --project $project -- --json 2>&1 | Out-String)
+        $jsonParseCode = $LASTEXITCODE
+        if ($jsonParseCode -ne 2) {
+          throw "Expected exit code 2 for standalone --json, got $jsonParseCode."
+        }
+        if (-not ($jsonParseOutput -match '"status":\s*"error"')) {
+          throw "Standalone --json output is not JSON error envelope."
+        }
+        if (-not ($jsonParseOutput -match '"code":\s*2')) {
+          throw "Standalone --json output code is not 2."
+        }
+
+        $dryRunOutput = (& dotnet run --no-build --project $project -- run --step "move abs 10 10" --dry-run --json 2>&1 | Out-String)
+        $dryRunCode = $LASTEXITCODE
+        if (-not ($dryRunOutput -match '"status":\s*"(ok|error)"')) {
+          throw "Dry-run output missing JSON status envelope."
+        }
+        if (-not ($dryRunOutput -match ('"code":\s*{0}' -f $dryRunCode))) {
+          throw "Dry-run output code does not match process exit code ($dryRunCode)."
+        }
+
     - name: Run Tests (Windows-compatible suites)
       run: |
         dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Platform.Windows.Tests/CrossMacro.Platform.Windows.Tests.csproj --configuration Debug --no-build --verbosity normal
@@ -112,9 +213,36 @@ jobs:
     - name: Build
       run: dotnet build --configuration Debug --no-restore
 
+    - name: CLI Smoke (macOS)
+      run: |
+        set -euo pipefail
+        PROJECT="src/CrossMacro.UI.MacOS/CrossMacro.UI.MacOS.csproj"
+
+        help_output="$(dotnet run --no-build --project "$PROJECT" -- --help 2>&1)"
+        echo "$help_output"
+        echo "$help_output" | grep -F "Usage:"
+
+        set +e
+        json_parse_output="$(dotnet run --no-build --project "$PROJECT" -- --json 2>&1)"
+        json_parse_code=$?
+        set -e
+        echo "$json_parse_output"
+        test "$json_parse_code" -eq 2
+        echo "$json_parse_output" | grep -F '"status": "error"'
+        echo "$json_parse_output" | grep -F '"code": 2'
+
+        set +e
+        dry_run_output="$(dotnet run --no-build --project "$PROJECT" -- run --step "move abs 10 10" --dry-run --json 2>&1)"
+        dry_run_code=$?
+        set -e
+        echo "$dry_run_output"
+        echo "$dry_run_output" | grep -F '"status":'
+        echo "$dry_run_output" | grep -F "\"code\": $dry_run_code"
+
     - name: Run Tests (macOS-compatible suites)
       run: |
         dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Platform.MacOS.Tests/CrossMacro.Platform.MacOS.Tests.csproj --configuration Debug --no-build --verbosity normal

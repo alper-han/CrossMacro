@@ -11,6 +11,7 @@ Source2:        crossmacro.te
 Source3:        50-crossmacro.rules
 Source4:        crossmacro-modules.conf
 Source5:        io.github.alper_han.crossmacro.policy
+Source6:        crossmacro.1
 
 BuildArch:      x86_64
 AutoReqProv:    no
@@ -45,6 +46,7 @@ mkdir -p %{buildroot}/usr/share/icons/hicolor
 mkdir -p %{buildroot}/usr/share/selinux/packages/%{name}
 mkdir -p %{buildroot}/usr/share/polkit-1/actions
 mkdir -p %{buildroot}/usr/share/polkit-1/rules.d
+mkdir -p %{buildroot}%{_mandir}/man1
 
 # Copy UI
 cp -r %{_sourcedir}/publish/* %{buildroot}/usr/lib/%{name}/
@@ -67,6 +69,7 @@ ln -s /usr/lib/%{name}/CrossMacro.UI %{buildroot}/usr/bin/%{name}
 # Copy icons
 cp -r %{_sourcedir}/icons/* %{buildroot}/usr/share/icons/hicolor/
 cp %{_sourcedir}/CrossMacro.desktop %{buildroot}/usr/share/applications/%{name}.desktop
+install -m 0644 %{_sourcedir}/crossmacro.1 %{buildroot}%{_mandir}/man1/crossmacro.1
 
 %pre
 # Create group and user if they don't exist
@@ -121,6 +124,7 @@ fi
 /usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy
 /usr/share/polkit-1/rules.d/50-crossmacro.rules
 /usr/lib/modules-load.d/crossmacro.conf
+%{_mandir}/man1/crossmacro.1*
 
 %changelog
 * Sat Dec 21 2025 Zynix <crossmacro@zynix.net> - 0.6.0-1

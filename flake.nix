@@ -171,26 +171,33 @@
               # Runtime dependencies for Avalonia/SkiaSharp
               runtimeDeps = runtimeLibs;
 
-              postInstall =
-                if pkgs.stdenv.isLinux then
-                  ''
-                    install -Dm644 scripts/assets/CrossMacro.desktop $out/share/applications/crossmacro.desktop
-                    
-                    # Create lowercase alias for compatibility (and desktop file support)
-                    mkdir -p $out/bin
-                    ln -s $out/bin/CrossMacro.UI $out/bin/crossmacro
-                    
-                    ${pkgs.lib.concatMapStringsSep "\n" (size: ''
-                      mkdir -p $out/share/icons/hicolor/${size}x${size}/apps
-                      install -Dm644 src/CrossMacro.UI/Assets/icons/${size}x${size}/apps/crossmacro.png $out/share/icons/hicolor/${size}x${size}/apps/crossmacro.png
-                    '') [ "16" "32" "48" "64" "128" "256" "512" ]}
+              nativeBuildInputs = [ pkgs.installShellFiles ];
 
-                    install -Dm644 scripts/assets/io.github.alper-han.CrossMacro.metainfo.xml $out/share/metainfo/io.github.alper-han.CrossMacro.metainfo.xml
-                  ''
-                else
-                  # macOS specific post-install could go here (e.g. bundle creation)
-                  # For now, we leave it empty for raw binary output
-                  "";
+              postInstall =
+                ''
+                  installManPage docs/man/crossmacro.1
+                ''
+                + (
+                  if pkgs.stdenv.isLinux then
+                    ''
+                      install -Dm644 scripts/assets/CrossMacro.desktop $out/share/applications/crossmacro.desktop
+                      
+                      # Create lowercase alias for compatibility (and desktop file support)
+                      mkdir -p $out/bin
+                      ln -s $out/bin/CrossMacro.UI $out/bin/crossmacro
+                      
+                      ${pkgs.lib.concatMapStringsSep "\n" (size: ''
+                        mkdir -p $out/share/icons/hicolor/${size}x${size}/apps
+                        install -Dm644 src/CrossMacro.UI/Assets/icons/${size}x${size}/apps/crossmacro.png $out/share/icons/hicolor/${size}x${size}/apps/crossmacro.png
+                      '') [ "16" "32" "48" "64" "128" "256" "512" ]}
+
+                      install -Dm644 scripts/assets/io.github.alper-han.CrossMacro.metainfo.xml $out/share/metainfo/io.github.alper-han.CrossMacro.metainfo.xml
+                    ''
+                  else
+                    # macOS specific post-install could go here (e.g. bundle creation)
+                    # For now, we leave it empty for raw binary output
+                    ""
+                );
 
               meta = with pkgs.lib; {
                 description = "Cross-platform mouse and keyboard macro recorder and player";

@@ -14,6 +14,7 @@ ARCH="amd64"
 PUBLISH_DIR="${PUBLISH_DIR:-../publish}"  # Use env var or default to ../publish
 DEB_DIR="deb_package"
 ICON_PATH="../src/CrossMacro.UI/Assets/mouse-icon.png"
+MANPAGE_SOURCE="../docs/man/crossmacro.1"
 OUTPUT_DEB="${APP_NAME}-${DEB_VERSION}_${ARCH}.deb"
 
 # Clean previous build
@@ -38,6 +39,7 @@ mkdir -p "$DEB_DIR/usr/lib/systemd/system"
 mkdir -p "$DEB_DIR/usr/lib/udev/rules.d"
 mkdir -p "$DEB_DIR/usr/share/applications"
 mkdir -p "$DEB_DIR/usr/share/icons/hicolor"
+mkdir -p "$DEB_DIR/usr/share/man/man1"
 
 
 # 3. Create Control File
@@ -200,6 +202,14 @@ cp -r "../src/CrossMacro.UI/Assets/icons/"* "$DEB_DIR/usr/share/icons/hicolor/"
 
 # Copy Desktop File
 cp "assets/CrossMacro.desktop" "$DEB_DIR/usr/share/applications/$APP_NAME.desktop"
+
+# Install man page (Debian policy: compressed under /usr/share/man/man1)
+echo "Installing man page..."
+if [ ! -f "$MANPAGE_SOURCE" ]; then
+    echo "Error: man page source not found: $MANPAGE_SOURCE"
+    exit 1
+fi
+gzip -n -9 -c "$MANPAGE_SOURCE" > "$DEB_DIR/usr/share/man/man1/crossmacro.1.gz"
 
 # 5. Build DEB Package
 echo "Building DEB package..."

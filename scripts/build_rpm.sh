@@ -68,6 +68,7 @@ cp "packaging/rpm/crossmacro.te" "$RPM_BUILD_DIR/SOURCES/crossmacro.te"
 cp "assets/io.github.alper_han.crossmacro.policy" "$RPM_BUILD_DIR/SOURCES/io.github.alper_han.crossmacro.policy"
 cp "assets/50-crossmacro.rules" "$RPM_BUILD_DIR/SOURCES/50-crossmacro.rules"
 cp "assets/crossmacro-modules.conf" "$RPM_BUILD_DIR/SOURCES/crossmacro-modules.conf"
+cp "../docs/man/crossmacro.1" "$RPM_BUILD_DIR/SOURCES/crossmacro.1"
 
 # Copy Icons to SOURCES
 mkdir -p "$RPM_BUILD_DIR/SOURCES/icons"

@@ -24,12 +24,34 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IPlatformServiceRegistrar platformServiceRegistrar)
     {
+        services.AddCrossMacroGuiRuntimeServices(platformServiceRegistrar);
+        services.AddViewModels();
+        
+        return services;
+    }
+
+    /// <summary>
+    /// Backward-compatible alias for GUI runtime service registration.
+    /// </summary>
+    public static IServiceCollection AddCrossMacroRuntimeServices(
+        this IServiceCollection services,
+        IPlatformServiceRegistrar platformServiceRegistrar)
+    {
+        return services.AddCrossMacroGuiRuntimeServices(platformServiceRegistrar);
+    }
+
+    /// <summary>
+    /// Registers runtime services for GUI execution.
+    /// </summary>
+    public static IServiceCollection AddCrossMacroGuiRuntimeServices(
+        this IServiceCollection services,
+        IPlatformServiceRegistrar platformServiceRegistrar)
+    {
         ArgumentNullException.ThrowIfNull(platformServiceRegistrar);
 
         services.AddCommonServices();
         platformServiceRegistrar.RegisterPlatformServices(services);
-        services.AddSharedPostPlatformServices();
-        services.AddViewModels();
+        services.AddSharedPostPlatformServices(includeGuiOnlyServices: true, allowAvaloniaClipboardFallback: true);
         
         return services;
     }
@@ -71,7 +93,10 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Registers services that depend on platform services being registered first.
     /// </summary>
-    public static IServiceCollection AddSharedPostPlatformServices(this IServiceCollection services)
+    public static IServiceCollection AddSharedPostPlatformServices(
+        this IServiceCollection services,
+        bool includeGuiOnlyServices = true,
+        bool allowAvaloniaClipboardFallback = true)
     {
         // GlobalHotkeyService depends on Func<IInputCapture>
         // Register Core Services for GlobalHotkeyService
@@ -118,25 +143,13 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<Func<IMacroPlayer>>(sp => () => sp.GetRequiredService<IMacroPlayer>());
 
-        // Clipboard services (platform-specific selection)
-        services.AddSingleton<AvaloniaClipboardService>();
-        if (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS())
-        {
-            services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<AvaloniaClipboardService>());
-        }
-        else
-        {
-            services.AddSingleton<IProcessRunner, ProcessRunner>();
-            services.AddSingleton<LinuxShellClipboardService>();
-            services.AddSingleton<IClipboardService, CompositeClipboardService>();
-        }
+        RegisterClipboardServices(services, allowAvaloniaClipboardFallback);
 
         // Common services
         services.AddSingleton<IScheduledTaskRepository, JsonScheduledTaskRepository>();
         services.AddSingleton<IScheduledTaskExecutor, MacroScheduledTaskExecutor>();
         services.AddSingleton<ISchedulerService, SchedulerService>();
         services.AddSingleton<IShortcutService, ShortcutService>();
-        services.AddSingleton<ITrayIconService, TrayIconService>();
         services.AddSingleton<ITextExpansionStorageService, TextExpansionStorageService>();
         
         // Text Expansion Service Components
@@ -144,8 +157,6 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ITextBufferState, TextBufferState>();
         services.AddTransient<ITextExpansionExecutor, TextExpansionExecutor>();
         services.AddSingleton<ITextExpansionService, TextExpansionService>();
-        services.AddSingleton<IDialogService, DialogService>();
-        services.AddSingleton<IUpdateService, GitHubUpdateService>();
         
         // Editor services
         services.AddSingleton<IEditorActionConverter, EditorActionConverter>();
@@ -157,7 +168,45 @@ public static class ServiceCollectionExtensions
             return new CoordinateCaptureService(positionProvider, captureFactory);
         });
 
+        if (includeGuiOnlyServices)
+        {
+            services.AddSingleton<ITrayIconService, TrayIconService>();
+            services.AddSingleton<IDialogService, DialogService>();
+            services.AddSingleton<IUpdateService, GitHubUpdateService>();
+            services.AddSingleton<IExternalUrlOpener, ExternalUrlOpener>();
+        }
+
         return services;
+    }
+
+    private static void RegisterClipboardServices(IServiceCollection services, bool allowAvaloniaClipboardFallback)
+    {
+        if (allowAvaloniaClipboardFallback)
+        {
+            services.AddSingleton<AvaloniaClipboardService>();
+            if (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS())
+            {
+                services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<AvaloniaClipboardService>());
+            }
+            else
+            {
+                services.AddSingleton<IProcessRunner, ProcessRunner>();
+                services.AddSingleton<LinuxShellClipboardService>();
+                services.AddSingleton<IClipboardService, CompositeClipboardService>();
+            }
+
+            return;
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            services.AddSingleton<IProcessRunner, ProcessRunner>();
+            services.AddSingleton<LinuxShellClipboardService>();
+            services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<LinuxShellClipboardService>());
+            return;
+        }
+
+        services.AddSingleton<IClipboardService, NoOpClipboardService>();
     }
 
     /// <summary>

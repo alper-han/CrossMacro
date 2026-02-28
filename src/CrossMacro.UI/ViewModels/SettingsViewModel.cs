@@ -18,6 +18,7 @@ public class SettingsViewModel : ViewModelBase
     private readonly ISettingsService _settingsService;
     private readonly ITextExpansionService _textExpansionService;
     private readonly HotkeySettings _hotkeySettings;
+    private readonly IExternalUrlOpener _externalUrlOpener;
     
     private string _recordingHotkey;
     private string _playbackHotkey;
@@ -34,12 +35,14 @@ public class SettingsViewModel : ViewModelBase
         IGlobalHotkeyService hotkeyService,
         ISettingsService settingsService,
         ITextExpansionService textExpansionService,
-        HotkeySettings hotkeySettings)
+        HotkeySettings hotkeySettings,
+        IExternalUrlOpener externalUrlOpener)
     {
         _hotkeyService = hotkeyService;
         _settingsService = settingsService;
         _textExpansionService = textExpansionService;
         _hotkeySettings = hotkeySettings;
+        _externalUrlOpener = externalUrlOpener;
         
         // Initialize hotkey properties
         _recordingHotkey = _hotkeySettings.RecordingHotkey;
@@ -310,11 +313,7 @@ public class SettingsViewModel : ViewModelBase
     {
         try
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "https://github.com/alper-han/CrossMacro",
-                UseShellExecute = true
-            });
+            _externalUrlOpener.Open("https://github.com/alper-han/CrossMacro");
         }
         catch (Exception ex)
         {

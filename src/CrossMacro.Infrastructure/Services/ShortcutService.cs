@@ -361,6 +361,22 @@ public class ShortcutService : IShortcutService
             Logger.Warning(ex, "Failed to save shortcut tasks to {Path}", _shortcutsFilePath);
         }
     }
+
+    public async Task RunTaskAsync(Guid taskId)
+    {
+        ShortcutTask? task;
+        lock (_lock)
+        {
+            task = Tasks.FirstOrDefault(x => x.Id == taskId);
+        }
+
+        if (task == null)
+        {
+            return;
+        }
+
+        await ExecuteTaskAsync(task);
+    }
     
     public async Task LoadAsync()
     {

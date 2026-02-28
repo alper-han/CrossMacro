@@ -26,6 +26,7 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         new MockGlobalHotkeyService(),
         new MockMousePositionProvider(),
         new MockEnvironmentInfoProvider(),
+        new MockExternalUrlOpener(),
         null)
     {
     }
@@ -150,9 +151,15 @@ public class DesignMainWindowViewModel : MainWindowViewModel
             new MockGlobalHotkeyService(),
             new MockSettingsService(),
             new MockTextExpansionService(),
-            new HotkeySettings())
+            new HotkeySettings(),
+            new MockExternalUrlOpener())
         {
         }
+    }
+
+    private class MockExternalUrlOpener : IExternalUrlOpener
+    {
+        public void Open(string url) { }
     }
 
     private class DesignScheduleViewModel : ScheduleViewModel
@@ -188,6 +195,7 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         public void Start() { }
         public void Stop() { }
         public Task SaveAsync() => Task.CompletedTask;
+        public Task RunTaskAsync(Guid taskId) => Task.CompletedTask;
         public Task LoadAsync() => Task.CompletedTask;
         public void Dispose() { }
     }

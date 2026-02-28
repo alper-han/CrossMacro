@@ -4,6 +4,7 @@ using Avalonia.Controls.Notifications;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.UI.Models;
+using CrossMacro.UI.Services;
 using System.Collections.ObjectModel;
 using System.Linq;
 
@@ -16,6 +17,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 {
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly IMousePositionProvider _positionProvider;
+    private readonly IExternalUrlOpener _externalUrlOpener;
     private readonly IExtensionStatusNotifier? _extensionNotifier;
     
     private string? _extensionWarning;
@@ -158,6 +160,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         IGlobalHotkeyService hotkeyService,
         IMousePositionProvider positionProvider,
         IEnvironmentInfoProvider environmentInfo,
+        IExternalUrlOpener externalUrlOpener,
         IExtensionStatusNotifier? extensionNotifier = null)
     {
         Recording = recording;
@@ -170,6 +173,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         Editor = editor;
         _hotkeyService = hotkeyService;
         _positionProvider = positionProvider;
+        _externalUrlOpener = externalUrlOpener;
         _extensionNotifier = extensionNotifier;
         
         // Use abstraction for close button visibility (DIP: depends on Core interface)
@@ -302,11 +306,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         {
             if (!string.IsNullOrEmpty(_updateReleaseUrl))
             {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = _updateReleaseUrl,
-                    UseShellExecute = true
-                });
+                _externalUrlOpener.Open(_updateReleaseUrl);
             }
         }
         catch { }

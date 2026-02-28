@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.UI.Services;
 using CrossMacro.UI.ViewModels;
 using FluentAssertions;
 using NSubstitute;
@@ -15,6 +16,7 @@ public class SettingsViewModelTests
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ISettingsService _settingsService;
     private readonly ITextExpansionService _textExpansionService;
+    private readonly IExternalUrlOpener _externalUrlOpener;
     private readonly HotkeySettings _hotkeySettings;
     private readonly SettingsViewModel _viewModel;
 
@@ -23,6 +25,7 @@ public class SettingsViewModelTests
         _hotkeyService = Substitute.For<IGlobalHotkeyService>();
         _settingsService = Substitute.For<ISettingsService>();
         _textExpansionService = Substitute.For<ITextExpansionService>();
+        _externalUrlOpener = Substitute.For<IExternalUrlOpener>();
         _hotkeySettings = new HotkeySettings();
         
         // Setup initial settings
@@ -32,7 +35,8 @@ public class SettingsViewModelTests
             _hotkeyService, 
             _settingsService, 
             _textExpansionService,
-            _hotkeySettings);
+            _hotkeySettings,
+            _externalUrlOpener);
     }
 
     [Fact]
@@ -163,12 +167,12 @@ public class SettingsViewModelTests
     }
 
     [Fact]
-    public void OpenGitHub_DoesNotThrow()
+    public void OpenGitHub_UsesExternalUrlOpener()
     {
         // Act
-        var act = () => _viewModel.OpenGitHub();
+        _viewModel.OpenGitHub();
 
         // Assert
-        act.Should().NotThrow();
+        _externalUrlOpener.Received(1).Open("https://github.com/alper-han/CrossMacro");
     }
 }

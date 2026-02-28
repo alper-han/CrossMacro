@@ -71,6 +71,11 @@ public interface IShortcutService : IDisposable
     /// Saves tasks to persistent storage
     /// </summary>
     Task SaveAsync();
+
+    /// <summary>
+    /// Runs a shortcut task manually by id.
+    /// </summary>
+    Task RunTaskAsync(Guid taskId);
     
     /// <summary>
     /// Loads tasks from persistent storage

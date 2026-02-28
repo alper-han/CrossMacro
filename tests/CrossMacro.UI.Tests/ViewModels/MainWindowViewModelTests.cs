@@ -18,6 +18,7 @@ public class MainWindowViewModelTests
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly IMousePositionProvider _positionProvider;
     private readonly IDialogService _filesDialogService;
+    private readonly IExternalUrlOpener _externalUrlOpener;
     private readonly ISchedulerService _schedulerService;
     private readonly IShortcutService _shortcutService;
 
@@ -49,6 +50,7 @@ public class MainWindowViewModelTests
 
         _fileManager = Substitute.For<IMacroFileManager>();
         _filesDialogService = Substitute.For<IDialogService>();
+        _externalUrlOpener = Substitute.For<IExternalUrlOpener>();
         _filesViewModel = new FilesViewModel(_fileManager, _filesDialogService);
 
         // Fix: TextExpansionViewModel takes (ITextExpansionStorageService, IDialogService, IEnvironmentInfoProvider)
@@ -72,7 +74,7 @@ public class MainWindowViewModelTests
         // Fix: SettingsViewModel takes (IGlobalHotkeyService, ISettingsService, ITextExpansionService, HotkeySettings)
         var hotkeySettings = new HotkeySettings();
         var textExpansionService = Substitute.For<ITextExpansionService>();
-        _settingsViewModel = new SettingsViewModel(_hotkeyService, _settingsService, textExpansionService, hotkeySettings);
+        _settingsViewModel = new SettingsViewModel(_hotkeyService, _settingsService, textExpansionService, hotkeySettings, _externalUrlOpener);
 
         // EditorViewModel
         var editorConverter = Substitute.For<IEditorActionConverter>();
@@ -94,6 +96,7 @@ public class MainWindowViewModelTests
             _hotkeyService,
             _positionProvider,
             environmentInfo,
+            _externalUrlOpener,
             null);
     }
 

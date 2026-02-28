@@ -1,6 +1,6 @@
 # CrossMacro
 
-[![Build Status](https://github.com/alper-han/CrossMacro/actions/workflows/pr-check.yml/badge.svg)](https://github.com/alper-han/CrossMacro/actions/workflows/pr-check.yml)
+[![Build Status](https://github.com/alper-han/CrossMacro/actions/workflows/pr-check.yml/badge.svg?branch=main&event=push)](https://github.com/alper-han/CrossMacro/actions/workflows/pr-check.yml)
 [![License](https://img.shields.io/github/license/alper-han/CrossMacro)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/alper-han/CrossMacro)](https://github.com/alper-han/CrossMacro/releases)
 

@@ -4,7 +4,7 @@
 # Source code
 *.cs text diff=csharp
 *.csproj text diff=csharp
-*.sln text eol=crlf
+*.sln text eol=lf
 *.sh text eol=lf
 *.nix text eol=lf
 

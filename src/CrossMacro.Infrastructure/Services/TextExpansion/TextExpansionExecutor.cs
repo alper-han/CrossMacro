@@ -100,7 +100,7 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
                             clipboardSuccess = true;
                             
                             // Restore clipboard
-                            if (!string.IsNullOrEmpty(oldClipboard))
+                            if (oldClipboard != null)
                             {
                                 _ = Task.Run(async () => {
                                     try {
@@ -131,7 +131,7 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
 
         private async Task TypeTextFallbackAsync(IInputSimulator inputSim, string text)
         {
-            Log.Information("Typing replacement directly fallback: {Text}", text);
+            Log.Information("Typing replacement directly fallback (length={Length})", text.Length);
             for (int i = 0; i < text.Length; i++)
             {
                 char c = text[i];

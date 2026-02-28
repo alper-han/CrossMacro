@@ -173,15 +173,14 @@ public class TextExpansionService : ITextExpansionService
         // Update Buffer
         _bufferState.Append(c);
 
-        Log.Debug("[TextExpansionService] Buffer: '{Buffer}' (added: '{Char}')",
-            _bufferState.ToString(), c);
-
         // Check for Trigger
         var expansions = _storageService.GetCurrent();
         if (_bufferState.TryGetMatch(expansions, out var match) && match != null)
         {
-             Log.Information("[TextExpansionService] Trigger detected: '{Trigger}' -> expanding to '{Replacement}'",
-                 match.Trigger, match.Replacement.Length > 50 ? match.Replacement[..50] + "..." : match.Replacement);
+             Log.Information(
+                 "[TextExpansionService] Trigger detected, scheduling expansion (triggerLength={TriggerLength}, replacementLength={ReplacementLength})",
+                 match.Trigger.Length,
+                 match.Replacement.Length);
 
              // Clear buffer immediately to prevent re-triggering
              _bufferState.Clear();
@@ -196,12 +195,12 @@ public class TextExpansionService : ITextExpansionService
         if (keyCode == 14) // Backspace
         {
             _bufferState.Backspace();
-            Log.Debug("[TextExpansionService] Backspace - Buffer: '{Buffer}'", _bufferState.ToString());
+            Log.Debug("[TextExpansionService] Backspace received");
         }
         else if (keyCode == 28) // Enter
         {
              _bufferState.Clear();
-             Log.Debug("[TextExpansionService] Enter - Buffer cleared");
+             Log.Debug("[TextExpansionService] Enter received, buffer cleared");
         }
     }
 
@@ -220,12 +219,16 @@ public class TextExpansionService : ITextExpansionService
                 elapsed += 50;
             }
 
-            Log.Debug("[TextExpansionService] Executing expansion: '{Trigger}' -> {ReplacementLength} chars",
-                expansion.Trigger, expansion.Replacement.Length);
+            Log.Debug(
+                "[TextExpansionService] Executing expansion (triggerLength={TriggerLength}, replacementLength={ReplacementLength})",
+                expansion.Trigger.Length,
+                expansion.Replacement.Length);
 
             await _startExecutor.ExpandAsync(expansion);
 
-            Log.Debug("[TextExpansionService] Expansion completed: '{Trigger}'", expansion.Trigger);
+            Log.Debug(
+                "[TextExpansionService] Expansion completed (triggerLength={TriggerLength})",
+                expansion.Trigger.Length);
         }
         finally
         {
@@ -241,7 +244,7 @@ public class TextExpansionService : ITextExpansionService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[TextExpansionService] Expansion failed for trigger '{Trigger}'", expansion.Trigger);
+            Log.Error(ex, "[TextExpansionService] Expansion failed");
         }
     }
 }

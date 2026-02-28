@@ -7,10 +7,6 @@ namespace CrossMacro.Core.Tests.Models;
 
 public class ScheduledTaskTests
 {
-
-
-
-
     [Theory]
     [InlineData(IntervalUnit.Seconds, 10, 10000)]
     [InlineData(IntervalUnit.Minutes, 2, 120000)]
@@ -27,6 +23,44 @@ public class ScheduledTaskTests
     }
 
     [Fact]
+    public void GetInterval_WhenHoursValueIsLarge_ReturnsExpectedTimespanWithoutOverflow()
+    {
+        var task = new ScheduledTask
+        {
+            IntervalUnit = IntervalUnit.Hours,
+            IntervalValue = 9999
+        };
+
+        task.GetInterval().Should().Be(TimeSpan.FromHours(9999));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public void GetInterval_WhenIntervalValueIsNonPositive_UsesMinimumOneUnit(int invalidValue)
+    {
+        var task = new ScheduledTask
+        {
+            IntervalUnit = IntervalUnit.Seconds,
+            IntervalValue = invalidValue
+        };
+
+        task.GetInterval().Should().Be(TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public void GetIntervalMs_WhenIntervalExceedsIntRange_ClampsToIntMaxValue()
+    {
+        var task = new ScheduledTask
+        {
+            IntervalUnit = IntervalUnit.Hours,
+            IntervalValue = 9999
+        };
+
+        task.GetIntervalMs().Should().Be(int.MaxValue);
+    }
+
+    [Fact]
     public void CalculateNextRunTime_Interval_AddsIntervalToNow()
     {
         var now = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
@@ -40,6 +74,60 @@ public class ScheduledTaskTests
         task.CalculateNextRunTime(now);
         
         task.NextRunTime.Should().Be(now.AddSeconds(60));
+    }
+
+    [Fact]
+    public void CalculateNextRunTime_Interval_WithLargeHoursValue_AddsExpectedInterval()
+    {
+        var now = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var task = new ScheduledTask
+        {
+            Type = ScheduleType.Interval,
+            IntervalUnit = IntervalUnit.Hours,
+            IntervalValue = 9999
+        };
+
+        task.CalculateNextRunTime(now);
+
+        task.NextRunTime.Should().Be(now.AddHours(9999));
+    }
+
+    [Fact]
+    public void CalculateNextRunTime_Interval_WhenDateTimeAdditionOverflows_ClampsToDateTimeMaxValue()
+    {
+        var now = new DateTime(DateTime.MaxValue.Ticks - 10, DateTimeKind.Utc);
+        var task = new ScheduledTask
+        {
+            Type = ScheduleType.Interval,
+            IntervalUnit = IntervalUnit.Seconds,
+            IntervalValue = 1
+        };
+
+        task.CalculateNextRunTime(now);
+
+        task.NextRunTime.Should().NotBeNull();
+        task.NextRunTime!.Value.Ticks.Should().Be(DateTime.MaxValue.Ticks);
+        task.NextRunTime.Value.Kind.Should().Be(DateTimeKind.Utc);
+    }
+
+    [Fact]
+    public void IsEnabled_WhenIntervalWouldOverflow_DoesNotThrowAndClampsNextRunTime()
+    {
+        var task = new ScheduledTask
+        {
+            Type = ScheduleType.Interval,
+            IntervalUnit = IntervalUnit.Hours,
+            IntervalValue = int.MaxValue,
+            MacroFilePath = "test.macro"
+        };
+
+        var act = () => task.IsEnabled = true;
+
+        act.Should().NotThrow();
+        task.IsEnabled.Should().BeTrue();
+        task.NextRunTime.Should().NotBeNull();
+        task.NextRunTime!.Value.Ticks.Should().Be(DateTime.MaxValue.Ticks);
+        task.NextRunTime.Value.Kind.Should().Be(DateTimeKind.Utc);
     }
 
     [Fact]

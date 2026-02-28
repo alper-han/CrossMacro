@@ -174,17 +174,51 @@ public class ScheduledTask : INotifyPropertyChanged
     }
     
     /// <summary>
-    /// Calculates the interval in milliseconds
+    /// Calculates the interval as <see cref="TimeSpan"/>.
+    /// </summary>
+    public TimeSpan GetInterval()
+    {
+        var normalizedIntervalValue = Math.Max(1, IntervalValue);
+        var ticksPerUnit = IntervalUnit switch
+        {
+            IntervalUnit.Seconds => TimeSpan.TicksPerSecond,
+            IntervalUnit.Minutes => TimeSpan.TicksPerMinute,
+            IntervalUnit.Hours => TimeSpan.TicksPerHour,
+            _ => TimeSpan.TicksPerSecond
+        };
+
+        long totalTicks;
+        try
+        {
+            totalTicks = checked((long)normalizedIntervalValue * ticksPerUnit);
+        }
+        catch (OverflowException)
+        {
+            totalTicks = TimeSpan.MaxValue.Ticks;
+        }
+
+        if (totalTicks > TimeSpan.MaxValue.Ticks)
+        {
+            totalTicks = TimeSpan.MaxValue.Ticks;
+        }
+
+        return TimeSpan.FromTicks(totalTicks);
+    }
+
+    /// <summary>
+    /// Calculates the interval in milliseconds.
     /// </summary>
     public int GetIntervalMs()
     {
-        return IntervalUnit switch
+        var interval = GetInterval();
+        var maxIntMilliseconds = TimeSpan.FromMilliseconds(int.MaxValue);
+
+        if (interval >= maxIntMilliseconds)
         {
-            IntervalUnit.Seconds => IntervalValue * 1000,
-            IntervalUnit.Minutes => IntervalValue * 60 * 1000,
-            IntervalUnit.Hours => IntervalValue * 60 * 60 * 1000,
-            _ => IntervalValue * 1000
-        };
+            return int.MaxValue;
+        }
+
+        return (int)interval.TotalMilliseconds;
     }
     
     /// <summary>
@@ -195,7 +229,7 @@ public class ScheduledTask : INotifyPropertyChanged
         var baseTime = now ?? DateTime.UtcNow;
         if (Type == ScheduleType.Interval)
         {
-            NextRunTime = baseTime.AddMilliseconds(GetIntervalMs());
+            NextRunTime = AddIntervalClamped(baseTime, GetInterval());
         }
         else if (Type == ScheduleType.SpecificTime && ScheduledDateTime.HasValue)
         {
@@ -205,6 +239,20 @@ public class ScheduledTask : INotifyPropertyChanged
                 : ScheduledDateTime.Value.ToUniversalTime();
 
             NextRunTime = scheduledUtc;
+        }
+    }
+
+    private static DateTime AddIntervalClamped(DateTime baseTime, TimeSpan interval)
+    {
+        try
+        {
+            return baseTime + interval;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return interval >= TimeSpan.Zero
+                ? new DateTime(DateTime.MaxValue.Ticks, baseTime.Kind)
+                : new DateTime(DateTime.MinValue.Ticks, baseTime.Kind);
         }
     }
 }

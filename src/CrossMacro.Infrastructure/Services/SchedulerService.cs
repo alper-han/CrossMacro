@@ -233,25 +233,59 @@ public class SchedulerService : ISchedulerService
         {
             lock (_lock)
             {
+                var now = _timeProvider.UtcNow;
                 Tasks.Clear();
                 foreach (var task in tasks)
                 {
-                    // Recalculate next run time for interval tasks
-                    if (task.IsEnabled && task.Type == ScheduleType.Interval)
+                    if (task == null)
                     {
-                        task.CalculateNextRunTime(_timeProvider.UtcNow);
+                        Logger.Warning("[SchedulerService] Skipping null task entry during load");
+                        continue;
                     }
-                    // Check if SpecificTime tasks are still valid
-                    else if (task.Type == ScheduleType.SpecificTime) 
-                    { 
-                        // Ensure UTC comparison
-                        var scheduledUtc = task.ScheduledDateTime?.ToUniversalTime() ?? DateTime.MinValue;
 
-                        if (scheduledUtc < _timeProvider.UtcNow) 
-                        { 
-                            task.IsEnabled = false; 
-                            task.NextRunTime = null; 
-                        } 
+                    try
+                    {
+                        if (!task.IsEnabled)
+                        {
+                            task.NextRunTime = null;
+                        }
+                        else if (task.Type == ScheduleType.Interval)
+                        {
+                            task.CalculateNextRunTime(now);
+                        }
+                        else if (task.Type == ScheduleType.SpecificTime)
+                        {
+                            if (!task.ScheduledDateTime.HasValue)
+                            {
+                                task.IsEnabled = false;
+                                task.NextRunTime = null;
+                                Logger.Warning(
+                                    "[SchedulerService] Task {TaskId} disabled during load because SpecificTime schedule has no ScheduledDateTime",
+                                    task.Id);
+                                Tasks.Add(task);
+                                continue;
+                            }
+
+                            // Always recompute from ScheduledDateTime, ignoring persisted NextRunTime.
+                            task.CalculateNextRunTime(now);
+                            if (!task.NextRunTime.HasValue || task.NextRunTime.Value < now)
+                            {
+                                task.IsEnabled = false;
+                                task.NextRunTime = null;
+                            }
+                        }
+                        else
+                        {
+                            task.NextRunTime = null;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        task.IsEnabled = false;
+                        task.NextRunTime = null;
+                        Logger.Warning(ex,
+                            "[SchedulerService] Task {TaskId} disabled during load due to invalid schedule data",
+                            task.Id);
                     }
                     Tasks.Add(task);
                 }

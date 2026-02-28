@@ -19,6 +19,7 @@
 
   <ItemGroup Condition="'$(PublishTrimmed)' == 'true'">
     <TrimmerRootAssembly Include="CrossMacro.UI.Core" />
+    <TrimmerRootAssembly Include="CrossMacro.Cli" />
     <TrimmerRootAssembly Include="Avalonia" />
     <TrimmerRootAssembly Include="Avalonia.Themes.Fluent" />
     <TrimmerRootAssembly Include="Avalonia.Fonts.Inter" />

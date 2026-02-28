@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text.Json;
 
@@ -17,6 +18,10 @@ public static class CliOutputFormatter
         WriteText(result);
     }
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026",
+        Justification = "CLI payloads are dynamic and CrossMacro.Cli is preserved as a trim root in entry projects.")]
     private static void WriteText(CliCommandExecutionResult result)
     {
         var writer = result.Success ? Console.Out : Console.Error;
@@ -51,6 +56,10 @@ public static class CliOutputFormatter
         }
     }
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026",
+        Justification = "CLI payloads are dynamic and CrossMacro.Cli is preserved as a trim root in entry projects.")]
     private static void WriteJson(CliCommandExecutionResult result)
     {
         var envelope = new

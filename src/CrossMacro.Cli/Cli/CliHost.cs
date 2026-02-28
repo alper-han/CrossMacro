@@ -23,7 +23,8 @@ public sealed class CliHost
         try
         {
             var services = new ServiceCollection();
-            services.AddCrossMacroCliRuntimeServices(_platformServiceRegistrar);
+            var runtimeProfile = GetRuntimeProfile(options);
+            services.AddCrossMacroCliRuntimeServices(_platformServiceRegistrar, runtimeProfile);
             services.AddCliServices();
 
             using var provider = services.BuildServiceProvider();
@@ -77,5 +78,12 @@ public sealed class CliHost
             CliOutputFormatter.Write(runtimeFailure, options.JsonOutput);
             return (int)CliExitCode.RuntimeError;
         }
+    }
+
+    private static CliRuntimeProfile GetRuntimeProfile(CliCommandOptions options)
+    {
+        return options is HeadlessCliOptions
+            ? CliRuntimeProfile.Persistent
+            : CliRuntimeProfile.OneShot;
     }
 }

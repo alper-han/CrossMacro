@@ -1,9 +1,11 @@
 using System.Threading;
 using System.Threading.Tasks;
+using System.Reflection;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Cli.DependencyInjection;
 using CrossMacro.Cli.Services;
+using CrossMacro.Cli;
 using CrossMacro.UI.DependencyInjection;
 using CrossMacro.UI.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -94,6 +96,38 @@ public class ServiceCollectionExtensionsTests
         Assert.NotNull(preflight);
     }
 
+    [Fact]
+    public void AddCrossMacroCliRuntimeServices_OneShot_DoesNotInjectPoolIntoMacroPlayer()
+    {
+        var services = new ServiceCollection();
+        services.AddCrossMacroCliRuntimeServices(
+            new PoolAwarePlatformServiceRegistrar(),
+            CliRuntimeProfile.OneShot);
+
+        using var provider = services.BuildServiceProvider();
+        var player = Assert.IsType<MacroPlayer>(provider.GetRequiredService<IMacroPlayer>());
+        var poolField = typeof(MacroPlayer).GetField("_simulatorPool", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        Assert.NotNull(poolField);
+        Assert.Null(poolField.GetValue(player));
+    }
+
+    [Fact]
+    public void AddCrossMacroCliRuntimeServices_Persistent_InjectsPoolIntoMacroPlayer()
+    {
+        var services = new ServiceCollection();
+        services.AddCrossMacroCliRuntimeServices(
+            new PoolAwarePlatformServiceRegistrar(),
+            CliRuntimeProfile.Persistent);
+
+        using var provider = services.BuildServiceProvider();
+        var player = Assert.IsType<MacroPlayer>(provider.GetRequiredService<IMacroPlayer>());
+        var poolField = typeof(MacroPlayer).GetField("_simulatorPool", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        Assert.NotNull(poolField);
+        Assert.NotNull(poolField.GetValue(player));
+    }
+
     private sealed class NoOpPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
         public void RegisterPlatformServices(IServiceCollection services)
@@ -108,6 +142,18 @@ public class ServiceCollectionExtensionsTests
             services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
             services.AddTransient<Func<IInputSimulator>>(_ => () => new DummyInputSimulator());
             services.AddTransient<Func<IInputCapture>>(_ => () => new DummyInputCapture());
+        }
+    }
+
+    private sealed class PoolAwarePlatformServiceRegistrar : IPlatformServiceRegistrar
+    {
+        public void RegisterPlatformServices(IServiceCollection services)
+        {
+            services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
+            services.AddSingleton<IMousePositionProvider, DummyMousePositionProvider>();
+            services.AddTransient<Func<IInputSimulator>>(_ => () => new DummyInputSimulator());
+            services.AddTransient<Func<IInputCapture>>(_ => () => new DummyInputCapture());
+            services.AddSingleton(sp => new InputSimulatorPool(sp.GetRequiredService<Func<IInputSimulator>>()));
         }
     }
 
@@ -137,5 +183,21 @@ public class ServiceCollectionExtensionsTests
         public Task StartAsync(CancellationToken ct) => Task.CompletedTask;
         public void Stop() { }
         public void Dispose() { }
+    }
+
+    private sealed class DummyMousePositionProvider : IMousePositionProvider
+    {
+        public string ProviderName => "dummy-pos";
+        public bool IsSupported => true;
+
+        public Task<(int X, int Y)?> GetAbsolutePositionAsync() =>
+            Task.FromResult<(int X, int Y)?>(null);
+
+        public Task<(int Width, int Height)?> GetScreenResolutionAsync() =>
+            Task.FromResult<(int Width, int Height)?>(null);
+
+        public void Dispose()
+        {
+        }
     }
 }

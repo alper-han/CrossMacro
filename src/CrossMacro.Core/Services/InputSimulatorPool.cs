@@ -40,16 +40,35 @@ public class InputSimulatorPool : IDisposable
     /// <param name="screenHeight">Screen height for absolute mode (0 for relative-only)</param>
     public async Task WarmUpAsync(int screenWidth = 0, int screenHeight = 0)
     {
-        Log.Information("[InputSimulatorPool] Warming up devices (resolution: {Width}x{Height})...", screenWidth, screenHeight);
-        
-        _warmUpCts = new CancellationTokenSource();
-        
-        await Task.Run(async () =>
+        if (_disposed)
         {
-            try
+            return;
+        }
+
+        Log.Information("[InputSimulatorPool] Warming up devices (resolution: {Width}x{Height})...", screenWidth, screenHeight);
+
+        var warmUpCts = new CancellationTokenSource();
+        var warmUpToken = warmUpCts.Token;
+        var previousCts = Interlocked.Exchange(ref _warmUpCts, warmUpCts);
+        previousCts?.Cancel();
+        previousCts?.Dispose();
+
+        try
+        {
+            await Task.Run(async () =>
             {
+                if (_disposed || warmUpToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
                 using (_lock.EnterScope())
                 {
+                    if (_disposed || warmUpToken.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
                     if (_warmRelativeDevice == null)
                     {
                         _warmRelativeDevice = _factory();
@@ -60,12 +79,22 @@ public class InputSimulatorPool : IDisposable
                 
 
                 
-                await Task.Delay(100);
+                await Task.Delay(100, warmUpToken);
+
+                if (_disposed || warmUpToken.IsCancellationRequested)
+                {
+                    return;
+                }
                 
                 if (screenWidth > 0 && screenHeight > 0)
                 {
                     using (_lock.EnterScope())
                     {
+                        if (_disposed || warmUpToken.IsCancellationRequested)
+                        {
+                            return;
+                        }
+
                         if (_warmAbsoluteDevice == null)
                         {
                             _warmAbsoluteDevice = _factory();
@@ -78,12 +107,27 @@ public class InputSimulatorPool : IDisposable
                 }
                 
                 Log.Information("[InputSimulatorPool] Warm-up complete");
+            }, warmUpToken);
+        }
+        catch (OperationCanceledException)
+        {
+            Log.Debug("[InputSimulatorPool] Warm-up cancelled");
+        }
+        catch (ObjectDisposedException ex)
+        {
+            Log.Debug(ex, "[InputSimulatorPool] Warm-up skipped during disposal");
+        }
+        catch (Exception ex)
+        {
+            if (_disposed || warmUpToken.IsCancellationRequested)
+            {
+                Log.Debug(ex, "[InputSimulatorPool] Warm-up ended during shutdown");
             }
-            catch (Exception ex)
+            else
             {
                 Log.Error(ex, "[InputSimulatorPool] Failed to warm up devices");
             }
-        }, _warmUpCts.Token);
+        }
     }
     
     /// <summary>
@@ -122,7 +166,7 @@ public class InputSimulatorPool : IDisposable
         
         if (device != null)
         {
-            _ = Task.Run(async () => await WarmUpReplacementAsync(screenWidth, screenHeight));
+            QueueWarmUpReplacement(screenWidth, screenHeight);
             return device;
         }
         
@@ -148,8 +192,29 @@ public class InputSimulatorPool : IDisposable
         {
             Log.Debug(ex, "[InputSimulatorPool] Error disposing returned device");
         }
-        
-        _ = Task.Run(async () => await WarmUpReplacementAsync(screenWidth, screenHeight));
+
+        QueueWarmUpReplacement(screenWidth, screenHeight);
+    }
+
+    private void QueueWarmUpReplacement(int screenWidth, int screenHeight)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await WarmUpReplacementAsync(screenWidth, screenHeight);
+            }
+            catch (Exception ex)
+            {
+                // Observe any unexpected faults from fire-and-forget replacement tasks.
+                Log.Debug(ex, "[InputSimulatorPool] Replacement warm-up task faulted");
+            }
+        });
     }
     
     private async Task WarmUpReplacementAsync(int screenWidth, int screenHeight)
@@ -161,9 +226,19 @@ public class InputSimulatorPool : IDisposable
             bool needsAbsolute = screenWidth > 0 && screenHeight > 0;
             
             await Task.Delay(50);
+
+            if (_disposed)
+            {
+                return;
+            }
             
             using (_lock.EnterScope())
             {
+                if (_disposed)
+                {
+                    return;
+                }
+
                 if (needsAbsolute)
                 {
                     if (_warmAbsoluteDevice == null || _absoluteWidth != screenWidth || _absoluteHeight != screenHeight)
@@ -187,9 +262,20 @@ public class InputSimulatorPool : IDisposable
                 }
             }
         }
+        catch (ObjectDisposedException ex)
+        {
+            Log.Debug(ex, "[InputSimulatorPool] Replacement warm-up skipped during disposal");
+        }
         catch (Exception ex)
         {
-            Log.Error(ex, "[InputSimulatorPool] Failed to warm up replacement device");
+            if (_disposed)
+            {
+                Log.Debug(ex, "[InputSimulatorPool] Replacement warm-up ended during shutdown");
+            }
+            else
+            {
+                Log.Error(ex, "[InputSimulatorPool] Failed to warm up replacement device");
+            }
         }
     }
     
@@ -197,9 +283,10 @@ public class InputSimulatorPool : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        
-        _warmUpCts?.Cancel();
-        _warmUpCts?.Dispose();
+
+        var warmUpCts = Interlocked.Exchange(ref _warmUpCts, null);
+        warmUpCts?.Cancel();
+        warmUpCts?.Dispose();
         
         using (_lock.EnterScope())
         {

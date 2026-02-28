@@ -68,6 +68,28 @@ public class InputSimulatorPoolTests
         act.Should().NotThrow();
     }
 
+    [Fact]
+    public async Task WarmUpAsync_WhenDisposedConcurrently_DoesNotThrow()
+    {
+        var warmUpTask = _pool.WarmUpAsync(1920, 1080);
+        _pool.Dispose();
+
+        var act = async () => await warmUpTask;
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task Release_WhenPoolDisposed_DoesNotQueueReplacementWarmup()
+    {
+        var acquired = (FakeInputSimulator)_pool.Acquire(0, 0);
+
+        _pool.Dispose();
+        _pool.Release(acquired);
+
+        await Task.Delay(150);
+        _created.Should().HaveCount(1);
+    }
+
     private sealed class FakeInputSimulator : IInputSimulator
     {
         public List<(int Width, int Height)> InitializeCalls { get; } = [];

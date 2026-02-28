@@ -15,13 +15,14 @@ public static class CliRuntimeServiceCollectionExtensions
 {
     public static IServiceCollection AddCrossMacroCliRuntimeServices(
         this IServiceCollection services,
-        IPlatformServiceRegistrar platformServiceRegistrar)
+        IPlatformServiceRegistrar platformServiceRegistrar,
+        CliRuntimeProfile runtimeProfile = CliRuntimeProfile.OneShot)
     {
         ArgumentNullException.ThrowIfNull(platformServiceRegistrar);
 
         services.AddCommonServices();
         platformServiceRegistrar.RegisterPlatformServices(services);
-        services.AddCliPostPlatformServices();
+        services.AddCliPostPlatformServices(runtimeProfile);
 
         return services;
     }
@@ -55,7 +56,9 @@ public static class CliRuntimeServiceCollectionExtensions
         return services;
     }
 
-    private static IServiceCollection AddCliPostPlatformServices(this IServiceCollection services)
+    private static IServiceCollection AddCliPostPlatformServices(
+        this IServiceCollection services,
+        CliRuntimeProfile runtimeProfile)
     {
         services.AddSingleton<IKeyCodeMapper, KeyCodeMapper>();
         services.AddSingleton<IMouseButtonMapper, MouseButtonMapper>();
@@ -91,7 +94,9 @@ public static class CliRuntimeServiceCollectionExtensions
             var positionProvider = sp.GetRequiredService<IMousePositionProvider>();
             var validator = sp.GetRequiredService<PlaybackValidator>();
             var factory = sp.GetService<Func<IInputSimulator>>();
-            var pool = sp.GetService<InputSimulatorPool>();
+            var pool = runtimeProfile == CliRuntimeProfile.Persistent
+                ? sp.GetService<InputSimulatorPool>()
+                : null;
             return new MacroPlayer(positionProvider, validator, inputSimulatorFactory: factory, simulatorPool: pool);
         });
 

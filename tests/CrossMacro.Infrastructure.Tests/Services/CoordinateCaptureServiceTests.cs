@@ -148,7 +148,11 @@ public class CoordinateCaptureServiceTests
         public bool LastCaptureKeyboard { get; private set; }
 
         public event EventHandler<InputCaptureEventArgs>? InputReceived;
-        public event EventHandler<string>? Error;
+        public event EventHandler<string>? Error
+        {
+            add { }
+            remove { }
+        }
 
         public void Configure(bool captureMouse, bool captureKeyboard)
         {

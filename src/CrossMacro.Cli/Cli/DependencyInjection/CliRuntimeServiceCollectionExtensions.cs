@@ -29,6 +29,7 @@ public static class CliRuntimeServiceCollectionExtensions
 
     private static IServiceCollection AddCommonServices(this IServiceCollection services)
     {
+        services.AddSingleton<IRuntimeContext, RuntimeContext>();
         services.AddSingleton<IHotkeyConfigurationService, HotkeyConfigurationService>();
         services.AddSingleton<ISettingsService, SettingsService>();
         services.AddSingleton<HotkeySettings>(sp =>
@@ -97,7 +98,13 @@ public static class CliRuntimeServiceCollectionExtensions
             var pool = runtimeProfile == CliRuntimeProfile.Persistent
                 ? sp.GetService<InputSimulatorPool>()
                 : null;
-            return new MacroPlayer(positionProvider, validator, inputSimulatorFactory: factory, simulatorPool: pool);
+            var playbackBehaviorPolicy = sp.GetService<IPlaybackBehaviorPolicy>();
+            return new MacroPlayer(
+                positionProvider,
+                validator,
+                inputSimulatorFactory: factory,
+                simulatorPool: pool,
+                playbackBehaviorPolicy: playbackBehaviorPolicy);
         });
 
         services.AddSingleton<Func<IMacroPlayer>>(sp => () => sp.GetRequiredService<IMacroPlayer>());

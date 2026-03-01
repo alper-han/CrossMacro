@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace CrossMacro.UI.Services;
+namespace CrossMacro.Core.Services;
 
 public readonly record struct FlatpakQuickSetupResult(bool Success, string Message);
 

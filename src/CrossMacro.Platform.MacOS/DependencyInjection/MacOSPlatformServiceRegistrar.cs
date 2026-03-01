@@ -15,6 +15,8 @@ public sealed class MacOSPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
         services.AddSingleton<IKeyboardLayoutService, MacKeyboardLayoutService>();
         services.AddSingleton<IEnvironmentInfoProvider, MacOSEnvironmentInfoProvider>();
+        services.AddSingleton<IPlaybackBehaviorPolicy>(
+            _ => new PlaybackBehaviorPolicy(preferRelativeForAbsoluteMoves: false, useHybridAbsoluteDragMovement: false));
         services.AddSingleton<IMousePositionProvider, MacOSMousePositionProvider>();
         services.AddSingleton<IPermissionChecker, MacOSPermissionCheckerService>();
 

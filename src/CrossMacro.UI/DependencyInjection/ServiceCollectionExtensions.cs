@@ -61,6 +61,7 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddCommonServices(this IServiceCollection services)
     {
+        services.AddSingleton<IRuntimeContext, RuntimeContext>();
         services.AddSingleton<IHotkeyConfigurationService, HotkeyConfigurationService>();
         services.AddSingleton<ISettingsService, SettingsService>();
         services.AddSingleton<HotkeySettings>(sp => 
@@ -137,8 +138,9 @@ public static class ServiceCollectionExtensions
             var validator = sp.GetRequiredService<PlaybackValidator>();
             var factory = sp.GetService<Func<IInputSimulator>>();
             var pool = sp.GetService<InputSimulatorPool>();
+            var playbackBehaviorPolicy = sp.GetService<IPlaybackBehaviorPolicy>();
             return new MacroPlayer(positionProvider, validator, 
-                inputSimulatorFactory: factory, simulatorPool: pool);
+                inputSimulatorFactory: factory, simulatorPool: pool, playbackBehaviorPolicy: playbackBehaviorPolicy);
         });
 
         services.AddSingleton<Func<IMacroPlayer>>(sp => () => sp.GetRequiredService<IMacroPlayer>());
@@ -174,10 +176,6 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IDialogService, DialogService>();
             services.AddSingleton<IUpdateService, GitHubUpdateService>();
             services.AddSingleton<IExternalUrlOpener, ExternalUrlOpener>();
-            if (OperatingSystem.IsLinux())
-            {
-                services.AddSingleton<IFlatpakQuickSetupService, FlatpakQuickSetupService>();
-            }
         }
 
         return services;

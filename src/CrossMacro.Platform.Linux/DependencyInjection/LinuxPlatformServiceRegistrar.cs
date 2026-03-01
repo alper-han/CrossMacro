@@ -43,6 +43,9 @@ public sealed class LinuxPlatformServiceRegistrar : IPlatformServiceRegistrar
 
         services.AddSingleton<ILinuxEnvironmentDetector, LinuxEnvironmentDetector>();
         services.AddSingleton<ILinuxInputCapabilityDetector, LinuxInputCapabilityDetector>();
+        services.AddSingleton<IPlaybackBehaviorPolicy>(
+            _ => new PlaybackBehaviorPolicy(preferRelativeForAbsoluteMoves: true, useHybridAbsoluteDragMovement: true));
+        services.AddSingleton<IFlatpakQuickSetupService, FlatpakQuickSetupService>();
 
         services.AddSingleton<IEnvironmentInfoProvider, LinuxEnvironmentInfoProvider>();
         services.AddSingleton<IMousePositionProvider>(sp =>

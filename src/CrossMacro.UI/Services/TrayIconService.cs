@@ -6,6 +6,7 @@ using Avalonia.Platform;
 using CrossMacro.UI.ViewModels;
 using Serilog;
 using CrossMacro.Core;
+using CrossMacro.Core.Services;
 
 namespace CrossMacro.UI.Services;
 
@@ -16,6 +17,7 @@ public class TrayIconService : ITrayIconService
 {
     private TrayIcon? _trayIcon;
     private readonly MainWindowViewModel _viewModel;
+    private readonly IRuntimeContext _runtimeContext;
     private Window? _mainWindow;
     private bool _isExiting;
     private bool _isEnabled = true;
@@ -24,31 +26,23 @@ public class TrayIconService : ITrayIconService
     private NativeMenuItem? _startPlaybackItem;
     private NativeMenuItem? _stopItem;
 
-    public TrayIconService(MainWindowViewModel viewModel)
+    public TrayIconService(MainWindowViewModel viewModel, IRuntimeContext? runtimeContext = null)
     {
         _viewModel = viewModel;
+        _runtimeContext = runtimeContext ?? new RuntimeContext();
     }
 
-    private static bool IsFlatpakEnvironment()
+    public static bool IsTraySupported(IRuntimeContext runtimeContext)
     {
-        // Check for Flatpak environment variables
-        var flatpakId = Environment.GetEnvironmentVariable("FLATPAK_ID");
-        if (!string.IsNullOrEmpty(flatpakId))
-            return true;
-
-        var crossmacroFlatpak = Environment.GetEnvironmentVariable("CROSSMACRO_FLATPAK");
-        if (crossmacroFlatpak == "1")
-            return true;
-
-        // Check if running inside Flatpak sandbox
-        return System.IO.File.Exists("/.flatpak-info");
+        ArgumentNullException.ThrowIfNull(runtimeContext);
+        return !runtimeContext.IsFlatpak;
     }
 
     /// <summary>
     /// Returns true if tray icon is supported in the current environment.
     /// Flatpak lacks StatusNotifierItem portal: https://github.com/flatpak/xdg-desktop-portal/issues/266
     /// </summary>
-    public static bool IsTraySupported() => !IsFlatpakEnvironment();
+    public static bool IsTraySupported() => IsTraySupported(new RuntimeContext());
 
     public void Initialize()
     {
@@ -94,7 +88,7 @@ public class TrayIconService : ITrayIconService
             // Flatpak sandbox blocks D-Bus StatusNotifierItem dynamic name registration
             // (org.kde.StatusNotifierItem-{PID}-{ID}) which cannot be permitted with wildcards.
             // See: https://github.com/flatpak/xdg-desktop-portal/issues/266
-            if (IsFlatpakEnvironment())
+            if (_runtimeContext.IsFlatpak)
             {
                 Log.Information("Tray icon disabled in Flatpak (D-Bus StatusNotifierItem not supported in sandbox)");
                 return false;

@@ -20,7 +20,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
     private readonly Func<IButtonStateTracker> _buttonTrackerFactory;
     private readonly Func<IKeyStateTracker> _keyTrackerFactory;
     private readonly IPlaybackMouseButtonMapper _buttonMapper;
-    private readonly bool _useLinuxRelativeAbsolutePlayback;
+    private readonly IPlaybackBehaviorPolicy _playbackBehaviorPolicy;
 
     private IInputSimulator? _inputSimulator;
     private IEventExecutor? _eventExecutor;
@@ -69,20 +69,21 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
         Func<IKeyStateTracker>? keyTrackerFactory = null,
         IPlaybackMouseButtonMapper? buttonMapper = null,
         Func<IInputSimulator>? inputSimulatorFactory = null,
-        InputSimulatorPool? simulatorPool = null)
+        InputSimulatorPool? simulatorPool = null,
+        IPlaybackBehaviorPolicy? playbackBehaviorPolicy = null)
     {
         _positionProvider = positionProvider;
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
         _inputSimulatorFactory = inputSimulatorFactory;
         _simulatorPool = simulatorPool;
-        _useLinuxRelativeAbsolutePlayback = OperatingSystem.IsLinux();
+        _playbackBehaviorPolicy = playbackBehaviorPolicy ?? new RuntimePlaybackBehaviorPolicy(new RuntimeContext());
 
         // Use provided services or create defaults
         _timingService = timingService ?? new PlaybackTimingService();
         _coordinatorFactory = coordinatorFactory
             ?? (() => new DefaultPlaybackCoordinator(
                 positionProvider,
-                preferRelativeForAbsoluteMoves: _useLinuxRelativeAbsolutePlayback));
+                preferRelativeForAbsoluteMoves: _playbackBehaviorPolicy.PreferRelativeForAbsoluteMoves));
         _buttonTrackerFactory = buttonTrackerFactory ?? (() => new ButtonStateTracker());
         _keyTrackerFactory = keyTrackerFactory ?? (() => new KeyStateTracker());
         _buttonMapper = buttonMapper ?? new DefaultPlaybackMouseButtonMapper();
@@ -285,7 +286,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
             _keyTracker,
             _buttonMapper,
             _coordinator,
-            useHybridAbsoluteDragMovement: _useLinuxRelativeAbsolutePlayback);
+            useHybridAbsoluteDragMovement: _playbackBehaviorPolicy.UseHybridAbsoluteDragMovement);
 
         _eventExecutor.Initialize(_cachedScreenWidth, _cachedScreenHeight);
 

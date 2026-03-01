@@ -14,6 +14,8 @@ public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
         services.AddSingleton<IKeyboardLayoutService, WindowsKeyboardLayoutService>();
         services.AddSingleton<IMousePositionProvider, WindowsMousePositionProvider>();
         services.AddSingleton<IEnvironmentInfoProvider, WindowsEnvironmentInfoProvider>();
+        services.AddSingleton<IPlaybackBehaviorPolicy>(
+            _ => new PlaybackBehaviorPolicy(preferRelativeForAbsoluteMoves: false, useHybridAbsoluteDragMovement: false));
 
 #pragma warning disable CS8634 // Intentionally nullable for optional service
         services.AddSingleton<IExtensionStatusNotifier?>(sp => null);

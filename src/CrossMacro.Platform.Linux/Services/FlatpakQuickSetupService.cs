@@ -4,9 +4,10 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Core.Services;
 using Serilog;
 
-namespace CrossMacro.UI.Services;
+namespace CrossMacro.Platform.Linux.Services;
 
 public sealed class FlatpakQuickSetupService : IFlatpakQuickSetupService
 {

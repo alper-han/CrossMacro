@@ -19,6 +19,7 @@ public class SettingsViewModel : ViewModelBase
     private readonly ITextExpansionService _textExpansionService;
     private readonly HotkeySettings _hotkeySettings;
     private readonly IExternalUrlOpener _externalUrlOpener;
+    private readonly IRuntimeContext _runtimeContext;
     
     private string _recordingHotkey;
     private string _playbackHotkey;
@@ -36,13 +37,15 @@ public class SettingsViewModel : ViewModelBase
         ISettingsService settingsService,
         ITextExpansionService textExpansionService,
         HotkeySettings hotkeySettings,
-        IExternalUrlOpener externalUrlOpener)
+        IExternalUrlOpener externalUrlOpener,
+        IRuntimeContext? runtimeContext = null)
     {
         _hotkeyService = hotkeyService;
         _settingsService = settingsService;
         _textExpansionService = textExpansionService;
         _hotkeySettings = hotkeySettings;
         _externalUrlOpener = externalUrlOpener;
+        _runtimeContext = runtimeContext ?? new RuntimeContext();
         
         // Initialize hotkey properties
         _recordingHotkey = _hotkeySettings.RecordingHotkey;
@@ -60,10 +63,10 @@ public class SettingsViewModel : ViewModelBase
         ChangeTheme(_selectedTheme);
         
         // Hide update settings if running as Flatpak
-        IsUpdateSettingsVisible = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FLATPAK_ID"));
+        IsUpdateSettingsVisible = !_runtimeContext.IsFlatpak;
 
         // Hide tray settings if tray is not supported (Flatpak sandbox blocks D-Bus StatusNotifierItem)
-        IsTraySettingsVisible = TrayIconService.IsTraySupported();
+        IsTraySettingsVisible = TrayIconService.IsTraySupported(_runtimeContext);
     }
 
     public bool IsUpdateSettingsVisible { get; }

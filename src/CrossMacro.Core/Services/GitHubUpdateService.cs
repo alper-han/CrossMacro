@@ -28,11 +28,22 @@ public class GitHubUpdateService : IUpdateService
 {
     private const string GitHubApiUrl = "https://api.github.com/repos/alper-han/CrossMacro/releases/latest";
     private const string UserAgent = "CrossMacro-App";
+    private readonly IRuntimeContext _runtimeContext;
+
+    public GitHubUpdateService()
+        : this(new RuntimeContext())
+    {
+    }
+
+    public GitHubUpdateService(IRuntimeContext runtimeContext)
+    {
+        _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
+    }
 
     public async Task<UpdateCheckResult> CheckForUpdatesAsync()
     {
         // Skip update check if running as Flatpak
-        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FLATPAK_ID")))
+        if (_runtimeContext.IsFlatpak)
         {
             Log.Information("Running as Flatpak, skipping update check.");
             return new UpdateCheckResult { HasUpdate = false };

@@ -94,6 +94,11 @@ public class InputDeviceHelper
                     skippedDevices.Add(device);
                 }
             }
+            catch (DeviceOpenException ex) when (ex.Errno == 13 || ex.Errno == 16)
+            {
+                // Permission denied or busy: expected for some nodes (e.g. newly created virtual devices).
+                inaccessibleDevices.Add((CreateInaccessiblePlaceholder(file), ex.Errno));
+            }
             catch (Exception ex)
             {
                 readErrors++;
@@ -155,7 +160,7 @@ public class InputDeviceHelper
         if (fd < 0)
         {
             var errno = Marshal.GetLastWin32Error();
-            throw new IOException($"Cannot open {devicePath}. Errno: {errno}");
+            throw new DeviceOpenException(devicePath, errno);
         }
 
         try
@@ -469,6 +474,22 @@ public class InputDeviceHelper
         return false;
     }
 
+    private static InputDevice CreateInaccessiblePlaceholder(string devicePath)
+    {
+        return new InputDevice
+        {
+            Path = devicePath,
+            Name = Path.GetFileName(devicePath),
+            IsMouse = false,
+            IsKeyboard = false,
+            IsVirtual = false,
+            VendorId = 0,
+            ProductId = 0,
+            BusType = 0,
+            Version = 0
+        };
+    }
+
     private static (bool canOpen, int errno) CanOpenForReading(string devicePath)
     {
         int fd = -1;
@@ -505,6 +526,17 @@ public class InputDeviceHelper
         finally
         {
             if (fd >= 0) EvdevNative.close(fd);
+        }
+    }
+
+    private sealed class DeviceOpenException : IOException
+    {
+        public int Errno { get; }
+
+        public DeviceOpenException(string devicePath, int errno)
+            : base($"Cannot open {devicePath}. Errno: {errno}")
+        {
+            Errno = errno;
         }
     }
 }

@@ -39,11 +39,14 @@ public class MacOSPlatformServiceRegistrarTests
         var strategyFactory = provider.GetRequiredService<ICoordinateStrategyFactory>();
         var displaySession = provider.GetRequiredService<IDisplaySessionService>();
         var notifier = provider.GetService<IExtensionStatusNotifier>();
+        var policy = provider.GetRequiredService<IPlaybackBehaviorPolicy>();
 
         Assert.IsType<MacOSInputCapture>(captureFactory());
         Assert.IsType<MacOSInputSimulator>(simulatorFactory());
         Assert.IsType<MacOSCoordinateStrategyFactory>(strategyFactory);
         Assert.IsType<GenericDisplaySessionService>(displaySession);
         Assert.Null(notifier);
+        Assert.False(policy.PreferRelativeForAbsoluteMoves);
+        Assert.False(policy.UseHybridAbsoluteDragMovement);
     }
 }

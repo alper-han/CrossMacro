@@ -25,6 +25,8 @@ public class LinuxPlatformServiceRegistrarTests
         Assert.Contains(services, d => d.ServiceType == typeof(IEnvironmentInfoProvider) && d.ImplementationType == typeof(LinuxEnvironmentInfoProvider));
         Assert.Contains(services, d => d.ServiceType == typeof(IPermissionChecker) && d.ImplementationType == typeof(LinuxPermissionChecker));
         Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategyFactory) && d.ImplementationType == typeof(LinuxCoordinateStrategyFactory));
+        Assert.Contains(services, d => d.ServiceType == typeof(IPlaybackBehaviorPolicy));
+        Assert.Contains(services, d => d.ServiceType == typeof(IFlatpakQuickSetupService) && d.ImplementationType == typeof(FlatpakQuickSetupService));
         Assert.Contains(services, d => d.ServiceType == typeof(InputSimulatorPool));
         Assert.Contains(services, d => d.ServiceType == typeof(Func<IInputSimulator>));
         Assert.Contains(services, d => d.ServiceType == typeof(Func<IInputCapture>));
@@ -50,5 +52,18 @@ public class LinuxPlatformServiceRegistrarTests
         Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(KdePositionProviderSelector));
         Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(HyprlandPositionProviderSelector));
         Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(FallbackPositionProviderSelector));
+    }
+
+    [Fact]
+    public void RegisterPlatformServices_RegistersLinuxPlaybackBehaviorPolicy()
+    {
+        var services = new ServiceCollection();
+        new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services);
+
+        using var provider = services.BuildServiceProvider();
+        var policy = provider.GetRequiredService<IPlaybackBehaviorPolicy>();
+
+        Assert.True(policy.PreferRelativeForAbsoluteMoves);
+        Assert.True(policy.UseHybridAbsoluteDragMovement);
     }
 }

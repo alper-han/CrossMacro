@@ -91,4 +91,17 @@ public class WindowsPlatformServiceRegistrarTests
 
         Assert.Null(notifier);
     }
+
+    [WindowsFact]
+    public void RegisterPlatformServices_RegistersWindowsPlaybackBehaviorPolicy()
+    {
+        var services = new ServiceCollection();
+        new WindowsPlatformServiceRegistrar().RegisterPlatformServices(services);
+
+        using var provider = services.BuildServiceProvider();
+        var policy = provider.GetRequiredService<IPlaybackBehaviorPolicy>();
+
+        Assert.False(policy.PreferRelativeForAbsoluteMoves);
+        Assert.False(policy.UseHybridAbsoluteDragMovement);
+    }
 }

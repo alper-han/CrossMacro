@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Platform.Linux.Services;
 using CrossMacro.TestInfrastructure;
-using CrossMacro.UI.Services;
-using FluentAssertions;
+using Xunit;
 
-namespace CrossMacro.UI.Tests.Services;
+namespace CrossMacro.Platform.Linux.Tests.Services;
 
 public sealed class FlatpakQuickSetupServiceTests
 {
@@ -28,7 +28,7 @@ public sealed class FlatpakQuickSetupServiceTests
 
         var result = service.IsApplicable();
 
-        result.Should().BeTrue();
+        Assert.True(result);
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public sealed class FlatpakQuickSetupServiceTests
 
         var result = service.IsApplicable();
 
-        result.Should().BeFalse();
+        Assert.False(result);
     }
 
     [Fact]
@@ -73,8 +73,8 @@ public sealed class FlatpakQuickSetupServiceTests
 
         var result = await service.RunAsync();
 
-        result.Success.Should().BeFalse();
-        commandWasRun.Should().BeFalse();
+        Assert.False(result.Success);
+        Assert.False(commandWasRun);
     }
 
     [Fact]
@@ -99,12 +99,12 @@ public sealed class FlatpakQuickSetupServiceTests
 
         var result = await service.RunAsync();
 
-        result.Success.Should().BeTrue();
-        capturedStartInfo.Should().NotBeNull();
-        capturedStartInfo!.FileName.Should().Be("flatpak-spawn");
-        capturedStartInfo.ArgumentList.Should().Contain("--host");
-        capturedStartInfo.ArgumentList.Should().Contain("pkexec");
-        capturedStartInfo.ArgumentList[^1].Should().Be("1042");
+        Assert.True(result.Success);
+        Assert.NotNull(capturedStartInfo);
+        Assert.Equal("flatpak-spawn", capturedStartInfo!.FileName);
+        Assert.Contains("--host", capturedStartInfo.ArgumentList);
+        Assert.Contains("pkexec", capturedStartInfo.ArgumentList);
+        Assert.Equal("1042", capturedStartInfo.ArgumentList[^1]);
     }
 
     [Fact]
@@ -129,9 +129,9 @@ public sealed class FlatpakQuickSetupServiceTests
 
         var result = await service.RunAsync();
 
-        result.Success.Should().BeTrue();
-        capturedStartInfo.Should().NotBeNull();
-        capturedStartInfo!.ArgumentList[^1].Should().Be("John.Doe");
+        Assert.True(result.Success);
+        Assert.NotNull(capturedStartInfo);
+        Assert.Equal("John.Doe", capturedStartInfo!.ArgumentList[^1]);
     }
 
     [Fact]
@@ -151,8 +151,8 @@ public sealed class FlatpakQuickSetupServiceTests
 
         var result = await service.RunAsync();
 
-        result.Success.Should().BeFalse();
-        result.Message.Should().Contain("setfacl is missing on host");
+        Assert.False(result.Success);
+        Assert.Contains("setfacl is missing on host", result.Message, StringComparison.Ordinal);
     }
 
     private static FlatpakQuickSetupService CreateService(

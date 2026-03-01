@@ -1,41 +1,30 @@
 namespace CrossMacro.UI.Tests.Services;
 
-using System;
+using CrossMacro.Core.Services;
 using CrossMacro.UI.Services;
 
-public class TrayIconServiceTests
+public sealed class TrayIconServiceTests
 {
     [Fact]
-    public void IsTraySupported_WhenFlatpakIdPresent_ReturnsFalse()
+    public void IsTraySupported_WhenRuntimeContextIsFlatpak_ReturnsFalse()
     {
-        using var _ = new EnvironmentVariableScope("FLATPAK_ID", "io.github.test.crossmacro");
-
-        Assert.False(TrayIconService.IsTraySupported());
+        var runtimeContext = new FakeRuntimeContext { IsFlatpak = true };
+        Assert.False(TrayIconService.IsTraySupported(runtimeContext));
     }
 
     [Fact]
-    public void IsTraySupported_WhenCrossMacroFlatpakFlagSet_ReturnsFalse()
+    public void IsTraySupported_WhenRuntimeContextIsNotFlatpak_ReturnsTrue()
     {
-        using var _ = new EnvironmentVariableScope("CROSSMACRO_FLATPAK", "1");
-
-        Assert.False(TrayIconService.IsTraySupported());
+        var runtimeContext = new FakeRuntimeContext { IsFlatpak = false };
+        Assert.True(TrayIconService.IsTraySupported(runtimeContext));
     }
 
-    private sealed class EnvironmentVariableScope : IDisposable
+    private sealed class FakeRuntimeContext : IRuntimeContext
     {
-        private readonly string _name;
-        private readonly string? _previousValue;
-
-        public EnvironmentVariableScope(string name, string? value)
-        {
-            _name = name;
-            _previousValue = Environment.GetEnvironmentVariable(name);
-            Environment.SetEnvironmentVariable(name, value);
-        }
-
-        public void Dispose()
-        {
-            Environment.SetEnvironmentVariable(_name, _previousValue);
-        }
+        public bool IsLinux => true;
+        public bool IsWindows => false;
+        public bool IsMacOS => false;
+        public bool IsFlatpak { get; set; }
+        public string? SessionType => "wayland";
     }
 }

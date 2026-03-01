@@ -13,6 +13,15 @@ namespace CrossMacro.UI.Tests.ViewModels;
 
 public class SettingsViewModelTests
 {
+    private sealed class FakeRuntimeContext : IRuntimeContext
+    {
+        public bool IsLinux => true;
+        public bool IsWindows => false;
+        public bool IsMacOS => false;
+        public bool IsFlatpak { get; set; }
+        public string? SessionType => "wayland";
+    }
+
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ISettingsService _settingsService;
     private readonly ITextExpansionService _textExpansionService;
@@ -174,5 +183,37 @@ public class SettingsViewModelTests
 
         // Assert
         _externalUrlOpener.Received(1).Open("https://github.com/alper-han/CrossMacro");
+    }
+
+    [Fact]
+    public void Construction_WhenFlatpakRuntime_HidesUpdateAndTraySettings()
+    {
+        var runtimeContext = new FakeRuntimeContext { IsFlatpak = true };
+        var vm = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            runtimeContext);
+
+        vm.IsUpdateSettingsVisible.Should().BeFalse();
+        vm.IsTraySettingsVisible.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Construction_WhenNonFlatpakRuntime_ShowsUpdateAndTraySettings()
+    {
+        var runtimeContext = new FakeRuntimeContext { IsFlatpak = false };
+        var vm = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            runtimeContext);
+
+        vm.IsUpdateSettingsVisible.Should().BeTrue();
+        vm.IsTraySettingsVisible.Should().BeTrue();
     }
 }

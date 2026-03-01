@@ -1,11 +1,10 @@
-using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Linux.Services;
 using CrossMacro.Platform.Linux.Services.Keyboard;
 using Xunit;
 
-namespace CrossMacro.Infrastructure.Tests.Services;
+namespace CrossMacro.Platform.Linux.Tests.Services.Keyboard;
 
-public class LinuxKeyboardLayoutServiceTests
+public sealed class LinuxKeyboardLayoutServiceTests
 {
     private readonly LinuxKeyboardLayoutService _service;
 

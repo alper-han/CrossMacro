@@ -1,12 +1,10 @@
-using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Linux.Services;
 using CrossMacro.Platform.Linux.Services.Keyboard;
-using FluentAssertions;
 using Xunit;
 
-namespace CrossMacro.Infrastructure.Tests.Services;
+namespace CrossMacro.Platform.Linux.Tests.Services.Keyboard;
 
-public class LinuxKeyboardLayoutServiceExtendedTests
+public sealed class LinuxKeyboardLayoutServiceExtendedTests
 {
     private readonly LinuxKeyboardLayoutService _service;
 
@@ -27,8 +25,8 @@ public class LinuxKeyboardLayoutServiceExtendedTests
     [InlineData(194, "F24")]
     public void GetKeyName_ShouldReturnCorrectFKeys(int keyCode, string expectedName)
     {
-        _service.GetKeyName(keyCode).Should().Be(expectedName);
-        _service.GetKeyCode(expectedName).Should().Be(keyCode);
+        Assert.Equal(expectedName, _service.GetKeyName(keyCode));
+        Assert.Equal(keyCode, _service.GetKeyCode(expectedName));
     }
 
     [Theory]
@@ -41,7 +39,7 @@ public class LinuxKeyboardLayoutServiceExtendedTests
     [InlineData(125, "Super")]
     public void GetKeyName_ShouldReturnCorrectModifierKeys(int keyCode, string expectedName)
     {
-        _service.GetKeyName(keyCode).Should().Be(expectedName);
+        Assert.Equal(expectedName, _service.GetKeyName(keyCode));
         // Note: GetKeyCode reverse mapping might map "Ctrl" to 29 (Left Ctrl) by default, 
         // effectively aliasing Right Ctrl to Left Ctrl ID in reverse lookup, which is acceptable behavior.
         // We just verify GetKeyName here primarily.
@@ -67,8 +65,8 @@ public class LinuxKeyboardLayoutServiceExtendedTests
     [InlineData(117, "Numpad=")]
     public void GetKeyName_ShouldReturnCorrectNumpadKeys(int keyCode, string expectedName)
     {
-        _service.GetKeyName(keyCode).Should().Be(expectedName);
-        _service.GetKeyCode(expectedName).Should().Be(keyCode);
+        Assert.Equal(expectedName, _service.GetKeyName(keyCode));
+        Assert.Equal(keyCode, _service.GetKeyCode(expectedName));
     }
 
     [Theory]
@@ -79,7 +77,7 @@ public class LinuxKeyboardLayoutServiceExtendedTests
     [InlineData(119, "Pause")]
     public void GetKeyName_ShouldReturnCorrectSpecialKeys(int keyCode, string expectedName)
     {
-        _service.GetKeyName(keyCode).Should().Be(expectedName);
-        _service.GetKeyCode(expectedName).Should().Be(keyCode);
+        Assert.Equal(expectedName, _service.GetKeyName(keyCode));
+        Assert.Equal(keyCode, _service.GetKeyCode(expectedName));
     }
 }

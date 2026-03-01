@@ -174,6 +174,10 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IDialogService, DialogService>();
             services.AddSingleton<IUpdateService, GitHubUpdateService>();
             services.AddSingleton<IExternalUrlOpener, ExternalUrlOpener>();
+            if (OperatingSystem.IsLinux())
+            {
+                services.AddSingleton<IFlatpakQuickSetupService, FlatpakQuickSetupService>();
+            }
         }
 
         return services;

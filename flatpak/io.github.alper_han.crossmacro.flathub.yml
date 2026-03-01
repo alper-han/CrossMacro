@@ -21,6 +21,9 @@ finish-args:
   # D-Bus: GNOME
   - --talk-name=org.gnome.Shell
 
+  # Host setup helper (flatpak-spawn --host)
+  - --talk-name=org.freedesktop.Flatpak
+
 
   # Filesystem: Compositor IPC
   - --filesystem=xdg-run/hypr:ro

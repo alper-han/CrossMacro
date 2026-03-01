@@ -53,8 +53,13 @@
       A logout/login may be required for the extension to take effect.
     </p>
     <p>
-      Wayland requires one of: (1) User in "input" group: sudo usermod -aG input $USER,
-      or (2) CrossMacro daemon service installed from native packages (deb, rpm, AUR).
+      On Wayland, CrossMacro first tries daemon socket access or existing direct input access.
+      If neither is available, it offers a Quick Setup flow on launch and uses
+      flatpak-spawn + pkexec to apply per-session input permissions on the host.
+    </p>
+    <p>
+      If Quick Setup cannot complete on your system, use the native daemon setup instructions
+      in the project README.
     </p>
   </description>
   <launchable type="desktop-id">io.github.alper_han.crossmacro.desktop</launchable>

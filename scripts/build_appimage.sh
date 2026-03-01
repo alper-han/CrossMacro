@@ -11,7 +11,21 @@ PACKAGE_VERSION="$(to_filename_version)"
 PUBLISH_DIR="${PUBLISH_DIR:-../publish}"
 APP_DIR="AppDir"
 APPIMAGETOOL_NAME="appimagetool-x86_64.AppImage"
-APPIMAGETOOL_RELEASE_API="https://api.github.com/repos/AppImage/appimagetool/releases/tags/continuous"
+APPIMAGETOOL_VERSION="${APPIMAGETOOL_VERSION:-1.9.1}"
+APPIMAGETOOL_RELEASE_API="https://api.github.com/repos/AppImage/appimagetool/releases/tags/$APPIMAGETOOL_VERSION"
+APPIMAGETOOL_DOWNLOAD_URL="https://github.com/AppImage/appimagetool/releases/download/$APPIMAGETOOL_VERSION/$APPIMAGETOOL_NAME"
+CURL_RETRY_DELAY_SECONDS="${CURL_RETRY_DELAY_SECONDS:-1}"
+CURL_RETRY_MAX_TIME_SECONDS="${CURL_RETRY_MAX_TIME_SECONDS:-15}"
+CURL_RETRY_ATTEMPTS="${CURL_RETRY_ATTEMPTS:-15}"
+
+curl_with_retry() {
+    curl -fL \
+        --retry "$CURL_RETRY_ATTEMPTS" \
+        --retry-delay "$CURL_RETRY_DELAY_SECONDS" \
+        --retry-max-time "$CURL_RETRY_MAX_TIME_SECONDS" \
+        --retry-all-errors \
+        "$@"
+}
 
 resolve_appimagetool_sha256() {
     if [ -n "${APPIMAGETOOL_SHA256:-}" ]; then
@@ -25,7 +39,7 @@ resolve_appimagetool_sha256() {
     fi
 
     local release_json
-    if ! release_json="$(curl -fsSL "$APPIMAGETOOL_RELEASE_API")"; then
+    if ! release_json="$(curl_with_retry -sS "$APPIMAGETOOL_RELEASE_API")"; then
         echo "Error: Failed to fetch appimagetool release metadata."
         return 1
     fi
@@ -125,8 +139,8 @@ ln -s "usr/bin/CrossMacro.UI" "$APP_DIR/AppRun"
 APPIMAGETOOL_SHA256_RESOLVED="$(resolve_appimagetool_sha256)"
 
 if [ ! -f "$APPIMAGETOOL_NAME" ]; then
-    curl -fL -o "$APPIMAGETOOL_NAME" \
-        "https://github.com/AppImage/appimagetool/releases/download/continuous/$APPIMAGETOOL_NAME"
+    echo "Downloading appimagetool $APPIMAGETOOL_VERSION (retry: ${CURL_RETRY_DELAY_SECONDS}s interval, ${CURL_RETRY_MAX_TIME_SECONDS}s max window)..."
+    curl_with_retry -o "$APPIMAGETOOL_NAME" "$APPIMAGETOOL_DOWNLOAD_URL"
 fi
 
 verify_sha256 "$APPIMAGETOOL_NAME" "$APPIMAGETOOL_SHA256_RESOLVED"

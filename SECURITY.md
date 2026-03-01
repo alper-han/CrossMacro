@@ -2,12 +2,12 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are currently being supported with security updates.
+CrossMacro currently provides security updates for:
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.7.x   | ✅ |
-| < 0.7.0 | ❌ |
+- `main` branch (always)
+- latest stable release (always)
+
+Older releases may receive fixes on a best-effort basis and should not be considered fully supported.
 
 ## Reporting a Vulnerability
 

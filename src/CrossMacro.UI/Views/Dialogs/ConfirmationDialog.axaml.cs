@@ -10,12 +10,21 @@ public partial class ConfirmationDialog : Window
         InitializeComponent();
     }
 
-    public ConfirmationDialog(string title, string message, string yesText, string? noText) : this()
+    public ConfirmationDialog(
+        string title,
+        string message,
+        string yesText,
+        string? noText,
+        bool dangerYes = true,
+        bool dangerNo = false) : this()
     {
         TitleText.Text = title;
         MessageText.Text = message;
         YesButton.Content = yesText;
         NoButton.Content = noText;
+
+        SetButtonStyle(YesButton, dangerYes ? "danger" : "primary");
+        SetButtonStyle(NoButton, dangerNo ? "danger" : "secondary");
         
         if (string.IsNullOrEmpty(noText))
         {
@@ -31,5 +40,13 @@ public partial class ConfirmationDialog : Window
     private void NoButton_Click(object? sender, RoutedEventArgs e)
     {
         Close(false);
+    }
+
+    private static void SetButtonStyle(Button button, string styleClass)
+    {
+        button.Classes.Remove("primary");
+        button.Classes.Remove("secondary");
+        button.Classes.Remove("danger");
+        button.Classes.Add(styleClass);
     }
 }

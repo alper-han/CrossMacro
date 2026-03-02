@@ -194,7 +194,9 @@ public partial class App : Application
                 "Wayland Setup Required",
                 promptMessage,
                 "Run Quick Setup",
-                "Exit")
+                "Exit",
+                dangerYes: false,
+                dangerNo: true)
             {
                 WindowStartupLocation = WindowStartupLocation.CenterScreen
             };

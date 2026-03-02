@@ -32,28 +32,16 @@
             <!-- Buttons -->
             <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" Margin="0,12,0,0">
                 <Button Name="NoButton"
+                        Classes="secondary"
                         Content="No"
                         Click="NoButton_Click"
-                        Background="Transparent"
-                        BorderBrush="{DynamicResource SurfaceHoverBrush}"
-                        BorderThickness="1"
-                        CornerRadius="4"
-                        Foreground="{DynamicResource TextPrimaryBrush}"
-                        Padding="16,8"/>
+                        Padding="16,8" />
                 
                 <Button Name="YesButton"
+                        Classes="danger"
                         Content="Yes"
                         Click="YesButton_Click"
-                        Background="{DynamicResource DangerBrush}" 
-                        Foreground="{DynamicResource TextOnColorBrush}"
-                        CornerRadius="4"
-                        Padding="16,8">
-                    <Button.Styles>
-                        <Style Selector="Button:pointerover /template/ ContentPresenter">
-                            <Setter Property="Background" Value="{DynamicResource DangerHoverBrush}"/>
-                        </Style>
-                    </Button.Styles>
-                </Button>
+                        Padding="16,8" />
             </StackPanel>
         </StackPanel>
     </Border>

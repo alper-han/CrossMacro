@@ -3,6 +3,8 @@
 ![Linux](https://img.shields.io/badge/Linux-Wayland%20%7C%20X11-1793D1?logo=linux&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white)
 ![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=white)
+[![Downloads](https://img.shields.io/github/downloads/alper-han/CrossMacro/total?label=Downloads)](https://github.com/alper-han/CrossMacro/releases)
+[![Discord](https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white)](https://discord.gg/QUBuND5TvM)
 [![Build Status](https://github.com/alper-han/CrossMacro/actions/workflows/pr-check.yml/badge.svg?branch=main&event=push)](https://github.com/alper-han/CrossMacro/actions/workflows/pr-check.yml)
 [![Release](https://img.shields.io/github/v/release/alper-han/CrossMacro)](https://github.com/alper-han/CrossMacro/releases)
 [![License](https://img.shields.io/github/license/alper-han/CrossMacro)](LICENSE)
@@ -30,6 +32,7 @@ CrossMacro is a cross-platform mouse and keyboard macro recorder and player with
 - [Contributors](#contributors)
 - [Star History](#star-history)
 - [License](#license)
+- [Community](#community)
 
 ## Features
 
@@ -350,3 +353,7 @@ Thanks to everyone who contributes to CrossMacro.
 ## License
 
 Licensed under GPL-3.0. See [LICENSE](LICENSE).
+
+## Community
+
+<div><a href="https://discord.gg/QUBuND5TvM"><img src="https://discord.com/api/guilds/1477899451476742164/widget.png?style=banner2" alt="CrossMacro Discord community" /></a></div>

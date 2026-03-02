@@ -20,4 +20,40 @@ public class LinuxEnvironmentInfoProviderTests
         Assert.Equal(expectedEnvironment, provider.CurrentEnvironment);
         Assert.Equal(expectedHandlesCloseButton, provider.WindowManagerHandlesCloseButton);
     }
+
+    [Theory]
+    [InlineData("show", false)]
+    [InlineData("1", false)]
+    [InlineData("true", false)]
+    [InlineData("yes", false)]
+    [InlineData("on", false)]
+    [InlineData("hide", true)]
+    [InlineData("0", true)]
+    [InlineData("false", true)]
+    [InlineData("no", true)]
+    [InlineData("off", true)]
+    [InlineData("auto", true)]
+    [InlineData("unknown", true)]
+    public void WindowManagerHandlesCloseButton_ShouldRespectEnvironmentOverride(string value, bool expected)
+    {
+        var provider = new LinuxEnvironmentInfoProvider(
+            CompositorType.HYPRLAND,
+            key => key == "CROSSMACRO_WINDOW_BUTTONS" ? value : null);
+
+        Assert.Equal(expected, provider.WindowManagerHandlesCloseButton);
+    }
+
+    [Fact]
+    public void WindowManagerHandlesCloseButton_ShouldUseDefault_WhenOverrideMissing()
+    {
+        var hyprlandProvider = new LinuxEnvironmentInfoProvider(
+            CompositorType.HYPRLAND,
+            _ => null);
+        var x11Provider = new LinuxEnvironmentInfoProvider(
+            CompositorType.X11,
+            _ => null);
+
+        Assert.True(hyprlandProvider.WindowManagerHandlesCloseButton);
+        Assert.False(x11Provider.WindowManagerHandlesCloseButton);
+    }
 }

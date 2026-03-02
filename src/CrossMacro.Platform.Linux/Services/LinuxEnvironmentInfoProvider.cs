@@ -9,19 +9,36 @@ namespace CrossMacro.Platform.Linux.Services;
 /// </summary>
 public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
 {
+    private const string WindowButtonsEnvKey = "CROSSMACRO_WINDOW_BUTTONS";
     private readonly CompositorType _compositor;
+    private readonly bool _windowManagerHandlesCloseButton;
     
     public LinuxEnvironmentInfoProvider()
+        : this(CompositorDetector.DetectCompositor(), Environment.GetEnvironmentVariable)
     {
-        _compositor = CompositorDetector.DetectCompositor();
     }
     
     /// <summary>
     /// Constructor for testing with explicit compositor type.
     /// </summary>
     internal LinuxEnvironmentInfoProvider(CompositorType compositor)
+        : this(compositor, _ => null)
     {
+    }
+
+    /// <summary>
+    /// Constructor for testing with explicit compositor type and environment accessor.
+    /// </summary>
+    internal LinuxEnvironmentInfoProvider(
+        CompositorType compositor,
+        Func<string, string?> getEnvironmentVariable)
+    {
+        ArgumentNullException.ThrowIfNull(getEnvironmentVariable);
+
         _compositor = compositor;
+        _windowManagerHandlesCloseButton = ResolveWindowManagerHandlesCloseButton(
+            compositor,
+            getEnvironmentVariable(WindowButtonsEnvKey));
     }
     
     public DisplayEnvironment CurrentEnvironment => _compositor switch
@@ -34,7 +51,26 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
         _ => DisplayEnvironment.Unknown
     };
     
-    public bool WindowManagerHandlesCloseButton => 
-        _compositor == CompositorType.HYPRLAND;
-        // Future: Add detection for i3, sway, and other tiling WMs
+    public bool WindowManagerHandlesCloseButton => _windowManagerHandlesCloseButton;
+
+    private static bool ResolveWindowManagerHandlesCloseButton(
+        CompositorType compositor,
+        string? windowButtonsMode)
+    {
+        // Default behavior: on Hyprland, let compositor title bar controls own close/minimize affordance.
+        var defaultValue = compositor == CompositorType.HYPRLAND;
+
+        if (string.IsNullOrWhiteSpace(windowButtonsMode))
+        {
+            return defaultValue;
+        }
+
+        return windowButtonsMode.Trim().ToLowerInvariant() switch
+        {
+            "show" or "1" or "true" or "yes" or "on" => false,
+            "hide" or "0" or "false" or "no" or "off" => true,
+            "auto" => defaultValue,
+            _ => defaultValue
+        };
+    }
 }

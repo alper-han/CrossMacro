@@ -91,5 +91,5 @@ public class AppSettings
     /// <summary>
     /// Current UI Theme (Classic, Latte, Mocha, Dracula, Nord, Everforest, Gruvbox, Solarized, Crimson)
     /// </summary>
-    public string Theme { get; set; } = "Classic";
+    public string Theme { get; set; } = "Mocha";
 }

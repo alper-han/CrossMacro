@@ -9,7 +9,7 @@ public sealed record ThemeDescriptor(string Name, string ResourceKey, string Sou
 
 public static class ThemeCatalog
 {
-    public const string DefaultThemeName = "Classic";
+    public const string DefaultThemeName = "Mocha";
     public const string ThemeMarkerKey = "Theme.Name";
 
     private static readonly IReadOnlyList<ThemeDescriptor> ThemeDescriptors = new ReadOnlyCollection<ThemeDescriptor>(

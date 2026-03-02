@@ -81,7 +81,7 @@
                 </ResourceDictionary.MergedDictionaries>
             </ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="/Themes/Classic.axaml" />
+                <ResourceInclude Source="/Themes/Mocha.axaml" />
             </ResourceDictionary.MergedDictionaries>
             <FontFamily x:Key="StandardFont">Inter, Segoe UI, DejaVu Sans, Noto Sans, Liberation Sans, sans-serif</FontFamily>
             <FontFamily x:Key="EmojiFont">avares://CrossMacro.UI.Core/Assets/Fonts/NotoColorEmoji.ttf#Noto Color Emoji</FontFamily>

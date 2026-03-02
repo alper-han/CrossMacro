@@ -45,19 +45,19 @@ public class ThemeServiceBehaviorTests
     }
 
     [Fact]
-    public void TryApplyTheme_WithUnknownName_ShouldFallbackToClassic()
+    public void TryApplyTheme_WithUnknownName_ShouldFallbackToDefaultTheme()
     {
         var root = new ResourceDictionary();
-        var classic = new ResourceDictionary
+        var fallbackTheme = new ResourceDictionary
         {
-            [ThemeCatalog.ThemeMarkerKey] = "Classic"
+            [ThemeCatalog.ThemeMarkerKey] = ThemeCatalog.DefaultThemeName
         };
         var dracula = new ResourceDictionary
         {
             [ThemeCatalog.ThemeMarkerKey] = "Dracula"
         };
 
-        root["Theme.Classic"] = classic;
+        root[ThemeCatalog.DefaultTheme.ResourceKey] = fallbackTheme;
         root["Theme.Dracula"] = dracula;
         root.MergedDictionaries.Add(dracula);
 
@@ -68,17 +68,17 @@ public class ThemeServiceBehaviorTests
         result.Should().BeFalse();
         error.Should().Contain("Fallback");
         service.CurrentTheme.Should().Be(ThemeCatalog.DefaultThemeName);
-        root.MergedDictionaries.Should().Contain(classic);
+        root.MergedDictionaries.Should().Contain(fallbackTheme);
         root.MergedDictionaries.Should().NotContain(dracula);
     }
 
     [Fact]
-    public void TryApplyTheme_WithMissingRequestedResource_ShouldApplyClassicFallbackDictionary()
+    public void TryApplyTheme_WithMissingRequestedResource_ShouldApplyDefaultFallbackDictionary()
     {
         var root = new ResourceDictionary();
-        var classic = new ResourceDictionary
+        var fallbackTheme = new ResourceDictionary
         {
-            [ThemeCatalog.ThemeMarkerKey] = "Classic"
+            [ThemeCatalog.ThemeMarkerKey] = ThemeCatalog.DefaultThemeName
         };
         var dracula = new ResourceDictionary
         {
@@ -86,7 +86,7 @@ public class ThemeServiceBehaviorTests
         };
 
         // "Nord" exists in ThemeCatalog but is intentionally missing from runtime resources.
-        root["Theme.Classic"] = classic;
+        root[ThemeCatalog.DefaultTheme.ResourceKey] = fallbackTheme;
         root.MergedDictionaries.Add(dracula);
 
         var service = new ThemeService(root);
@@ -96,7 +96,7 @@ public class ThemeServiceBehaviorTests
         result.Should().BeFalse();
         error.Should().Contain("Theme resource not found");
         service.CurrentTheme.Should().Be(ThemeCatalog.DefaultThemeName);
-        root.MergedDictionaries.Should().Contain(classic);
+        root.MergedDictionaries.Should().Contain(fallbackTheme);
         root.MergedDictionaries.Should().NotContain(dracula);
     }
 }

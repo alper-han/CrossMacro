@@ -427,19 +427,54 @@ public class IpcClient : IDisposable
 
     private void DropTransport()
     {
-        _cts?.Cancel();
-        _reader?.Dispose();
-        _writer?.Dispose();
-        _stream?.Dispose();
-        _socket?.Dispose();
-        _cts?.Dispose();
+        // DropTransport can run concurrently from read/send failure paths and Dispose().
+        // Detaching references first avoids double-cancel/double-dispose races.
+        var cts = Interlocked.Exchange(ref _cts, null);
+        var reader = Interlocked.Exchange(ref _reader, null);
+        var writer = Interlocked.Exchange(ref _writer, null);
+        var stream = Interlocked.Exchange(ref _stream, null);
+        var socket = Interlocked.Exchange(ref _socket, null);
 
-        _reader = null;
-        _writer = null;
-        _stream = null;
-        _socket = null;
-        _cts = null;
+        CancelSafely(cts);
+        SafeDispose(reader);
+        SafeDispose(writer);
+        SafeDispose(stream);
+        SafeDispose(socket);
+        SafeDispose(cts);
+
         _readTask = null;
+    }
+
+    private static void CancelSafely(CancellationTokenSource? cts)
+    {
+        if (cts is null)
+        {
+            return;
+        }
+
+        try
+        {
+            cts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private static void SafeDispose(IDisposable? disposable)
+    {
+        if (disposable is null)
+        {
+            return;
+        }
+
+        try
+        {
+            disposable.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
     }
 
     private void StartReconnectLoop()

@@ -58,11 +58,11 @@ CrossMacro is a cross-platform mouse and keyboard macro recorder and player with
 
 ## Screenshots
 
-| Recording | Playback | Text Expansion |
+| Playback | Text Expansion | Shortcuts |
 | :---: | :---: | :---: |
-| ![Recording](screenshots/recording-tab.png) | ![Playback](screenshots/playback-tab.png) | ![Text Expansion](screenshots/text-expansion-tab.png) |
-| **Shortcuts** | **Scheduled Tasks** | **Settings** |
-| ![Shortcuts](screenshots/shortcuts-tab.png) | ![Scheduled Tasks](screenshots/schedule-tab.png) | ![Settings](screenshots/settings-tab.png) |
+| ![Playback](screenshots/playback-tab.png) | ![Text Expansion](screenshots/text-expansion-tab.png) | ![Shortcuts](screenshots/shortcuts-tab.png) |
+| **Scheduled Tasks** | **Editor** | **Settings** |
+| ![Scheduled Tasks](screenshots/schedule-tab.png) | ![Editor](screenshots/editor-tab.png) | ![Settings](screenshots/settings-tab.png) |
 
 ## Quick Start
 

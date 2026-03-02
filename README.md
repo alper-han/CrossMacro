@@ -3,11 +3,10 @@
 ![Linux](https://img.shields.io/badge/Linux-Wayland%20%7C%20X11-1793D1?logo=linux&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white)
 ![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=white)
+[![Flathub](https://img.shields.io/badge/Flathub-Install-0E5AFC?logo=flatpak&logoColor=white)](https://flathub.org/en/apps/io.github.alper_han.crossmacro)
 [![Downloads](https://img.shields.io/github/downloads/alper-han/CrossMacro/total?label=Downloads)](https://github.com/alper-han/CrossMacro/releases)
 [![Discord](https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white)](https://discord.gg/QUBuND5TvM)
 [![Build Status](https://github.com/alper-han/CrossMacro/actions/workflows/pr-check.yml/badge.svg?branch=main&event=push)](https://github.com/alper-han/CrossMacro/actions/workflows/pr-check.yml)
-[![Release](https://img.shields.io/github/v/release/alper-han/CrossMacro)](https://github.com/alper-han/CrossMacro/releases)
-[![License](https://img.shields.io/github/license/alper-han/CrossMacro)](LICENSE)
 
 <p align="center">
   <img src="screenshots/recording-tab.png" alt="CrossMacro recording interface preview" />
@@ -83,6 +82,7 @@ Download page for all release binaries:
 
 | Platform | Channel | Command / Link | Notes |
 | --- | --- | --- | --- |
+| [![Flatpak](https://img.shields.io/badge/Flatpak-Flathub-0E5AFC?logo=flatpak&logoColor=white)](https://flathub.org/en/apps/io.github.alper_han.crossmacro) | Flathub | [Store](https://flathub.org/en/apps/io.github.alper_han.crossmacro)<br>`flatpak install flathub io.github.alper_han.crossmacro` | Sandboxed install |
 | [![Debian](https://img.shields.io/badge/Debian-Ubuntu-A81D33?logo=debian&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | `.deb` | `sudo apt install ./crossmacro*.deb` | Download from Releases |
 | [![Fedora](https://img.shields.io/badge/Fedora-RHEL-51A2DA?logo=fedora&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | `.rpm` | `sudo dnf install ./crossmacro*.rpm` | Download from Releases |
 | [![Arch](https://img.shields.io/badge/Arch-AUR-1793D1?logo=arch-linux&logoColor=white)](https://aur.archlinux.org/packages/crossmacro) | AUR | `yay -S crossmacro`<br>`paru -S crossmacro` | Community package |

@@ -24,7 +24,7 @@ Requires(postun): systemd
 
 %description
 A powerful cross-platform mouse and keyboard macro automation tool.
-Supports text expansion and works on Linux (Wayland/X11) and Windows.
+Supports text expansion and works on Linux (Wayland/X11), Windows, and macOS.
 
 %prep
 # No prep needed as we are using pre-built binaries

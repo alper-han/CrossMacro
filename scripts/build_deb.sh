@@ -55,7 +55,7 @@ Recommends: libx11-6, libice6, libsm6, libfontconfig1
 Maintainer: Zynix <crossmacro@zynix.net>
 Description: Mouse and Keyboard Macro Automation Tool
  A powerful cross-platform mouse and keyboard macro automation tool.
- Supports text expansion and works on Linux (Wayland/X11) and Windows.
+ Supports text expansion and works on Linux (Wayland/X11), Windows, and macOS.
  Includes background input daemon for secure macro playback.
 EOF
 

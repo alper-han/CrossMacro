@@ -20,6 +20,7 @@ body:
         - GNOME (Wayland)
         - Other Wayland
         - Windows
+        - macOS
     validations:
       required: true
 
@@ -27,8 +28,8 @@ body:
     id: os_version
     attributes:
       label: OS Version
-      description: e.g., Arch Linux, Ubuntu 24.04, Fedora 40, NixOS, Windows 11
-      placeholder: Arch Linux / NixOS / Windows 11
+      description: e.g., Arch Linux, Ubuntu 24.04, Fedora 40, NixOS, Windows 11, macOS
+      placeholder: Arch Linux / Windows 11 / macOS
     validations:
       required: true
 
@@ -60,4 +61,3 @@ body:
       label: Logs
       description: Please copy and paste any relevant logs.
       render: shell
-

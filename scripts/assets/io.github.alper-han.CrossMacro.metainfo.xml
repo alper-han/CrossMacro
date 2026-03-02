@@ -10,13 +10,13 @@
     <p>
       CrossMacro is a powerful cross-platform mouse and keyboard macro recording and playback tool.
       It supports recording inputs, text expansion, and playing them back with adjustable speed and looping.
-      Works on Linux (Wayland - X11) and Windows.
+      Works on Linux (Wayland/X11), Windows, and macOS.
     </p>
     <p>Features:</p>
     <ul>
       <li>Record and replay mouse movements, clicks, and keyboard events</li>
       <li>Text Expansion support for productivity</li>
-      <li>Cross-platform support (Linux Wayland/X11, Windows)</li>
+      <li>Cross-platform support (Linux Wayland/X11, Windows, macOS)</li>
       <li>Global hotkeys for control</li>
       <li>Adjustable playback speed and loop mode</li>
     </ul>

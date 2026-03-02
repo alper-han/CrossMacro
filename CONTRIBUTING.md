@@ -9,7 +9,7 @@ The following is a set of guidelines for contributing to CrossMacro. These are m
 This section guides you through submitting a bug report for CrossMacro.
 
 - **Use the Bug Report template**: When you open a new issue, select "Bug Report".
-- **Provide specific details**: Include your platform (Windows, Linux X11, or Wayland compositor), OS version, and steps to reproduce.
+- **Provide specific details**: Include your platform (Windows, macOS, Linux X11, or Wayland compositor), OS version, and steps to reproduce.
 - **Include logs**: Logs help us diagnose issues quickly. Please include both UI and daemon logs if possible:
 
   **UI logs:** Run the application from terminal to see output directly.

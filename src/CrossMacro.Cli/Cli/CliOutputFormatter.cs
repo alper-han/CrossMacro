@@ -2,14 +2,20 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 namespace CrossMacro.Cli;
 
+[UnconditionalSuppressMessage(
+    "Trimming",
+    "IL2026",
+    Justification = "CLI payloads are dynamic and CrossMacro.Cli is preserved as a trim root in entry projects.")]
 public static class CliOutputFormatter
 {
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
-        WriteIndented = true
+        WriteIndented = true,
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver()
     };
 
     public static void Write(CliCommandExecutionResult result, bool jsonOutput)

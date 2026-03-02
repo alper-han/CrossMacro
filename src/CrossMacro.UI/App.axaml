@@ -60,6 +60,26 @@
                     <ResourceInclude Source="/Themes/Nord.axaml" />
                 </ResourceDictionary.MergedDictionaries>
             </ResourceDictionary>
+            <ResourceDictionary x:Key="Theme.Everforest">
+                <ResourceDictionary.MergedDictionaries>
+                    <ResourceInclude Source="/Themes/Everforest.axaml" />
+                </ResourceDictionary.MergedDictionaries>
+            </ResourceDictionary>
+            <ResourceDictionary x:Key="Theme.Gruvbox">
+                <ResourceDictionary.MergedDictionaries>
+                    <ResourceInclude Source="/Themes/Gruvbox.axaml" />
+                </ResourceDictionary.MergedDictionaries>
+            </ResourceDictionary>
+            <ResourceDictionary x:Key="Theme.Solarized">
+                <ResourceDictionary.MergedDictionaries>
+                    <ResourceInclude Source="/Themes/Solarized.axaml" />
+                </ResourceDictionary.MergedDictionaries>
+            </ResourceDictionary>
+            <ResourceDictionary x:Key="Theme.Crimson">
+                <ResourceDictionary.MergedDictionaries>
+                    <ResourceInclude Source="/Themes/Crimson.axaml" />
+                </ResourceDictionary.MergedDictionaries>
+            </ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceInclude Source="/Themes/Classic.axaml" />
             </ResourceDictionary.MergedDictionaries>

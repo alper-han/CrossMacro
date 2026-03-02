@@ -1,23 +1,26 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <x:String x:Key="Theme.Name">Latte</x:String>
     <!-- Catppuccin Latte Palette -->
     <!-- Primary Colors (Blue for Primary) -->
     <Color x:Key="PrimaryColor">#1e66f5</Color>
-    <Color x:Key="PrimaryHoverColor">#7287fd</Color>
-    <Color x:Key="PrimaryPressedColor">#179299</Color>
+    <Color x:Key="PrimaryHoverColor">#0b57ef</Color>
+    <Color x:Key="PrimaryPressedColor">#094bcd</Color>
 
     <!-- Success/Recording (Green) -->
     <Color x:Key="SuccessColor">#40a02b</Color>
-    <Color x:Key="SuccessHoverColor">#58bd58</Color>
+    <Color x:Key="SuccessHoverColor">#3B9228</Color>
+    <Color x:Key="SuccessPressedColor">#40a02b</Color>
 
     <!-- Danger/Stop (Red) -->
     <Color x:Key="DangerColor">#d20f39</Color>
-    <Color x:Key="DangerHoverColor">#e64553</Color>
+    <Color x:Key="DangerHoverColor">#ba0d33</Color>
+    <Color x:Key="DangerPressedColor">#d20f39</Color>
 
     <!-- Background (Base) -->
     <Color x:Key="BackgroundColor">#eff1f5</Color>
-    <Color x:Key="SurfaceColor">#e6e9ef</Color> <!-- Mantle -->
-    <Color x:Key="SurfaceHoverColor">#bcc0cc</Color> <!-- Surface1 - darker for better contrast -->
+    <Color x:Key="SurfaceColor">#e6e9ef</Color> <!-- mantle -->
+    <Color x:Key="SurfaceHoverColor">#c0c4d0</Color> <!-- surface1 -->
 
     <!-- Text (Text) -->
     <Color x:Key="TextPrimaryColor">#4c4f69</Color>
@@ -25,21 +28,57 @@
 
     <!-- Warning (Yellow/Peach) -->
     <Color x:Key="WarningColor">#df8e1d</Color>
-    <Color x:Key="WarningHoverColor">#fe640b</Color> <!-- Peach -->
+    <Color x:Key="WarningHoverColor">#c8801a</Color>
 
     <!-- Accent (Mauve) -->
     <Color x:Key="AccentColor">#8839ef</Color>
 
+    <!-- Fluent system accent overrides -->
+    <Color x:Key="SystemAccentColor">#1e66f5</Color>
+    <Color x:Key="SystemAccentColorDark1">#094bcd</Color>
+    <Color x:Key="SystemAccentColorDark2">#094bcd</Color>
+    <Color x:Key="SystemAccentColorDark3">#094bcd</Color>
+    <Color x:Key="SystemAccentColorLight1">#3b7af6</Color>
+    <Color x:Key="SystemAccentColorLight2">#3b7af6</Color>
+    <Color x:Key="SystemAccentColorLight3">#3b7af6</Color>
+
     <!-- Text on colored backgrounds (buttons, toggles, badges) -->
     <Color x:Key="TextOnColorColor">#ffffff</Color>
+    <Color x:Key="TextOnPrimaryColor">#ffffff</Color>
+    <Color x:Key="TextOnSuccessColor">#111827</Color>
+    <Color x:Key="TextOnDangerColor">#ffffff</Color>
+    <Color x:Key="TextOnWarningColor">#111827</Color>
+
+    <!-- Fluent Slider Overrides -->
+    <SolidColorBrush x:Key="SliderThumbBackground" Color="{StaticResource PrimaryColor}"/>
+    <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="{StaticResource PrimaryHoverColor}"/>
+    <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="{StaticResource PrimaryPressedColor}"/>
+    <SolidColorBrush x:Key="SliderThumbBackgroundDisabled" Color="{StaticResource TextSecondaryColor}"/>
+
+    <SolidColorBrush x:Key="SliderTrackFill" Color="{StaticResource SurfaceHoverColor}"/>
+    <SolidColorBrush x:Key="SliderTrackFillPointerOver" Color="{StaticResource SurfaceHoverColor}"/>
+    <SolidColorBrush x:Key="SliderTrackFillPressed" Color="{StaticResource SurfaceColor}"/>
+    <SolidColorBrush x:Key="SliderTrackFillDisabled" Color="{StaticResource SurfaceHoverColor}"/>
+
+    <SolidColorBrush x:Key="SliderTrackValueFill" Color="{StaticResource PrimaryColor}"/>
+    <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="{StaticResource PrimaryHoverColor}"/>
+    <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="{StaticResource PrimaryPressedColor}"/>
+    <SolidColorBrush x:Key="SliderTrackValueFillDisabled" Color="{StaticResource TextSecondaryColor}"/>
+
+    <SolidColorBrush x:Key="SliderTickBarFill" Color="{StaticResource SurfaceHoverColor}"/>
+    <SolidColorBrush x:Key="SliderTickBarFillDisabled" Color="{StaticResource TextSecondaryColor}"/>
+    <!-- End Fluent Slider Overrides -->
 
     <!-- Brushes -->
     <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PrimaryColor}"/>
     <SolidColorBrush x:Key="PrimaryHoverBrush" Color="{StaticResource PrimaryHoverColor}"/>
+    <SolidColorBrush x:Key="PrimaryPressedBrush" Color="{StaticResource PrimaryPressedColor}"/>
     <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}"/>
     <SolidColorBrush x:Key="SuccessHoverBrush" Color="{StaticResource SuccessHoverColor}"/>
+    <SolidColorBrush x:Key="SuccessPressedBrush" Color="{StaticResource SuccessPressedColor}"/>
     <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}"/>
     <SolidColorBrush x:Key="DangerHoverBrush" Color="{StaticResource DangerHoverColor}"/>
+    <SolidColorBrush x:Key="DangerPressedBrush" Color="{StaticResource DangerPressedColor}"/>
     <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}"/>
     <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
     <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverColor}"/>
@@ -49,4 +88,8 @@
     <SolidColorBrush x:Key="WarningHoverBrush" Color="{StaticResource WarningHoverColor}"/>
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
     <SolidColorBrush x:Key="TextOnColorBrush" Color="{StaticResource TextOnColorColor}"/>
+    <SolidColorBrush x:Key="TextOnPrimaryBrush" Color="{StaticResource TextOnPrimaryColor}"/>
+    <SolidColorBrush x:Key="TextOnSuccessBrush" Color="{StaticResource TextOnSuccessColor}"/>
+    <SolidColorBrush x:Key="TextOnDangerBrush" Color="{StaticResource TextOnDangerColor}"/>
+    <SolidColorBrush x:Key="TextOnWarningBrush" Color="{StaticResource TextOnWarningColor}"/>
 </ResourceDictionary>

@@ -152,8 +152,22 @@ public class DesignMainWindowViewModel : MainWindowViewModel
             new MockSettingsService(),
             new MockTextExpansionService(),
             new HotkeySettings(),
-            new MockExternalUrlOpener())
+            new MockExternalUrlOpener(),
+            new MockThemeService())
         {
+        }
+    }
+
+    private sealed class MockThemeService : IThemeService
+    {
+        public IReadOnlyList<string> AvailableThemes { get; } = new[] { "Classic", "Latte", "Mocha", "Dracula", "Nord", "Everforest", "Gruvbox", "Solarized", "Crimson" };
+        public string CurrentTheme { get; private set; } = "Classic";
+
+        public bool TryApplyTheme(string themeName, out string error)
+        {
+            CurrentTheme = string.IsNullOrWhiteSpace(themeName) ? "Classic" : themeName;
+            error = string.Empty;
+            return true;
         }
     }
 

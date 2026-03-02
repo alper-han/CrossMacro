@@ -74,7 +74,23 @@ public class MainWindowViewModelTests
         // Fix: SettingsViewModel takes (IGlobalHotkeyService, ISettingsService, ITextExpansionService, HotkeySettings)
         var hotkeySettings = new HotkeySettings();
         var textExpansionService = Substitute.For<ITextExpansionService>();
-        _settingsViewModel = new SettingsViewModel(_hotkeyService, _settingsService, textExpansionService, hotkeySettings, _externalUrlOpener);
+        var themeService = Substitute.For<IThemeService>();
+        themeService.AvailableThemes.Returns(new[] { "Classic" });
+        themeService.CurrentTheme.Returns("Classic");
+        themeService
+            .TryApplyTheme(Arg.Any<string>(), out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = string.Empty;
+                return true;
+            });
+        _settingsViewModel = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            textExpansionService,
+            hotkeySettings,
+            _externalUrlOpener,
+            themeService);
 
         // EditorViewModel
         var editorConverter = Substitute.For<IEditorActionConverter>();

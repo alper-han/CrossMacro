@@ -120,6 +120,13 @@ public partial class App : Application
 
         var settingsService = _serviceProvider.GetRequiredService<ISettingsService>();
         settingsService.Load();
+        var themeService = _serviceProvider.GetRequiredService<IThemeService>();
+        if (!themeService.TryApplyTheme(settingsService.Current.Theme, out var themeError))
+        {
+            Serilog.Log.Warning("[App] Theme apply fallback triggered for '{Theme}': {Error}", settingsService.Current.Theme, themeError);
+            settingsService.Current.Theme = themeService.CurrentTheme;
+            _ = settingsService.SaveAsync();
+        }
 
         var viewModel = _serviceProvider.GetRequiredService<MainWindowViewModel>();
 

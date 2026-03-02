@@ -26,6 +26,7 @@ public class SettingsViewModelTests
     private readonly ISettingsService _settingsService;
     private readonly ITextExpansionService _textExpansionService;
     private readonly IExternalUrlOpener _externalUrlOpener;
+    private readonly IThemeService _themeService;
     private readonly HotkeySettings _hotkeySettings;
     private readonly SettingsViewModel _viewModel;
 
@@ -35,17 +36,28 @@ public class SettingsViewModelTests
         _settingsService = Substitute.For<ISettingsService>();
         _textExpansionService = Substitute.For<ITextExpansionService>();
         _externalUrlOpener = Substitute.For<IExternalUrlOpener>();
+        _themeService = Substitute.For<IThemeService>();
         _hotkeySettings = new HotkeySettings();
+        _themeService.AvailableThemes.Returns(new[] { "Classic", "Nord" });
+        _themeService.CurrentTheme.Returns("Classic");
+        _themeService
+            .TryApplyTheme(Arg.Any<string>(), out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = string.Empty;
+                return true;
+            });
         
         // Setup initial settings
-        _settingsService.Current.Returns(new AppSettings { EnableTrayIcon = false, EnableTextExpansion = false });
+        _settingsService.Current.Returns(new AppSettings { EnableTrayIcon = false, EnableTextExpansion = false, Theme = "Classic" });
 
         _viewModel = new SettingsViewModel(
             _hotkeyService, 
             _settingsService, 
             _textExpansionService,
             _hotkeySettings,
-            _externalUrlOpener);
+            _externalUrlOpener,
+            _themeService);
     }
 
     [Fact]
@@ -53,6 +65,21 @@ public class SettingsViewModelTests
     {
         _viewModel.RecordingHotkey.Should().Be("F8"); // Default
         _viewModel.EnableTrayIcon.Should().BeFalse();
+        _viewModel.SelectedTheme.Should().Be("Classic");
+    }
+
+    [Fact]
+    public void Construction_WhenThemeServiceIsNull_Throws()
+    {
+        var act = () => new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            null!);
+
+        act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
@@ -172,7 +199,27 @@ public class SettingsViewModelTests
 
         // Assert
         _settingsService.Current.Theme.Should().Be("Nord");
+        _themeService.Received(1).TryApplyTheme("Nord", out Arg.Any<string>());
         _settingsService.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public void SelectedTheme_WhenApplyFails_RevertsToCurrentTheme()
+    {
+        _themeService.CurrentTheme.Returns("Classic");
+        _themeService
+            .TryApplyTheme("Broken", out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = "Unknown theme";
+                return false;
+            });
+
+        _viewModel.SelectedTheme = "Broken";
+
+        _viewModel.SelectedTheme.Should().Be("Classic");
+        _settingsService.Current.Theme.Should().Be("Classic");
+        _settingsService.Received().SaveAsync();
     }
 
     [Fact]
@@ -195,6 +242,7 @@ public class SettingsViewModelTests
             _textExpansionService,
             _hotkeySettings,
             _externalUrlOpener,
+            _themeService,
             runtimeContext);
 
         vm.IsUpdateSettingsVisible.Should().BeFalse();
@@ -211,6 +259,7 @@ public class SettingsViewModelTests
             _textExpansionService,
             _hotkeySettings,
             _externalUrlOpener,
+            _themeService,
             runtimeContext);
 
         vm.IsUpdateSettingsVisible.Should().BeTrue();

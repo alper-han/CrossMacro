@@ -1,53 +1,52 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <x:String x:Key="Theme.Name">Nord</x:String>
-    <!-- Nord Palette -->
-    <!-- Primary Colors (Nord8 - Frost) -->
-    <Color x:Key="PrimaryColor">#88c0d0</Color>
-    <Color x:Key="PrimaryHoverColor">#9eccd9</Color>
-    <Color x:Key="PrimaryPressedColor">#6bb1c4</Color>
+    <x:String x:Key="Theme.Name">Gruvbox</x:String>
+    <!-- Gruvbox Material Dark -->
+    <Color x:Key="PrimaryColor">#d79921</Color>
+    <Color x:Key="PrimaryHoverColor">#e0a636</Color>
+    <Color x:Key="PrimaryPressedColor">#b4801c</Color>
 
-    <!-- Success/Recording (Nord14 - Aurora Green) -->
-    <Color x:Key="SuccessColor">#a3be8c</Color>
-    <Color x:Key="SuccessHoverColor">#b3c9a0</Color>
-    <Color x:Key="SuccessPressedColor">#a3be8c</Color>
+    <!-- Success/Recording -->
+    <Color x:Key="SuccessColor">#98971a</Color>
+    <Color x:Key="SuccessHoverColor">#b2b11e</Color>
+    <Color x:Key="SuccessPressedColor">#98971a</Color>
 
-    <!-- Danger/Stop (Nord11 - Aurora Red) -->
-    <Color x:Key="DangerColor">#bf616a</Color>
-    <Color x:Key="DangerHoverColor">#c8777f</Color>
-    <Color x:Key="DangerPressedColor">#bf616a</Color>
+    <!-- Danger/Stop -->
+    <Color x:Key="DangerColor">#cc241d</Color>
+    <Color x:Key="DangerHoverColor">#D4261E</Color>
+    <Color x:Key="DangerPressedColor">#cc241d</Color>
 
-    <!-- Background (Nord0 - Polar Night) -->
-    <Color x:Key="BackgroundColor">#2e3440</Color>
-    <Color x:Key="SurfaceColor">#3b4252</Color> <!-- Nord1 -->
-    <Color x:Key="SurfaceHoverColor">#434c5e</Color> <!-- Nord2 -->
+    <!-- Background -->
+    <Color x:Key="BackgroundColor">#282828</Color>
+    <Color x:Key="SurfaceColor">#3c3836</Color>
+    <Color x:Key="SurfaceHoverColor">#504945</Color>
 
-    <!-- Text (Nord6 - Snow Storm) -->
-    <Color x:Key="TextPrimaryColor">#eceff4</Color>
-    <Color x:Key="TextSecondaryColor">#d8dee9</Color> <!-- Nord4 -->
+    <!-- Text -->
+    <Color x:Key="TextPrimaryColor">#ebdbb2</Color>
+    <Color x:Key="TextSecondaryColor">#bdae93</Color>
 
-    <!-- Warning (Nord12 - Aurora Orange) -->
-    <Color x:Key="WarningColor">#d08770</Color>
-    <Color x:Key="WarningHoverColor">#d89a87</Color>
+    <!-- Warning -->
+    <Color x:Key="WarningColor">#fe8019</Color>
+    <Color x:Key="WarningHoverColor">#fe9137</Color>
 
-    <!-- Accent (Nord9 - Frost) -->
-    <Color x:Key="AccentColor">#81a1c1</Color>
+    <!-- Accent -->
+    <Color x:Key="AccentColor">#b16286</Color>
 
     <!-- Fluent system accent overrides -->
-    <Color x:Key="SystemAccentColor">#88c0d0</Color>
-    <Color x:Key="SystemAccentColorDark1">#6bb1c4</Color>
-    <Color x:Key="SystemAccentColorDark2">#6bb1c4</Color>
-    <Color x:Key="SystemAccentColorDark3">#6bb1c4</Color>
-    <Color x:Key="SystemAccentColorLight1">#9eccd9</Color>
-    <Color x:Key="SystemAccentColorLight2">#9eccd9</Color>
-    <Color x:Key="SystemAccentColorLight3">#9eccd9</Color>
+    <Color x:Key="SystemAccentColor">#d79921</Color>
+    <Color x:Key="SystemAccentColorDark1">#b4801c</Color>
+    <Color x:Key="SystemAccentColorDark2">#b4801c</Color>
+    <Color x:Key="SystemAccentColorDark3">#b4801c</Color>
+    <Color x:Key="SystemAccentColorLight1">#e0a636</Color>
+    <Color x:Key="SystemAccentColorLight2">#e0a636</Color>
+    <Color x:Key="SystemAccentColorLight3">#e0a636</Color>
 
-    <!-- Text on colored backgrounds (buttons, toggles, badges) -->
-    <Color x:Key="TextOnColorColor">#ffffff</Color>
-    <Color x:Key="TextOnPrimaryColor">#020617</Color>
-    <Color x:Key="TextOnSuccessColor">#020617</Color>
-    <Color x:Key="TextOnDangerColor">#020617</Color>
-    <Color x:Key="TextOnWarningColor">#020617</Color>
+    <!-- Text on colored backgrounds -->
+    <Color x:Key="TextOnColorColor">#1d2021</Color>
+    <Color x:Key="TextOnPrimaryColor">#1d2021</Color>
+    <Color x:Key="TextOnSuccessColor">#1d2021</Color>
+    <Color x:Key="TextOnDangerColor">#fbf1c7</Color>
+    <Color x:Key="TextOnWarningColor">#1d2021</Color>
 
     <!-- Fluent Slider Overrides -->
     <SolidColorBrush x:Key="SliderThumbBackground" Color="{StaticResource PrimaryColor}"/>

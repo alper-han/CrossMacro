@@ -1,45 +1,84 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <x:String x:Key="Theme.Name">Dracula</x:String>
     <!-- Dracula Palette -->
     <!-- Primary Colors (Purple for Primary) -->
     <Color x:Key="PrimaryColor">#bd93f9</Color>
-    <Color x:Key="PrimaryHoverColor">#d6acff</Color>
-    <Color x:Key="PrimaryPressedColor">#ff79c6</Color>
+    <Color x:Key="PrimaryHoverColor">#cfb0fb</Color>
+    <Color x:Key="PrimaryPressedColor">#AB76F8</Color>
 
     <!-- Success/Recording (Green) -->
     <Color x:Key="SuccessColor">#50fa7b</Color>
-    <Color x:Key="SuccessHoverColor">#6fffa9</Color>
+    <Color x:Key="SuccessHoverColor">#6efb91</Color>
+    <Color x:Key="SuccessPressedColor">#50fa7b</Color>
 
     <!-- Danger/Stop (Red) -->
     <Color x:Key="DangerColor">#ff5555</Color>
-    <Color x:Key="DangerHoverColor">#ff6e6e</Color>
+    <Color x:Key="DangerHoverColor">#ff7474</Color>
+    <Color x:Key="DangerPressedColor">#ff5555</Color>
 
     <!-- Background -->
     <Color x:Key="BackgroundColor">#282a36</Color>
     <Color x:Key="SurfaceColor">#44475a</Color> <!-- Current Line -->
-    <Color x:Key="SurfaceHoverColor">#383a4c</Color> <!-- Darker for contrast -->
+    <Color x:Key="SurfaceHoverColor">#474d62</Color> <!-- Surface variant tuned for contrast -->
 
     <!-- Text -->
     <Color x:Key="TextPrimaryColor">#f8f8f2</Color>
-    <Color x:Key="TextSecondaryColor">#6272a4</Color> <!-- Comment for secondary text -->
+    <Color x:Key="TextSecondaryColor">#9ca8d4</Color> <!-- Muted but readable -->
 
     <!-- Warning (Official Orange) -->
     <Color x:Key="WarningColor">#ffb86c</Color>
-    <Color x:Key="WarningHoverColor">#ffd99a</Color>
+    <Color x:Key="WarningHoverColor">#ffc78b</Color>
 
     <!-- Accent (Cyan) -->
     <Color x:Key="AccentColor">#8be9fd</Color>
 
+    <!-- Fluent system accent overrides -->
+    <Color x:Key="SystemAccentColor">#bd93f9</Color>
+    <Color x:Key="SystemAccentColorDark1">#AB76F8</Color>
+    <Color x:Key="SystemAccentColorDark2">#AB76F8</Color>
+    <Color x:Key="SystemAccentColorDark3">#AB76F8</Color>
+    <Color x:Key="SystemAccentColorLight1">#cfb0fb</Color>
+    <Color x:Key="SystemAccentColorLight2">#cfb0fb</Color>
+    <Color x:Key="SystemAccentColorLight3">#cfb0fb</Color>
+
     <!-- Text on colored backgrounds (buttons, toggles, badges) -->
-    <Color x:Key="TextOnColorColor">#282a36</Color>
+    <Color x:Key="TextOnColorColor">#ffffff</Color>
+    <Color x:Key="TextOnPrimaryColor">#282a36</Color>
+    <Color x:Key="TextOnSuccessColor">#282a36</Color>
+    <Color x:Key="TextOnDangerColor">#282a36</Color>
+    <Color x:Key="TextOnWarningColor">#282a36</Color>
+
+    <!-- Fluent Slider Overrides -->
+    <SolidColorBrush x:Key="SliderThumbBackground" Color="{StaticResource PrimaryColor}"/>
+    <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="{StaticResource PrimaryHoverColor}"/>
+    <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="{StaticResource PrimaryPressedColor}"/>
+    <SolidColorBrush x:Key="SliderThumbBackgroundDisabled" Color="{StaticResource TextSecondaryColor}"/>
+
+    <SolidColorBrush x:Key="SliderTrackFill" Color="{StaticResource SurfaceHoverColor}"/>
+    <SolidColorBrush x:Key="SliderTrackFillPointerOver" Color="{StaticResource SurfaceHoverColor}"/>
+    <SolidColorBrush x:Key="SliderTrackFillPressed" Color="{StaticResource SurfaceColor}"/>
+    <SolidColorBrush x:Key="SliderTrackFillDisabled" Color="{StaticResource SurfaceHoverColor}"/>
+
+    <SolidColorBrush x:Key="SliderTrackValueFill" Color="{StaticResource PrimaryColor}"/>
+    <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="{StaticResource PrimaryHoverColor}"/>
+    <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="{StaticResource PrimaryPressedColor}"/>
+    <SolidColorBrush x:Key="SliderTrackValueFillDisabled" Color="{StaticResource TextSecondaryColor}"/>
+
+    <SolidColorBrush x:Key="SliderTickBarFill" Color="{StaticResource SurfaceHoverColor}"/>
+    <SolidColorBrush x:Key="SliderTickBarFillDisabled" Color="{StaticResource TextSecondaryColor}"/>
+    <!-- End Fluent Slider Overrides -->
 
     <!-- Brushes -->
     <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PrimaryColor}"/>
     <SolidColorBrush x:Key="PrimaryHoverBrush" Color="{StaticResource PrimaryHoverColor}"/>
+    <SolidColorBrush x:Key="PrimaryPressedBrush" Color="{StaticResource PrimaryPressedColor}"/>
     <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}"/>
     <SolidColorBrush x:Key="SuccessHoverBrush" Color="{StaticResource SuccessHoverColor}"/>
+    <SolidColorBrush x:Key="SuccessPressedBrush" Color="{StaticResource SuccessPressedColor}"/>
     <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}"/>
     <SolidColorBrush x:Key="DangerHoverBrush" Color="{StaticResource DangerHoverColor}"/>
+    <SolidColorBrush x:Key="DangerPressedBrush" Color="{StaticResource DangerPressedColor}"/>
     <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}"/>
     <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
     <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverColor}"/>
@@ -49,4 +88,8 @@
     <SolidColorBrush x:Key="WarningHoverBrush" Color="{StaticResource WarningHoverColor}"/>
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
     <SolidColorBrush x:Key="TextOnColorBrush" Color="{StaticResource TextOnColorColor}"/>
+    <SolidColorBrush x:Key="TextOnPrimaryBrush" Color="{StaticResource TextOnPrimaryColor}"/>
+    <SolidColorBrush x:Key="TextOnSuccessBrush" Color="{StaticResource TextOnSuccessColor}"/>
+    <SolidColorBrush x:Key="TextOnDangerBrush" Color="{StaticResource TextOnDangerColor}"/>
+    <SolidColorBrush x:Key="TextOnWarningBrush" Color="{StaticResource TextOnWarningColor}"/>
 </ResourceDictionary>

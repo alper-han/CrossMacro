@@ -25,6 +25,7 @@ public class ServiceCollectionExtensionsTests
         Assert.DoesNotContain(services, sd => sd.ServiceType == typeof(IDialogService));
         Assert.DoesNotContain(services, sd => sd.ServiceType == typeof(IUpdateService));
         Assert.DoesNotContain(services, sd => sd.ServiceType == typeof(IExternalUrlOpener));
+        Assert.DoesNotContain(services, sd => sd.ServiceType == typeof(IThemeService));
     }
 
     [Fact]
@@ -38,6 +39,7 @@ public class ServiceCollectionExtensionsTests
         Assert.Contains(services, sd => sd.ServiceType == typeof(IDialogService));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IUpdateService));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IExternalUrlOpener));
+        Assert.Contains(services, sd => sd.ServiceType == typeof(IThemeService));
     }
 
     [Fact]

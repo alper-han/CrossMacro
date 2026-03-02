@@ -176,6 +176,7 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IDialogService, DialogService>();
             services.AddSingleton<IUpdateService, GitHubUpdateService>();
             services.AddSingleton<IExternalUrlOpener, ExternalUrlOpener>();
+            services.AddSingleton<IThemeService, ThemeService>();
         }
 
         return services;

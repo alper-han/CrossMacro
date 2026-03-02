@@ -20,6 +20,7 @@ public class SettingsViewModel : ViewModelBase
     private readonly HotkeySettings _hotkeySettings;
     private readonly IExternalUrlOpener _externalUrlOpener;
     private readonly IRuntimeContext _runtimeContext;
+    private readonly IThemeService _themeService;
     
     private string _recordingHotkey;
     private string _playbackHotkey;
@@ -38,14 +39,18 @@ public class SettingsViewModel : ViewModelBase
         ITextExpansionService textExpansionService,
         HotkeySettings hotkeySettings,
         IExternalUrlOpener externalUrlOpener,
+        IThemeService themeService,
         IRuntimeContext? runtimeContext = null)
     {
+        ArgumentNullException.ThrowIfNull(themeService);
+
         _hotkeyService = hotkeyService;
         _settingsService = settingsService;
         _textExpansionService = textExpansionService;
         _hotkeySettings = hotkeySettings;
         _externalUrlOpener = externalUrlOpener;
         _runtimeContext = runtimeContext ?? new RuntimeContext();
+        _themeService = themeService;
         
         // Initialize hotkey properties
         _recordingHotkey = _hotkeySettings.RecordingHotkey;
@@ -60,7 +65,6 @@ public class SettingsViewModel : ViewModelBase
 
         // Initialize theme setting
         _selectedTheme = _settingsService.Current.Theme;
-        ChangeTheme(_selectedTheme);
         
         // Hide update settings if running as Flatpak
         IsUpdateSettingsVisible = !_runtimeContext.IsFlatpak;
@@ -219,8 +223,6 @@ public class SettingsViewModel : ViewModelBase
     };
 
     private string _selectedTheme;
-    private const string ThemeResourcePrefix = "Theme.";
-
     public string SelectedTheme
     {
         get => _selectedTheme;
@@ -233,7 +235,13 @@ public class SettingsViewModel : ViewModelBase
                 OnPropertyChanged();
                 
                 // Apply theme change
-                ChangeTheme(value);
+                if (!_themeService.TryApplyTheme(value, out var applyError))
+                {
+                    Log.Warning("Theme apply failed for '{Theme}': {Error}", value, applyError);
+                    _selectedTheme = _themeService.CurrentTheme;
+                    _settingsService.Current.Theme = _selectedTheme;
+                    OnPropertyChanged();
+                }
                 
                 // Save settings asynchronously
                 _ = _settingsService.SaveAsync();
@@ -241,40 +249,7 @@ public class SettingsViewModel : ViewModelBase
         }
     }
 
-    public IEnumerable<string> AvailableThemes { get; } = new[]
-    {
-        "Classic",
-        "Latte",
-        "Mocha",
-        "Dracula",
-        "Nord"
-    };
-
-    private void ChangeTheme(string theme)
-    {
-        try
-        {
-            if (Avalonia.Application.Current?.Resources is { } appResources &&
-                appResources.MergedDictionaries is { } dictionaries)
-            {
-                string themeKey = $"{ThemeResourcePrefix}{theme}";
-                if (appResources.TryGetResource(themeKey, null, out var themeResource) &&
-                    themeResource is Avalonia.Controls.ResourceDictionary themeDictionary)
-                {
-                    dictionaries.Clear();
-                    dictionaries.Add(themeDictionary);
-                }
-                else
-                {
-                    Log.Warning("Theme resource not found: {ThemeKey}", themeKey);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to change theme to {Theme}", theme);
-        }
-    }
+    public IEnumerable<string> AvailableThemes => _themeService.AvailableThemes;
 
     
     private void UpdateHotkeys()

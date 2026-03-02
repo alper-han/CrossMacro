@@ -49,7 +49,7 @@ CrossMacro is a cross-platform mouse and keyboard macro recorder and player with
 - Scheduled task execution
 - Save and load `.macro` files
 - Optional system tray controls
-- Theme support (Classic, Latte, Mocha, Dracula, Nord)
+- Theme support (Classic, Latte, Mocha, Dracula, Nord, Everforest, Gruvbox, Solarized, Crimson)
 - Customizable global hotkeys:
   - `F8` start/stop recording
   - `F9` start/stop playback

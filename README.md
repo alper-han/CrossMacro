@@ -83,16 +83,16 @@ Download page for all release binaries:
 
 | Platform | Channel | Command / Link | Notes |
 | --- | --- | --- | --- |
-| ![Debian](https://img.shields.io/badge/Debian-Ubuntu-A81D33?logo=debian&logoColor=white) | `.deb` | `sudo apt install ./crossmacro-*_amd64.deb` | Download package from Releases first |
-| ![Fedora](https://img.shields.io/badge/Fedora-RHEL-51A2DA?logo=fedora&logoColor=white) | `.rpm` | `sudo dnf install ./crossmacro-*.x86_64.rpm` | Download package from Releases first |
-| ![Arch](https://img.shields.io/badge/Arch-AUR-1793D1?logo=arch-linux&logoColor=white) | AUR | `yay -S crossmacro` or `paru -S crossmacro` | Community package |
-| ![Linux](https://img.shields.io/badge/Linux-AppImage-1793D1?logo=appimage&logoColor=white) | AppImage | From [Releases](https://github.com/alper-han/CrossMacro/releases) | Quick one-time setup (see AppImage Setup) |
-| ![NixOS](https://img.shields.io/badge/Nixpkgs-unstable-5277C3?logo=nixos&logoColor=white) | nixpkgs | `nix profile install nixpkgs#crossmacro` | Updated on nixos-unstable channel cadence |
-| ![Nix](https://img.shields.io/badge/Nix-Flake-5277C3?logo=nixos&logoColor=white) | flake | `nix run github:alper-han/CrossMacro` | Runs directly from repo |
-| ![Windows](https://img.shields.io/badge/Windows-Store-0078D6?logo=windows&logoColor=white) | Store | <https://apps.microsoft.com/detail/9n1qp1d6js70> | Managed updates |
-| ![Windows](https://img.shields.io/badge/Windows-winget-0078D6?logo=windows&logoColor=white) | winget | `winget install -e --id AlperHan.CrossMacro` | CLI install path |
-| ![Windows](https://img.shields.io/badge/Windows-Portable-0078D6?logo=windows&logoColor=white) | Portable EXE | From [Releases](https://github.com/alper-han/CrossMacro/releases) | Self-contained binary |
-| ![macOS](https://img.shields.io/badge/macOS-DMG-000000?logo=apple&logoColor=white) | `.dmg` | From [Releases](https://github.com/alper-han/CrossMacro/releases) | Drag to Applications |
+| [![Debian](https://img.shields.io/badge/Debian-Ubuntu-A81D33?logo=debian&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | `.deb` | `sudo apt install ./crossmacro*.deb` | Download from Releases |
+| [![Fedora](https://img.shields.io/badge/Fedora-RHEL-51A2DA?logo=fedora&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | `.rpm` | `sudo dnf install ./crossmacro*.rpm` | Download from Releases |
+| [![Arch](https://img.shields.io/badge/Arch-AUR-1793D1?logo=arch-linux&logoColor=white)](https://aur.archlinux.org/packages/crossmacro) | AUR | `yay -S crossmacro`<br>`paru -S crossmacro` | Community package |
+| [![Linux](https://img.shields.io/badge/Linux-AppImage-1793D1?logo=appimage&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | AppImage | [Releases](https://github.com/alper-han/CrossMacro/releases) | One-time setup required |
+| [![NixOS](https://img.shields.io/badge/Nixpkgs-unstable-5277C3?logo=nixos&logoColor=white)](https://search.nixos.org/packages?channel=unstable&query=crossmacro) | nixpkgs | `nix profile install nixpkgs#crossmacro` | Unstable channel |
+| ![Nix](https://img.shields.io/badge/Nix-Flake-5277C3?logo=nixos&logoColor=white) | flake | `nix run github:alper-han/CrossMacro` | Run from repo |
+| [![Windows](https://img.shields.io/badge/Windows-Store-0078D6?logo=windows&logoColor=white)](https://apps.microsoft.com/detail/9n1qp1d6js70) | Store | [Store](https://apps.microsoft.com/detail/9n1qp1d6js70) | Managed updates |
+| ![Windows](https://img.shields.io/badge/Windows-winget-0078D6?logo=windows&logoColor=white) | winget | `winget install AlperHan.CrossMacro` | CLI install |
+| [![Windows](https://img.shields.io/badge/Windows-Portable-0078D6?logo=windows&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | Portable EXE | [Releases](https://github.com/alper-han/CrossMacro/releases) | Self-contained |
+| [![macOS](https://img.shields.io/badge/macOS-DMG-000000?logo=apple&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | `.dmg` | [Releases](https://github.com/alper-han/CrossMacro/releases) | Drag to Apps |
 
 > **AppImage users:** Run the quick one-time setup in [AppImage Setup](#appimage-setup-portable-linux) before first launch.
 

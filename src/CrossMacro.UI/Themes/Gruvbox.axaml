@@ -42,7 +42,6 @@
     <Color x:Key="SystemAccentColorLight3">#e0a636</Color>
 
     <!-- Text on colored backgrounds -->
-    <Color x:Key="TextOnColorColor">#1d2021</Color>
     <Color x:Key="TextOnPrimaryColor">#1d2021</Color>
     <Color x:Key="TextOnSuccessColor">#1d2021</Color>
     <Color x:Key="TextOnDangerColor">#fbf1c7</Color>
@@ -86,7 +85,6 @@
     <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}"/>
     <SolidColorBrush x:Key="WarningHoverBrush" Color="{StaticResource WarningHoverColor}"/>
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
-    <SolidColorBrush x:Key="TextOnColorBrush" Color="{StaticResource TextOnColorColor}"/>
     <SolidColorBrush x:Key="TextOnPrimaryBrush" Color="{StaticResource TextOnPrimaryColor}"/>
     <SolidColorBrush x:Key="TextOnSuccessBrush" Color="{StaticResource TextOnSuccessColor}"/>
     <SolidColorBrush x:Key="TextOnDangerBrush" Color="{StaticResource TextOnDangerColor}"/>

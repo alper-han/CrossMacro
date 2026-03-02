@@ -43,7 +43,6 @@
     <Color x:Key="SystemAccentColorLight3">#dbc2fa</Color>
 
     <!-- Text on colored backgrounds (buttons, toggles, badges) -->
-    <Color x:Key="TextOnColorColor">#ffffff</Color>
     <Color x:Key="TextOnPrimaryColor">#1e1e2e</Color>
     <Color x:Key="TextOnSuccessColor">#1e1e2e</Color>
     <Color x:Key="TextOnDangerColor">#1e1e2e</Color>
@@ -87,7 +86,6 @@
     <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}"/>
     <SolidColorBrush x:Key="WarningHoverBrush" Color="{StaticResource WarningHoverColor}"/>
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
-    <SolidColorBrush x:Key="TextOnColorBrush" Color="{StaticResource TextOnColorColor}"/>
     <SolidColorBrush x:Key="TextOnPrimaryBrush" Color="{StaticResource TextOnPrimaryColor}"/>
     <SolidColorBrush x:Key="TextOnSuccessBrush" Color="{StaticResource TextOnSuccessColor}"/>
     <SolidColorBrush x:Key="TextOnDangerBrush" Color="{StaticResource TextOnDangerColor}"/>

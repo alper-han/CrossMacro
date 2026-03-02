@@ -160,12 +160,13 @@ public class DesignMainWindowViewModel : MainWindowViewModel
 
     private sealed class MockThemeService : IThemeService
     {
-        public IReadOnlyList<string> AvailableThemes { get; } = new[] { "Classic", "Latte", "Mocha", "Dracula", "Nord", "Everforest", "Gruvbox", "Solarized", "Crimson" };
-        public string CurrentTheme { get; private set; } = "Classic";
+        public IReadOnlyList<string> AvailableThemes => ThemeCatalog.ThemeNames;
+        public string CurrentTheme { get; private set; } = ThemeCatalog.DefaultThemeName;
 
         public bool TryApplyTheme(string themeName, out string error)
         {
-            CurrentTheme = string.IsNullOrWhiteSpace(themeName) ? "Classic" : themeName;
+            ThemeCatalog.TryResolve(themeName, out var descriptor);
+            CurrentTheme = descriptor.Name;
             error = string.Empty;
             return true;
         }

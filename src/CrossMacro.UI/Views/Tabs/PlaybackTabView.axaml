@@ -84,8 +84,8 @@
                 </Grid>
     
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
-                    <TextBlock Text="💡" FontSize="12" FontFamily="{StaticResource EmojiFont}" Opacity="0.7"/>
-                    <TextBlock Text="Tip: Loop Count 0 means infinite loop" Classes="label" FontSize="12" Opacity="0.7"/>
+                    <TextBlock Text="💡" FontSize="12" FontFamily="{StaticResource EmojiFont}" Classes="caption"/>
+                    <TextBlock Text="Tip: Loop Count 0 means infinite loop" Classes="caption"/>
                 </StackPanel>
 
                 <!-- NEW: Bottom Spacer -->

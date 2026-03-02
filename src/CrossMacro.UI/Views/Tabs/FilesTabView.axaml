@@ -17,6 +17,7 @@
                 </StackPanel>
                 
                 <Button Command="{Binding LoadMacroAsync}"
+                        Classes="primary"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -26,6 +27,7 @@
                 </Button>
     
                 <Button Command="{Binding SaveMacroAsync}"
+                        Classes="primary"
                         IsEnabled="{Binding HasRecordedMacro}"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center">

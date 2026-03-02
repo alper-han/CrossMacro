@@ -1,12 +1,8 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Shapes;
 using Avalonia.Input;
-using Avalonia.Interactivity;
 using Avalonia.Threading;
 using CrossMacro.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,6 +34,9 @@ public partial class HotkeyCapture : UserControl
     private bool _isCapturing;
     private bool _isValid = true;
     private string _errorMessage = string.Empty;
+    private const string CapturingClass = "capturing";
+    private const string InvalidClass = "invalid";
+    private const string EmptyClass = "empty";
 
     public string Hotkey
     {
@@ -84,64 +83,7 @@ public partial class HotkeyCapture : UserControl
     {
         InitializeComponent();
         UpdateDisplayString();
-        
-        // Add hover effects manually
-        PointerEntered += OnPointerEntered;
-        PointerExited += OnPointerExited;
-    }
-    
-    private void OnPointerEntered(object? sender, PointerEventArgs e)
-    {
-        ApplyHoverEffect();
-    }
-    
-    private void OnPointerExited(object? sender, PointerEventArgs e)
-    {
-        // Don't remove hover effect if we're capturing a key
-        if (!IsCapturing)
-        {
-            RemoveHoverEffect();
-        }
-    }
-    
-    private void ApplyHoverEffect()
-    {
-        var border = this.FindControl<Border>("HotkeyBorder");
-        var icon = this.FindControl<Path>("EditIcon");
-        
-        if (border != null)
-        {
-            if (Application.Current != null && Application.Current.Resources.TryGetResource("SurfaceBrush", null, out var bgBrush))
-                border.Background = bgBrush as Avalonia.Media.IBrush;
-                
-            if (Application.Current != null && Application.Current.Resources.TryGetResource("AccentBrush", null, out var borderBrush))
-                border.BorderBrush = borderBrush as Avalonia.Media.IBrush;
-        }
-        
-        if (icon != null)
-        {
-            icon.Opacity = 1.0;
-        }
-    }
-    
-    private void RemoveHoverEffect()
-    {
-        var border = this.FindControl<Border>("HotkeyBorder");
-        var icon = this.FindControl<Path>("EditIcon");
-        
-        if (border != null)
-        {
-            if (Application.Current != null && Application.Current.Resources.TryGetResource("SurfaceHoverBrush", null, out var bgBrush))
-                border.Background = bgBrush as Avalonia.Media.IBrush;
-                
-            border.BorderBrush = Avalonia.Media.Brushes.Transparent;
-            border.BoxShadow = default;
-        }
-        
-        if (icon != null)
-        {
-            icon.Opacity = 0.5;
-        }
+        UpdateVisualStateClasses();
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -150,12 +92,19 @@ public partial class HotkeyCapture : UserControl
         if (change.Property == HotkeyProperty)
         {
             UpdateDisplayString();
+            UpdateVisualStateClasses();
         }
     }
 
     private void UpdateDisplayString()
     {
-        DisplayString = IsCapturing ? "Press a key..." : Hotkey;
+        if (IsCapturing)
+        {
+            DisplayString = "Press a key...";
+            return;
+        }
+
+        DisplayString = string.IsNullOrWhiteSpace(Hotkey) ? "Click to set hotkey" : Hotkey;
     }
 
     private async void OnPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -181,7 +130,7 @@ public partial class HotkeyCapture : UserControl
 
         IsCapturing = true;
         UpdateDisplayString();
-        ApplyHoverEffect(); // Keep hover effect during capture
+        UpdateVisualStateClasses();
 
         try
         {
@@ -201,7 +150,7 @@ public partial class HotkeyCapture : UserControl
                         // Show error state briefly
                         IsValid = false;
                         ErrorMessage = errorMessage;
-                        ApplyErrorEffect();
+                        UpdateVisualStateClasses();
                         
                         // Remove error effect after a short delay
                         Task.Delay(2000).ContinueWith(_ =>
@@ -210,17 +159,13 @@ public partial class HotkeyCapture : UserControl
                             {
                                 IsValid = true;
                                 ErrorMessage = string.Empty;
-                                RemoveErrorEffect();
-                                
-                                if (!IsPointerOver)
-                                {
-                                    RemoveHoverEffect();
-                                }
+                                UpdateVisualStateClasses();
                             });
                         });
                         
                         IsCapturing = false;
                         UpdateDisplayString();
+                        UpdateVisualStateClasses();
                         return;
                     }
                 }
@@ -232,12 +177,7 @@ public partial class HotkeyCapture : UserControl
                 HotkeyChanged?.Invoke(this, newHotkey);
                 IsCapturing = false;
                 UpdateDisplayString();
-                
-                // Check if pointer is still over the control
-                if (!IsPointerOver)
-                {
-                    RemoveHoverEffect();
-                }
+                UpdateVisualStateClasses();
             });
         }
         catch (Exception ex)
@@ -246,39 +186,24 @@ public partial class HotkeyCapture : UserControl
             {
                 IsCapturing = false;
                 UpdateDisplayString();
-                
-                // Check if pointer is still over the control
-                if (!IsPointerOver)
-                {
-                    RemoveHoverEffect();
-                }
+                UpdateVisualStateClasses();
                 
                 Log.Error(ex, "Capture failed");
             });
         }
     }
-    
-    private void ApplyErrorEffect()
+
+    private void UpdateVisualStateClasses()
     {
-        var border = this.FindControl<Border>("HotkeyBorder");
-        
-        if (border != null)
+        Classes.Set(CapturingClass, IsCapturing);
+        Classes.Set(InvalidClass, !IsValid);
+        Classes.Set(EmptyClass, !IsCapturing && string.IsNullOrWhiteSpace(Hotkey));
+
+        if (HotkeyBorder is not null)
         {
-            if (Application.Current != null && Application.Current.Resources.TryGetResource("DangerBrush", null, out var borderBrush))
-                border.BorderBrush = borderBrush as Avalonia.Media.IBrush;
-                
-            border.BorderThickness = new Thickness(2);
-        }
-    }
-    
-    private void RemoveErrorEffect()
-    {
-        var border = this.FindControl<Border>("HotkeyBorder");
-        
-        if (border != null)
-        {
-            border.BorderBrush = Avalonia.Media.Brushes.Transparent;
-            border.BorderThickness = new Thickness(1);
+            HotkeyBorder.Classes.Set(CapturingClass, IsCapturing);
+            HotkeyBorder.Classes.Set(InvalidClass, !IsValid);
+            HotkeyBorder.Classes.Set(EmptyClass, !IsCapturing && string.IsNullOrWhiteSpace(Hotkey));
         }
     }
 }

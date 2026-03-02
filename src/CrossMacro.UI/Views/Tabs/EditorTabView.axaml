@@ -25,23 +25,9 @@
                     <ListBox Grid.Row="1" 
                              ItemsSource="{Binding Actions}" 
                              SelectedItem="{Binding SelectedAction}"
+                             Classes="editor-action-list"
                              Background="Transparent"
                              SelectionMode="Single">
-                        <ListBox.Styles>
-                            <Style Selector="ListBoxItem">
-                                <Setter Property="Padding" Value="8,6"/>
-                                <Setter Property="Margin" Value="0,2"/>
-                                <Setter Property="CornerRadius" Value="4"/>
-                                <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-                            </Style>
-                            <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-                                <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
-                            </Style>
-                            <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-                                <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-                            </Style>
-                        </ListBox.Styles>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" Spacing="6">
@@ -67,42 +53,30 @@
                     <!-- Action List Buttons -->
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4" Margin="0,8,0,0">
                         <Button Command="{Binding RemoveAction}"
+                                Classes="danger compact"
                                 IsEnabled="{Binding HasSelectedAction}"
-                                ToolTip.Tip="Remove Action"
-                                Background="{DynamicResource DangerBrush}"
-                                Foreground="{DynamicResource TextOnColorBrush}"
-                                Padding="8,4"
-                                CornerRadius="4">
+                                ToolTip.Tip="Remove Action">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock Text="−"/>
                                 <TextBlock Text="Remove"/>
                             </StackPanel>
                         </Button>
                         <Button Command="{Binding MoveUp}"
+                                Classes="secondary compact"
                                 IsEnabled="{Binding HasSelectedAction}"
-                                ToolTip.Tip="Move Up"
-                                Background="{DynamicResource SurfaceHoverBrush}"
-                                Foreground="{DynamicResource TextPrimaryBrush}"
-                                Padding="8,4"
-                                CornerRadius="4">
+                                ToolTip.Tip="Move Up">
                             <TextBlock Text="↑"/>
                         </Button>
                         <Button Command="{Binding MoveDown}"
+                                Classes="secondary compact"
                                 IsEnabled="{Binding HasSelectedAction}"
-                                ToolTip.Tip="Move Down"
-                                Background="{DynamicResource SurfaceHoverBrush}"
-                                Foreground="{DynamicResource TextPrimaryBrush}"
-                                Padding="8,4"
-                                CornerRadius="4">
+                                ToolTip.Tip="Move Down">
                             <TextBlock Text="↓"/>
                         </Button>
                         <Button Command="{Binding DuplicateAction}"
+                                Classes="secondary compact"
                                 IsEnabled="{Binding HasSelectedAction}"
-                                ToolTip.Tip="Duplicate"
-                                Background="{DynamicResource SurfaceHoverBrush}"
-                                Foreground="{DynamicResource TextPrimaryBrush}"
-                                Padding="8,4"
-                                CornerRadius="4">
+                                ToolTip.Tip="Duplicate">
                             <TextBlock Text="📋" FontFamily="{StaticResource EmojiFont}"/>
                         </Button>
                     </StackPanel>
@@ -129,24 +103,21 @@
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
-                                <Button Command="{Binding AddAction}"
-                                        Background="{DynamicResource PrimaryBrush}"
-                                        Foreground="{DynamicResource TextOnColorBrush}"
-                                        HorizontalAlignment="Stretch"
-                                        HorizontalContentAlignment="Center"
-                                        Padding="8,6"
-                                        CornerRadius="4">
-                                    <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
-                                        <TextBlock Text="+"/>
-                                        <TextBlock Text="Add Action"/>
-                                    </StackPanel>
-                                </Button>
+                            <Button Command="{Binding AddAction}"
+                                    Classes="primary"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+                                    <TextBlock Text="+"/>
+                                    <TextBlock Text="Add Action"/>
+                                </StackPanel>
+                            </Button>
                             </StackPanel>
                         </Border>
                         
                         <!-- Selected Action Properties -->
                         <StackPanel Spacing="12" IsVisible="{Binding HasSelectedAction}">
-                            <TextBlock Text="Selected Action Properties" FontWeight="SemiBold" Foreground="{DynamicResource TextOnColorBrush}"/>
+                            <TextBlock Text="Selected Action Properties" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                             
                             <!-- Action Type (Read-only display) -->
                             <StackPanel Spacing="4">
@@ -179,24 +150,20 @@
                                              Padding="8,6"/>
                                 </Grid>
                                 <Button Command="{Binding CaptureMouseAsync}"
+                                        Classes="primary compact"
                                         IsVisible="{Binding !IsCapturing}"
-                                        Background="{DynamicResource PrimaryBrush}"
-                                        Foreground="{DynamicResource TextOnColorBrush}"
                                         HorizontalAlignment="Stretch"
-                                        Padding="8,6"
-                                        CornerRadius="4">
+                                        HorizontalContentAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                                         <TextBlock Text="📍" FontFamily="{StaticResource EmojiFont}"/>
                                         <TextBlock Text="Capture Position"/>
                                     </StackPanel>
                                 </Button>
                                 <Button Command="{Binding CancelCapture}"
+                                        Classes="danger compact"
                                         IsVisible="{Binding IsCapturing}"
-                                        Background="{DynamicResource DangerBrush}"
-                                        Foreground="{DynamicResource TextOnColorBrush}"
                                         HorizontalAlignment="Stretch"
-                                        Padding="8,6"
-                                        CornerRadius="4">
+                                        HorizontalContentAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                                         <TextBlock Text="❌" FontFamily="{StaticResource EmojiFont}"/>
                                         <TextBlock Text="Cancel Capture"/>
@@ -254,12 +221,10 @@
                                     </Border>
                                 </Grid>
                                 <Button Command="{Binding CaptureKeyAsync}"
+                                        Classes="primary compact"
                                         IsVisible="{Binding !IsCapturing}"
-                                        Background="{DynamicResource PrimaryBrush}"
-                                        Foreground="{DynamicResource TextOnColorBrush}"
                                         HorizontalAlignment="Stretch"
-                                        Padding="8,6"
-                                        CornerRadius="4">
+                                        HorizontalContentAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                                         <TextBlock Text="⌨️" FontFamily="{StaticResource EmojiFont}"/>
                                         <TextBlock Text="Capture Key"/>
@@ -358,36 +323,27 @@
                 <!-- Undo/Redo + Clear -->
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <Button Command="{Binding Undo}"
+                            Classes="secondary compact"
                             IsEnabled="{Binding CanUndo}"
-                            ToolTip.Tip="Undo"
-                            Background="{DynamicResource SurfaceHoverBrush}"
-                            Foreground="{DynamicResource TextPrimaryBrush}"
-                            Padding="12,8"
-                            CornerRadius="4">
+                            ToolTip.Tip="Undo">
                         <StackPanel Orientation="Horizontal" Spacing="4">
                             <TextBlock Text="↩"/>
                             <TextBlock Text="Undo"/>
                         </StackPanel>
                     </Button>
                     <Button Command="{Binding Redo}"
+                            Classes="secondary compact"
                             IsEnabled="{Binding CanRedo}"
-                            ToolTip.Tip="Redo"
-                            Background="{DynamicResource SurfaceHoverBrush}"
-                            Foreground="{DynamicResource TextPrimaryBrush}"
-                            Padding="12,8"
-                            CornerRadius="4">
+                            ToolTip.Tip="Redo">
                         <StackPanel Orientation="Horizontal" Spacing="4">
                             <TextBlock Text="↪"/>
                             <TextBlock Text="Redo"/>
                         </StackPanel>
                     </Button>
                     <Button Command="{Binding ClearAll}"
+                            Classes="secondary compact"
                             IsEnabled="{Binding HasActions}"
-                            ToolTip.Tip="Clear All"
-                            Background="{DynamicResource SurfaceHoverBrush}"
-                            Foreground="{DynamicResource TextPrimaryBrush}"
-                            Padding="12,8"
-                            CornerRadius="4">
+                            ToolTip.Tip="Clear All">
                         <StackPanel Orientation="Horizontal" Spacing="4">
                             <TextBlock Text="🗑️" FontFamily="{StaticResource EmojiFont}"/>
                             <TextBlock Text="Clear"/>
@@ -398,21 +354,15 @@
                 <!-- Save/Load -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                     <Button Command="{Binding LoadMacroAsync}"
-                            Background="{DynamicResource SurfaceHoverBrush}"
-                            Foreground="{DynamicResource TextPrimaryBrush}"
-                            Padding="12,8"
-                            CornerRadius="4">
+                            Classes="secondary compact">
                         <StackPanel Orientation="Horizontal" Spacing="4">
                             <TextBlock Text="📂" FontFamily="{StaticResource EmojiFont}"/>
                             <TextBlock Text="Load"/>
                         </StackPanel>
                     </Button>
                     <Button Command="{Binding SaveMacroAsync}"
-                            IsEnabled="{Binding HasActions}"
-                            Background="{DynamicResource PrimaryBrush}"
-                            Foreground="{DynamicResource TextOnColorBrush}"
-                            Padding="12,8"
-                            CornerRadius="4">
+                            Classes="primary compact"
+                            IsEnabled="{Binding HasActions}">
                         <StackPanel Orientation="Horizontal" Spacing="4">
                             <TextBlock Text="💾" FontFamily="{StaticResource EmojiFont}"/>
                             <TextBlock Text="Save"/>

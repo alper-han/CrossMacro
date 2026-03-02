@@ -58,7 +58,7 @@
                         </Grid>
                         
                         <Button Content="+ Add" 
-                                Classes="secondary"
+                                Classes="primary"
                                 Command="{Binding AddExpansionCommand}"
                                 HorizontalAlignment="Stretch" 
                                 HorizontalContentAlignment="Center"/>
@@ -142,17 +142,13 @@
                                             
                                             <!-- Delete Button -->
                                             <Button Grid.Column="2"
+                                                    Classes="row-action danger"
                                                     Background="Transparent"
                                                     Padding="8"
                                                     Command="{Binding #Root.((vm:TextExpansionViewModel)DataContext).RemoveExpansionCommand}"
                                                     CommandParameter="{Binding}"
                                                     Cursor="Hand">
                                                 <TextBlock Text="🗑" FontSize="14" FontFamily="{StaticResource EmojiFont}" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                                <Button.Styles>
-                                                    <Style Selector="Button:pointerover TextBlock">
-                                                        <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
-                                                    </Style>
-                                                </Button.Styles>
                                             </Button>
                                         </Grid>
                                     </Border>

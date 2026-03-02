@@ -44,15 +44,12 @@
                                 <Border Padding="10,8" 
                                         CornerRadius="8" 
                                         Margin="0,2"
+                                        Classes="row-item no-hover"
                                         Background="{DynamicResource BackgroundBrush}">
-                                    <Border.Styles>
-                                        <Style Selector="Border:pointerover">
-                                            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-                                        </Style>
-                                    </Border.Styles>
                                     <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                                         <!-- Shortcut Info (clickable area for selection) -->
                                         <Button Grid.Column="0" 
+                                                Classes="flat row-select"
                                                 Background="Transparent"
                                                 Padding="0"
                                                 HorizontalAlignment="Stretch"
@@ -60,11 +57,6 @@
                                                 Command="{Binding #ShortcutListBorder.((vm:ShortcutViewModel)DataContext).SelectTaskCommand}"
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand">
-                                            <Button.Styles>
-                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                    <Setter Property="Background" Value="Transparent"/>
-                                                </Style>
-                                            </Button.Styles>
                                             <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
                                                 <TextBlock Text="{Binding Name, FallbackValue='Shortcut Name'}" 
                                                           FontWeight="Medium"
@@ -99,6 +91,7 @@
                                         
                                         <!-- Edit Button -->
                                         <Button Grid.Column="2"
+                                                Classes="flat row-action"
                                                 Background="Transparent"
                                                 Padding="6"
                                                 Command="{Binding #ShortcutListBorder.((vm:ShortcutViewModel)DataContext).SelectTaskCommand}"
@@ -106,15 +99,11 @@
                                                 Cursor="Hand"
                                                 ToolTip.Tip="Edit shortcut">
                                             <TextBlock Text="✏️" FontSize="12" FontFamily="{StaticResource EmojiFont}"/>
-                                            <Button.Styles>
-                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                    <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-                                                </Style>
-                                            </Button.Styles>
                                         </Button>
                                         
                                         <!-- Delete Button -->
                                         <Button Grid.Column="3"
+                                                Classes="flat row-action danger"
                                                 Background="Transparent"
                                                 Padding="6"
                                                 Command="{Binding #ShortcutListBorder.((vm:ShortcutViewModel)DataContext).RemoveTaskCommand}"
@@ -122,14 +111,6 @@
                                                 Cursor="Hand"
                                                 ToolTip.Tip="Delete shortcut">
                                             <TextBlock Text="🗑" FontSize="12" FontFamily="{StaticResource EmojiFont}" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                            <Button.Styles>
-                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                    <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-                                                </Style>
-                                                <Style Selector="Button:pointerover TextBlock">
-                                                    <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
-                                                </Style>
-                                            </Button.Styles>
                                         </Button>
                                     </Grid>
                                 </Border>
@@ -152,14 +133,14 @@
                     
                     <!-- Shortcut Name -->
                     <StackPanel Spacing="4">
-                        <TextBlock Text="Name" FontSize="12" Opacity="0.7"/>
+                        <TextBlock Text="Name" Classes="caption"/>
                         <TextBox Text="{Binding SelectedTask.Name, Mode=TwoWay, FallbackValue=''}" 
                                 Watermark="Shortcut name"/>
                     </StackPanel>
                     
                     <!-- Hotkey Capture -->
                     <StackPanel Spacing="4">
-                        <TextBlock Text="Trigger (Keyboard/Mouse)" FontSize="12" Opacity="0.7"/>
+                        <TextBlock Text="Trigger (Keyboard/Mouse)" Classes="caption"/>
                         <controls:HotkeyCapture x:Name="HotkeyInput"
                                                Hotkey="{Binding SelectedHotkeyString, Mode=TwoWay, FallbackValue=''}"
                                                HotkeyChanged="OnHotkeyChanged"/>
@@ -208,15 +189,15 @@
                             </Grid>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4" Margin="0,4,0,0"
                                         IsVisible="{Binding SelectedTask.LoopEnabled}">
-                                <TextBlock Text="💡" FontSize="12" FontFamily="{StaticResource EmojiFont}" Opacity="0.7"/>
-                                <TextBlock Text="Tip: Loop Count 0 means infinite loop" Classes="label" FontSize="12" Opacity="0.7"/>
+                                <TextBlock Text="💡" FontSize="12" FontFamily="{StaticResource EmojiFont}" Classes="caption"/>
+                                <TextBlock Text="Tip: Loop Count 0 means infinite loop" Classes="caption"/>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>
                     
                     <!-- Macro File -->
                     <StackPanel Spacing="4">
-                        <TextBlock Text="Macro File" FontSize="12" Opacity="0.7"/>
+                        <TextBlock Text="Macro File" Classes="caption"/>
                         <Grid ColumnDefinitions="*,Auto">
                             <Border Grid.Column="0" 
                                    Background="{DynamicResource BackgroundBrush}" 
@@ -251,12 +232,12 @@
                               Foreground="{DynamicResource TextSecondaryBrush}"
                               FontSize="12"/>
                     <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto" RowSpacing="4">
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Last Triggered:" FontSize="12" Opacity="0.7"/>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Last Triggered:" Classes="caption"/>
                         <TextBlock Grid.Row="0" Grid.Column="1" 
                                   Text="{Binding SelectedTask.LastTriggeredTime, StringFormat='{}{0:G}', TargetNullValue='Never', FallbackValue='Never'}" 
                                   FontSize="12"/>
                         
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Status:" FontSize="12" Opacity="0.7"/>
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Status:" Classes="caption"/>
                         <TextBlock Grid.Row="1" Grid.Column="1" 
                                   Text="{Binding SelectedTask.LastStatus, TargetNullValue='—', FallbackValue='—'}" 
                                   FontSize="12"/>
@@ -266,7 +247,7 @@
             
             <!-- Save Button -->
             <Button Command="{Binding SaveCommand}"
-                   Classes="success"
+                   Classes="primary"
                    HorizontalAlignment="Right"
                    IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -287,8 +268,7 @@
                               FontWeight="Medium"
                               HorizontalAlignment="Center"/>
                     <TextBlock Text="Select a shortcut from the list above or add a new one" 
-                              FontSize="12" 
-                              Opacity="0.6"
+                              Classes="caption"
                               HorizontalAlignment="Center"/>
                 </StackPanel>
             </Border>

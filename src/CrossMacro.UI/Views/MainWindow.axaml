@@ -34,23 +34,13 @@
                 <!-- Header Row with Toggle and Title -->
                 <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,16,0,8">
                     <ToggleButton IsChecked="{Binding IsPaneOpen}"
+                                  Classes="pane-toggle"
                                   Background="Transparent"
                                   Width="32" Height="32"
                                   CornerRadius="6"
                                   Padding="4"
                                   Margin="19,0,0,0"
                                   HorizontalAlignment="Left">
-                         <ToggleButton.Styles>
-                            <Style Selector="ToggleButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-                                <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-                            </Style>
-                            <Style Selector="ToggleButton:checked /template/ ContentPresenter#PART_ContentPresenter">
-                                <Setter Property="Background" Value="Transparent"/>
-                            </Style>
-                             <Style Selector="ToggleButton:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-                                <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-                            </Style>
-                        </ToggleButton.Styles>
                         <PathIcon Data="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"
                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                   Width="16" Height="16"/>
@@ -69,36 +59,13 @@
                 <!-- Navigation List (Top) -->
                 <ListBox Grid.Row="1" 
                          Name="TopNavListBox"
+                         Classes="nav-list"
                          ItemsSource="{Binding TopNavigationItems}" 
                          SelectedItem="{Binding SelectedTopItem}"
                          Background="Transparent"
                          SelectionMode="Single"
                          VerticalAlignment="Top"
                          Margin="0,0">
-                    <ListBox.Styles>
-                         <Style Selector="ListBoxItem">
-                             <Setter Property="Padding" Value="16,12"/>
-                             <Setter Property="CornerRadius" Value="0"/>
-                             <Setter Property="Margin" Value="0,2,0,2"/>
-                             <Setter Property="Cursor" Value="Hand"/>
-                             <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/> <!-- Slate-400 -->
-                             <Setter Property="Background" Value="Transparent"/>
-                             <Setter Property="BorderThickness" Value="3,0,3,0"/>
-                             <Setter Property="BorderBrush" Value="Transparent"/>
-                         </Style>
-                         <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-                             <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/> <!-- Slate-700 -->
-                             <Setter Property="Foreground" Value="{DynamicResource TextOnColorBrush}"/>
-                         </Style>
-                         <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-                             <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/> <!-- Slate-900 (Darker) -->
-                             <Setter Property="Foreground" Value="{DynamicResource TextOnColorBrush}"/>
-                         </Style>
-                         <Style Selector="ListBoxItem:selected">
-                             <Setter Property="BorderThickness" Value="3,0,3,0"/>
-                             <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
-                         </Style>
-                    </ListBox.Styles>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center"
@@ -125,36 +92,13 @@
                 <!-- Navigation List (Bottom/Settings) -->
                 <ListBox Grid.Row="2" 
                          Name="BottomNavListBox"
+                         Classes="nav-list"
                          ItemsSource="{Binding BottomNavigationItems}" 
                          SelectedItem="{Binding SelectedBottomItem}"
                          Background="Transparent"
                          SelectionMode="Single"
                          VerticalAlignment="Bottom"
                          Margin="0">
-                    <ListBox.Styles>
-                         <Style Selector="ListBoxItem">
-                             <Setter Property="Padding" Value="16,12"/>
-                             <Setter Property="CornerRadius" Value="0"/>
-                             <Setter Property="Margin" Value="0,2,0,2"/>
-                             <Setter Property="Cursor" Value="Hand"/>
-                             <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/> <!-- Slate-400 -->
-                             <Setter Property="Background" Value="Transparent"/>
-                             <Setter Property="BorderThickness" Value="3,0,3,0"/>
-                             <Setter Property="BorderBrush" Value="Transparent"/>
-                         </Style>
-                         <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-                             <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/> <!-- Slate-700 -->
-                             <Setter Property="Foreground" Value="{DynamicResource TextOnColorBrush}"/>
-                         </Style>
-                         <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-                             <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/> <!-- Slate-900 (Darker) -->
-                             <Setter Property="Foreground" Value="{DynamicResource TextOnColorBrush}"/>
-                         </Style>
-                         <Style Selector="ListBoxItem:selected">
-                             <Setter Property="BorderThickness" Value="3,0,3,0"/>
-                             <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
-                         </Style>
-                    </ListBox.Styles>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center"
@@ -205,18 +149,11 @@
                         
                         <!-- Close Button -->
                         <Button Width="32" Height="32"
+                                Classes="window-close"
                                 Background="Transparent"
                                 Foreground="{DynamicResource TextSecondaryBrush}"
                                 Click="OnCloseApp"
                                 ToolTip.Tip="Close">
-                             <Button.Styles>
-                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                    <Setter Property="Background" Value="{DynamicResource DangerBrush}"/>
-                                </Style>
-                                <Style Selector="Button:pointerover">
-                                    <Setter Property="Foreground" Value="{DynamicResource TextOnColorBrush}"/>
-                                </Style>
-                            </Button.Styles>
                             <TextBlock Text="✕" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Button>
                     </StackPanel>
@@ -232,7 +169,7 @@
                         <TextBlock Grid.Column="0" Text="⚠️" FontFamily="{StaticResource EmojiFont}" Margin="0,0,8,0" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" 
                                   Text="{Binding ExtensionWarning}" 
-                                  Foreground="Black"
+                                  Foreground="{DynamicResource TextOnWarningBrush}"
                                   FontWeight="Bold"
                                   TextWrapping="Wrap"
                                   VerticalAlignment="Center"/>
@@ -278,7 +215,7 @@
                         HorizontalAlignment="Right"
                         VerticalAlignment="Bottom"
                         IsVisible="{Binding IsUpdateNotificationVisible}"
-                        BoxShadow="0 4 12 4 #40000000">
+                        BoxShadow="{DynamicResource ShadowOverlayCard}">
                     <Border.Transitions>
                         <Transitions>
                             <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
@@ -308,7 +245,7 @@
                         <Button Command="{Binding OpenUpdateUrl}"
                                 HorizontalAlignment="Stretch"
                                 Background="{DynamicResource PrimaryBrush}"
-                                Foreground="{DynamicResource TextOnColorBrush}"
+                                Foreground="{DynamicResource TextOnPrimaryBrush}"
                                 CornerRadius="4"
                                 Padding="6">
                             <TextBlock Text="View on GitHub" 

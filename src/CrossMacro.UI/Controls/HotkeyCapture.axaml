@@ -6,33 +6,16 @@
              x:Class="CrossMacro.UI.Controls.HotkeyCapture"
              x:Name="Root"
              Focusable="True">
-    
     <Border x:Name="HotkeyBorder"
-            Background="{DynamicResource SurfaceHoverBrush}"
-            BorderBrush="Transparent"
-            BorderThickness="1"
             CornerRadius="6" 
             Padding="10,6,10,6"
             Cursor="Hand"
             PointerPressed="OnPointerPressed">
-        <Border.Styles>
-            <!-- Hover Effect on Border -->
-            <Style Selector="Border:pointerover">
-                <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
-                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-            </Style>
-            
-            <!-- Hover Effect on Icon -->
-            <Style Selector="Border:pointerover Path#EditIcon">
-                <Setter Property="Opacity" Value="1"/>
-            </Style>
-        </Border.Styles>
-        
         <Border.Transitions>
             <Transitions>
                 <BrushTransition Property="Background" Duration="0:0:0.2"/>
                 <BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
-                <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.2"/>
+                <ThicknessTransition Property="BorderThickness" Duration="0:0:0.1"/>
             </Transitions>
         </Border.Transitions>
         

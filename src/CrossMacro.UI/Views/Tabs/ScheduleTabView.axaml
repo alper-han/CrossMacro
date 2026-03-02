@@ -43,15 +43,12 @@
                                 <Border Padding="10,8" 
                                         CornerRadius="8" 
                                         Margin="0,2"
+                                        Classes="row-item no-hover"
                                         Background="{DynamicResource BackgroundBrush}">
-                                    <Border.Styles>
-                                        <Style Selector="Border:pointerover">
-                                            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-                                        </Style>
-                                    </Border.Styles>
                                     <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                                         <!-- Task Info (clickable area for selection) -->
                                         <Button Grid.Column="0" 
+                                                Classes="flat row-select"
                                                 Background="Transparent"
                                                 Padding="0"
                                                 HorizontalAlignment="Stretch"
@@ -59,11 +56,6 @@
                                                 Command="{Binding #TaskListBorder.((vm:ScheduleViewModel)DataContext).SelectTaskCommand}"
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand">
-                                            <Button.Styles>
-                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                    <Setter Property="Background" Value="Transparent"/>
-                                                </Style>
-                                            </Button.Styles>
                                             <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
                                                 <TextBlock Text="{Binding Name}" 
                                                           FontWeight="Medium"
@@ -92,6 +84,7 @@
                                         
                                         <!-- Edit Button -->
                                         <Button Grid.Column="2"
+                                                Classes="flat row-action"
                                                 Background="Transparent"
                                                 Padding="6"
                                                 Command="{Binding #TaskListBorder.((vm:ScheduleViewModel)DataContext).SelectTaskCommand}"
@@ -99,15 +92,11 @@
                                                 Cursor="Hand"
                                                 ToolTip.Tip="Edit task">
                                             <TextBlock Text="✏️" FontSize="12" FontFamily="{StaticResource EmojiFont}"/>
-                                            <Button.Styles>
-                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                    <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-                                                </Style>
-                                            </Button.Styles>
                                         </Button>
                                         
                                         <!-- Delete Button -->
                                         <Button Grid.Column="3"
+                                                Classes="flat row-action danger"
                                                 Background="Transparent"
                                                 Padding="6"
                                                 Command="{Binding #TaskListBorder.((vm:ScheduleViewModel)DataContext).RemoveTaskCommand}"
@@ -115,14 +104,6 @@
                                                 Cursor="Hand"
                                                 ToolTip.Tip="Delete task">
                                             <TextBlock Text="🗑" FontSize="12" FontFamily="{StaticResource EmojiFont}" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                            <Button.Styles>
-                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                    <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-                                                </Style>
-                                                <Style Selector="Button:pointerover TextBlock">
-                                                    <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
-                                                </Style>
-                                            </Button.Styles>
                                         </Button>
                                     </Grid>
                                 </Border>
@@ -145,7 +126,7 @@
                     
                     <!-- Task Name -->
                     <StackPanel Spacing="4">
-                        <TextBlock Text="Name" FontSize="12" Opacity="0.7"/>
+                        <TextBlock Text="Name" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <TextBox Text="{Binding SelectedTask.Name, Mode=TwoWay, FallbackValue=''}" 
                                 Watermark="Task name"/>
                     </StackPanel>
@@ -169,7 +150,7 @@
                     
                     <!-- Macro File -->
                     <StackPanel Spacing="4">
-                        <TextBlock Text="Macro File" FontSize="12" Opacity="0.7"/>
+                        <TextBlock Text="Macro File" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <Grid ColumnDefinitions="*,Auto">
                             <Border Grid.Column="0" 
                                    Background="{DynamicResource BackgroundBrush}" 
@@ -193,7 +174,7 @@
                     
                     <!-- Schedule Type -->
                     <StackPanel Spacing="8">
-                        <TextBlock Text="Schedule Type" FontSize="12" Opacity="0.7"/>
+                        <TextBlock Text="Schedule Type" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <StackPanel Orientation="Horizontal" Spacing="16">
                             <RadioButton IsChecked="{Binding IsIntervalSelected, Mode=TwoWay}"
                                         GroupName="ScheduleType">
@@ -229,7 +210,7 @@
                               FontWeight="SemiBold" 
                               Foreground="{DynamicResource TextSecondaryBrush}"
                               FontSize="12"/>
-                    <TextBlock Text="Run macro every:" FontSize="12" Opacity="0.7"/>
+                    <TextBlock Text="Run macro every:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <NumericUpDown Value="{Binding SelectedTask.IntervalValue, Mode=TwoWay, FallbackValue=1}"
                                       Minimum="1" Maximum="9999"
@@ -259,7 +240,7 @@
                               FontWeight="SemiBold" 
                               Foreground="{DynamicResource TextSecondaryBrush}"
                               FontSize="12"/>
-                    <TextBlock Text="Run macro at:" FontSize="12" Opacity="0.7"/>
+                    <TextBlock Text="Run macro at:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <StackPanel Orientation="Vertical" Spacing="12" HorizontalAlignment="Left">
                         <DatePicker SelectedDate="{Binding ScheduledDate, Mode=TwoWay, FallbackValue={x:Null}}"
                                    HorizontalAlignment="Stretch"/>
@@ -268,8 +249,8 @@
                                    HorizontalAlignment="Stretch"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="💡" FontSize="11" FontFamily="{StaticResource EmojiFont}" Opacity="0.5"/>
-                        <TextBlock Text="The macro will run once at the selected date" FontSize="11" Opacity="0.5"/>
+                        <TextBlock Text="💡" FontSize="11" FontFamily="{StaticResource EmojiFont}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="The macro will run once at the selected date" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -285,17 +266,17 @@
                               Foreground="{DynamicResource TextSecondaryBrush}"
                               FontSize="12"/>
                     <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Last Run:" FontSize="12" Opacity="0.7"/>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Last Run:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <TextBlock Grid.Row="0" Grid.Column="1" 
                                   Text="{Binding SelectedTask.LastRunTime, StringFormat='{}{0:G}', TargetNullValue='Never', FallbackValue='Never'}" 
                                   FontSize="12"/>
                         
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Next Run:" FontSize="12" Opacity="0.7"/>
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Next Run:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <TextBlock Grid.Row="1" Grid.Column="1" 
                                   Text="{Binding SelectedTask.NextRunTime, StringFormat='{}{0:G}', TargetNullValue='Not scheduled', FallbackValue='Not scheduled'}" 
                                   FontSize="12"/>
                         
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Status:" FontSize="12" Opacity="0.7"/>
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Status:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <TextBlock Grid.Row="2" Grid.Column="1" 
                                   Text="{Binding SelectedTask.LastStatus, TargetNullValue='—', FallbackValue='—'}" 
                                   FontSize="12"/>
@@ -305,7 +286,7 @@
             
             <!-- Save Button -->
             <Button Command="{Binding SaveCommand}"
-                   Classes="success"
+                   Classes="primary"
                    HorizontalAlignment="Right"
                    IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -326,8 +307,8 @@
                               FontWeight="Medium"
                               HorizontalAlignment="Center"/>
                     <TextBlock Text="Select a task from the list above or add a new one" 
-                              FontSize="12" 
-                              Opacity="0.6"
+                              FontSize="12"
+                              Foreground="{DynamicResource TextSecondaryBrush}"
                               HorizontalAlignment="Center"/>
                 </StackPanel>
             </Border>

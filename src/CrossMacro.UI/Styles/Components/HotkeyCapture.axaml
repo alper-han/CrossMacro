@@ -1,0 +1,42 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:CrossMacro.UI.Controls">
+    <Style Selector="controls|HotkeyCapture Border#HotkeyBorder">
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+
+    <Style Selector="controls|HotkeyCapture Border#HotkeyBorder:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+
+    <Style Selector="controls|HotkeyCapture Border#HotkeyBorder.capturing">
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+        <Setter Property="BorderThickness" Value="2"/>
+    </Style>
+
+    <Style Selector="controls|HotkeyCapture Border#HotkeyBorder.invalid">
+        <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}"/>
+        <Setter Property="BorderThickness" Value="2"/>
+    </Style>
+
+    <Style Selector="controls|HotkeyCapture Path#EditIcon">
+        <Setter Property="Opacity" Value="0.5"/>
+    </Style>
+
+    <Style Selector="controls|HotkeyCapture Border#HotkeyBorder:pointerover Path#EditIcon">
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+
+    <Style Selector="controls|HotkeyCapture Border#HotkeyBorder.capturing Path#EditIcon">
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+
+    <Style Selector="controls|HotkeyCapture Border#HotkeyBorder.empty TextBlock#DisplayText">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+    </Style>
+</Styles>

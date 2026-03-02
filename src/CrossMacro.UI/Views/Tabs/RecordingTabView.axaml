@@ -141,8 +141,8 @@
                                     <StackPanel Spacing="2">
                                         <TextBlock Text="Force Relative Coordinates" FontWeight="Medium" VerticalAlignment="Center"/>
                                         <TextBlock Text="Use relative mouse position even if absolute is supported" 
-                                                  FontSize="10" 
-                                                  Opacity="0.6"/>
+                                                  FontSize="10"
+                                                  Foreground="{DynamicResource TextSecondaryBrush}"/>
                                     </StackPanel>
                                 </StackPanel>
 
@@ -181,8 +181,8 @@
                                     <StackPanel Spacing="2">
                                         <TextBlock Text="Skip Initial 0,0 Position" FontWeight="Medium" VerticalAlignment="Center"/>
                                         <TextBlock Text="Don't move cursor to origin when recording starts" 
-                                                  FontSize="10" 
-                                                  Opacity="0.6"/>
+                                                  FontSize="10"
+                                                  Foreground="{DynamicResource TextSecondaryBrush}"/>
                                     </StackPanel>
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="1" 
@@ -195,6 +195,8 @@
 
                     <!-- Action Button (Toggle) -->
                     <Button Name="RecordingToggleButton"
+                           Classes="recording-toggle"
+                           Classes.recording="{Binding IsRecording}"
                            Click="OnToggleRecording"
                            IsEnabled="{Binding CanToggleRecording}"
                            HorizontalAlignment="Stretch"
@@ -209,36 +211,13 @@
                                 <TextBlock Text="Stop Recording"/>
                             </StackPanel>
                         </Panel>
-                        <Button.Styles>
-                            <!-- Default: Start Recording (Green) -->
-                            <Style Selector="Button#RecordingToggleButton">
-                                <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource TextOnColorBrush}"/>
-                                <Setter Property="Padding" Value="20,12"/>
-                                <Setter Property="CornerRadius" Value="10"/>
-                                <Setter Property="FontWeight" Value="Bold"/>
-                                <Setter Property="FontSize" Value="16"/>
-                                <Setter Property="Cursor" Value="Hand"/>
-                                <Setter Property="BorderThickness" Value="0"/>
-                            </Style>
-                            <Style Selector="Button#RecordingToggleButton:pointerover /template/ ContentPresenter">
-                                <Setter Property="Background" Value="{DynamicResource PrimaryHoverBrush}"/>
-                            </Style>
-                            <!-- When Recording: Stop (Red) -->
-                            <Style Selector="Button#RecordingToggleButton.recording">
-                                <Setter Property="Background" Value="{DynamicResource DangerBrush}"/>
-                            </Style>
-                            <Style Selector="Button#RecordingToggleButton.recording:pointerover /template/ ContentPresenter">
-                                <Setter Property="Background" Value="{DynamicResource DangerHoverBrush}"/>
-                            </Style>
-                        </Button.Styles>
                     </Button>
                 </StackPanel>
             </Border>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
-                <TextBlock Text="💡" FontSize="12" FontFamily="{StaticResource EmojiFont}" Opacity="0.7"/>
-                <TextBlock Text="Tip: Use global hotkeys to control recording while in other apps" Classes="label" FontSize="12" Opacity="0.7"/>
+                <TextBlock Text="💡" FontSize="12" FontFamily="{StaticResource EmojiFont}" Classes="caption"/>
+                <TextBlock Text="Tip: Use global hotkeys to control recording while in other apps" Classes="caption"/>
             </StackPanel>
         </StackPanel>
     </ScrollViewer>

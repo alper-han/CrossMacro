@@ -87,6 +87,26 @@
         <Setter Property="BorderBrush" Value="{DynamicResource DangerPressedBrush}"/>
     </Style>
 
+    <Style Selector="Button.titlebar-button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+
+    <Style Selector="Button.titlebar-button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+
+    <Style Selector="Button.titlebar-button.window-close:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource DangerBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}"/>
+    </Style>
+
+    <Style Selector="Button.titlebar-button.window-close:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource DangerPressedBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource DangerPressedBrush}"/>
+    </Style>
+
     <Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
         <Setter Property="BorderBrush" Value="Transparent"/>

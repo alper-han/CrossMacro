@@ -140,6 +140,7 @@
                         
                         <!-- Minimize Button -->
                         <Button Width="32" Height="32"
+                                Classes="titlebar-button"
                                 Background="Transparent"
                                 Foreground="{DynamicResource TextSecondaryBrush}"
                                 Click="OnMinimizeWindow"
@@ -149,7 +150,7 @@
                         
                         <!-- Close Button -->
                         <Button Width="32" Height="32"
-                                Classes="window-close"
+                                Classes="titlebar-button window-close"
                                 Background="Transparent"
                                 Foreground="{DynamicResource TextSecondaryBrush}"
                                 Click="OnCloseApp"

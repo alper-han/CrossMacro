@@ -36,14 +36,19 @@ public sealed class ThemeService : IThemeService
         }
 
         var requestedThemeWasValid = ThemeCatalog.TryResolve(themeName, out var requestedTheme);
+        var appliedTheme = requestedTheme;
+        var appliedFallbackForMissingResource = false;
         if (!TryResolveThemeDictionary(resourceRoot, requestedTheme, out var targetThemeDictionary))
         {
-            var fallbackApplied = TryResolveThemeDictionary(resourceRoot, ThemeCatalog.DefaultTheme, out targetThemeDictionary);
-            CurrentTheme = ThemeCatalog.DefaultThemeName;
-            error = fallbackApplied
-                ? $"Theme resource not found: {requestedTheme.ResourceKey}. Fallback to {ThemeCatalog.DefaultThemeName} applied."
-                : $"Theme resources are missing. Could not apply {ThemeCatalog.DefaultThemeName}.";
-            return false;
+            if (!TryResolveThemeDictionary(resourceRoot, ThemeCatalog.DefaultTheme, out targetThemeDictionary))
+            {
+                CurrentTheme = ThemeCatalog.DefaultThemeName;
+                error = $"Theme resources are missing. Could not apply {ThemeCatalog.DefaultThemeName}.";
+                return false;
+            }
+
+            appliedTheme = ThemeCatalog.DefaultTheme;
+            appliedFallbackForMissingResource = true;
         }
 
         for (var index = mergedDictionaries.Count - 1; index >= 0; index--)
@@ -55,7 +60,13 @@ public sealed class ThemeService : IThemeService
         }
 
         mergedDictionaries.Add(targetThemeDictionary);
-        CurrentTheme = requestedTheme.Name;
+        CurrentTheme = appliedTheme.Name;
+
+        if (appliedFallbackForMissingResource)
+        {
+            error = $"Theme resource not found: {requestedTheme.ResourceKey}. Fallback to {ThemeCatalog.DefaultThemeName} applied.";
+            return false;
+        }
 
         if (!requestedThemeWasValid)
         {

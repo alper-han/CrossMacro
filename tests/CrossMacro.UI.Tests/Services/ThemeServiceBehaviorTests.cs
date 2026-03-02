@@ -71,4 +71,32 @@ public class ThemeServiceBehaviorTests
         root.MergedDictionaries.Should().Contain(classic);
         root.MergedDictionaries.Should().NotContain(dracula);
     }
+
+    [Fact]
+    public void TryApplyTheme_WithMissingRequestedResource_ShouldApplyClassicFallbackDictionary()
+    {
+        var root = new ResourceDictionary();
+        var classic = new ResourceDictionary
+        {
+            [ThemeCatalog.ThemeMarkerKey] = "Classic"
+        };
+        var dracula = new ResourceDictionary
+        {
+            [ThemeCatalog.ThemeMarkerKey] = "Dracula"
+        };
+
+        // "Nord" exists in ThemeCatalog but is intentionally missing from runtime resources.
+        root["Theme.Classic"] = classic;
+        root.MergedDictionaries.Add(dracula);
+
+        var service = new ThemeService(root);
+
+        var result = service.TryApplyTheme("Nord", out var error);
+
+        result.Should().BeFalse();
+        error.Should().Contain("Theme resource not found");
+        service.CurrentTheme.Should().Be(ThemeCatalog.DefaultThemeName);
+        root.MergedDictionaries.Should().Contain(classic);
+        root.MergedDictionaries.Should().NotContain(dracula);
+    }
 }

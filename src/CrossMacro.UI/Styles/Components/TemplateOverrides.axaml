@@ -33,6 +33,18 @@
         <Setter Property="BorderBrush" Value="{DynamicResource DangerPressedBrush}"/>
     </Style>
 
+    <!-- Keep row-level danger actions subtle while preserving full danger styling
+         for standalone destructive buttons. -->
+    <Style Selector="Button.row-action.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+
+    <Style Selector="Button.row-action.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+
     <Style Selector="Button.row-select:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderBrush" Value="Transparent"/>

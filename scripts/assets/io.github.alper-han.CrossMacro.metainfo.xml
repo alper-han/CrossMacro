@@ -2,9 +2,11 @@
 <component type="desktop-application">
   <id>io.github.alper-han.CrossMacro</id>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>GPL-3.0</project_license>
+  <project_license>GPL-3.0-only</project_license>
   <name>CrossMacro</name>
-  <developer_name>Alper Han</developer_name>
+  <developer id="io.github.alper-han">
+    <name>Alper Han</name>
+  </developer>
   <summary>Cross-platform Mouse and Keyboard Macro Automation Tool</summary>
   <description>
     <p>
@@ -27,23 +29,23 @@
   <screenshots>
     <screenshot type="default">
       <caption>Recording Tab - Record mouse and keyboard macros</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/main/screenshots/recording-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v0.9.8/screenshots/recording-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Playback Tab - Play recorded macros with customizable settings</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/main/screenshots/playback-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v0.9.8/screenshots/playback-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Files Tab - Manage saved macro files</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/main/screenshots/files-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v0.9.8/screenshots/files-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Text Expansion Tab - Create text shortcuts</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/main/screenshots/text-expansion-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v0.9.8/screenshots/text-expansion-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Settings Tab - Configure application preferences</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/main/screenshots/settings-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v0.9.8/screenshots/settings-tab.png</image>
     </screenshot>
   </screenshots>
   <releases>

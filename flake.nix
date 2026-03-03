@@ -202,7 +202,7 @@
               meta = with pkgs.lib; {
                 description = "Cross-platform mouse and keyboard macro recorder and player";
                 homepage = "https://github.com/alper-han/CrossMacro";
-                license = licenses.gpl3Plus;
+                license = licenses.gpl3Only;
                  # Support both Linux and Darwin
                 platforms = platforms.unix;
                 mainProgram = "crossmacro";

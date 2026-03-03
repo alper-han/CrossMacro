@@ -3,7 +3,7 @@ Version:        %{version}
 Release:        %{?release}%{!?release:1}%{?dist}
 Summary:        Mouse and Keyboard Macro Automation Tool
 
-License:        GPL-3.0
+License:        GPL-3.0-only
 URL:            https://github.com/alper-han/CrossMacro
 Source0:        %{name}-%{version}.tar.gz
 Source1:        99-crossmacro.rules

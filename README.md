@@ -352,7 +352,7 @@ Thanks to everyone who contributes to CrossMacro.
 
 ## License
 
-Licensed under GPL-3.0. See [LICENSE](LICENSE).
+Licensed under GPL-3.0-only. See [LICENSE](LICENSE).
 
 ## Community
 

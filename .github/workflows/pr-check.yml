@@ -30,6 +30,38 @@ jobs:
         VERSION="$(tr -d '\r\n[:space:]' < VERSION)" ./scripts/sync-version.sh --write
         git diff --exit-code -- scripts/packaging/arch/PKGBUILD scripts/msix/AppxManifest.xml flatpak/io.github.alper_han.crossmacro.flathub.yml
 
+    - name: Setup Flatpak tooling
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y flatpak
+        flatpak --version
+        flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+        flatpak install -y flathub org.flatpak.Builder
+
+    - name: Validate Flatpak manifest and MetaInfo
+      run: |
+        set -euo pipefail
+
+        # Local development manifest
+        flatpak run --command=flatpak-builder-lint org.flatpak.Builder --exceptions manifest flatpak/io.github.alper_han.crossmacro.yml
+
+        # Flathub mirror manifest: ignore filename mismatch in this repository only
+        set +e
+        flathub_lint_output="$(flatpak run --command=flatpak-builder-lint org.flatpak.Builder --exceptions manifest flatpak/io.github.alper_han.crossmacro.flathub.yml 2>&1)"
+        flathub_lint_rc=$?
+        set -e
+        if [ "$flathub_lint_rc" -ne 0 ]; then
+          if ! printf '%s\n' "$flathub_lint_output" | python3 -c 'import json,sys; obj=json.loads(sys.stdin.read().strip()); errs=obj.get("errors", []); sys.exit(0 if errs == ["appid-filename-mismatch"] else 1)'; then
+            printf '%s\n' "$flathub_lint_output"
+            exit "$flathub_lint_rc"
+          fi
+          echo "Ignoring appid-filename-mismatch for mirrored manifest filename."
+        fi
+
+        # AppStream checks
+        flatpak run --command=flatpak-builder-lint org.flatpak.Builder appstream flatpak/io.github.alper_han.crossmacro.metainfo.xml
+        flatpak run --command=appstreamcli org.flatpak.Builder validate --pedantic --explain flatpak/io.github.alper_han.crossmacro.metainfo.xml
+
     - name: Validate man page source
       run: |
         man -l docs/man/crossmacro.1 > /dev/null

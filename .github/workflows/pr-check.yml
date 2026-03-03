@@ -35,19 +35,19 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y flatpak
         flatpak --version
-        flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-        flatpak install -y flathub org.flatpak.Builder
+        flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+        flatpak --user install -y flathub org.flatpak.Builder
 
     - name: Validate Flatpak manifest and MetaInfo
       run: |
         set -euo pipefail
 
         # Local development manifest
-        flatpak run --command=flatpak-builder-lint org.flatpak.Builder --exceptions manifest flatpak/io.github.alper_han.crossmacro.yml
+        flatpak --user run --command=flatpak-builder-lint org.flatpak.Builder --exceptions manifest flatpak/io.github.alper_han.crossmacro.yml
 
         # Flathub mirror manifest: ignore filename mismatch in this repository only
         set +e
-        flathub_lint_output="$(flatpak run --command=flatpak-builder-lint org.flatpak.Builder --exceptions manifest flatpak/io.github.alper_han.crossmacro.flathub.yml 2>&1)"
+        flathub_lint_output="$(flatpak --user run --command=flatpak-builder-lint org.flatpak.Builder --exceptions manifest flatpak/io.github.alper_han.crossmacro.flathub.yml 2>&1)"
         flathub_lint_rc=$?
         set -e
         if [ "$flathub_lint_rc" -ne 0 ]; then
@@ -59,8 +59,8 @@ jobs:
         fi
 
         # AppStream checks
-        flatpak run --command=flatpak-builder-lint org.flatpak.Builder appstream flatpak/io.github.alper_han.crossmacro.metainfo.xml
-        flatpak run --command=appstreamcli org.flatpak.Builder validate --pedantic --explain flatpak/io.github.alper_han.crossmacro.metainfo.xml
+        flatpak --user run --command=flatpak-builder-lint org.flatpak.Builder appstream flatpak/io.github.alper_han.crossmacro.metainfo.xml
+        flatpak --user run --command=appstreamcli org.flatpak.Builder validate --pedantic --explain flatpak/io.github.alper_han.crossmacro.metainfo.xml
 
     - name: Validate man page source
       run: |

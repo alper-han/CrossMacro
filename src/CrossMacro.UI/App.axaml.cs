@@ -18,6 +18,46 @@ namespace CrossMacro.UI;
 
 public partial class App : Application
 {
+    private sealed class AppRuntimeServices
+    {
+        private readonly Lazy<IDisplaySessionService> _displaySessionService;
+        private readonly Lazy<ISettingsService> _settingsService;
+        private readonly Lazy<IThemeService> _themeService;
+        private readonly Lazy<ITrayIconService> _trayIconService;
+        private readonly Lazy<ITextExpansionService> _textExpansionService;
+        private readonly Lazy<IFlatpakQuickSetupService?> _flatpakQuickSetupService;
+        private readonly Lazy<InputSimulatorPool?> _inputSimulatorPool;
+        private readonly Lazy<IMousePositionProvider?> _positionProvider;
+        private readonly Lazy<MainWindowViewModel> _mainWindowViewModel;
+
+        public AppRuntimeServices(IServiceProvider serviceProvider)
+        {
+            _displaySessionService = new Lazy<IDisplaySessionService>(() => serviceProvider.GetRequiredService<IDisplaySessionService>());
+            _settingsService = new Lazy<ISettingsService>(() => serviceProvider.GetRequiredService<ISettingsService>());
+            _themeService = new Lazy<IThemeService>(() => serviceProvider.GetRequiredService<IThemeService>());
+            _trayIconService = new Lazy<ITrayIconService>(() => serviceProvider.GetRequiredService<ITrayIconService>());
+            _textExpansionService = new Lazy<ITextExpansionService>(() => serviceProvider.GetRequiredService<ITextExpansionService>());
+            _flatpakQuickSetupService = new Lazy<IFlatpakQuickSetupService?>(() => serviceProvider.GetService<IFlatpakQuickSetupService>());
+            _inputSimulatorPool = new Lazy<InputSimulatorPool?>(() => serviceProvider.GetService<InputSimulatorPool>());
+            _positionProvider = new Lazy<IMousePositionProvider?>(() => serviceProvider.GetService<IMousePositionProvider>());
+            _mainWindowViewModel = new Lazy<MainWindowViewModel>(() => serviceProvider.GetRequiredService<MainWindowViewModel>());
+        }
+
+        public IDisplaySessionService DisplaySessionService => _displaySessionService.Value;
+        public ISettingsService SettingsService => _settingsService.Value;
+        public IThemeService ThemeService => _themeService.Value;
+        public ITrayIconService TrayIconService => _trayIconService.Value;
+        public ITextExpansionService TextExpansionService => _textExpansionService.Value;
+        public IFlatpakQuickSetupService? FlatpakQuickSetupService => _flatpakQuickSetupService.Value;
+        public InputSimulatorPool? InputSimulatorPool => _inputSimulatorPool.Value;
+        public IMousePositionProvider? PositionProvider => _positionProvider.Value;
+
+        public MainWindowViewModel ResolveMainWindowViewModel()
+        {
+            return _mainWindowViewModel.Value;
+        }
+    }
+
     internal static IPlatformServiceRegistrar? PlatformServiceRegistrar { get; set; }
     private IServiceProvider? _serviceProvider;
     public IServiceProvider? Services => _serviceProvider;
@@ -61,15 +101,16 @@ public partial class App : Application
                 throw new InvalidOperationException("Service provider is not initialized");
             }
 
+            var runtimeServices = new AppRuntimeServices(_serviceProvider);
+
             // Check if current display session is supported (Wayland guard for Flatpak)
-            var displaySessionService = _serviceProvider.GetRequiredService<IDisplaySessionService>();
-            if (!displaySessionService.IsSessionSupported(out var reason))
+            if (!runtimeServices.DisplaySessionService.IsSessionSupported(out var reason))
             {
-                var quickSetupService = _serviceProvider.GetService<IFlatpakQuickSetupService>();
+                var quickSetupService = runtimeServices.FlatpakQuickSetupService;
                 if (quickSetupService != null && quickSetupService.IsApplicable())
                 {
                     desktopInitializationDeferred = true;
-                    _ = HandleFlatpakQuickSetupAsync(desktop, displaySessionService, quickSetupService, reason);
+                    _ = HandleFlatpakQuickSetupAsync(desktop, runtimeServices, reason);
                 }
                 else
                 {
@@ -78,49 +119,47 @@ public partial class App : Application
             }
             else
             {
-                InitializeDesktopRuntime(desktop);
+                InitializeDesktopRuntime(desktop, runtimeServices);
             }
         }
 
         if (!desktopInitializationDeferred && OperatingSystem.IsMacOS())
         {
-             var permissionChecker = _serviceProvider?.GetService<IPermissionChecker>();
-             if (permissionChecker != null && 
-                 permissionChecker.IsSupported && 
-                 !permissionChecker.IsAccessibilityTrusted())
-             {
-                 var dialogService = _serviceProvider?.GetRequiredService<IDialogService>();
-                 if (dialogService != null)
-                 {
-                     _ = Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () => {
+            var permissionChecker = _serviceProvider?.GetService<IPermissionChecker>();
+            if (permissionChecker != null &&
+                permissionChecker.IsSupported &&
+                !permissionChecker.IsAccessibilityTrusted())
+            {
+                var dialogService = _serviceProvider?.GetRequiredService<IDialogService>();
+                if (dialogService != null)
+                {
+                    _ = Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
                         var result = await dialogService.ShowConfirmationAsync(
-                             UIStrings.PermissionRequiredTitle, 
-                             UIStrings.MacOSAccessibilityMessage,
-                             UIStrings.OpenSettingsButton,
-                             UIStrings.LaterButton);
-                        
+                            UIStrings.PermissionRequiredTitle,
+                            UIStrings.MacOSAccessibilityMessage,
+                            UIStrings.OpenSettingsButton,
+                            UIStrings.LaterButton);
+
                         if (result)
                         {
                             permissionChecker.OpenAccessibilitySettings();
                         }
-                     });
-                 }
-             }
+                    });
+                }
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
     }
 
-    private void InitializeDesktopRuntime(IClassicDesktopStyleApplicationLifetime desktop)
+    private void InitializeDesktopRuntime(
+        IClassicDesktopStyleApplicationLifetime desktop,
+        AppRuntimeServices runtimeServices)
     {
-        if (_serviceProvider == null)
-        {
-            throw new InvalidOperationException("Service provider is not initialized");
-        }
-
-        var settingsService = _serviceProvider.GetRequiredService<ISettingsService>();
+        var settingsService = runtimeServices.SettingsService;
         settingsService.Load();
-        var themeService = _serviceProvider.GetRequiredService<IThemeService>();
+        var themeService = runtimeServices.ThemeService;
         if (!themeService.TryApplyTheme(settingsService.Current.Theme, out var themeError))
         {
             Serilog.Log.Warning("[App] Theme apply fallback triggered for '{Theme}': {Error}", settingsService.Current.Theme, themeError);
@@ -128,48 +167,24 @@ public partial class App : Application
             _ = settingsService.SaveAsync();
         }
 
-        var viewModel = _serviceProvider.GetRequiredService<MainWindowViewModel>();
+        var viewModel = runtimeServices.ResolveMainWindowViewModel();
 
         desktop.MainWindow = new MainWindow
         {
             DataContext = viewModel
         };
 
-        var trayIconService = _serviceProvider.GetRequiredService<ITrayIconService>();
+        var trayIconService = runtimeServices.TrayIconService;
         trayIconService.Initialize();
 
         // Warm up InputSimulatorPool
-        var simulatorPool = _serviceProvider.GetService<InputSimulatorPool>();
+        var simulatorPool = runtimeServices.InputSimulatorPool;
         if (simulatorPool != null)
         {
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    var positionProvider = _serviceProvider.GetService<IMousePositionProvider>();
-                    int width = 0, height = 0;
-
-                    if (positionProvider?.IsSupported == true)
-                    {
-                        var resolution = await positionProvider.GetScreenResolutionAsync();
-                        if (resolution.HasValue)
-                        {
-                            width = resolution.Value.Width;
-                            height = resolution.Value.Height;
-                        }
-                    }
-
-                    await simulatorPool.WarmUpAsync(width, height);
-                }
-                catch (Exception ex)
-                {
-                    Serilog.Log.Error(ex, "[App] Failed to warm up InputSimulatorPool");
-                }
-            });
+            _ = WarmUpInputSimulatorPoolAsync(simulatorPool, runtimeServices.PositionProvider);
         }
 
-        var expansionService = _serviceProvider.GetRequiredService<ITextExpansionService>();
-        expansionService.Start();
+        runtimeServices.TextExpansionService.Start();
 
         trayIconService.SetEnabled(settingsService.Current.EnableTrayIcon);
 
@@ -181,10 +196,16 @@ public partial class App : Application
 
     private async Task HandleFlatpakQuickSetupAsync(
         IClassicDesktopStyleApplicationLifetime desktop,
-        IDisplaySessionService displaySessionService,
-        IFlatpakQuickSetupService quickSetupService,
+        AppRuntimeServices runtimeServices,
         string initialReason)
     {
+        var quickSetupService = runtimeServices.FlatpakQuickSetupService;
+        if (quickSetupService == null)
+        {
+            ShowUnsupportedSessionDialog(desktop, initialReason);
+            return;
+        }
+
         var bootstrapOwner = CreateBootstrapOwnerWindow();
         desktop.MainWindow = bootstrapOwner;
         bootstrapOwner.Show();
@@ -224,14 +245,14 @@ public partial class App : Application
                 return;
             }
 
-            if (!displaySessionService.IsSessionSupported(out var reasonAfterSetup))
+            if (!runtimeServices.DisplaySessionService.IsSessionSupported(out var reasonAfterSetup))
             {
                 ShowUnsupportedSessionDialog(desktop, reasonAfterSetup);
                 ShowReplacementMainWindowIfNeeded(desktop, bootstrapOwner);
                 return;
             }
 
-            InitializeDesktopRuntime(desktop);
+            InitializeDesktopRuntime(desktop, runtimeServices);
             ShowReplacementMainWindowIfNeeded(desktop, bootstrapOwner);
         }
         catch (Exception ex)
@@ -250,6 +271,33 @@ public partial class App : Application
             {
                 // Ignore close races if owner was already disposed by the windowing backend.
             }
+        }
+    }
+
+    private static async Task WarmUpInputSimulatorPoolAsync(
+        InputSimulatorPool simulatorPool,
+        IMousePositionProvider? positionProvider)
+    {
+        try
+        {
+            int width = 0;
+            int height = 0;
+
+            if (positionProvider?.IsSupported == true)
+            {
+                var resolution = await positionProvider.GetScreenResolutionAsync();
+                if (resolution.HasValue)
+                {
+                    width = resolution.Value.Width;
+                    height = resolution.Value.Height;
+                }
+            }
+
+            await simulatorPool.WarmUpAsync(width, height);
+        }
+        catch (Exception ex)
+        {
+            Serilog.Log.Error(ex, "[App] Failed to warm up InputSimulatorPool");
         }
     }
 

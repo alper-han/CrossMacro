@@ -1,8 +1,9 @@
 using Avalonia.Controls;
-using Avalonia.Threading;
 using CrossMacro.UI.Controls;
 using CrossMacro.UI.ViewModels;
+using Serilog;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CrossMacro.UI.Views.Tabs;
@@ -14,6 +15,7 @@ public partial class SettingsTabView : UserControl
     private HotkeyCapture? _pauseHotkeyCapture;
     private Border? _toastNotification;
     private TextBlock? _toastMessage;
+    private CancellationTokenSource? _toastCts;
     
     public SettingsTabView()
     {
@@ -21,6 +23,7 @@ public partial class SettingsTabView : UserControl
         
         // Wire up validation after the controls are loaded
         this.Loaded += OnLoaded;
+        this.Unloaded += OnUnloaded;
     }
     
     private void OnLoaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -33,6 +36,7 @@ public partial class SettingsTabView : UserControl
         // Get references to toast notification elements
         _toastNotification = this.FindControl<Border>("ToastNotification");
         _toastMessage = this.FindControl<TextBlock>("ToastMessage");
+        ResetToastState();
         
         var viewModel = DataContext as SettingsViewModel;
         
@@ -91,37 +95,87 @@ public partial class SettingsTabView : UserControl
         }
     }
     
-    private void ShowToast(string message)
+    private void OnUnloaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        CancelToastTimer();
+        ResetToastState();
+    }
+
+    private async void ShowToast(string message)
     {
         if (_toastNotification == null || _toastMessage == null)
             return;
+
+        CancelToastTimer();
+        var toastCts = new CancellationTokenSource();
+        _toastCts = toastCts;
+        var token = toastCts.Token;
             
         _toastMessage.Text = message;
         _toastNotification.IsVisible = true;
         _toastNotification.Opacity = 1.0;
-        
-        // Hide after 2 seconds
-        Task.Delay(2000).ContinueWith(_ =>
+
+        try
         {
-            Dispatcher.UIThread.Post(() =>
+            await Task.Delay(2000, token);
+
+            if (token.IsCancellationRequested || _toastNotification == null)
             {
-                if (_toastNotification != null)
-                {
-                    _toastNotification.Opacity = 0.0;
-                    
-                    // Wait for fade animation to complete before hiding
-                    Task.Delay(300).ContinueWith(__ =>
-                    {
-                        Dispatcher.UIThread.Post(() =>
-                        {
-                            if (_toastNotification != null)
-                            {
-                                _toastNotification.IsVisible = false;
-                            }
-                        });
-                    });
-                }
-            });
-        });
+                return;
+            }
+
+            _toastNotification.Opacity = 0.0;
+
+            // Wait for fade animation to complete before hiding
+            await Task.Delay(300, token);
+
+            if (token.IsCancellationRequested || _toastNotification == null)
+            {
+                return;
+            }
+
+            ResetToastState();
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Settings toast flow failed");
+        }
+        finally
+        {
+            if (ReferenceEquals(_toastCts, toastCts))
+            {
+                toastCts.Dispose();
+                _toastCts = null;
+            }
+        }
+    }
+
+    private void CancelToastTimer()
+    {
+        if (_toastCts == null)
+        {
+            return;
+        }
+
+        _toastCts.Cancel();
+        _toastCts.Dispose();
+        _toastCts = null;
+    }
+
+    private void ResetToastState()
+    {
+        if (_toastNotification != null)
+        {
+            _toastNotification.IsVisible = false;
+            _toastNotification.Opacity = 0.0;
+        }
+
+        if (_toastMessage != null)
+        {
+            _toastMessage.Text = string.Empty;
+        }
     }
 }

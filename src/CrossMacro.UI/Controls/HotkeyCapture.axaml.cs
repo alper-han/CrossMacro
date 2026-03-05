@@ -1,9 +1,11 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using CrossMacro.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using CrossMacro.Core;
@@ -37,6 +39,13 @@ public partial class HotkeyCapture : UserControl
     private const string CapturingClass = "capturing";
     private const string InvalidClass = "invalid";
     private const string EmptyClass = "empty";
+    private const string CapturingDisplayText = "Press a key...";
+    private const string EmptyDisplayText = "Click to set hotkey";
+    private const string ServiceErrorDisplayText = "Service Error";
+    private const int ValidationResetDelayMs = 2000;
+    private CancellationTokenSource? _validationResetCts;
+    private CancellationTokenSource? _captureCts;
+    private bool _isDetached = true;
 
     public string Hotkey
     {
@@ -96,15 +105,33 @@ public partial class HotkeyCapture : UserControl
         }
     }
 
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        _isDetached = true;
+        CancelCapture();
+        CancelValidationResetTimer();
+        IsCapturing = false;
+        ResetValidationState();
+        UpdateDisplayString();
+        UpdateVisualStateClasses();
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        _isDetached = false;
+        base.OnAttachedToVisualTree(e);
+    }
+
     private void UpdateDisplayString()
     {
         if (IsCapturing)
         {
-            DisplayString = "Press a key...";
+            DisplayString = CapturingDisplayText;
             return;
         }
 
-        DisplayString = string.IsNullOrWhiteSpace(Hotkey) ? "Click to set hotkey" : Hotkey;
+        DisplayString = string.IsNullOrWhiteSpace(Hotkey) ? EmptyDisplayText : Hotkey;
     }
 
     private async void OnPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -115,31 +142,39 @@ public partial class HotkeyCapture : UserControl
 
     private async Task StartCaptureAsync()
     {
-        if (IsCapturing) return;
+        if (IsCapturing || _isDetached) return;
 
-        // Resolve service
-        var app = Application.Current as App;
-        var serviceProvider = typeof(App).GetField("_serviceProvider", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(app) as IServiceProvider;
+        // Resolve service from the public app service provider.
+        var serviceProvider = (Application.Current as App)?.Services;
         var hotkeyService = serviceProvider?.GetService<IGlobalHotkeyService>();
 
         if (hotkeyService == null)
         {
-            DisplayString = "Service Error";
+            DisplayString = ServiceErrorDisplayText;
             return;
         }
 
         IsCapturing = true;
         UpdateDisplayString();
         UpdateVisualStateClasses();
+        CancelCapture();
+        var captureCts = new CancellationTokenSource();
+        _captureCts = captureCts;
+        var captureToken = captureCts.Token;
 
         try
         {
             // Capture directly from the service (bypassing UI/OS filtering)
-            var newHotkey = await hotkeyService.CaptureNextKeyAsync();
+            var newHotkey = await hotkeyService.CaptureNextKeyAsync(captureToken);
             
             // Update on UI thread
             Dispatcher.UIThread.Post(() =>
             {
+                if (_isDetached)
+                {
+                    return;
+                }
+
                 // Validate the new hotkey if validation function is provided
                 if (ValidationFunc != null)
                 {
@@ -151,17 +186,7 @@ public partial class HotkeyCapture : UserControl
                         IsValid = false;
                         ErrorMessage = errorMessage;
                         UpdateVisualStateClasses();
-                        
-                        // Remove error effect after a short delay
-                        Task.Delay(2000).ContinueWith(_ =>
-                        {
-                            Dispatcher.UIThread.Post(() =>
-                            {
-                                IsValid = true;
-                                ErrorMessage = string.Empty;
-                                UpdateVisualStateClasses();
-                            });
-                        });
+                        ScheduleValidationReset();
                         
                         IsCapturing = false;
                         UpdateDisplayString();
@@ -171,8 +196,8 @@ public partial class HotkeyCapture : UserControl
                 }
                 
                 // Valid hotkey - update
-                IsValid = true;
-                ErrorMessage = string.Empty;
+                CancelValidationResetTimer();
+                ResetValidationState();
                 Hotkey = newHotkey;
                 HotkeyChanged?.Invoke(this, newHotkey);
                 IsCapturing = false;
@@ -180,10 +205,18 @@ public partial class HotkeyCapture : UserControl
                 UpdateVisualStateClasses();
             });
         }
+        catch (OperationCanceledException) when (captureToken.IsCancellationRequested)
+        {
+        }
         catch (Exception ex)
         {
             Dispatcher.UIThread.Post(() =>
             {
+                if (_isDetached)
+                {
+                    return;
+                }
+
                 IsCapturing = false;
                 UpdateDisplayString();
                 UpdateVisualStateClasses();
@@ -191,6 +224,77 @@ public partial class HotkeyCapture : UserControl
                 Log.Error(ex, "Capture failed");
             });
         }
+        finally
+        {
+            if (ReferenceEquals(_captureCts, captureCts))
+            {
+                _captureCts.Dispose();
+                _captureCts = null;
+            }
+        }
+    }
+
+    private void ScheduleValidationReset()
+    {
+        if (_isDetached)
+        {
+            return;
+        }
+
+        CancelValidationResetTimer();
+        _validationResetCts = new CancellationTokenSource();
+        _ = ResetValidationStateAfterDelayAsync(_validationResetCts.Token);
+    }
+
+    private async Task ResetValidationStateAfterDelayAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(ValidationResetDelayMs, token);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (token.IsCancellationRequested || _isDetached)
+                {
+                    return;
+                }
+
+                ResetValidationState();
+                UpdateVisualStateClasses();
+            });
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private void ResetValidationState()
+    {
+        IsValid = true;
+        ErrorMessage = string.Empty;
+    }
+
+    private void CancelValidationResetTimer()
+    {
+        if (_validationResetCts == null)
+        {
+            return;
+        }
+
+        _validationResetCts.Cancel();
+        _validationResetCts.Dispose();
+        _validationResetCts = null;
+    }
+
+    private void CancelCapture()
+    {
+        if (_captureCts == null)
+        {
+            return;
+        }
+
+        _captureCts.Cancel();
+        _captureCts.Dispose();
+        _captureCts = null;
     }
 
     private void UpdateVisualStateClasses()

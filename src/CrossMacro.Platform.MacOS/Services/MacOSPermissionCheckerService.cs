@@ -8,6 +8,7 @@ namespace CrossMacro.Platform.MacOS.Services;
 public class MacOSPermissionCheckerService : IPermissionChecker
 {
     public bool IsSupported => true;
+    public bool RequiresStartupPermissionGate => true;
 
     public bool IsAccessibilityTrusted()
     {

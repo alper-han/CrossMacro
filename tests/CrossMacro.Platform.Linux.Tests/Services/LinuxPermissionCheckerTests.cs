@@ -14,6 +14,14 @@ public class LinuxPermissionCheckerTests
     }
 
     [Fact]
+    public void RequiresStartupPermissionGate_ShouldBeFalse()
+    {
+        var checker = new LinuxPermissionChecker();
+
+        Assert.False(checker.RequiresStartupPermissionGate);
+    }
+
+    [Fact]
     public void IsAccessibilityTrusted_ShouldDelegateToUInputAccessCheck()
     {
         var checker = new LinuxPermissionChecker();

@@ -26,6 +26,7 @@ public partial class App : Application
         private readonly Lazy<ITrayIconService> _trayIconService;
         private readonly Lazy<ITextExpansionService> _textExpansionService;
         private readonly Lazy<IFlatpakQuickSetupService?> _flatpakQuickSetupService;
+        private readonly Lazy<IPermissionChecker?> _permissionChecker;
         private readonly Lazy<InputSimulatorPool?> _inputSimulatorPool;
         private readonly Lazy<IMousePositionProvider?> _positionProvider;
         private readonly Lazy<MainWindowViewModel> _mainWindowViewModel;
@@ -38,6 +39,7 @@ public partial class App : Application
             _trayIconService = new Lazy<ITrayIconService>(() => serviceProvider.GetRequiredService<ITrayIconService>());
             _textExpansionService = new Lazy<ITextExpansionService>(() => serviceProvider.GetRequiredService<ITextExpansionService>());
             _flatpakQuickSetupService = new Lazy<IFlatpakQuickSetupService?>(() => serviceProvider.GetService<IFlatpakQuickSetupService>());
+            _permissionChecker = new Lazy<IPermissionChecker?>(() => serviceProvider.GetService<IPermissionChecker>());
             _inputSimulatorPool = new Lazy<InputSimulatorPool?>(() => serviceProvider.GetService<InputSimulatorPool>());
             _positionProvider = new Lazy<IMousePositionProvider?>(() => serviceProvider.GetService<IMousePositionProvider>());
             _mainWindowViewModel = new Lazy<MainWindowViewModel>(() => serviceProvider.GetRequiredService<MainWindowViewModel>());
@@ -49,6 +51,7 @@ public partial class App : Application
         public ITrayIconService TrayIconService => _trayIconService.Value;
         public ITextExpansionService TextExpansionService => _textExpansionService.Value;
         public IFlatpakQuickSetupService? FlatpakQuickSetupService => _flatpakQuickSetupService.Value;
+        public IPermissionChecker? PermissionChecker => _permissionChecker.Value;
         public InputSimulatorPool? InputSimulatorPool => _inputSimulatorPool.Value;
         public IMousePositionProvider? PositionProvider => _positionProvider.Value;
 
@@ -84,8 +87,6 @@ public partial class App : Application
     
     public override void OnFrameworkInitializationCompleted()
     {
-        bool desktopInitializationDeferred = false;
-
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             if (!Design.IsDesignMode && PlatformServiceRegistrar == null)
@@ -103,13 +104,17 @@ public partial class App : Application
 
             var runtimeServices = new AppRuntimeServices(_serviceProvider);
 
+            // Startup permission gates are platform-defined (currently macOS accessibility).
+            if (IsStartupPermissionBlocked(runtimeServices.PermissionChecker))
+            {
+                _ = HandleMacAccessibilityPermissionGateAsync(desktop, runtimeServices.PermissionChecker!);
+            }
             // Check if current display session is supported (Wayland guard for Flatpak)
-            if (!runtimeServices.DisplaySessionService.IsSessionSupported(out var reason))
+            else if (!runtimeServices.DisplaySessionService.IsSessionSupported(out var reason))
             {
                 var quickSetupService = runtimeServices.FlatpakQuickSetupService;
                 if (quickSetupService != null && quickSetupService.IsApplicable())
                 {
-                    desktopInitializationDeferred = true;
                     _ = HandleFlatpakQuickSetupAsync(desktop, runtimeServices, reason);
                 }
                 else
@@ -120,33 +125,6 @@ public partial class App : Application
             else
             {
                 InitializeDesktopRuntime(desktop, runtimeServices);
-            }
-        }
-
-        if (!desktopInitializationDeferred && OperatingSystem.IsMacOS())
-        {
-            var permissionChecker = _serviceProvider?.GetService<IPermissionChecker>();
-            if (permissionChecker != null &&
-                permissionChecker.IsSupported &&
-                !permissionChecker.IsAccessibilityTrusted())
-            {
-                var dialogService = _serviceProvider?.GetRequiredService<IDialogService>();
-                if (dialogService != null)
-                {
-                    _ = Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
-                    {
-                        var result = await dialogService.ShowConfirmationAsync(
-                            UIStrings.PermissionRequiredTitle,
-                            UIStrings.MacOSAccessibilityMessage,
-                            UIStrings.OpenSettingsButton,
-                            UIStrings.LaterButton);
-
-                        if (result)
-                        {
-                            permissionChecker.OpenAccessibilitySettings();
-                        }
-                    });
-                }
             }
         }
 
@@ -270,6 +248,74 @@ public partial class App : Application
             catch
             {
                 // Ignore close races if owner was already disposed by the windowing backend.
+            }
+        }
+    }
+
+    private static bool IsStartupPermissionBlocked(IPermissionChecker? permissionChecker)
+    {
+        if (permissionChecker == null || !permissionChecker.IsSupported)
+        {
+            return false;
+        }
+
+        if (!permissionChecker.RequiresStartupPermissionGate)
+        {
+            return false;
+        }
+
+        return !permissionChecker.IsAccessibilityTrusted();
+    }
+
+    private async Task HandleMacAccessibilityPermissionGateAsync(
+        IClassicDesktopStyleApplicationLifetime desktop,
+        IPermissionChecker permissionChecker)
+    {
+        var bootstrapOwner = CreateBootstrapOwnerWindow();
+        desktop.MainWindow = bootstrapOwner;
+        bootstrapOwner.Show();
+
+        try
+        {
+            var permissionDialog = new CrossMacro.UI.Views.Dialogs.ConfirmationDialog(
+                UIStrings.PermissionRequiredTitle,
+                UIStrings.MacOSAccessibilityStartupBlockMessage,
+                UIStrings.OpenSettingsButton,
+                UIStrings.ExitButton,
+                dangerYes: false,
+                dangerNo: true)
+            {
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
+
+            var shouldOpenSettings = await permissionDialog.ShowDialog<bool>(bootstrapOwner);
+            if (shouldOpenSettings)
+            {
+                permissionChecker.OpenAccessibilitySettings();
+            }
+        }
+        catch (Exception ex)
+        {
+            Serilog.Log.Error(ex, "[App] macOS accessibility permission gate flow failed");
+        }
+        finally
+        {
+            try
+            {
+                bootstrapOwner.Close();
+            }
+            catch
+            {
+                // Ignore close races if owner was already disposed by the windowing backend.
+            }
+
+            try
+            {
+                desktop.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                Serilog.Log.Warning(ex, "[App] Failed to shutdown app after macOS permission gate");
             }
         }
     }

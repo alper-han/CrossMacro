@@ -11,19 +11,20 @@ public static class UIStrings
     public const string PermissionRequiredTitle = "Permission Required";
     
     /// <summary>
-    /// Permission dialog message for macOS accessibility.
+    /// Startup permission block message for macOS accessibility.
     /// </summary>
-    public const string MacOSAccessibilityMessage = 
-        "CrossMacro requires Accessibility permissions to capture keyboard and mouse input.\n\n" +
-        "Would you like to open System Settings now?";
+    public const string MacOSAccessibilityStartupBlockMessage =
+        "CrossMacro cannot run without Accessibility permissions on macOS.\n\n" +
+        "Global hotkeys, recording, playback and text expansion depend on system input access.\n\n" +
+        "Open System Settings now?";
     
     /// <summary>
     /// Open settings button text.
     /// </summary>
     public const string OpenSettingsButton = "Open Settings";
-    
+
     /// <summary>
-    /// Later button text.
+    /// Exit button text.
     /// </summary>
-    public const string LaterButton = "Later";
+    public const string ExitButton = "Exit";
 }

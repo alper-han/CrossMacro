@@ -12,6 +12,7 @@ namespace CrossMacro.Platform.Linux.Services;
 public class LinuxPermissionChecker : IPermissionChecker
 {
     public bool IsSupported => true;
+    public bool RequiresStartupPermissionGate => false;
 
     public bool IsAccessibilityTrusted()
     {

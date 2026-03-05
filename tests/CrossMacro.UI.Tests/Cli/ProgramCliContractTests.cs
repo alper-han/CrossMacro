@@ -22,10 +22,12 @@ public class ProgramCliContractTests
                 Console.SetOut(stdout);
                 Console.SetError(stderr);
 
-                var exitCode = CrossMacro.UI.Program.Run(
+                var exitCode = CliGuiRuntime.Run(
                     ["--json"],
                     new NoOpPlatformServiceRegistrar(),
-                    (_, _) => throw new InvalidOperationException("GUI must not start for CLI parse error."));
+                    startGui: () => throw new InvalidOperationException("GUI must not start for CLI parse error."),
+                    getVersionString: () => "CrossMacro 0.0.0",
+                    tryAcquireSingleInstanceGuard: static () => new NoOpGuard());
 
                 Assert.Equal((int)CliExitCode.InvalidArguments, exitCode);
                 Assert.Contains("\"status\": \"error\"", stdout.ToString(), StringComparison.Ordinal);
@@ -55,10 +57,12 @@ public class ProgramCliContractTests
                 Console.SetOut(stdout);
                 Console.SetError(stderr);
 
-                var exitCode = CrossMacro.UI.Program.Run(
+                var exitCode = CliGuiRuntime.Run(
                     ["doctor", "--json"],
                     new ThrowingPlatformServiceRegistrar(),
-                    (_, _) => throw new InvalidOperationException("GUI must not start for CLI command."));
+                    startGui: () => throw new InvalidOperationException("GUI must not start for CLI command."),
+                    getVersionString: () => "CrossMacro 0.0.0",
+                    tryAcquireSingleInstanceGuard: static () => new NoOpGuard());
 
                 Assert.Equal((int)CliExitCode.RuntimeError, exitCode);
                 Assert.Contains("\"status\": \"error\"", stdout.ToString(), StringComparison.Ordinal);
@@ -89,10 +93,12 @@ public class ProgramCliContractTests
                 Console.SetOut(stdout);
                 Console.SetError(stderr);
 
-                var exitCode = CrossMacro.UI.Program.Run(
+                var exitCode = CliGuiRuntime.Run(
                     ["doctor", "--json"],
                     new CancelledPlatformServiceRegistrar(),
-                    (_, _) => throw new InvalidOperationException("GUI must not start for CLI command."));
+                    startGui: () => throw new InvalidOperationException("GUI must not start for CLI command."),
+                    getVersionString: () => "CrossMacro 0.0.0",
+                    tryAcquireSingleInstanceGuard: static () => new NoOpGuard());
 
                 Assert.Equal((int)CliExitCode.Cancelled, exitCode);
                 Assert.Contains("\"status\": \"error\"", stdout.ToString(), StringComparison.Ordinal);
@@ -106,6 +112,62 @@ public class ProgramCliContractTests
                 Console.SetError(originalError);
             }
         }
+    }
+
+    [Fact]
+    public void Run_WhenHeadlessAndSingleInstanceGuardUnavailable_ReturnsEnvironmentErrorAsJson()
+    {
+        lock (ConsoleTestLock.Gate)
+        {
+            var originalOut = Console.Out;
+            var originalError = Console.Error;
+            var stdout = new StringWriter();
+            var stderr = new StringWriter();
+
+            try
+            {
+                Console.SetOut(stdout);
+                Console.SetError(stderr);
+
+                var exitCode = CliGuiRuntime.Run(
+                    ["headless", "--json"],
+                    new NoOpPlatformServiceRegistrar(),
+                    startGui: () => throw new InvalidOperationException("GUI must not start for headless command."),
+                    getVersionString: () => "CrossMacro 0.0.0",
+                    tryAcquireSingleInstanceGuard: static () => null);
+
+                Assert.Equal((int)CliExitCode.EnvironmentError, exitCode);
+                Assert.Contains("\"status\": \"error\"", stdout.ToString(), StringComparison.Ordinal);
+                Assert.Contains("\"code\": 5", stdout.ToString(), StringComparison.Ordinal);
+                Assert.Contains("Another CrossMacro runtime instance is already running.", stdout.ToString(), StringComparison.Ordinal);
+                Assert.Equal(string.Empty, stderr.ToString());
+            }
+            finally
+            {
+                Console.SetOut(originalOut);
+                Console.SetError(originalError);
+            }
+        }
+    }
+
+    [Fact]
+    public void Run_WhenGuiModeAndSingleInstanceGuardUnavailable_DoesNotStartGuiAndReturnsSuccess()
+    {
+        var guiStarted = false;
+
+        var exitCode = CliGuiRuntime.Run(
+            [],
+            new NoOpPlatformServiceRegistrar(),
+            startGui: () =>
+            {
+                guiStarted = true;
+                return 0;
+            },
+            getVersionString: () => "CrossMacro 0.0.0",
+            tryAcquireSingleInstanceGuard: static () => null);
+
+        Assert.Equal((int)CliExitCode.Success, exitCode);
+        Assert.False(guiStarted);
     }
 
     private sealed class NoOpPlatformServiceRegistrar : IPlatformServiceRegistrar
@@ -128,6 +190,13 @@ public class ProgramCliContractTests
         public void RegisterPlatformServices(IServiceCollection services)
         {
             throw new OperationCanceledException("simulated cancellation");
+        }
+    }
+
+    private sealed class NoOpGuard : IDisposable
+    {
+        public void Dispose()
+        {
         }
     }
 }

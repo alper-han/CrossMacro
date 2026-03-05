@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Services;
 using CrossMacro.Core.Services.Recording.Strategies;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Core.Services.Recording.Strategies;
 

@@ -3,7 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Core.Services.Playback;
 

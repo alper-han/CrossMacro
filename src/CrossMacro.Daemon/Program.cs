@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using CrossMacro.Daemon.Services;
 using CrossMacro.Platform.Linux.Native.Systemd;
-using CrossMacro.Core.Logging;
+using CrossMacro.Infrastructure.Logging;
 using Serilog;
 using Serilog.Events;
 

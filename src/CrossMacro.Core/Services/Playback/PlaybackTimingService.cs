@@ -2,7 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Core.Services.Playback;
 

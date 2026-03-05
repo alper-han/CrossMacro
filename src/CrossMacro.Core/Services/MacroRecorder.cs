@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services.Recording.Processors;
 using CrossMacro.Core.Services.Recording.Strategies;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Core.Services;
 

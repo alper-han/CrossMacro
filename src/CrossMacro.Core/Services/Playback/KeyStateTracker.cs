@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Core.Services.Playback;
 

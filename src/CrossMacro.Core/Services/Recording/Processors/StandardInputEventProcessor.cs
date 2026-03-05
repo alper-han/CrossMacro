@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services.Recording.Strategies;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Core.Services.Recording.Processors;
 
@@ -112,6 +112,9 @@ public class StandardInputEventProcessor : IInputEventProcessor
                     X = pos.X,
                     Y = pos.Y
                 };
+
+            case InputEventType.Unknown:
+                return null;
         }
 
         return null;

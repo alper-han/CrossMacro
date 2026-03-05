@@ -1,4 +1,5 @@
 using Avalonia;
+using CrossMacro.Cli;
 using CrossMacro.Platform.MacOS.DependencyInjection;
 using System.Runtime.Versioning;
 
@@ -10,9 +11,16 @@ internal static class Program
     [System.STAThread]
     public static int Main(string[] args)
     {
-        return CrossMacro.UI.Program.Run(
+        var platformServiceRegistrar = new MacOSPlatformServiceRegistrar();
+
+        return CliGuiRuntime.Run(
             args,
-            new MacOSPlatformServiceRegistrar(),
-            static (appBuilder, startupArgs) => appBuilder.UseAvaloniaNative().StartWithClassicDesktopLifetime(startupArgs));
+            platformServiceRegistrar,
+            startGui: () => CrossMacro.UI.Program.RunGui(
+                args,
+                platformServiceRegistrar,
+                static (appBuilder, startupArgs) => appBuilder.UseAvaloniaNative().StartWithClassicDesktopLifetime(startupArgs)),
+            getVersionString: CrossMacro.UI.Program.GetVersionString,
+            tryAcquireSingleInstanceGuard: CrossMacro.UI.Program.TryAcquireRuntimeSingleInstanceGuard);
     }
 }

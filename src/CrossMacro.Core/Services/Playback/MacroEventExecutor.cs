@@ -1,6 +1,6 @@
 using System;
 using CrossMacro.Core.Models;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Core.Services.Playback;
 
@@ -222,7 +222,7 @@ public class MacroEventExecutor : IEventExecutor
 
     private static void LogButtonEvent(string action, MacroEvent ev)
     {
-        if (Log.IsEnabled(Serilog.Events.LogEventLevel.Information))
+        if (Log.IsEnabled(CoreLogLevel.Information))
         {
             Log.Information("[MacroEventExecutor] {Action}: {Button} at ({X}, {Y})", action, ev.Button, ev.X, ev.Y);
         }
@@ -230,7 +230,7 @@ public class MacroEventExecutor : IEventExecutor
 
     private static void LogKeyEvent(string action, int keyCode)
     {
-        if (Log.IsEnabled(Serilog.Events.LogEventLevel.Information))
+        if (Log.IsEnabled(CoreLogLevel.Information))
         {
             Log.Information("[MacroEventExecutor] {Action}: KeyCode={KeyCode}", action, keyCode);
         }
@@ -238,7 +238,7 @@ public class MacroEventExecutor : IEventExecutor
 
     private static void LogScroll(string direction)
     {
-        if (Log.IsEnabled(Serilog.Events.LogEventLevel.Information))
+        if (Log.IsEnabled(CoreLogLevel.Information))
         {
             Log.Information("[MacroEventExecutor] SCROLL {Direction}", direction);
         }
@@ -246,7 +246,7 @@ public class MacroEventExecutor : IEventExecutor
 
     private static void LogClickEvent(MacroEvent ev)
     {
-        if (Log.IsEnabled(Serilog.Events.LogEventLevel.Information))
+        if (Log.IsEnabled(CoreLogLevel.Information))
         {
             Log.Information("[MacroEventExecutor] CLICK: {Button} at ({X}, {Y})", ev.Button, ev.X, ev.Y);
         }

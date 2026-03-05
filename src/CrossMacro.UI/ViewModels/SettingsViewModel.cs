@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Infrastructure.Logging;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.UI.Services;
 using Serilog;

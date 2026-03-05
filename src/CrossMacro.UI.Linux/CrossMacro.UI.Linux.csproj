@@ -10,12 +10,13 @@
   <ItemGroup>
     <ProjectReference Include="..\CrossMacro.UI\CrossMacro.UI.csproj" />
     <ProjectReference Include="..\CrossMacro.Platform.Linux\CrossMacro.Platform.Linux.csproj" />
+    <ProjectReference Include="..\CrossMacro.Cli\CrossMacro.Cli.csproj" />
     <ProjectReference Include="..\CrossMacro.Core\CrossMacro.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia.FreeDesktop" Version="11.3.12" />
-    <PackageReference Include="Avalonia.X11" Version="11.3.12" />
+    <PackageReference Include="Avalonia.FreeDesktop" />
+    <PackageReference Include="Avalonia.X11" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(PublishTrimmed)' == 'true'">

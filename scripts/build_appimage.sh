@@ -1,22 +1,30 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/version.sh
 source "$SCRIPT_DIR/lib/version.sh"
+# shellcheck source=scripts/lib/platform.sh
+source "$SCRIPT_DIR/lib/platform.sh"
 
 APP_NAME="CrossMacro"
 VERSION="$(get_version)"
 PACKAGE_VERSION="$(to_filename_version)"
+TARGET_ARCH_RESOLVED="$(get_target_arch)"
+APPIMAGE_ARCH="${APPIMAGE_ARCH:-$(to_appimage_arch "$TARGET_ARCH_RESOLVED")}"
+HOST_ARCH_RESOLVED="$(normalize_arch "$(uname -m)")"
+APPIMAGETOOL_HOST_ARCH="${APPIMAGETOOL_HOST_ARCH:-$(to_appimage_arch "$HOST_ARCH_RESOLVED")}"
+ELF_INTERPRETER="${ELF_INTERPRETER:-$(get_glibc_interpreter "$TARGET_ARCH_RESOLVED")}"
 PUBLISH_DIR="${PUBLISH_DIR:-../publish}"
 APP_DIR="AppDir"
-APPIMAGETOOL_NAME="appimagetool-x86_64.AppImage"
+APPIMAGETOOL_NAME="appimagetool-${APPIMAGETOOL_HOST_ARCH}.AppImage"
 APPIMAGETOOL_VERSION="${APPIMAGETOOL_VERSION:-1.9.1}"
 APPIMAGETOOL_RELEASE_API="https://api.github.com/repos/AppImage/appimagetool/releases/tags/$APPIMAGETOOL_VERSION"
 APPIMAGETOOL_DOWNLOAD_URL="https://github.com/AppImage/appimagetool/releases/download/$APPIMAGETOOL_VERSION/$APPIMAGETOOL_NAME"
 CURL_RETRY_DELAY_SECONDS="${CURL_RETRY_DELAY_SECONDS:-1}"
 CURL_RETRY_MAX_TIME_SECONDS="${CURL_RETRY_MAX_TIME_SECONDS:-15}"
 CURL_RETRY_ATTEMPTS="${CURL_RETRY_ATTEMPTS:-15}"
+APPIMAGE_OUTPUT="CrossMacro-${PACKAGE_VERSION}-${APPIMAGE_ARCH}.AppImage"
 
 curl_with_retry() {
     curl -fL \
@@ -95,36 +103,101 @@ if [ ! -d "$PUBLISH_DIR" ]; then
 fi
 
 echo "Using pre-built binaries from: $PUBLISH_DIR"
+echo "Target architecture: $TARGET_ARCH_RESOLVED (AppImage: $APPIMAGE_ARCH, host tool: $APPIMAGETOOL_HOST_ARCH)"
 
 mkdir -p "$APP_DIR/usr/bin" "$APP_DIR/usr/lib" "$APP_DIR/usr/share/icons/hicolor" \
          "$APP_DIR/usr/share/applications" "$APP_DIR/usr/share/metainfo"
 
 cp -r "$PUBLISH_DIR/"* "$APP_DIR/usr/bin/"
 
-LIBXTST_PATH=""
-if [ -f "/usr/lib/x86_64-linux-gnu/libXtst.so.6" ]; then
-    LIBXTST_PATH="/usr/lib/x86_64-linux-gnu/libXtst.so.6"
-elif [ -f "/usr/lib64/libXtst.so.6" ]; then
-    LIBXTST_PATH="/usr/lib64/libXtst.so.6"
-elif [ -n "$LD_LIBRARY_PATH" ]; then
-    IFS=':' read -ra ADDR <<< "$LD_LIBRARY_PATH"
-    for dir in "${ADDR[@]}"; do
-        if [ -f "$dir/libXtst.so.6" ]; then
-            LIBXTST_PATH="$dir/libXtst.so.6"
-            break
+matches_target_lib_arch() {
+    local candidate="$1"
+
+    # If "file" is unavailable during cross-arch packaging, fail closed to avoid bundling a wrong-arch library.
+    if ! command -v file >/dev/null 2>&1; then
+        if [ "$HOST_ARCH_RESOLVED" = "$APPIMAGE_ARCH" ]; then
+            return 0
+        fi
+
+        return 1
+    fi
+
+    local expected_pattern=""
+    case "$APPIMAGE_ARCH" in
+        x86_64)
+            expected_pattern="x86-64"
+            ;;
+        aarch64)
+            expected_pattern="ARM aarch64"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+
+    file "$candidate" 2>/dev/null | grep -q "$expected_pattern"
+}
+
+resolve_libxtst_path() {
+    local candidates=()
+    local candidate
+
+    case "$APPIMAGE_ARCH" in
+        x86_64)
+            candidates=(
+                "/usr/lib/x86_64-linux-gnu/libXtst.so.6"
+                "/usr/lib64/libXtst.so.6"
+            )
+            ;;
+        aarch64)
+            candidates=(
+                "/usr/lib/aarch64-linux-gnu/libXtst.so.6"
+                "/usr/lib64/libXtst.so.6"
+            )
+            ;;
+    esac
+
+    for candidate in "${candidates[@]}"; do
+        if [ -f "$candidate" ] && matches_target_lib_arch "$candidate"; then
+            echo "$candidate"
+            return 0
         fi
     done
+
+    if [ -n "${LD_LIBRARY_PATH:-}" ]; then
+        local dir
+        IFS=':' read -ra ADDR <<< "$LD_LIBRARY_PATH"
+        for dir in "${ADDR[@]}"; do
+            candidate="$dir/libXtst.so.6"
+            if [ -f "$candidate" ] && matches_target_lib_arch "$candidate"; then
+                echo "$candidate"
+                return 0
+            fi
+        done
+    fi
+
+    return 1
+}
+
+LIBXTST_PATH=""
+if LIBXTST_PATH="$(resolve_libxtst_path)"; then
+    :
 fi
 
 if [ -n "$LIBXTST_PATH" ]; then
     echo "Bundling libXtst.so.6 from: $LIBXTST_PATH"
     cp "$LIBXTST_PATH" "$APP_DIR/usr/lib/"
 else
-    echo "WARNING: libXtst.so.6 not found. XTest support may be missing."
+    echo "WARNING: target-compatible libXtst.so.6 not found for '$APPIMAGE_ARCH'. XTest support may be missing."
 fi
 
-command -v patchelf >/dev/null && \
-    patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 "$APP_DIR/usr/bin/CrossMacro.UI"
+if command -v patchelf >/dev/null; then
+    if [ -n "$ELF_INTERPRETER" ]; then
+        patchelf --set-interpreter "$ELF_INTERPRETER" "$APP_DIR/usr/bin/CrossMacro.UI"
+    else
+        echo "Warning: No known glibc interpreter for target '$TARGET_ARCH_RESOLVED'; skipping patchelf."
+    fi
+fi
 
 cp "../src/CrossMacro.UI/Assets/icons/512x512/apps/crossmacro.png" "$APP_DIR/crossmacro.png"
 cp "../src/CrossMacro.UI/Assets/icons/256x256/apps/crossmacro.png" "$APP_DIR/.DirIcon"
@@ -146,11 +219,12 @@ fi
 verify_sha256 "$APPIMAGETOOL_NAME" "$APPIMAGETOOL_SHA256_RESOLVED"
 chmod +x "$APPIMAGETOOL_NAME"
 
-export ARCH=x86_64 PATH=$PWD:$PATH
+export ARCH="$APPIMAGE_ARCH" PATH=$PWD:$PATH
+export APPIMAGE_EXTRACT_AND_RUN="${APPIMAGE_EXTRACT_AND_RUN:-1}"
 TOOL_CMD="./$APPIMAGETOOL_NAME"
 command -v appimage-run &>/dev/null && TOOL_CMD="appimage-run $TOOL_CMD"
 
-$TOOL_CMD --no-appstream "$APP_DIR" "CrossMacro-$PACKAGE_VERSION-x86_64.AppImage"
+$TOOL_CMD --no-appstream "$APP_DIR" "$APPIMAGE_OUTPUT"
 
 rm -f "$APPIMAGETOOL_NAME"
 echo "Build complete!"

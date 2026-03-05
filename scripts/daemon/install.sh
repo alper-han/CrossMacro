@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # =============================================================================
 # CrossMacro Daemon Installer
@@ -16,6 +16,15 @@ fi
 # Determine script directory and repo root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+BUILD_TEMP_DIR=""
+
+cleanup_build_temp_dir() {
+    if [ -n "$BUILD_TEMP_DIR" ] && [ -d "$BUILD_TEMP_DIR" ]; then
+        rm -rf "$BUILD_TEMP_DIR"
+    fi
+}
+
+trap cleanup_build_temp_dir EXIT
 
 # Verify we're in the right place
 if [ ! -f "$REPO_ROOT/src/CrossMacro.Daemon/CrossMacro.Daemon.csproj" ]; then
@@ -50,7 +59,7 @@ usermod -aG crossmacro crossmacro 2>/dev/null || echo "   Warning: Failed to add
 
 
 # Add the installing user to crossmacro group
-if [ -n "$SUDO_USER" ]; then
+if [ -n "${SUDO_USER:-}" ]; then
     echo "   Adding '$SUDO_USER' to 'crossmacro' group..."
     usermod -aG crossmacro "$SUDO_USER"
 fi
@@ -65,15 +74,15 @@ DAEMON_PROJECT="$REPO_ROOT/src/CrossMacro.Daemon/CrossMacro.Daemon.csproj"
 INSTALL_DIR="/opt/crossmacro/daemon"
 mkdir -p "$INSTALL_DIR"
 
-if [ -n "$SUDO_USER" ]; then
+if [ -n "${SUDO_USER:-}" ]; then
     # Build as original user to avoid dotnet SDK permission issues
+    BUILD_TEMP_DIR="$(sudo -u "$SUDO_USER" mktemp -d)"
     sudo -u "$SUDO_USER" dotnet publish "$DAEMON_PROJECT" \
         -c Release \
-        -o /tmp/crossmacro_daemon_build \
+        -o "$BUILD_TEMP_DIR" \
         --verbosity quiet
     
-    cp /tmp/crossmacro_daemon_build/CrossMacro.Daemon "$INSTALL_DIR/"
-    rm -rf /tmp/crossmacro_daemon_build
+    cp "$BUILD_TEMP_DIR/CrossMacro.Daemon" "$INSTALL_DIR/"
 else
     dotnet publish "$DAEMON_PROJECT" \
         -c Release \
@@ -173,6 +182,6 @@ echo "Next steps:"
 echo "   1. Reboot your system for group changes to take effect."
 echo "   2. Run 'crossmacro' or start the UI from your application menu."
 echo ""
-if [ -n "$SUDO_USER" ]; then
+if [ -n "${SUDO_USER:-}" ]; then
     echo "User '$SUDO_USER' has been added to the 'crossmacro' group."
 fi

@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 APP_NAME="CrossMacro"
 BUNDLE_ID="net.crossmacro.CrossMacro"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/version.sh
 source "$SCRIPT_DIR/lib/version.sh"
+# shellcheck source=scripts/lib/platform.sh
+source "$SCRIPT_DIR/lib/platform.sh"
 VERSION="$(get_version)"
 PACKAGE_VERSION="$(to_filename_version)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -19,7 +21,9 @@ echo "Output: $OUTPUT_DIR"
 rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"
 
-RID="${RID:-osx-arm64}"
+TARGET_ARCH_RESOLVED="$(get_target_arch)"
+DOTNET_ARCH="$(to_dotnet_arch "$TARGET_ARCH_RESOLVED")"
+RID="${RID:-osx-$DOTNET_ARCH}"
 
 echo ""
 echo "=== Publish .NET Application ==="
@@ -90,7 +94,7 @@ chmod +x "$APP_BUNDLE/Contents/MacOS/CrossMacro.UI"
 ICON_PNG="$PROJECT_ROOT/src/CrossMacro.UI/Assets/mouse-icon.png"
 ICON_ICNS="$APP_BUNDLE/Contents/Resources/AppIcon.icns"
 
-if [[ "$OSTYPE" == "darwin"* ]]; then
+if [[ "${OSTYPE:-}" == "darwin"* ]]; then
     if [ -f "$ICON_PNG" ]; then
         echo "Creating AppIcon.icns from $ICON_PNG..."
         
@@ -127,7 +131,7 @@ rm -rf "$PUBLISH_DIR"
 echo ""
 echo "=== Packaging ==="
 
-if [[ "$OSTYPE" == "darwin"* ]]; then
+if [[ "${OSTYPE:-}" == "darwin"* ]]; then
     DMG_NAME="$APP_NAME-$PACKAGE_VERSION-$RID.dmg"
     DMG_PATH="$OUTPUT_DIR/$DMG_NAME"
     

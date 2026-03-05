@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
@@ -216,6 +217,39 @@ public class MainWindowViewModelTests
         Assert.False(_viewModel.IsUpdateNotificationVisible);
     }
 
+    [Theory]
+    [InlineData(DisplayEnvironment.LinuxX11)]
+    [InlineData(DisplayEnvironment.LinuxWayland)]
+    [InlineData(DisplayEnvironment.LinuxHyprland)]
+    [InlineData(DisplayEnvironment.LinuxKDE)]
+    [InlineData(DisplayEnvironment.LinuxGnome)]
+    public void GetBackendTroubleshootingHint_WhenLinuxEnvironment_ReturnsSystemctlGuidance(DisplayEnvironment environment)
+    {
+        var hint = GetBackendTroubleshootingHint(environment);
+
+        Assert.NotNull(hint);
+        Assert.Contains("systemctl status crossmacro", hint, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(DisplayEnvironment.Windows)]
+    [InlineData(DisplayEnvironment.MacOS)]
+    public void GetBackendTroubleshootingHint_WhenNonLinuxEnvironment_DoesNotReturnLinuxCommand(DisplayEnvironment environment)
+    {
+        var hint = GetBackendTroubleshootingHint(environment);
+
+        Assert.NotNull(hint);
+        Assert.DoesNotContain("systemctl status crossmacro", hint, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GetBackendTroubleshootingHint_WhenUnknownEnvironment_ReturnsNull()
+    {
+        var hint = GetBackendTroubleshootingHint(DisplayEnvironment.Unknown);
+
+        Assert.Null(hint);
+    }
+
     [Fact]
     public void Dispose_CanBeCalledMultipleTimes()
     {
@@ -228,5 +262,15 @@ public class MainWindowViewModelTests
 
         // Assert
         Assert.Null(Record.Exception(act));
+    }
+
+    private static string? GetBackendTroubleshootingHint(DisplayEnvironment environment)
+    {
+        var method = typeof(MainWindowViewModel).GetMethod(
+            "GetBackendTroubleshootingHint",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.NotNull(method);
+        return (string?)method!.Invoke(null, [environment]);
     }
 }

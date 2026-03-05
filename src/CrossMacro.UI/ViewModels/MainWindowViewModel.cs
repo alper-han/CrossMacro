@@ -20,6 +20,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IExternalUrlOpener _externalUrlOpener;
     private readonly IExtensionStatusNotifier? _extensionNotifier;
     private readonly IUpdateService? _updateService;
+    private readonly DisplayEnvironment _currentEnvironment;
     
     private string? _extensionWarning;
     private bool _hasExtensionWarning;
@@ -178,6 +179,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _externalUrlOpener = externalUrlOpener;
         _extensionNotifier = extensionNotifier;
         _updateService = updateService;
+        _currentEnvironment = environmentInfo.CurrentEnvironment;
         
         // Use abstraction for close button visibility (DIP: depends on Core interface)
         IsCloseButtonVisible = !environmentInfo.WindowManagerHandlesCloseButton;
@@ -515,7 +517,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     {
         Dispatcher.UIThread.Post(() =>
         {
-            var message = error + "\n\nTroubleshooting: check daemon status with `systemctl status crossmacro`.";
+            var troubleshootingHint = GetBackendTroubleshootingHint(_currentEnvironment);
+            var message = string.IsNullOrWhiteSpace(troubleshootingHint)
+                ? error
+                : $"{error}\n\nTroubleshooting: {troubleshootingHint}";
             
             NotificationManager?.Show(new Notification(
                 "Backend Error",
@@ -523,6 +528,24 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
                 NotificationType.Error,
                 TimeSpan.FromSeconds(10)));
         });
+    }
+
+    private static string? GetBackendTroubleshootingHint(DisplayEnvironment environment)
+    {
+        return environment switch
+        {
+            DisplayEnvironment.LinuxX11
+                or DisplayEnvironment.LinuxWayland
+                or DisplayEnvironment.LinuxHyprland
+                or DisplayEnvironment.LinuxKDE
+                or DisplayEnvironment.LinuxGnome
+                => "check daemon status with `systemctl status crossmacro`.",
+            DisplayEnvironment.Windows
+                => "restart CrossMacro and verify the background service is running.",
+            DisplayEnvironment.MacOS
+                => "restart CrossMacro and verify Accessibility permissions in System Settings.",
+            _ => null
+        };
     }
     
     public void Dispose()

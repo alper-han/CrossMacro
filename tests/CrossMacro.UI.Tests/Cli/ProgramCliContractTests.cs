@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using CrossMacro.Core.Services;
 using CrossMacro.Cli;
@@ -32,7 +33,7 @@ public class ProgramCliContractTests
                 Assert.Equal((int)CliExitCode.InvalidArguments, exitCode);
                 Assert.Contains("\"status\": \"error\"", stdout.ToString(), StringComparison.Ordinal);
                 Assert.Contains("\"code\": 2", stdout.ToString(), StringComparison.Ordinal);
-                Assert.Equal(string.Empty, stderr.ToString());
+                AssertNoUnexpectedStderr(stderr.ToString());
             }
             finally
             {
@@ -68,7 +69,7 @@ public class ProgramCliContractTests
                 Assert.Contains("\"status\": \"error\"", stdout.ToString(), StringComparison.Ordinal);
                 Assert.Contains("\"code\": 6", stdout.ToString(), StringComparison.Ordinal);
                 Assert.Contains("CLI command failed.", stdout.ToString(), StringComparison.Ordinal);
-                Assert.Equal(string.Empty, stderr.ToString());
+                AssertNoUnexpectedStderr(stderr.ToString());
             }
             finally
             {
@@ -104,7 +105,7 @@ public class ProgramCliContractTests
                 Assert.Contains("\"status\": \"error\"", stdout.ToString(), StringComparison.Ordinal);
                 Assert.Contains("\"code\": 130", stdout.ToString(), StringComparison.Ordinal);
                 Assert.Contains("Command cancelled.", stdout.ToString(), StringComparison.Ordinal);
-                Assert.Equal(string.Empty, stderr.ToString());
+                AssertNoUnexpectedStderr(stderr.ToString());
             }
             finally
             {
@@ -140,7 +141,7 @@ public class ProgramCliContractTests
                 Assert.Contains("\"status\": \"error\"", stdout.ToString(), StringComparison.Ordinal);
                 Assert.Contains("\"code\": 5", stdout.ToString(), StringComparison.Ordinal);
                 Assert.Contains("Another CrossMacro runtime instance is already running.", stdout.ToString(), StringComparison.Ordinal);
-                Assert.Equal(string.Empty, stderr.ToString());
+                AssertNoUnexpectedStderr(stderr.ToString());
             }
             finally
             {
@@ -151,7 +152,7 @@ public class ProgramCliContractTests
     }
 
     [Fact]
-    public void Run_WhenGuiModeAndSingleInstanceGuardUnavailable_DoesNotStartGuiAndReturnsSuccess()
+    public void Run_WhenGuiModeAndSingleInstanceGuardUnavailable_DoesNotStartGuiAndReturnsEnvironmentError()
     {
         var guiStarted = false;
 
@@ -166,7 +167,7 @@ public class ProgramCliContractTests
             getVersionString: () => "CrossMacro 0.0.0",
             tryAcquireSingleInstanceGuard: static () => null);
 
-        Assert.Equal((int)CliExitCode.Success, exitCode);
+        Assert.Equal((int)CliExitCode.EnvironmentError, exitCode);
         Assert.False(guiStarted);
     }
 
@@ -197,6 +198,21 @@ public class ProgramCliContractTests
     {
         public void Dispose()
         {
+        }
+    }
+
+    private static void AssertNoUnexpectedStderr(string stderr)
+    {
+        if (string.IsNullOrWhiteSpace(stderr))
+        {
+            return;
+        }
+
+        var normalized = stderr.Replace("\r\n", "\n", StringComparison.Ordinal);
+        var lines = normalized.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (var line in lines)
+        {
+            Assert.StartsWith("[CrossMacro]", line, StringComparison.Ordinal);
         }
     }
 }

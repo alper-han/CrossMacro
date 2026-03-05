@@ -109,7 +109,7 @@ public static class CliGuiRuntime
             if (guiInstanceGuard == null)
             {
                 Log.Warning("Could not acquire single-instance lock; another instance may already be running.");
-                return 0;
+                return (int)CliExitCode.EnvironmentError;
             }
 
             return startGui();

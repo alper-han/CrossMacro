@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 using CrossMacro.Core.Services;
@@ -8,45 +9,98 @@ namespace CrossMacro.Platform.Windows.Services;
 
 public class WindowsKeyboardLayoutService : IKeyboardLayoutService
 {
-    // TODO: Keyboard control is not yet fully accurate. Needs dedicated time for comprehensive testing to ensure correct behavior across all keyboard layouts.
+    // Backlog: D3-PLAT-001 in docs/platform-borclari-backlog.md.
+    // Accuracy for non-US and AltGr-heavy layouts still requires broader validation coverage.
+    private static class Vk
+    {
+        public const ushort Pause = 0x13;
+        public const ushort PrintScreen = 0x2C;
+        public const ushort NumLock = 0x90;
+        public const ushort ScrollLock = 0x91;
+        public const ushort CapsLock = 0x14;
+
+        public const ushort LeftShift = 0xA0;
+        public const ushort Shift = 0x10;
+        public const ushort RightShift = 0xA1;
+        public const ushort LeftCtrl = 0xA2;
+        public const ushort Ctrl = 0x11;
+        public const ushort RightCtrl = 0xA3;
+        public const ushort LeftAlt = 0xA4;
+        public const ushort Alt = 0x12;
+        public const ushort RightAlt = 0xA5;
+        public const ushort LeftWin = 0x5B;
+        public const ushort RightWin = 0x5C;
+        public const ushort Menu = 0x5D;
+
+        public const ushort VolumeMute = 0xAD;
+        public const ushort VolumeDown = 0xAE;
+        public const ushort VolumeUp = 0xAF;
+        public const ushort MediaNext = 0xB0;
+        public const ushort MediaPrev = 0xB1;
+        public const ushort MediaStop = 0xB2;
+        public const ushort PlayPause = 0xB3;
+
+        public const ushort PageUp = 0x21;
+        public const ushort Delete = 0x2E;
+    }
+
+    private static readonly Dictionary<ushort, string> SpecialKeyNames = new()
+    {
+        [Vk.Pause] = "Pause",
+        [Vk.PrintScreen] = "PrintScreen",
+        [Vk.NumLock] = "NumLock",
+        [Vk.ScrollLock] = "ScrollLock",
+        [Vk.CapsLock] = "CapsLock"
+    };
+
+    private static readonly Dictionary<ushort, string> ModifierKeyNames = new()
+    {
+        [Vk.LeftShift] = "LeftShift",
+        [Vk.Shift] = "LeftShift",
+        [Vk.RightShift] = "RightShift",
+        [Vk.LeftCtrl] = "LeftCtrl",
+        [Vk.Ctrl] = "LeftCtrl",
+        [Vk.RightCtrl] = "RightCtrl",
+        [Vk.LeftAlt] = "LeftAlt",
+        [Vk.Alt] = "LeftAlt",
+        [Vk.RightAlt] = "RightAlt",
+        [Vk.LeftWin] = "LeftWin",
+        [Vk.RightWin] = "RightWin",
+        [Vk.Menu] = "Menu"
+    };
+
+    private static readonly Dictionary<ushort, string> MediaKeyNames = new()
+    {
+        [Vk.VolumeMute] = "VolumeMute",
+        [Vk.VolumeDown] = "VolumeDown",
+        [Vk.VolumeUp] = "VolumeUp",
+        [Vk.PlayPause] = "PlayPause",
+        [Vk.MediaNext] = "MediaNext",
+        [Vk.MediaPrev] = "MediaPrev",
+        [Vk.MediaStop] = "MediaStop"
+    };
+
+    private const int ScanCodeToLParamShift = 16;
+    private const int ExtendedKeyMask = 1 << 24;
+    private const int KeyNameBufferSize = 256;
+
     public string GetKeyName(int keyCode)
     {
         ushort vk = WindowsKeyMap.GetVirtualKey(keyCode);
         if (vk == 0) return $"Key_{keyCode}";
-        if (vk == 0x13) return "Pause";
-        if (vk == 0x2C) return "PrintScreen";
-        if (vk == 0x90) return "NumLock";
-        if (vk == 0x91) return "ScrollLock";
-        if (vk == 0x14) return "CapsLock";
-        
-        // Modifiers
-        if (vk == 0xA0 || vk == 0x10) return "LeftShift";
-        if (vk == 0xA1) return "RightShift";
-        if (vk == 0xA2 || vk == 0x11) return "LeftCtrl";
-        if (vk == 0xA3) return "RightCtrl";
-        if (vk == 0xA4 || vk == 0x12) return "LeftAlt";
-        if (vk == 0xA5) return "RightAlt";
-        if (vk == 0x5B) return "LeftWin";
-        if (vk == 0x5C) return "RightWin";
-        if (vk == 0x5D) return "Menu";
 
-        // Media
-        if (vk == 0xAD) return "VolumeMute";
-        if (vk == 0xAE) return "VolumeDown";
-        if (vk == 0xAF) return "VolumeUp";
-        if (vk == 0xB3) return "PlayPause";
-        if (vk == 0xB0) return "MediaNext";
-        if (vk == 0xB1) return "MediaPrev";
-        if (vk == 0xB2) return "MediaStop";
-        
+        if (SpecialKeyNames.TryGetValue(vk, out var specialName)) return specialName;
+        if (ModifierKeyNames.TryGetValue(vk, out var modifierName)) return modifierName;
+        if (MediaKeyNames.TryGetValue(vk, out var mediaName)) return mediaName;
+
         uint scanCode = User32.MapVirtualKey(vk, User32.MAPVK_VK_TO_VSC);
-        
-        int lParam = (int)(scanCode << 16);
-        
-        if (vk >= 0x21 && vk <= 0x2E) 
-             lParam |= (1 << 24);
 
-        var sb = new StringBuilder(256);
+        int lParam = (int)(scanCode << ScanCodeToLParamShift);
+
+        if (vk >= Vk.PageUp && vk <= Vk.Delete)
+            lParam |= ExtendedKeyMask;
+
+        var sb = new StringBuilder(KeyNameBufferSize);
         if (User32.GetKeyNameTextW(lParam, sb, sb.Capacity) > 0)
         {
             return sb.ToString();
@@ -79,25 +133,25 @@ public class WindowsKeyboardLayoutService : IKeyboardLayoutService
         // Exact modifier mapping
         if (leftShift) 
         {
-            keyState[0x10] = 0x80; // VK_SHIFT
-            keyState[0xA0] = 0x80; // VK_LSHIFT
+            keyState[Vk.Shift] = 0x80; // VK_SHIFT
+            keyState[Vk.LeftShift] = 0x80; // VK_LSHIFT
         }
         if (rightShift)
         {
-            keyState[0x10] = 0x80; // VK_SHIFT
-            keyState[0xA1] = 0x80; // VK_RSHIFT
+            keyState[Vk.Shift] = 0x80; // VK_SHIFT
+            keyState[Vk.RightShift] = 0x80; // VK_RSHIFT
         }
         
         if (leftCtrl)
         {
-            keyState[0x11] = 0x80; // VK_CONTROL
-            keyState[0xA2] = 0x80; // VK_LCONTROL
+            keyState[Vk.Ctrl] = 0x80; // VK_CONTROL
+            keyState[Vk.LeftCtrl] = 0x80; // VK_LCONTROL
         }
 
         if (leftAlt) 
         {
-             keyState[0x12] = 0x80; // VK_MENU
-             keyState[0xA4] = 0x80; // VK_LMENU
+             keyState[Vk.Alt] = 0x80; // VK_MENU
+             keyState[Vk.LeftAlt] = 0x80; // VK_LMENU
         }
         
         // AltGr / Right Alt Logic
@@ -105,15 +159,15 @@ public class WindowsKeyboardLayoutService : IKeyboardLayoutService
         {
             // For AltGr, Windows expects Ctrl+Alt OR specific Right Alt handling depending on layout
             // Safe bet: Set generic Ctrl+Alt and specific Right Alt/Left Ctrl
-            keyState[0x11] = 0x80; // VK_CONTROL
-            keyState[0x12] = 0x80; // VK_MENU
-            keyState[0xA2] = 0x80; // VK_LCONTROL (AltGr usually triggers this)
-            keyState[0xA5] = 0x80; // VK_RMENU
+            keyState[Vk.Ctrl] = 0x80; // VK_CONTROL
+            keyState[Vk.Alt] = 0x80; // VK_MENU
+            keyState[Vk.LeftCtrl] = 0x80; // VK_LCONTROL (AltGr usually triggers this)
+            keyState[Vk.RightAlt] = 0x80; // VK_RMENU
         }
         
         if (capsLock) 
         {
-            keyState[0x14] = 0x01; // VK_CAPITAL
+            keyState[Vk.CapsLock] = 0x01; // VK_CAPITAL
         }
 
         var sb = new StringBuilder(5);
@@ -163,7 +217,6 @@ public class WindowsKeyboardLayoutService : IKeyboardLayoutService
         bool shift = (shiftState & 1) != 0;
         bool ctrl = (shiftState & 2) != 0;
         bool alt = (shiftState & 4) != 0;
-        bool hankaku = (shiftState & 8) != 0; 
         
         bool altGr = ctrl && alt;
         

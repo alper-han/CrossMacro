@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+
 jobs:
   build-linux:
     name: Build and Test (Linux)
@@ -71,9 +74,6 @@ jobs:
 
     - name: Build
       run: dotnet build --configuration Debug --no-restore
-
-    - name: Smoke Publish (Linux)
-      run: dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj --configuration Debug --no-restore -r linux-x64 --self-contained false -o publish-smoke
 
     - name: CLI Smoke (Linux)
       run: |
@@ -147,6 +147,29 @@ jobs:
         dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Platform.Linux.Tests/CrossMacro.Platform.Linux.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj --configuration Debug --no-build --verbosity normal
+
+  smoke-publish-linux:
+    name: Smoke Publish (Linux ${{ matrix.rid }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [linux-x64, linux-arm64]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Smoke Publish (${{ matrix.rid }})
+      run: dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj --configuration Debug --no-restore -r ${{ matrix.rid }} --self-contained false -o publish-smoke-${{ matrix.rid }}
 
   build-windows:
     name: Build (Windows)

@@ -26,6 +26,9 @@ on:
         required: false
         default: ''
 
+permissions:
+  contents: read
+
 jobs:
   # ============================================
   # Stage 1: Build Core Binaries (shared by all)
@@ -131,20 +134,6 @@ jobs:
       with:
         dotnet-version: '10.0.x'
     
-    - name: Build Linux UI binary
-      run: |
-        dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj \
-          -c Release \
-          -r linux-x64 \
-          --self-contained true \
-          -p:PublishSingleFile=true \
-          -p:PublishTrimmed=true \
-          -p:PublishAot=false \
-          -p:DebugType=None \
-          -p:DebugSymbols=false \
-          -p:Version=${{ steps.version.outputs.version }} \
-          -o publish-linux/
-    
     - name: Build Windows UI binary
       run: |
         dotnet publish src/CrossMacro.UI.Windows/CrossMacro.UI.Windows.csproj \
@@ -159,28 +148,6 @@ jobs:
           -p:Version=${{ steps.version.outputs.version }} \
           -o publish-windows/
     
-    - name: Build Linux Daemon (Native AOT)
-      run: |
-        dotnet publish src/CrossMacro.Daemon/CrossMacro.Daemon.csproj \
-          -c Release \
-          -r linux-x64 \
-          -p:Version=${{ steps.version.outputs.version }} \
-          -o publish-daemon/
-    
-    - name: Upload Linux UI artifacts
-      uses: actions/upload-artifact@v7
-      with:
-        name: linux-binary
-        path: publish-linux/
-        retention-days: 1
-    
-    - name: Upload Linux Daemon artifacts
-      uses: actions/upload-artifact@v7
-      with:
-        name: linux-daemon
-        path: publish-daemon/
-        retention-days: 1
-    
     - name: Upload Windows artifacts
       uses: actions/upload-artifact@v7
       with:
@@ -188,14 +155,84 @@ jobs:
         path: publish-windows/
         retention-days: 1
 
+  build-linux-binaries:
+    name: Build Linux Binaries (${{ matrix.arch_suffix }})
+    needs: build-core
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_suffix: x64
+            target_arch: x86_64
+            dotnet_rid: linux-x64
+            daemon_publish_args: ""
+          - arch_suffix: arm64
+            target_arch: aarch64
+            dotnet_rid: linux-arm64
+            daemon_publish_args: "-p:PublishAot=false --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true"
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Build Linux UI binary
+      run: |
+        dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj \
+          -c Release \
+          -r "${{ matrix.dotnet_rid }}" \
+          --self-contained true \
+          -p:PublishSingleFile=true \
+          -p:PublishTrimmed=true \
+          -p:PublishAot=false \
+          -p:DebugType=None \
+          -p:DebugSymbols=false \
+          -p:Version="${{ needs.build-core.outputs.version }}" \
+          -o "publish-linux-${{ matrix.arch_suffix }}/"
+
+    - name: Build Linux Daemon
+      run: |
+        dotnet publish src/CrossMacro.Daemon/CrossMacro.Daemon.csproj \
+          -c Release \
+          -r "${{ matrix.dotnet_rid }}" \
+          ${{ matrix.daemon_publish_args }} \
+          -p:Version="${{ needs.build-core.outputs.version }}" \
+          -o "publish-daemon-${{ matrix.arch_suffix }}/"
+
+    - name: Upload Linux UI artifacts
+      uses: actions/upload-artifact@v7
+      with:
+        name: linux-binary-${{ matrix.arch_suffix }}
+        path: publish-linux-${{ matrix.arch_suffix }}/
+        retention-days: 1
+
+    - name: Upload Linux Daemon artifacts
+      uses: actions/upload-artifact@v7
+      with:
+        name: linux-daemon-${{ matrix.arch_suffix }}
+        path: publish-daemon-${{ matrix.arch_suffix }}/
+        retention-days: 1
+
   # ============================================
   # Stage 2: Parallel Packaging (all run simultaneously)
   # ============================================
   
   package-deb:
-    name: Package DEB
-    needs: build-core
+    name: Package DEB (${{ matrix.arch_suffix }})
+    needs: [build-core, build-linux-binaries]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_suffix: x64
+            target_arch: x86_64
+          - arch_suffix: arm64
+            target_arch: aarch64
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
@@ -203,13 +240,13 @@ jobs:
     - name: Download Linux UI binary
       uses: actions/download-artifact@v8
       with:
-        name: linux-binary
+        name: linux-binary-${{ matrix.arch_suffix }}
         path: publish/
     
     - name: Download Linux Daemon binary
       uses: actions/download-artifact@v8
       with:
-        name: linux-daemon
+        name: linux-daemon-${{ matrix.arch_suffix }}
         path: publish-daemon/
     
     - name: Install dependencies
@@ -221,7 +258,7 @@ jobs:
       run: |
         cd scripts
         chmod +x build_deb.sh
-        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" PUBLISH_DIR="../publish" DAEMON_DIR="../publish-daemon" ./build_deb.sh
+        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" PUBLISH_DIR="../publish" DAEMON_DIR="../publish-daemon" ./build_deb.sh
 
     - name: Verify DEB man page
       run: |
@@ -232,15 +269,21 @@ jobs:
     - name: Upload DEB artifact
       uses: actions/upload-artifact@v7
       with:
-        name: deb-package
+        name: deb-package-${{ matrix.arch_suffix }}
         path: |
           scripts/*.deb
         retention-days: 1
 
   package-rpm:
-    name: Package RPM
-    needs: build-core
+    name: Package RPM (${{ matrix.arch_suffix }})
+    needs: [build-core, build-linux-binaries]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_suffix: x64
+            target_arch: x86_64
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
@@ -248,13 +291,13 @@ jobs:
     - name: Download Linux UI binary
       uses: actions/download-artifact@v8
       with:
-        name: linux-binary
+        name: linux-binary-${{ matrix.arch_suffix }}
         path: publish/
     
     - name: Download Linux Daemon binary
       uses: actions/download-artifact@v8
       with:
-        name: linux-daemon
+        name: linux-daemon-${{ matrix.arch_suffix }}
         path: publish-daemon/
     
     - name: Install dependencies
@@ -266,7 +309,7 @@ jobs:
       run: |
         cd scripts
         chmod +x build_rpm.sh
-        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" PUBLISH_DIR="../publish" DAEMON_DIR="../publish-daemon" ./build_rpm.sh
+        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" RPM_ARCH="${{ matrix.target_arch }}" PUBLISH_DIR="../publish" DAEMON_DIR="../publish-daemon" ./build_rpm.sh
 
     - name: Verify RPM man page
       run: |
@@ -277,15 +320,136 @@ jobs:
     - name: Upload RPM artifact
       uses: actions/upload-artifact@v7
       with:
-        name: rpm-package
+        name: rpm-package-${{ matrix.arch_suffix }}
         path: |
           scripts/*.rpm
         retention-days: 1
 
-  package-appimage:
-    name: Package AppImage
-    needs: build-core
+  package-rpm-arm64-emulated:
+    name: Package RPM (arm64 emulated)
+    needs: [build-core, build-linux-binaries]
     runs-on: ubuntu-latest
+    env:
+      BINFMT_IMAGE: tonistiigi/binfmt:latest
+      FEDORA_ARM64_IMAGE: fedora:latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Download Linux UI binary (arm64)
+      uses: actions/download-artifact@v8
+      with:
+        name: linux-binary-arm64
+        path: publish/
+
+    - name: Download Linux Daemon binary (arm64)
+      uses: actions/download-artifact@v8
+      with:
+        name: linux-daemon-arm64
+        path: publish-daemon/
+
+    - name: Install QEMU arm64 emulation
+      run: |
+        docker run --privileged --rm "$BINFMT_IMAGE" --install arm64
+
+    - name: Build RPM package (arm64 in container)
+      run: |
+        docker run --rm --platform linux/arm64 \
+          -v "$PWD":/work \
+          -w /work/scripts \
+          "$FEDORA_ARM64_IMAGE" \
+          bash -lc '
+            set -euo pipefail
+            dnf -y install rpm-build checkpolicy semodule-utils patchelf file >/dev/null
+            VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" TARGET_ARCH=aarch64 RPM_ARCH=aarch64 \
+              PUBLISH_DIR=/work/publish \
+              DAEMON_DIR=/work/publish-daemon \
+              ./build_rpm.sh
+          '
+
+    - name: Verify RPM man page (arm64 emulated)
+      run: |
+        set -euo pipefail
+        rpm_file="$(find scripts -maxdepth 1 -type f -name '*aarch64*.rpm' | head -n 1)"
+        if [ -z "$rpm_file" ]; then
+          echo "No arm64 RPM artifact found in scripts/."
+          exit 1
+        fi
+        rpm_file_name="$(basename "$rpm_file")"
+        docker run --rm --platform linux/arm64 \
+          -v "$PWD/scripts":/artifacts:ro \
+          -e RPM_FILE_NAME="$rpm_file_name" \
+          "$FEDORA_ARM64_IMAGE" \
+          bash -lc '
+            set -euo pipefail
+            dnf -y install rpm >/dev/null
+            rpm -qpl "/artifacts/${RPM_FILE_NAME}" | grep -E "^/usr/share/man/man1/crossmacro\.1(\.gz)?$"
+          '
+
+    - name: CLI Smoke (RPM arm64 emulated)
+      run: |
+        set -euo pipefail
+        rpm_file="$(find scripts -maxdepth 1 -type f -name '*aarch64*.rpm' | head -n 1)"
+        if [ -z "$rpm_file" ]; then
+          echo "No arm64 RPM artifact found in scripts/."
+          exit 1
+        fi
+        rpm_file_name="$(basename "$rpm_file")"
+        docker run --rm --platform linux/arm64 \
+          -v "$PWD/scripts":/artifacts:ro \
+          -e RPM_FILE_NAME="$rpm_file_name" \
+          "$FEDORA_ARM64_IMAGE" \
+          bash -lc '
+            set -euo pipefail
+            dnf -y install polkit libXtst libX11 libXcursor libXrandr fontconfig >/dev/null
+            dnf -y install "/artifacts/${RPM_FILE_NAME}" >/dev/null
+
+            help_output="$(/usr/bin/crossmacro --help 2>&1)"
+            echo "$help_output"
+            echo "$help_output" | grep -F "Usage:"
+
+            set +e
+            json_parse_output="$(/usr/bin/crossmacro --json 2>&1)"
+            json_parse_code=$?
+            set -e
+            echo "$json_parse_output"
+            test "$json_parse_code" -eq 2
+            echo "$json_parse_output" | grep -F "\"status\": \"error\""
+            echo "$json_parse_output" | grep -F "\"code\": 2"
+
+            set +e
+            dry_run_output="$(/usr/bin/crossmacro run --step \"move abs 10 10\" --dry-run --json 2>&1)"
+            dry_run_code=$?
+            set -e
+            echo "$dry_run_output"
+            echo "$dry_run_output" | grep -F "\"status\":"
+            echo "$dry_run_output" | grep -F "\"code\": $dry_run_code"
+          '
+
+    - name: Upload RPM artifact (arm64)
+      uses: actions/upload-artifact@v7
+      with:
+        name: rpm-package-arm64
+        path: |
+          scripts/*aarch64*.rpm
+        retention-days: 1
+
+  package-appimage:
+    name: Package AppImage (${{ matrix.arch_suffix }})
+    needs: [build-core, build-linux-binaries]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_suffix: x64
+            target_arch: x86_64
+            appimage_arch: x86_64
+            appimagetool_host_arch: x86_64
+          - arch_suffix: arm64
+            target_arch: aarch64
+            appimage_arch: aarch64
+            appimagetool_host_arch: x86_64
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
@@ -293,32 +457,44 @@ jobs:
     - name: Download Linux binary
       uses: actions/download-artifact@v8
       with:
-        name: linux-binary
+        name: linux-binary-${{ matrix.arch_suffix }}
         path: publish/
     
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libfuse2 file desktop-file-utils patchelf jq
+        sudo apt-get install -y file desktop-file-utils patchelf jq
     
     - name: Build AppImage
       run: |
         cd scripts
         chmod +x build_appimage.sh
-        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" PUBLISH_DIR="../publish" ./build_appimage.sh
+        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" APPIMAGE_ARCH="${{ matrix.appimage_arch }}" APPIMAGETOOL_HOST_ARCH="${{ matrix.appimagetool_host_arch }}" PUBLISH_DIR="../publish" APPIMAGE_EXTRACT_AND_RUN=1 ./build_appimage.sh
     
     - name: Upload AppImage artifact
       uses: actions/upload-artifact@v7
       with:
-        name: appimage-package
+        name: appimage-package-${{ matrix.arch_suffix }}
         path: |
-          scripts/*.AppImage
+          scripts/*-${{ matrix.appimage_arch }}.AppImage
         retention-days: 1
 
   package-flatpak:
-    name: Package Flatpak
-    needs: build-core
-    runs-on: ubuntu-latest
+    name: Package Flatpak (${{ matrix.arch_suffix }})
+    needs: [build-core, build-linux-binaries]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_suffix: x64
+            target_arch: x86_64
+            flatpak_arch: x86_64
+            runner: ubuntu-latest
+          - arch_suffix: arm64
+            target_arch: aarch64
+            flatpak_arch: aarch64
+            runner: ubuntu-24.04-arm
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
@@ -326,7 +502,7 @@ jobs:
     - name: Download Linux binary
       uses: actions/download-artifact@v8
       with:
-        name: linux-binary
+        name: linux-binary-${{ matrix.arch_suffix }}
         path: publish/
     
     - name: Install Flatpak tools
@@ -340,14 +516,14 @@ jobs:
       run: |
         cd scripts
         chmod +x build_flatpak.sh
-        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" PUBLISH_DIR="../publish" ./build_flatpak.sh
+        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" FLATPAK_ARCH="${{ matrix.flatpak_arch }}" PUBLISH_DIR="../publish" ./build_flatpak.sh
     
     - name: Upload Flatpak artifact
       uses: actions/upload-artifact@v7
       with:
-        name: flatpak-package
+        name: flatpak-package-${{ matrix.arch_suffix }}
         path: |
-          flatpak/*.flatpak
+          flatpak/*-${{ matrix.flatpak_arch }}.flatpak
         retention-days: 1
 
   package-windows:
@@ -627,7 +803,7 @@ jobs:
   # ============================================
   create-release:
     name: Create Release
-    needs: [build-core, package-deb, package-rpm, package-appimage, package-flatpak, package-windows, build-macos-arm64, build-macos-x64]
+    needs: [build-core, package-deb, package-rpm, package-rpm-arm64-emulated, package-appimage, package-flatpak, package-windows, build-macos-arm64, build-macos-x64]
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_prerelease == 'true')
     runs-on: ubuntu-latest
     permissions:
@@ -664,9 +840,10 @@ jobs:
     - name: Generate checksums
       run: |
         cd artifacts
-        sha256sum deb-package/*.deb > crossmacro-deb.sha256
-        sha256sum rpm-package/*.rpm > crossmacro-rpm.sha256
-        sha256sum appimage-package/*.AppImage > crossmacro-appimage.sha256
+        sha256sum deb-package-*/*.deb > crossmacro-deb.sha256
+        sha256sum rpm-package-*/*.rpm > crossmacro-rpm.sha256
+        sha256sum appimage-package-*/*.AppImage > crossmacro-appimage.sha256
+        sha256sum flatpak-package-*/*.flatpak > crossmacro-flatpak.sha256
         sha256sum windows-package/*.exe > crossmacro-windows.sha256
         sha256sum macos-arm64-package/*.dmg > crossmacro-macos-arm64.sha256
         sha256sum macos-x64-package/*.dmg > crossmacro-macos-x64.sha256
@@ -681,12 +858,14 @@ jobs:
         prerelease: ${{ steps.release_meta.outputs.prerelease }}
         make_latest: ${{ steps.release_meta.outputs.make_latest }}
         files: |
-          artifacts/deb-package/*.deb
+          artifacts/deb-package-*/*.deb
           artifacts/crossmacro-deb.sha256
-          artifacts/rpm-package/*.rpm
+          artifacts/rpm-package-*/*.rpm
           artifacts/crossmacro-rpm.sha256
-          artifacts/appimage-package/*.AppImage
+          artifacts/appimage-package-*/*.AppImage
           artifacts/crossmacro-appimage.sha256
+          artifacts/flatpak-package-*/*.flatpak
+          artifacts/crossmacro-flatpak.sha256
           artifacts/windows-package/*.exe
           artifacts/crossmacro-windows.sha256
           artifacts/macos-arm64-package/*.dmg

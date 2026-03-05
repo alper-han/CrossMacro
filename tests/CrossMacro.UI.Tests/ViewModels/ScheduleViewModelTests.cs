@@ -22,13 +22,16 @@ public class ScheduleViewModelTests
     {
         _schedulerService = Substitute.For<ISchedulerService>();
         _dialogService = Substitute.For<IDialogService>();
+        var timeProvider = Substitute.For<ITimeProvider>();
+        timeProvider.Now.Returns(new DateTime(2026, 1, 1, 10, 0, 0));
+        timeProvider.UtcNow.Returns(new DateTime(2026, 1, 1, 7, 0, 0));
         
         // Setup initial tasks list
         _schedulerService.Tasks.Returns(new ObservableCollection<ScheduledTask>());
         _schedulerService.LoadAsync().Returns(Task.CompletedTask);
         _schedulerService.SaveAsync().Returns(Task.CompletedTask);
 
-        _viewModel = new ScheduleViewModel(_schedulerService, _dialogService);
+        _viewModel = new ScheduleViewModel(_schedulerService, _dialogService, timeProvider);
     }
 
     [Fact]
@@ -249,5 +252,23 @@ public class ScheduleViewModelTests
         task.ScheduledDateTime.Value.Hour.Should().Be(14);
         task.ScheduledDateTime.Value.Minute.Should().Be(45);
         task.ScheduledDateTime.Value.Second.Should().Be(20);
+    }
+
+    [Fact]
+    public void ScheduledDateAndTime_WhenInitialValueMissing_UsesInjectedTimeProviderNow()
+    {
+        // Arrange
+        var timeProvider = Substitute.For<ITimeProvider>();
+        timeProvider.Now.Returns(new DateTime(2032, 3, 4, 9, 10, 11));
+        var viewModel = new ScheduleViewModel(_schedulerService, _dialogService, timeProvider);
+        var task = new ScheduledTask();
+        viewModel.SelectedTask = task;
+
+        // Act
+        viewModel.ScheduledDate = new DateTimeOffset(new DateTime(2032, 6, 7));
+        viewModel.ScheduledTime = new TimeSpan(15, 20, 25);
+
+        // Assert
+        task.ScheduledDateTime.Should().Be(new DateTime(2032, 6, 7, 15, 20, 25));
     }
 }

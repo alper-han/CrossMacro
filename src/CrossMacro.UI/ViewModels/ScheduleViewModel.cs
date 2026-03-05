@@ -19,6 +19,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
 {
     private readonly ISchedulerService _schedulerService;
     private readonly IDialogService _dialogService;
+    private readonly ITimeProvider _timeProvider;
     private readonly object _initializeLock = new();
     private Task? _initializeTask;
     private ScheduledTask? _selectedTask;
@@ -109,10 +110,14 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     // Events for global status
     public event EventHandler<string>? StatusChanged;
     
-    public ScheduleViewModel(ISchedulerService schedulerService, IDialogService dialogService)
+    public ScheduleViewModel(
+        ISchedulerService schedulerService,
+        IDialogService dialogService,
+        ITimeProvider timeProvider)
     {
-        _schedulerService = schedulerService;
-        _dialogService = dialogService;
+        _schedulerService = schedulerService ?? throw new ArgumentNullException(nameof(schedulerService));
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         
         // Subscribe to task execution events
         _schedulerService.TaskStarting += OnTaskStarting;
@@ -149,7 +154,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         {
             if (SelectedTask != null && value.HasValue)
             {
-                var current = SelectedTask.ScheduledDateTime ?? DateTime.Now;
+                var current = SelectedTask.ScheduledDateTime ?? _timeProvider.Now;
                 // Preserve time, change date
                 var newDateTime = value.Value.Date + current.TimeOfDay;
                 
@@ -174,7 +179,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         {
             if (SelectedTask != null && value.HasValue)
             {
-                var current = SelectedTask.ScheduledDateTime ?? DateTime.Now;
+                var current = SelectedTask.ScheduledDateTime ?? _timeProvider.Now;
                 // Preserve date, change time (including seconds)
                 var newDateTime = current.Date + value.Value;
                 
@@ -364,4 +369,5 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         _schedulerService.TaskStarting -= OnTaskStarting;
         _schedulerService.TaskExecuted -= OnTaskExecuted;
     }
+
 }

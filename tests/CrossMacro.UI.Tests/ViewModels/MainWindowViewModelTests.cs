@@ -65,7 +65,10 @@ public class MainWindowViewModelTests
         // ScheduleViewModel
         _schedulerService = Substitute.For<ISchedulerService>();
         _schedulerService.LoadAsync().Returns(System.Threading.Tasks.Task.CompletedTask);
-        _scheduleViewModel = new ScheduleViewModel(_schedulerService, dialogService);
+        var timeProvider = Substitute.For<ITimeProvider>();
+        timeProvider.Now.Returns(new DateTime(2026, 1, 1, 10, 0, 0));
+        timeProvider.UtcNow.Returns(new DateTime(2026, 1, 1, 7, 0, 0));
+        _scheduleViewModel = new ScheduleViewModel(_schedulerService, dialogService, timeProvider);
 
         // ShortcutViewModel
         _shortcutService = Substitute.For<IShortcutService>();

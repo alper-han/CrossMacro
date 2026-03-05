@@ -181,9 +181,16 @@ public class DesignMainWindowViewModel : MainWindowViewModel
     {
         public DesignScheduleViewModel() : base(
             new MockSchedulerService(),
-            new MockDialogService())
+            new MockDialogService(),
+            new MockTimeProvider())
         {
         }
+    }
+
+    private sealed class MockTimeProvider : ITimeProvider
+    {
+        public DateTime Now => DateTime.Now;
+        public DateTime UtcNow => DateTime.UtcNow;
     }
 
     private class DesignShortcutViewModel : ShortcutViewModel

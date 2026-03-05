@@ -14,6 +14,8 @@ PACKAGE_VERSION="$(to_filename_version)"
 DEB_VERSION="$(to_deb_version)"
 TARGET_ARCH_RESOLVED="$(get_target_arch)"
 ARCH="${DEB_ARCH:-$(to_deb_arch "$TARGET_ARCH_RESOLVED")}"
+DOTNET_ARCH="$(to_dotnet_arch "$TARGET_ARCH_RESOLVED")"
+DAEMON_RID="linux-$DOTNET_ARCH"
 ELF_INTERPRETER="${ELF_INTERPRETER:-$(get_glibc_interpreter "$TARGET_ARCH_RESOLVED")}"
 PUBLISH_DIR="${PUBLISH_DIR:-../publish}"  # Use env var or default to ../publish
 DEB_DIR="deb_package"
@@ -31,8 +33,16 @@ if [ ! -d "$PUBLISH_DIR" ]; then
     exit 1
 fi
 
+UI_SOURCE_BINARY="$PUBLISH_DIR/CrossMacro.UI"
+if [ ! -f "$UI_SOURCE_BINARY" ]; then
+    echo "Error: UI binary not found in publish directory: $UI_SOURCE_BINARY"
+    exit 1
+fi
+verify_binary_arch "$UI_SOURCE_BINARY" "$TARGET_ARCH_RESOLVED"
+
 echo "Using pre-built binaries from: $PUBLISH_DIR"
 echo "Packaging architecture: $ARCH (target: $TARGET_ARCH_RESOLVED)"
+echo "Daemon publish RID: $DAEMON_RID"
 
 # 2. Create Directory Structure
 echo "Creating directory structure..."
@@ -75,14 +85,25 @@ if [ "\$1" = "configure" ]; then
         addgroup --system crossmacro || true
     fi
 
+    input_group=""
+    if getent group input >/dev/null; then
+        input_group="input"
+    fi
+
     # Create user if not exists
     if ! getent passwd crossmacro >/dev/null; then
-        adduser --system --no-create-home --ingroup input --disabled-login crossmacro || true
+        if [ -n "\$input_group" ]; then
+            adduser --system --no-create-home --ingroup "\$input_group" --disabled-login crossmacro || true
+        else
+            adduser --system --no-create-home --ingroup crossmacro --disabled-login crossmacro || true
+        fi
         adduser crossmacro crossmacro 2>/dev/null || true
     fi
     
-    # Ensure user is in input group and crossmacro group
-    usermod -aG input crossmacro 2>/dev/null || true
+    # Ensure user is in required groups
+    if [ -n "\$input_group" ]; then
+        usermod -aG "\$input_group" crossmacro 2>/dev/null || true
+    fi
     usermod -aG crossmacro crossmacro 2>/dev/null || true
 
     # Debian policy compliant systemd integration
@@ -98,7 +119,11 @@ if [ "\$1" = "configure" ]; then
     
     echo "CrossMacro Daemon installed and started."
     echo "NOTE: Add your user to 'crossmacro' group to communicate with the daemon:"
-    echo "      sudo usermod -aG crossmacro \$SUDO_USER"
+    if [ -n "\${SUDO_USER:-}" ]; then
+        echo "      sudo usermod -aG crossmacro \$SUDO_USER"
+    else
+        echo "      sudo usermod -aG crossmacro <your-username>"
+    fi
 fi
 EOF
 chmod 755 "$DEB_DIR/DEBIAN/postinst"
@@ -141,6 +166,8 @@ chmod 755 "$DEB_DIR/DEBIAN/postrm"
 echo "Copying UI files..."
 # Copy binaries to /usr/lib/crossmacro
 cp -r "$PUBLISH_DIR/"* "$DEB_DIR/usr/lib/$APP_NAME/"
+PACKAGED_UI_BINARY="$DEB_DIR/usr/lib/$APP_NAME/CrossMacro.UI"
+verify_binary_arch "$PACKAGED_UI_BINARY" "$TARGET_ARCH_RESOLVED"
 
 # Patch UI binary for non-NixOS systems
 if command -v patchelf >/dev/null; then
@@ -162,8 +189,14 @@ if [ -n "${DAEMON_DIR:-}" ] && [ -d "${DAEMON_DIR:-}" ]; then
     cp -r "$DAEMON_DIR/"* "$DEB_DIR/usr/lib/$APP_NAME/daemon/"
 else
     echo "Building Daemon (DAEMON_DIR not set)..."
-    dotnet publish ../src/CrossMacro.Daemon/CrossMacro.Daemon.csproj -c Release -p:Version=$VERSION -o "$DEB_DIR/usr/lib/$APP_NAME/daemon"
+    dotnet publish ../src/CrossMacro.Daemon/CrossMacro.Daemon.csproj \
+        -c Release \
+        -r "$DAEMON_RID" \
+        -p:Version=$VERSION \
+        -o "$DEB_DIR/usr/lib/$APP_NAME/daemon"
 fi
+PACKAGED_DAEMON_BINARY="$DEB_DIR/usr/lib/$APP_NAME/daemon/CrossMacro.Daemon"
+verify_binary_arch "$PACKAGED_DAEMON_BINARY" "$TARGET_ARCH_RESOLVED"
 
 # Patch Daemon binary for non-NixOS systems
 if command -v patchelf >/dev/null; then

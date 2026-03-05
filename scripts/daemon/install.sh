@@ -48,13 +48,26 @@ if ! getent group crossmacro >/dev/null; then
   groupadd -r crossmacro
 fi
 
+INPUT_GROUP=""
+if getent group input >/dev/null; then
+    INPUT_GROUP="input"
+else
+    echo "   Warning: 'input' group not found; using 'crossmacro' as primary daemon group."
+fi
+
 if ! id "crossmacro" &>/dev/null; then
   echo "   Creating system user 'crossmacro'..."
-  useradd -r -s /bin/false -g input -G crossmacro crossmacro
+  if [ -n "$INPUT_GROUP" ]; then
+      useradd -r -s /bin/false -g "$INPUT_GROUP" -G crossmacro crossmacro
+  else
+      useradd -r -s /bin/false -g crossmacro crossmacro
+  fi
 fi
 
 # Ensure daemon user is in both required groups
-usermod -aG input crossmacro 2>/dev/null || echo "   Warning: Failed to add to input group"
+if [ -n "$INPUT_GROUP" ]; then
+    usermod -aG "$INPUT_GROUP" crossmacro 2>/dev/null || echo "   Warning: Failed to add to input group"
+fi
 usermod -aG crossmacro crossmacro 2>/dev/null || echo "   Warning: Failed to add to crossmacro group"
 
 

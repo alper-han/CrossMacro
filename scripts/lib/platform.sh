@@ -139,3 +139,70 @@ get_glibc_interpreter() {
             ;;
     esac
 }
+
+map_elf_machine_to_arch() {
+    local machine="${1:-}"
+    case "$machine" in
+        "Advanced Micro Devices X86-64"|x86-64|X86-64|x86_64)
+            echo "x86_64"
+            ;;
+        AArch64|aarch64)
+            echo "aarch64"
+            ;;
+        *)
+            echo "Error: Unsupported ELF machine '$machine'." >&2
+            return 1
+            ;;
+    esac
+}
+
+detect_binary_arch() {
+    local binary_path="${1:-}"
+    if [ -z "$binary_path" ] || [ ! -f "$binary_path" ]; then
+        echo "Error: Binary not found: '$binary_path'." >&2
+        return 1
+    fi
+
+    local machine=""
+    if command -v readelf >/dev/null; then
+        machine="$(LC_ALL=C readelf -h "$binary_path" 2>/dev/null | awk -F: '/Machine:/ {gsub(/^[ \t]+/, "", $2); print $2; exit}')"
+    fi
+
+    if [ -n "$machine" ]; then
+        map_elf_machine_to_arch "$machine"
+        return $?
+    fi
+
+    if command -v file >/dev/null; then
+        local file_output
+        file_output="$(LC_ALL=C file -Lb "$binary_path" 2>/dev/null || true)"
+        case "$file_output" in
+            *x86-64*)
+                echo "x86_64"
+                return 0
+                ;;
+            *AArch64*|*aarch64*)
+                echo "aarch64"
+                return 0
+                ;;
+        esac
+    fi
+
+    echo "Error: Could not detect architecture for '$binary_path'." >&2
+    return 1
+}
+
+verify_binary_arch() {
+    local binary_path="${1:-}"
+    local expected_arch
+    expected_arch="$(normalize_arch "${2:-$(get_target_arch)}")"
+
+    local detected_arch
+    detected_arch="$(detect_binary_arch "$binary_path")" || return 1
+    detected_arch="$(normalize_arch "$detected_arch")"
+
+    if [ "$detected_arch" != "$expected_arch" ]; then
+        echo "Error: Binary architecture mismatch for '$binary_path': detected '$detected_arch', expected '$expected_arch'." >&2
+        return 1
+    fi
+}

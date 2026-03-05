@@ -81,12 +81,17 @@ install -m 0644 %{_sourcedir}/crossmacro.1 %{buildroot}%{_mandir}/man1/crossmacr
 %pre
 # Create group and user if they don't exist
 getent group crossmacro >/dev/null || groupadd -r crossmacro
-getent passwd crossmacro >/dev/null || \
-    useradd -r -g input -G crossmacro -s /sbin/nologin \
-    -c "CrossMacro Input Daemon User" crossmacro
-# Ensure groups
-usermod -aG input crossmacro
-usermod -aG crossmacro crossmacro
+if getent group input >/dev/null; then
+    getent passwd crossmacro >/dev/null || \
+        useradd -r -g input -G crossmacro -s /sbin/nologin \
+        -c "CrossMacro Input Daemon User" crossmacro
+    usermod -aG input crossmacro || :
+else
+    getent passwd crossmacro >/dev/null || \
+        useradd -r -g crossmacro -s /sbin/nologin \
+        -c "CrossMacro Input Daemon User" crossmacro
+fi
+usermod -aG crossmacro crossmacro || :
 
 %post
 # systemd_post equivalent

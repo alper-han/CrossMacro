@@ -15,6 +15,8 @@ RPM_RELEASE="$(to_rpm_release)"
 PACKAGE_VERSION="$(to_filename_version)"
 TARGET_ARCH_RESOLVED="$(get_target_arch)"
 RPM_ARCH="${RPM_ARCH:-$(to_rpm_arch "$TARGET_ARCH_RESOLVED")}"
+DOTNET_ARCH="$(to_dotnet_arch "$TARGET_ARCH_RESOLVED")"
+DAEMON_RID="linux-$DOTNET_ARCH"
 ELF_INTERPRETER="${ELF_INTERPRETER:-$(get_glibc_interpreter "$TARGET_ARCH_RESOLVED")}"
 PUBLISH_DIR="${PUBLISH_DIR:-../publish}"  # Use env var or default to ../publish
 RPM_BUILD_DIR="rpm_build"
@@ -30,8 +32,16 @@ if [ ! -d "$PUBLISH_DIR" ]; then
     exit 1
 fi
 
+UI_SOURCE_BINARY="$PUBLISH_DIR/CrossMacro.UI"
+if [ ! -f "$UI_SOURCE_BINARY" ]; then
+    echo "Error: UI binary not found in publish directory: $UI_SOURCE_BINARY"
+    exit 1
+fi
+verify_binary_arch "$UI_SOURCE_BINARY" "$TARGET_ARCH_RESOLVED"
+
 echo "Using pre-built binaries from: $PUBLISH_DIR"
 echo "Packaging architecture: $RPM_ARCH (target: $TARGET_ARCH_RESOLVED)"
+echo "Daemon publish RID: $DAEMON_RID"
 
 # 1. Prepare RPM Build Directory
 echo "Preparing RPM build directory..."
@@ -40,6 +50,8 @@ mkdir -p "$RPM_BUILD_DIR"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 # 2. Copy Assets to SOURCES
 echo "Copying assets..."
 cp -r "$PUBLISH_DIR" "$RPM_BUILD_DIR/SOURCES/publish"
+PACKAGED_UI_BINARY="$RPM_BUILD_DIR/SOURCES/publish/CrossMacro.UI"
+verify_binary_arch "$PACKAGED_UI_BINARY" "$TARGET_ARCH_RESOLVED"
 
 # Patch UI binary for non-NixOS systems
 if command -v patchelf >/dev/null; then
@@ -61,8 +73,14 @@ if [ -n "${DAEMON_DIR:-}" ] && [ -d "${DAEMON_DIR:-}" ]; then
     cp -r "$DAEMON_DIR/"* "$RPM_BUILD_DIR/SOURCES/daemon/"
 else
     echo "Building Daemon (DAEMON_DIR not set)..."
-    dotnet publish ../src/CrossMacro.Daemon/CrossMacro.Daemon.csproj -c Release -p:Version=$VERSION -o "$RPM_BUILD_DIR/SOURCES/daemon"
+    dotnet publish ../src/CrossMacro.Daemon/CrossMacro.Daemon.csproj \
+        -c Release \
+        -r "$DAEMON_RID" \
+        -p:Version=$VERSION \
+        -o "$RPM_BUILD_DIR/SOURCES/daemon"
 fi
+PACKAGED_DAEMON_BINARY="$RPM_BUILD_DIR/SOURCES/daemon/CrossMacro.Daemon"
+verify_binary_arch "$PACKAGED_DAEMON_BINARY" "$TARGET_ARCH_RESOLVED"
 
 # Patch Daemon binary for non-NixOS systems
 if command -v patchelf >/dev/null; then

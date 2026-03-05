@@ -1,12 +1,8 @@
 using System;
 using System.Threading.Tasks;
-using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Recording.Processors;
-using CrossMacro.Core.Services.Recording.Strategies;
-using CrossMacro.Core.Services.TextExpansion;
+using CrossMacro.Infrastructure.DependencyInjection;
 using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Services.TextExpansion;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Cli.DependencyInjection;
@@ -29,107 +25,19 @@ public static class CliRuntimeServiceCollectionExtensions
 
     private static IServiceCollection AddCommonServices(this IServiceCollection services)
     {
-        services.AddSingleton<IRuntimeContext, RuntimeContext>();
-        services.AddSingleton<IHotkeyConfigurationService, HotkeyConfigurationService>();
-        services.AddSingleton<ISettingsService, SettingsService>();
-        services.AddSingleton<HotkeySettings>(sp =>
-            sp.GetRequiredService<IHotkeyConfigurationService>().Load());
-        services.AddSingleton<ITimeProvider, SystemTimeProvider>();
-        services.AddSingleton<IMacroFileManager, MacroFileManager>();
-
-        services.AddSingleton<Func<ICoordinateStrategy, IInputEventProcessor>>(sp =>
-            strategy => new StandardInputEventProcessor(strategy));
-
-        services.AddTransient<IMacroRecorder>(sp =>
-        {
-            var captureFactory = sp.GetService<Func<IInputCapture>>();
-            var strategyFactory = sp.GetRequiredService<ICoordinateStrategyFactory>();
-            var processorFactory = sp.GetRequiredService<Func<ICoordinateStrategy, IInputEventProcessor>>();
-            var simulatorFactory = sp.GetService<Func<IInputSimulator>>();
-
-            return new MacroRecorder(
-                captureFactory,
-                strategyFactory,
-                processorFactory,
-                simulatorFactory);
-        });
-
-        return services;
+        return services.AddCrossMacroCommonRuntimeServices();
     }
 
     private static IServiceCollection AddCliPostPlatformServices(
         this IServiceCollection services,
         CliRuntimeProfile runtimeProfile)
     {
-        services.AddSingleton<IKeyCodeMapper, KeyCodeMapper>();
-        services.AddSingleton<IMouseButtonMapper, MouseButtonMapper>();
-        services.AddSingleton<IModifierStateTracker, ModifierStateTracker>();
-        services.AddSingleton<IHotkeyParser, HotkeyParser>();
-        services.AddSingleton<IHotkeyStringBuilder, HotkeyStringBuilder>();
-        services.AddSingleton<IHotkeyMatcher, HotkeyMatcher>();
-
-        services.AddSingleton<IGlobalHotkeyService>(sp =>
-        {
-            var configService = sp.GetRequiredService<IHotkeyConfigurationService>();
-            var hotkeyParser = sp.GetRequiredService<IHotkeyParser>();
-            var hotkeyMatcher = sp.GetRequiredService<IHotkeyMatcher>();
-            var modifierTracker = sp.GetRequiredService<IModifierStateTracker>();
-            var hotkeyStringBuilder = sp.GetRequiredService<IHotkeyStringBuilder>();
-            var mouseButtonMapper = sp.GetRequiredService<IMouseButtonMapper>();
-            var captureFactory = sp.GetService<Func<IInputCapture>>();
-
-            return new GlobalHotkeyService(
-                configService,
-                hotkeyParser,
-                hotkeyMatcher,
-                modifierTracker,
-                hotkeyStringBuilder,
-                mouseButtonMapper,
-                captureFactory);
-        });
-
-        services.AddTransient<PlaybackValidator>();
-
-        services.AddTransient<IMacroPlayer>(sp =>
-        {
-            var positionProvider = sp.GetRequiredService<IMousePositionProvider>();
-            var validator = sp.GetRequiredService<PlaybackValidator>();
-            var factory = sp.GetService<Func<IInputSimulator>>();
-            var pool = runtimeProfile == CliRuntimeProfile.Persistent
+        services.AddCrossMacroSharedPostPlatformRuntimeServices(
+            sp => runtimeProfile == CliRuntimeProfile.Persistent
                 ? sp.GetService<InputSimulatorPool>()
-                : null;
-            var playbackBehaviorPolicy = sp.GetService<IPlaybackBehaviorPolicy>();
-            return new MacroPlayer(
-                positionProvider,
-                validator,
-                inputSimulatorFactory: factory,
-                simulatorPool: pool,
-                playbackBehaviorPolicy: playbackBehaviorPolicy);
-        });
-
-        services.AddSingleton<Func<IMacroPlayer>>(sp => () => sp.GetRequiredService<IMacroPlayer>());
+                : null);
 
         RegisterCliClipboardServices(services);
-
-        services.AddSingleton<IScheduledTaskRepository, JsonScheduledTaskRepository>();
-        services.AddSingleton<IScheduledTaskExecutor, MacroScheduledTaskExecutor>();
-        services.AddSingleton<ISchedulerService, SchedulerService>();
-        services.AddSingleton<IShortcutService, ShortcutService>();
-        services.AddSingleton<ITextExpansionStorageService, TextExpansionStorageService>();
-
-        services.AddTransient<IInputProcessor, InputProcessor>();
-        services.AddTransient<ITextBufferState, TextBufferState>();
-        services.AddTransient<ITextExpansionExecutor, TextExpansionExecutor>();
-        services.AddSingleton<ITextExpansionService, TextExpansionService>();
-
-        services.AddSingleton<IEditorActionConverter, EditorActionConverter>();
-        services.AddSingleton<IEditorActionValidator, EditorActionValidator>();
-        services.AddSingleton<ICoordinateCaptureService>(sp =>
-        {
-            var positionProvider = sp.GetRequiredService<IMousePositionProvider>();
-            var captureFactory = sp.GetService<Func<IInputCapture>>();
-            return new CoordinateCaptureService(positionProvider, captureFactory);
-        });
 
         return services;
     }

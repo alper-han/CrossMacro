@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/version.sh
 source "$SCRIPT_DIR/lib/version.sh"
+# shellcheck source=scripts/lib/platform.sh
+source "$SCRIPT_DIR/lib/platform.sh"
 
 # Configuration
 APP_NAME="crossmacro"
@@ -11,6 +13,9 @@ VERSION="$(get_version)"
 RPM_VERSION="$(to_rpm_version)"
 RPM_RELEASE="$(to_rpm_release)"
 PACKAGE_VERSION="$(to_filename_version)"
+TARGET_ARCH_RESOLVED="$(get_target_arch)"
+RPM_ARCH="${RPM_ARCH:-$(to_rpm_arch "$TARGET_ARCH_RESOLVED")}"
+ELF_INTERPRETER="${ELF_INTERPRETER:-$(get_glibc_interpreter "$TARGET_ARCH_RESOLVED")}"
 PUBLISH_DIR="${PUBLISH_DIR:-../publish}"  # Use env var or default to ../publish
 RPM_BUILD_DIR="rpm_build"
 ICON_PATH="../src/CrossMacro.UI/Assets/mouse-icon.png"
@@ -26,6 +31,7 @@ if [ ! -d "$PUBLISH_DIR" ]; then
 fi
 
 echo "Using pre-built binaries from: $PUBLISH_DIR"
+echo "Packaging architecture: $RPM_ARCH (target: $TARGET_ARCH_RESOLVED)"
 
 # 1. Prepare RPM Build Directory
 echo "Preparing RPM build directory..."
@@ -37,8 +43,12 @@ cp -r "$PUBLISH_DIR" "$RPM_BUILD_DIR/SOURCES/publish"
 
 # Patch UI binary for non-NixOS systems
 if command -v patchelf >/dev/null; then
-    echo "Patching UI binary interpreter..."
-    patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 "$RPM_BUILD_DIR/SOURCES/publish/CrossMacro.UI"
+    if [ -n "$ELF_INTERPRETER" ]; then
+        echo "Patching UI binary interpreter: $ELF_INTERPRETER"
+        patchelf --set-interpreter "$ELF_INTERPRETER" "$RPM_BUILD_DIR/SOURCES/publish/CrossMacro.UI"
+    else
+        echo "Warning: No known glibc interpreter for target '$TARGET_ARCH_RESOLVED'; skipping patchelf."
+    fi
 fi
 
 # Build and Copy Daemon
@@ -46,7 +56,7 @@ echo "Copying Daemon files..."
 mkdir -p "$RPM_BUILD_DIR/SOURCES/daemon"
 
 # If DAEMON_DIR is provided, use pre-built daemon; otherwise build it
-if [ -n "$DAEMON_DIR" ] && [ -d "$DAEMON_DIR" ]; then
+if [ -n "${DAEMON_DIR:-}" ] && [ -d "${DAEMON_DIR:-}" ]; then
     echo "Using pre-built daemon from: $DAEMON_DIR"
     cp -r "$DAEMON_DIR/"* "$RPM_BUILD_DIR/SOURCES/daemon/"
 else
@@ -56,8 +66,12 @@ fi
 
 # Patch Daemon binary for non-NixOS systems
 if command -v patchelf >/dev/null; then
-    echo "Patching Daemon binary interpreter..."
-    patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 "$RPM_BUILD_DIR/SOURCES/daemon/CrossMacro.Daemon"
+    if [ -n "$ELF_INTERPRETER" ]; then
+        echo "Patching Daemon binary interpreter: $ELF_INTERPRETER"
+        patchelf --set-interpreter "$ELF_INTERPRETER" "$RPM_BUILD_DIR/SOURCES/daemon/CrossMacro.Daemon"
+    else
+        echo "Warning: No known glibc interpreter for target '$TARGET_ARCH_RESOLVED'; skipping patchelf."
+    fi
 fi
 
 cp "$ICON_PATH" "$RPM_BUILD_DIR/SOURCES/crossmacro.png"
@@ -82,13 +96,14 @@ echo "Building RPM package..."
 if command -v rpmbuild &> /dev/null; then
     rpmbuild --define "_topdir $(pwd)/$RPM_BUILD_DIR" \
              --define "_sourcedir $(pwd)/$RPM_BUILD_DIR/SOURCES" \
+             --define "_target_cpu $RPM_ARCH" \
              --define "version $RPM_VERSION" \
              --define "release $RPM_RELEASE" \
              --nodeps \
              -bb "$RPM_BUILD_DIR/SPECS/crossmacro.spec"
     
     # Copy RPM to scripts directory for GitHub release
-    cp "$RPM_BUILD_DIR"/RPMS/x86_64/*.rpm .
+    cp "$RPM_BUILD_DIR"/RPMS/"$RPM_ARCH"/*.rpm .
     echo "RPM package created for version: $PACKAGE_VERSION"
 else
     echo "Error: rpmbuild not found. Cannot build .rpm package."

@@ -13,7 +13,14 @@ Source4:        crossmacro-modules.conf
 Source5:        io.github.alper_han.crossmacro.policy
 Source6:        crossmacro.1
 
-BuildArch:      x86_64
+# Do not strip .NET single-file bundles during RPM post-processing.
+# Stripping can corrupt apphost bundles (observed on aarch64 builds).
+%global debug_package %{nil}
+%global _build_id_links none
+%global __strip /bin/true
+%global __debug_install_post %{nil}
+
+BuildArch:      %{_target_cpu}
 AutoReqProv:    no
 Requires:       glibc, libstdc++, polkit, libXtst, zlib, openssl-libs, systemd-libs
 BuildRequires:  checkpolicy, semodule-utils

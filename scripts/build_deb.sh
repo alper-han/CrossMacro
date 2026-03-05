@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/version.sh
 source "$SCRIPT_DIR/lib/version.sh"
+# shellcheck source=scripts/lib/platform.sh
+source "$SCRIPT_DIR/lib/platform.sh"
 
 # Configuration
 APP_NAME="crossmacro"
 VERSION="$(get_version)"
 PACKAGE_VERSION="$(to_filename_version)"
 DEB_VERSION="$(to_deb_version)"
-ARCH="amd64"
+TARGET_ARCH_RESOLVED="$(get_target_arch)"
+ARCH="${DEB_ARCH:-$(to_deb_arch "$TARGET_ARCH_RESOLVED")}"
+ELF_INTERPRETER="${ELF_INTERPRETER:-$(get_glibc_interpreter "$TARGET_ARCH_RESOLVED")}"
 PUBLISH_DIR="${PUBLISH_DIR:-../publish}"  # Use env var or default to ../publish
 DEB_DIR="deb_package"
 ICON_PATH="../src/CrossMacro.UI/Assets/mouse-icon.png"
@@ -28,6 +32,7 @@ if [ ! -d "$PUBLISH_DIR" ]; then
 fi
 
 echo "Using pre-built binaries from: $PUBLISH_DIR"
+echo "Packaging architecture: $ARCH (target: $TARGET_ARCH_RESOLVED)"
 
 # 2. Create Directory Structure
 echo "Creating directory structure..."
@@ -139,8 +144,12 @@ cp -r "$PUBLISH_DIR/"* "$DEB_DIR/usr/lib/$APP_NAME/"
 
 # Patch UI binary for non-NixOS systems
 if command -v patchelf >/dev/null; then
-    echo "Patching UI binary interpreter..."
-    patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 "$DEB_DIR/usr/lib/$APP_NAME/CrossMacro.UI"
+    if [ -n "$ELF_INTERPRETER" ]; then
+        echo "Patching UI binary interpreter: $ELF_INTERPRETER"
+        patchelf --set-interpreter "$ELF_INTERPRETER" "$DEB_DIR/usr/lib/$APP_NAME/CrossMacro.UI"
+    else
+        echo "Warning: No known glibc interpreter for target '$TARGET_ARCH_RESOLVED'; skipping patchelf."
+    fi
 fi
 
 # Build and Copy Daemon
@@ -148,7 +157,7 @@ echo "Copying Daemon files..."
 mkdir -p "$DEB_DIR/usr/lib/$APP_NAME/daemon"
 
 # If DAEMON_DIR is provided, use pre-built daemon; otherwise build it
-if [ -n "$DAEMON_DIR" ] && [ -d "$DAEMON_DIR" ]; then
+if [ -n "${DAEMON_DIR:-}" ] && [ -d "${DAEMON_DIR:-}" ]; then
     echo "Using pre-built daemon from: $DAEMON_DIR"
     cp -r "$DAEMON_DIR/"* "$DEB_DIR/usr/lib/$APP_NAME/daemon/"
 else
@@ -158,8 +167,12 @@ fi
 
 # Patch Daemon binary for non-NixOS systems
 if command -v patchelf >/dev/null; then
-    echo "Patching Daemon binary interpreter..."
-    patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 "$DEB_DIR/usr/lib/$APP_NAME/daemon/CrossMacro.Daemon"
+    if [ -n "$ELF_INTERPRETER" ]; then
+        echo "Patching Daemon binary interpreter: $ELF_INTERPRETER"
+        patchelf --set-interpreter "$ELF_INTERPRETER" "$DEB_DIR/usr/lib/$APP_NAME/daemon/CrossMacro.Daemon"
+    else
+        echo "Warning: No known glibc interpreter for target '$TARGET_ARCH_RESOLVED'; skipping patchelf."
+    fi
 fi
 
 # Ensure binaries have executable permissions

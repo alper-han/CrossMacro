@@ -3,7 +3,7 @@ pkgname=crossmacro
 pkgver=0.9.8
 pkgrel=1
 pkgdesc="Cross-platform mouse and keyboard macro automation tool"
-arch=('x86_64')
+arch=('x86_64' 'aarch64')
 url="https://github.com/alper-han/CrossMacro"
 license=('GPL-3.0-only')
 depends=('glibc' 'gcc-libs' 'zlib' 'openssl' 'fontconfig' 'libx11' 'libxcursor' 'libxrandr' 'polkit' 'libxtst' 'systemd-libs')
@@ -19,14 +19,27 @@ install=crossmacro.install
 
 build() {
     cd "CrossMacro-${pkgver}"
+    local target_rid
+    case "${CARCH}" in
+        x86_64)
+            target_rid="linux-x64"
+            ;;
+        aarch64)
+            target_rid="linux-arm64"
+            ;;
+        *)
+            echo "Unsupported architecture: ${CARCH}" >&2
+            return 1
+            ;;
+    esac
     
     export DOTNET_SKIP_WORKLOAD_INTEGRITY_CHECK=1
-    dotnet restore -r linux-x64
+    dotnet restore -r "$target_rid"
     
     # Build UI
     dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj \
         -c Release \
-        -r linux-x64 \
+        -r "$target_rid" \
         --self-contained true \
         -p:PublishSingleFile=true \
         -p:PublishTrimmed=true \
@@ -39,7 +52,7 @@ build() {
     # Build Daemon
     dotnet publish src/CrossMacro.Daemon/CrossMacro.Daemon.csproj \
         -c Release \
-        -r linux-x64 \
+        -r "$target_rid" \
         -o publish-daemon/
 }
 

@@ -62,4 +62,27 @@ public class PathHelperTests
             Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", originalValue);
         }
     }
+
+    [LinuxFact]
+    public void GetConfigDirectory_WhenXDGConfigHomeIsWhitespace_FallsBackToDefaultLinuxPath()
+    {
+        string? originalValue = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+
+        try
+        {
+            Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", "   ");
+
+            var result = PathHelper.GetConfigDirectory();
+            var expected = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".config",
+                AppConstants.AppIdentifier);
+
+            Assert.Equal(expected, result);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", originalValue);
+        }
+    }
 }

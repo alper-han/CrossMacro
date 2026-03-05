@@ -6,7 +6,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer
 {
     /// <summary>
     /// Fallback position provider using "Corner Reset" hack
-    /// TODO: Implement position tracking via corner reset
+    /// TODO: Implement position tracking via corner reset.
     /// </summary>
     public class FallbackPositionProvider : IMousePositionProvider
     {

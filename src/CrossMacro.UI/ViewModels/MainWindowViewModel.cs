@@ -19,6 +19,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IMousePositionProvider _positionProvider;
     private readonly IExternalUrlOpener _externalUrlOpener;
     private readonly IExtensionStatusNotifier? _extensionNotifier;
+    private readonly IUpdateService? _updateService;
     
     private string? _extensionWarning;
     private bool _hasExtensionWarning;
@@ -161,7 +162,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         IMousePositionProvider positionProvider,
         IEnvironmentInfoProvider environmentInfo,
         IExternalUrlOpener externalUrlOpener,
-        IExtensionStatusNotifier? extensionNotifier = null)
+        IExtensionStatusNotifier? extensionNotifier = null,
+        IUpdateService? updateService = null)
     {
         Recording = recording;
         Playback = playback;
@@ -175,6 +177,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _positionProvider = positionProvider;
         _externalUrlOpener = externalUrlOpener;
         _extensionNotifier = extensionNotifier;
+        _updateService = updateService;
         
         // Use abstraction for close button visibility (DIP: depends on Core interface)
         IsCloseButtonVisible = !environmentInfo.WindowManagerHandlesCloseButton;
@@ -274,10 +277,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             // Check if updates are enabled in settings
             if (!Settings.CheckForUpdates) return;
 
-            var updateService = (Avalonia.Application.Current as App)?.Services?.GetService(typeof(IUpdateService)) as IUpdateService;
-            if (updateService == null) return;
+            if (_updateService == null) return;
 
-            var result = await updateService.CheckForUpdatesAsync();
+            var result = await _updateService.CheckForUpdatesAsync();
             if (result.HasUpdate)
             {
                 Dispatcher.UIThread.Post(() =>
@@ -400,7 +402,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         // Subscribe via Core interface - no platform-specific type checking needed
         if (_extensionNotifier != null)
         {
-            _extensionNotifier.ExtensionStatusChanged += OnExtensionStatusChanged;
+            _extensionNotifier.ExtensionStatusUpdated += OnExtensionStatusUpdated;
         }
     }
     
@@ -443,15 +445,15 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
     
-    private void OnExtensionStatusChanged(object? sender, string message)
+    private void OnExtensionStatusUpdated(object? sender, ExtensionStatusChangedEventArgs e)
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (message.Contains("enabled successfully"))
+            if (e.Code == ExtensionStatusCode.Enabled)
             {
                 NotificationManager?.Show(new Notification(
                     "GNOME Extension", 
-                    message, 
+                    e.Message, 
                     NotificationType.Success,
                     TimeSpan.FromSeconds(3)));
                 
@@ -464,7 +466,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
                 return;
             }
             
-            _gnomeWarning = message;
+            _gnomeWarning = e.Message;
             UpdateCombinedWarning();
         });
     }
@@ -513,12 +515,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     {
         Dispatcher.UIThread.Post(() =>
         {
-            // Suggest fix for common daemon error
-            string message = error;
-            if (error.Contains("daemon") || error.Contains("socket"))
-            {
-                message += "\n\nTry running: sudo systemctl start crossmacro";
-            }
+            var message = error + "\n\nTroubleshooting: check daemon status with `systemctl status crossmacro`.";
             
             NotificationManager?.Show(new Notification(
                 "Backend Error",
@@ -542,7 +539,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         // Unsubscribe from extension status events
         if (_extensionNotifier != null)
         {
-            _extensionNotifier.ExtensionStatusChanged -= OnExtensionStatusChanged;
+            _extensionNotifier.ExtensionStatusUpdated -= OnExtensionStatusUpdated;
         }
         
         // Dispose child ViewModels that implement IDisposable

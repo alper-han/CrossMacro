@@ -12,8 +12,13 @@ namespace CrossMacro.Core.Services;
 public interface IExtensionStatusNotifier
 {
     /// <summary>
-    /// Fired when extension status changes (e.g., GNOME extension enabled/disabled).
-    /// Message contains status text for UI display.
+    /// Fired when extension status changes with structured severity code.
+    /// </summary>
+    event EventHandler<ExtensionStatusChangedEventArgs>? ExtensionStatusUpdated;
+
+    /// <summary>
+    /// Legacy string-only event kept for backward compatibility.
+    /// New consumers should use <see cref="ExtensionStatusUpdated"/>.
     /// </summary>
     event EventHandler<string>? ExtensionStatusChanged;
 }

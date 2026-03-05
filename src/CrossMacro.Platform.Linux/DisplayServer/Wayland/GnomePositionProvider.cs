@@ -102,6 +102,7 @@ export default class CursorSpyExtension extends Extension {
         private (int Width, int Height)? _cachedResolution;
         private bool _disposed;
         
+        public event EventHandler<ExtensionStatusChangedEventArgs>? ExtensionStatusUpdated;
         public event EventHandler<string>? ExtensionStatusChanged;
 
         public string ProviderName => "GNOME Shell Extension (DBus)";
@@ -179,7 +180,7 @@ export default class CursorSpyExtension extends Extension {
             catch (Exception ex)
             {
                 Log.Error(ex, "[GnomePositionProvider] Failed to install GNOME extension");
-                ExtensionStatusChanged?.Invoke(this, "Failed to install GNOME extension");
+                PublishExtensionStatus(ExtensionStatusCode.Error, "Failed to install GNOME extension");
             }
         }
 
@@ -263,7 +264,7 @@ export default class CursorSpyExtension extends Extension {
                     if (isEnabled)
                     {
                         Log.Information("[GnomePositionProvider] Extension enabled and verified successfully via DBus");
-                        ExtensionStatusChanged?.Invoke(this, "GNOME extension enabled successfully");
+                        PublishExtensionStatus(ExtensionStatusCode.Enabled, "GNOME extension enabled successfully");
                     }
                     else
                     {
@@ -286,6 +287,13 @@ export default class CursorSpyExtension extends Extension {
         private void NotifyExtensionIssue(string message)
         {
             Log.Warning("[GnomePositionProvider] {Message}", message);
+            PublishExtensionStatus(ExtensionStatusCode.Warning, message);
+        }
+
+        private void PublishExtensionStatus(ExtensionStatusCode code, string message)
+        {
+            var args = new ExtensionStatusChangedEventArgs(code, message);
+            ExtensionStatusUpdated?.Invoke(this, args);
             ExtensionStatusChanged?.Invoke(this, message);
         }
 

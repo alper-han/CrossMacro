@@ -251,4 +251,18 @@ public class StandardInputEventProcessorTests
     }
 
     #endregion
+
+    [Fact]
+    public void Process_UnknownInputType_ShouldReturnNull()
+    {
+        // Arrange
+        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((50, 60));
+        var args = new InputCaptureEventArgs { Type = InputEventType.Unknown, Code = 999, Value = 1 };
+
+        // Act
+        var result = _processor.Process(args, timestamp: 1000);
+
+        // Assert
+        result.Should().BeNull();
+    }
 }

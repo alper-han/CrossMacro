@@ -230,6 +230,6 @@ public class SessionHandler : ISessionHandler
         if (type == UInputNative.EV_SYN) 
             return (byte)InputEventType.Sync;
         
-        return 0; 
+        return (byte)InputEventType.Unknown;
     }
 }

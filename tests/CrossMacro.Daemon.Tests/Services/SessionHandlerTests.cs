@@ -153,6 +153,54 @@ public sealed class SessionHandlerTests
         await runTask.WaitAsync(TimeSpan.FromSeconds(2));
     }
 
+    [LinuxFact]
+    public async Task RunAsync_WhenCaptureManagerEmitsUnknownInputType_ShouldForwardUnknownEventType()
+    {
+        var security = new FakeSecurityService();
+        var virtualDevice = new FakeVirtualDeviceManager();
+        var captureManager = new FakeInputCaptureManager();
+        var handler = new SessionHandler(security, virtualDevice, captureManager);
+
+        await using var socketPair = await UnixSocketPair.CreateAsync();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1003, pid: 5432, cts.Token);
+        using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
+        stream.ReadTimeout = 2000;
+        using var reader = new BinaryReader(stream);
+        using var writer = new BinaryWriter(stream);
+
+        writer.Write((byte)IpcOpCode.Handshake);
+        writer.Write(IpcProtocol.ProtocolVersion);
+        writer.Flush();
+
+        Assert.Equal(IpcOpCode.Handshake, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(IpcProtocol.ProtocolVersion, reader.ReadInt32());
+
+        writer.Write((byte)IpcOpCode.StartCapture);
+        writer.Write(true);
+        writer.Write(true);
+        writer.Flush();
+
+        await captureManager.WaitForStartCaptureAsync(TimeSpan.FromSeconds(2));
+
+        captureManager.Emit(new UInputNative.input_event
+        {
+            type = 0x99,
+            code = 123,
+            value = 77
+        });
+
+        Assert.Equal(IpcOpCode.InputEvent, (IpcOpCode)reader.ReadByte());
+        Assert.Equal((byte)InputEventType.Unknown, reader.ReadByte());
+        Assert.Equal(123, reader.ReadInt32());
+        Assert.Equal(77, reader.ReadInt32());
+        Assert.True(reader.ReadInt64() > 0);
+
+        socketPair.Client.Dispose();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+    }
+
     private sealed class FakeSecurityService : ISecurityService
     {
         public int CaptureStartCalls { get; private set; }

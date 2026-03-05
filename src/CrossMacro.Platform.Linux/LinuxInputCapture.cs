@@ -166,7 +166,7 @@ public class LinuxInputCapture : IInputCapture
                 ? InputEventType.MouseScroll 
                 : InputEventType.MouseMove,
             UInputNative.EV_SYN => InputEventType.Sync,
-            _ => InputEventType.Sync
+            _ => InputEventType.Unknown
         };
         
         var args = new InputCaptureEventArgs

@@ -93,6 +93,91 @@ public class EditorViewModelTests
     }
 
     [Fact]
+    public void Undo_AfterPropertyEdit_RestoresPreviousValue()
+    {
+        // Arrange
+        _viewModel.AddAction();
+        var action = _viewModel.SelectedAction!;
+
+        // Act
+        action.DelayMs = 120;
+        _viewModel.Undo();
+
+        // Assert
+        _viewModel.SelectedAction.Should().NotBeNull();
+        _viewModel.SelectedAction!.DelayMs.Should().Be(0);
+    }
+
+    [Fact]
+    public void Undo_CoalescesRapidEditsOfSameProperty()
+    {
+        // Arrange
+        _viewModel.AddAction();
+        var action = _viewModel.SelectedAction!;
+
+        // Act
+        action.DelayMs = 100;
+        action.DelayMs = 200;
+        _viewModel.Undo();
+
+        // Assert
+        _viewModel.SelectedAction.Should().NotBeNull();
+        _viewModel.SelectedAction!.DelayMs.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CaptureMouseAsync_WhenSelectionChanges_IgnoresCapturedPosition()
+    {
+        // Arrange
+        _viewModel.AddAction();
+        var firstAction = _viewModel.SelectedAction!;
+        _viewModel.AddAction();
+        var secondAction = _viewModel.SelectedAction!;
+        _viewModel.SelectedAction = firstAction;
+
+        var captureResult = new TaskCompletionSource<(int X, int Y)?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>()).Returns(_ => captureResult.Task);
+
+        // Act
+        var captureTask = _viewModel.CaptureMouseAsync();
+        _viewModel.SelectedAction = secondAction;
+        captureResult.SetResult((640, 480));
+        await captureTask;
+
+        // Assert
+        firstAction.X.Should().Be(0);
+        firstAction.Y.Should().Be(0);
+        secondAction.X.Should().Be(0);
+        secondAction.Y.Should().Be(0);
+        _viewModel.Status.Should().Be("Capture ignored: selected action changed");
+    }
+
+    [Fact]
+    public async Task CaptureKeyAsync_WhenSelectionChanges_IgnoresCapturedKey()
+    {
+        // Arrange
+        _viewModel.AddAction();
+        var firstAction = _viewModel.SelectedAction!;
+        _viewModel.AddAction();
+        var secondAction = _viewModel.SelectedAction!;
+        _viewModel.SelectedAction = firstAction;
+
+        var captureResult = new TaskCompletionSource<int?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _captureService.CaptureKeyCodeAsync(Arg.Any<CancellationToken>()).Returns(_ => captureResult.Task);
+
+        // Act
+        var captureTask = _viewModel.CaptureKeyAsync();
+        _viewModel.SelectedAction = secondAction;
+        captureResult.SetResult(30);
+        await captureTask;
+
+        // Assert
+        firstAction.KeyCode.Should().Be(0);
+        secondAction.KeyCode.Should().Be(0);
+        _viewModel.Status.Should().Be("Capture ignored: selected action changed");
+    }
+
+    [Fact]
     public async Task SaveMacroAsync_WhenNoActions_ShowsMessage()
     {
         // Act

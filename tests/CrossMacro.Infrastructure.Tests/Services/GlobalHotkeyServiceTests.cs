@@ -210,4 +210,94 @@ public class GlobalHotkeyServiceTests
         secondCapture.Received(1).Configure(true, true);
         await secondCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Start_WhenCaptureStartTaskFaults_ShouldAttemptRestart()
+    {
+        var firstCapture = Substitute.For<IInputCapture>();
+        var secondCapture = Substitute.For<IInputCapture>();
+        firstCapture.ProviderName.Returns("first");
+        secondCapture.ProviderName.Returns("second");
+        firstCapture.StartAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new InvalidOperationException("startup failed")));
+
+        var secondStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        secondCapture.StartAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask)
+            .AndDoes(_ => secondStarted.TrySetResult(true));
+
+        var factoryCall = 0;
+        var restartingService = new GlobalHotkeyService(
+            _config,
+            _parser,
+            _matcher,
+            _modifierTracker,
+            _stringBuilder,
+            _mouseButtonMapper,
+            () => ++factoryCall == 1 ? firstCapture : secondCapture);
+
+        restartingService.Start();
+
+        await secondStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        firstCapture.Received(1).Stop();
+        firstCapture.Received(1).Dispose();
+        secondCapture.Received(1).Configure(true, true);
+        await secondCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Restart_WhenReplacementCaptureStartThrows_CleansUpFailedCaptureAndStopsService()
+    {
+        var firstCapture = Substitute.For<IInputCapture>();
+        var secondCapture = Substitute.For<IInputCapture>();
+        firstCapture.ProviderName.Returns("first");
+        secondCapture.ProviderName.Returns("second");
+        firstCapture.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        secondCapture
+            .When(x => x.StartAsync(Arg.Any<CancellationToken>()))
+            .Do(_ => throw new InvalidOperationException("replacement failed"));
+
+        var factoryCall = 0;
+        var restartingService = new GlobalHotkeyService(
+            _config,
+            _parser,
+            _matcher,
+            _modifierTracker,
+            _stringBuilder,
+            _mouseButtonMapper,
+            () => ++factoryCall == 1 ? firstCapture : secondCapture);
+
+        restartingService.Start();
+
+        firstCapture.Error += Raise.Event<EventHandler<string>>(this, "simulated capture error");
+        await WaitForConditionAsync(() => !restartingService.IsRunning);
+
+        Assert.False(restartingService.IsRunning);
+        Assert.Contains("Restart failed", restartingService.LastError, StringComparison.OrdinalIgnoreCase);
+        firstCapture.Received(1).Stop();
+        firstCapture.Received(1).Dispose();
+        secondCapture.Received(1).Configure(true, true);
+        await secondCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
+        secondCapture.Received(1).Stop();
+        secondCapture.Received(1).Dispose();
+
+        restartingService.Stop();
+        secondCapture.Received(1).Stop();
+    }
+
+    private static async Task WaitForConditionAsync(Func<bool> condition, int maxAttempts = 50, int delayMs = 10)
+    {
+        for (var i = 0; i < maxAttempts; i++)
+        {
+            if (condition())
+            {
+                return;
+            }
+
+            await Task.Delay(delayMs);
+        }
+
+        throw new TimeoutException("Condition was not met in expected time.");
+    }
 }

@@ -90,9 +90,14 @@ internal static class SettingsCommandParser
 
         var key = args[2];
         var value = args[3];
-        if (string.IsNullOrWhiteSpace(key))
+        if (string.IsNullOrWhiteSpace(key) || CliParseHelpers.LooksLikeOptionToken(key))
         {
-            return CliParseResult.Error("Settings key cannot be empty");
+            return CliParseResult.Error("Usage: settings set <key> <value> [--json] [--log-level <level>]");
+        }
+
+        if (string.IsNullOrWhiteSpace(value) || CliParseHelpers.LooksLikeLongOptionToken(value))
+        {
+            return CliParseResult.Error("Usage: settings set <key> <value> [--json] [--log-level <level>]");
         }
 
         var jsonOutput = false;

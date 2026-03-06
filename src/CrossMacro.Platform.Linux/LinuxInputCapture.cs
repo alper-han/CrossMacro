@@ -14,7 +14,7 @@ public class LinuxInputCapture : IInputCapture
 {
     private readonly List<EvdevReader> _readers = new();
     private bool _disposed;
-    private CancellationTokenSource? _cts;
+    private CancellationTokenRegistration _stopRegistration;
     
     private bool _captureMouse = true;
     private bool _captureKeyboard = true;
@@ -51,6 +51,8 @@ public class LinuxInputCapture : IInputCapture
     
     public async Task StartAsync(CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
+
         if (_readers.Count > 0)
         {
             Log.Warning("[LinuxInputCapture] Already started");
@@ -99,21 +101,9 @@ public class LinuxInputCapture : IInputCapture
             return;
         }
         
-        _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        
-        try
-        {
-            await Task.Delay(Timeout.Infinite, _cts.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            // Normal cancellation - expected behavior
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "[LinuxInputCapture] Error during capture");
-            Error?.Invoke(this, ex.Message);
-        }
+        _stopRegistration.Dispose();
+        _stopRegistration = ct.Register(Stop);
+        await Task.CompletedTask;
     }
     
     public void Stop()
@@ -150,9 +140,7 @@ public class LinuxInputCapture : IInputCapture
             Log.Information("[LinuxInputCapture] Stopped all readers");
         }
         
-        _cts?.Cancel();
-        _cts?.Dispose();
-        _cts = null;
+        _stopRegistration.Dispose();
     }
     
     private void OnEvdevEventReceived(EvdevReader reader, UInputNative.input_event e)

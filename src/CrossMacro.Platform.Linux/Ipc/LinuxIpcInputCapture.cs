@@ -17,6 +17,7 @@ public class LinuxIpcInputCapture : IInputCapture
     private bool _captureKeyboard = true;
     private bool _started;
     private bool _disposed;
+    private CancellationTokenRegistration _stopRegistration;
 
     public string ProviderName => "Secure Daemon (Evdev)";
 
@@ -59,12 +60,17 @@ public class LinuxIpcInputCapture : IInputCapture
     public async Task StartAsync(CancellationToken ct)
     {
         ThrowIfDisposed();
+        ct.ThrowIfCancellationRequested();
 
         if (!_client.IsConnected)
         {
             try
             {
                 await _client.ConnectAsync(ct);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -106,14 +112,8 @@ public class LinuxIpcInputCapture : IInputCapture
             Log.Information("[LinuxIpcInputCapture] Started capture via daemon");
         }
 
-        try
-        {
-            await Task.Delay(-1, ct);
-        }
-        catch (TaskCanceledException)
-        {
-            Stop();
-        }
+        _stopRegistration.Dispose();
+        _stopRegistration = ct.Register(Stop);
     }
 
     public void Stop()
@@ -133,6 +133,8 @@ public class LinuxIpcInputCapture : IInputCapture
         {
             _client.StopCapture(_consumerId);
         }
+
+        _stopRegistration.Dispose();
     }
 
     private void OnClientInputReceived(object? sender, InputCaptureEventArgs e)
@@ -161,6 +163,7 @@ public class LinuxIpcInputCapture : IInputCapture
         }
 
         Stop();
+        _stopRegistration.Dispose();
         _client.InputReceived -= OnClientInputReceived;
         _client.ErrorOccurred -= OnClientErrorOccurred;
         _disposed = true;

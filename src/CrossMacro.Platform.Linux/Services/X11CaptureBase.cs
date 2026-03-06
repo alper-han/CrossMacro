@@ -20,6 +20,9 @@ namespace CrossMacro.Platform.Linux.Services
         private Thread? _captureThread;
         protected volatile bool _isRunning;
         private bool _disposed;
+        private CancellationTokenRegistration _startCancellationRegistration;
+        private Task? _startupTask;
+        private TaskCompletionSource<object?>? _startupCompletionSource;
         
         protected bool _captureMouse;
         protected bool _captureKeyboard;
@@ -60,36 +63,65 @@ namespace CrossMacro.Platform.Linux.Services
 
         public Task StartAsync(CancellationToken ct)
         {
-            if (_isRunning)
+            if (_disposed)
             {
-                return Task.CompletedTask;
+                throw new ObjectDisposedException(GetType().Name);
             }
 
+            if (_isRunning)
+            {
+                return _startupTask ?? Task.CompletedTask;
+            }
+
+            ct.ThrowIfCancellationRequested();
+
             _isRunning = true;
-            _captureThread = new Thread(CaptureLoop)
+            var startupCompletionSource = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _startupCompletionSource = startupCompletionSource;
+            _startupTask = startupCompletionSource.Task;
+
+            _startCancellationRegistration.Dispose();
+            _startCancellationRegistration = ct.Register(() => HandleStartCancellation(startupCompletionSource));
+
+            _captureThread = new Thread(() => CaptureLoop(startupCompletionSource))
             {
                 IsBackground = true,
                 Name = GetType().Name
             };
             _captureThread.Start();
 
-            ct.Register(Stop);
-            return Task.CompletedTask;
+            return _startupTask;
         }
 
         public void Stop()
         {
             _isRunning = false;
+            _startCancellationRegistration.Dispose();
+            _startupCompletionSource?.TrySetCanceled();
+
+            var captureThread = _captureThread;
+            if (captureThread != null &&
+                captureThread.IsAlive &&
+                !ReferenceEquals(Thread.CurrentThread, captureThread))
+            {
+                captureThread.Join(500);
+            }
         }
 
-        private void CaptureLoop()
+        private void HandleStartCancellation(TaskCompletionSource<object?> startupCompletionSource)
+        {
+            _isRunning = false;
+            startupCompletionSource.TrySetCanceled();
+        }
+
+        private void CaptureLoop(TaskCompletionSource<object?> startupCompletionSource)
         {
             try
             {
                 _display = X11Native.XOpenDisplay(null);
                 if (_display == IntPtr.Zero)
                 {
-                    Error?.Invoke(this, "Failed to open X Display");
+                    FailStartup(startupCompletionSource, "Failed to open X Display");
                     return;
                 }
 
@@ -100,7 +132,7 @@ namespace CrossMacro.Platform.Linux.Services
                 int minor = XInput2Consts.XINPUT2_MINOR_VERSION;
                 if (X11Native.XIQueryVersion(_display, ref major, ref minor) != 0)
                 {
-                    Error?.Invoke(this, "XInput2 extension not available");
+                    FailStartup(startupCompletionSource, "XInput2 extension not available");
                     return;
                 }
 
@@ -140,6 +172,7 @@ namespace CrossMacro.Platform.Linux.Services
                 }
                 
                 OnCaptureStarted();
+                startupCompletionSource.TrySetResult(null);
 
                 IntPtr eventPtr = Marshal.AllocHGlobal(XInput2Consts.XEVENT_STRUCT_SIZE);
                 try 
@@ -179,7 +212,7 @@ namespace CrossMacro.Platform.Linux.Services
             }
             catch (Exception ex)
             {
-                Error?.Invoke(this, ex.Message);
+                FailStartup(startupCompletionSource, ex);
             }
             finally
             {
@@ -188,6 +221,25 @@ namespace CrossMacro.Platform.Linux.Services
                     X11Native.XCloseDisplay(_display);
                     _display = IntPtr.Zero;
                 }
+
+                if (ReferenceEquals(_captureThread, Thread.CurrentThread))
+                {
+                    _captureThread = null;
+                }
+            }
+        }
+
+        private void FailStartup(TaskCompletionSource<object?> startupCompletionSource, string message)
+        {
+            FailStartup(startupCompletionSource, new InvalidOperationException(message));
+        }
+
+        private void FailStartup(TaskCompletionSource<object?> startupCompletionSource, Exception exception)
+        {
+            if (!startupCompletionSource.TrySetException(exception) &&
+                !startupCompletionSource.Task.IsCanceled)
+            {
+                Error?.Invoke(this, exception.Message);
             }
         }
         

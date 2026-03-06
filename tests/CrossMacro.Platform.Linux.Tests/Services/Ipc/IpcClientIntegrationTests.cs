@@ -244,11 +244,10 @@ public class IpcClientIntegrationTests
         capture.Configure(captureMouse: true, captureKeyboard: false);
         using var cts = new CancellationTokenSource();
 
-        var startTask = capture.StartAsync(cts.Token);
+        await capture.StartAsync(cts.Token);
         await daemon.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
 
         cts.Cancel();
-        await startTask;
         await daemon.WaitForCommandCountAsync(expected: 2, timeout: TimeSpan.FromSeconds(2));
 
         var commands = daemon.GetCommandsSnapshot();
@@ -256,6 +255,18 @@ public class IpcClientIntegrationTests
         Assert.True(commands[0].CaptureMouse);
         Assert.False(commands[0].CaptureKeyboard);
         Assert.Equal(IpcOpCode.StopCapture, commands[1].OpCode);
+    }
+
+    [LinuxFact]
+    public async Task LinuxIpcInputCapture_StartAsync_WhenTokenAlreadyCancelled_ShouldPropagateCancellation()
+    {
+        var socketPath = GetUniqueSocketPath();
+        using var client = new IpcClient(() => socketPath, autoReconnect: false);
+        using var capture = new LinuxIpcInputCapture(client, "cancelled-capture");
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => capture.StartAsync(cts.Token));
     }
 
     [LinuxFact]

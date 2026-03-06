@@ -136,4 +136,50 @@ public class TextExpansionServiceTests
         await _executor.Received(2).ExpandAsync(Arg.Any<TextExpansion>());
         Assert.True(_service.IsRunning);
     }
+
+    [Fact]
+    public async Task Start_WhenCaptureStartFaultsAsynchronously_StopsService()
+    {
+        var startTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _inputCapture.StartAsync(Arg.Any<CancellationToken>()).Returns(startTcs.Task);
+
+        _service.Start();
+        Assert.True(_service.IsRunning);
+
+        startTcs.SetException(new InvalidOperationException("startup failed"));
+
+        await WaitForConditionAsync(() => !_service.IsRunning);
+
+        Assert.False(_service.IsRunning);
+        _inputCapture.Received(1).Stop();
+        _inputCapture.Received(1).Dispose();
+    }
+
+    [Fact]
+    public void Start_WhenCaptureStartFaultsSynchronously_CleansUpFailedCapture()
+    {
+        _inputCapture.StartAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new InvalidOperationException("startup failed")));
+
+        _service.Start();
+
+        Assert.False(_service.IsRunning);
+        _inputCapture.Received(1).Stop();
+        _inputCapture.Received(1).Dispose();
+    }
+
+    private static async Task WaitForConditionAsync(Func<bool> condition, int maxAttempts = 50, int delayMs = 10)
+    {
+        for (var i = 0; i < maxAttempts; i++)
+        {
+            if (condition())
+            {
+                return;
+            }
+
+            await Task.Delay(delayMs);
+        }
+
+        throw new TimeoutException("Condition was not met in expected time.");
+    }
 }

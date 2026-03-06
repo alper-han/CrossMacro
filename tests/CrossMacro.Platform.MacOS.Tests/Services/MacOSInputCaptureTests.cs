@@ -18,16 +18,13 @@ public class MacOSInputCaptureTests
     }
 
     [MacOSFact]
-    public async Task StartAsync_WithCancelledToken_ShouldNotThrow()
+    public async Task StartAsync_WithCancelledToken_ShouldThrowOperationCanceledException()
     {
         using var capture = new MacOSInputCapture();
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        var exception = await Record.ExceptionAsync(() => capture.StartAsync(cts.Token));
-        capture.Stop();
-
-        Assert.Null(exception);
+        await Assert.ThrowsAsync<OperationCanceledException>(() => capture.StartAsync(cts.Token));
     }
 
     [NonMacOSFact]

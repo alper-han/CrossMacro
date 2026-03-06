@@ -78,19 +78,25 @@ public class TextExpansionService : ITextExpansionService
                 _inputCapture.Error += OnInputCaptureError;
                 _captureCts = new CancellationTokenSource();
                 _captureTask = _inputCapture.StartAsync(_captureCts.Token) ?? Task.CompletedTask;
-                _ = ObserveCaptureTaskAsync(_captureTask, _captureCts.Token);
+                if (_captureTask.IsCompleted)
+                {
+                    _captureTask.GetAwaiter().GetResult();
+                }
+
+                _isRunning = true;
+                _ = ObserveCaptureTaskAsync(_inputCapture, _captureTask, _captureCts.Token);
                 
                 // Reset State
                 _inputProcessor.Reset();
                 _bufferState.Clear();
                 
-                _isRunning = true;
                 Log.Information("[TextExpansionService] Started via {Provider}", _inputCapture.ProviderName);
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "[TextExpansionService] Failed to start");
-                Stop();
+                CleanupCapture_NoLock();
+                _isRunning = false;
             }
         }
     }
@@ -99,32 +105,19 @@ public class TextExpansionService : ITextExpansionService
     {
         lock (_lock)
         {
-            if (!_isRunning) return;
-
-            try 
+            if (!_isRunning && _inputCapture == null && _captureCts == null && _captureTask == null)
             {
-                _captureCts?.Cancel();
-
-                if (_inputCapture != null)
-                {
-                    _inputCapture.InputReceived -= OnInputReceived;
-                    _inputCapture.Error -= OnInputCaptureError;
-                    _inputCapture.Stop();
-                    _inputCapture.Dispose();
-                    _inputCapture = null;
-                }
-
-                _captureCts?.Dispose();
-                _captureCts = null;
-                _captureTask = null;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "[TextExpansionService] Error stopping");
+                return;
             }
 
+            var wasRunning = _isRunning;
+            CleanupCapture_NoLock();
             _isRunning = false;
-            Log.Information("[TextExpansionService] Stopped");
+
+            if (wasRunning)
+            {
+                Log.Information("[TextExpansionService] Stopped");
+            }
         }
     }
 
@@ -141,7 +134,7 @@ public class TextExpansionService : ITextExpansionService
         Log.Error("[TextExpansionService] Capture error: {Error}", error);
     }
 
-    private async Task ObserveCaptureTaskAsync(Task captureTask, CancellationToken token)
+    private async Task ObserveCaptureTaskAsync(IInputCapture capture, Task captureTask, CancellationToken token)
     {
         try
         {
@@ -153,8 +146,63 @@ public class TextExpansionService : ITextExpansionService
         }
         catch (Exception ex)
         {
+            bool shouldStop;
+            lock (_lock)
+            {
+                shouldStop = _isRunning &&
+                    ReferenceEquals(_inputCapture, capture) &&
+                    ReferenceEquals(_captureTask, captureTask);
+            }
+
             Log.Error(ex, "[TextExpansionService] Capture task faulted");
             OnInputCaptureError(this, ex.Message);
+
+            if (shouldStop)
+            {
+                Stop();
+            }
+        }
+    }
+
+    private void CleanupCapture_NoLock()
+    {
+        try
+        {
+            _captureCts?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Already disposed during shutdown.
+        }
+
+        try
+        {
+            if (_inputCapture != null)
+            {
+                _inputCapture.InputReceived -= OnInputReceived;
+                _inputCapture.Error -= OnInputCaptureError;
+                _inputCapture.Stop();
+                _inputCapture.Dispose();
+                _inputCapture = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[TextExpansionService] Error stopping");
+        }
+        finally
+        {
+            try
+            {
+                _captureCts?.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed during shutdown.
+            }
+
+            _captureCts = null;
+            _captureTask = null;
         }
     }
 

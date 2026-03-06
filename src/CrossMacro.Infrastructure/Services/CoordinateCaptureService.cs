@@ -46,7 +46,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
             using var capture = _inputCaptureFactory();
             capture.Configure(captureMouse: true, captureKeyboard: true);
             
-            var tcs = new TaskCompletionSource<(int X, int Y)?>();
+            var tcs = new TaskCompletionSource<(int X, int Y)?>(TaskCreationOptions.RunContinuationsAsynchronously);
             
             capture.InputReceived += async (s, e) =>
             {
@@ -65,11 +65,16 @@ public class CoordinateCaptureService : ICoordinateCaptureService
                     tcs.TrySetResult(position);
                 }
             };
-            
-            _ = capture.StartAsync(_currentCts.Token);
-            
+
+            capture.Error += (s, error) =>
+            {
+                Log.Error("[CoordinateCaptureService] Input capture error while capturing mouse position: {Error}", error);
+                tcs.TrySetResult(null);
+            };
+
             using (_currentCts.Token.Register(() => tcs.TrySetResult(null)))
             {
+                await capture.StartAsync(_currentCts.Token);
                 return await tcs.Task;
             }
         }
@@ -105,7 +110,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
             using var capture = _inputCaptureFactory();
             capture.Configure(captureMouse: false, captureKeyboard: true);
             
-            var tcs = new TaskCompletionSource<int?>();
+            var tcs = new TaskCompletionSource<int?>(TaskCreationOptions.RunContinuationsAsynchronously);
             
             capture.InputReceived += (s, e) =>
             {
@@ -116,11 +121,16 @@ public class CoordinateCaptureService : ICoordinateCaptureService
                     tcs.TrySetResult(e.Code);
                 }
             };
-            
-            _ = capture.StartAsync(_currentCts.Token);
-            
+
+            capture.Error += (s, error) =>
+            {
+                Log.Error("[CoordinateCaptureService] Input capture error while capturing key code: {Error}", error);
+                tcs.TrySetResult(null);
+            };
+
             using (_currentCts.Token.Register(() => tcs.TrySetResult(null)))
             {
+                await capture.StartAsync(_currentCts.Token);
                 return await tcs.Task;
             }
         }

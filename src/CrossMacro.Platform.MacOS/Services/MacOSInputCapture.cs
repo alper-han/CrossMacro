@@ -19,6 +19,8 @@ public class MacOSInputCapture : IInputCapture
     private volatile bool _stopRequested;
     private bool _disposed;
     private CancellationTokenRegistration _startCancellationRegistration;
+    private Task? _startupTask;
+    private TaskCompletionSource<object?>? _startupCompletionSource;
     
     private CoreGraphics.CGEventTapCallBack _callbackDelegate;
 
@@ -58,14 +60,20 @@ public class MacOSInputCapture : IInputCapture
 
             if (_captureThread != null && _captureThread.IsAlive)
             {
-                return Task.CompletedTask;
+                return _startupTask ?? Task.CompletedTask;
             }
 
-            _stopRequested = false;
-            _startCancellationRegistration.Dispose();
-            _startCancellationRegistration = ct.Register(Stop);
+            ct.ThrowIfCancellationRequested();
 
-            _captureThread = new Thread(CaptureLoop)
+            _stopRequested = false;
+            var startupCompletionSource = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _startupCompletionSource = startupCompletionSource;
+            _startupTask = startupCompletionSource.Task;
+
+            _startCancellationRegistration.Dispose();
+            _startCancellationRegistration = ct.Register(() => HandleStartCancellation(startupCompletionSource));
+
+            _captureThread = new Thread(() => CaptureLoop(startupCompletionSource))
             {
                 IsBackground = true,
                 Name = "MacOSInputCapture"
@@ -73,12 +81,34 @@ public class MacOSInputCapture : IInputCapture
             _captureThread.Start();
         }
 
-        return Task.CompletedTask;
+        return _startupTask!;
     }
 
     public void Stop()
     {
         _stopRequested = true;
+        _startCancellationRegistration.Dispose();
+        _startupCompletionSource?.TrySetCanceled();
+        RequestStop();
+
+        var captureThread = _captureThread;
+        if (captureThread != null &&
+            captureThread.IsAlive &&
+            !ReferenceEquals(Thread.CurrentThread, captureThread))
+        {
+            captureThread.Join(500);
+        }
+    }
+
+    private void HandleStartCancellation(TaskCompletionSource<object?> startupCompletionSource)
+    {
+        _stopRequested = true;
+        startupCompletionSource.TrySetCanceled();
+        RequestStop();
+    }
+
+    private void RequestStop()
+    {
         _startCancellationRegistration.Dispose();
         
         if (_eventTap != IntPtr.Zero)
@@ -90,17 +120,9 @@ public class MacOSInputCapture : IInputCapture
         {
             CoreFoundation.CFRunLoopStop(_runLoop);
         }
-
-        var captureThread = _captureThread;
-        if (captureThread != null &&
-            captureThread.IsAlive &&
-            !ReferenceEquals(Thread.CurrentThread, captureThread))
-        {
-            captureThread.Join(500);
-        }
     }
 
-    private void CaptureLoop()
+    private void CaptureLoop(TaskCompletionSource<object?> startupCompletionSource)
     {
         try
         {
@@ -135,7 +157,9 @@ public class MacOSInputCapture : IInputCapture
 
             if (_eventTap == IntPtr.Zero)
             {
-                Error?.Invoke(this, "Failed to create CGEventTap. Check Accessibility permissions.");
+                FailStartup(
+                    startupCompletionSource,
+                    new InvalidOperationException("Failed to create CGEventTap. Check Accessibility permissions."));
                 return;
             }
 
@@ -145,12 +169,13 @@ public class MacOSInputCapture : IInputCapture
             CoreGraphics.CGEventTapEnable(_eventTap, true);
 
             if (_stopRequested) return;
+            startupCompletionSource.TrySetResult(null);
 
             CoreFoundation.CFRunLoopRun();
         }
         catch (Exception ex)
         {
-            Error?.Invoke(this, $"Capture loop error: {ex.Message}");
+            FailStartup(startupCompletionSource, ex, $"Capture loop error: {ex.Message}");
         }
         finally
         {
@@ -168,6 +193,18 @@ public class MacOSInputCapture : IInputCapture
                     _captureThread = null;
                 }
             }
+        }
+    }
+
+    private void FailStartup(
+        TaskCompletionSource<object?> startupCompletionSource,
+        Exception exception,
+        string? errorMessage = null)
+    {
+        if (!startupCompletionSource.TrySetException(exception) &&
+            !startupCompletionSource.Task.IsCanceled)
+        {
+            Error?.Invoke(this, errorMessage ?? exception.Message);
         }
     }
 

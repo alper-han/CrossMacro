@@ -10,6 +10,22 @@ namespace CrossMacro.Cli.Services;
 
 public sealed class RecordExecutionService : IRecordExecutionService
 {
+    private static readonly TimeSpan StartupOutcomeSettleWindow = TimeSpan.FromMilliseconds(300);
+
+    private enum StartupOutcomeState
+    {
+        Succeeded = 0,
+        Canceled = 1,
+        Faulted = 2
+    }
+
+    private readonly record struct StartupOutcome(StartupOutcomeState State, Exception? Error)
+    {
+        public static StartupOutcome Succeeded() => new(StartupOutcomeState.Succeeded, null);
+        public static StartupOutcome Canceled(Exception? error = null) => new(StartupOutcomeState.Canceled, error);
+        public static StartupOutcome Faulted(Exception? error = null) => new(StartupOutcomeState.Faulted, error);
+    }
+
     private readonly IMacroRecorder _macroRecorder;
     private readonly IMacroFileManager _macroFileManager;
     private readonly IMousePositionProvider _mousePositionProvider;
@@ -55,16 +71,21 @@ public sealed class RecordExecutionService : IRecordExecutionService
 
         MacroSequence? sequence = null;
         Exception? stopException = null;
+        Exception? startupRuntimeException = null;
+        var startupCompletedSuccessfully = false;
+        var cancelledBeforeStart = false;
+        using var recordingLifetimeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
+        Task startTask;
         try
         {
-            await _macroRecorder.StartRecordingAsync(
+            startTask = _macroRecorder.StartRecordingAsync(
                 request.RecordMouse,
                 request.RecordKeyboard,
                 ignoredKeys: null,
                 forceRelative: forceRelative,
                 skipInitialZero: skipInitialZero,
-                cancellationToken: cancellationToken);
+                cancellationToken: recordingLifetimeCts.Token);
         }
         catch (OperationCanceledException)
         {
@@ -75,28 +96,52 @@ public sealed class RecordExecutionService : IRecordExecutionService
             return Fail(CliExitCode.EnvironmentError, "Failed to start recording.", [ex.Message], warnings);
         }
 
+        var startupOutcomeTask = ObserveStartupOutcomeAsync(startTask);
+
         try
         {
-            if (request.DurationSeconds > 0)
+            var startupOutcome = await WaitForStartupOutcomeAsync(startupOutcomeTask, cancellationToken);
+            if (startupOutcome.State == StartupOutcomeState.Canceled)
             {
-                await Task.Delay(TimeSpan.FromSeconds(request.DurationSeconds), cancellationToken);
+                cancelledBeforeStart = true;
+            }
+            else if (startupOutcome.State == StartupOutcomeState.Faulted)
+            {
+                startupRuntimeException = startupOutcome.Error ?? new InvalidOperationException("Unknown capture startup error.");
             }
             else
             {
-                await Task.Delay(Timeout.Infinite, cancellationToken);
+                startupCompletedSuccessfully = true;
+                if (request.DurationSeconds > 0)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(request.DurationSeconds), cancellationToken);
+                }
+                else
+                {
+                    await Task.Delay(Timeout.Infinite, cancellationToken);
+                }
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Ctrl+C is the expected stop trigger for record command.
+            if (!startupCompletedSuccessfully)
+            {
+                cancelledBeforeStart = true;
+            }
         }
         finally
         {
+            recordingLifetimeCts.Cancel();
+
             if (_macroRecorder.IsRecording)
             {
                 try
                 {
                     sequence = _macroRecorder.StopRecording();
+                }
+                catch (InvalidOperationException) when (!_macroRecorder.IsRecording)
+                {
+                    // Recorder can transition to stopped between check and stop call during cancellation.
                 }
                 catch (Exception ex)
                 {
@@ -105,9 +150,87 @@ public sealed class RecordExecutionService : IRecordExecutionService
             }
         }
 
+        if (!startupCompletedSuccessfully)
+        {
+            var settledStartupOutcome = await TryGetStartupOutcomeAsync(startupOutcomeTask, StartupOutcomeSettleWindow);
+            if (settledStartupOutcome.HasValue)
+            {
+                var outcome = settledStartupOutcome.Value;
+                if (outcome.State == StartupOutcomeState.Faulted)
+                {
+                    startupRuntimeException ??= outcome.Error ?? new InvalidOperationException("Unknown capture startup error.");
+                }
+                else if (outcome.State == StartupOutcomeState.Canceled)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        cancelledBeforeStart = true;
+                    }
+                    else
+                    {
+                        startupRuntimeException ??= outcome.Error ?? new OperationCanceledException("Capture startup was cancelled.");
+                    }
+                }
+                else
+                {
+                    startupCompletedSuccessfully = true;
+                }
+            }
+            else
+            {
+                ObserveFaultedTask(startTask);
+            }
+        }
+
+        var hasRecordedEvents = sequence is { Events.Count: > 0 };
+
+        if (startupRuntimeException != null)
+        {
+            return Fail(CliExitCode.EnvironmentError, "Failed to start recording.", [startupRuntimeException.Message], warnings);
+        }
+
         if (stopException != null)
         {
             return Fail(CliExitCode.RuntimeError, "Recording failed while stopping.", [stopException.Message], warnings);
+        }
+
+        if (hasRecordedEvents)
+        {
+            try
+            {
+                sequence!.Name = Path.GetFileNameWithoutExtension(request.OutputFilePath);
+                await _macroFileManager.SaveAsync(sequence, request.OutputFilePath);
+            }
+            catch (Exception ex)
+            {
+                return Fail(CliExitCode.FileError, "Failed to save recorded macro.", [ex.Message], warnings);
+            }
+
+            var data = new
+            {
+                outputPath = request.OutputFilePath,
+                eventCount = sequence.Events.Count,
+                totalDurationMs = sequence.TotalDurationMs,
+                recordMouse = request.RecordMouse,
+                recordKeyboard = request.RecordKeyboard,
+                requestedMode = request.CoordinateMode.ToString().ToLowerInvariant(),
+                actualMode = captureMode.ToString().ToLowerInvariant(),
+                skipInitialZero = skipInitialZero
+            };
+
+            return new RecordExecutionResult
+            {
+                Success = true,
+                ExitCode = CliExitCode.Success,
+                Message = "Recording completed.",
+                Warnings = warnings,
+                Data = data
+            };
+        }
+
+        if (cancelledBeforeStart)
+        {
+            return Fail(CliExitCode.Cancelled, "Recording cancelled before start.");
         }
 
         if (sequence == null)
@@ -120,36 +243,80 @@ public sealed class RecordExecutionService : IRecordExecutionService
             return Fail(CliExitCode.RuntimeError, "No events were recorded.", warnings: warnings);
         }
 
-        try
+        throw new InvalidOperationException("Unexpected recording result state.");
+    }
+
+    private static async Task<StartupOutcome> WaitForStartupOutcomeAsync(
+        Task<StartupOutcome> startupOutcomeTask,
+        CancellationToken cancellationToken)
+    {
+        if (startupOutcomeTask.IsCompleted)
         {
-            sequence.Name = Path.GetFileNameWithoutExtension(request.OutputFilePath);
-            await _macroFileManager.SaveAsync(sequence, request.OutputFilePath);
-        }
-        catch (Exception ex)
-        {
-            return Fail(CliExitCode.FileError, "Failed to save recorded macro.", [ex.Message], warnings);
+            return await startupOutcomeTask;
         }
 
-        var data = new
-        {
-            outputPath = request.OutputFilePath,
-            eventCount = sequence.Events.Count,
-            totalDurationMs = sequence.TotalDurationMs,
-            recordMouse = request.RecordMouse,
-            recordKeyboard = request.RecordKeyboard,
-            requestedMode = request.CoordinateMode.ToString().ToLowerInvariant(),
-            actualMode = captureMode.ToString().ToLowerInvariant(),
-            skipInitialZero = skipInitialZero
-        };
+        var completedTask = await Task.WhenAny(startupOutcomeTask, Task.Delay(Timeout.Infinite, cancellationToken));
 
-        return new RecordExecutionResult
+        if (ReferenceEquals(completedTask, startupOutcomeTask))
         {
-            Success = true,
-            ExitCode = CliExitCode.Success,
-            Message = "Recording completed.",
-            Warnings = warnings,
-            Data = data
-        };
+            return await startupOutcomeTask;
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return StartupOutcome.Canceled(new OperationCanceledException("Recording cancelled before start.", cancellationToken));
+        }
+
+        return StartupOutcome.Canceled();
+    }
+
+    private static Task<StartupOutcome> ObserveStartupOutcomeAsync(Task startTask)
+    {
+        return startTask.ContinueWith(
+            static task =>
+            {
+                if (task.IsFaulted)
+                {
+                    return StartupOutcome.Faulted(task.Exception?.GetBaseException() ?? new InvalidOperationException("Unknown capture startup error."));
+                }
+
+                if (task.IsCanceled)
+                {
+                    return StartupOutcome.Canceled(new OperationCanceledException("Capture startup was cancelled."));
+                }
+
+                return StartupOutcome.Succeeded();
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private static void ObserveFaultedTask(Task task)
+    {
+        _ = task.ContinueWith(
+            static faultedTask => _ = faultedTask.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private static async Task<StartupOutcome?> TryGetStartupOutcomeAsync(
+        Task<StartupOutcome> startupOutcomeTask,
+        TimeSpan timeout)
+    {
+        if (startupOutcomeTask.IsCompleted)
+        {
+            return await startupOutcomeTask;
+        }
+
+        var completedTask = await Task.WhenAny(startupOutcomeTask, Task.Delay(timeout));
+        if (!ReferenceEquals(completedTask, startupOutcomeTask))
+        {
+            return null;
+        }
+
+        return await startupOutcomeTask;
     }
 
     private async Task<RecordCoordinateMode> ResolveCaptureModeAsync(

@@ -95,6 +95,327 @@ public class RecordExecutionServiceTests
         Assert.Contains("No events were recorded", result.Message);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WhenStartTaskDoesNotComplete_ReturnsCancelled()
+    {
+        _mousePositionProvider.IsSupported.Returns(false);
+        var blockingStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _macroRecorder.StartRecordingAsync(
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<IEnumerable<int>>(),
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
+            .Returns(blockingStartTask.Task);
+
+        _macroRecorder.IsRecording.Returns(false);
+
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(25);
+
+        var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
+        {
+            OutputFilePath = "/tmp/test-record-blocking-start.macro"
+        }, cts.Token);
+
+        var completed = await Task.WhenAny(executeTask, Task.Delay(TimeSpan.FromSeconds(2)));
+        Assert.Same(executeTask, completed);
+
+        var result = await executeTask;
+        Assert.False(result.Success);
+        Assert.Equal(CliExitCode.Cancelled, result.ExitCode);
+        Assert.Contains("cancelled before start", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenStartTaskFaults_ReturnsEnvironmentError()
+    {
+        _mousePositionProvider.IsSupported.Returns(false);
+        _macroRecorder.StartRecordingAsync(
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<IEnumerable<int>>(),
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new InvalidOperationException("start failed")));
+
+        var result = await _service.ExecuteAsync(new RecordExecutionRequest
+        {
+            OutputFilePath = "/tmp/test-record-start-fail.macro"
+        }, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(CliExitCode.EnvironmentError, result.ExitCode);
+        Assert.Contains("Failed to start recording", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(result.Errors, x => string.Equals(x, "start failed", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenStartTaskFaultsAfterProbe_ReturnsEnvironmentErrorWithoutExternalCancellation()
+    {
+        _mousePositionProvider.IsSupported.Returns(false);
+        var delayedStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _macroRecorder.StartRecordingAsync(
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<IEnumerable<int>>(),
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
+            .Returns(delayedStartTask.Task);
+
+        _macroRecorder.IsRecording.Returns(false);
+
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(400);
+            delayedStartTask.TrySetException(new InvalidOperationException("late start failed"));
+        });
+
+        var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
+        {
+            OutputFilePath = "/tmp/test-record-late-start-fail.macro"
+        }, CancellationToken.None);
+
+        var completed = await Task.WhenAny(executeTask, Task.Delay(TimeSpan.FromSeconds(2)));
+        Assert.Same(executeTask, completed);
+
+        var result = await executeTask;
+        Assert.False(result.Success);
+        Assert.Equal(CliExitCode.EnvironmentError, result.ExitCode);
+        Assert.Contains("Failed to start recording", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(result.Errors, x => string.Equals(x, "late start failed", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenCancelledThenStartupFaults_ReturnsEnvironmentError()
+    {
+        _mousePositionProvider.IsSupported.Returns(false);
+        var delayedStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _macroRecorder.StartRecordingAsync(
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<IEnumerable<int>>(),
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
+            .Returns(delayedStartTask.Task);
+
+        _macroRecorder.IsRecording.Returns(false);
+
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(25);
+
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(80);
+            delayedStartTask.TrySetException(new InvalidOperationException("fault after cancellation"));
+        });
+
+        var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
+        {
+            OutputFilePath = "/tmp/test-record-cancel-then-fault.macro"
+        }, cts.Token);
+
+        var completed = await Task.WhenAny(executeTask, Task.Delay(TimeSpan.FromSeconds(2)));
+        Assert.Same(executeTask, completed);
+
+        var result = await executeTask;
+        Assert.False(result.Success);
+        Assert.Equal(CliExitCode.EnvironmentError, result.ExitCode);
+        Assert.Contains("Failed to start recording", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(result.Errors, x => string.Equals(x, "fault after cancellation", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenCancelledButEventsCapturedAndStartupSettlesLate_PreservesSuccessfulRecording()
+    {
+        _mousePositionProvider.IsSupported.Returns(false);
+        var neverCompletingStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _macroRecorder.StartRecordingAsync(
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<IEnumerable<int>>(),
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
+            .Returns(neverCompletingStartTask.Task);
+
+        _macroRecorder.IsRecording.Returns(true, false);
+        _macroRecorder.StopRecording().Returns(CreateSequenceWithOneEvent());
+
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(25);
+
+        var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
+        {
+            OutputFilePath = "/tmp/test-record-cancel-with-captured-events.macro"
+        }, cts.Token);
+
+        var completed = await Task.WhenAny(executeTask, Task.Delay(TimeSpan.FromSeconds(2)));
+        Assert.Same(executeTask, completed);
+
+        var result = await executeTask;
+        Assert.True(result.Success);
+        Assert.Equal(CliExitCode.Success, result.ExitCode);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenCancelledBeforeStartAndStopFails_ReturnsRuntimeError()
+    {
+        _mousePositionProvider.IsSupported.Returns(false);
+        var blockingStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _macroRecorder.StartRecordingAsync(
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<IEnumerable<int>>(),
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
+            .Returns(blockingStartTask.Task);
+
+        _macroRecorder.IsRecording.Returns(true);
+        _macroRecorder.StopRecording().Returns(_ => throw new InvalidOperationException("stop failed"));
+
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(25);
+
+        var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
+        {
+            OutputFilePath = "/tmp/test-record-cancel-stop-fail.macro"
+        }, cts.Token);
+
+        var completed = await Task.WhenAny(executeTask, Task.Delay(TimeSpan.FromSeconds(2)));
+        Assert.Same(executeTask, completed);
+
+        var result = await executeTask;
+        Assert.False(result.Success);
+        Assert.Equal(CliExitCode.RuntimeError, result.ExitCode);
+        Assert.Contains("while stopping", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(result.Errors, x => string.Equals(x, "stop failed", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenCancelledBeforeStartAndRecorderStopsConcurrently_ReturnsCancelled()
+    {
+        _mousePositionProvider.IsSupported.Returns(false);
+        var blockingStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _macroRecorder.StartRecordingAsync(
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<IEnumerable<int>>(),
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
+            .Returns(blockingStartTask.Task);
+
+        _macroRecorder.IsRecording.Returns(true, false);
+        _macroRecorder.StopRecording().Returns(_ => throw new InvalidOperationException("Not currently recording"));
+
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(25);
+
+        var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
+        {
+            OutputFilePath = "/tmp/test-record-cancel-race-stop-transition.macro"
+        }, cts.Token);
+
+        var completed = await Task.WhenAny(executeTask, Task.Delay(TimeSpan.FromSeconds(2)));
+        Assert.Same(executeTask, completed);
+
+        var result = await executeTask;
+        Assert.False(result.Success);
+        Assert.Equal(CliExitCode.Cancelled, result.ExitCode);
+        Assert.Contains("cancelled before start", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenCancelledDuringSlowStartupThatLaterSucceeds_ReturnsCancelled()
+    {
+        _mousePositionProvider.IsSupported.Returns(false);
+        var delayedStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _macroRecorder.StartRecordingAsync(
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<IEnumerable<int>>(),
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
+            .Returns(delayedStartTask.Task);
+
+        _macroRecorder.IsRecording.Returns(false);
+
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(25);
+
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(80);
+            delayedStartTask.TrySetResult();
+        });
+
+        var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
+        {
+            OutputFilePath = "/tmp/test-record-cancel-then-succeed.macro"
+        }, cts.Token);
+
+        var completed = await Task.WhenAny(executeTask, Task.Delay(TimeSpan.FromSeconds(2)));
+        Assert.Same(executeTask, completed);
+
+        var result = await executeTask;
+        Assert.False(result.Success);
+        Assert.Equal(CliExitCode.Cancelled, result.ExitCode);
+        Assert.Contains("cancelled before start", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenDurationRequested_WaitsUntilStartupCompletesBeforeStopping()
+    {
+        _mousePositionProvider.IsSupported.Returns(false);
+        var delayedStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stopCalled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var isRecording = false;
+
+        _macroRecorder.StartRecordingAsync(
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<IEnumerable<int>>(),
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
+            .Returns(delayedStartTask.Task);
+
+        _macroRecorder.IsRecording.Returns(_ => isRecording);
+        _macroRecorder.StopRecording().Returns(_ =>
+        {
+            isRecording = false;
+            stopCalled.TrySetResult();
+            return CreateSequenceWithOneEvent();
+        });
+
+        var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
+        {
+            OutputFilePath = "/tmp/test-record-duration-after-startup.macro",
+            DurationSeconds = 1
+        }, CancellationToken.None);
+
+        await Task.Delay(900);
+        isRecording = true;
+        delayedStartTask.TrySetResult();
+
+        var prematureStop = await Task.WhenAny(stopCalled.Task, Task.Delay(250));
+        Assert.NotSame(stopCalled.Task, prematureStop);
+
+        var completed = await Task.WhenAny(executeTask, Task.Delay(TimeSpan.FromSeconds(3)));
+        Assert.Same(executeTask, completed);
+
+        var result = await executeTask;
+        Assert.True(result.Success);
+        Assert.Equal(CliExitCode.Success, result.ExitCode);
+    }
+
     private static MacroSequence CreateSequenceWithOneEvent()
     {
         var sequence = new MacroSequence

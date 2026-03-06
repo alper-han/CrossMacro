@@ -123,6 +123,18 @@ public class CoordinateCaptureServiceTests
         result.Should().BeNull();
     }
 
+    [Fact]
+    public async Task CaptureMousePositionAsync_WhenCaptureStartFaultsAsynchronously_ReturnsNull()
+    {
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        var capture = new FakeInputCapture { ReturnFaultedStartTask = true };
+        var service = new CoordinateCaptureService(positionProvider, () => capture);
+
+        var result = await service.CaptureMousePositionAsync();
+
+        result.Should().BeNull();
+    }
+
     private static async Task WaitForConditionAsync(Func<bool> condition, int maxAttempts = 50, int delayMs = 10)
     {
         for (var i = 0; i < maxAttempts; i++)
@@ -143,6 +155,7 @@ public class CoordinateCaptureServiceTests
         public string ProviderName => "FakeCapture";
         public bool IsSupported => true;
         public bool ThrowOnStart { get; init; }
+        public bool ReturnFaultedStartTask { get; init; }
         public int ConfigureCalls { get; private set; }
         public bool LastCaptureMouse { get; private set; }
         public bool LastCaptureKeyboard { get; private set; }
@@ -166,6 +179,11 @@ public class CoordinateCaptureServiceTests
             if (ThrowOnStart)
             {
                 throw new InvalidOperationException("capture start failed");
+            }
+
+            if (ReturnFaultedStartTask)
+            {
+                return Task.FromException(new InvalidOperationException("capture start failed"));
             }
 
             return Task.CompletedTask;

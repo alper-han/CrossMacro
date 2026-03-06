@@ -90,6 +90,11 @@ internal static class TaskCommandParser
             return CliParseResult.Error("Task id cannot be empty");
         }
 
+        if (CliParseHelpers.LooksLikeOptionToken(taskId))
+        {
+            return CliParseResult.Error($"Usage: {commandName} run <task-id> [--json] [--log-level <level>]");
+        }
+
         var jsonOutput = false;
         string? logLevel = null;
         for (var i = 3; i < args.Length; i++)

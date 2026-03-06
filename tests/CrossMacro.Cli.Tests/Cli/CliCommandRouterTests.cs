@@ -520,6 +520,28 @@ public class CliCommandRouterTests
     }
 
     [Fact]
+    public void Parse_WhenSettingsSetWithNegativeNumericValue_ReturnsOptions()
+    {
+        var result = _router.Parse(["settings", "set", "playback.speed", "-0.5", "--json"]);
+
+        Assert.False(result.ShouldStartGui);
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<SettingsSetCliOptions>(result.Options);
+        Assert.Equal("playback.speed", options.Key);
+        Assert.Equal("-0.5", options.Value);
+        Assert.True(options.JsonOutput);
+    }
+
+    [Fact]
+    public void Parse_WhenSettingsSetMissingValueAndJsonProvided_ReturnsUsageError()
+    {
+        var result = _router.Parse(["settings", "set", "logging.level", "--json"]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("Usage: settings set <key> <value> [--json] [--log-level <level>]", result.ErrorMessage);
+    }
+
+    [Fact]
     public void Parse_WhenScheduleListWithJson_ReturnsOptions()
     {
         var result = _router.Parse(["schedule", "list", "--json"]);
@@ -544,6 +566,15 @@ public class CliCommandRouterTests
     }
 
     [Fact]
+    public void Parse_WhenScheduleRunMissingTaskIdAndJsonProvided_ReturnsUsageError()
+    {
+        var result = _router.Parse(["schedule", "run", "--json"]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("Usage: schedule run <task-id> [--json] [--log-level <level>]", result.ErrorMessage);
+    }
+
+    [Fact]
     public void Parse_WhenShortcutListWithJson_ReturnsOptions()
     {
         var result = _router.Parse(["shortcut", "list", "--json"]);
@@ -565,6 +596,15 @@ public class CliCommandRouterTests
         var options = Assert.IsType<ShortcutRunCliOptions>(result.Options);
         Assert.Equal(id, options.TaskId);
         Assert.True(options.JsonOutput);
+    }
+
+    [Fact]
+    public void Parse_WhenShortcutRunMissingTaskIdAndJsonProvided_ReturnsUsageError()
+    {
+        var result = _router.Parse(["shortcut", "run", "--json"]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("Usage: shortcut run <task-id> [--json] [--log-level <level>]", result.ErrorMessage);
     }
 
     [Fact]

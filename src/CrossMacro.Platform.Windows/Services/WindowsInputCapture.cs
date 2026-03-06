@@ -29,6 +29,7 @@ public class WindowsInputCapture : IInputCapture
     
     private Thread? _messagePumpThread;
     private uint _messagePumpThreadId;
+    private CancellationTokenRegistration _startCancellationRegistration;
     
 
 
@@ -42,7 +43,9 @@ public class WindowsInputCapture : IInputCapture
 
     public Task StartAsync(CancellationToken ct)
     {
-        var tcs = new TaskCompletionSource();
+        ct.ThrowIfCancellationRequested();
+
+        var startupTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         
         _messagePumpThread = new Thread(() =>
         {
@@ -60,22 +63,24 @@ public class WindowsInputCapture : IInputCapture
 
                     if (_captureMouse)
                     {
-                        _mouseHookHandle = User32.SetWindowsHookEx(User32.WH_MOUSE_LL, _mouseProc, moduleHandle, 0);
+                        _mouseHookHandle = InstallMouseHook(moduleHandle);
                         if (_mouseHookHandle == IntPtr.Zero)
                         {
-                            Error?.Invoke(this, "Failed to install mouse hook");
+                            throw new InvalidOperationException("Failed to install mouse hook");
                         }
                     }
 
                     if (_captureKeyboard)
                     {
-                        _keyboardHookHandle = User32.SetWindowsHookEx(User32.WH_KEYBOARD_LL, _keyboardProc, moduleHandle, 0);
+                        _keyboardHookHandle = InstallKeyboardHook(moduleHandle);
                         if (_keyboardHookHandle == IntPtr.Zero)
                         {
-                            Error?.Invoke(this, "Failed to install keyboard hook");
+                            throw new InvalidOperationException("Failed to install keyboard hook");
                         }
                     }
                 }
+
+                startupTcs.TrySetResult();
                 
                 while (!ct.IsCancellationRequested)
                 {
@@ -97,33 +102,46 @@ public class WindowsInputCapture : IInputCapture
             }
             catch (Exception ex)
             {
-                Error?.Invoke(this, $"Message pump error: {ex.Message}");
+                if (!startupTcs.TrySetException(ex) && !startupTcs.Task.IsCanceled)
+                {
+                    Error?.Invoke(this, $"Message pump error: {ex.Message}");
+                }
             }
             finally
             {
                 UninstallHooks();
-                tcs.TrySetResult();
+                _messagePumpThreadId = 0;
             }
         });
 
         _messagePumpThread.IsBackground = true;
         _messagePumpThread.Start();
         
-        ct.Register(() =>
+        _startCancellationRegistration.Dispose();
+        _startCancellationRegistration = ct.Register(() =>
         {
+            startupTcs.TrySetCanceled(ct);
             Stop();
         });
 
-        return tcs.Task;
+        return startupTcs.Task;
     }
 
     public void Stop()
     {
+        _startCancellationRegistration.Dispose();
+
         if (_messagePumpThreadId != 0)
         {
             User32.PostThreadMessage(_messagePumpThreadId, User32.WM_QUIT, IntPtr.Zero, IntPtr.Zero);
         }
     }
+
+    protected virtual IntPtr InstallMouseHook(IntPtr moduleHandle)
+        => User32.SetWindowsHookEx(User32.WH_MOUSE_LL, _mouseProc!, moduleHandle, 0);
+
+    protected virtual IntPtr InstallKeyboardHook(IntPtr moduleHandle)
+        => User32.SetWindowsHookEx(User32.WH_KEYBOARD_LL, _keyboardProc!, moduleHandle, 0);
 
     private void UninstallHooks()
     {

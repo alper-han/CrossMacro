@@ -89,10 +89,19 @@ public class GlobalHotkeyService : IGlobalHotkeyService
                 throw new InvalidOperationException("No input capture factory configured");
             }
 
-            StartCapture_NoLock();
-            
             _isRunning = true;
-            Log.Information("[GlobalHotkeyService] Started via {ProviderName}", _inputCapture?.ProviderName ?? "Unknown");
+
+            try
+            {
+                StartCapture_NoLock();
+                Log.Information("[GlobalHotkeyService] Started via {ProviderName}", _inputCapture?.ProviderName ?? "Unknown");
+            }
+            catch
+            {
+                _isRunning = false;
+                CleanupCapture_NoLock();
+                throw;
+            }
         }
     }
 
@@ -100,26 +109,18 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     {
         using (_lock.EnterScope())
         {
-            if (!_isRunning) return;
-
-            if (_inputCapture != null)
+            if (!_isRunning && _inputCapture == null && _captureCts == null)
             {
-                try
-                {
-                    StopCapture_NoLock();
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "[GlobalHotkeyService] Error stopping input capture");
-                }
+                return;
             }
-            
-            _captureCts?.Cancel();
-            _captureCts?.Dispose();
-            _captureCts = null;
-            
+
+            var wasRunning = _isRunning;
             _isRunning = false;
-            Log.Information("[GlobalHotkeyService] Stopped");
+            CleanupCapture_NoLock();
+            if (wasRunning)
+            {
+                Log.Information("[GlobalHotkeyService] Stopped");
+            }
         }
     }
 
@@ -359,7 +360,10 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         _inputCapture.Error += OnInputCaptureError;
 
         _captureCts = new CancellationTokenSource();
-        _ = _inputCapture.StartAsync(_captureCts.Token);
+        var capture = _inputCapture;
+        var captureToken = _captureCts.Token;
+        var captureTask = capture.StartAsync(captureToken) ?? Task.CompletedTask;
+        _ = ObserveCaptureTaskAsync(capture, captureTask, captureToken);
     }
 
     private void StopCapture_NoLock()
@@ -374,6 +378,66 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         _inputCapture.Stop();
         _inputCapture.Dispose();
         _inputCapture = null;
+    }
+
+    private void CleanupCapture_NoLock()
+    {
+        var captureCts = _captureCts;
+        _captureCts = null;
+
+        try
+        {
+            captureCts?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Already disposed.
+        }
+
+        try
+        {
+            StopCapture_NoLock();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[GlobalHotkeyService] Error stopping input capture");
+        }
+        finally
+        {
+            try
+            {
+                captureCts?.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed.
+            }
+        }
+    }
+
+    private async Task ObserveCaptureTaskAsync(IInputCapture capture, Task captureTask, CancellationToken token)
+    {
+        try
+        {
+            await captureTask.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // Normal shutdown path.
+        }
+        catch (Exception ex)
+        {
+            bool shouldReport;
+            using (_lock.EnterScope())
+            {
+                shouldReport = _isRunning && ReferenceEquals(_inputCapture, capture);
+            }
+
+            if (shouldReport)
+            {
+                OnInputCaptureError(capture, ex.Message);
+            }
+        }
     }
 
     private async Task TryRestartCaptureAsync(string cause)
@@ -398,15 +462,14 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
                 try
                 {
-                    StopCapture_NoLock();
-                    _captureCts?.Cancel();
-                    _captureCts?.Dispose();
-                    _captureCts = null;
+                    CleanupCapture_NoLock();
                     StartCapture_NoLock();
                     LastError = null;
                 }
                 catch (Exception ex)
                 {
+                    CleanupCapture_NoLock();
+                    _isRunning = false;
                     LastError = $"Restart failed: {ex.Message}";
                     ErrorOccurred?.Invoke(this, LastError);
                     Log.Error(ex, "[GlobalHotkeyService] Failed to restart input capture");

@@ -189,4 +189,18 @@ internal static class CliParseHelpers
         return string.Equals(token, "--version", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "-v", StringComparison.OrdinalIgnoreCase);
     }
+
+    public static bool LooksLikeOptionToken(string token)
+    {
+        return !string.IsNullOrWhiteSpace(token)
+            && token.StartsWith("-", StringComparison.Ordinal);
+    }
+
+    public static bool LooksLikeLongOptionToken(string token)
+    {
+        return !string.IsNullOrWhiteSpace(token)
+            && (token.StartsWith("--", StringComparison.Ordinal)
+                || IsHelpToken(token)
+                || IsVersionToken(token));
+    }
 }

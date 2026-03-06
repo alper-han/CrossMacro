@@ -126,6 +126,25 @@ public class EditorViewModelTests
     }
 
     [Fact]
+    public void Undo_AfterHistoryExceedsLimit_KeepsMostRecentStates()
+    {
+        // Arrange
+        for (var index = 0; index < 52; index++)
+        {
+            _viewModel.AddAction();
+        }
+
+        _viewModel.Actions.Should().HaveCount(52);
+
+        // Act
+        _viewModel.Undo();
+        _viewModel.Undo();
+
+        // Assert
+        _viewModel.Actions.Should().HaveCount(50);
+    }
+
+    [Fact]
     public async Task CaptureMouseAsync_WhenSelectionChanges_IgnoresCapturedPosition()
     {
         // Arrange

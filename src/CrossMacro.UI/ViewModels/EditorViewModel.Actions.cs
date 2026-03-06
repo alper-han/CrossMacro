@@ -160,14 +160,16 @@ public partial class EditorViewModel
 
     private void TrimUndoStack()
     {
-        while (_undoStack.Count > UndoStackLimit)
+        if (_undoStack.Count <= UndoStackLimit)
         {
-            var items = _undoStack.ToArray();
-            _undoStack.Clear();
-            for (var index = 0; index < UndoStackLimit - 1; index++)
-            {
-                _undoStack.Push(items[items.Length - 1 - index]);
-            }
+            return;
+        }
+
+        var newestToOldest = _undoStack.Take(UndoStackLimit).ToArray();
+        _undoStack.Clear();
+        for (var index = newestToOldest.Length - 1; index >= 0; index--)
+        {
+            _undoStack.Push(newestToOldest[index]);
         }
     }
 

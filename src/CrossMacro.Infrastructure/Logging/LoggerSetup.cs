@@ -40,7 +40,7 @@ public static class LoggerSetup
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[LoggerSetup] File logging disabled: {ex.Message}");
+            WriteDiagnosticToStderr($"[LoggerSetup] File logging disabled: {ex.Message}");
         }
 
         Log.Logger = config.CreateLogger();
@@ -104,5 +104,19 @@ public static class LoggerSetup
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".local", "share", AppConstants.AppIdentifier, "logs");
+    }
+
+    private static void WriteDiagnosticToStderr(string message)
+    {
+        try
+        {
+            Console.Error.WriteLine(message);
+        }
+        catch (IOException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
     }
 }

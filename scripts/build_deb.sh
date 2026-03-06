@@ -85,25 +85,18 @@ if [ "\$1" = "configure" ]; then
         addgroup --system crossmacro || true
     fi
 
-    input_group=""
-    if getent group input >/dev/null; then
-        input_group="input"
+    if ! getent group input >/dev/null; then
+        addgroup --system input || true
     fi
 
     # Create user if not exists
     if ! getent passwd crossmacro >/dev/null; then
-        if [ -n "\$input_group" ]; then
-            adduser --system --no-create-home --ingroup "\$input_group" --disabled-login crossmacro || true
-        else
-            adduser --system --no-create-home --ingroup crossmacro --disabled-login crossmacro || true
-        fi
+        adduser --system --no-create-home --ingroup input --disabled-login crossmacro || true
         adduser crossmacro crossmacro 2>/dev/null || true
     fi
     
     # Ensure user is in required groups
-    if [ -n "\$input_group" ]; then
-        usermod -aG "\$input_group" crossmacro 2>/dev/null || true
-    fi
+    usermod -aG input crossmacro 2>/dev/null || true
     usermod -aG crossmacro crossmacro 2>/dev/null || true
 
     # Debian policy compliant systemd integration

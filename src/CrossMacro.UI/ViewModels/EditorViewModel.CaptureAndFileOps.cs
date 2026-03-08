@@ -157,7 +157,8 @@ public partial class EditorViewModel
                 return;
             }
 
-            var isAbsolute = Actions.Any(action => action.Type == EditorActionType.MouseMove && action.IsAbsolute);
+            var firstCoordinateAction = Actions.FirstOrDefault(action => UsesCoordinateFields(action.Type));
+            var isAbsolute = firstCoordinateAction?.IsAbsolute ?? false;
             var sequence = _converter.ToMacroSequence(Actions, MacroName, isAbsolute, _skipInitialZeroZero);
             await _fileManager.SaveAsync(sequence, filePath);
 

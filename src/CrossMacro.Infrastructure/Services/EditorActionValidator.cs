@@ -50,7 +50,7 @@ public class EditorActionValidator : IEditorActionValidator
             }
             
             // Validate coordinate mode consistency
-            if (action.Type == EditorActionType.MouseMove)
+            if (UsesCoordinateMode(action.Type))
             {
                 if (firstCoordinateMode == null)
                 {
@@ -123,36 +123,50 @@ public class EditorActionValidator : IEditorActionValidator
     
     private static (bool IsValid, string? Error) ValidateMouseMove(EditorAction action)
     {
+        return ValidateCoordinateBounds(action, requireRelativeNonZero: true);
+    }
+
+    private static (bool IsValid, string? Error) ValidateMouseButton(EditorAction action)
+    {
+        if (!Enum.IsDefined(typeof(MouseButton), action.Button))
+            return (false, ValidationMessages.InvalidMouseButton);
+
+        if (action.Button is MouseButton.ScrollUp or MouseButton.ScrollDown
+            or MouseButton.ScrollLeft or MouseButton.ScrollRight)
+            return (false, ValidationMessages.UseScrollActionForScrollButtons);
+
+        return ValidateCoordinateBounds(action, requireRelativeNonZero: false);
+    }
+
+    private static (bool IsValid, string? Error) ValidateCoordinateBounds(EditorAction action, bool requireRelativeNonZero)
+    {
         if (action.IsAbsolute)
         {
             if (action.X < 0 || action.Y < 0)
                 return (false, ValidationMessages.AbsoluteCoordsMustBeNonNegative);
-            
+
             if (action.X > 32767 || action.Y > 32767)
                 return (false, ValidationMessages.CoordsExceedMaximum);
         }
         else
         {
-            if (action.X == 0 && action.Y == 0)
+            if (requireRelativeNonZero && action.X == 0 && action.Y == 0)
                 return (false, ValidationMessages.RelativeMoveMustHaveValue);
-            
+
             if (Math.Abs(action.X) > 10000 || Math.Abs(action.Y) > 10000)
                 return (false, ValidationMessages.RelativeMoveTooLarge);
         }
-        
+
         return (true, null);
     }
-    
-    private static (bool IsValid, string? Error) ValidateMouseButton(EditorAction action)
+
+    private static bool UsesCoordinateMode(EditorActionType actionType)
     {
-        if (!Enum.IsDefined(typeof(MouseButton), action.Button))
-            return (false, ValidationMessages.InvalidMouseButton);
-        
-        if (action.Button is MouseButton.ScrollUp or MouseButton.ScrollDown 
-            or MouseButton.ScrollLeft or MouseButton.ScrollRight)
-            return (false, ValidationMessages.UseScrollActionForScrollButtons);
-        
-        return (true, null);
+        return actionType is
+            EditorActionType.MouseMove or
+            EditorActionType.MouseClick or
+            EditorActionType.MouseDown or
+            EditorActionType.MouseUp;
     }
     
     private static (bool IsValid, string? Error) ValidateTextInput(EditorAction action)

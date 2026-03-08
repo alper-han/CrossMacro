@@ -217,4 +217,49 @@ public class EditorActionConverterTests
         actions[0].RandomDelayMaxMs.Should().Be(130);
         actions[1].Type.Should().Be(EditorActionType.MouseMove);
     }
+
+    [Fact]
+    public void FromMacroSequence_WhenAbsoluteModeAndMouseButtonEvents_SetsActionsAbsolute()
+    {
+        // Arrange
+        var sequence = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            Events =
+            [
+                new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 120, Y = 220 },
+                new MacroEvent { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 130, Y = 230 },
+                new MacroEvent { Type = EventType.ButtonRelease, Button = MouseButton.Left, X = 140, Y = 240 }
+            ]
+        };
+
+        // Act
+        var actions = _converter.FromMacroSequence(sequence);
+
+        // Assert
+        actions.Should().HaveCount(3);
+        actions.Should().OnlyContain(a => a.IsAbsolute);
+    }
+
+    [Fact]
+    public void FromMacroSequence_WhenRelativeModeAndMouseButtonEvents_SetsActionsRelative()
+    {
+        // Arrange
+        var sequence = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            Events =
+            [
+                new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 0, Y = 0 },
+                new MacroEvent { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 5, Y = -3 }
+            ]
+        };
+
+        // Act
+        var actions = _converter.FromMacroSequence(sequence);
+
+        // Assert
+        actions.Should().HaveCount(2);
+        actions.Should().OnlyContain(a => !a.IsAbsolute);
+    }
 }

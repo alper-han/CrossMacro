@@ -62,6 +62,29 @@ public partial class EditorViewModel
         return true;
     }
 
+    private bool GetCurrentCoordinateMode()
+    {
+        return Actions.FirstOrDefault(action => UsesCoordinateFields(action.Type))?.IsAbsolute ?? true;
+    }
+
+    private void PropagateCoordinateMode(EditorAction sourceAction)
+    {
+        if (!UsesCoordinateFields(sourceAction.Type))
+        {
+            return;
+        }
+
+        foreach (var action in Actions)
+        {
+            if (ReferenceEquals(action, sourceAction) || !UsesCoordinateFields(action.Type))
+            {
+                continue;
+            }
+
+            action.IsAbsolute = sourceAction.IsAbsolute;
+        }
+    }
+
     private void RememberCurrentState()
     {
         _lastKnownState = CloneState(Actions);
@@ -121,6 +144,11 @@ public partial class EditorViewModel
             }
         }
 
+        if (e.PropertyName == nameof(EditorAction.IsAbsolute) && sender is EditorAction coordAction)
+        {
+            PropagateCoordinateMode(coordAction);
+        }
+
         if (shouldTrackUndo)
         {
             RememberCurrentState();
@@ -177,10 +205,13 @@ public partial class EditorViewModel
     {
         SaveUndoState();
 
+        var isCoordinateAction = UsesCoordinateFields(NewActionType);
+        var coordinateMode = isCoordinateAction ? GetCurrentCoordinateMode() : true;
+
         var action = new EditorAction
         {
             Type = NewActionType,
-            IsAbsolute = true,
+            IsAbsolute = coordinateMode,
             DelayMs = NewActionType == EditorActionType.Delay ? 100 : 0,
             UseRandomDelay = false,
             RandomDelayMinMs = 50,

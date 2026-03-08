@@ -101,4 +101,22 @@ public class EditorActionValidatorTests
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.Contains("Cannot mix Absolute and Relative coordinates"));
     }
+
+    [Fact]
+    public void ValidateAll_WhenMouseButtonModesAreMixed_ReturnsError()
+    {
+        // Arrange
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.MouseClick, IsAbsolute = true, X = 100, Y = 200, Button = MouseButton.Left },
+            new EditorAction { Type = EditorActionType.MouseDown, IsAbsolute = false, X = 0, Y = 0, Button = MouseButton.Left }
+        };
+
+        // Act
+        var result = _validator.ValidateAll(actions);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("Cannot mix Absolute and Relative coordinates"));
+    }
 }

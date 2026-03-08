@@ -99,7 +99,7 @@ public class EditorAction : INotifyPropertyChanged
     
     /// <summary>
     /// Whether coordinates are absolute (true) or relative (false).
-    /// Only applicable for MouseMove actions.
+    /// Used by mouse actions with coordinates (MouseMove/MouseClick/MouseDown/MouseUp).
     /// </summary>
     public bool IsAbsolute
     {

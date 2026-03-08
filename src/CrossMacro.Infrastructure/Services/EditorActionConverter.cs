@@ -420,8 +420,11 @@ public class EditorActionConverter : IEditorActionConverter
             
             var action = FromMacroEvent(ev, nextEvent);
             
-            // Set IsAbsolute based on sequence metadata for MouseMove actions
-            if (action.Type == EditorActionType.MouseMove)
+            // Set IsAbsolute based on sequence metadata for coordinate-bearing mouse actions.
+            if (action.Type is EditorActionType.MouseMove
+                or EditorActionType.MouseClick
+                or EditorActionType.MouseDown
+                or EditorActionType.MouseUp)
             {
                 action.IsAbsolute = sequence.IsAbsoluteCoordinates;
             }

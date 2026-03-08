@@ -203,14 +203,14 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     #region Visibility Properties
 
     /// <summary>
-    /// Show coordinates for: MouseMove only (other mouse events don't use coordinates)
+    /// Show coordinates for: MouseMove, MouseClick, MouseDown, MouseUp.
     /// </summary>
-    public bool ShowCoordinates => SelectedAction?.Type == EditorActionType.MouseMove;
+    public bool ShowCoordinates => SelectedAction != null && UsesCoordinateFields(SelectedAction.Type);
 
     /// <summary>
-    /// Show Absolute/Relative toggle for: MouseMove only
+    /// Show Absolute/Relative toggle for all coordinate-bearing mouse actions.
     /// </summary>
-    public bool ShowCoordModeToggle => SelectedAction?.Type == EditorActionType.MouseMove;
+    public bool ShowCoordModeToggle => SelectedAction != null && UsesCoordinateFields(SelectedAction.Type);
 
     /// <summary>
     /// Show mouse button for: MouseClick, MouseDown, MouseUp
@@ -256,6 +256,15 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public bool ShowTextInput => SelectedAction?.Type == EditorActionType.TextInput;
 
     #endregion
+
+    private static bool UsesCoordinateFields(EditorActionType actionType)
+    {
+        return actionType is
+            EditorActionType.MouseMove or
+            EditorActionType.MouseClick or
+            EditorActionType.MouseDown or
+            EditorActionType.MouseUp;
+    }
 
     public void Dispose()
     {

@@ -171,7 +171,7 @@
                                 </Button>
                             </StackPanel>
                             
-                            <!-- Absolute/Relative Toggle (MouseMove only) -->
+                            <!-- Absolute/Relative Toggle (all coordinate-bearing mouse actions) -->
                             <StackPanel Spacing="4" IsVisible="{Binding ShowCoordModeToggle}">
                                 <TextBlock Text="Coordinate Mode:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <StackPanel Orientation="Horizontal" Spacing="12">

@@ -116,9 +116,7 @@ public class WindowsKeyboardLayoutService : IKeyboardLayoutService
             var (vk, _, _) = GetVkForChar(keyName[0]);
             if (vk != 0) return WindowsKeyMap.GetEvdevCode((ushort)vk);
         }
-        
-        
-        return 0;
+        return -1;
     }
 
     public char? GetCharFromKeyCode(int keyCode, bool leftShift, bool rightShift, bool rightAlt, bool leftAlt, bool leftCtrl, bool capsLock)

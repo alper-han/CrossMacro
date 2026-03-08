@@ -68,10 +68,10 @@ public class WindowsKeyboardLayoutServiceTests
     }
 
     [WindowsFact]
-    public void GetKeyCode_WhenUnknownName_ReturnsZero()
+    public void GetKeyCode_WhenUnknownName_ReturnsMinusOne()
     {
         var code = _service.GetKeyCode("NotAKnownKeyName");
 
-        Assert.Equal(0, code);
+        Assert.Equal(-1, code);
     }
 }

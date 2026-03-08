@@ -71,9 +71,13 @@ public sealed class SessionHandlerTests
         Assert.Equal(IpcProtocol.ProtocolVersion, reader.ReadInt32());
 
         writer.Write((byte)IpcOpCode.StartCapture);
+        writer.Write(101);
         writer.Write(true);
         writer.Write(false);
         writer.Flush();
+
+        Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(101, reader.ReadInt32());
 
         writer.Write((byte)IpcOpCode.ConfigureResolution);
         writer.Write(1920);
@@ -130,11 +134,14 @@ public sealed class SessionHandlerTests
         Assert.Equal(IpcProtocol.ProtocolVersion, reader.ReadInt32());
 
         writer.Write((byte)IpcOpCode.StartCapture);
+        writer.Write(202);
         writer.Write(true);
         writer.Write(true);
         writer.Flush();
 
         await captureManager.WaitForStartCaptureAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(202, reader.ReadInt32());
 
         captureManager.Emit(new UInputNative.input_event
         {
@@ -146,6 +153,260 @@ public sealed class SessionHandlerTests
         Assert.Equal(IpcOpCode.InputEvent, (IpcOpCode)reader.ReadByte());
         Assert.Equal((byte)InputEventType.MouseButton, reader.ReadByte());
         Assert.Equal((int)UInputNative.BTN_LEFT, reader.ReadInt32());
+        Assert.Equal(1, reader.ReadInt32());
+        Assert.True(reader.ReadInt64() > 0);
+
+        socketPair.Client.Dispose();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+    }
+
+    [LinuxFact]
+    public async Task RunAsync_WhenCaptureManagerEmitsDuringStartup_ShouldSendCaptureStartedBeforeInputEvents()
+    {
+        var security = new FakeSecurityService();
+        var virtualDevice = new FakeVirtualDeviceManager();
+        var captureManager = new FakeInputCaptureManager();
+        captureManager.ConfigureEmitDuringStart(new UInputNative.input_event
+        {
+            type = UInputNative.EV_KEY,
+            code = UInputNative.BTN_LEFT,
+            value = 1
+        });
+        var handler = new SessionHandler(security, virtualDevice, captureManager);
+
+        await using var socketPair = await UnixSocketPair.CreateAsync();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1004, pid: 6543, cts.Token);
+        using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
+        stream.ReadTimeout = 2000;
+        using var reader = new BinaryReader(stream);
+        using var writer = new BinaryWriter(stream);
+
+        writer.Write((byte)IpcOpCode.Handshake);
+        writer.Write(IpcProtocol.ProtocolVersion);
+        writer.Flush();
+
+        Assert.Equal(IpcOpCode.Handshake, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(IpcProtocol.ProtocolVersion, reader.ReadInt32());
+
+        writer.Write((byte)IpcOpCode.StartCapture);
+        writer.Write(404);
+        writer.Write(true);
+        writer.Write(true);
+        writer.Flush();
+
+        await captureManager.WaitForStartCaptureAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(404, reader.ReadInt32());
+
+        Assert.Equal(IpcOpCode.InputEvent, (IpcOpCode)reader.ReadByte());
+        Assert.Equal((byte)InputEventType.MouseButton, reader.ReadByte());
+        Assert.Equal((int)UInputNative.BTN_LEFT, reader.ReadInt32());
+        Assert.Equal(1, reader.ReadInt32());
+        Assert.True(reader.ReadInt64() > 0);
+
+        socketPair.Client.Dispose();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+    }
+
+    [LinuxFact]
+    public async Task RunAsync_WhenCaptureManagerStartFails_ShouldSendCaptureStartFailedResponse()
+    {
+        var security = new FakeSecurityService();
+        var virtualDevice = new FakeVirtualDeviceManager();
+        var captureManager = new FakeInputCaptureManager();
+        captureManager.ConfigureStartFailure("No matching input devices found.");
+        var handler = new SessionHandler(security, virtualDevice, captureManager);
+
+        await using var socketPair = await UnixSocketPair.CreateAsync();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1006, pid: 1111, cts.Token);
+        using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
+        stream.ReadTimeout = 2000;
+        using var reader = new BinaryReader(stream);
+        using var writer = new BinaryWriter(stream);
+
+        writer.Write((byte)IpcOpCode.Handshake);
+        writer.Write(IpcProtocol.ProtocolVersion);
+        writer.Flush();
+
+        Assert.Equal(IpcOpCode.Handshake, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(IpcProtocol.ProtocolVersion, reader.ReadInt32());
+
+        writer.Write((byte)IpcOpCode.StartCapture);
+        writer.Write(606);
+        writer.Write(true);
+        writer.Write(true);
+        writer.Flush();
+
+        Assert.Equal(IpcOpCode.CaptureStartFailed, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(606, reader.ReadInt32());
+        Assert.Contains("No matching input devices found", reader.ReadString(), StringComparison.Ordinal);
+
+        socketPair.Client.Dispose();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+    }
+
+    [LinuxFact]
+    public async Task RunAsync_WhenCaptureManagerThrowsDuringStart_ShouldSendCaptureStartFailedResponse()
+    {
+        var security = new FakeSecurityService();
+        var virtualDevice = new FakeVirtualDeviceManager();
+        var captureManager = new FakeInputCaptureManager();
+        captureManager.ConfigureStartException(new InvalidOperationException("boom from capture manager"));
+        var handler = new SessionHandler(security, virtualDevice, captureManager);
+
+        await using var socketPair = await UnixSocketPair.CreateAsync();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1008, pid: 3333, cts.Token);
+        using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
+        stream.ReadTimeout = 2000;
+        using var reader = new BinaryReader(stream);
+        using var writer = new BinaryWriter(stream);
+
+        writer.Write((byte)IpcOpCode.Handshake);
+        writer.Write(IpcProtocol.ProtocolVersion);
+        writer.Flush();
+
+        Assert.Equal(IpcOpCode.Handshake, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(IpcProtocol.ProtocolVersion, reader.ReadInt32());
+
+        writer.Write((byte)IpcOpCode.StartCapture);
+        writer.Write(808);
+        writer.Write(true);
+        writer.Write(true);
+        writer.Flush();
+
+        Assert.Equal(IpcOpCode.CaptureStartFailed, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(808, reader.ReadInt32());
+        Assert.Contains("internal error", reader.ReadString(), StringComparison.OrdinalIgnoreCase);
+
+        socketPair.Client.Dispose();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+    }
+
+    [LinuxFact]
+    public async Task RunAsync_WhenPendingStartupBufferExceedsLimit_ShouldDropOldestEvents()
+    {
+        var security = new FakeSecurityService();
+        var virtualDevice = new FakeVirtualDeviceManager();
+        var captureManager = new FakeInputCaptureManager();
+        captureManager.ConfigureEmitSequenceDuringStart(
+            new UInputNative.input_event { type = UInputNative.EV_KEY, code = 10, value = 1 },
+            new UInputNative.input_event { type = UInputNative.EV_KEY, code = 11, value = 1 },
+            new UInputNative.input_event { type = UInputNative.EV_KEY, code = 12, value = 1 });
+        var handler = new SessionHandler(security, virtualDevice, captureManager, maxBufferedCaptureEvents: 2);
+
+        await using var socketPair = await UnixSocketPair.CreateAsync();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1007, pid: 2222, cts.Token);
+        using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
+        stream.ReadTimeout = 2000;
+        using var reader = new BinaryReader(stream);
+        using var writer = new BinaryWriter(stream);
+
+        writer.Write((byte)IpcOpCode.Handshake);
+        writer.Write(IpcProtocol.ProtocolVersion);
+        writer.Flush();
+
+        Assert.Equal(IpcOpCode.Handshake, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(IpcProtocol.ProtocolVersion, reader.ReadInt32());
+
+        writer.Write((byte)IpcOpCode.StartCapture);
+        writer.Write(707);
+        writer.Write(true);
+        writer.Write(true);
+        writer.Flush();
+
+        Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(707, reader.ReadInt32());
+
+        Assert.Equal(IpcOpCode.InputEvent, (IpcOpCode)reader.ReadByte());
+        Assert.Equal((byte)InputEventType.Key, reader.ReadByte());
+        Assert.Equal(11, reader.ReadInt32());
+        Assert.Equal(1, reader.ReadInt32());
+        Assert.True(reader.ReadInt64() > 0);
+
+        Assert.Equal(IpcOpCode.InputEvent, (IpcOpCode)reader.ReadByte());
+        Assert.Equal((byte)InputEventType.Key, reader.ReadByte());
+        Assert.Equal(12, reader.ReadInt32());
+        Assert.Equal(1, reader.ReadInt32());
+        Assert.True(reader.ReadInt64() > 0);
+
+        socketPair.Client.Dispose();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+    }
+
+    [LinuxFact]
+    public async Task RunAsync_WhenReconfiguringCapture_ShouldNotReplayPreviousGenerationEventsAfterAck()
+    {
+        var security = new FakeSecurityService();
+        var virtualDevice = new FakeVirtualDeviceManager();
+        var captureManager = new FakeInputCaptureManager();
+        var handler = new SessionHandler(security, virtualDevice, captureManager);
+
+        await using var socketPair = await UnixSocketPair.CreateAsync();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1005, pid: 7654, cts.Token);
+        using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
+        stream.ReadTimeout = 2000;
+        using var reader = new BinaryReader(stream);
+        using var writer = new BinaryWriter(stream);
+
+        writer.Write((byte)IpcOpCode.Handshake);
+        writer.Write(IpcProtocol.ProtocolVersion);
+        writer.Flush();
+
+        Assert.Equal(IpcOpCode.Handshake, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(IpcProtocol.ProtocolVersion, reader.ReadInt32());
+
+        writer.Write((byte)IpcOpCode.StartCapture);
+        writer.Write(501);
+        writer.Write(true);
+        writer.Write(true);
+        writer.Flush();
+
+        Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(501, reader.ReadInt32());
+
+        captureManager.ConfigureEmitPreviousAndCurrentEventsOnNextStart(
+            previousGenerationEvent: new UInputNative.input_event
+            {
+                type = UInputNative.EV_KEY,
+                code = UInputNative.BTN_LEFT,
+                value = 1
+            },
+            currentGenerationEvent: new UInputNative.input_event
+            {
+                type = UInputNative.EV_KEY,
+                code = 30,
+                value = 1
+            });
+
+        writer.Write((byte)IpcOpCode.StartCapture);
+        writer.Write(502);
+        writer.Write(false);
+        writer.Write(true);
+        writer.Flush();
+
+        Assert.Equal(IpcOpCode.InputEvent, (IpcOpCode)reader.ReadByte());
+        Assert.Equal((byte)InputEventType.MouseButton, reader.ReadByte());
+        Assert.Equal((int)UInputNative.BTN_LEFT, reader.ReadInt32());
+        Assert.Equal(1, reader.ReadInt32());
+        Assert.True(reader.ReadInt64() > 0);
+
+        Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(502, reader.ReadInt32());
+
+        Assert.Equal(IpcOpCode.InputEvent, (IpcOpCode)reader.ReadByte());
+        Assert.Equal((byte)InputEventType.Key, reader.ReadByte());
+        Assert.Equal(30, reader.ReadInt32());
         Assert.Equal(1, reader.ReadInt32());
         Assert.True(reader.ReadInt64() > 0);
 
@@ -178,11 +439,14 @@ public sealed class SessionHandlerTests
         Assert.Equal(IpcProtocol.ProtocolVersion, reader.ReadInt32());
 
         writer.Write((byte)IpcOpCode.StartCapture);
+        writer.Write(303);
         writer.Write(true);
         writer.Write(true);
         writer.Flush();
 
         await captureManager.WaitForStartCaptureAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(303, reader.ReadInt32());
 
         captureManager.Emit(new UInputNative.input_event
         {
@@ -252,19 +516,57 @@ public sealed class SessionHandlerTests
     {
         private Action<UInputNative.input_event>? _onEvent;
         private readonly TaskCompletionSource _captureStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private bool _emitDuringStart;
+        private UInputNative.input_event _emitDuringStartEvent;
+        private UInputNative.input_event[]? _emitSequenceDuringStart;
+        private bool _emitPreviousAndCurrentOnNextStart;
+        private UInputNative.input_event _previousGenerationStartEvent;
+        private UInputNative.input_event _currentGenerationStartEvent;
+        private CaptureStartResult _startResult = CaptureStartResult.Started(startedDeviceCount: 1);
+        private Exception? _startException;
 
         public int StartCaptureCalls { get; private set; }
         public int StopCaptureCalls { get; private set; }
         public bool LastCaptureMouse { get; private set; }
         public bool LastCaptureKeyboard { get; private set; }
 
-        public void StartCapture(bool captureMouse, bool captureKeyboard, Action<UInputNative.input_event> onEvent)
+        public CaptureStartResult StartCapture(bool captureMouse, bool captureKeyboard, Action<UInputNative.input_event> onEvent)
         {
+            if (_startException != null)
+            {
+                var exception = _startException;
+                _startException = null;
+                throw exception;
+            }
+
             StartCaptureCalls++;
             LastCaptureMouse = captureMouse;
             LastCaptureKeyboard = captureKeyboard;
+            var previousOnEvent = _onEvent;
             _onEvent = onEvent;
+            if (_emitDuringStart)
+            {
+                onEvent(_emitDuringStartEvent);
+            }
+            if (_emitSequenceDuringStart != null)
+            {
+                foreach (var inputEvent in _emitSequenceDuringStart)
+                {
+                    onEvent(inputEvent);
+                }
+
+                _emitSequenceDuringStart = null;
+            }
+            if (_emitPreviousAndCurrentOnNextStart)
+            {
+                previousOnEvent?.Invoke(_previousGenerationStartEvent);
+                onEvent(_currentGenerationStartEvent);
+                _emitPreviousAndCurrentOnNextStart = false;
+            }
             _captureStarted.TrySetResult();
+            var startResult = _startResult;
+            _startResult = CaptureStartResult.Started(startedDeviceCount: 1);
+            return startResult;
         }
 
         public void StopCapture()
@@ -279,6 +581,36 @@ public sealed class SessionHandlerTests
 
         public Task WaitForStartCaptureAsync(TimeSpan timeout) =>
             _captureStarted.Task.WaitAsync(timeout);
+
+        public void ConfigureEmitDuringStart(UInputNative.input_event inputEvent)
+        {
+            _emitDuringStart = true;
+            _emitDuringStartEvent = inputEvent;
+        }
+
+        public void ConfigureEmitSequenceDuringStart(params UInputNative.input_event[] events)
+        {
+            _emitSequenceDuringStart = events.Length == 0 ? null : events;
+        }
+
+        public void ConfigureEmitPreviousAndCurrentEventsOnNextStart(
+            UInputNative.input_event previousGenerationEvent,
+            UInputNative.input_event currentGenerationEvent)
+        {
+            _emitPreviousAndCurrentOnNextStart = true;
+            _previousGenerationStartEvent = previousGenerationEvent;
+            _currentGenerationStartEvent = currentGenerationEvent;
+        }
+
+        public void ConfigureStartFailure(string errorMessage)
+        {
+            _startResult = CaptureStartResult.Failed(errorMessage);
+        }
+
+        public void ConfigureStartException(Exception exception)
+        {
+            _startException = exception;
+        }
 
         public void Dispose()
         {

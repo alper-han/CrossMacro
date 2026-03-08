@@ -184,8 +184,9 @@ public class DaemonServiceTests
 
     private sealed class FakeInputCaptureManager : IInputCaptureManager
     {
-        public void StartCapture(bool captureMouse, bool captureKeyboard, Action<UInputNative.input_event> onEvent)
+        public CaptureStartResult StartCapture(bool captureMouse, bool captureKeyboard, Action<UInputNative.input_event> onEvent)
         {
+            return CaptureStartResult.Started(startedDeviceCount: 1);
         }
 
         public void StopCapture()

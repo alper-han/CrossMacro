@@ -13,7 +13,7 @@ public class InputCaptureManager : IInputCaptureManager
     private readonly List<EvdevReader> _readers = new();
     private readonly Lock _lock = new();
 
-    public void StartCapture(bool captureMouse, bool captureKeyboard, Action<UInputNative.input_event> onEvent)
+    public CaptureStartResult StartCapture(bool captureMouse, bool captureKeyboard, Action<UInputNative.input_event> onEvent)
     {
         lock (_lock)
         {
@@ -23,6 +23,11 @@ public class InputCaptureManager : IInputCaptureManager
             var targetDevices = devices.Where(d => (captureMouse && d.IsMouse) || (captureKeyboard && d.IsKeyboard)).ToList();
             
             Log.Information("[InputCaptureManager] Starting capture on {Count} devices", targetDevices.Count);
+
+            if (targetDevices.Count == 0)
+            {
+                return CaptureStartResult.Failed("No matching input devices found.");
+            }
 
             foreach (var dev in targetDevices)
             {
@@ -51,6 +56,13 @@ public class InputCaptureManager : IInputCaptureManager
                     Log.Warning("Failed to open {Path}: {Msg}", dev.Path, ex.Message);
                 }
             }
+
+            if (_readers.Count == 0)
+            {
+                return CaptureStartResult.Failed("Failed to open any input devices.");
+            }
+
+            return CaptureStartResult.Started(_readers.Count);
         }
     }
 

@@ -5,7 +5,7 @@ namespace CrossMacro.Core.Ipc;
 
 public static class IpcProtocol
 {
-    public const int ProtocolVersion = 1;
+    public const int ProtocolVersion = 2;
     
     /// <summary>
     /// Primary socket path managed by systemd RuntimeDirectory.

@@ -10,7 +10,7 @@ public enum IpcOpCode : byte
 
     /// <summary>
     /// Request to start capturing input events.
-    /// Payload: bool (Capture Mouse), bool (Capture Keyboard)
+    /// Payload: int (Request Id), bool (Capture Mouse), bool (Capture Keyboard)
     /// </summary>
     StartCapture = 0x02,
 
@@ -31,6 +31,18 @@ public enum IpcOpCode : byte
     /// Payload: ushort (Type), ushort (Code), int (Value)
     /// </summary>
     SimulateEvent = 0x05,
+
+    /// <summary>
+    /// Capture startup acknowledgement sent from Daemon to Client.
+    /// Payload: int (Request Id)
+    /// </summary>
+    CaptureStarted = 0x07,
+
+    /// <summary>
+    /// Capture startup failure sent from Daemon to Client.
+    /// Payload: int (Request Id), string (Message)
+    /// </summary>
+    CaptureStartFailed = 0x08,
 
     /// <summary>
     /// Error report.

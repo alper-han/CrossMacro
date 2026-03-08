@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading;
@@ -12,18 +13,30 @@ namespace CrossMacro.Daemon.Services;
 
 public class SessionHandler : ISessionHandler
 {
+    private const int DefaultMaxBufferedCaptureEvents = 1024;
     private readonly ISecurityService _security;
     private readonly IVirtualDeviceManager _virtualDevice;
     private readonly IInputCaptureManager _inputCapture;
+    private readonly int _maxBufferedCaptureEvents;
 
     public SessionHandler(
         ISecurityService security, 
         IVirtualDeviceManager virtualDevice, 
-        IInputCaptureManager inputCapture)
+        IInputCaptureManager inputCapture,
+        int maxBufferedCaptureEvents = DefaultMaxBufferedCaptureEvents)
     {
         _security = security;
         _virtualDevice = virtualDevice;
         _inputCapture = inputCapture;
+        if (maxBufferedCaptureEvents <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maxBufferedCaptureEvents),
+                maxBufferedCaptureEvents,
+                "Buffered capture event limit must be greater than zero.");
+        }
+
+        _maxBufferedCaptureEvents = maxBufferedCaptureEvents;
     }
 
     public async Task RunAsync(Socket client, uint uid, int pid, CancellationToken token)
@@ -86,25 +99,38 @@ public class SessionHandler : ISessionHandler
                 return;
             }
 
-            object writerLock = new object();
+            var writerGate = new OrderedWriteGate();
             bool disconnected = false;
+            var captureState = new CaptureForwardingState();
 
-            // Define the capture callback here to close over 'writer' and 'writerLock'
-            Action<UInputNative.input_event> onEventValue = (e) =>
+            Action<UInputNative.input_event> CreateCaptureEventForwarder(int generation) => (e) =>
             {
                 if (disconnected) return;
 
                 try
                 {
-                    lock (writerLock)
+                    using (writerGate.Enter())
                     {
                         if (disconnected) return;
 
-                        writer.Write((byte)IpcOpCode.InputEvent);
-                        writer.Write((byte)GetEventType(e.type, e.code));
-                        writer.Write((int)e.code);
-                        writer.Write(e.value);
-                        writer.Write(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+                        if (generation == captureState.PendingGeneration)
+                        {
+                            if (captureState.BufferedCaptureEvents.Count >= _maxBufferedCaptureEvents)
+                            {
+                                captureState.BufferedCaptureEvents.Dequeue();
+                                captureState.DroppedPendingCaptureEvents++;
+                            }
+
+                            captureState.BufferedCaptureEvents.Enqueue(e);
+                            return;
+                        }
+
+                        if (!captureState.CaptureForwardingEnabled || generation != captureState.ActiveGeneration)
+                        {
+                            return;
+                        }
+
+                        WriteInputEvent(writer, e);
                         stream.Flush();
                     }
                 }
@@ -121,7 +147,17 @@ public class SessionHandler : ISessionHandler
             };
 
             await Task.Run(
-                () => ReadLoop(reader, uid, pid, onEventValue, () => disconnected = true, clientCts.Token),
+                () => ReadLoop(
+                    reader,
+                    writer,
+                    stream,
+                    writerGate,
+                    captureState,
+                    uid,
+                    pid,
+                    CreateCaptureEventForwarder,
+                    () => disconnected = true,
+                    clientCts.Token),
                 clientCts.Token);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -139,7 +175,17 @@ public class SessionHandler : ISessionHandler
 
     }
 
-    private void ReadLoop(BinaryReader reader, uint uid, int pid, Action<UInputNative.input_event> onEvent, Action onDisconnect, CancellationToken token)
+    private void ReadLoop(
+        BinaryReader reader,
+        BinaryWriter writer,
+        Stream stream,
+        OrderedWriteGate writerGate,
+        CaptureForwardingState captureState,
+        uint uid,
+        int pid,
+        Func<int, Action<UInputNative.input_event>> createCaptureEventForwarder,
+        Action onDisconnect,
+        CancellationToken token)
     {
         try
         {
@@ -151,34 +197,25 @@ public class SessionHandler : ISessionHandler
                 switch (opcode)
                 {
                     case IpcOpCode.StartCapture:
-                    {
-                        var captureMouse = reader.ReadBoolean();
-                        var captureKb = reader.ReadBoolean();
-                        _security.LogCaptureStart(uid, pid, captureMouse, captureKb);
-                        _inputCapture.StartCapture(captureMouse, captureKb, onEvent);
+                        HandleStartCaptureCommand(
+                            reader,
+                            writer,
+                            stream,
+                            writerGate,
+                            captureState,
+                            uid,
+                            pid,
+                            createCaptureEventForwarder);
                         break;
-                    }
                     case IpcOpCode.StopCapture:
-                    {
-                        _security.LogCaptureStop(uid, pid);
-                        _inputCapture.StopCapture();
+                        HandleStopCaptureCommand(writerGate, captureState, uid, pid);
                         break;
-                    }
                     case IpcOpCode.ConfigureResolution:
-                    {
-                        var width = reader.ReadInt32();
-                        var height = reader.ReadInt32();
-                        _virtualDevice.Configure(width, height);
+                        HandleConfigureResolutionCommand(reader);
                         break;
-                    }
                     case IpcOpCode.SimulateEvent:
-                    {
-                        var type = reader.ReadUInt16();
-                        var code = reader.ReadUInt16();
-                        var value = reader.ReadInt32();
-                        _virtualDevice.SendEvent(type, code, value);
+                        HandleSimulateEventCommand(reader);
                         break;
-                    }
                     default:
                          Log.Warning("Unknown OpCode: {Op}", opcode);
                          break;
@@ -202,6 +239,116 @@ public class SessionHandler : ISessionHandler
             onDisconnect();
             _inputCapture.StopCapture();
         }
+    }
+
+    private void HandleStartCaptureCommand(
+        BinaryReader reader,
+        BinaryWriter writer,
+        Stream stream,
+        OrderedWriteGate writerGate,
+        CaptureForwardingState captureState,
+        uint uid,
+        int pid,
+        Func<int, Action<UInputNative.input_event>> createCaptureEventForwarder)
+    {
+        var requestId = reader.ReadInt32();
+        var captureMouse = reader.ReadBoolean();
+        var captureKb = reader.ReadBoolean();
+        int requestGeneration;
+        _security.LogCaptureStart(uid, pid, captureMouse, captureKb);
+        using (writerGate.Enter())
+        {
+            requestGeneration = ++captureState.NextGeneration;
+            captureState.PendingGeneration = requestGeneration;
+            ResetPendingBuffer(captureState);
+        }
+
+        CaptureStartResult result;
+        try
+        {
+            result = _inputCapture.StartCapture(
+                captureMouse,
+                captureKb,
+                createCaptureEventForwarder(requestGeneration));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[SessionHandler] Capture manager threw during StartCapture");
+            result = CaptureStartResult.Failed(
+                "Failed to start capture due to internal error: " + ex.Message);
+        }
+
+        using (writerGate.Enter())
+        {
+            if (result.Success)
+            {
+                writer.Write((byte)IpcOpCode.CaptureStarted);
+                writer.Write(requestId);
+                if (captureState.DroppedPendingCaptureEvents > 0)
+                {
+                    Log.Warning(
+                        "[SessionHandler] Dropped {DroppedCount} pending capture event(s) while waiting for startup acknowledgement (Generation={Generation})",
+                        captureState.DroppedPendingCaptureEvents,
+                        requestGeneration);
+                }
+                captureState.ActiveGeneration = requestGeneration;
+                captureState.PendingGeneration = 0;
+                captureState.CaptureForwardingEnabled = true;
+                while (captureState.BufferedCaptureEvents.Count > 0)
+                {
+                    var bufferedEvent = captureState.BufferedCaptureEvents.Dequeue();
+                    WriteInputEvent(writer, bufferedEvent);
+                }
+                captureState.DroppedPendingCaptureEvents = 0;
+            }
+            else
+            {
+                writer.Write((byte)IpcOpCode.CaptureStartFailed);
+                writer.Write(requestId);
+                writer.Write(result.ErrorMessage ?? "Failed to start capture.");
+                if (captureState.PendingGeneration == requestGeneration)
+                {
+                    captureState.PendingGeneration = 0;
+                }
+                captureState.ActiveGeneration = 0;
+                captureState.CaptureForwardingEnabled = false;
+                ResetPendingBuffer(captureState);
+            }
+
+            stream.Flush();
+        }
+    }
+
+    private void HandleStopCaptureCommand(
+        OrderedWriteGate writerGate,
+        CaptureForwardingState captureState,
+        uint uid,
+        int pid)
+    {
+        _security.LogCaptureStop(uid, pid);
+        using (writerGate.Enter())
+        {
+            captureState.PendingGeneration = 0;
+            captureState.ActiveGeneration = 0;
+            captureState.CaptureForwardingEnabled = false;
+            ResetPendingBuffer(captureState);
+        }
+        _inputCapture.StopCapture();
+    }
+
+    private void HandleConfigureResolutionCommand(BinaryReader reader)
+    {
+        var width = reader.ReadInt32();
+        var height = reader.ReadInt32();
+        _virtualDevice.Configure(width, height);
+    }
+
+    private void HandleSimulateEventCommand(BinaryReader reader)
+    {
+        var type = reader.ReadUInt16();
+        var code = reader.ReadUInt16();
+        var value = reader.ReadInt32();
+        _virtualDevice.SendEvent(type, code, value);
     }
 
     private byte GetEventType(ushort type, ushort code)
@@ -231,5 +378,32 @@ public class SessionHandler : ISessionHandler
             return (byte)InputEventType.Sync;
         
         return (byte)InputEventType.Unknown;
+    }
+
+    private byte WriteInputEvent(BinaryWriter writer, UInputNative.input_event inputEvent)
+    {
+        writer.Write((byte)IpcOpCode.InputEvent);
+        var eventType = GetEventType(inputEvent.type, inputEvent.code);
+        writer.Write(eventType);
+        writer.Write((int)inputEvent.code);
+        writer.Write(inputEvent.value);
+        writer.Write(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        return eventType;
+    }
+
+    private static void ResetPendingBuffer(CaptureForwardingState captureState)
+    {
+        captureState.BufferedCaptureEvents.Clear();
+        captureState.DroppedPendingCaptureEvents = 0;
+    }
+
+    private sealed class CaptureForwardingState
+    {
+        public int NextGeneration { get; set; }
+        public int PendingGeneration { get; set; }
+        public int ActiveGeneration { get; set; }
+        public bool CaptureForwardingEnabled { get; set; }
+        public int DroppedPendingCaptureEvents { get; set; }
+        public Queue<UInputNative.input_event> BufferedCaptureEvents { get; } = new();
     }
 }

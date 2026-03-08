@@ -99,13 +99,20 @@ Download page for all release binaries:
 
 ### Linux Post-Install (Daemon Packages)
 
-After installing Linux packages (`.deb`, `.rpm`, AUR), run:
+After installing daemon packages on Linux, run:
 
 ```bash
 sudo usermod -aG crossmacro $USER
-sudo systemctl enable --now crossmacro.service
 # Reboot or re-login for group changes
 ```
+
+For AUR installs, also run:
+
+```bash
+sudo systemctl enable --now crossmacro.service
+```
+
+`.deb` and `.rpm` packages already enable/start `crossmacro.service` during install.
 
 Note: `crossmacro` group membership allows the client to talk to the daemon socket.
 The daemon service user needs device access for `/dev/input/event*` and `/dev/uinput`
@@ -329,7 +336,7 @@ CrossMacro works on Wayland.
   - Hyprland (IPC)
   - KDE Plasma (D-Bus)
   - GNOME (Shell Extension)
-- On other compositors, CrossMacro automatically uses relative-position mode.
+- If an absolute cursor provider is unavailable, CrossMacro automatically falls back to relative-position mode.
 - You can force relative mode with **Force Relative Coordinates**.
 - You can disable origin move at recording start with **Skip Initial 0,0 Position**.
 

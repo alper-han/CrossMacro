@@ -743,7 +743,7 @@ jobs:
         cp scripts/packaging/arch/PKGBUILD aur-repo/
         cp scripts/packaging/arch/crossmacro.install aur-repo/
         cp scripts/packaging/arch/crossmacro.sysusers aur-repo/
-        cp scripts/assets/crossmacro-modules.conf aur-repo/
+        cp scripts/packaging/arch/crossmacro-modules.conf aur-repo/
         
         cd aur-repo
         

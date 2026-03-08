@@ -75,6 +75,11 @@ public class PlaybackValidator
             result.AddWarning($"Macro has {macro.Events.Count} events - playback may be resource intensive");
         }
 
+        if (macro.IsAbsoluteCoordinates)
+        {
+            AddSuspiciousAbsoluteButtonCoordinateWarning(macro, result);
+        }
+
         return result;
     }
 
@@ -83,5 +88,45 @@ public class PlaybackValidator
     private bool IsSpecialControlEvent(MacroEvent e)
     {
         return false;
+    }
+
+    private static void AddSuspiciousAbsoluteButtonCoordinateWarning(MacroSequence macro, ValidationResult result)
+    {
+        var buttonEvents = macro.Events
+            .Where(IsNonScrollButtonEvent)
+            .ToList();
+        if (buttonEvents.Count == 0)
+        {
+            return;
+        }
+
+        bool hasZeroZeroButtonEvent = buttonEvents.Any(e => e.X == 0 && e.Y == 0);
+        if (!hasZeroZeroButtonEvent)
+        {
+            return;
+        }
+
+        bool hasNonZeroButtonEvent = buttonEvents.Any(e => e.X != 0 || e.Y != 0);
+        bool hasNonZeroMouseMove = macro.Events.Any(e =>
+            e.Type == EventType.MouseMove && (e.X != 0 || e.Y != 0));
+
+        if (hasNonZeroButtonEvent || hasNonZeroMouseMove)
+        {
+            result.AddWarning(
+                "Absolute macro contains click/down/up event(s) at (0,0); this may cause cursor jumps to top-left.");
+        }
+    }
+
+    private static bool IsNonScrollButtonEvent(MacroEvent ev)
+    {
+        if (ev.Type is not EventType.ButtonPress and not EventType.ButtonRelease and not EventType.Click)
+        {
+            return false;
+        }
+
+        return ev.Button is not MouseButton.ScrollUp
+            and not MouseButton.ScrollDown
+            and not MouseButton.ScrollLeft
+            and not MouseButton.ScrollRight;
     }
 }

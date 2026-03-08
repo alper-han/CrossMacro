@@ -59,6 +59,27 @@ public class PlaybackValidatorTests
     }
 
     [Fact]
+    public void Validate_AbsoluteMacroWithZeroZeroButtonAndNonZeroMouseContext_ReturnsWarning()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 500, Y = 300 },
+                new() { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 0, Y = 0 }
+            }
+        };
+
+        // Act
+        var result = _validator.Validate(macro);
+
+        // Assert
+        result.Warnings.Should().Contain(w => w.Contains("(0,0)", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Validate_LongDelay_ReturnsWarning()
     {
         // Arrange - Delay over 10 seconds

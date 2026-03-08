@@ -45,10 +45,22 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
     private const int StabilizationEventCount = 25;
     private const double MaxInitialSpeedMultiplier = 3.0;
     private const int YieldInterval = 50;
+    private static readonly int[] RestorableModifierKeys =
+    [
+        InputEventCode.KEY_LEFTCTRL,
+        InputEventCode.KEY_RIGHTCTRL,
+        InputEventCode.KEY_LEFTSHIFT,
+        InputEventCode.KEY_RIGHTSHIFT,
+        InputEventCode.KEY_LEFTALT,
+        InputEventCode.KEY_RIGHTALT,
+        InputEventCode.KEY_LEFTMETA,
+        InputEventCode.KEY_RIGHTMETA
+    ];
 
     // Pause support
     private readonly ManualResetEventSlim _pauseEvent = new(true);
-    private bool _isPaused;
+    private volatile bool _isPaused;
+    private int _pauseResumeVersion;
     private ushort[] _pausedButtons = Array.Empty<ushort>();
     private int[] _pausedKeys = Array.Empty<int>();
 
@@ -153,6 +165,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         IsPlaying = true;
         _isPaused = false;
+        _pauseResumeVersion = 0;
         _pauseEvent.Set();
         _errorCount = 0;
 
@@ -305,6 +318,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
         double scheduledElapsedMs = 0;
         double timelineAnchorElapsedMs = 0;
         bool hasTimelineAnchor = false;
+        int observedPauseResumeVersion = Volatile.Read(ref _pauseResumeVersion);
 
         Log.Debug("[MacroPlayer] Starting playback of {Total} events at {Speed}x speed", totalEvents, speedMultiplier);
 
@@ -320,9 +334,23 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
                 var pausedDurationMs = playbackClock.Elapsed.TotalMilliseconds - pausedStartMs;
                 if (hasTimelineAnchor)
                 {
-                    scheduledElapsedMs += pausedDurationMs;
+                    // Exclude paused duration from elapsed timeline.
+                    timelineAnchorElapsedMs += pausedDurationMs;
                 }
                 Log.Debug("[MacroPlayer] Resumed playback");
+            }
+
+            int currentPauseResumeVersion = Volatile.Read(ref _pauseResumeVersion);
+            if (currentPauseResumeVersion != observedPauseResumeVersion)
+            {
+                observedPauseResumeVersion = currentPauseResumeVersion;
+                if (hasTimelineAnchor)
+                {
+                    // After explicit resume, restart delay pacing from "now"
+                    // to avoid catch-up bursts caused by prior drift.
+                    var elapsedSinceAnchorMs = playbackClock.Elapsed.TotalMilliseconds - timelineAnchorElapsedMs;
+                    scheduledElapsedMs = elapsedSinceAnchorMs;
+                }
             }
 
             eventCount++;
@@ -457,15 +485,40 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
             if (_inputSimulator != null)
             {
                 _buttonTracker?.RestoreAll(_inputSimulator, _pausedButtons);
-                _keyTracker?.RestoreAll(_inputSimulator, _pausedKeys);
+
+                if (_keyTracker != null && _pausedKeys.Length > 0)
+                {
+                    var modifierKeys = _pausedKeys
+                        .Where(IsRestorableModifierKey)
+                        .ToArray();
+
+                    if (modifierKeys.Length > 0)
+                    {
+                        _keyTracker.RestoreAll(_inputSimulator, modifierKeys);
+                    }
+
+                    int skippedNonModifierCount = _pausedKeys.Length - modifierKeys.Length;
+                    if (skippedNonModifierCount > 0)
+                    {
+                        Log.Debug(
+                            "[MacroPlayer] Skipped restoring {Count} non-modifier key(s) on resume to avoid duplicate text input",
+                            skippedNonModifierCount);
+                    }
+                }
             }
 
             _pausedButtons = Array.Empty<ushort>();
             _pausedKeys = Array.Empty<int>();
 
+            Interlocked.Increment(ref _pauseResumeVersion);
             _pauseEvent.Set();
             Log.Information("[MacroPlayer] Resumed");
         }
+    }
+
+    private static bool IsRestorableModifierKey(int keyCode)
+    {
+        return Array.IndexOf(RestorableModifierKeys, keyCode) >= 0;
     }
 
     public void Stop()

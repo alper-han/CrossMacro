@@ -30,6 +30,10 @@ internal sealed class RunEventSequenceCompiler
         var initialDelayMs = 0;
         var hasEvents = false;
         bool? moveIsAbsolute = null;
+        var hasAbsoluteCursorPosition = false;
+        var absoluteCursorX = 0;
+        var absoluteCursorY = 0;
+        var hasUnpositionedMouseButtonSteps = false;
 
         for (var i = 0; i < expandedSteps.Count; i++)
         {
@@ -69,6 +73,12 @@ internal sealed class RunEventSequenceCompiler
                         return RunStepCompileResult.Fail($"{stepPrefix}: cannot mix absolute and relative move modes in a single run script.");
                     }
 
+                    if (isAbsolute && hasUnpositionedMouseButtonSteps)
+                    {
+                        return RunStepCompileResult.Fail(
+                            $"{stepPrefix}: absolute mode cannot be introduced after click/down/up steps. Place 'move abs <x> <y>' before mouse button steps.");
+                    }
+
                     moveIsAbsolute ??= isAbsolute;
                     EmitEvent(new MacroEvent
                     {
@@ -77,38 +87,99 @@ internal sealed class RunEventSequenceCompiler
                         Y = y
                     });
 
+                    if (isAbsolute)
+                    {
+                        hasAbsoluteCursorPosition = true;
+                        absoluteCursorX = x;
+                        absoluteCursorY = y;
+                    }
+
                     continue;
                 }
 
                 if (TryParseButton(step, "down", out var downButton))
                 {
-                    EmitEvent(new MacroEvent
+                    var downEvent = new MacroEvent
                     {
                         Type = EventType.ButtonPress,
                         Button = downButton
-                    });
+                    };
+
+                    if (moveIsAbsolute == true)
+                    {
+                        if (!hasAbsoluteCursorPosition)
+                        {
+                            return RunStepCompileResult.Fail(
+                                $"{stepPrefix}: down <button> requires a prior 'move abs <x> <y>' step in absolute mode.");
+                        }
+
+                        downEvent.X = absoluteCursorX;
+                        downEvent.Y = absoluteCursorY;
+                    }
+                    else if (moveIsAbsolute == null)
+                    {
+                        hasUnpositionedMouseButtonSteps = true;
+                    }
+
+                    EmitEvent(downEvent);
 
                     continue;
                 }
 
                 if (TryParseButton(step, "up", out var upButton))
                 {
-                    EmitEvent(new MacroEvent
+                    var upEvent = new MacroEvent
                     {
                         Type = EventType.ButtonRelease,
                         Button = upButton
-                    });
+                    };
+
+                    if (moveIsAbsolute == true)
+                    {
+                        if (!hasAbsoluteCursorPosition)
+                        {
+                            return RunStepCompileResult.Fail(
+                                $"{stepPrefix}: up <button> requires a prior 'move abs <x> <y>' step in absolute mode.");
+                        }
+
+                        upEvent.X = absoluteCursorX;
+                        upEvent.Y = absoluteCursorY;
+                    }
+                    else if (moveIsAbsolute == null)
+                    {
+                        hasUnpositionedMouseButtonSteps = true;
+                    }
+
+                    EmitEvent(upEvent);
 
                     continue;
                 }
 
                 if (TryParseButton(step, "click", out var clickButton))
                 {
-                    EmitEvent(new MacroEvent
+                    var clickEvent = new MacroEvent
                     {
                         Type = EventType.Click,
                         Button = clickButton
-                    });
+                    };
+
+                    if (moveIsAbsolute == true)
+                    {
+                        if (!hasAbsoluteCursorPosition)
+                        {
+                            return RunStepCompileResult.Fail(
+                                $"{stepPrefix}: click <button> requires a prior 'move abs <x> <y>' step in absolute mode.");
+                        }
+
+                        clickEvent.X = absoluteCursorX;
+                        clickEvent.Y = absoluteCursorY;
+                    }
+                    else if (moveIsAbsolute == null)
+                    {
+                        hasUnpositionedMouseButtonSteps = true;
+                    }
+
+                    EmitEvent(clickEvent);
 
                     continue;
                 }

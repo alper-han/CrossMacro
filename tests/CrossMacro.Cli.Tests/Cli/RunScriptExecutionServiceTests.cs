@@ -44,6 +44,34 @@ public class RunScriptExecutionServiceTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WhenAbsoluteMoveThenClick_ClickUsesLastAbsoluteCoordinates()
+    {
+        // Arrange
+        MacroSequence? captured = null;
+        _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        // Act
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps =
+            [
+                "move abs 100 120",
+                "click left"
+            ]
+        }, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(captured);
+        Assert.Equal(2, captured!.Events.Count);
+        Assert.True(captured.IsAbsoluteCoordinates);
+        Assert.Equal(EventType.Click, captured.Events[1].Type);
+        Assert.Equal(100, captured.Events[1].X);
+        Assert.Equal(120, captured.Events[1].Y);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WhenTapCombo_CompilesAndPlays()
     {
         _keyCodeMapper.GetKeyCode("ctrl").Returns(29);
@@ -87,6 +115,25 @@ public class RunScriptExecutionServiceTests
         Assert.False(result.Success);
         Assert.Equal(CliExitCode.InvalidArguments, result.ExitCode);
         Assert.Contains("cannot mix absolute and relative move modes", result.Errors[0]);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenAbsoluteModeIntroducedAfterButtonStep_ReturnsInvalidArguments()
+    {
+        // Arrange + Act
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps =
+            [
+                "click left",
+                "move abs 100 100"
+            ]
+        }, CancellationToken.None);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(CliExitCode.InvalidArguments, result.ExitCode);
+        Assert.Contains("absolute mode cannot be introduced", result.Errors[0], StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

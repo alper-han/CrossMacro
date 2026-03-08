@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading;
@@ -25,6 +26,8 @@ public class IpcClient : IDisposable
     private Task? _reconnectTask;
     private readonly Lock _writeLock = new();
     private readonly CaptureSubscriptionCoordinator _captureCoordinator = new();
+    private readonly SemaphoreSlim _captureCommandGate = new(1, 1);
+    private readonly PendingCaptureStartRegistry _pendingCaptureStarts = new();
     private bool _disposed;
     private bool _reconnectEnabled = true;
     private const string DefaultConsumerId = "default";
@@ -34,6 +37,7 @@ public class IpcClient : IDisposable
     public event EventHandler<string>? ErrorOccurred;
 
     public bool IsConnected => _socket?.Connected ?? false;
+    internal bool AutoReconnectEnabled => _autoReconnect;
 
     public IpcClient(Func<string>? socketPathResolver = null, bool autoReconnect = true)
     {
@@ -103,9 +107,57 @@ public class IpcClient : IDisposable
                 _cts = new CancellationTokenSource();
                 _readTask = Task.Run(() => ReadLoop(_cts.Token));
 
-                lock (_captureLock)
+                await _captureCommandGate.WaitAsync(token);
+                try
                 {
-                    SendCaptureCommand(_captureCoordinator.ResetTransportStateAndGetCommand());
+                    PendingCaptureStartRegistration? replayPendingStart = null;
+                    CaptureCommand replayCommand = default;
+
+                    lock (_captureLock)
+                    {
+                        _captureCoordinator.ResetTransportState();
+                        var command = _captureCoordinator.GetRequiredCommand();
+                        if (command.Type != CaptureCommandType.None)
+                        {
+                            if (command.Type == CaptureCommandType.Start)
+                            {
+                                var previousTransportCommand = _captureCoordinator.GetTransportCommand();
+                                replayPendingStart = _pendingCaptureStarts.Begin(
+                                    command,
+                                    notifyOnFailure: true,
+                                    forceReconcileOnFailure: true,
+                                    previousTransportCommand: previousTransportCommand);
+                            }
+
+                            _captureCoordinator.MarkCommandIssued(command);
+                            replayCommand = command;
+                        }
+                    }
+
+                    if (replayCommand.Type != CaptureCommandType.None)
+                    {
+                        try
+                        {
+                            SendCaptureCommand(
+                                replayCommand,
+                                requestId: replayPendingStart?.RequestId ?? 0,
+                                throwOnFailure: replayCommand.Type == CaptureCommandType.Start);
+                        }
+                        catch
+                        {
+                            lock (_captureLock)
+                            {
+                                _captureCoordinator.MarkTransportStopped();
+                            }
+
+                            _pendingCaptureStarts.ClearCurrent(replayPendingStart?.RequestId ?? 0);
+                            throw;
+                        }
+                    }
+                }
+                finally
+                {
+                    _captureCommandGate.Release();
                 }
             }
             catch (OperationCanceledException)
@@ -213,10 +265,18 @@ public class IpcClient : IDisposable
                         });
                         break;
 
+                    case IpcOpCode.CaptureStarted:
+                        HandleCaptureStartedMessage(_reader.ReadInt32());
+                        break;
+
+                    case IpcOpCode.CaptureStartFailed:
+                        HandleCaptureStartFailedMessage(_reader.ReadInt32(), _reader.ReadString());
+                        break;
+
                     case IpcOpCode.Error:
                         var msg = _reader.ReadString();
                         Log.Warning("[IpcClient] RX: Error from daemon: {Message}", msg);
-                        ErrorOccurred?.Invoke(this, msg);
+                        RaiseErrorOccurredSafely(msg);
                         break;
 
                     default:
@@ -230,7 +290,16 @@ public class IpcClient : IDisposable
             if (!token.IsCancellationRequested)
             {
                 Log.Error(ex, "[IpcClient] Read loop error");
-                ErrorOccurred?.Invoke(this, "Connection lost: " + ex.Message);
+                var failedPendingStart = _pendingCaptureStarts.TryFailCurrent(
+                    new IpcClientException(
+                        IpcClientFailureReason.ConnectFailed,
+                        "Daemon connection was lost during capture startup.",
+                        ex),
+                    out var notifyOnFailure);
+                if (notifyOnFailure || !failedPendingStart)
+                {
+                    RaiseErrorOccurredSafely("Connection lost: " + ex.Message);
+                }
                 Cleanup(clearSubscriptions: false, disableReconnect: false);
                 StartReconnectLoop();
             }
@@ -251,10 +320,213 @@ public class IpcClient : IDisposable
             throw new ArgumentException("Consumer id cannot be null or whitespace.", nameof(consumerId));
         }
 
-        lock (_captureLock)
+        CaptureCommand commandToSend = default;
+        PendingCaptureStartRegistration? pendingStart = null;
+        var shouldSend = false;
+
+        _captureCommandGate.Wait();
+        try
         {
-            var command = _captureCoordinator.SetSubscription(consumerId, mouse, keyboard);
-            SendCaptureCommand(command);
+            lock (_captureLock)
+            {
+                _captureCoordinator.SetSubscription(consumerId, mouse, keyboard);
+
+                if (_pendingCaptureStarts.TryGetPendingTask() != null)
+                {
+                    _pendingCaptureStarts.RequestFailureNotification();
+                    return;
+                }
+
+                var command = _captureCoordinator.GetRequiredCommand();
+                if (command.Type != CaptureCommandType.None)
+                {
+                    if (command.Type == CaptureCommandType.Start && !IsConnected)
+                    {
+                        return;
+                    }
+
+                        if (command.Type == CaptureCommandType.Start)
+                        {
+                            var previousTransportCommand = _captureCoordinator.GetTransportCommand();
+                            pendingStart = _pendingCaptureStarts.Begin(
+                                command,
+                                notifyOnFailure: true,
+                                forceReconcileOnFailure: true,
+                                previousTransportCommand: previousTransportCommand);
+                        }
+
+                    _captureCoordinator.MarkCommandIssued(command);
+                    commandToSend = command;
+                    shouldSend = true;
+                }
+            }
+
+            if (shouldSend)
+            {
+                try
+                {
+                    if (!SendCaptureCommand(commandToSend, requestId: pendingStart?.RequestId ?? 0))
+                    {
+                        lock (_captureLock)
+                        {
+                            _captureCoordinator.MarkTransportStopped();
+                        }
+
+                        _pendingCaptureStarts.ClearCurrent(pendingStart?.RequestId ?? 0);
+                    }
+                }
+                catch
+                {
+                    lock (_captureLock)
+                    {
+                        _captureCoordinator.MarkTransportStopped();
+                    }
+
+                    _pendingCaptureStarts.ClearCurrent(pendingStart?.RequestId ?? 0);
+                    throw;
+                }
+            }
+        }
+        finally
+        {
+            _captureCommandGate.Release();
+        }
+    }
+
+    public Task StartCaptureAsync(bool mouse, bool keyboard, CancellationToken token = default)
+    {
+        return StartCaptureAsync(DefaultConsumerId, mouse, keyboard, token);
+    }
+
+    public async Task StartCaptureAsync(string consumerId, bool mouse, bool keyboard, CancellationToken token = default)
+    {
+        if (string.IsNullOrWhiteSpace(consumerId))
+        {
+            throw new ArgumentException("Consumer id cannot be null or whitespace.", nameof(consumerId));
+        }
+
+        ThrowIfDisposed();
+        token.ThrowIfCancellationRequested();
+
+        var subscriptionRegistered = false;
+        bool hadPreviousSubscription = false;
+        bool previousCaptureMouse = false;
+        bool previousCaptureKeyboard = false;
+
+        while (true)
+        {
+            Task? waitTask = null;
+            PendingCaptureStartRegistration? createdPendingStart = null;
+            CaptureCommand commandToSend = default;
+            var joinedExistingPendingStart = false;
+
+            await _captureCommandGate.WaitAsync(token);
+            try
+            {
+                lock (_captureLock)
+                {
+                    if (!subscriptionRegistered)
+                    {
+                        hadPreviousSubscription = _captureCoordinator.TryGetSubscription(
+                            consumerId,
+                            out previousCaptureMouse,
+                            out previousCaptureKeyboard);
+                        _captureCoordinator.SetSubscription(consumerId, mouse, keyboard);
+                        subscriptionRegistered = true;
+                    }
+
+                    waitTask = _pendingCaptureStarts.TryGetPendingTask();
+                    if (waitTask == null)
+                    {
+                        var command = _captureCoordinator.GetRequiredCommand();
+                        if (command.Type == CaptureCommandType.None)
+                        {
+                            return;
+                        }
+
+                        if (command.Type == CaptureCommandType.Start)
+                        {
+                            var previousTransportCommand = _captureCoordinator.GetTransportCommand();
+                            createdPendingStart = _pendingCaptureStarts.Begin(
+                                command,
+                                notifyOnFailure: false,
+                                forceReconcileOnFailure: false,
+                                previousTransportCommand: previousTransportCommand,
+                                originConsumerId: consumerId,
+                                originHadPreviousSubscription: hadPreviousSubscription,
+                                originCaptureMouse: previousCaptureMouse,
+                                originCaptureKeyboard: previousCaptureKeyboard);
+                            waitTask = createdPendingStart.Value.Completion.Task;
+                        }
+
+                        _captureCoordinator.MarkCommandIssued(command);
+                        commandToSend = command;
+                    }
+                    else
+                    {
+                        _pendingCaptureStarts.RegisterAsyncParticipant(
+                            consumerId,
+                            hadPreviousSubscription,
+                            previousCaptureMouse,
+                            previousCaptureKeyboard);
+                        joinedExistingPendingStart = true;
+                    }
+                }
+
+                if (commandToSend.Type != CaptureCommandType.None)
+                {
+                    try
+                    {
+                        SendCaptureCommand(
+                            commandToSend,
+                            requestId: createdPendingStart?.RequestId ?? 0,
+                            throwOnFailure: commandToSend.Type == CaptureCommandType.Start);
+                    }
+                    catch
+                    {
+                        lock (_captureLock)
+                        {
+                            RestoreSubscription_NoLock(
+                                consumerId,
+                                hadPreviousSubscription,
+                                previousCaptureMouse,
+                                previousCaptureKeyboard);
+                            _captureCoordinator.MarkTransportStopped();
+                        }
+
+                        _pendingCaptureStarts.ClearCurrent(createdPendingStart?.RequestId ?? 0);
+                        throw;
+                    }
+
+                    if (commandToSend.Type == CaptureCommandType.Stop)
+                    {
+                        return;
+                    }
+                }
+            }
+            finally
+            {
+                _captureCommandGate.Release();
+            }
+
+            if (waitTask == null)
+            {
+                return;
+            }
+
+            try
+            {
+                await waitTask.WaitAsync(token);
+            }
+            catch (Exception ex) when (ShouldRetrySharedPendingStartFailure(
+                ex,
+                joinedExistingPendingStart,
+                consumerId,
+                mouse,
+                keyboard))
+            {
+                continue;
+            }
         }
     }
 
@@ -270,30 +542,104 @@ public class IpcClient : IDisposable
             return;
         }
 
-        lock (_captureLock)
+        CaptureCommand commandToSend = default;
+        PendingCaptureStartRegistration? pendingStart = null;
+
+        _captureCommandGate.Wait();
+        try
         {
-            var command = _captureCoordinator.RemoveSubscription(consumerId);
-            SendCaptureCommand(command);
+            lock (_captureLock)
+            {
+                _captureCoordinator.RemoveSubscription(consumerId);
+
+                if (_pendingCaptureStarts.TryGetPendingTask() != null)
+                {
+                    _pendingCaptureStarts.MarkSubscriptionRemoved(consumerId);
+
+                    if (!_captureCoordinator.HasSubscriptions)
+                    {
+                        AbortPendingCaptureStart_NoLock();
+                    }
+
+                    if (_captureCoordinator.HasSubscriptions)
+                    {
+                        return;
+                    }
+                }
+                else
+                {
+                    var command = _captureCoordinator.GetRequiredCommand();
+                    if (command.Type != CaptureCommandType.None)
+                    {
+                        if (command.Type == CaptureCommandType.Start)
+                        {
+                            var previousTransportCommand = _captureCoordinator.GetTransportCommand();
+                            pendingStart = _pendingCaptureStarts.Begin(
+                                command,
+                                notifyOnFailure: true,
+                                forceReconcileOnFailure: true,
+                                previousTransportCommand: previousTransportCommand);
+                        }
+
+                        _captureCoordinator.MarkCommandIssued(command);
+                        commandToSend = command;
+                    }
+                }
+            }
+
+            if (commandToSend.Type != CaptureCommandType.None)
+            {
+                try
+                {
+                    if (!SendCaptureCommand(commandToSend, requestId: pendingStart?.RequestId ?? 0))
+                    {
+                        lock (_captureLock)
+                        {
+                            _captureCoordinator.MarkTransportStopped();
+                        }
+
+                        _pendingCaptureStarts.ClearCurrent(pendingStart?.RequestId ?? 0);
+                    }
+                }
+                catch
+                {
+                    lock (_captureLock)
+                    {
+                        _captureCoordinator.MarkTransportStopped();
+                    }
+
+                    _pendingCaptureStarts.ClearCurrent(pendingStart?.RequestId ?? 0);
+                    throw;
+                }
+            }
+        }
+        finally
+        {
+            _captureCommandGate.Release();
         }
     }
 
-    private void SendCaptureCommand(CaptureCommand command)
+    private bool SendCaptureCommand(CaptureCommand command, int requestId = 0, bool throwOnFailure = false)
     {
         switch (command.Type)
         {
             case CaptureCommandType.Start:
-                Log.Debug("[IpcClient] TX: StartCapture Mouse={Mouse} Keyboard={Keyboard}",
-                    command.CaptureMouse, command.CaptureKeyboard);
-                Send(IpcOpCode.StartCapture, w =>
+                Log.Debug(
+                    "[IpcClient] TX: StartCapture RequestId={RequestId} Mouse={Mouse} Keyboard={Keyboard}",
+                    requestId,
+                    command.CaptureMouse,
+                    command.CaptureKeyboard);
+                return Send(IpcOpCode.StartCapture, w =>
                 {
+                    w.Write(requestId);
                     w.Write(command.CaptureMouse);
                     w.Write(command.CaptureKeyboard);
-                }, throwOnFailure: false);
-                break;
+                }, throwOnFailure);
             case CaptureCommandType.Stop:
                 Log.Debug("[IpcClient] TX: StopCapture");
-                Send(IpcOpCode.StopCapture, throwOnFailure: false);
-                break;
+                return Send(IpcOpCode.StopCapture, throwOnFailure: throwOnFailure);
+            default:
+                return false;
         }
     }
 
@@ -346,7 +692,7 @@ public class IpcClient : IDisposable
         }, throwOnFailure: true);
     }
 
-    private void Send(
+    private bool Send(
         IpcOpCode op,
         Action<BinaryWriter>? writerAction = null,
         bool throwOnFailure = false)
@@ -359,7 +705,7 @@ public class IpcClient : IDisposable
                     IpcClientFailureReason.ConnectFailed,
                     $"Failed to send '{op}' because the daemon connection is not available.");
             }
-            return;
+            return false;
         }
 
         lock (_writeLock)
@@ -369,10 +715,12 @@ public class IpcClient : IDisposable
                 _writer!.Write((byte)op);
                 writerAction?.Invoke(_writer);
                 _stream!.Flush();
+                return true;
             }
             catch (Exception ex)
             {
                 HandleSendFailure(ex, op, throwOnFailure);
+                return false;
             }
         }
     }
@@ -403,7 +751,7 @@ public class IpcClient : IDisposable
             }
             else
             {
-                _captureCoordinator.ResetTransportStateAndGetCommand();
+                _captureCoordinator.ResetTransportState();
             }
         }
     }
@@ -411,9 +759,23 @@ public class IpcClient : IDisposable
     private void HandleSendFailure(Exception ex, IpcOpCode op, bool throwOnFailure)
     {
         Log.Error(ex, "Failed to send IPC message: {OpCode}", op);
-        ErrorOccurred?.Invoke(this, $"IPC send failed ({op}): {ex.Message}");
+        lock (_captureLock)
+        {
+            _captureCoordinator.MarkTransportStopped();
+        }
 
-        DropTransport();
+        var failedPendingStart = _pendingCaptureStarts.TryFailCurrent(
+            new IpcClientException(
+                IpcClientFailureReason.ConnectFailed,
+                $"Failed to send IPC command '{op}'.",
+                ex),
+            out var notifyOnFailure);
+        if (notifyOnFailure || !failedPendingStart)
+        {
+            RaiseErrorOccurredDeferred($"IPC send failed ({op}): {ex.Message}");
+        }
+
+        DropTransport(deferErrorNotifications: true);
         StartReconnectLoop();
 
         if (throwOnFailure)
@@ -425,8 +787,30 @@ public class IpcClient : IDisposable
         }
     }
 
-    private void DropTransport()
+    private void DropTransport(bool deferErrorNotifications = false)
     {
+        lock (_captureLock)
+        {
+            _captureCoordinator.MarkTransportStopped();
+        }
+
+        var failedPendingStart = _pendingCaptureStarts.TryFailCurrent(
+            new IpcClientException(
+                IpcClientFailureReason.ConnectFailed,
+                "Daemon connection was lost during capture startup."),
+            out var notifyOnFailure);
+        if (notifyOnFailure && failedPendingStart)
+        {
+            if (deferErrorNotifications)
+            {
+                RaiseErrorOccurredDeferred("Daemon connection was lost during capture startup.");
+            }
+            else
+            {
+                RaiseErrorOccurredSafely("Daemon connection was lost during capture startup.");
+            }
+        }
+
         // DropTransport can run concurrently from read/send failure paths and Dispose().
         // Detaching references first avoids double-cancel/double-dispose races.
         var cts = Interlocked.Exchange(ref _cts, null);
@@ -443,6 +827,72 @@ public class IpcClient : IDisposable
         SafeDispose(cts);
 
         _readTask = null;
+    }
+
+    private void RaiseErrorOccurredDeferred(string message)
+    {
+        var handler = ErrorOccurred;
+        if (handler is null)
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            var gateAcquired = false;
+            try
+            {
+                // Ensure callbacks are dispatched only after any in-flight capture command
+                // exits its gate, avoiding re-entrant waits on the same gate.
+                await _captureCommandGate.WaitAsync();
+                gateAcquired = true;
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
+            finally
+            {
+                if (gateAcquired)
+                {
+                    _captureCommandGate.Release();
+                }
+            }
+
+            InvokeErrorOccurredHandlersSafely(handler, message, "deferred notification");
+        });
+    }
+
+    private void RaiseErrorOccurredSafely(string message)
+    {
+        var handler = ErrorOccurred;
+        if (handler is null)
+        {
+            return;
+        }
+
+        InvokeErrorOccurredHandlersSafely(handler, message, "notification");
+    }
+
+    private void InvokeErrorOccurredHandlersSafely(
+        EventHandler<string> handlers,
+        string message,
+        string notificationContext)
+    {
+        foreach (EventHandler<string> handler in handlers.GetInvocationList())
+        {
+            try
+            {
+                handler(this, message);
+            }
+            catch (Exception callbackError)
+            {
+                Log.Warning(
+                    callbackError,
+                    "[IpcClient] Error callback threw during {NotificationContext}",
+                    notificationContext);
+            }
+        }
     }
 
     private static void CancelSafely(CancellationTokenSource? cts)
@@ -558,7 +1008,269 @@ public class IpcClient : IDisposable
         _disposed = true;
         Cleanup();
         _reconnectCts.Dispose();
+        _captureCommandGate.Dispose();
         _connectGate.Dispose();
         GC.SuppressFinalize(this);
+    }
+
+    private bool ShouldRetrySharedPendingStartFailure(
+        Exception exception,
+        bool joinedExistingPendingStart,
+        string consumerId,
+        bool mouse,
+        bool keyboard)
+    {
+        if (!joinedExistingPendingStart || exception is not InvalidOperationException)
+        {
+            return false;
+        }
+
+        lock (_captureLock)
+        {
+            return _captureCoordinator.TryGetSubscription(
+                consumerId,
+                out var currentCaptureMouse,
+                out var currentCaptureKeyboard) &&
+                currentCaptureMouse == mouse &&
+                currentCaptureKeyboard == keyboard;
+        }
+    }
+
+    private void AbortPendingCaptureStart_NoLock()
+    {
+        _captureCoordinator.MarkTransportStopped();
+
+        _ = _pendingCaptureStarts.TryFailCurrent(
+            new OperationCanceledException("Capture startup was cancelled before daemon acknowledgement."),
+            out _);
+
+        // Keep the shared socket alive. StopCapture is queued after the stale start and
+        // tears daemon capture down once that delayed start completes.
+        SendCaptureCommand(new CaptureCommand(CaptureCommandType.Stop));
+    }
+
+    private bool TryReconcileCaptureStateNow()
+    {
+        if (_disposed || !_captureCommandGate.Wait(0))
+        {
+            return false;
+        }
+
+        try
+        {
+            return TryDispatchReconcileCommandUnderGate();
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[IpcClient] Immediate capture reconcile failed");
+            return true;
+        }
+        finally
+        {
+            _captureCommandGate.Release();
+        }
+    }
+
+    private void StartDeferredCaptureReconcile()
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                await _captureCommandGate.WaitAsync(_reconnectCts.Token);
+                try
+                {
+                    _ = TryDispatchReconcileCommandUnderGate();
+                }
+                finally
+                {
+                    _captureCommandGate.Release();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            catch (Exception ex)
+            {
+            Log.Warning(ex, "[IpcClient] Failed to reconcile capture state");
+            }
+        });
+    }
+
+    private void HandleCaptureStartedMessage(int startedRequestId)
+    {
+        Log.Debug("[IpcClient] RX: CaptureStarted RequestId={RequestId}", startedRequestId);
+        if (_pendingCaptureStarts.TryComplete(startedRequestId, out var completedStart))
+        {
+            _ = completedStart.Completion.TrySetResult(true);
+            StartDeferredCaptureReconcile();
+            return;
+        }
+
+        Log.Debug("[IpcClient] Ignoring stale CaptureStarted for RequestId={RequestId}", startedRequestId);
+    }
+
+    private void HandleCaptureStartFailedMessage(int failedRequestId, string failureMessage)
+    {
+        var failureException = new InvalidOperationException(failureMessage);
+        Log.Warning(
+            "[IpcClient] RX: CaptureStartFailed RequestId={RequestId} Message={Message}",
+            failedRequestId,
+            failureMessage);
+
+        var hasFailedPendingStart = _pendingCaptureStarts.TryFail(
+            failedRequestId,
+            out var failureContext);
+        if (!hasFailedPendingStart)
+        {
+            Log.Debug("[IpcClient] Ignoring stale CaptureStartFailed for RequestId={RequestId}", failedRequestId);
+            return;
+        }
+
+        var removedConsumersSinceStart = failureContext.RemovedConsumersSinceStart.Length == 0
+            ? null
+            : new HashSet<string>(failureContext.RemovedConsumersSinceStart, StringComparer.Ordinal);
+        bool shouldReconcile;
+        var rollbackChangedSubscriptions = false;
+        lock (_captureLock)
+        {
+            _captureCoordinator.MarkTransportStopped();
+            foreach (var participant in failureContext.FailedAsyncParticipants)
+            {
+                if (!participant.ShouldRestoreOnFailure)
+                {
+                    continue;
+                }
+
+                if (removedConsumersSinceStart?.Contains(participant.ConsumerId) == true)
+                {
+                    continue;
+                }
+
+                rollbackChangedSubscriptions |= RestoreSubscription_NoLock(
+                    participant.ConsumerId,
+                    participant.HadPreviousSubscription,
+                    participant.PreviousCaptureMouse,
+                    participant.PreviousCaptureKeyboard);
+            }
+
+            var currentRequiredCommand = _captureCoordinator.GetRequiredCommand();
+            shouldReconcile = failureContext.ForceReconcileOnFailure ||
+                CaptureStartFailureReconciler.ShouldReconcile(
+                    currentRequiredCommand,
+                    failureContext.FailedCommand,
+                    failureContext.FailedAsyncParticipants.Length == 0 &&
+                        failureContext.FailedPreviousTransportCommand.Type == CaptureCommandType.Start,
+                    failureContext.SubscriptionRemovedSinceStart,
+                    rollbackChangedSubscriptions);
+        }
+
+        if (shouldReconcile && !TryReconcileCaptureStateNow())
+        {
+            StartDeferredCaptureReconcile();
+        }
+
+        if (failureContext.NotifyOnFailure)
+        {
+            try
+            {
+                RaiseErrorOccurredSafely(failureMessage);
+            }
+            finally
+            {
+                _ = failureContext.Completion.TrySetException(failureException);
+            }
+            return;
+        }
+
+        _ = failureContext.Completion.TrySetException(failureException);
+    }
+
+    private bool TryDispatchReconcileCommandUnderGate()
+    {
+        PendingCaptureStartRegistration? deferredPendingStart = null;
+        CaptureCommand deferredCommand;
+
+        lock (_captureLock)
+        {
+            if (_pendingCaptureStarts.TryGetPendingTask() != null)
+            {
+                return true;
+            }
+
+            deferredCommand = _captureCoordinator.GetRequiredCommand();
+            if (deferredCommand.Type == CaptureCommandType.None)
+            {
+                return true;
+            }
+
+            if (deferredCommand.Type == CaptureCommandType.Start)
+            {
+                deferredPendingStart = _pendingCaptureStarts.Begin(deferredCommand, notifyOnFailure: true);
+            }
+
+            _captureCoordinator.MarkCommandIssued(deferredCommand);
+        }
+
+        try
+        {
+            SendCaptureCommand(
+                deferredCommand,
+                requestId: deferredPendingStart?.RequestId ?? 0,
+                throwOnFailure: deferredCommand.Type == CaptureCommandType.Start);
+        }
+        catch
+        {
+            lock (_captureLock)
+            {
+                _captureCoordinator.MarkTransportStopped();
+            }
+
+            _pendingCaptureStarts.ClearCurrent(deferredPendingStart?.RequestId ?? 0);
+            throw;
+        }
+
+        return true;
+    }
+
+    private bool RestoreSubscription_NoLock(
+        string consumerId,
+        bool hadPreviousSubscription,
+        bool previousCaptureMouse,
+        bool previousCaptureKeyboard)
+    {
+        var hasCurrentSubscription = _captureCoordinator.TryGetSubscription(
+            consumerId,
+            out var currentCaptureMouse,
+            out var currentCaptureKeyboard);
+
+        if (hadPreviousSubscription)
+        {
+            if (hasCurrentSubscription &&
+                currentCaptureMouse == previousCaptureMouse &&
+                currentCaptureKeyboard == previousCaptureKeyboard)
+            {
+                return false;
+            }
+
+            _captureCoordinator.SetSubscription(consumerId, previousCaptureMouse, previousCaptureKeyboard);
+            return true;
+        }
+
+        if (!hasCurrentSubscription)
+        {
+            return false;
+        }
+
+        _captureCoordinator.RemoveSubscription(consumerId);
+        return true;
     }
 }

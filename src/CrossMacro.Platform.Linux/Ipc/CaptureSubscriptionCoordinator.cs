@@ -23,7 +23,9 @@ internal sealed class CaptureSubscriptionCoordinator
     private bool _transportCaptureMouse;
     private bool _transportCaptureKeyboard;
 
-    public CaptureCommand SetSubscription(string consumerId, bool captureMouse, bool captureKeyboard)
+    public bool HasSubscriptions => _subscriptions.Count > 0;
+
+    public void SetSubscription(string consumerId, bool captureMouse, bool captureKeyboard)
     {
         if (string.IsNullOrWhiteSpace(consumerId))
         {
@@ -38,35 +40,84 @@ internal sealed class CaptureSubscriptionCoordinator
         {
             _subscriptions.Remove(consumerId);
         }
-
-        return EvaluateCommand();
     }
 
-    public CaptureCommand RemoveSubscription(string consumerId)
+    public void RemoveSubscription(string consumerId)
     {
         if (string.IsNullOrWhiteSpace(consumerId))
         {
-            return default;
+            return;
         }
 
         _subscriptions.Remove(consumerId);
-        return EvaluateCommand();
     }
 
-    public CaptureCommand ResetTransportStateAndGetCommand()
+    public bool TryGetSubscription(string consumerId, out bool captureMouse, out bool captureKeyboard)
+    {
+        captureMouse = false;
+        captureKeyboard = false;
+
+        if (string.IsNullOrWhiteSpace(consumerId))
+        {
+            return false;
+        }
+
+        if (!_subscriptions.TryGetValue(consumerId, out var subscription))
+        {
+            return false;
+        }
+
+        captureMouse = subscription.Mouse;
+        captureKeyboard = subscription.Keyboard;
+        return true;
+    }
+
+    public void ResetTransportState()
     {
         _transportCaptureActive = false;
         _transportCaptureMouse = false;
         _transportCaptureKeyboard = false;
-        return EvaluateCommand();
     }
 
     public void Clear()
     {
         _subscriptions.Clear();
-        _transportCaptureActive = false;
-        _transportCaptureMouse = false;
-        _transportCaptureKeyboard = false;
+        ResetTransportState();
+    }
+
+    public void MarkCommandIssued(CaptureCommand command)
+    {
+        switch (command.Type)
+        {
+            case CaptureCommandType.Start:
+                _transportCaptureActive = true;
+                _transportCaptureMouse = command.CaptureMouse;
+                _transportCaptureKeyboard = command.CaptureKeyboard;
+                break;
+            case CaptureCommandType.Stop:
+                ResetTransportState();
+                break;
+        }
+    }
+
+    public void MarkTransportStopped()
+    {
+        ResetTransportState();
+    }
+
+    public CaptureCommand GetRequiredCommand()
+    {
+        return EvaluateCommand();
+    }
+
+    public CaptureCommand GetTransportCommand()
+    {
+        if (!_transportCaptureActive)
+        {
+            return default;
+        }
+
+        return new CaptureCommand(CaptureCommandType.Start, _transportCaptureMouse, _transportCaptureKeyboard);
     }
 
     private CaptureCommand EvaluateCommand()
@@ -89,9 +140,6 @@ internal sealed class CaptureSubscriptionCoordinator
         {
             if (_transportCaptureActive)
             {
-                _transportCaptureActive = false;
-                _transportCaptureMouse = false;
-                _transportCaptureKeyboard = false;
                 return new CaptureCommand(CaptureCommandType.Stop);
             }
 
@@ -102,10 +150,6 @@ internal sealed class CaptureSubscriptionCoordinator
             captureMouse != _transportCaptureMouse ||
             captureKeyboard != _transportCaptureKeyboard)
         {
-            _transportCaptureActive = true;
-            _transportCaptureMouse = captureMouse;
-            _transportCaptureKeyboard = captureKeyboard;
-
             return new CaptureCommand(CaptureCommandType.Start, captureMouse, captureKeyboard);
         }
 

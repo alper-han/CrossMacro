@@ -6,6 +6,46 @@ namespace CrossMacro.Platform.Linux.Tests.Services.Ipc;
 
 public class CaptureSubscriptionCoordinatorTests
 {
+    private static CaptureCommand SetSubscription(
+        CaptureSubscriptionCoordinator coordinator,
+        string consumerId,
+        bool captureMouse,
+        bool captureKeyboard)
+    {
+        coordinator.SetSubscription(consumerId, captureMouse, captureKeyboard);
+        var command = coordinator.GetRequiredCommand();
+        if (command.Type != CaptureCommandType.None)
+        {
+            coordinator.MarkCommandIssued(command);
+        }
+
+        return command;
+    }
+
+    private static CaptureCommand RemoveSubscription(CaptureSubscriptionCoordinator coordinator, string consumerId)
+    {
+        coordinator.RemoveSubscription(consumerId);
+        var command = coordinator.GetRequiredCommand();
+        if (command.Type != CaptureCommandType.None)
+        {
+            coordinator.MarkCommandIssued(command);
+        }
+
+        return command;
+    }
+
+    private static CaptureCommand ResetTransportStateAndGetCommand(CaptureSubscriptionCoordinator coordinator)
+    {
+        coordinator.ResetTransportState();
+        var command = coordinator.GetRequiredCommand();
+        if (command.Type != CaptureCommandType.None)
+        {
+            coordinator.MarkCommandIssued(command);
+        }
+
+        return command;
+    }
+
     private static List<CaptureCommand> RecordCommands(params CaptureCommand[] commands)
     {
         var sent = new List<CaptureCommand>();
@@ -24,7 +64,7 @@ public class CaptureSubscriptionCoordinatorTests
     {
         var coordinator = new CaptureSubscriptionCoordinator();
 
-        var command = coordinator.SetSubscription("hotkeys", captureMouse: true, captureKeyboard: false);
+        var command = SetSubscription(coordinator, "hotkeys", captureMouse: true, captureKeyboard: false);
 
         Assert.Equal(CaptureCommandType.Start, command.Type);
         Assert.True(command.CaptureMouse);
@@ -35,9 +75,9 @@ public class CaptureSubscriptionCoordinatorTests
     public void SetSubscription_WhenAggregateChanges_ShouldRequestStartWithMergedFlags()
     {
         var coordinator = new CaptureSubscriptionCoordinator();
-        _ = coordinator.SetSubscription("hotkeys", captureMouse: true, captureKeyboard: false);
+        _ = SetSubscription(coordinator, "hotkeys", captureMouse: true, captureKeyboard: false);
 
-        var command = coordinator.SetSubscription("text-expansion", captureMouse: false, captureKeyboard: true);
+        var command = SetSubscription(coordinator, "text-expansion", captureMouse: false, captureKeyboard: true);
 
         Assert.Equal(CaptureCommandType.Start, command.Type);
         Assert.True(command.CaptureMouse);
@@ -48,9 +88,10 @@ public class CaptureSubscriptionCoordinatorTests
     public void SetSubscription_WhenAggregateUnchanged_ShouldReturnNone()
     {
         var coordinator = new CaptureSubscriptionCoordinator();
-        _ = coordinator.SetSubscription("hotkeys", captureMouse: true, captureKeyboard: true);
+        _ = SetSubscription(coordinator, "hotkeys", captureMouse: true, captureKeyboard: true);
 
-        var command = coordinator.SetSubscription("recorder", captureMouse: true, captureKeyboard: true);
+        coordinator.SetSubscription("recorder", captureMouse: true, captureKeyboard: true);
+        var command = coordinator.GetRequiredCommand();
 
         Assert.Equal(CaptureCommandType.None, command.Type);
     }
@@ -59,10 +100,10 @@ public class CaptureSubscriptionCoordinatorTests
     public void RemoveSubscription_WhenRemainingAggregateChanges_ShouldRequestUpdatedStart()
     {
         var coordinator = new CaptureSubscriptionCoordinator();
-        _ = coordinator.SetSubscription("hotkeys", captureMouse: true, captureKeyboard: false);
-        _ = coordinator.SetSubscription("recorder", captureMouse: false, captureKeyboard: true);
+        _ = SetSubscription(coordinator, "hotkeys", captureMouse: true, captureKeyboard: false);
+        _ = SetSubscription(coordinator, "recorder", captureMouse: false, captureKeyboard: true);
 
-        var command = coordinator.RemoveSubscription("recorder");
+        var command = RemoveSubscription(coordinator, "recorder");
 
         Assert.Equal(CaptureCommandType.Start, command.Type);
         Assert.True(command.CaptureMouse);
@@ -73,9 +114,9 @@ public class CaptureSubscriptionCoordinatorTests
     public void RemoveSubscription_WhenLastConsumerRemoved_ShouldRequestStop()
     {
         var coordinator = new CaptureSubscriptionCoordinator();
-        _ = coordinator.SetSubscription("hotkeys", captureMouse: false, captureKeyboard: true);
+        _ = SetSubscription(coordinator, "hotkeys", captureMouse: false, captureKeyboard: true);
 
-        var command = coordinator.RemoveSubscription("hotkeys");
+        var command = RemoveSubscription(coordinator, "hotkeys");
 
         Assert.Equal(CaptureCommandType.Stop, command.Type);
     }
@@ -84,9 +125,9 @@ public class CaptureSubscriptionCoordinatorTests
     public void ResetTransportStateAndGetCommand_WhenSubscriptionsExist_ShouldReissueStart()
     {
         var coordinator = new CaptureSubscriptionCoordinator();
-        _ = coordinator.SetSubscription("hotkeys", captureMouse: true, captureKeyboard: true);
+        _ = SetSubscription(coordinator, "hotkeys", captureMouse: true, captureKeyboard: true);
 
-        var command = coordinator.ResetTransportStateAndGetCommand();
+        var command = ResetTransportStateAndGetCommand(coordinator);
 
         Assert.Equal(CaptureCommandType.Start, command.Type);
         Assert.True(command.CaptureMouse);
@@ -99,12 +140,12 @@ public class CaptureSubscriptionCoordinatorTests
         var coordinator = new CaptureSubscriptionCoordinator();
 
         var sent = RecordCommands(
-            coordinator.SetSubscription("global-hotkeys", captureMouse: false, captureKeyboard: true),
-            coordinator.SetSubscription("macro-recorder", captureMouse: true, captureKeyboard: true),
-            coordinator.SetSubscription("text-expansion", captureMouse: false, captureKeyboard: true),
-            coordinator.RemoveSubscription("text-expansion"),
-            coordinator.RemoveSubscription("macro-recorder"),
-            coordinator.RemoveSubscription("global-hotkeys"));
+            SetSubscription(coordinator, "global-hotkeys", captureMouse: false, captureKeyboard: true),
+            SetSubscription(coordinator, "macro-recorder", captureMouse: true, captureKeyboard: true),
+            SetSubscription(coordinator, "text-expansion", captureMouse: false, captureKeyboard: true),
+            RemoveSubscription(coordinator, "text-expansion"),
+            RemoveSubscription(coordinator, "macro-recorder"),
+            RemoveSubscription(coordinator, "global-hotkeys"));
 
         Assert.Equal(4, sent.Count);
 
@@ -129,13 +170,13 @@ public class CaptureSubscriptionCoordinatorTests
         var coordinator = new CaptureSubscriptionCoordinator();
 
         var sent = RecordCommands(
-            coordinator.SetSubscription("global-hotkeys", captureMouse: false, captureKeyboard: true),
-            coordinator.SetSubscription("macro-recorder", captureMouse: true, captureKeyboard: true),
-            coordinator.ResetTransportStateAndGetCommand(),
-            coordinator.RemoveSubscription("macro-recorder"),
-            coordinator.ResetTransportStateAndGetCommand(),
-            coordinator.RemoveSubscription("global-hotkeys"),
-            coordinator.ResetTransportStateAndGetCommand());
+            SetSubscription(coordinator, "global-hotkeys", captureMouse: false, captureKeyboard: true),
+            SetSubscription(coordinator, "macro-recorder", captureMouse: true, captureKeyboard: true),
+            ResetTransportStateAndGetCommand(coordinator),
+            RemoveSubscription(coordinator, "macro-recorder"),
+            ResetTransportStateAndGetCommand(coordinator),
+            RemoveSubscription(coordinator, "global-hotkeys"),
+            ResetTransportStateAndGetCommand(coordinator));
 
         Assert.Equal(6, sent.Count);
 

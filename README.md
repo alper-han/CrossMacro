@@ -95,6 +95,7 @@ Download page for all release binaries:
 | [![macOS](https://img.shields.io/badge/macOS-DMG-000000?logo=apple&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | `.dmg` | [Releases](https://github.com/alper-han/CrossMacro/releases) | Drag to Apps |
 
 > **AppImage users:** Run the quick one-time setup in [AppImage Setup](#appimage-setup-portable-linux) before first launch.
+> **Flatpak users (Wayland):** On first launch, CrossMacro may show a **Wayland Setup Required** dialog and run Quick Setup for device permissions.
 
 ### Linux Post-Install (Daemon Packages)
 
@@ -105,6 +106,10 @@ sudo usermod -aG crossmacro $USER
 sudo systemctl enable --now crossmacro.service
 # Reboot or re-login for group changes
 ```
+
+Note: `crossmacro` group membership allows the client to talk to the daemon socket.
+The daemon service user needs device access for `/dev/input/event*` and `/dev/uinput`
+(typically via `input` and, on some distros, `uinput` groups).
 
 ### AppImage Setup (Portable Linux)
 
@@ -129,6 +134,29 @@ chmod +x CrossMacro-*.AppImage
 ```
 
 Note: adding a user to `input` grants direct access to input devices.
+
+### Flatpak Wayland Setup
+
+For Flatpak on Wayland, CrossMacro supports two modes:
+
+- Daemon mode (socket at `/run/crossmacro/crossmacro.sock`)
+- Direct mode (device access in sandbox)
+
+If required permissions are missing, app startup shows **Wayland Setup Required** and can run Quick Setup automatically.
+Quick Setup uses `flatpak-spawn --host pkexec` and applies session ACLs on host:
+
+- `rw` access to `/dev/uinput` (or `/dev/input/uinput` if present)
+- `r` access to `/dev/input/event*`
+
+If Quick Setup is denied or fails, you can apply the same permissions manually on host:
+
+```bash
+sudo modprobe uinput
+for p in /dev/uinput /dev/input/uinput; do [ -e "$p" ] && sudo setfacl -m "u:$USER:rw" "$p"; done
+for p in /dev/input/event*; do [ -e "$p" ] && sudo setfacl -m "u:$USER:r" "$p"; done
+```
+
+If `setfacl` is missing, install your distro's `acl` package first.
 
 ### Advanced Platform Notes
 
@@ -266,9 +294,21 @@ sudo systemctl enable crossmacro.service
 ```bash
 groups | grep crossmacro
 sudo usermod -aG crossmacro $USER
+
+stat -c '%A %a %U:%G %n' /dev/uinput
+id crossmacro
+sudo -u crossmacro test -w /dev/uinput && echo writable || echo not-writable
 ```
 
 Reboot or re-login after group changes.
+
+If daemon cannot write `/dev/uinput`, add service user to required groups and restart:
+
+```bash
+sudo usermod -aG input crossmacro
+sudo usermod -aG uinput crossmacro
+sudo systemctl restart crossmacro.service
+```
 
 </details>
 

@@ -82,20 +82,29 @@ install -m 0644 %{_sourcedir}/crossmacro.1 %{buildroot}%{_mandir}/man1/crossmacr
 # Create group and user if they don't exist
 getent group crossmacro >/dev/null || groupadd -r crossmacro
 getent group input >/dev/null || groupadd -r input
+getent group uinput >/dev/null || groupadd -r uinput
 getent passwd crossmacro >/dev/null || \
-    useradd -r -g input -G crossmacro -s /sbin/nologin \
+    useradd -r -g input -G crossmacro,uinput -s /sbin/nologin \
     -c "CrossMacro Input Daemon User" crossmacro
 usermod -aG input crossmacro || :
+usermod -aG uinput crossmacro || :
 usermod -aG crossmacro crossmacro || :
 
 %post
+# Best effort: make uinput available immediately for the daemon.
+# Persistent boot-time loading is handled by /usr/lib/modules-load.d/crossmacro.conf.
+if command -v modprobe >/dev/null 2>&1; then
+    modprobe uinput >/dev/null 2>&1 || :
+fi
+udevadm control --reload-rules && udevadm trigger >/dev/null 2>&1 || :
+udevadm settle >/dev/null 2>&1 || :
+
 # systemd_post equivalent
 if [ $1 -eq 1 ]; then
     systemctl daemon-reload >/dev/null 2>&1 || :
     systemctl enable crossmacro.service >/dev/null 2>&1 || :
     systemctl start crossmacro.service >/dev/null 2>&1 || :
 fi
-udevadm control --reload-rules && udevadm trigger >/dev/null 2>&1 || :
 semodule -i /usr/share/selinux/packages/%{name}/crossmacro.pp >/dev/null 2>&1 || :
 echo "CrossMacro installed. To use the daemon, add yourself to the 'crossmacro' group:"
 echo "sudo usermod -aG crossmacro \$USER"

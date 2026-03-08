@@ -89,6 +89,10 @@ if [ "\$1" = "configure" ]; then
         addgroup --system input || true
     fi
 
+    if ! getent group uinput >/dev/null; then
+        addgroup --system uinput || true
+    fi
+
     # Create user if not exists
     if ! getent passwd crossmacro >/dev/null; then
         adduser --system --no-create-home --ingroup input --disabled-login crossmacro || true
@@ -97,7 +101,18 @@ if [ "\$1" = "configure" ]; then
     
     # Ensure user is in required groups
     usermod -aG input crossmacro 2>/dev/null || true
+    usermod -aG uinput crossmacro 2>/dev/null || true
     usermod -aG crossmacro crossmacro 2>/dev/null || true
+
+    # Best effort: make uinput available immediately for the daemon.
+    # Persistent boot-time loading is handled by /usr/lib/modules-load.d/crossmacro.conf.
+    if command -v modprobe >/dev/null 2>&1; then
+        modprobe uinput >/dev/null 2>&1 || :
+    fi
+
+    # Reload udev rules so /dev/uinput permissions are applied before daemon start.
+    udevadm control --reload-rules && udevadm trigger >/dev/null 2>&1 || :
+    udevadm settle >/dev/null 2>&1 || :
 
     # Debian policy compliant systemd integration
     if [ -d /run/systemd/system ]; then
@@ -106,10 +121,7 @@ if [ "\$1" = "configure" ]; then
         deb-systemd-helper enable crossmacro.service >/dev/null || true
         deb-systemd-invoke start crossmacro.service >/dev/null || true
     fi
-    
-    # Reload udev rules
-    udevadm control --reload-rules && udevadm trigger >/dev/null 2>&1 || :
-    
+
     echo "CrossMacro Daemon installed and started."
     echo "NOTE: Add your user to 'crossmacro' group to communicate with the daemon:"
     if [ -n "\${SUDO_USER:-}" ]; then

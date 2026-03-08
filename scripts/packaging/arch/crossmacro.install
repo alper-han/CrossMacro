@@ -1,7 +1,17 @@
+_crossmacro_load_uinput() {
+    # Best effort: make uinput available immediately for the daemon.
+    # Persistent boot-time loading is handled by /usr/lib/modules-load.d/crossmacro.conf.
+    if command -v modprobe >/dev/null 2>&1; then
+        modprobe uinput >/dev/null 2>&1 || true
+    fi
+}
+
 post_install() {
     echo "Reloading systemd daemon..."
     systemctl daemon-reload
+    _crossmacro_load_uinput
     udevadm control --reload-rules && udevadm trigger || true
+    udevadm settle >/dev/null 2>&1 || true
     echo "------------------------------------------------------------------------"
     echo "CrossMacro Daemon installed."
     echo ""
@@ -17,6 +27,9 @@ post_install() {
 
 post_upgrade() {
     systemctl daemon-reload
+    _crossmacro_load_uinput
+    udevadm control --reload-rules && udevadm trigger || true
+    udevadm settle >/dev/null 2>&1 || true
     # Only restart if service is active
     if systemctl is-active --quiet crossmacro.service 2>/dev/null; then
         systemctl try-restart crossmacro.service || true

@@ -53,6 +53,11 @@ if ! getent group input >/dev/null; then
     groupadd -r input
 fi
 
+if ! getent group uinput >/dev/null; then
+    echo "   Creating group 'uinput'..."
+    groupadd -r uinput
+fi
+
 if ! id "crossmacro" &>/dev/null; then
   echo "   Creating system user 'crossmacro'..."
   useradd -r -s /bin/false -g input -G crossmacro crossmacro
@@ -60,6 +65,7 @@ fi
 
 # Ensure daemon user is in both required groups
 usermod -aG input crossmacro 2>/dev/null || echo "   Warning: Failed to add to input group"
+usermod -aG uinput crossmacro 2>/dev/null || echo "   Warning: Failed to add to uinput group"
 usermod -aG crossmacro crossmacro 2>/dev/null || echo "   Warning: Failed to add to crossmacro group"
 
 
@@ -106,7 +112,7 @@ echo "Installing Polkit & Udev rules..."
 
 
 # Install UDev Rules (Permissions for /dev/uinput)
-# This allows the 'input' group to write to /dev/uinput
+# This sets /dev/uinput group ownership to 'input' with rw access.
 if [ -d "/etc/udev/rules.d" ]; then
     cp "$REPO_ROOT/scripts/assets/99-crossmacro.rules" /etc/udev/rules.d/99-crossmacro.rules
     echo "   Installed udev rules to /etc/udev/rules.d/"

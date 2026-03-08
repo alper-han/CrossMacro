@@ -12,7 +12,9 @@ namespace CrossMacro.Platform.Linux;
 
 public class LinuxInputCapture : IInputCapture
 {
-    private readonly List<EvdevReader> _readers = new();
+    private readonly List<ILinuxInputReader> _readers = new();
+    private readonly Func<IReadOnlyList<InputDeviceHelper.InputDevice>> _deviceEnumerator;
+    private readonly Func<InputDeviceHelper.InputDevice, ILinuxInputReader> _readerFactory;
     private bool _disposed;
     private CancellationTokenRegistration _stopRegistration;
     
@@ -39,6 +41,21 @@ public class LinuxInputCapture : IInputCapture
     
     public event EventHandler<InputCaptureEventArgs>? InputReceived;
     public event EventHandler<string>? Error;
+
+    public LinuxInputCapture()
+        : this(
+            () => InputDeviceHelper.GetAvailableDevices(),
+            device => new EvdevReaderAdapter(new EvdevReader(device.Path, device.Name)))
+    {
+    }
+
+    internal LinuxInputCapture(
+        Func<IReadOnlyList<InputDeviceHelper.InputDevice>> deviceEnumerator,
+        Func<InputDeviceHelper.InputDevice, ILinuxInputReader> readerFactory)
+    {
+        _deviceEnumerator = deviceEnumerator;
+        _readerFactory = readerFactory;
+    }
     
     public void Configure(bool captureMouse, bool captureKeyboard)
     {
@@ -59,7 +76,7 @@ public class LinuxInputCapture : IInputCapture
             return;
         }
         
-        var nativeDevices = InputDeviceHelper.GetAvailableDevices();
+        var nativeDevices = _deviceEnumerator();
         
         var devicesToUse = nativeDevices.Where(d => 
             (_captureMouse && d.IsMouse) || 
@@ -70,8 +87,7 @@ public class LinuxInputCapture : IInputCapture
         {
             var errorMsg = "No matching input devices found";
             Log.Error("[LinuxInputCapture] {Error}", errorMsg);
-            Error?.Invoke(this, errorMsg);
-            return;
+            throw new InvalidOperationException(errorMsg);
         }
         
         Log.Information("[LinuxInputCapture] Starting capture on {Count} device(s):", devicesToUse.Count);
@@ -80,7 +96,7 @@ public class LinuxInputCapture : IInputCapture
         {
             try
             {
-                var reader = new EvdevReader(device.Path, device.Name);
+                var reader = _readerFactory(device);
                 reader.EventReceived += OnEvdevEventReceived;
                 reader.ErrorOccurred += OnEvdevError;
                 reader.Start();
@@ -97,8 +113,7 @@ public class LinuxInputCapture : IInputCapture
         {
             var errorMsg = "Failed to open any input devices";
             Log.Error("[LinuxInputCapture] {Error}", errorMsg);
-            Error?.Invoke(this, errorMsg);
-            return;
+            throw new InvalidOperationException(errorMsg);
         }
         
         _stopRegistration.Dispose();
@@ -143,7 +158,7 @@ public class LinuxInputCapture : IInputCapture
         _stopRegistration.Dispose();
     }
     
-    private void OnEvdevEventReceived(EvdevReader reader, UInputNative.input_event e)
+    private void OnEvdevEventReceived(ILinuxInputReader reader, UInputNative.input_event e)
     {
         var eventType = e.type switch
         {
@@ -182,6 +197,53 @@ public class LinuxInputCapture : IInputCapture
         {
             Stop();
             _disposed = true;
+        }
+    }
+
+    internal interface ILinuxInputReader : IDisposable
+    {
+        string DeviceName { get; }
+        event Action<ILinuxInputReader, UInputNative.input_event>? EventReceived;
+        event Action<Exception>? ErrorOccurred;
+        void Start();
+        void Stop();
+    }
+
+    private sealed class EvdevReaderAdapter : ILinuxInputReader
+    {
+        private readonly EvdevReader _reader;
+
+        public EvdevReaderAdapter(EvdevReader reader)
+        {
+            _reader = reader;
+            _reader.EventReceived += OnReaderEventReceived;
+            _reader.ErrorOccurred += OnReaderErrorOccurred;
+        }
+
+        public string DeviceName => _reader.DeviceName;
+
+        public event Action<ILinuxInputReader, UInputNative.input_event>? EventReceived;
+        public event Action<Exception>? ErrorOccurred;
+
+        public void Start() => _reader.Start();
+
+        public void Stop() => _reader.Stop();
+
+        public void Dispose()
+        {
+            _reader.EventReceived -= OnReaderEventReceived;
+            _reader.ErrorOccurred -= OnReaderErrorOccurred;
+            _reader.Dispose();
+        }
+
+        private void OnReaderEventReceived(EvdevReader reader, UInputNative.input_event inputEvent)
+        {
+            EventReceived?.Invoke(this, inputEvent);
+        }
+
+        private void OnReaderErrorOccurred(Exception exception)
+        {
+            ErrorOccurred?.Invoke(exception);
         }
     }
 }

@@ -212,16 +212,16 @@ public class GlobalHotkeyServiceTests
     }
 
     [Fact]
-    public async Task Start_WhenCaptureStartTaskFaults_ShouldAttemptRestart()
+    public async Task OnInputCaptureError_WhenStartTaskJustCompleted_ShouldStillRestart()
     {
         var firstCapture = Substitute.For<IInputCapture>();
         var secondCapture = Substitute.For<IInputCapture>();
+        var firstStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
         firstCapture.ProviderName.Returns("first");
         secondCapture.ProviderName.Returns("second");
-        firstCapture.StartAsync(Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new InvalidOperationException("startup failed")));
-
-        var secondStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        firstCapture.StartAsync(Arg.Any<CancellationToken>()).Returns(firstStarted.Task);
         secondCapture.StartAsync(Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask)
             .AndDoes(_ => secondStarted.TrySetResult(true));
@@ -238,12 +238,44 @@ public class GlobalHotkeyServiceTests
 
         restartingService.Start();
 
+        firstStarted.TrySetResult(true);
+        firstCapture.Error += Raise.Event<EventHandler<string>>(this, "transient post-start failure");
+
         await secondStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
+        Assert.True(restartingService.IsRunning);
         firstCapture.Received(1).Stop();
         firstCapture.Received(1).Dispose();
         secondCapture.Received(1).Configure(true, true);
         await secondCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Start_WhenCaptureStartTaskFaults_ShouldStopWithoutRestart()
+    {
+        var firstCapture = Substitute.For<IInputCapture>();
+        firstCapture.ProviderName.Returns("first");
+        firstCapture.StartAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new InvalidOperationException("startup failed")));
+
+        var restartingService = new GlobalHotkeyService(
+            _config,
+            _parser,
+            _matcher,
+            _modifierTracker,
+            _stringBuilder,
+            _mouseButtonMapper,
+            () => firstCapture);
+
+        restartingService.Start();
+
+        await WaitForConditionAsync(() => !restartingService.IsRunning);
+
+        Assert.False(restartingService.IsRunning);
+        Assert.Equal("startup failed", restartingService.LastError);
+        firstCapture.Received(1).Stop();
+        firstCapture.Received(1).Dispose();
+        await firstCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -20,7 +20,9 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     private bool _disposed;
     private readonly Lock _lock = new();
     private CancellationTokenSource? _captureCts;
+    private Task? _captureTask;
     private int _restartInProgress;
+    private bool _captureStartupCompleted;
 
     // Injected services
     private readonly IHotkeyConfigurationService _configService;
@@ -94,7 +96,6 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             try
             {
                 StartCapture_NoLock();
-                Log.Information("[GlobalHotkeyService] Started via {ProviderName}", _inputCapture?.ProviderName ?? "Unknown");
             }
             catch
             {
@@ -322,11 +323,38 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
     private void OnInputCaptureError(object? sender, string errorMessage)
     {
-        Log.Error("[GlobalHotkeyService] Input capture error: {Error}", errorMessage);
-        LastError = errorMessage;
-        ErrorOccurred?.Invoke(this, errorMessage);
+        var shouldRestart = false;
+        var shouldNotify = false;
 
-        if (_isRunning)
+        using (_lock.EnterScope())
+        {
+            Log.Error("[GlobalHotkeyService] Input capture error: {Error}", errorMessage);
+            LastError = errorMessage;
+            shouldNotify = true;
+
+            if (!_isRunning)
+            {
+                return;
+            }
+
+            if (_captureStartupCompleted || (_captureTask?.IsCompletedSuccessfully ?? false))
+            {
+                _captureStartupCompleted = true;
+                shouldRestart = true;
+            }
+            else
+            {
+                _isRunning = false;
+                CleanupCapture_NoLock();
+            }
+        }
+
+        if (shouldNotify)
+        {
+            ErrorOccurred?.Invoke(this, errorMessage);
+        }
+
+        if (shouldRestart)
         {
             _ = TryRestartCaptureAsync(errorMessage);
         }
@@ -358,11 +386,14 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         _inputCapture.Configure(captureMouse: true, captureKeyboard: true);
         _inputCapture.InputReceived += OnInputReceived;
         _inputCapture.Error += OnInputCaptureError;
+        _captureStartupCompleted = false;
 
         _captureCts = new CancellationTokenSource();
         var capture = _inputCapture;
         var captureToken = _captureCts.Token;
         var captureTask = capture.StartAsync(captureToken) ?? Task.CompletedTask;
+        _captureTask = captureTask;
+        _captureStartupCompleted = captureTask.IsCompletedSuccessfully;
         _ = ObserveCaptureTaskAsync(capture, captureTask, captureToken);
     }
 
@@ -382,8 +413,10 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
     private void CleanupCapture_NoLock()
     {
+        _captureStartupCompleted = false;
         var captureCts = _captureCts;
         _captureCts = null;
+        _captureTask = null;
 
         try
         {
@@ -420,6 +453,15 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         try
         {
             await captureTask.ConfigureAwait(false);
+
+            using (_lock.EnterScope())
+            {
+                if (_isRunning && ReferenceEquals(_inputCapture, capture))
+                {
+                    _captureStartupCompleted = true;
+                    Log.Information("[GlobalHotkeyService] Started via {ProviderName}", capture.ProviderName);
+                }
+            }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {

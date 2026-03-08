@@ -89,8 +89,6 @@ public class TextExpansionService : ITextExpansionService
                 // Reset State
                 _inputProcessor.Reset();
                 _bufferState.Clear();
-                
-                Log.Information("[TextExpansionService] Started via {Provider}", _inputCapture.ProviderName);
             }
             catch (Exception ex)
             {
@@ -139,6 +137,16 @@ public class TextExpansionService : ITextExpansionService
         try
         {
             await captureTask.ConfigureAwait(false);
+
+            lock (_lock)
+            {
+                if (_isRunning &&
+                    ReferenceEquals(_inputCapture, capture) &&
+                    ReferenceEquals(_captureTask, captureTask))
+                {
+                    Log.Information("[TextExpansionService] Started via {Provider}", capture.ProviderName);
+                }
+            }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {

@@ -60,7 +60,7 @@ public class LinuxSimulatorFactory
                 return new UnavailableInputSimulator();
             }
 
-            // Fallback to legacy evdev (works with input group or Flatpak --device=all)
+            // Fallback to legacy evdev (works with direct device permissions or Flatpak --device=all)
             LoggingExtensions.LogOnce("LinuxSimulatorFactory_Wayland_Legacy",
                 "[LinuxSimulatorFactory] Wayland detected ({0}), daemon not available, using Legacy evdev Simulator",
                 _environmentDetector.DetectedCompositor);

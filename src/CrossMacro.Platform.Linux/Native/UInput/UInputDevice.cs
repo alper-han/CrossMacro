@@ -8,6 +8,10 @@ namespace CrossMacro.Platform.Linux.Native.UInput
 {
     public class UInputDevice : IDisposable
     {
+        private const int ErrnoNoEntry = 2;
+        private const int ErrnoOperationNotPermitted = 1;
+        private const int ErrnoPermissionDenied = 13;
+
         private int _fd;
         private bool _disposed;
         private readonly int _width;
@@ -66,18 +70,31 @@ namespace CrossMacro.Platform.Linux.Native.UInput
             Log.Information("[UInputDevice] Creating virtual input device (Mouse + Keyboard, Resolution: {Width}x{Height})...", _width, _height);
             
             // Try opening /dev/uinput
+            var primaryErrno = 0;
+            var alternateErrno = 0;
             _fd = UInputNative.open(LinuxConstants.UInputDevicePath, UInputNative.O_WRONLY | UInputNative.O_NONBLOCK);
             if (_fd < 0)
             {
+                primaryErrno = Marshal.GetLastWin32Error();
                 // Try alternative path
                 _fd = UInputNative.open(LinuxConstants.UInputAlternatePath, UInputNative.O_WRONLY | UInputNative.O_NONBLOCK);
+                if (_fd < 0)
+                {
+                    alternateErrno = Marshal.GetLastWin32Error();
+                }
             }
 
             if (_fd < 0)
             {
-                var errno = Marshal.GetLastWin32Error();
-                Log.Error("[UInputDevice] Failed to open {UInputPath}. Errno: {Errno}", LinuxConstants.UInputDevicePath, errno);
-                throw new IOException($"Cannot open {LinuxConstants.UInputDevicePath} (Errno: {errno}). Check permissions (sudo chmod +0666 {LinuxConstants.UInputDevicePath}).");
+                var errno = SelectOpenUInputErrno(primaryErrno, alternateErrno);
+                Log.Error(
+                    "[UInputDevice] Failed to open uinput paths {PrimaryPath} (errno: {PrimaryErrno}) and {AlternatePath} (errno: {AlternateErrno}). Selected errno: {Errno}",
+                    LinuxConstants.UInputDevicePath,
+                    primaryErrno,
+                    LinuxConstants.UInputAlternatePath,
+                    alternateErrno,
+                    errno);
+                throw new IOException(BuildOpenUInputErrorMessage(errno));
             }
 
             Log.Debug("[UInputDevice] Opened {UInputPath} with fd: {Fd}", LinuxConstants.UInputDevicePath, _fd);
@@ -268,6 +285,44 @@ namespace CrossMacro.Platform.Linux.Native.UInput
                 _disposed = true;
             }
             GC.SuppressFinalize(this);
+        }
+
+        internal static string BuildOpenUInputErrorMessage(int errno)
+        {
+            var baseMessage =
+                $"Cannot open {LinuxConstants.UInputDevicePath} or {LinuxConstants.UInputAlternatePath} (Errno: {errno}).";
+
+            return errno switch
+            {
+                ErrnoNoEntry =>
+                    $"{baseMessage} uinput device node is missing. Load the module (sudo modprobe uinput) and retry.",
+                ErrnoPermissionDenied =>
+                    $"{baseMessage} Permission denied. Ensure daemon user can write /dev/uinput (input or uinput group, distro dependent).",
+                ErrnoOperationNotPermitted =>
+                    $"{baseMessage} Operation not permitted. Check service sandbox/capabilities and uinput access policy.",
+                _ =>
+                    $"{baseMessage} Check that uinput exists and daemon has required permissions."
+            };
+        }
+
+        internal static int SelectOpenUInputErrno(int primaryErrno, int alternateErrno)
+        {
+            if (IsPermissionErrno(primaryErrno))
+            {
+                return primaryErrno;
+            }
+
+            if (IsPermissionErrno(alternateErrno))
+            {
+                return alternateErrno;
+            }
+
+            return primaryErrno != 0 ? primaryErrno : alternateErrno;
+        }
+
+        private static bool IsPermissionErrno(int errno)
+        {
+            return errno == ErrnoPermissionDenied || errno == ErrnoOperationNotPermitted;
         }
     }
 }

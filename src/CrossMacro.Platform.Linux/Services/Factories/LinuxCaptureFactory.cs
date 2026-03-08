@@ -60,7 +60,7 @@ public class LinuxCaptureFactory
                 return new UnavailableInputCapture();
             }
 
-            // Fallback to legacy evdev (works with input group or Flatpak --device=all)
+            // Fallback to legacy evdev (works with direct device permissions or Flatpak --device=all)
             LoggingExtensions.LogOnce("LinuxCaptureFactory_Wayland_Legacy",
                 "[LinuxCaptureFactory] Wayland detected ({0}), daemon not available, using Legacy evdev Capture",
                 _environmentDetector.DetectedCompositor);

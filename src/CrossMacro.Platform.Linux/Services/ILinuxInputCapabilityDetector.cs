@@ -11,7 +11,7 @@ public enum InputProviderMode
     Daemon,
     
     /// <summary>
-    /// Use direct /dev/uinput access (requires root or input group).
+    /// Use direct /dev/uinput access (requires root or a group that can write /dev/uinput).
     /// </summary>
     Legacy,
 

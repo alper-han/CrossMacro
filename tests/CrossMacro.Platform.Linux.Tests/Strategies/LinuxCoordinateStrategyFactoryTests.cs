@@ -23,6 +23,7 @@ public class LinuxCoordinateStrategyFactoryTests
     public LinuxCoordinateStrategyFactoryTests()
     {
         _mockPositionProvider = Substitute.For<IMousePositionProvider>();
+        _mockPositionProvider.IsSupported.Returns(true);
         _mockInputSimulatorFactory = Substitute.For<Func<IInputSimulator>>();
         _mockEnvironmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
 
@@ -66,6 +67,21 @@ public class LinuxCoordinateStrategyFactoryTests
 
         // Assert
         Assert.IsType<EvdevAbsoluteStrategy>(result);
+    }
+
+    [LinuxFact]
+    public void Wayland_Absolute_WhenProviderUnsupported_ShouldFallbackToRelativeStrategy()
+    {
+        // Arrange
+        _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.Other);
+        _mockEnvironmentDetector.IsWayland.Returns(true);
+        _mockPositionProvider.IsSupported.Returns(false);
+
+        // Act
+        var result = _factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: false);
+
+        // Assert
+        Assert.IsType<RelativeCoordinateStrategy>(result);
     }
 
     [LinuxFact]

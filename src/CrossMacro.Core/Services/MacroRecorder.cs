@@ -55,10 +55,11 @@ public class MacroRecorder : IMacroRecorder, IDisposable
 
         _isRecording = true;
 
-        bool useAbsoluteCoordinates = !forceRelative; // Strategy Factory handles the rest
+        bool requestedAbsoluteCoordinates = !forceRelative; // Strategy factory may adjust this based on platform capability.
+        bool useAbsoluteCoordinates = requestedAbsoluteCoordinates;
 
         var ignoredKeysList = ignoredKeys?.ToList();
-        Log.Debug("[MacroRecorder] Configuration: Mouse={Mouse}, Keyboard={Keyboard}, Absolute={Absolute}, ForceRelative={ForceRelative}, SkipInitialZero={SkipZero}, IgnoredKeys={IgnoredKeys}",
+        Log.Debug("[MacroRecorder] Configuration: Mouse={Mouse}, Keyboard={Keyboard}, RequestedAbsolute={RequestedAbsolute}, ForceRelative={ForceRelative}, SkipInitialZero={SkipZero}, IgnoredKeys={IgnoredKeys}",
             recordMouse, recordKeyboard, useAbsoluteCoordinates, forceRelative, skipInitialZero,
             ignoredKeysList != null ? string.Join(",", ignoredKeysList) : "none");
 
@@ -80,34 +81,33 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             }
             
             
-            // 0. Perform Corner Reset if needed
-            // This is a physical environment preparation step, best handled here before capture starts.
-            if (forceRelative && !skipInitialZero && _inputSimulatorFactory != null)
+            // 1. Initialize Strategy
+            _currentStrategy = _coordinateStrategyFactory.Create(requestedAbsoluteCoordinates, forceRelative, skipInitialZero);
+            useAbsoluteCoordinates = DetermineEffectiveAbsoluteCoordinates(requestedAbsoluteCoordinates, _currentStrategy);
+            if (useAbsoluteCoordinates != requestedAbsoluteCoordinates)
             {
-                 try
-                 {
-                     Log.Information("[MacroRecorder] Performing Corner Reset (Force 0,0)...");
-                     // We create a temporary simulator just for this op
-                     using var simulator = _inputSimulatorFactory();
-                     simulator.Initialize();
-                     simulator.MoveRelative(-20000, -20000); 
-                     Log.Information("[MacroRecorder] Corner Reset complete.");
-                 }
-                 catch (Exception ex)
-                 {
-                     Log.Error(ex, "[MacroRecorder] Failed to perform Corner Reset");
-                 }
+                Log.Information(
+                    "[MacroRecorder] Coordinate mode auto-adjusted from {RequestedMode} to {EffectiveMode} based on strategy {StrategyType}.",
+                    requestedAbsoluteCoordinates ? "absolute" : "relative",
+                    useAbsoluteCoordinates ? "absolute" : "relative",
+                    _currentStrategy.GetType().Name);
             }
 
-            // 1. Initialize Strategy
-            _currentStrategy = _coordinateStrategyFactory.Create(useAbsoluteCoordinates, forceRelative, skipInitialZero);
+            _currentSequence.IsAbsoluteCoordinates = useAbsoluteCoordinates;
+
+            // 2. Perform Corner Reset for relative recordings when requested.
+            if (!useAbsoluteCoordinates && !skipInitialZero)
+            {
+                PerformCornerReset();
+            }
+
             await _currentStrategy.InitializeAsync(cancellationToken);
 
-            // 2. Initialize Processor
+            // 3. Initialize Processor
             _currentProcessor = _processorFactory(_currentStrategy);
             _currentProcessor.Configure(recordMouse, recordKeyboard, ignoredKeys != null ? new HashSet<int>(ignoredKeys) : null, useAbsoluteCoordinates);
 
-            // 3. Initialize Capture
+            // 4. Initialize Capture
             _inputCapture = _inputCaptureFactory();
             var inputCapture = _inputCapture;
             var providerName = inputCapture.ProviderName;
@@ -273,6 +273,38 @@ public class MacroRecorder : IMacroRecorder, IDisposable
     public MacroSequence? GetCurrentRecording()
     {
         return _currentSequence;
+    }
+
+    private static bool DetermineEffectiveAbsoluteCoordinates(bool requestedAbsoluteCoordinates, ICoordinateStrategy strategy)
+    {
+        if (!requestedAbsoluteCoordinates)
+        {
+            return false;
+        }
+
+        return strategy is not RelativeCoordinateStrategy;
+    }
+
+    private void PerformCornerReset()
+    {
+        if (_inputSimulatorFactory == null)
+        {
+            Log.Warning("[MacroRecorder] Relative recording requires corner reset, but no input simulator is available.");
+            return;
+        }
+
+        try
+        {
+            Log.Information("[MacroRecorder] Performing Corner Reset (Force 0,0)...");
+            using var simulator = _inputSimulatorFactory();
+            simulator.Initialize();
+            simulator.MoveRelative(-20000, -20000);
+            Log.Information("[MacroRecorder] Corner Reset complete.");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[MacroRecorder] Failed to perform Corner Reset");
+        }
     }
     
     public void Dispose()

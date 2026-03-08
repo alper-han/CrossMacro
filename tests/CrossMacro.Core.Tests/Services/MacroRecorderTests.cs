@@ -195,6 +195,45 @@ public class MacroRecorderTests
     }
 
     [Fact]
+    public async Task StartRecordingAsync_WhenStrategyFallsBackToRelative_UsesRelativeModeForProcessorAndSequence()
+    {
+        // Arrange
+        var relativeStrategy = new RelativeCoordinateStrategy();
+        _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
+        var mockSimulator = Substitute.For<IInputSimulator>();
+        var recorder = new MacroRecorder(_captureFactory, _strategyFactory, _processorFactory, () => mockSimulator);
+
+        // Act
+        await recorder.StartRecordingAsync(true, true, forceRelative: false);
+        var sequence = recorder.StopRecording();
+
+        // Assert
+        _processor.Received(1).Configure(true, true, Arg.Is<HashSet<int>>(x => x == null), false);
+        sequence.IsAbsoluteCoordinates.Should().BeFalse();
+        mockSimulator.Received(1).Initialize();
+        mockSimulator.Received(1).MoveRelative(-20000, -20000);
+    }
+
+    [Fact]
+    public async Task StartRecordingAsync_WhenStrategyFallsBackToRelative_AndSkipInitialZero_LeavesCursorAsIs()
+    {
+        // Arrange
+        var relativeStrategy = new RelativeCoordinateStrategy();
+        _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
+        var mockSimulator = Substitute.For<IInputSimulator>();
+        var recorder = new MacroRecorder(_captureFactory, _strategyFactory, _processorFactory, () => mockSimulator);
+
+        // Act
+        await recorder.StartRecordingAsync(true, true, forceRelative: false, skipInitialZero: true);
+        var sequence = recorder.StopRecording();
+
+        // Assert
+        _processor.Received(1).Configure(true, true, Arg.Is<HashSet<int>>(x => x == null), false);
+        sequence.IsAbsoluteCoordinates.Should().BeFalse();
+        mockSimulator.DidNotReceive().MoveRelative(-20000, -20000);
+    }
+
+    [Fact]
     public async Task StartRecordingAsync_WhenInputCaptureFactoryMissing_ThrowsAndResetsState()
     {
         // Arrange

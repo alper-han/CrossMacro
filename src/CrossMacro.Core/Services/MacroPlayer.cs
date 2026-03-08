@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -300,10 +301,10 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
         int eventCount = 0;
         int totalEvents = macro.Events.Count;
         bool isFirstEvent = true;
-
-        // Accumulate fractional delays to prevent drift from truncation
-        // Example: 100 events with 0.9ms each = 90ms total, not 0ms
-        double delayAccumulator = 0.0;
+        var playbackClock = Stopwatch.StartNew();
+        double scheduledElapsedMs = 0;
+        double timelineAnchorElapsedMs = 0;
+        bool hasTimelineAnchor = false;
 
         Log.Debug("[MacroPlayer] Starting playback of {Total} events at {Speed}x speed", totalEvents, speedMultiplier);
 
@@ -314,7 +315,13 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
             if (_isPaused)
             {
                 Log.Debug("[MacroPlayer] Paused at event {Current}/{Total}", eventCount, totalEvents);
+                var pausedStartMs = playbackClock.Elapsed.TotalMilliseconds;
                 await Task.Run(() => _pauseEvent.Wait(cancellationToken), cancellationToken);
+                var pausedDurationMs = playbackClock.Elapsed.TotalMilliseconds - pausedStartMs;
+                if (hasTimelineAnchor)
+                {
+                    scheduledElapsedMs += pausedDurationMs;
+                }
                 Log.Debug("[MacroPlayer] Resumed playback");
             }
 
@@ -330,6 +337,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
                 ev.RandomDelayMinMs,
                 ev.RandomDelayMaxMs);
 
+            var waitedForDelay = false;
             if (!isFirstEvent && eventDelaySource > 0)
             {
                 double effectiveSpeed = speedMultiplier;
@@ -347,20 +355,25 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
                     adjustedDelay = MinEnforcedDelayMs;
                 }
 
-                // Add accumulated fractional delay from previous truncations
-                adjustedDelay += delayAccumulator;
+                if (!hasTimelineAnchor)
+                {
+                    timelineAnchorElapsedMs = playbackClock.Elapsed.TotalMilliseconds;
+                    hasTimelineAnchor = true;
+                }
 
-                int delayToWait = (int)adjustedDelay;
-
-                // Carry over the fractional part for next iteration
-                delayAccumulator = adjustedDelay - delayToWait;
+                scheduledElapsedMs += adjustedDelay;
+                var elapsedSinceAnchorMs = playbackClock.Elapsed.TotalMilliseconds - timelineAnchorElapsedMs;
+                var remainingDelayMs = scheduledElapsedMs - elapsedSinceAnchorMs;
+                int delayToWait = (int)Math.Floor(remainingDelayMs);
 
                 if (delayToWait > 0)
                 {
                     await _timingService.WaitAsync(delayToWait, this, cancellationToken);
+                    waitedForDelay = true;
                 }
             }
-            else if (speedMultiplier > 5.0 && !isFirstEvent)
+
+            if (!waitedForDelay && speedMultiplier > 5.0 && !isFirstEvent)
             {
                 await Task.Yield();
             }

@@ -8,67 +8,86 @@ namespace CrossMacro.Core.Services.Playback;
 
 /// <summary>
 /// High-precision timing service for playback delays.
-/// Uses spin-wait for small delays, Task.Delay for larger ones.
+/// Uses coarse async waits with a very short final spin window.
 /// </summary>
 public class PlaybackTimingService : IPlaybackTimingService
 {
-    private const int SmallDelayThresholdMs = 15;
-    private const int CheckIntervalMs = 50;
+    private const int MaxDelayChunkMs = 50;
+    private const int CoarseSafetyMarginMs = 2;
+    private const double FinalSpinWindowMs = 0.1;
+    private const int YieldSpinInterval = 8;
 
     public async Task WaitAsync(int delayMs, IPlaybackPauseToken pauseToken, CancellationToken cancellationToken)
     {
         if (delayMs <= 0)
+        {
             return;
+        }
 
-        int remaining = delayMs;
+        cancellationToken.ThrowIfCancellationRequested();
+        long deadlineTicks = Stopwatch.GetTimestamp() + MillisecondsToTicks(delayMs);
 
-        while (remaining > 0)
+        while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Check for pause state
             if (pauseToken.IsPaused)
             {
-                Log.Debug("[PlaybackTimingService] Pause detected, {Remaining}ms remaining", remaining);
+                var pauseStartTicks = Stopwatch.GetTimestamp();
+                Log.Debug("[PlaybackTimingService] Pause detected during delay wait");
                 await pauseToken.WaitIfPausedAsync(cancellationToken);
-                Log.Debug("[PlaybackTimingService] Resumed, continuing with {Remaining}ms delay", remaining);
+                var pausedTicks = Stopwatch.GetTimestamp() - pauseStartTicks;
+                deadlineTicks += pausedTicks;
+                continue;
             }
 
-            int waitTime = Math.Min(remaining, CheckIntervalMs);
-
-            if (waitTime > SmallDelayThresholdMs)
+            long remainingTicks = deadlineTicks - Stopwatch.GetTimestamp();
+            if (remainingTicks <= 0)
             {
-                // Use Task.Delay for larger waits
-                await Task.Delay(waitTime, cancellationToken);
+                return;
             }
-            else if (waitTime > 0)
+
+            double remainingMs = TicksToMilliseconds(remainingTicks);
+            if (remainingMs > CoarseSafetyMarginMs + 1)
             {
-                // Use spin-wait for precise small delays
-                SpinWait(waitTime, pauseToken, cancellationToken);
+                int delaySliceMs = Math.Min(
+                    MaxDelayChunkMs,
+                    Math.Max(1, (int)Math.Floor(remainingMs) - CoarseSafetyMarginMs));
+                await Task.Delay(delaySliceMs, cancellationToken);
+                continue;
             }
 
-            // Ensure cancellation is checked after spin-wait
-            cancellationToken.ThrowIfCancellationRequested();
+            if (remainingMs > FinalSpinWindowMs)
+            {
+                await Task.Delay(1, cancellationToken);
+                continue;
+            }
 
-            remaining -= waitTime;
+            var spinner = new SpinWait();
+            while (deadlineTicks - Stopwatch.GetTimestamp() > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (pauseToken.IsPaused)
+                {
+                    break;
+                }
+
+                spinner.SpinOnce(sleep1Threshold: -1);
+                if (spinner.Count % YieldSpinInterval == 0)
+                {
+                    Thread.Yield();
+                }
+            }
         }
     }
 
-    private static void SpinWait(int milliseconds, IPlaybackPauseToken pauseToken, CancellationToken cancellationToken)
+    private static long MillisecondsToTicks(double milliseconds)
     {
-        long startTicks = Stopwatch.GetTimestamp();
-        long targetTicks = startTicks + (long)(milliseconds * Stopwatch.Frequency / 1000.0);
+        return (long)(milliseconds * Stopwatch.Frequency / 1000d);
+    }
 
-        while (Stopwatch.GetTimestamp() < targetTicks)
-        {
-            if (milliseconds > 1)
-                Thread.SpinWait(100);
-            else
-                Thread.Yield();
-
-            // Check for pause and cancellation during spin-wait
-            if (pauseToken.IsPaused || cancellationToken.IsCancellationRequested)
-                break;
-        }
+    private static double TicksToMilliseconds(long ticks)
+    {
+        return ticks * 1000d / Stopwatch.Frequency;
     }
 }

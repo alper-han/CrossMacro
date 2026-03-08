@@ -253,7 +253,8 @@ public class MacroPlayerTests
         await player.PlayAsync(macro);
 
         // Assert
-        timing.WaitCalls.Should().Contain(50);
+        timing.WaitCalls.Should().ContainSingle();
+        timing.WaitCalls[0].Should().BeInRange(45, 50);
     }
 
     [Fact]
@@ -285,7 +286,8 @@ public class MacroPlayerTests
         await player.PlayAsync(macro);
 
         // Assert
-        timing.WaitCalls.Should().Contain(40);
+        timing.WaitCalls.Should().ContainSingle();
+        timing.WaitCalls[0].Should().BeInRange(35, 40);
     }
 
     [Fact]
@@ -306,7 +308,7 @@ public class MacroPlayerTests
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.MouseMove, X = 10, Y = 10 },
-                new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 1 }
+                new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 }
             }
         };
 
@@ -367,6 +369,78 @@ public class MacroPlayerTests
         simulator.Received().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
     }
 
+    [Fact]
+    public async Task PlayAsync_WhenFirstDelayOverruns_ShouldCompensateBySkippingSubsequentWaits()
+    {
+        // Arrange
+        var simulator = Substitute.For<IInputSimulator>();
+        simulator.ProviderName.Returns("MockSimulator");
+        var timing = new OverrunningTimingService(firstWaitActualDelayMs: 130);
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            timingService: timing,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 },
+                new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 },
+                new() { Type = EventType.MouseMove, X = 30, Y = 30, DelayMs = 40 }
+            }
+        };
+
+        // Act
+        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
+
+        // Assert
+        timing.WaitCalls.Should().ContainSingle();
+        timing.WaitCalls[0].Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenFirstEventExecutionIsSlow_ShouldStillHonorFirstScheduledDelay()
+    {
+        // Arrange
+        var simulator = Substitute.For<IInputSimulator>();
+        simulator.ProviderName.Returns("MockSimulator");
+        int moveCallCount = 0;
+        simulator
+            .When(s => s.MoveRelative(Arg.Any<int>(), Arg.Any<int>()))
+            .Do(_ =>
+            {
+                if (Interlocked.Increment(ref moveCallCount) == 1)
+                {
+                    System.Threading.Thread.Sleep(120);
+                }
+            });
+
+        var timing = new RecordingTimingService();
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            timingService: timing,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 },
+                new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 },
+                new() { Type = EventType.MouseMove, X = 30, Y = 30, DelayMs = 40 }
+            }
+        };
+
+        // Act
+        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
+
+        // Assert
+        timing.WaitCalls.Should().Contain(delay => delay >= 30);
+    }
+
     private sealed class RecordingTimingService : IPlaybackTimingService
     {
         public List<int> WaitCalls { get; } = new();
@@ -381,6 +455,35 @@ public class MacroPlayerTests
             if (ContinueWait != null)
             {
                 await ContinueWait.Task.WaitAsync(cancellationToken);
+            }
+
+            if (pauseToken.IsPaused)
+            {
+                await pauseToken.WaitIfPausedAsync(cancellationToken);
+            }
+        }
+    }
+
+    private sealed class OverrunningTimingService : IPlaybackTimingService
+    {
+        private readonly int _firstWaitActualDelayMs;
+        private int _waitCallCount;
+
+        public OverrunningTimingService(int firstWaitActualDelayMs)
+        {
+            _firstWaitActualDelayMs = firstWaitActualDelayMs;
+        }
+
+        public List<int> WaitCalls { get; } = new();
+
+        public async Task WaitAsync(int delayMs, IPlaybackPauseToken pauseToken, CancellationToken cancellationToken)
+        {
+            WaitCalls.Add(delayMs);
+            _waitCallCount++;
+
+            if (_waitCallCount == 1)
+            {
+                await Task.Delay(_firstWaitActualDelayMs, cancellationToken);
             }
 
             if (pauseToken.IsPaused)

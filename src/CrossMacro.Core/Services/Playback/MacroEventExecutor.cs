@@ -222,33 +222,33 @@ public class MacroEventExecutor : IEventExecutor
 
     private static void LogButtonEvent(string action, MacroEvent ev)
     {
-        if (Log.IsEnabled(CoreLogLevel.Information))
+        if (Log.IsEnabled(CoreLogLevel.Debug))
         {
-            Log.Information("[MacroEventExecutor] {Action}: {Button} at ({X}, {Y})", action, ev.Button, ev.X, ev.Y);
+            Log.Debug("[MacroEventExecutor] {Action}: {Button} at ({X}, {Y})", action, ev.Button, ev.X, ev.Y);
         }
     }
 
     private static void LogKeyEvent(string action, int keyCode)
     {
-        if (Log.IsEnabled(CoreLogLevel.Information))
+        if (Log.IsEnabled(CoreLogLevel.Debug))
         {
-            Log.Information("[MacroEventExecutor] {Action}: KeyCode={KeyCode}", action, keyCode);
+            Log.Debug("[MacroEventExecutor] {Action}: KeyCode={KeyCode}", action, keyCode);
         }
     }
 
     private static void LogScroll(string direction)
     {
-        if (Log.IsEnabled(CoreLogLevel.Information))
+        if (Log.IsEnabled(CoreLogLevel.Debug))
         {
-            Log.Information("[MacroEventExecutor] SCROLL {Direction}", direction);
+            Log.Debug("[MacroEventExecutor] SCROLL {Direction}", direction);
         }
     }
 
     private static void LogClickEvent(MacroEvent ev)
     {
-        if (Log.IsEnabled(CoreLogLevel.Information))
+        if (Log.IsEnabled(CoreLogLevel.Debug))
         {
-            Log.Information("[MacroEventExecutor] CLICK: {Button} at ({X}, {Y})", ev.Button, ev.X, ev.Y);
+            Log.Debug("[MacroEventExecutor] CLICK: {Button} at ({X}, {Y})", ev.Button, ev.X, ev.Y);
         }
     }
 

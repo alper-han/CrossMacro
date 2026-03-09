@@ -10,6 +10,9 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
 {
     public class TextExpansionExecutor : ITextExpansionExecutor
     {
+        private const int ClipboardRestoreDelayMs = 1000;
+        private const int ClipboardRestoreTimeoutMs = 400;
+
         private readonly IClipboardService _clipboardService;
         private readonly IKeyboardLayoutService _layoutService;
         private readonly Func<IInputSimulator> _inputSimulatorFactory;
@@ -102,12 +105,7 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
                             // Restore clipboard
                             if (oldClipboard != null)
                             {
-                                _ = Task.Run(async () => {
-                                    try {
-                                        var restoreTask = _clipboardService.SetTextAsync(oldClipboard);
-                                        await Task.WhenAny(restoreTask, Task.Delay(200));
-                                    } catch {}
-                                });
+                                _ = RestoreClipboardAsync(oldClipboard, expansion.Replacement);
                             }
                         }
                     }
@@ -219,6 +217,47 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
             if (altGr) { sim.KeyPress(100, false); sim.Sync(); }
             if (shift) { sim.KeyPress(42, false); sim.Sync(); }
             if (ctrl) { sim.KeyPress(29, false); sim.Sync(); }
+        }
+
+        private async Task RestoreClipboardAsync(string oldClipboard, string insertedText)
+        {
+            try
+            {
+                // Delay restore to reduce race conditions where target apps read clipboard slightly after key combo delivery.
+                await Task.Delay(ClipboardRestoreDelayMs);
+                var currentClipboard = await TryReadClipboardAsync();
+                if (currentClipboard != null &&
+                    !string.Equals(currentClipboard, insertedText, StringComparison.Ordinal))
+                {
+                    // Clipboard changed by user or another app in the meantime; don't clobber it.
+                    return;
+                }
+
+                var restoreTask = _clipboardService.SetTextAsync(oldClipboard);
+                await Task.WhenAny(restoreTask, Task.Delay(ClipboardRestoreTimeoutMs));
+            }
+            catch
+            {
+                // Clipboard restore is best-effort.
+            }
+        }
+
+        private async Task<string?> TryReadClipboardAsync()
+        {
+            try
+            {
+                var getTask = _clipboardService.GetTextAsync();
+                if (await Task.WhenAny(getTask, Task.Delay(ClipboardRestoreTimeoutMs)) == getTask)
+                {
+                    return await getTask;
+                }
+            }
+            catch
+            {
+                // Ignore and allow caller to continue with best-effort behavior.
+            }
+
+            return null;
         }
     }
 }

@@ -23,7 +23,9 @@ public class TextExpansionPrivacyTests
     {
         var clipboardService = Substitute.For<IClipboardService>();
         clipboardService.IsSupported.Returns(true);
-        clipboardService.GetTextAsync().Returns(Task.FromResult<string?>(string.Empty));
+        clipboardService.GetTextAsync().Returns(
+            Task.FromResult<string?>(string.Empty), // Backup
+            Task.FromResult<string?>("replacement")); // Restore guard check
         clipboardService.SetTextAsync(Arg.Any<string>()).Returns(Task.CompletedTask);
 
         var restoreCalled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -43,6 +45,31 @@ public class TextExpansionPrivacyTests
 
         await clipboardService.Received(1).SetTextAsync("replacement");
         await clipboardService.Received(1).SetTextAsync(string.Empty);
+    }
+
+    [Fact]
+    public async Task ExpandAsync_WhenClipboardChangesAfterPaste_DoesNotRestoreOldClipboard()
+    {
+        var clipboardService = Substitute.For<IClipboardService>();
+        clipboardService.IsSupported.Returns(true);
+        clipboardService.GetTextAsync().Returns(
+            Task.FromResult<string?>("old-value"), // Backup
+            Task.FromResult<string?>("user-new-copy")); // Restore guard check
+        clipboardService.SetTextAsync(Arg.Any<string>()).Returns(Task.CompletedTask);
+
+        var keyboardLayoutService = Substitute.For<IKeyboardLayoutService>();
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            keyboardLayoutService,
+            () => new TestInputSimulator());
+
+        var expansion = new TextExpansion(":a", "replacement");
+
+        await executor.ExpandAsync(expansion);
+        await Task.Delay(1500);
+
+        await clipboardService.Received(1).SetTextAsync("replacement");
+        await clipboardService.DidNotReceive().SetTextAsync("old-value");
     }
 
     [Fact]

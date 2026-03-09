@@ -7,24 +7,36 @@ using FluentAssertions;
 public class TextExpansionStorageServiceTests : IDisposable
 {
     private readonly TextExpansionStorageService _service;
-    private readonly List<string> _tempFiles = new();
+    private readonly string _testRootDirectory;
 
     public TextExpansionStorageServiceTests()
     {
-        _service = new TextExpansionStorageService();
+        _testRootDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "crossmacro-tests",
+            nameof(TextExpansionStorageServiceTests),
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_testRootDirectory);
+        _service = CreateService();
     }
 
     public void Dispose()
     {
-        foreach (var file in _tempFiles)
+        try
         {
-            try
+            if (Directory.Exists(_testRootDirectory))
             {
-                if (File.Exists(file))
-                    File.Delete(file);
+                Directory.Delete(_testRootDirectory, recursive: true);
             }
-            catch { /* Ignore cleanup errors */ }
         }
+        catch { /* Ignore cleanup errors */ }
+    }
+
+    private TextExpansionStorageService CreateService()
+    {
+        var serviceDirectory = Path.Combine(_testRootDirectory, Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(serviceDirectory);
+        return new TextExpansionStorageService(serviceDirectory);
     }
 
     [Fact]
@@ -38,7 +50,7 @@ public class TextExpansionStorageServiceTests : IDisposable
     public void FilePath_ContainsCrossmacro()
     {
         // Assert
-        _service.FilePath.Should().Contain("crossmacro");
+        _service.FilePath.Should().Contain(_testRootDirectory);
     }
 
     [Fact]
@@ -52,7 +64,7 @@ public class TextExpansionStorageServiceTests : IDisposable
     public void GetCurrent_Initially_ReturnsEmptyList()
     {
         // Arrange
-        var service = new TextExpansionStorageService();
+        var service = CreateService();
 
         // Act
         var result = service.GetCurrent();
@@ -66,7 +78,7 @@ public class TextExpansionStorageServiceTests : IDisposable
     public void Load_WhenFileNotExists_ReturnsEmptyList()
     {
         // Arrange
-        var service = new TextExpansionStorageService();
+        var service = CreateService();
 
         // Act (file likely doesn't exist in test environment)
         var result = service.Load();
@@ -79,7 +91,7 @@ public class TextExpansionStorageServiceTests : IDisposable
     public async Task LoadAsync_WhenFileNotExists_ReturnsEmptyList()
     {
         // Arrange
-        var service = new TextExpansionStorageService();
+        var service = CreateService();
 
         // Act
         var result = await service.LoadAsync();
@@ -92,7 +104,7 @@ public class TextExpansionStorageServiceTests : IDisposable
     public async Task SaveAsync_NullList_ThrowsException()
     {
         // Arrange
-        var service = new TextExpansionStorageService();
+        var service = CreateService();
 
         // Act
         var act = async () => await service.SaveAsync(null!);
@@ -105,7 +117,7 @@ public class TextExpansionStorageServiceTests : IDisposable
     public async Task SaveAsync_EmptyList_DoesNotThrow()
     {
         // Arrange
-        var service = new TextExpansionStorageService();
+        var service = CreateService();
         var emptyList = new List<TextExpansion>();
 
         // Act
@@ -119,7 +131,7 @@ public class TextExpansionStorageServiceTests : IDisposable
     public async Task SaveAndLoad_RoundTrip_PreservesData()
     {
         // Arrange
-        var service = new TextExpansionStorageService();
+        var service = CreateService();
         var expansions = new List<TextExpansion>
         {
             new(":mail", "test@example.com"),
@@ -141,7 +153,7 @@ public class TextExpansionStorageServiceTests : IDisposable
     public async Task GetCurrent_AfterSave_ReturnsSavedData()
     {
         // Arrange
-        var service = new TextExpansionStorageService();
+        var service = CreateService();
         var expansions = new List<TextExpansion>
         {
             new(":test", "Test Value")
@@ -160,7 +172,7 @@ public class TextExpansionStorageServiceTests : IDisposable
     public async Task SaveAsync_WhenEnumerationThrows_PropagatesException_AndKeepsCache()
     {
         // Arrange
-        var service = new TextExpansionStorageService();
+        var service = CreateService();
         var baseline = new List<TextExpansion> { new(":ok", "value") };
         await service.SaveAsync(baseline);
 

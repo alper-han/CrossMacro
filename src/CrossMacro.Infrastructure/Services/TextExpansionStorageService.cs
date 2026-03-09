@@ -24,9 +24,11 @@ public class TextExpansionStorageService : ITextExpansionStorageService
     private List<Core.Models.TextExpansion> _expansions = new();
     private readonly Lock _lock = new();
 
-    public TextExpansionStorageService()
+    public TextExpansionStorageService(string? configDirectory = null)
     {
-        _configDirectory = PathHelper.GetConfigDirectory();
+        _configDirectory = string.IsNullOrWhiteSpace(configDirectory)
+            ? PathHelper.GetConfigDirectory()
+            : configDirectory;
         _filePath = Path.Combine(_configDirectory, ExpansionsFileName);
         
 

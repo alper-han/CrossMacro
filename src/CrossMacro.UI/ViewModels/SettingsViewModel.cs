@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using CrossMacro.Core.Diagnostics;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Logging;
@@ -303,6 +304,12 @@ public class SettingsViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
+            if (InputBackendErrorClassifier.IsKnownUnavailable(ex))
+            {
+                Log.Warning("Hotkey service unavailable in current environment: {Error}", ex.Message);
+                return;
+            }
+
             Log.Error(ex, "Hotkey service start error");
         }
     }

@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using CrossMacro.Core.Services;
+using CrossMacro.Core.Diagnostics;
 using CrossMacro.UI.ViewModels;
 using CrossMacro.UI.Views;
 using CrossMacro.UI.DependencyInjection;
@@ -350,6 +351,12 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
+            if (InputBackendErrorClassifier.IsKnownUnavailable(ex))
+            {
+                Serilog.Log.Warning("[App] Input simulator warm-up skipped: {Error}", ex.Message);
+                return;
+            }
+
             Serilog.Log.Error(ex, "[App] Failed to warm up InputSimulatorPool");
         }
     }

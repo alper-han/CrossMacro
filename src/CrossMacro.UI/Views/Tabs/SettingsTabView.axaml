@@ -165,32 +165,33 @@
         
         <!-- Toast Notification -->
         <Border x:Name="ToastNotification"
-                Background="{DynamicResource DangerBrush}"
-                CornerRadius="8"
-                Padding="16,12"
+                Classes="notice-card floating error"
+                Padding="14,12"
                 Margin="16"
                 HorizontalAlignment="Right"
                 VerticalAlignment="Bottom"
-                IsVisible="False"
-                BoxShadow="{DynamicResource ShadowToast}">
+                IsVisible="False">
             <Border.Transitions>
                 <Transitions>
                     <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
                 </Transitions>
             </Border.Transitions>
             
-            <StackPanel Spacing="4" MaxWidth="300">
-                <TextBlock x:Name="ToastTitle"
-                           Text="Hotkey Already Assigned"
-                           FontWeight="Bold"
-                           FontSize="13"
-                           Foreground="{DynamicResource TextOnDangerBrush}"/>
-                <TextBlock x:Name="ToastMessage"
-                           Text=""
-                           FontSize="12"
-                           Foreground="{DynamicResource TextOnDangerBrush}"
-                           TextWrapping="Wrap"/>
-            </StackPanel>
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" MaxWidth="320">
+                <TextBlock Grid.Column="0"
+                           Text="⚠️"
+                           Classes="emoji-icon notice-icon error"
+                           VerticalAlignment="Top"/>
+                <StackPanel Grid.Column="1" Spacing="4">
+                    <TextBlock x:Name="ToastTitle"
+                               Text="Hotkey Already Assigned"
+                               Classes="notice-title"/>
+                    <TextBlock x:Name="ToastMessage"
+                               Text=""
+                               Classes="notice-message"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Grid>
         </Border>
     </Panel>
 

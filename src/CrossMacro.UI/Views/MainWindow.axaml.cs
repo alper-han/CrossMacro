@@ -11,23 +11,6 @@ public partial class MainWindow : Window
         InitializeComponent();
     }
     
-    protected override void OnOpened(System.EventArgs e)
-    {
-        base.OnOpened(e);
-        
-        // Initialize NotificationManager
-        var notificationManager = new Avalonia.Controls.Notifications.WindowNotificationManager(this)
-        {
-            Position = Avalonia.Controls.Notifications.NotificationPosition.TopRight,
-            MaxItems = 3
-        };
-        
-        if (DataContext is ViewModels.MainWindowViewModel vm)
-        {
-            vm.NotificationManager = notificationManager;
-        }
-    }
-    
     private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
@@ -44,5 +27,13 @@ public partial class MainWindow : Window
     private void OnCloseApp(object? sender, RoutedEventArgs e)
     {
         Close();
+    }
+
+    private void OnDismissAppNotification(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is ViewModels.MainWindowViewModel vm)
+        {
+            vm.DismissAppNotification();
+        }
     }
 }

@@ -161,19 +161,22 @@
                 </Grid>
 
                 <!-- Warning Banner -->
-                <Border Grid.Row="1" 
-                        Background="{DynamicResource WarningBrush}" 
-                        Padding="12,8"
+                <Border Grid.Row="1"
+                        Classes="notice-card warning"
                         IsVisible="{Binding HasExtensionWarning}"
-                        Margin="0,0,0,10">
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                        <TextBlock Grid.Column="0" Text="⚠️" Classes="emoji-icon" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" 
-                                  Text="{Binding ExtensionWarning}" 
-                                  Foreground="{DynamicResource TextOnWarningBrush}"
-                                  FontWeight="Bold"
-                                  TextWrapping="Wrap"
-                                  VerticalAlignment="Center"/>
+                        Margin="16,0,16,10">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0"
+                                   Text="⚠️"
+                                   Classes="emoji-icon notice-icon warning"
+                                   Margin="0,0,10,0"/>
+                        <StackPanel Grid.Column="1" Spacing="2">
+                            <TextBlock Text="GNOME Extension"
+                                       Classes="notice-title"/>
+                            <TextBlock Text="{Binding ExtensionWarning}"
+                                       Classes="notice-message"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
                     </Grid>
                 </Border>
 
@@ -255,6 +258,46 @@
                                       FontWeight="SemiBold"/>
                         </Button>
                     </StackPanel>
+                </Border>
+
+                <!-- App Notification (Overlay) -->
+                <Border Grid.Row="2"
+                        Classes="notice-card floating"
+                        Classes.success="{Binding IsAppNotificationSuccess}"
+                        Classes.warning="{Binding IsAppNotificationWarning}"
+                        Classes.error="{Binding IsAppNotificationError}"
+                        Padding="12"
+                        Margin="0,8,20,0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        MaxWidth="360"
+                        IsVisible="{Binding IsAppNotificationVisible}">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                        <TextBlock Grid.Column="0"
+                                   Text="{Binding AppNotificationIcon}"
+                                   Classes="emoji-icon notice-icon"
+                                   Classes.success="{Binding IsAppNotificationSuccess}"
+                                   Classes.warning="{Binding IsAppNotificationWarning}"
+                                   Classes.error="{Binding IsAppNotificationError}"
+                                   VerticalAlignment="Top"/>
+                        <StackPanel Grid.Column="1" Spacing="3">
+                            <TextBlock Text="{Binding AppNotificationTitle}"
+                                       Classes="notice-title"/>
+                            <TextBlock Text="{Binding AppNotificationMessage}"
+                                       Classes="notice-message"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <Button Grid.Column="2"
+                                Classes="flat titlebar-button"
+                                Padding="4"
+                                VerticalAlignment="Top"
+                                Click="OnDismissAppNotification"
+                                ToolTip.Tip="Dismiss">
+                            <TextBlock Text="✕"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Button>
+                    </Grid>
                 </Border>
 
             </Grid>

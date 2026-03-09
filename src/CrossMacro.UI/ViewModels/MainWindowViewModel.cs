@@ -1,6 +1,7 @@
 ﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia.Threading;
-using Avalonia.Controls.Notifications;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.UI.Models;
@@ -27,10 +28,16 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     
     private string? _gnomeWarning;
     private bool _disposed;
+    private CancellationTokenSource? _appNotificationCts;
 
     private string _globalStatus = "Ready";
-    
-    public WindowNotificationManager? NotificationManager { get; set; }
+    private bool _isAppNotificationVisible;
+    private string _appNotificationTitle = string.Empty;
+    private string _appNotificationMessage = string.Empty;
+    private string _appNotificationIcon = "⚠️";
+    private bool _isAppNotificationSuccess;
+    private bool _isAppNotificationError;
+    private bool _isAppNotificationWarning;
     
     public RecordingViewModel Recording { get; }
     public PlaybackViewModel Playback { get; }
@@ -446,6 +453,97 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             }
         }
     }
+
+    public bool IsAppNotificationVisible
+    {
+        get => _isAppNotificationVisible;
+        set
+        {
+            if (_isAppNotificationVisible != value)
+            {
+                _isAppNotificationVisible = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public string AppNotificationTitle
+    {
+        get => _appNotificationTitle;
+        set
+        {
+            if (_appNotificationTitle != value)
+            {
+                _appNotificationTitle = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public string AppNotificationMessage
+    {
+        get => _appNotificationMessage;
+        set
+        {
+            if (_appNotificationMessage != value)
+            {
+                _appNotificationMessage = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public string AppNotificationIcon
+    {
+        get => _appNotificationIcon;
+        set
+        {
+            if (_appNotificationIcon != value)
+            {
+                _appNotificationIcon = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public bool IsAppNotificationSuccess
+    {
+        get => _isAppNotificationSuccess;
+        set
+        {
+            if (_isAppNotificationSuccess != value)
+            {
+                _isAppNotificationSuccess = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public bool IsAppNotificationError
+    {
+        get => _isAppNotificationError;
+        set
+        {
+            if (_isAppNotificationError != value)
+            {
+                _isAppNotificationError = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public bool IsAppNotificationWarning
+    {
+        get => _isAppNotificationWarning;
+        set
+        {
+            if (_isAppNotificationWarning != value)
+            {
+                _isAppNotificationWarning = value;
+                OnPropertyChanged();
+            }
+        }
+    }
     
     private void OnExtensionStatusUpdated(object? sender, ExtensionStatusChangedEventArgs e)
     {
@@ -453,11 +551,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         {
             if (e.Code == ExtensionStatusCode.Enabled)
             {
-                NotificationManager?.Show(new Notification(
-                    "GNOME Extension", 
-                    e.Message, 
-                    NotificationType.Success,
-                    TimeSpan.FromSeconds(3)));
+                ShowAppNotification(
+                    title: "GNOME Extension",
+                    message: e.Message,
+                    severity: AppNotificationSeverity.Success,
+                    duration: TimeSpan.FromSeconds(3));
                 
                 // Clear warning if it was set
                 if (_gnomeWarning != null)
@@ -521,13 +619,19 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             var message = string.IsNullOrWhiteSpace(troubleshootingHint)
                 ? error
                 : $"{error}\n\nTroubleshooting: {troubleshootingHint}";
-            
-            NotificationManager?.Show(new Notification(
-                "Backend Error",
-                message,
-                NotificationType.Error,
-                TimeSpan.FromSeconds(10)));
+
+            ShowAppNotification(
+                title: "Backend Error",
+                message: message,
+                severity: AppNotificationSeverity.Error,
+                duration: TimeSpan.FromSeconds(10));
         });
+    }
+
+    public void DismissAppNotification()
+    {
+        CancelAppNotificationTimer();
+        ResetAppNotificationState();
     }
 
     private static string? GetBackendTroubleshootingHint(DisplayEnvironment environment)
@@ -547,11 +651,88 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             _ => null
         };
     }
+
+    private void ShowAppNotification(string title, string message, AppNotificationSeverity severity, TimeSpan duration)
+    {
+        CancelAppNotificationTimer();
+        var notificationCts = new CancellationTokenSource();
+        _appNotificationCts = notificationCts;
+        var token = notificationCts.Token;
+
+        AppNotificationTitle = title;
+        AppNotificationMessage = message;
+        AppNotificationIcon = severity switch
+        {
+            AppNotificationSeverity.Success => "✅",
+            AppNotificationSeverity.Error => "⚠️",
+            _ => "⚠️"
+        };
+        IsAppNotificationSuccess = severity == AppNotificationSeverity.Success;
+        IsAppNotificationError = severity == AppNotificationSeverity.Error;
+        IsAppNotificationWarning = severity == AppNotificationSeverity.Warning;
+        IsAppNotificationVisible = true;
+
+        _ = DismissAppNotificationAfterDelayAsync(notificationCts, duration, token);
+    }
+
+    private async Task DismissAppNotificationAfterDelayAsync(
+        CancellationTokenSource notificationCts,
+        TimeSpan duration,
+        CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(duration, token);
+
+            if (token.IsCancellationRequested || !ReferenceEquals(_appNotificationCts, notificationCts))
+            {
+                return;
+            }
+
+            ResetAppNotificationState();
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            if (ReferenceEquals(_appNotificationCts, notificationCts))
+            {
+                notificationCts.Dispose();
+                _appNotificationCts = null;
+            }
+        }
+    }
+
+    private void CancelAppNotificationTimer()
+    {
+        if (_appNotificationCts == null)
+        {
+            return;
+        }
+
+        _appNotificationCts.Cancel();
+        _appNotificationCts.Dispose();
+        _appNotificationCts = null;
+    }
+
+    private void ResetAppNotificationState()
+    {
+        IsAppNotificationVisible = false;
+        AppNotificationTitle = string.Empty;
+        AppNotificationMessage = string.Empty;
+        AppNotificationIcon = "⚠️";
+        IsAppNotificationSuccess = false;
+        IsAppNotificationError = false;
+        IsAppNotificationWarning = false;
+    }
     
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+
+        CancelAppNotificationTimer();
         
         // Unsubscribe from hotkey events
         _hotkeyService.ToggleRecordingRequested -= OnToggleRecordingRequested;
@@ -569,5 +750,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         Recording.Dispose();
         Schedule.Dispose();
         Shortcuts.Dispose();
+    }
+
+    private enum AppNotificationSeverity
+    {
+        Success,
+        Warning,
+        Error
     }
 }

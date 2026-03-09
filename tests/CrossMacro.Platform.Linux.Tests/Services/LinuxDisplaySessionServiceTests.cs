@@ -9,6 +9,7 @@ using Xunit;
 
 namespace CrossMacro.Platform.Linux.Tests.Services;
 
+[Collection("EnvironmentVariableSensitive")]
 public sealed class LinuxDisplaySessionServiceTests
 {
     [LinuxFact]
@@ -212,7 +213,7 @@ public sealed class LinuxDisplaySessionServiceTests
             canOpenForRead: _ => false,
             daemonHandshakeProbe: _ =>
             {
-                Thread.Sleep(2000);
+                Thread.Sleep(250);
                 return false;
             },
             getInputEventCandidates: () => []);
@@ -223,8 +224,8 @@ public sealed class LinuxDisplaySessionServiceTests
 
         Assert.False(supported);
         Assert.Contains("handshake failed", reason, StringComparison.OrdinalIgnoreCase);
-        Assert.True(sw.Elapsed >= TimeSpan.FromMilliseconds(1500), $"Expected to wait for delayed probe result, elapsed: {sw.Elapsed}");
-        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(5), $"Expected probe to finish before timeout budget, elapsed: {sw.Elapsed}");
+        Assert.True(sw.Elapsed >= TimeSpan.FromMilliseconds(200), $"Expected to wait for delayed probe result, elapsed: {sw.Elapsed}");
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(2), $"Expected probe to finish before timeout budget, elapsed: {sw.Elapsed}");
     }
 
     private static LinuxDisplaySessionService CreateService(

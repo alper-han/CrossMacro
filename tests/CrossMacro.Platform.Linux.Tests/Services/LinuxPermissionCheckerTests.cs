@@ -3,6 +3,7 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 using System;
 using CrossMacro.Platform.Linux.Services;
 
+[Collection("EnvironmentVariableSensitive")]
 public class LinuxPermissionCheckerTests
 {
     [Fact]

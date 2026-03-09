@@ -4,6 +4,7 @@ using System;
 using System.Threading.Tasks;
 using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
+[Collection("EnvironmentVariableSensitive")]
 public class HyprlandIpcClientTests
 {
     [Fact]

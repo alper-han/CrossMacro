@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.UI.Services;
 
+[Collection("EnvironmentVariableSensitive")]
 public class CompositeClipboardServiceTests
 {
     [Fact(Timeout = 5000)]

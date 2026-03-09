@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.UI.Tests.Cli;
 
+[Collection("EnvironmentVariableSensitive")]
 public class ProgramCliContractTests
 {
     [Fact]
@@ -17,6 +18,7 @@ public class ProgramCliContractTests
             var originalError = Console.Error;
             var stdout = new StringWriter();
             var stderr = new StringWriter();
+            using var dataHome = new TemporaryDataHomeScope();
 
             try
             {
@@ -52,6 +54,7 @@ public class ProgramCliContractTests
             var originalError = Console.Error;
             var stdout = new StringWriter();
             var stderr = new StringWriter();
+            using var dataHome = new TemporaryDataHomeScope();
 
             try
             {
@@ -88,6 +91,7 @@ public class ProgramCliContractTests
             var originalError = Console.Error;
             var stdout = new StringWriter();
             var stderr = new StringWriter();
+            using var dataHome = new TemporaryDataHomeScope();
 
             try
             {
@@ -124,6 +128,7 @@ public class ProgramCliContractTests
             var originalError = Console.Error;
             var stdout = new StringWriter();
             var stderr = new StringWriter();
+            using var dataHome = new TemporaryDataHomeScope();
 
             try
             {
@@ -155,6 +160,7 @@ public class ProgramCliContractTests
     public void Run_WhenGuiModeAndSingleInstanceGuardUnavailable_DoesNotStartGuiAndReturnsEnvironmentError()
     {
         var guiStarted = false;
+        using var dataHome = new TemporaryDataHomeScope();
 
         var exitCode = CliGuiRuntime.Run(
             [],
@@ -213,6 +219,36 @@ public class ProgramCliContractTests
         foreach (var line in lines)
         {
             Assert.StartsWith("[CrossMacro]", line, StringComparison.Ordinal);
+        }
+    }
+
+    private sealed class TemporaryDataHomeScope : IDisposable
+    {
+        private readonly string _tempDir;
+        private readonly string? _previousValue;
+
+        public TemporaryDataHomeScope()
+        {
+            _tempDir = Path.Combine(Path.GetTempPath(), "crossmacro-tests", nameof(ProgramCliContractTests), Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_tempDir);
+
+            _previousValue = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+            Environment.SetEnvironmentVariable("XDG_DATA_HOME", _tempDir);
+        }
+
+        public void Dispose()
+        {
+            Environment.SetEnvironmentVariable("XDG_DATA_HOME", _previousValue);
+            try
+            {
+                if (Directory.Exists(_tempDir))
+                {
+                    Directory.Delete(_tempDir, recursive: true);
+                }
+            }
+            catch
+            {
+            }
         }
     }
 }

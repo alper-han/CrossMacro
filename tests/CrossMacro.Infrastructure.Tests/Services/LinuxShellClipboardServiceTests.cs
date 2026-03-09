@@ -6,6 +6,7 @@ using Xunit;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
+[Collection("EnvironmentVariableSensitive")]
 public class LinuxShellClipboardServiceTests
 {
     private readonly IProcessRunner _processRunner;

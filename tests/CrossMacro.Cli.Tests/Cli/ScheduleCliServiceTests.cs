@@ -78,6 +78,35 @@ public class ScheduleCliServiceTests
         var result = await service.RunAsync(id.ToString(), CancellationToken.None);
 
         Assert.True(result.Success);
-        await scheduler.Received(1).RunTaskAsync(id);
+        await scheduler.Received(1).RunTaskAsync(id, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenCancelledAfterLoad_DoesNotRunTask()
+    {
+        var id = Guid.NewGuid();
+        var scheduler = Substitute.For<ISchedulerService>();
+        using var cts = new CancellationTokenSource();
+
+        scheduler.LoadAsync().Returns(_ =>
+        {
+            cts.Cancel();
+            return Task.CompletedTask;
+        });
+
+        scheduler.Tasks.Returns(new ObservableCollection<ScheduledTask>
+        {
+            new()
+            {
+                Id = id,
+                Name = "Task 1",
+                MacroFilePath = "/tmp/a.macro"
+            }
+        });
+
+        var service = new ScheduleCliService(scheduler);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => service.RunAsync(id.ToString(), cts.Token));
+        await scheduler.DidNotReceive().RunTaskAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 }

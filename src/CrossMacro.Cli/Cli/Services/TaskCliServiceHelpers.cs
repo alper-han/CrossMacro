@@ -39,7 +39,7 @@ internal static class TaskCliServiceHelpers
         Func<Task> loadAsync,
         Func<IEnumerable<TTask>> getTasks,
         Func<TTask, Guid> getTaskId,
-        Func<Guid, Task> runTaskAsync,
+        Func<Guid, CancellationToken, Task> runTaskAsync,
         Func<TTask, object> mapTaskResult)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -53,6 +53,7 @@ internal static class TaskCliServiceHelpers
         }
 
         await loadAsync();
+        cancellationToken.ThrowIfCancellationRequested();
 
         var task = getTasks().FirstOrDefault(x => getTaskId(x) == parsedTaskId);
         if (task == null)
@@ -63,7 +64,8 @@ internal static class TaskCliServiceHelpers
                 errors: [$"No {taskKindLower} task found with id: {taskId}"]);
         }
 
-        await runTaskAsync(parsedTaskId);
+        cancellationToken.ThrowIfCancellationRequested();
+        await runTaskAsync(parsedTaskId, cancellationToken);
 
         return CliCommandExecutionResult.Ok(
             $"{taskKindDisplay} task executed.",

@@ -125,8 +125,10 @@ public class SchedulerService : ISchedulerService
         }
     }
     
-    public async Task RunTaskAsync(Guid taskId)
+    public async Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ScheduledTask? task;
         lock (_lock)
         {
@@ -135,7 +137,8 @@ public class SchedulerService : ISchedulerService
         
         if (task != null)
         {
-            await _executor.ExecuteAsync(task);
+            cancellationToken.ThrowIfCancellationRequested();
+            await _executor.ExecuteAsync(task, cancellationToken);
         }
     }
 

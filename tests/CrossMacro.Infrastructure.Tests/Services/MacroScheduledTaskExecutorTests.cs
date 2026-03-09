@@ -62,7 +62,12 @@ public class MacroScheduledTaskExecutorTests
         var tempFile = Path.GetTempFileName();
         try
         {
-            var task = new ScheduledTask { MacroFilePath = tempFile };
+            var task = new ScheduledTask
+            {
+                MacroFilePath = tempFile,
+                Type = ScheduleType.SpecificTime,
+                IsEnabled = true
+            };
             _fileManager.LoadAsync(tempFile).Returns((MacroSequence)null!);
 
             // Act
@@ -70,6 +75,7 @@ public class MacroScheduledTaskExecutorTests
 
             // Assert
             task.LastStatus.Should().Be("Failed to load macro");
+            task.NextRunTime.Should().BeNull();
         }
         finally
         {
@@ -156,6 +162,7 @@ public class MacroScheduledTaskExecutorTests
             var task = new ScheduledTask 
             { 
                 MacroFilePath = tempFile,
+                Type = ScheduleType.SpecificTime,
                 IsEnabled = true 
             };
             
@@ -171,6 +178,7 @@ public class MacroScheduledTaskExecutorTests
             // Assert
             task.LastStatus.Should().Contain("Error");
             task.LastStatus.Should().Contain("Unexpected crash");
+            task.NextRunTime.Should().BeNull();
         }
         finally
         {
@@ -202,6 +210,107 @@ public class MacroScheduledTaskExecutorTests
             await _player.Received(1).PlayAsync(
                 macro,
                 Arg.Is<PlaybackOptions>(o => o.SpeedMultiplier == PlaybackOptions.MinSpeedMultiplier));
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenIntervalLoadFails_ReschedulesNextRun()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var task = new ScheduledTask
+            {
+                MacroFilePath = tempFile,
+                Type = ScheduleType.Interval,
+                IntervalValue = 15,
+                IntervalUnit = IntervalUnit.Seconds,
+                IsEnabled = true
+            };
+
+            _fileManager.LoadAsync(tempFile).Returns((MacroSequence)null!);
+
+            await _executor.ExecuteAsync(task);
+
+            task.LastStatus.Should().Be("Failed to load macro");
+            task.NextRunTime.Should().Be(_timeProvider.UtcNow.AddSeconds(15));
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenIntervalPlaybackThrows_ReschedulesNextRun()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var task = new ScheduledTask
+            {
+                MacroFilePath = tempFile,
+                Type = ScheduleType.Interval,
+                IntervalValue = 30,
+                IntervalUnit = IntervalUnit.Seconds,
+                IsEnabled = true
+            };
+
+            var macro = new MacroSequence();
+            _fileManager.LoadAsync(tempFile).Returns(macro);
+            _player
+                .When(p => p.PlayAsync(macro, Arg.Any<PlaybackOptions>()))
+                .Do(_ => throw new Exception("Unexpected crash"));
+
+            await _executor.ExecuteAsync(task);
+
+            task.LastStatus.Should().Contain("Unexpected crash");
+            task.NextRunTime.Should().Be(_timeProvider.UtcNow.AddSeconds(30));
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenCancelled_UpdatesStatusAndReschedulesIntervalTask()
+    {
+        var tempFile = Path.GetTempFileName();
+        using var cts = new CancellationTokenSource();
+
+        try
+        {
+            var task = new ScheduledTask
+            {
+                MacroFilePath = tempFile,
+                Type = ScheduleType.Interval,
+                IntervalValue = 20,
+                IntervalUnit = IntervalUnit.Seconds,
+                IsEnabled = true
+            };
+
+            var macro = new MacroSequence();
+            var playbackStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _fileManager.LoadAsync(tempFile).Returns(macro);
+            _player.PlayAsync(macro, Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+                .Returns(ci =>
+                {
+                    playbackStarted.TrySetResult(true);
+                    return Task.Delay(Timeout.Infinite, ci.ArgAt<CancellationToken>(2));
+                });
+
+            var executionTask = _executor.ExecuteAsync(task, cts.Token);
+            await playbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            cts.Cancel();
+            await executionTask;
+
+            task.LastStatus.Should().Be("Cancelled");
+            task.NextRunTime.Should().Be(_timeProvider.UtcNow.AddSeconds(20));
         }
         finally
         {

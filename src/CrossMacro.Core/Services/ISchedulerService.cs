@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 
@@ -56,7 +57,7 @@ public interface ISchedulerService : IDisposable
     /// Enables or disables a task
     /// </summary>
     void SetTaskEnabled(Guid id, bool enabled);
-    Task RunTaskAsync(Guid taskId);
+    Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Starts the scheduler

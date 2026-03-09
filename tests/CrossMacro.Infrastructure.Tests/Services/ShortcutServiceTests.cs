@@ -12,22 +12,54 @@ using Xunit;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class ShortcutServiceTests
+public class ShortcutServiceTests : IDisposable
 {
     private readonly IMacroFileManager _fileManager;
     private readonly Func<IMacroPlayer> _playerFactory;
     private readonly IMacroPlayer _player;
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ShortcutService _service;
+    private readonly string _testRootDirectory;
+    private readonly string _shortcutsFilePath;
 
     public ShortcutServiceTests()
     {
+        _testRootDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "crossmacro-tests",
+            nameof(ShortcutServiceTests),
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_testRootDirectory);
+        _shortcutsFilePath = Path.Combine(_testRootDirectory, "shortcuts.json");
+
         _fileManager = Substitute.For<IMacroFileManager>();
         _player = Substitute.For<IMacroPlayer>();
         _playerFactory = () => _player;
         _hotkeyService = Substitute.For<IGlobalHotkeyService>();
         
-        _service = new ShortcutService(_fileManager, _playerFactory, _hotkeyService);
+        _service = new ShortcutService(_fileManager, _playerFactory, _hotkeyService, _shortcutsFilePath);
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            _service.Dispose();
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            if (Directory.Exists(_testRootDirectory))
+            {
+                Directory.Delete(_testRootDirectory, recursive: true);
+            }
+        }
+        catch
+        {
+        }
     }
 
     [Fact]
@@ -198,6 +230,52 @@ public class ShortcutServiceTests
         finally
         {
             releasePlaybackTcs.TrySetResult(true);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RunTaskAsync_WhenCancelledDuringPlayback_UpdatesTaskAsStopped()
+    {
+        var tempFile = Path.GetTempFileName();
+        using var cts = new CancellationTokenSource();
+
+        try
+        {
+            var task = new ShortcutTask
+            {
+                Name = "Manual Run",
+                HotkeyString = "F5",
+                MacroFilePath = tempFile,
+                IsEnabled = true
+            };
+
+            _service.AddTask(task);
+            _fileManager.LoadAsync(tempFile).Returns(Task.FromResult<MacroSequence?>(new MacroSequence
+            {
+                Events = { new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 } }
+            }));
+
+            var playbackStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+                .Returns(ci =>
+                {
+                    playbackStarted.TrySetResult(true);
+                    return Task.Delay(Timeout.Infinite, ci.ArgAt<CancellationToken>(2));
+                });
+
+            var runTask = _service.RunTaskAsync(task.Id, cts.Token);
+            await playbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            cts.Cancel();
+            await runTask;
+
+            task.LastStatus.Should().Be("Stopped");
+        }
+        finally
+        {
             if (File.Exists(tempFile))
             {
                 File.Delete(tempFile);

@@ -50,14 +50,17 @@ public class ShortcutService : IShortcutService
     public ShortcutService(
         IMacroFileManager fileManager, 
         Func<IMacroPlayer> playerFactory, 
-        IGlobalHotkeyService hotkeyService)
+        IGlobalHotkeyService hotkeyService,
+        string? shortcutsFilePath = null)
     {
         _fileManager = fileManager;
         _playerFactory = playerFactory;
         _hotkeyService = hotkeyService;
         _syncContext = SynchronizationContext.Current;
         
-        _shortcutsFilePath = PathHelper.GetConfigFilePath(ConfigFileNames.Shortcuts);
+        _shortcutsFilePath = string.IsNullOrWhiteSpace(shortcutsFilePath)
+            ? PathHelper.GetConfigFilePath(ConfigFileNames.Shortcuts)
+            : shortcutsFilePath;
     }
     
     public void AddTask(ShortcutTask task)
@@ -229,11 +232,13 @@ public class ShortcutService : IShortcutService
         }
     }
     
-    private async Task ExecuteTaskAsync(ShortcutTask task)
+    private async Task ExecuteTaskAsync(ShortcutTask task, CancellationToken cancellationToken = default)
     {
         IMacroPlayer? player = null;
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (string.IsNullOrEmpty(task.MacroFilePath) || !File.Exists(task.MacroFilePath))
             {
                 SafeUpdate(() => 
@@ -283,7 +288,7 @@ public class ShortcutService : IShortcutService
                 RepeatDelayMs = task.RepeatDelayMs
             };
             
-            await player.PlayAsync(macro, options);
+            await player.PlayAsync(macro, options, cancellationToken);
             
             SafeUpdate(() =>
             {
@@ -352,8 +357,14 @@ public class ShortcutService : IShortcutService
             {
                 Directory.CreateDirectory(directory);
             }
-            
-            var json = JsonSerializer.Serialize(Tasks.ToList(), CrossMacroJsonContext.Default.ListShortcutTask);
+
+            List<ShortcutTask> taskSnapshot;
+            lock (_lock)
+            {
+                taskSnapshot = Tasks.ToList();
+            }
+
+            var json = JsonSerializer.Serialize(taskSnapshot, CrossMacroJsonContext.Default.ListShortcutTask);
             await File.WriteAllTextAsync(_shortcutsFilePath, json);
         }
         catch (Exception ex)
@@ -362,8 +373,10 @@ public class ShortcutService : IShortcutService
         }
     }
 
-    public async Task RunTaskAsync(Guid taskId)
+    public async Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ShortcutTask? task;
         lock (_lock)
         {
@@ -375,7 +388,8 @@ public class ShortcutService : IShortcutService
             return;
         }
 
-        await ExecuteTaskAsync(task);
+        cancellationToken.ThrowIfCancellationRequested();
+        await ExecuteTaskAsync(task, cancellationToken);
     }
     
     public async Task LoadAsync()

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 
@@ -75,7 +76,7 @@ public interface IShortcutService : IDisposable
     /// <summary>
     /// Runs a shortcut task manually by id.
     /// </summary>
-    Task RunTaskAsync(Guid taskId);
+    Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Loads tasks from persistent storage

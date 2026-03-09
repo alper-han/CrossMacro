@@ -47,7 +47,7 @@ public sealed class ShortcutCliService : IShortcutCliService
             loadAsync: () => _shortcutService.LoadAsync(),
             getTasks: () => _shortcutService.Tasks,
             getTaskId: x => x.Id,
-            runTaskAsync: parsedTaskId => _shortcutService.RunTaskAsync(parsedTaskId),
+            runTaskAsync: (parsedTaskId, cancellationToken) => _shortcutService.RunTaskAsync(parsedTaskId, cancellationToken),
             mapTaskResult: task => new
             {
                 id = task.Id,

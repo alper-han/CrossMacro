@@ -80,6 +80,36 @@ public class ShortcutCliServiceTests
         var result = await service.RunAsync(id.ToString(), CancellationToken.None);
 
         Assert.True(result.Success);
-        await shortcuts.Received(1).RunTaskAsync(id);
+        await shortcuts.Received(1).RunTaskAsync(id, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenCancelledAfterLoad_DoesNotRunTask()
+    {
+        var id = Guid.NewGuid();
+        var shortcuts = Substitute.For<IShortcutService>();
+        using var cts = new CancellationTokenSource();
+
+        shortcuts.LoadAsync().Returns(_ =>
+        {
+            cts.Cancel();
+            return Task.CompletedTask;
+        });
+
+        shortcuts.Tasks.Returns(new ObservableCollection<ShortcutTask>
+        {
+            new()
+            {
+                Id = id,
+                Name = "Shortcut 1",
+                MacroFilePath = "/tmp/a.macro",
+                HotkeyString = "F9"
+            }
+        });
+
+        var service = new ShortcutCliService(shortcuts);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => service.RunAsync(id.ToString(), cts.Token));
+        await shortcuts.DidNotReceive().RunTaskAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 }

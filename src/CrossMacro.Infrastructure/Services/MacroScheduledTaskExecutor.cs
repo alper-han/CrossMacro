@@ -32,23 +32,19 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
         _syncContext = SynchronizationContext.Current;
     }
 
-    public async Task ExecuteAsync(ScheduledTask task)
+    public async Task ExecuteAsync(ScheduledTask task, CancellationToken cancellationToken = default)
     {
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (string.IsNullOrEmpty(task.MacroFilePath) || !File.Exists(task.MacroFilePath))
             {
                 SafeUpdate(() => 
                 {
                     task.LastStatus = "Macro file not found";
                     task.LastRunTime = _timeProvider.UtcNow;
-                    
-                    // Disable one-time tasks that failed
-                    if (task.Type == ScheduleType.SpecificTime)
-                    {
-                        task.IsEnabled = false;
-                        task.NextRunTime = null;
-                    }
+                    UpdateScheduleAfterAttempt(task);
                 });
                 
                 TaskExecuted?.Invoke(this, new TaskExecutedEventArgs(task, false, "Macro file not found"));
@@ -62,6 +58,7 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
                 {
                     task.LastStatus = "Failed to load macro";
                     task.LastRunTime = _timeProvider.UtcNow;
+                    UpdateScheduleAfterAttempt(task);
                 });
                 TaskExecuted?.Invoke(this, new TaskExecutedEventArgs(task, false, "Failed to load macro"));
                 return;
@@ -84,25 +81,14 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
                 SpeedMultiplier = PlaybackOptions.NormalizeSpeedMultiplier(task.PlaybackSpeed)
             };
             
-            await player.PlayAsync(macro, options);
+            await player.PlayAsync(macro, options, cancellationToken);
             
             // Update status after successful completion
             SafeUpdate(() =>
             {
                 task.LastRunTime = _timeProvider.UtcNow;
                 task.LastStatus = "Success";
-                
-                // Calculate next run time for interval tasks
-                if (task.Type == ScheduleType.Interval)
-                {
-                    task.CalculateNextRunTime(_timeProvider.UtcNow);
-                }
-                else if (task.Type == ScheduleType.SpecificTime)
-                {
-                    // One-time task completed, disable it
-                    task.IsEnabled = false;
-                    task.NextRunTime = null;
-                }
+                UpdateScheduleAfterAttempt(task);
             });
             
             TaskExecuted?.Invoke(this, new TaskExecutedEventArgs(task, true, "Executed successfully"));
@@ -113,12 +99,19 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
             SafeUpdate(() =>
             {
                 task.LastStatus = "Skipped (playback busy)";
-                if (task.Type == ScheduleType.Interval)
-                {
-                    task.CalculateNextRunTime(_timeProvider.UtcNow);
-                }
+                UpdateScheduleAfterAttempt(task);
             });
             TaskExecuted?.Invoke(this, new TaskExecutedEventArgs(task, false, "Playback was busy, will retry"));
+        }
+        catch (OperationCanceledException)
+        {
+            SafeUpdate(() =>
+            {
+                task.LastStatus = "Cancelled";
+                task.LastRunTime = _timeProvider.UtcNow;
+                UpdateScheduleAfterAttempt(task);
+            });
+            TaskExecuted?.Invoke(this, new TaskExecutedEventArgs(task, false, "Cancelled"));
         }
         catch (Exception ex)
         {
@@ -126,8 +119,24 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
             {
                 task.LastStatus = $"Error: {ex.Message}";
                 task.LastRunTime = _timeProvider.UtcNow;
+                UpdateScheduleAfterAttempt(task);
             });
             TaskExecuted?.Invoke(this, new TaskExecutedEventArgs(task, false, ex.Message));
+        }
+    }
+
+    private void UpdateScheduleAfterAttempt(ScheduledTask task)
+    {
+        if (task.Type == ScheduleType.Interval)
+        {
+            task.CalculateNextRunTime(_timeProvider.UtcNow);
+            return;
+        }
+
+        if (task.Type == ScheduleType.SpecificTime)
+        {
+            task.IsEnabled = false;
+            task.NextRunTime = null;
         }
     }
 

@@ -43,7 +43,7 @@ public sealed class ScheduleCliService : IScheduleCliService
             loadAsync: () => _schedulerService.LoadAsync(),
             getTasks: () => _schedulerService.Tasks,
             getTaskId: x => x.Id,
-            runTaskAsync: parsedTaskId => _schedulerService.RunTaskAsync(parsedTaskId),
+            runTaskAsync: (parsedTaskId, cancellationToken) => _schedulerService.RunTaskAsync(parsedTaskId, cancellationToken),
             mapTaskResult: task => new
             {
                 id = task.Id,

@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 
@@ -12,7 +13,7 @@ public interface IScheduledTaskExecutor
     /// <summary>
     /// Executes a single scheduled task
     /// </summary>
-    Task ExecuteAsync(ScheduledTask task);
+    Task ExecuteAsync(ScheduledTask task, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Event fired when a task execution is completed

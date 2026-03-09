@@ -166,7 +166,7 @@ jobs:
         dotnet-version: '10.0.x'
 
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj -r ${{ matrix.rid }}
 
     - name: Smoke Publish (${{ matrix.rid }})
       run: dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj --configuration Debug --no-restore -r ${{ matrix.rid }} --self-contained false -o publish-smoke-${{ matrix.rid }}
@@ -243,13 +243,24 @@ jobs:
         }
 
     - name: Run Tests (Windows-compatible suites)
+      shell: pwsh
       run: |
-        dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.Platform.Windows.Tests/CrossMacro.Platform.Windows.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj --configuration Debug --no-build --verbosity normal
+        $ErrorActionPreference = 'Stop'
+        $projects = @(
+          "tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj",
+          "tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj",
+          "tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj",
+          "tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj",
+          "tests/CrossMacro.Platform.Windows.Tests/CrossMacro.Platform.Windows.Tests.csproj",
+          "tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj"
+        )
+
+        foreach ($project in $projects) {
+          dotnet test $project --configuration Debug --no-build --verbosity normal
+          if ($LASTEXITCODE -ne 0) {
+            throw "dotnet test failed for $project with exit code $LASTEXITCODE."
+          }
+        }
 
   build-macos:
     name: Build (macOS)

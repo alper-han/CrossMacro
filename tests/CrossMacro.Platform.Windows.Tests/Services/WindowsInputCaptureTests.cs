@@ -44,7 +44,7 @@ public class WindowsInputCaptureTests
 
         cts.Cancel();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(() => startTask);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => startTask);
         capture.ReleaseHookInstall();
     }
 

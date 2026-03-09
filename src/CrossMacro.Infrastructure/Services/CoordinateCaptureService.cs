@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Core.Diagnostics;
 using CrossMacro.Core.Services;
 using Serilog;
 
@@ -77,7 +78,15 @@ public class CoordinateCaptureService : ICoordinateCaptureService
 
             capture.Error += (s, error) =>
             {
-                Log.Error("[CoordinateCaptureService] Input capture error while capturing mouse position: {Error}", error);
+                if (InputBackendErrorClassifier.IsKnownUnavailableMessage(error))
+                {
+                    Log.Warning("[CoordinateCaptureService] Mouse position capture unavailable: {Error}", error);
+                }
+                else
+                {
+                    Log.Error("[CoordinateCaptureService] Input capture error while capturing mouse position: {Error}", error);
+                }
+
                 tcs.TrySetResult(null);
             };
 
@@ -93,6 +102,12 @@ public class CoordinateCaptureService : ICoordinateCaptureService
         }
         catch (Exception ex)
         {
+            if (InputBackendErrorClassifier.IsKnownUnavailable(ex))
+            {
+                Log.Warning("[CoordinateCaptureService] Mouse position capture skipped: {Error}", ex.Message);
+                return null;
+            }
+
             Log.Error(ex, "[CoordinateCaptureService] Error during mouse position capture");
             return null;
         }
@@ -132,7 +147,15 @@ public class CoordinateCaptureService : ICoordinateCaptureService
 
             capture.Error += (s, error) =>
             {
-                Log.Error("[CoordinateCaptureService] Input capture error while capturing key code: {Error}", error);
+                if (InputBackendErrorClassifier.IsKnownUnavailableMessage(error))
+                {
+                    Log.Warning("[CoordinateCaptureService] Key code capture unavailable: {Error}", error);
+                }
+                else
+                {
+                    Log.Error("[CoordinateCaptureService] Input capture error while capturing key code: {Error}", error);
+                }
+
                 tcs.TrySetResult(null);
             };
 
@@ -148,6 +171,12 @@ public class CoordinateCaptureService : ICoordinateCaptureService
         }
         catch (Exception ex)
         {
+            if (InputBackendErrorClassifier.IsKnownUnavailable(ex))
+            {
+                Log.Warning("[CoordinateCaptureService] Key code capture skipped: {Error}", ex.Message);
+                return null;
+            }
+
             Log.Error(ex, "[CoordinateCaptureService] Error during key code capture");
             return null;
         }

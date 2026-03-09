@@ -132,6 +132,34 @@ public class LinuxInputCaptureTests
         Assert.Equal(InputEventType.Key, received!.Value.Type);
     }
 
+    [LinuxFact]
+    public async Task StartAsync_WhenConfiguredForMouseOnly_ForwardsAbsoluteMouseMoveEvents()
+    {
+        var devices = new[]
+        {
+            new InputDeviceHelper.InputDevice
+            {
+                Path = "/dev/input/event-test",
+                Name = "Absolute Pointer",
+                IsMouse = true
+            }
+        };
+        var reader = new FakeLinuxInputReader();
+
+        using var capture = new LinuxInputCapture(() => devices, _ => reader);
+        capture.Configure(captureMouse: true, captureKeyboard: false);
+        await capture.StartAsync(CancellationToken.None);
+
+        InputCaptureEventArgs? received = null;
+        capture.InputReceived += (_, args) => received = args;
+
+        reader.Emit(new UInputNative.input_event { type = UInputNative.EV_ABS, code = UInputNative.ABS_X, value = 512 });
+        Assert.NotNull(received);
+        Assert.Equal(InputEventType.MouseMove, received!.Value.Type);
+        Assert.Equal(UInputNative.ABS_X, received.Value.Code);
+        Assert.Equal(512, received.Value.Value);
+    }
+
     private sealed class FakeLinuxInputReader : LinuxInputCapture.ILinuxInputReader
     {
         private readonly Exception? _startException;

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Core.Diagnostics;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services.Recording.Processors;
 using CrossMacro.Core.Services.Recording.Strategies;
@@ -129,6 +130,12 @@ public class MacroRecorder : IMacroRecorder, IDisposable
 
     private void OnInputCaptureError(object? sender, string errorMessage)
     {
+        if (InputBackendErrorClassifier.IsKnownUnavailableMessage(errorMessage))
+        {
+            Log.Warning("[MacroRecorder] Input capture unavailable: {Error}", errorMessage);
+            return;
+        }
+
         Log.Error("[MacroRecorder] Input capture error: {Error}", errorMessage);
     }
 

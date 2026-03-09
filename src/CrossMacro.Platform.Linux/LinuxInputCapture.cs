@@ -168,6 +168,8 @@ public class LinuxInputCapture : IInputCapture
             UInputNative.EV_REL => e.code == UInputNative.REL_WHEEL 
                 ? InputEventType.MouseScroll 
                 : InputEventType.MouseMove,
+            UInputNative.EV_ABS when e.code == UInputNative.ABS_X || e.code == UInputNative.ABS_Y
+                => InputEventType.MouseMove,
             UInputNative.EV_SYN => InputEventType.Sync,
             _ => InputEventType.Unknown
         };

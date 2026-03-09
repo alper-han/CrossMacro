@@ -86,6 +86,31 @@ public class InputCaptureManagerTests
         Assert.Single(received);
     }
 
+    [Fact]
+    public void StartCapture_WhenConfiguredForMouseOnly_ForwardsAbsoluteMouseMoveEvents()
+    {
+        var reader = new FakeLinuxCaptureReader();
+        var manager = new InputCaptureManager(
+            () => new[]
+            {
+                new InputDeviceHelper.InputDevice
+                {
+                    Path = "/dev/input/event-test",
+                    Name = "Absolute Pointer",
+                    IsMouse = true
+                }
+            },
+            _ => reader);
+
+        var received = new List<UInputNative.input_event>();
+        var result = manager.StartCapture(captureMouse: true, captureKeyboard: false, received.Add);
+
+        Assert.True(result.Success);
+
+        reader.Emit(new UInputNative.input_event { type = UInputNative.EV_ABS, code = UInputNative.ABS_X, value = 1200 });
+        Assert.Single(received);
+    }
+
     private sealed class FakeLinuxCaptureReader : InputCaptureManager.ILinuxCaptureReader
     {
         private event Action<InputCaptureManager.ILinuxCaptureReader, UInputNative.input_event>? EventReceivedInternal;

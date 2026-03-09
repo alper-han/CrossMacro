@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Core.Diagnostics;
 using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Core.Services;
@@ -122,6 +123,10 @@ public class InputSimulatorPool : IDisposable
             if (_disposed || warmUpToken.IsCancellationRequested)
             {
                 Log.Debug(ex, "[InputSimulatorPool] Warm-up ended during shutdown");
+            }
+            else if (InputBackendErrorClassifier.IsKnownUnavailable(ex))
+            {
+                Log.Warning("[InputSimulatorPool] Warm-up skipped: {Error}", ex.Message);
             }
             else
             {
@@ -271,6 +276,10 @@ public class InputSimulatorPool : IDisposable
             if (_disposed)
             {
                 Log.Debug(ex, "[InputSimulatorPool] Replacement warm-up ended during shutdown");
+            }
+            else if (InputBackendErrorClassifier.IsKnownUnavailable(ex))
+            {
+                Log.Warning("[InputSimulatorPool] Replacement warm-up skipped: {Error}", ex.Message);
             }
             else
             {

@@ -114,6 +114,7 @@ public class InputCaptureManager : IInputCaptureManager
             UInputNative.EV_KEY when UInputNative.IsMouseButton(inputEvent.code) => captureMouse,
             UInputNative.EV_KEY => captureKeyboard,
             UInputNative.EV_REL => captureMouse,
+            UInputNative.EV_ABS when inputEvent.code == UInputNative.ABS_X || inputEvent.code == UInputNative.ABS_Y => captureMouse,
             UInputNative.EV_SYN => captureMouse,
             _ => false
         };

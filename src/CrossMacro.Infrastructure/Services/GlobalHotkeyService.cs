@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Core.Diagnostics;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using Serilog;
@@ -328,7 +329,15 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
         using (_lock.EnterScope())
         {
-            Log.Error("[GlobalHotkeyService] Input capture error: {Error}", errorMessage);
+            if (InputBackendErrorClassifier.IsKnownUnavailableMessage(errorMessage))
+            {
+                Log.Warning("[GlobalHotkeyService] Input capture unavailable: {Error}", errorMessage);
+            }
+            else
+            {
+                Log.Error("[GlobalHotkeyService] Input capture error: {Error}", errorMessage);
+            }
+
             LastError = errorMessage;
             shouldNotify = true;
 

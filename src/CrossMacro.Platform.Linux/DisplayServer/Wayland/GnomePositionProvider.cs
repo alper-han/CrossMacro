@@ -100,6 +100,7 @@ export default class CursorSpyExtension extends Extension {
         private readonly TaskCompletionSource<bool> _initializationTcs = new();
         private bool _isInitialized;
         private (int Width, int Height)? _cachedResolution;
+        private bool _resolutionUnavailableLogged;
         private bool _disposed;
         
         public event EventHandler<ExtensionStatusChangedEventArgs>? ExtensionStatusUpdated;
@@ -372,9 +373,37 @@ export default class CursorSpyExtension extends Extension {
             }
             catch (Exception ex)
             {
+                if (IsResolutionServiceUnavailable(ex))
+                {
+                    if (!_resolutionUnavailableLogged)
+                    {
+                        Log.Warning("[GnomePositionProvider] Resolution unavailable until extension is active: {Error}", ex.Message);
+                        _resolutionUnavailableLogged = true;
+                    }
+                    else
+                    {
+                        Log.Debug("[GnomePositionProvider] Resolution service still unavailable: {Error}", ex.Message);
+                    }
+
+                    return null;
+                }
+
                 Log.Error(ex, "[GnomePositionProvider] Failed to get resolution");
                 return null;
             }
+        }
+
+        private static bool IsResolutionServiceUnavailable(Exception ex)
+        {
+            var message = ex.Message;
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return false;
+            }
+
+            return message.Contains("org.freedesktop.DBus.Error.ServiceUnknown", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("The name is not activatable", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("org.freedesktop.DBus.Error.UnknownObject", StringComparison.OrdinalIgnoreCase);
         }
 
         public void Dispose()

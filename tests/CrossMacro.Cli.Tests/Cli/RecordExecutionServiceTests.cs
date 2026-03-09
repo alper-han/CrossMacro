@@ -3,6 +3,7 @@ using CrossMacro.Core.Services;
 using CrossMacro.Cli;
 using CrossMacro.Cli.Services;
 using NSubstitute;
+using System.Text.Json;
 
 namespace CrossMacro.Cli.Tests;
 
@@ -73,6 +74,45 @@ public class RecordExecutionServiceTests
             forceRelative: false,
             skipInitialZero: false,
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenRecordedSequenceFallsBackToRelative_DataReflectsEffectiveMode()
+    {
+        _mousePositionProvider.IsSupported.Returns(true);
+        _mousePositionProvider.GetAbsolutePositionAsync().Returns((100, 200));
+        _macroRecorder.IsRecording.Returns(true, false);
+        _macroRecorder.StopRecording().Returns(new MacroSequence
+        {
+            Name = "recorded",
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            Events =
+            {
+                new MacroEvent
+                {
+                    Type = EventType.MouseMove,
+                    X = 1,
+                    Y = 1,
+                    Timestamp = 0
+                }
+            }
+        });
+
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(10);
+
+        var result = await _service.ExecuteAsync(new RecordExecutionRequest
+        {
+            OutputFilePath = "/tmp/test-record-effective-mode.macro",
+            CoordinateMode = RecordCoordinateMode.Auto
+        }, cts.Token);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var payload = JsonSerializer.SerializeToElement(result.Data);
+        Assert.Equal("relative", payload.GetProperty("actualMode").GetString());
+        Assert.True(payload.GetProperty("skipInitialZero").GetBoolean());
     }
 
     [Fact]

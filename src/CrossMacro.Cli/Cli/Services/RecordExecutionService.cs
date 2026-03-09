@@ -214,8 +214,8 @@ public sealed class RecordExecutionService : IRecordExecutionService
                 recordMouse = request.RecordMouse,
                 recordKeyboard = request.RecordKeyboard,
                 requestedMode = request.CoordinateMode.ToString().ToLowerInvariant(),
-                actualMode = captureMode.ToString().ToLowerInvariant(),
-                skipInitialZero = skipInitialZero
+                actualMode = sequence.IsAbsoluteCoordinates ? "absolute" : "relative",
+                skipInitialZero = sequence.SkipInitialZeroZero
             };
 
             return new RecordExecutionResult

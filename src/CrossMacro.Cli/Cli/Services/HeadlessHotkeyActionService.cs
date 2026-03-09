@@ -69,7 +69,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
         _globalHotkeyService.TogglePauseRequested -= OnTogglePauseRequested;
         _isRunning = false;
 
-        ObserveTask(HandleStopAsync(), "stop");
+        HandleStopAsync().GetAwaiter().GetResult();
         Logger.Information("[HeadlessHotkeyActionService] Hotkey actions disabled");
     }
 
@@ -82,6 +82,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
 
         _disposed = true;
         Stop();
+        _playbackTask?.GetAwaiter().GetResult();
         _gate.Dispose();
     }
 
@@ -148,7 +149,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
 
             if (_activePlayer != null)
             {
-                StopPlaybackCore();
+                _ = StopPlaybackCore();
                 Logger.Information("[HeadlessHotkeyActionService] Playback stop requested via hotkey");
                 return;
             }
@@ -213,10 +214,12 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
 
     private async Task HandleStopAsync()
     {
+        Task? playbackTaskToAwait = null;
+
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
-            StopPlaybackCore();
+            playbackTaskToAwait = StopPlaybackCore();
 
             if (_macroRecorder.IsRecording)
             {
@@ -230,6 +233,17 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
         finally
         {
             _gate.Release();
+        }
+
+        if (playbackTaskToAwait != null)
+        {
+            try
+            {
+                await playbackTaskToAwait.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
         }
     }
 
@@ -311,10 +325,11 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
         }
     }
 
-    private void StopPlaybackCore()
+    private Task? StopPlaybackCore()
     {
         var player = _activePlayer;
         var cts = _playbackCts;
+        var playbackTask = _playbackTask;
 
         _activePlayer = null;
         _playbackCts = null;
@@ -340,6 +355,8 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
         {
             Logger.Debug(ex, "[HeadlessHotkeyActionService] Failed to stop active player");
         }
+
+        return playbackTask;
     }
 
     private async Task RunPlaybackAsync(

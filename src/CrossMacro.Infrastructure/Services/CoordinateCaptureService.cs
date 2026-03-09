@@ -14,6 +14,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
 {
     private readonly IMousePositionProvider _positionProvider;
     private readonly Func<IInputCapture>? _inputCaptureFactory;
+    private readonly Lock _lock = new();
     
     private CancellationTokenSource? _currentCts;
     
@@ -26,13 +27,21 @@ public class CoordinateCaptureService : ICoordinateCaptureService
     }
     
     /// <inheritdoc/>
-    public bool IsCapturing => _currentCts != null && !_currentCts.IsCancellationRequested;
+    public bool IsCapturing
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _currentCts != null && !_currentCts.IsCancellationRequested;
+            }
+        }
+    }
     
     /// <inheritdoc/>
     public async Task<(int X, int Y)?> CaptureMousePositionAsync(CancellationToken ct = default)
     {
-        CancelCapture();
-        _currentCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var captureCts = BeginCapture(ct);
         
         try
         {
@@ -72,9 +81,9 @@ public class CoordinateCaptureService : ICoordinateCaptureService
                 tcs.TrySetResult(null);
             };
 
-            using (_currentCts.Token.Register(() => tcs.TrySetResult(null)))
+            using (captureCts.Token.Register(() => tcs.TrySetResult(null)))
             {
-                await capture.StartAsync(_currentCts.Token);
+                await capture.StartAsync(captureCts.Token);
                 return await tcs.Task;
             }
         }
@@ -89,15 +98,14 @@ public class CoordinateCaptureService : ICoordinateCaptureService
         }
         finally
         {
-            _currentCts = null;
+            EndCapture(captureCts);
         }
     }
     
     /// <inheritdoc/>
     public async Task<int?> CaptureKeyCodeAsync(CancellationToken ct = default)
     {
-        CancelCapture();
-        _currentCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var captureCts = BeginCapture(ct);
         
         try
         {
@@ -128,9 +136,9 @@ public class CoordinateCaptureService : ICoordinateCaptureService
                 tcs.TrySetResult(null);
             };
 
-            using (_currentCts.Token.Register(() => tcs.TrySetResult(null)))
+            using (captureCts.Token.Register(() => tcs.TrySetResult(null)))
             {
-                await capture.StartAsync(_currentCts.Token);
+                await capture.StartAsync(captureCts.Token);
                 return await tcs.Task;
             }
         }
@@ -145,20 +153,60 @@ public class CoordinateCaptureService : ICoordinateCaptureService
         }
         finally
         {
-            _currentCts = null;
+            EndCapture(captureCts);
         }
     }
     
     /// <inheritdoc/>
     public void CancelCapture()
     {
+        CancellationTokenSource? ctsToCancel;
+        lock (_lock)
+        {
+            ctsToCancel = _currentCts;
+            _currentCts = null;
+        }
+
         try
         {
-            _currentCts?.Cancel();
+            ctsToCancel?.Cancel();
         }
         catch (ObjectDisposedException)
         {
             // Already disposed, ignore
+        }
+    }
+
+    private CancellationTokenSource BeginCapture(CancellationToken externalToken)
+    {
+        CancellationTokenSource? previousCts;
+        var captureCts = CancellationTokenSource.CreateLinkedTokenSource(externalToken);
+
+        lock (_lock)
+        {
+            previousCts = _currentCts;
+            _currentCts = captureCts;
+        }
+
+        try
+        {
+            previousCts?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+
+        return captureCts;
+    }
+
+    private void EndCapture(CancellationTokenSource captureCts)
+    {
+        lock (_lock)
+        {
+            if (ReferenceEquals(_currentCts, captureCts))
+            {
+                _currentCts = null;
+            }
         }
     }
 }

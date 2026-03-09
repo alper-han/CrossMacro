@@ -135,6 +135,39 @@ public class CoordinateCaptureServiceTests
         result.Should().BeNull();
     }
 
+    [Fact]
+    public async Task CaptureMousePositionAsync_WhenSecondCaptureStarts_FirstCaptureDoesNotClearCurrentState()
+    {
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>(new(100, 200)));
+
+        var firstCapture = new FakeInputCapture();
+        var secondCapture = new FakeInputCapture();
+        var factoryCalls = 0;
+        var service = new CoordinateCaptureService(positionProvider, () => ++factoryCalls == 1 ? firstCapture : secondCapture);
+
+        var firstTask = service.CaptureMousePositionAsync();
+        await WaitForConditionAsync(() => firstCapture.ConfigureCalls > 0);
+
+        var secondTask = service.CaptureMousePositionAsync();
+        await WaitForConditionAsync(() => secondCapture.ConfigureCalls > 0);
+
+        var firstResult = await firstTask;
+        firstResult.Should().BeNull();
+        service.IsCapturing.Should().BeTrue();
+
+        secondCapture.EmitInput(new InputCaptureEventArgs
+        {
+            Type = InputEventType.Key,
+            Code = InputEventCode.KEY_ENTER,
+            Value = 1
+        });
+
+        var secondResult = await secondTask;
+        secondResult.Should().Be((100, 200));
+        service.IsCapturing.Should().BeFalse();
+    }
+
     private static async Task WaitForConditionAsync(Func<bool> condition, int maxAttempts = 50, int delayMs = 10)
     {
         for (var i = 0; i < maxAttempts; i++)

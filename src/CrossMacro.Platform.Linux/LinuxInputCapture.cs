@@ -171,6 +171,11 @@ public class LinuxInputCapture : IInputCapture
             UInputNative.EV_SYN => InputEventType.Sync,
             _ => InputEventType.Unknown
         };
+
+        if (!ShouldForwardEvent(eventType))
+        {
+            return;
+        }
         
         var args = new InputCaptureEventArgs
         {
@@ -182,6 +187,19 @@ public class LinuxInputCapture : IInputCapture
         };
         
         InputReceived?.Invoke(this, args);
+    }
+
+    private bool ShouldForwardEvent(InputEventType eventType)
+    {
+        return eventType switch
+        {
+            InputEventType.Key => _captureKeyboard,
+            InputEventType.MouseButton => _captureMouse,
+            InputEventType.MouseMove => _captureMouse,
+            InputEventType.MouseScroll => _captureMouse,
+            InputEventType.Sync => _captureMouse,
+            _ => false
+        };
     }
     
 

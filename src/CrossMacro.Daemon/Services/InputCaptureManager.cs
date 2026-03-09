@@ -10,8 +10,25 @@ namespace CrossMacro.Daemon.Services;
 
 public class InputCaptureManager : IInputCaptureManager
 {
-    private readonly List<EvdevReader> _readers = new();
+    private readonly List<ILinuxCaptureReader> _readers = new();
     private readonly Lock _lock = new();
+    private readonly Func<IReadOnlyList<InputDeviceHelper.InputDevice>> _deviceEnumerator;
+    private readonly Func<InputDeviceHelper.InputDevice, ILinuxCaptureReader> _readerFactory;
+
+    public InputCaptureManager()
+        : this(
+            () => InputDeviceHelper.GetAvailableDevices(),
+            device => new EvdevCaptureReaderAdapter(new EvdevReader(device.Path, device.Name)))
+    {
+    }
+
+    internal InputCaptureManager(
+        Func<IReadOnlyList<InputDeviceHelper.InputDevice>> deviceEnumerator,
+        Func<InputDeviceHelper.InputDevice, ILinuxCaptureReader> readerFactory)
+    {
+        _deviceEnumerator = deviceEnumerator ?? throw new ArgumentNullException(nameof(deviceEnumerator));
+        _readerFactory = readerFactory ?? throw new ArgumentNullException(nameof(readerFactory));
+    }
 
     public CaptureStartResult StartCapture(bool captureMouse, bool captureKeyboard, Action<UInputNative.input_event> onEvent)
     {
@@ -19,7 +36,7 @@ public class InputCaptureManager : IInputCaptureManager
         {
             StopCapture(); // Clear existing
 
-            var devices = InputDeviceHelper.GetAvailableDevices();
+            var devices = _deviceEnumerator();
             var targetDevices = devices.Where(d => (captureMouse && d.IsMouse) || (captureKeyboard && d.IsKeyboard)).ToList();
             
             Log.Information("[InputCaptureManager] Starting capture on {Count} devices", targetDevices.Count);
@@ -33,7 +50,7 @@ public class InputCaptureManager : IInputCaptureManager
             {
                 try 
                 {
-                    var evReader = new EvdevReader(dev.Path, dev.Name);
+                    var evReader = _readerFactory(dev);
                     evReader.EventReceived += (sender, e) => 
                     {
                         // Invoke callback. 
@@ -41,7 +58,10 @@ public class InputCaptureManager : IInputCaptureManager
                         // Callback must handle synchronization.
                         try 
                         {
-                            onEvent(e);
+                            if (ShouldForwardEvent(e, captureMouse, captureKeyboard))
+                            {
+                                onEvent(e);
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -85,5 +105,49 @@ public class InputCaptureManager : IInputCaptureManager
     public void Dispose()
     {
         StopCapture();
+    }
+
+    private static bool ShouldForwardEvent(UInputNative.input_event inputEvent, bool captureMouse, bool captureKeyboard)
+    {
+        return inputEvent.type switch
+        {
+            UInputNative.EV_KEY when UInputNative.IsMouseButton(inputEvent.code) => captureMouse,
+            UInputNative.EV_KEY => captureKeyboard,
+            UInputNative.EV_REL => captureMouse,
+            UInputNative.EV_SYN => captureMouse,
+            _ => false
+        };
+    }
+
+    internal interface ILinuxCaptureReader : IDisposable
+    {
+        event Action<ILinuxCaptureReader, UInputNative.input_event>? EventReceived;
+        void Start();
+    }
+
+    private sealed class EvdevCaptureReaderAdapter : ILinuxCaptureReader
+    {
+        private readonly EvdevReader _reader;
+
+        public EvdevCaptureReaderAdapter(EvdevReader reader)
+        {
+            _reader = reader;
+            _reader.EventReceived += OnReaderEventReceived;
+        }
+
+        public event Action<ILinuxCaptureReader, UInputNative.input_event>? EventReceived;
+
+        public void Start() => _reader.Start();
+
+        public void Dispose()
+        {
+            _reader.EventReceived -= OnReaderEventReceived;
+            _reader.Dispose();
+        }
+
+        private void OnReaderEventReceived(EvdevReader reader, UInputNative.input_event inputEvent)
+        {
+            EventReceived?.Invoke(this, inputEvent);
+        }
     }
 }

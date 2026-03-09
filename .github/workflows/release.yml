@@ -462,8 +462,15 @@ jobs:
     
     - name: Install dependencies
       run: |
+        if [ "${{ matrix.target_arch }}" = "aarch64" ]; then
+          sudo dpkg --add-architecture arm64
+        fi
         sudo apt-get update
-        sudo apt-get install -y file desktop-file-utils patchelf jq
+        if [ "${{ matrix.target_arch }}" = "aarch64" ]; then
+          sudo apt-get install -y file desktop-file-utils patchelf jq pkg-config libxtst6:arm64
+        else
+          sudo apt-get install -y file desktop-file-utils patchelf jq pkg-config libxtst6
+        fi
     
     - name: Build AppImage
       run: |

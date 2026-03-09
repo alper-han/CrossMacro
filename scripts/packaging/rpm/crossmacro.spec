@@ -53,7 +53,7 @@ mkdir -p %{buildroot}/usr/share/icons/hicolor
 mkdir -p %{buildroot}/usr/share/selinux/packages/%{name}
 mkdir -p %{buildroot}/usr/share/polkit-1/actions
 mkdir -p %{buildroot}/usr/share/polkit-1/rules.d
-mkdir -p %{buildroot}%{_mandir}/man1
+mkdir -p %{buildroot}/usr/share/man/man1
 
 # Copy UI
 cp -r %{_sourcedir}/publish/* %{buildroot}/usr/lib/%{name}/
@@ -72,11 +72,11 @@ install -m 0644 %{_sourcedir}/50-crossmacro.rules %{buildroot}/usr/share/polkit-
 mkdir -p %{buildroot}/usr/lib/modules-load.d
 install -m 0644 %{_sourcedir}/crossmacro-modules.conf %{buildroot}/usr/lib/modules-load.d/crossmacro.conf
 
-ln -s /usr/lib/%{name}/CrossMacro.UI %{buildroot}/usr/bin/%{name}
+ln -s ../lib/%{name}/CrossMacro.UI %{buildroot}/usr/bin/%{name}
 # Copy icons
 cp -r %{_sourcedir}/icons/* %{buildroot}/usr/share/icons/hicolor/
 cp %{_sourcedir}/CrossMacro.desktop %{buildroot}/usr/share/applications/%{name}.desktop
-install -m 0644 %{_sourcedir}/crossmacro.1 %{buildroot}%{_mandir}/man1/crossmacro.1
+install -m 0644 %{_sourcedir}/crossmacro.1 %{buildroot}/usr/share/man/man1/crossmacro.1
 
 %pre
 # Create group and user if they don't exist
@@ -129,9 +129,7 @@ fi
 %files
 
 /usr/lib/%{name}
-%attr(0755, root, root) /usr/bin/%{name}
-%attr(0755, root, root) /usr/lib/%{name}/CrossMacro.UI
-%attr(0755, root, root) /usr/lib/%{name}/daemon/CrossMacro.Daemon
+/usr/bin/%{name}
 /usr/lib/systemd/system/crossmacro.service
 /usr/lib/udev/rules.d/99-crossmacro.rules
 /usr/share/applications/%{name}.desktop
@@ -140,8 +138,4 @@ fi
 /usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy
 /usr/share/polkit-1/rules.d/50-crossmacro.rules
 /usr/lib/modules-load.d/crossmacro.conf
-%{_mandir}/man1/crossmacro.1*
-
-%changelog
-* Sat Dec 21 2025 Zynix <crossmacro@zynix.net> - 0.6.0-1
-- Version 0.6.0 release
+/usr/share/man/man1/crossmacro.1*

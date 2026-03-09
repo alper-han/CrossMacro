@@ -135,12 +135,14 @@ matches_target_lib_arch() {
             ;;
     esac
 
-    file "$candidate" 2>/dev/null | grep -q "$expected_pattern"
+    file -L "$candidate" 2>/dev/null | grep -q "$expected_pattern"
 }
 
 resolve_libxtst_path() {
     local candidates=()
     local candidate
+    local pkg_config_libdir
+    local pkg_config_search_dirs
 
     case "$APPIMAGE_ARCH" in
         x86_64)
@@ -157,12 +159,37 @@ resolve_libxtst_path() {
             ;;
     esac
 
+    if [ -n "${LIBXTST_PATH:-}" ] && [ -f "${LIBXTST_PATH:-}" ] && matches_target_lib_arch "${LIBXTST_PATH:-}"; then
+        echo "${LIBXTST_PATH:-}"
+        return 0
+    fi
+
     for candidate in "${candidates[@]}"; do
         if [ -f "$candidate" ] && matches_target_lib_arch "$candidate"; then
             echo "$candidate"
             return 0
         fi
     done
+
+    if command -v pkg-config >/dev/null 2>&1; then
+        pkg_config_libdir="$(pkg-config --variable=libdir xtst 2>/dev/null || true)"
+        if [ -n "$pkg_config_libdir" ]; then
+            candidate="$pkg_config_libdir/libXtst.so.6"
+            if [ -f "$candidate" ] && matches_target_lib_arch "$candidate"; then
+                echo "$candidate"
+                return 0
+            fi
+        fi
+
+        pkg_config_search_dirs="$(pkg-config --libs-only-L xtst 2>/dev/null || true)"
+        for candidate in $pkg_config_search_dirs; do
+            candidate="${candidate#-L}/libXtst.so.6"
+            if [ -f "$candidate" ] && matches_target_lib_arch "$candidate"; then
+                echo "$candidate"
+                return 0
+            fi
+        done
+    fi
 
     if [ -n "${LD_LIBRARY_PATH:-}" ]; then
         local dir

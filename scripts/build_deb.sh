@@ -65,7 +65,7 @@ Version: $DEB_VERSION
 Section: utils
 Priority: optional
 Architecture: $ARCH
-Depends: libc6, libstdc++6, polkitd | policykit-1, libxtst6, zlib1g, libssl3 | libssl1.1, libsystemd0, libxkbcommon0
+Depends: libc6, libstdc++6, polkitd | policykit-1, libxtst6, zlib1g, libssl3t64 | libssl3 | libssl1.1, libsystemd0, libxkbcommon0
 Recommends: libx11-6, libice6, libsm6, libfontconfig1
 Maintainer: Zynix <crossmacro@zynix.net>
 Description: Mouse and Keyboard Macro Automation Tool
@@ -104,14 +104,13 @@ if [ "\$1" = "configure" ]; then
     usermod -aG uinput crossmacro 2>/dev/null || true
     usermod -aG crossmacro crossmacro 2>/dev/null || true
 
-    # Best effort: make uinput available immediately for the daemon.
-    # Persistent boot-time loading is handled by /usr/lib/modules-load.d/crossmacro.conf.
+    # Reload rules before loading uinput so the device node is created with the
+    # packaged permissions on first load.
+    udevadm control --reload-rules >/dev/null 2>&1 || :
     if command -v modprobe >/dev/null 2>&1; then
         modprobe uinput >/dev/null 2>&1 || :
     fi
-
-    # Reload udev rules so /dev/uinput permissions are applied before daemon start.
-    udevadm control --reload-rules && udevadm trigger >/dev/null 2>&1 || :
+    udevadm trigger >/dev/null 2>&1 || :
     udevadm settle >/dev/null 2>&1 || :
 
     # Debian policy compliant systemd integration
@@ -123,10 +122,19 @@ if [ "\$1" = "configure" ]; then
     fi
 
     echo "CrossMacro Daemon installed and started."
-    echo "NOTE: Add your user to 'crossmacro' group to communicate with the daemon:"
-    if [ -n "\${SUDO_USER:-}" ]; then
-        echo "      sudo usermod -aG crossmacro \$SUDO_USER"
+    installer_user=""
+    if [ -n "\${SUDO_USER:-}" ] && [ "\${SUDO_USER}" != "root" ]; then
+        installer_user="\${SUDO_USER}"
+    elif [ -n "\${PKEXEC_UID:-}" ] && [ "\${PKEXEC_UID}" != "0" ]; then
+        installer_user="\$(getent passwd "\${PKEXEC_UID}" | cut -d: -f1)"
+    fi
+
+    if [ -n "\$installer_user" ] && getent passwd "\$installer_user" >/dev/null 2>&1; then
+        usermod -aG crossmacro "\$installer_user" 2>/dev/null || true
+        echo "Added '\$installer_user' to 'crossmacro' group."
+        echo "Re-login (or reboot) is required for group change to take effect."
     else
+        echo "NOTE: Add your user to 'crossmacro' group to communicate with the daemon:"
         echo "      sudo usermod -aG crossmacro <your-username>"
     fi
 fi

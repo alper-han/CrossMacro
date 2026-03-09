@@ -156,13 +156,16 @@ if systemctl is-active --quiet polkit; then
     systemctl restart polkit || true
 fi
 
-# Reload udev rules to apply permissions immediately
+# Reload udev rules before loading uinput so the first created node gets the
+# packaged group/mode instead of the distro default.
 echo "   Reloading udev rules..."
-udevadm control --reload-rules && udevadm trigger
+udevadm control --reload-rules || true
 
 # Load uinput module immediately
 echo "   Loading uinput kernel module..."
 modprobe uinput || echo "   Warning: Failed to load uinput module. Reboot may be required."
+udevadm trigger || true
+udevadm settle || true
 
 # -----------------------------------------------------------------------------
 # 4. Install systemd service

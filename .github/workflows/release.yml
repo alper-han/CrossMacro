@@ -279,7 +279,7 @@ jobs:
     needs: [build-core, build-linux-binaries]
     runs-on: ubuntu-latest
     env:
-      FEDORA_X64_IMAGE: fedora:latest
+      FEDORA_X64_IMAGE: fedora:41
     strategy:
       fail-fast: false
       matrix:
@@ -306,7 +306,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y rpm checkpolicy semodule-utils patchelf
-    
+
     - name: Build RPM package
       run: |
         cd scripts
@@ -378,7 +378,7 @@ jobs:
     needs: [build-core, build-linux-binaries]
     runs-on: ubuntu-24.04-arm
     env:
-      FEDORA_ARM64_IMAGE: fedora:latest
+      FEDORA_ARM64_IMAGE: fedora:41
     steps:
     - name: Checkout code
       uses: actions/checkout@v6

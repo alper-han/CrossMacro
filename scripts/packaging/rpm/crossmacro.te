@@ -2,9 +2,12 @@ module crossmacro 1.0;
 
 require {
 	type init_t;
+	type device_t;
 	type event_device_t;
-	class chr_file { ioctl open read write };
+	class dir { getattr open search };
+	class chr_file { append getattr ioctl lock open read write };
 }
 
 #============= init_t ==============
-allow init_t event_device_t:chr_file { ioctl open read write };
+allow init_t device_t:dir { getattr open search };
+allow init_t event_device_t:chr_file { append getattr ioctl lock open read write };

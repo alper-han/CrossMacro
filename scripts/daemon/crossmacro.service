@@ -8,6 +8,7 @@ Wants=polkit.service
 Type=notify
 User=crossmacro
 Group=input
+SupplementaryGroups=uinput crossmacro
 ExecStart=/usr/lib/crossmacro/daemon/CrossMacro.Daemon
 Restart=on-failure
 RestartSec=5
@@ -25,7 +26,9 @@ ProtectHostname=yes
 ProtectKernelLogs=yes
 ProtectClock=yes
 LockPersonality=yes
-MemoryDenyWriteExecute=yes
+# Keep disabled for .NET runtime compatibility across distros.
+# Some environments crash early (SIGSEGV) when executable mappings are denied.
+MemoryDenyWriteExecute=no
 RestrictRealtime=yes
 RestrictSUIDSGID=yes
 RestrictNamespaces=yes

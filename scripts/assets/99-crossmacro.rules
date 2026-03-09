@@ -1,5 +1,7 @@
-# Grant access to /dev/uinput for input group
-KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"
+# Grant access to /dev/uinput for the daemon group.
+# Match the misc subsystem explicitly and force the final mode/group so later rules
+# do not revert the node back to root-only access on some distros.
+SUBSYSTEM=="misc", KERNEL=="uinput", GROUP:="input", MODE:="0660", OPTIONS+="static_node=uinput"
 
 # Disable mouse acceleration for CrossMacro virtual device (flat profile = 1:1 movement)
 # This prevents double-acceleration when playing back relative mouse movements

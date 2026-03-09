@@ -106,13 +106,13 @@ sudo usermod -aG crossmacro $USER
 # Reboot or re-login for group changes
 ```
 
-For AUR installs, also run:
+`AUR`, `.deb`, and `.rpm` packages try to enable/start `crossmacro.service` during install
+on `systemd` hosts. If your environment skips that step (for example non-systemd/chroot),
+run manually:
 
 ```bash
 sudo systemctl enable --now crossmacro.service
 ```
-
-`.deb` and `.rpm` packages already enable/start `crossmacro.service` during install.
 
 Note: `crossmacro` group membership allows the client to talk to the daemon socket.
 The daemon service user needs device access for `/dev/input/event*` and `/dev/uinput`

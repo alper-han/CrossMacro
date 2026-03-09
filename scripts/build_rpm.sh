@@ -8,7 +8,6 @@ source "$SCRIPT_DIR/lib/version.sh"
 source "$SCRIPT_DIR/lib/platform.sh"
 
 # Configuration
-APP_NAME="crossmacro"
 VERSION="$(get_version)"
 RPM_VERSION="$(to_rpm_version)"
 RPM_RELEASE="$(to_rpm_release)"
@@ -63,6 +62,10 @@ if command -v patchelf >/dev/null; then
     fi
 fi
 
+# GitHub Actions artifacts normalize file permissions to 0644 on download.
+# Restore execute bits before packaging so installed RPM binaries remain runnable.
+chmod +x "$RPM_BUILD_DIR/SOURCES/publish/CrossMacro.UI"
+
 # Build and Copy Daemon
 echo "Copying Daemon files..."
 mkdir -p "$RPM_BUILD_DIR/SOURCES/daemon"
@@ -76,7 +79,7 @@ else
     dotnet publish ../src/CrossMacro.Daemon/CrossMacro.Daemon.csproj \
         -c Release \
         -r "$DAEMON_RID" \
-        -p:Version=$VERSION \
+        -p:Version="$VERSION" \
         -o "$RPM_BUILD_DIR/SOURCES/daemon"
 fi
 PACKAGED_DAEMON_BINARY="$RPM_BUILD_DIR/SOURCES/daemon/CrossMacro.Daemon"
@@ -91,6 +94,8 @@ if command -v patchelf >/dev/null; then
         echo "Warning: No known glibc interpreter for target '$TARGET_ARCH_RESOLVED'; skipping patchelf."
     fi
 fi
+
+chmod +x "$RPM_BUILD_DIR/SOURCES/daemon/CrossMacro.Daemon"
 
 cp "$ICON_PATH" "$RPM_BUILD_DIR/SOURCES/crossmacro.png"
 cp "assets/CrossMacro.desktop" "$RPM_BUILD_DIR/SOURCES/CrossMacro.desktop"

@@ -23,7 +23,7 @@ Source6:        crossmacro.1
 BuildArch:      %{_target_cpu}
 AutoReqProv:    no
 Requires:       glibc, libstdc++, polkit, libXtst, zlib, openssl-libs, systemd-libs, libxkbcommon
-BuildRequires:  checkpolicy, semodule-utils
+BuildRequires:  checkpolicy, policycoreutils
 
 Requires(post): systemd
 Requires(preun): systemd

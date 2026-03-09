@@ -278,6 +278,8 @@ jobs:
     name: Package RPM (${{ matrix.arch_suffix }})
     needs: [build-core, build-linux-binaries]
     runs-on: ubuntu-latest
+    env:
+      FEDORA_X64_IMAGE: fedora:latest
     strategy:
       fail-fast: false
       matrix:
@@ -316,6 +318,52 @@ jobs:
         set -euo pipefail
         rpm_file="$(ls -1 scripts/*.rpm | head -n 1)"
         rpm -qpl "$rpm_file" | grep -E '^/usr/share/man/man1/crossmacro\.1(\.gz)?$'
+
+    - name: CLI Smoke (RPM x64)
+      run: |
+        set -euo pipefail
+        rpm_file="$(find scripts -maxdepth 1 -type f -name '*.rpm' ! -name '*aarch64*.rpm' | head -n 1)"
+        if [ -z "$rpm_file" ]; then
+          echo "No x64 RPM artifact found in scripts/."
+          exit 1
+        fi
+        rpm_file_name="$(basename "$rpm_file")"
+        docker run --rm --platform linux/amd64 \
+          -v "$PWD/scripts":/artifacts:ro \
+          -e RPM_FILE_NAME="$rpm_file_name" \
+          "$FEDORA_X64_IMAGE" \
+          bash -lc '
+            set -euo pipefail
+            dnf -y install polkit libXtst libX11 libXcursor libXrandr fontconfig >/dev/null
+            dnf -y install "/artifacts/${RPM_FILE_NAME}" >/dev/null
+
+            set +e
+            help_output="$(/usr/bin/crossmacro --help 2>&1)"
+            help_code=$?
+            set -e
+            echo "$help_output"
+            test "$help_code" -eq 0
+            echo "$help_output" | grep -F "Usage:"
+
+            set +e
+            settings_output="$(/usr/bin/crossmacro settings get --json 2>&1)"
+            settings_code=$?
+            set -e
+            echo "$settings_output"
+            test "$settings_code" -eq 0
+            echo "$settings_output" | grep -F "\"status\": \"ok\""
+            echo "$settings_output" | grep -F "\"code\": 0"
+
+            set +e
+            dry_run_output="$(/usr/bin/crossmacro run --step "move abs 10 10" --step "click left" --dry-run --json 2>&1)"
+            dry_run_code=$?
+            set -e
+            echo "$dry_run_output"
+            test "$dry_run_code" -eq 0
+            echo "$dry_run_output" | grep -F "\"status\": \"ok\""
+            echo "$dry_run_output" | grep -F "\"code\": 0"
+            echo "$dry_run_output" | grep -F "\"coordinateMode\": \"absolute\""
+          '
     
     - name: Upload RPM artifact
       uses: actions/upload-artifact@v7
@@ -325,12 +373,11 @@ jobs:
           scripts/*.rpm
         retention-days: 1
 
-  package-rpm-arm64-emulated:
-    name: Package RPM (arm64 emulated)
+  package-rpm-arm64:
+    name: Package RPM (arm64)
     needs: [build-core, build-linux-binaries]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     env:
-      BINFMT_IMAGE: tonistiigi/binfmt:latest
       FEDORA_ARM64_IMAGE: fedora:latest
     steps:
     - name: Checkout code
@@ -348,10 +395,6 @@ jobs:
         name: linux-daemon-arm64
         path: publish-daemon/
 
-    - name: Install QEMU arm64 emulation
-      run: |
-        docker run --privileged --rm "$BINFMT_IMAGE" --install arm64
-
     - name: Build RPM package (arm64 in container)
       run: |
         docker run --rm --platform linux/arm64 \
@@ -360,14 +403,14 @@ jobs:
           "$FEDORA_ARM64_IMAGE" \
           bash -lc '
             set -euo pipefail
-            dnf -y install rpm-build checkpolicy semodule-utils patchelf file >/dev/null
+            dnf -y install rpm-build checkpolicy policycoreutils patchelf file >/dev/null
             VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" TARGET_ARCH=aarch64 RPM_ARCH=aarch64 \
               PUBLISH_DIR=/work/publish \
               DAEMON_DIR=/work/publish-daemon \
               ./build_rpm.sh
           '
 
-    - name: Verify RPM man page (arm64 emulated)
+    - name: Verify RPM man page (arm64)
       run: |
         set -euo pipefail
         rpm_file="$(find scripts -maxdepth 1 -type f -name '*aarch64*.rpm' | head -n 1)"
@@ -386,7 +429,7 @@ jobs:
             rpm -qpl "/artifacts/${RPM_FILE_NAME}" | grep -E "^/usr/share/man/man1/crossmacro\.1(\.gz)?$"
           '
 
-    - name: CLI Smoke (RPM arm64 emulated)
+    - name: CLI Smoke (RPM arm64)
       run: |
         set -euo pipefail
         rpm_file="$(find scripts -maxdepth 1 -type f -name '*aarch64*.rpm' | head -n 1)"
@@ -404,26 +447,32 @@ jobs:
             dnf -y install polkit libXtst libX11 libXcursor libXrandr fontconfig >/dev/null
             dnf -y install "/artifacts/${RPM_FILE_NAME}" >/dev/null
 
+            set +e
             help_output="$(/usr/bin/crossmacro --help 2>&1)"
+            help_code=$?
+            set -e
             echo "$help_output"
+            test "$help_code" -eq 0
             echo "$help_output" | grep -F "Usage:"
 
             set +e
-            json_parse_output="$(/usr/bin/crossmacro --json 2>&1)"
-            json_parse_code=$?
+            settings_output="$(/usr/bin/crossmacro settings get --json 2>&1)"
+            settings_code=$?
             set -e
-            echo "$json_parse_output"
-            test "$json_parse_code" -eq 2
-            echo "$json_parse_output" | grep -F "\"status\": \"error\""
-            echo "$json_parse_output" | grep -F "\"code\": 2"
+            echo "$settings_output"
+            test "$settings_code" -eq 0
+            echo "$settings_output" | grep -F "\"status\": \"ok\""
+            echo "$settings_output" | grep -F "\"code\": 0"
 
             set +e
-            dry_run_output="$(/usr/bin/crossmacro run --step \"move abs 10 10\" --dry-run --json 2>&1)"
+            dry_run_output="$(/usr/bin/crossmacro run --step "move abs 10 10" --step "click left" --dry-run --json 2>&1)"
             dry_run_code=$?
             set -e
             echo "$dry_run_output"
-            echo "$dry_run_output" | grep -F "\"status\":"
-            echo "$dry_run_output" | grep -F "\"code\": $dry_run_code"
+            test "$dry_run_code" -eq 0
+            echo "$dry_run_output" | grep -F "\"status\": \"ok\""
+            echo "$dry_run_output" | grep -F "\"code\": 0"
+            echo "$dry_run_output" | grep -F "\"coordinateMode\": \"absolute\""
           '
 
     - name: Upload RPM artifact (arm64)
@@ -437,7 +486,7 @@ jobs:
   package-appimage:
     name: Package AppImage (${{ matrix.arch_suffix }})
     needs: [build-core, build-linux-binaries]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
@@ -446,10 +495,14 @@ jobs:
             target_arch: x86_64
             appimage_arch: x86_64
             appimagetool_host_arch: x86_64
+            appimagetool_sha256: ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
+            runner: ubuntu-latest
           - arch_suffix: arm64
             target_arch: aarch64
             appimage_arch: aarch64
-            appimagetool_host_arch: x86_64
+            appimagetool_host_arch: aarch64
+            appimagetool_sha256: f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158
+            runner: ubuntu-24.04-arm
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
@@ -462,21 +515,14 @@ jobs:
     
     - name: Install dependencies
       run: |
-        if [ "${{ matrix.target_arch }}" = "aarch64" ]; then
-          sudo dpkg --add-architecture arm64
-        fi
         sudo apt-get update
-        if [ "${{ matrix.target_arch }}" = "aarch64" ]; then
-          sudo apt-get install -y file desktop-file-utils patchelf jq pkg-config libxtst6:arm64
-        else
-          sudo apt-get install -y file desktop-file-utils patchelf jq pkg-config libxtst6
-        fi
+        sudo apt-get install -y file desktop-file-utils patchelf jq pkg-config libxtst6
     
     - name: Build AppImage
       run: |
         cd scripts
         chmod +x build_appimage.sh
-        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" APPIMAGE_ARCH="${{ matrix.appimage_arch }}" APPIMAGETOOL_HOST_ARCH="${{ matrix.appimagetool_host_arch }}" PUBLISH_DIR="../publish" APPIMAGE_EXTRACT_AND_RUN=1 ./build_appimage.sh
+        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" APPIMAGE_ARCH="${{ matrix.appimage_arch }}" APPIMAGETOOL_HOST_ARCH="${{ matrix.appimagetool_host_arch }}" APPIMAGETOOL_SHA256="${{ matrix.appimagetool_sha256 }}" PUBLISH_DIR="../publish" APPIMAGE_EXTRACT_AND_RUN=1 ./build_appimage.sh
     
     - name: Upload AppImage artifact
       uses: actions/upload-artifact@v7
@@ -810,7 +856,7 @@ jobs:
   # ============================================
   create-release:
     name: Create Release
-    needs: [build-core, package-deb, package-rpm, package-rpm-arm64-emulated, package-appimage, package-flatpak, package-windows, build-macos-arm64, build-macos-x64]
+    needs: [build-core, package-deb, package-rpm, package-rpm-arm64, package-appimage, package-flatpak, package-windows, build-macos-arm64, build-macos-x64]
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_prerelease == 'true')
     runs-on: ubuntu-latest
     permissions:

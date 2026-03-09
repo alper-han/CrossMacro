@@ -20,6 +20,7 @@ public class MacroEventExecutor : IEventExecutor
     private int _screenWidth;
     private int _screenHeight;
     private bool _disposed;
+    private readonly bool _supportsAbsoluteCoordinates;
 
     public MacroEventExecutor(
         IInputSimulator simulator,
@@ -35,6 +36,7 @@ public class MacroEventExecutor : IEventExecutor
         _buttonMapper = buttonMapper ?? throw new ArgumentNullException(nameof(buttonMapper));
         _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
         _useHybridAbsoluteDragMovement = useHybridAbsoluteDragMovement;
+        _supportsAbsoluteCoordinates = simulator is not IInputSimulatorCapabilities capabilities || capabilities.SupportsAbsoluteCoordinates;
     }
 
     public bool IsMouseButtonPressed => _buttonTracker.IsAnyPressed;
@@ -105,9 +107,7 @@ public class MacroEventExecutor : IEventExecutor
             {
                 if (isRecordedAbsolute)
                 {
-                    // Use absolute for button positioning - ensures correct click location
-                    _simulator.MoveAbsolute(ev.X, ev.Y);
-                    _coordinator.UpdatePosition(ev.X, ev.Y);
+                    MoveRecordedAbsolute(ev.X, ev.Y);
                 }
                 else if (ev.X != 0 || ev.Y != 0)
                 {
@@ -160,6 +160,12 @@ public class MacroEventExecutor : IEventExecutor
     {
         if (isRecordedAbsolute)
         {
+            if (!_supportsAbsoluteCoordinates)
+            {
+                MoveRecordedAbsolute(ev.X, ev.Y);
+                return;
+            }
+
             if (_buttonTracker.IsAnyPressed && _useHybridAbsoluteDragMovement)
             {
                 // Button pressed - use relative for smooth Wayland curves
@@ -184,6 +190,23 @@ public class MacroEventExecutor : IEventExecutor
         else
         {
             MoveRelative(ev.X, ev.Y);
+        }
+    }
+
+    private void MoveRecordedAbsolute(int targetX, int targetY)
+    {
+        if (_supportsAbsoluteCoordinates)
+        {
+            _simulator.MoveAbsolute(targetX, targetY);
+            _coordinator.UpdatePosition(targetX, targetY);
+            return;
+        }
+
+        int dx = targetX - _coordinator.CurrentX;
+        int dy = targetY - _coordinator.CurrentY;
+        if (dx != 0 || dy != 0)
+        {
+            MoveRelative(dx, dy);
         }
     }
 

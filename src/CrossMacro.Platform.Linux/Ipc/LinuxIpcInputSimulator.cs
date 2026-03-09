@@ -5,14 +5,16 @@ using Serilog;
 
 namespace CrossMacro.Platform.Linux.Ipc;
 
-public class LinuxIpcInputSimulator : IInputSimulator
+public class LinuxIpcInputSimulator : IInputSimulator, IInputSimulatorCapabilities
 {
     private readonly IpcClient _client;
     private readonly Func<bool> _isSupportedProbe;
     private bool _disposed;
+    private bool _supportsAbsoluteCoordinates;
 
     public string ProviderName => "Secure Daemon (UInput)";
     public bool IsSupported => !_disposed && (_client.IsConnected || IsProbeSupported());
+    public bool SupportsAbsoluteCoordinates => _supportsAbsoluteCoordinates;
 
     public LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSupportedProbe = null)
     {
@@ -42,6 +44,8 @@ public class LinuxIpcInputSimulator : IInputSimulator
         // Resolution support would require protocol update.
         // For now, ignoring resolution, assuming relative movement mostly or default mapping.
         
+        _supportsAbsoluteCoordinates = false;
+
         // Ensure connection
         if (!_client.IsConnected)
         {
@@ -71,6 +75,7 @@ public class LinuxIpcInputSimulator : IInputSimulator
         if (_client.IsConnected && screenWidth > 0 && screenHeight > 0)
         {
             _client.ConfigureResolution(screenWidth, screenHeight);
+            _supportsAbsoluteCoordinates = true;
         }
     }
 

@@ -171,6 +171,29 @@ public class MacroEventExecutorTests
     }
 
     [Fact]
+    public void Execute_MouseMove_Absolute_WhenSimulatorCannotMoveAbsolute_FallsBackToRelativeDelta()
+    {
+        var simulator = new TrackingSimulator(supportsAbsoluteCoordinates: false);
+        var coordinator = Substitute.For<IPlaybackCoordinator>();
+        coordinator.CurrentX.Returns(25);
+        coordinator.CurrentY.Returns(40);
+
+        var executor = new MacroEventExecutor(
+            simulator,
+            _buttonTracker,
+            _keyTracker,
+            _buttonMapper,
+            coordinator);
+        executor.Initialize(0, 0);
+
+        executor.Execute(new MacroEvent { Type = EventType.MouseMove, X = 100, Y = 90 }, isRecordedAbsolute: true);
+
+        Assert.Equal((75, 50), simulator.LastRelativeMove);
+        Assert.Null(simulator.LastAbsoluteMove);
+        coordinator.Received(1).AddDelta(75, 50);
+    }
+
+    [Fact]
     public void Execute_Scroll_SimulatesScroll()
     {
         // Arrange
@@ -181,5 +204,53 @@ public class MacroEventExecutorTests
 
         // Assert
         _simulator.Received(1).Scroll(1);
+    }
+
+    private sealed class TrackingSimulator : IInputSimulator, IInputSimulatorCapabilities
+    {
+        public TrackingSimulator(bool supportsAbsoluteCoordinates)
+        {
+            SupportsAbsoluteCoordinates = supportsAbsoluteCoordinates;
+        }
+
+        public string ProviderName => "Tracking";
+        public bool IsSupported => true;
+        public bool SupportsAbsoluteCoordinates { get; }
+        public (int X, int Y)? LastAbsoluteMove { get; private set; }
+        public (int X, int Y)? LastRelativeMove { get; private set; }
+
+        public void Initialize(int screenWidth = 0, int screenHeight = 0)
+        {
+        }
+
+        public void MoveAbsolute(int x, int y)
+        {
+            LastAbsoluteMove = (x, y);
+        }
+
+        public void MoveRelative(int dx, int dy)
+        {
+            LastRelativeMove = (dx, dy);
+        }
+
+        public void MouseButton(int button, bool pressed)
+        {
+        }
+
+        public void Scroll(int delta, bool isHorizontal = false)
+        {
+        }
+
+        public void KeyPress(int keyCode, bool pressed)
+        {
+        }
+
+        public void Sync()
+        {
+        }
+
+        public void Dispose()
+        {
+        }
     }
 }

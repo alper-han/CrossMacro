@@ -3,11 +3,12 @@ using CrossMacro.Core.Services;
 
 namespace CrossMacro.Platform.Linux.Services;
 
-public sealed class UnavailableInputSimulator : IInputSimulator
+public sealed class UnavailableInputSimulator : IInputSimulator, IInputSimulatorCapabilities
 {
     public string ProviderName => "Unavailable (No Linux Input Backend)";
 
     public bool IsSupported => false;
+    public bool SupportsAbsoluteCoordinates => false;
 
     public void Initialize(int screenWidth = 0, int screenHeight = 0)
     {

@@ -5,7 +5,7 @@ using Serilog;
 
 namespace CrossMacro.Platform.Linux;
 
-public class LinuxInputSimulator : IInputSimulator
+public class LinuxInputSimulator : IInputSimulator, IInputSimulatorCapabilities
 {
     private UInputDevice? _device;
     private bool _disposed;
@@ -26,6 +26,8 @@ public class LinuxInputSimulator : IInputSimulator
             }
         }
     }
+
+    public bool SupportsAbsoluteCoordinates => _device?.SupportsAbsoluteCoordinates ?? false;
     
     public void Initialize(int screenWidth = 0, int screenHeight = 0)
     {

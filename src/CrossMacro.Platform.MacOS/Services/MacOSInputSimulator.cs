@@ -5,10 +5,11 @@ using CrossMacro.Platform.MacOS.Native;
 
 namespace CrossMacro.Platform.MacOS.Services;
 
-public class MacOSInputSimulator : IInputSimulator
+public class MacOSInputSimulator : IInputSimulator, IInputSimulatorCapabilities
 {
     public string ProviderName => "macOS CoreGraphics";
     public bool IsSupported => OperatingSystem.IsMacOS();
+    public bool SupportsAbsoluteCoordinates => true;
 
     public void Initialize(int screenWidth = 0, int screenHeight = 0)
     {

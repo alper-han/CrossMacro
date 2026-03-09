@@ -22,3 +22,8 @@ public interface IInputSimulator : IDisposable
     
     void Sync();
 }
+
+public interface IInputSimulatorCapabilities
+{
+    bool SupportsAbsoluteCoordinates { get; }
+}

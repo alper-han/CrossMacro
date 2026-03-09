@@ -5,7 +5,7 @@ using CrossMacro.Platform.Windows.Native;
 
 namespace CrossMacro.Platform.Windows.Services;
 
-public class WindowsInputSimulator : IInputSimulator
+public class WindowsInputSimulator : IInputSimulator, IInputSimulatorCapabilities
 {
     private int _screenWidth;
     private int _screenHeight;
@@ -18,6 +18,7 @@ public class WindowsInputSimulator : IInputSimulator
 
     public string ProviderName => "Windows SendInput";
     public bool IsSupported => OperatingSystem.IsWindows();
+    public bool SupportsAbsoluteCoordinates => true;
 
     public void Initialize(int screenWidth = 0, int screenHeight = 0)
     {

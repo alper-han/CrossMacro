@@ -7,7 +7,7 @@ using Serilog;
 
 namespace CrossMacro.Platform.Linux.Services
 {
-    public class X11InputSimulator : IInputSimulator
+    public class X11InputSimulator : IInputSimulator, IInputSimulatorCapabilities
     {
         private IntPtr _display;
         private bool _disposed;
@@ -17,6 +17,7 @@ namespace CrossMacro.Platform.Linux.Services
         public string ProviderName => "X11 (XTest)";
 
         public bool IsSupported => _isSupported;
+        public bool SupportsAbsoluteCoordinates => true;
 
         public X11InputSimulator()
         {

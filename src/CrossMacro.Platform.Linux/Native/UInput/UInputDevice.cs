@@ -17,6 +17,8 @@ namespace CrossMacro.Platform.Linux.Native.UInput
         private readonly int _width;
         private readonly int _height;
 
+        public bool SupportsAbsoluteCoordinates => _width > 0 && _height > 0;
+
         public UInputDevice(int width = 0, int height = 0)
         {
             _fd = -1;

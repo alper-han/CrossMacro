@@ -500,24 +500,7 @@ public class InputDeviceHelper
             {
                 return (false, Marshal.GetLastWin32Error());
             }
-
-            IntPtr bufferPtr = Marshal.AllocHGlobal(24);
-            try
-            {
-                var result = EvdevNative.read(fd, bufferPtr, (IntPtr)24);
-                if (result.ToInt32() < 0)
-                {
-                    int errno = Marshal.GetLastWin32Error();
-                    if (errno == 11 || errno == 0) // EAGAIN or success
-                        return (true, 0);
-                    return (false, errno);
-                }
-                return (true, 0);
-            }
-            finally
-            {
-                Marshal.FreeHGlobal(bufferPtr);
-            }
+            return (true, 0);
         }
         catch
         {

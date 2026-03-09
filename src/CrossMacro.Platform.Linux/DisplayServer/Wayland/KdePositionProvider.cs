@@ -250,14 +250,14 @@ console.error('[CrossMacro] Position tracking started');
             {
                 try
                 {
-                if (_dbusConnection != null)
-                {
+                    if (_dbusConnection != null)
+                    {
                         var scriptingProxy = _dbusConnection.CreateProxy<IKWinScripting>("org.kde.KWin", "/Scripting");
                         var scriptProxy = _dbusConnection.CreateProxy<IKWinScript>("org.kde.KWin", $"/Scripting/Script{_scriptId}");
                         
-                        scriptProxy.stopAsync();
-                        scriptingProxy.unloadScriptAsync(_scriptId);
-                }
+                        scriptProxy.stopAsync().GetAwaiter().GetResult();
+                        scriptingProxy.unloadScriptAsync(_scriptId).GetAwaiter().GetResult();
+                    }
                 }
                 catch (Exception ex)
                 {

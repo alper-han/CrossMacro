@@ -34,6 +34,7 @@ public static class PathHelper
             // Linux and others: Follow XDG Base Directory specification
             var xdgConfigHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
             configBase = string.IsNullOrWhiteSpace(xdgConfigHome)
+                || !Path.IsPathRooted(xdgConfigHome)
                 ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config")
                 : xdgConfigHome;
         }

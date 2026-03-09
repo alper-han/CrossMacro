@@ -148,7 +148,7 @@
                                                     Command="{Binding #Root.((vm:TextExpansionViewModel)DataContext).RemoveExpansionCommand}"
                                                     CommandParameter="{Binding}"
                                                     Cursor="Hand">
-                                                <TextBlock Text="🗑" FontSize="14" FontFamily="{StaticResource EmojiFont}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                <TextBlock Text="🗑" FontSize="14" Classes="emoji-icon" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                             </Button>
                                         </Grid>
                                     </Border>
@@ -160,7 +160,7 @@
                 
                 <!-- Footer Info -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
-                    <TextBlock Text="💡" FontSize="12" FontFamily="{StaticResource EmojiFont}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <TextBlock Text="💡" FontSize="12" Classes="emoji-icon" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <TextBlock Text="Enable in Settings tab to start expanding" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                 </StackPanel>
 

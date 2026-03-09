@@ -84,7 +84,7 @@
                 <ResourceInclude Source="/Themes/Mocha.axaml" />
             </ResourceDictionary.MergedDictionaries>
             <FontFamily x:Key="StandardFont">Inter, Segoe UI, DejaVu Sans, Noto Sans, Liberation Sans, sans-serif</FontFamily>
-            <FontFamily x:Key="EmojiFont">avares://CrossMacro.UI.Core/Assets/Fonts/NotoColorEmoji.ttf#Noto Color Emoji</FontFamily>
+            <FontFamily x:Key="EmojiFont">Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, avares://CrossMacro.UI.Core/Assets/Fonts/NotoColorEmoji.ttf#Noto Color Emoji</FontFamily>
         </ResourceDictionary>
     </Application.Resources>
   

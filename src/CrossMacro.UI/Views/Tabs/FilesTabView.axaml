@@ -21,7 +21,7 @@
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="📂" FontFamily="{StaticResource EmojiFont}"/>
+                        <TextBlock Text="📂" Classes="emoji-icon"/>
                         <TextBlock Text="Load Macro"/>
                     </StackPanel>
                 </Button>
@@ -32,7 +32,7 @@
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="💾" FontFamily="{StaticResource EmojiFont}"/>
+                        <TextBlock Text="💾" Classes="emoji-icon"/>
                         <TextBlock Text="Save Macro"/>
                     </StackPanel>
                 </Button>

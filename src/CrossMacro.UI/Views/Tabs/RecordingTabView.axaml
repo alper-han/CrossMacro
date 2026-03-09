@@ -42,7 +42,7 @@
                        VerticalAlignment="Stretch">
                     <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="🖱️" FontSize="14" FontFamily="{StaticResource EmojiFont}" VerticalAlignment="Center"/>
+                            <TextBlock Text="🖱️" FontSize="14" Classes="emoji-icon" VerticalAlignment="Center"/>
                             <TextBlock Text="{Binding MouseEventCount}" 
                                       FontWeight="Medium"
                                       FontSize="16"
@@ -50,7 +50,7 @@
                                       VerticalAlignment="Center"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="⌨️" FontSize="14" FontFamily="{StaticResource EmojiFont}" VerticalAlignment="Center"/>
+                            <TextBlock Text="⌨️" FontSize="14" Classes="emoji-icon" VerticalAlignment="Center"/>
                             <TextBlock Text="{Binding KeyboardEventCount}" 
                                       FontWeight="Medium"
                                       FontSize="16"
@@ -71,13 +71,13 @@
                         <!-- Recording indicator: 🔴 when recording -->
                         <TextBlock Text="🔴" 
                                   FontSize="24"
-                                  FontFamily="{StaticResource EmojiFont}"
+                                  Classes="emoji-icon"
                                   IsVisible="{Binding IsRecording}"
                                   ToolTip.Tip="Recording..."/>
                         <!-- Ready indicator: 🟢 when not recording -->
                         <TextBlock Text="🟢" 
                                   FontSize="24"
-                                  FontFamily="{StaticResource EmojiFont}"
+                                  Classes="emoji-icon"
                                   IsVisible="{Binding !IsRecording}"
                                   ToolTip.Tip="Ready"/>
                     </Panel>
@@ -101,7 +101,7 @@
                                 Margin="0,0,6,0">
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="🖱️" FontSize="16" FontFamily="{StaticResource EmojiFont}"/>
+                                    <TextBlock Text="🖱️" FontSize="16" Classes="emoji-icon"/>
                                     <TextBlock Text="Mouse" FontWeight="Medium" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="1" 
@@ -118,7 +118,7 @@
                                 Margin="6,0,0,0">
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="⌨️" FontSize="16" FontFamily="{StaticResource EmojiFont}"/>
+                                    <TextBlock Text="⌨️" FontSize="16" Classes="emoji-icon"/>
                                     <TextBlock Text="Keyboard" FontWeight="Medium" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="1" 
@@ -137,7 +137,7 @@
                                 IsVisible="{Binding IsForceRelativeSupported}">
                             <Grid ColumnDefinitions="*,Auto,Auto">
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="📍" FontSize="16" FontFamily="{StaticResource EmojiFont}"/>
+                                    <TextBlock Text="📍" FontSize="16" Classes="emoji-icon"/>
                                     <StackPanel Spacing="2">
                                         <TextBlock Text="Force Relative Coordinates" FontWeight="Medium" VerticalAlignment="Center"/>
                                         <TextBlock Text="Use relative mouse position even if absolute is supported" 
@@ -177,7 +177,7 @@
                                 IsVisible="{Binding ShowSkipZeroZeroOption}">
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="↗️" FontSize="16" FontFamily="{StaticResource EmojiFont}"/>
+                                    <TextBlock Text="↗️" FontSize="16" Classes="emoji-icon"/>
                                     <StackPanel Spacing="2">
                                         <TextBlock Text="Skip Initial 0,0 Position" FontWeight="Medium" VerticalAlignment="Center"/>
                                         <TextBlock Text="Don't move cursor to origin when recording starts" 
@@ -203,11 +203,11 @@
                            HorizontalContentAlignment="Center">
                         <Panel>
                             <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsRecording}">
-                                <TextBlock Text="▶️" FontFamily="{StaticResource EmojiFont}"/>
+                                <TextBlock Text="▶️" Classes="emoji-icon"/>
                                 <TextBlock Text="Start Recording"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsRecording}">
-                                <TextBlock Text="⏹️" FontFamily="{StaticResource EmojiFont}"/>
+                                <TextBlock Text="⏹️" Classes="emoji-icon"/>
                                 <TextBlock Text="Stop Recording"/>
                             </StackPanel>
                         </Panel>
@@ -216,7 +216,7 @@
             </Border>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
-                <TextBlock Text="💡" FontSize="12" FontFamily="{StaticResource EmojiFont}" Classes="caption"/>
+                <TextBlock Text="💡" FontSize="12" Classes="caption emoji-icon"/>
                 <TextBlock Text="Tip: Use global hotkeys to control recording while in other apps" Classes="caption"/>
             </StackPanel>
         </StackPanel>

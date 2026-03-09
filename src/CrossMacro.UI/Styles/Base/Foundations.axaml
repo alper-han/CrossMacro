@@ -56,6 +56,14 @@
         <Setter Property="Opacity" Value="0.8"/>
     </Style>
 
+    <Style Selector="TextBlock.emoji-icon">
+        <Setter Property="FontFamily" Value="{StaticResource EmojiFont}"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="FontStyle" Value="Normal"/>
+        <Setter Property="TextAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
     <Style Selector="TextBlock.value">
         <Setter Property="FontSize" Value="20"/>
         <Setter Property="FontWeight" Value="Bold"/>

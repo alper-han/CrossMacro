@@ -91,7 +91,7 @@
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
                                                 ToolTip.Tip="Edit task">
-                                            <TextBlock Text="✏️" FontSize="12" FontFamily="{StaticResource EmojiFont}"/>
+                                            <TextBlock Text="✏️" FontSize="12" Classes="emoji-icon"/>
                                         </Button>
                                         
                                         <!-- Delete Button -->
@@ -103,7 +103,7 @@
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
                                                 ToolTip.Tip="Delete task">
-                                            <TextBlock Text="🗑" FontSize="12" FontFamily="{StaticResource EmojiFont}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBlock Text="🗑" FontSize="12" Classes="emoji-icon" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                         </Button>
                                     </Grid>
                                 </Border>
@@ -165,7 +165,7 @@
                             <Button Grid.Column="1" 
                                    Command="{Binding BrowseMacroCommand}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="📂" FontFamily="{StaticResource EmojiFont}"/>
+                                    <TextBlock Text="📂" Classes="emoji-icon"/>
                                     <TextBlock Text="Browse"/>
                                 </StackPanel>
                             </Button>
@@ -179,14 +179,14 @@
                             <RadioButton IsChecked="{Binding IsIntervalSelected, Mode=TwoWay}"
                                         GroupName="ScheduleType">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="⏱️" FontFamily="{StaticResource EmojiFont}"/>
+                                    <TextBlock Text="⏱️" Classes="emoji-icon"/>
                                     <TextBlock Text="Interval (repeat)"/>
                                 </StackPanel>
                             </RadioButton>
                             <RadioButton IsChecked="{Binding IsDateTimeSelected, Mode=TwoWay}"
                                         GroupName="ScheduleType">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="📅" FontFamily="{StaticResource EmojiFont}"/>
+                                    <TextBlock Text="📅" Classes="emoji-icon"/>
                                     <TextBlock Text="Date/Time (once)"/>
                                 </StackPanel>
                             </RadioButton>
@@ -249,7 +249,7 @@
                                    HorizontalAlignment="Stretch"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="💡" FontSize="11" FontFamily="{StaticResource EmojiFont}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="💡" FontSize="11" Classes="emoji-icon" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <TextBlock Text="The macro will run once at the selected date" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </StackPanel>
                 </StackPanel>
@@ -290,7 +290,7 @@
                    HorizontalAlignment="Right"
                    IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="💾" FontFamily="{StaticResource EmojiFont}"/>
+                    <TextBlock Text="💾" Classes="emoji-icon"/>
                     <TextBlock Text="Save All Tasks"/>
                 </StackPanel>
             </Button>
@@ -301,7 +301,7 @@
                     Padding="32"
                     IsVisible="{Binding !HasSelectedTask}">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
-                    <TextBlock Text="🕐" FontSize="48" FontFamily="{StaticResource EmojiFont}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="🕐" FontSize="48" Classes="emoji-icon" HorizontalAlignment="Center"/>
                     <TextBlock Text="No Task Selected" 
                               FontSize="16" 
                               FontWeight="Medium"

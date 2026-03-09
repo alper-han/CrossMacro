@@ -63,7 +63,7 @@
                            HorizontalAlignment="Stretch"
                            HorizontalContentAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="▶️" FontFamily="{StaticResource EmojiFont}"/>
+                            <TextBlock Text="▶️" Classes="emoji-icon"/>
                             <TextBlock Text="Play Macro"/>
                         </StackPanel>
                     </Button>
@@ -77,14 +77,14 @@
                            FontWeight="Bold"
                            FontSize="16">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="🛑" FontFamily="{StaticResource EmojiFont}"/>
+                            <TextBlock Text="🛑" Classes="emoji-icon"/>
                             <TextBlock Text="STOP PLAYBACK"/>
                         </StackPanel>
                      </Button>
                 </Grid>
     
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
-                    <TextBlock Text="💡" FontSize="12" FontFamily="{StaticResource EmojiFont}" Classes="caption"/>
+                    <TextBlock Text="💡" FontSize="12" Classes="caption emoji-icon"/>
                     <TextBlock Text="Tip: Loop Count 0 means infinite loop" Classes="caption"/>
                 </StackPanel>
 

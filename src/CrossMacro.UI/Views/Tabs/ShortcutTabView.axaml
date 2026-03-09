@@ -98,7 +98,7 @@
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
                                                 ToolTip.Tip="Edit shortcut">
-                                            <TextBlock Text="✏️" FontSize="12" FontFamily="{StaticResource EmojiFont}"/>
+                                            <TextBlock Text="✏️" FontSize="12" Classes="emoji-icon"/>
                                         </Button>
                                         
                                         <!-- Delete Button -->
@@ -110,7 +110,7 @@
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
                                                 ToolTip.Tip="Delete shortcut">
-                                            <TextBlock Text="🗑" FontSize="12" FontFamily="{StaticResource EmojiFont}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBlock Text="🗑" FontSize="12" Classes="emoji-icon" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                         </Button>
                                     </Grid>
                                 </Border>
@@ -189,7 +189,7 @@
                             </Grid>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4" Margin="0,4,0,0"
                                         IsVisible="{Binding SelectedTask.LoopEnabled}">
-                                <TextBlock Text="💡" FontSize="12" FontFamily="{StaticResource EmojiFont}" Classes="caption"/>
+                                <TextBlock Text="💡" FontSize="12" Classes="caption emoji-icon"/>
                                 <TextBlock Text="Tip: Loop Count 0 means infinite loop" Classes="caption"/>
                             </StackPanel>
                         </StackPanel>
@@ -212,7 +212,7 @@
                             <Button Grid.Column="1" 
                                    Command="{Binding BrowseMacroCommand}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="📂" FontFamily="{StaticResource EmojiFont}"/>
+                                    <TextBlock Text="📂" Classes="emoji-icon"/>
                                     <TextBlock Text="Browse"/>
                                 </StackPanel>
                             </Button>
@@ -251,7 +251,7 @@
                    HorizontalAlignment="Right"
                    IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="💾" FontFamily="{StaticResource EmojiFont}"/>
+                    <TextBlock Text="💾" Classes="emoji-icon"/>
                     <TextBlock Text="Save All Shortcuts"/>
                 </StackPanel>
             </Button>
@@ -262,7 +262,7 @@
                     Padding="32"
                     IsVisible="{Binding !HasSelectedTask}">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
-                    <TextBlock Text="⌨️" FontSize="48" FontFamily="{StaticResource EmojiFont}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="⌨️" FontSize="48" Classes="emoji-icon" HorizontalAlignment="Center"/>
                     <TextBlock Text="No Shortcut Selected" 
                               FontSize="16" 
                               FontWeight="Medium"

@@ -77,7 +77,7 @@
                                 Classes="secondary compact"
                                 IsEnabled="{Binding HasSelectedAction}"
                                 ToolTip.Tip="Duplicate">
-                            <TextBlock Text="📋" FontFamily="{StaticResource EmojiFont}"/>
+                            <TextBlock Text="📋" Classes="emoji-icon"/>
                         </Button>
                     </StackPanel>
                 </Grid>
@@ -155,7 +155,7 @@
                                         HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                        <TextBlock Text="📍" FontFamily="{StaticResource EmojiFont}"/>
+                                        <TextBlock Text="📍" Classes="emoji-icon"/>
                                         <TextBlock Text="Capture Position"/>
                                     </StackPanel>
                                 </Button>
@@ -165,7 +165,7 @@
                                         HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                        <TextBlock Text="❌" FontFamily="{StaticResource EmojiFont}"/>
+                                        <TextBlock Text="❌" Classes="emoji-icon"/>
                                         <TextBlock Text="Cancel Capture"/>
                                     </StackPanel>
                                 </Button>
@@ -226,7 +226,7 @@
                                         HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                        <TextBlock Text="⌨️" FontFamily="{StaticResource EmojiFont}"/>
+                                        <TextBlock Text="⌨️" Classes="emoji-icon"/>
                                         <TextBlock Text="Capture Key"/>
                                     </StackPanel>
                                 </Button>
@@ -345,7 +345,7 @@
                             IsEnabled="{Binding HasActions}"
                             ToolTip.Tip="Clear All">
                         <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="🗑️" FontFamily="{StaticResource EmojiFont}"/>
+                            <TextBlock Text="🗑️" Classes="emoji-icon"/>
                             <TextBlock Text="Clear"/>
                         </StackPanel>
                     </Button>
@@ -356,7 +356,7 @@
                     <Button Command="{Binding LoadMacroAsync}"
                             Classes="secondary compact">
                         <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="📂" FontFamily="{StaticResource EmojiFont}"/>
+                            <TextBlock Text="📂" Classes="emoji-icon"/>
                             <TextBlock Text="Load"/>
                         </StackPanel>
                     </Button>
@@ -364,7 +364,7 @@
                             Classes="primary compact"
                             IsEnabled="{Binding HasActions}">
                         <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="💾" FontFamily="{StaticResource EmojiFont}"/>
+                            <TextBlock Text="💾" Classes="emoji-icon"/>
                             <TextBlock Text="Save"/>
                         </StackPanel>
                     </Button>

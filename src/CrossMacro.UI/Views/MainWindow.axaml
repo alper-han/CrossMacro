@@ -74,7 +74,7 @@
                                 <Border Width="32" Height="32" Background="Transparent">
                                      <TextBlock Text="{Binding Icon}" 
                                                FontSize="20" 
-                                               FontFamily="{StaticResource EmojiFont}"
+                                               Classes="emoji-icon"
                                                HorizontalAlignment="Center" 
                                                VerticalAlignment="Center"/>
                                 </Border>
@@ -107,7 +107,7 @@
                                 <Border Width="32" Height="32" Background="Transparent">
                                      <TextBlock Text="{Binding Icon}" 
                                                FontSize="20" 
-                                               FontFamily="{StaticResource EmojiFont}"
+                                               Classes="emoji-icon"
                                                HorizontalAlignment="Center" 
                                                VerticalAlignment="Center"/>
                                 </Border>
@@ -167,7 +167,7 @@
                         IsVisible="{Binding HasExtensionWarning}"
                         Margin="0,0,0,10">
                     <Grid ColumnDefinitions="Auto,*,Auto">
-                        <TextBlock Grid.Column="0" Text="⚠️" FontFamily="{StaticResource EmojiFont}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="0" Text="⚠️" Classes="emoji-icon" Margin="0,0,8,0" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" 
                                   Text="{Binding ExtensionWarning}" 
                                   Foreground="{DynamicResource TextOnWarningBrush}"
@@ -192,7 +192,7 @@
                 <!-- Footer (Version / Status) -->
                 <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" Margin="24,0,24,20" VerticalAlignment="Bottom">
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="🖱️ " FontSize="12" FontFamily="{StaticResource EmojiFont}"/>
+                        <TextBlock Text="🖱️ " FontSize="12" Classes="emoji-icon"/>
                         <TextBlock FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}">
                             <Run Text="CrossMacro "/><Run Text="{Binding AppVersion}"/>
                         </TextBlock>

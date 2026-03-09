@@ -159,4 +159,15 @@ public class PlaybackViewModelTests
         _player.DidNotReceive().Stop();
         _ = _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>());
     }
+
+    [Fact]
+    public void PlaybackSpeed_WhenSaveFails_RollsBackValue()
+    {
+        _settingsService.When(x => x.Save()).Do(_ => throw new InvalidOperationException("disk full"));
+
+        _viewModel.PlaybackSpeed = 2.0;
+
+        Assert.Equal(1.0, _viewModel.PlaybackSpeed);
+        Assert.Equal(1.0, _settingsService.Current.PlaybackSpeed);
+    }
 }

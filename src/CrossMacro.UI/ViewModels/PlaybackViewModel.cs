@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using Serilog;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -103,10 +104,17 @@ public class PlaybackViewModel : ViewModelBase
             var normalized = PlaybackOptions.NormalizeSpeedMultiplier(value);
             if (Math.Abs(_playbackSpeed - normalized) > 0.01)
             {
+                var previousValue = _playbackSpeed;
                 _playbackSpeed = normalized;
                 _settingsService.Current.PlaybackSpeed = normalized;
                 OnPropertyChanged();
-                _ = _settingsService.SaveAsync();
+                TryPersistSettingChange(
+                    () =>
+                    {
+                        _playbackSpeed = previousValue;
+                        _settingsService.Current.PlaybackSpeed = previousValue;
+                    },
+                    nameof(PlaybackSpeed));
             }
         }
     }
@@ -118,10 +126,17 @@ public class PlaybackViewModel : ViewModelBase
         {
             if (_isLooping != value)
             {
+                var previousValue = _isLooping;
                 _isLooping = value;
                 _settingsService.Current.IsLooping = value;
                 OnPropertyChanged();
-                _ = _settingsService.SaveAsync();
+                TryPersistSettingChange(
+                    () =>
+                    {
+                        _isLooping = previousValue;
+                        _settingsService.Current.IsLooping = previousValue;
+                    },
+                    nameof(IsLooping));
             }
         }
     }
@@ -133,10 +148,17 @@ public class PlaybackViewModel : ViewModelBase
         {
             if (_loopCount != value)
             {
+                var previousValue = _loopCount;
                 _loopCount = value;
                 _settingsService.Current.LoopCount = value;
                 OnPropertyChanged();
-                _ = _settingsService.SaveAsync();
+                TryPersistSettingChange(
+                    () =>
+                    {
+                        _loopCount = previousValue;
+                        _settingsService.Current.LoopCount = previousValue;
+                    },
+                    nameof(LoopCount));
             }
         }
     }
@@ -148,10 +170,17 @@ public class PlaybackViewModel : ViewModelBase
         {
             if (_loopDelayMs != value)
             {
+                var previousValue = _loopDelayMs;
                 _loopDelayMs = value;
                 _settingsService.Current.LoopDelayMs = value ?? 0;
                 OnPropertyChanged();
-                _ = _settingsService.SaveAsync();
+                TryPersistSettingChange(
+                    () =>
+                    {
+                        _loopDelayMs = previousValue;
+                        _settingsService.Current.LoopDelayMs = previousValue ?? 0;
+                    },
+                    nameof(LoopDelayMs));
             }
         }
     }
@@ -163,10 +192,17 @@ public class PlaybackViewModel : ViewModelBase
         {
             if (_countdownSeconds != value)
             {
+                var previousValue = _countdownSeconds;
                 _countdownSeconds = value;
                 _settingsService.Current.CountdownSeconds = value ?? 0;
                 OnPropertyChanged();
-                _ = _settingsService.SaveAsync();
+                TryPersistSettingChange(
+                    () =>
+                    {
+                        _countdownSeconds = previousValue;
+                        _settingsService.Current.CountdownSeconds = previousValue ?? 0;
+                    },
+                    nameof(CountdownSeconds));
             }
         }
     }
@@ -335,5 +371,25 @@ public class PlaybackViewModel : ViewModelBase
             StopPlayback();
         else if (CanPlayMacro && CanPlayMacroExternal)
             _ = PlayMacroAsync();
+    }
+
+    private bool TryPersistSettingChange(Action rollback, params string[] propertyNames)
+    {
+        try
+        {
+            _settingsService.Save();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            rollback();
+            foreach (var propertyName in propertyNames)
+            {
+                OnPropertyChanged(propertyName);
+            }
+
+            Log.Error(ex, "[PlaybackViewModel] Failed to persist playback settings");
+            return false;
+        }
     }
 }

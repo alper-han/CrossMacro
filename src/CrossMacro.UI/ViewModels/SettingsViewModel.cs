@@ -132,15 +132,21 @@ public class SettingsViewModel : ViewModelBase
         {
             if (_enableTrayIcon != value)
             {
+                var previousValue = _enableTrayIcon;
                 _enableTrayIcon = value;
                 _settingsService.Current.EnableTrayIcon = value;
                 OnPropertyChanged();
-                
-                // Save settings asynchronously
-                _ = _settingsService.SaveAsync();
-                
-                // Notify for tray icon update
-                TrayIconEnabledChanged?.Invoke(this, value);
+
+                if (TryPersistSettings(
+                    () =>
+                    {
+                        _enableTrayIcon = previousValue;
+                        _settingsService.Current.EnableTrayIcon = previousValue;
+                    },
+                    nameof(EnableTrayIcon)))
+                {
+                    TrayIconEnabledChanged?.Invoke(this, value);
+                }
             }
         }
     }
@@ -153,21 +159,23 @@ public class SettingsViewModel : ViewModelBase
         {
             if (_settingsService.Current.EnableTextExpansion != value)
             {
+                var previousValue = _settingsService.Current.EnableTextExpansion;
                 _settingsService.Current.EnableTextExpansion = value;
                 OnPropertyChanged();
-                
-                // Toggle service immediately
-                if (value)
+
+                if (TryPersistSettings(
+                    () => _settingsService.Current.EnableTextExpansion = previousValue,
+                    nameof(EnableTextExpansion)))
                 {
-                    _textExpansionService.Start();
+                    if (value)
+                    {
+                        _textExpansionService.Start();
+                    }
+                    else
+                    {
+                        _textExpansionService.Stop();
+                    }
                 }
-                else
-                {
-                    _textExpansionService.Stop();
-                }
-                
-                // Save settings asynchronously
-                _ = _settingsService.SaveAsync();
             }
         }
     }
@@ -179,11 +187,13 @@ public class SettingsViewModel : ViewModelBase
         {
             if (_settingsService.Current.CheckForUpdates != value)
             {
+                var previousValue = _settingsService.Current.CheckForUpdates;
                 _settingsService.Current.CheckForUpdates = value;
                 OnPropertyChanged();
-                
-                // Save settings asynchronously
-                _ = _settingsService.SaveAsync();
+
+                TryPersistSettings(
+                    () => _settingsService.Current.CheckForUpdates = previousValue,
+                    nameof(CheckForUpdates));
             }
         }
     }
@@ -198,15 +208,20 @@ public class SettingsViewModel : ViewModelBase
         {
             if (_selectedLogLevel != value)
             {
+                var previousValue = _selectedLogLevel;
                 _selectedLogLevel = value;
                 _settingsService.Current.LogLevel = value;
                 OnPropertyChanged();
-                
-                // Apply log level change immediately at runtime
                 LoggerSetup.SetLogLevel(value);
-                
-                // Save settings asynchronously
-                _ = _settingsService.SaveAsync();
+
+                TryPersistSettings(
+                    () =>
+                    {
+                        _selectedLogLevel = previousValue;
+                        _settingsService.Current.LogLevel = previousValue;
+                        LoggerSetup.SetLogLevel(previousValue);
+                    },
+                    nameof(SelectedLogLevel));
             }
         }
     }
@@ -230,21 +245,28 @@ public class SettingsViewModel : ViewModelBase
         {
             if (_selectedTheme != value)
             {
-                _selectedTheme = value;
-                _settingsService.Current.Theme = value;
-                OnPropertyChanged();
-                
-                // Apply theme change
                 if (!_themeService.TryApplyTheme(value, out var applyError))
                 {
                     Log.Warning("Theme apply failed for '{Theme}': {Error}", value, applyError);
-                    _selectedTheme = _themeService.CurrentTheme;
-                    _settingsService.Current.Theme = _selectedTheme;
-                    OnPropertyChanged();
+                    return;
                 }
-                
-                // Save settings asynchronously
-                _ = _settingsService.SaveAsync();
+
+                var previousValue = _selectedTheme;
+                _selectedTheme = value;
+                _settingsService.Current.Theme = value;
+                OnPropertyChanged();
+
+                TryPersistSettings(
+                    () =>
+                    {
+                        _selectedTheme = previousValue;
+                        _settingsService.Current.Theme = previousValue;
+                        if (!_themeService.TryApplyTheme(previousValue, out var revertError))
+                        {
+                            Log.Warning("Theme rollback failed for '{Theme}': {Error}", previousValue, revertError);
+                        }
+                    },
+                    nameof(SelectedTheme));
             }
         }
     }
@@ -296,6 +318,26 @@ public class SettingsViewModel : ViewModelBase
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to open GitHub URL");
+        }
+    }
+
+    private bool TryPersistSettings(Action rollback, params string[] propertyNames)
+    {
+        try
+        {
+            _settingsService.Save();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            rollback();
+            foreach (var propertyName in propertyNames)
+            {
+                OnPropertyChanged(propertyName);
+            }
+
+            Log.Error(ex, "Failed to persist settings change");
+            return false;
         }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
@@ -19,6 +20,7 @@ public class SettingsService : ISettingsService
     private const string SettingsFileName = ConfigFileNames.Settings;
     private readonly string _configDirectory;
     private readonly string _settingsFilePath;
+    private readonly SemaphoreSlim _saveGate = new(1, 1);
     private AppSettings _currentSettings;
 
     public AppSettings Current => _currentSettings;
@@ -129,6 +131,7 @@ public class SettingsService : ISettingsService
 
     public async Task SaveAsync()
     {
+        await _saveGate.WaitAsync().ConfigureAwait(false);
         try
         {
             // Ensure config directory exists
@@ -144,10 +147,15 @@ public class SettingsService : ISettingsService
             Log.Error(ex, "Failed to save settings");
             throw;
         }
+        finally
+        {
+            _saveGate.Release();
+        }
     }
 
     public void Save()
     {
+        _saveGate.Wait();
         try
         {
             // Ensure config directory exists
@@ -162,6 +170,10 @@ public class SettingsService : ISettingsService
         {
             Log.Error(ex, "Failed to save settings");
             throw;
+        }
+        finally
+        {
+            _saveGate.Release();
         }
     }
 

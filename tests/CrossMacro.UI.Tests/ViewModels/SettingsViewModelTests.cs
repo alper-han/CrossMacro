@@ -126,7 +126,7 @@ public class SettingsViewModelTests
 
         // Assert
         _settingsService.Current.EnableTrayIcon.Should().BeTrue();
-        _settingsService.Received(1).SaveAsync();
+        _settingsService.Received(1).Save();
         eventFired.Should().BeTrue();
     }
 
@@ -143,7 +143,7 @@ public class SettingsViewModelTests
 
         // Assert - Enable
         _settingsService.Current.EnableTextExpansion.Should().BeTrue();
-        _ = _settingsService.Received(1).SaveAsync();
+        _settingsService.Received(1).Save();
         await startCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
         _textExpansionService.Received(1).Start();
 
@@ -174,7 +174,7 @@ public class SettingsViewModelTests
 
         // Assert
         _settingsService.Current.LogLevel.Should().Be("Warning");
-        _settingsService.Received(1).SaveAsync();
+        _settingsService.Received(1).Save();
     }
 
     [Fact]
@@ -188,7 +188,7 @@ public class SettingsViewModelTests
 
         // Assert
         _settingsService.Current.CheckForUpdates.Should().BeFalse();
-        _settingsService.Received(1).SaveAsync();
+        _settingsService.Received(1).Save();
     }
 
     [Fact]
@@ -200,7 +200,7 @@ public class SettingsViewModelTests
         // Assert
         _settingsService.Current.Theme.Should().Be("Nord");
         _themeService.Received(1).TryApplyTheme("Nord", out Arg.Any<string>());
-        _settingsService.Received(1).SaveAsync();
+        _settingsService.Received(1).Save();
     }
 
     [Fact]
@@ -219,7 +219,19 @@ public class SettingsViewModelTests
 
         _viewModel.SelectedTheme.Should().Be("Classic");
         _settingsService.Current.Theme.Should().Be("Classic");
-        _settingsService.Received().SaveAsync();
+        _settingsService.DidNotReceive().Save();
+    }
+
+    [Fact]
+    public void EnableTextExpansion_WhenSaveFails_RollsBackAndDoesNotToggleService()
+    {
+        _settingsService.When(x => x.Save()).Do(_ => throw new InvalidOperationException("disk full"));
+
+        _viewModel.EnableTextExpansion = true;
+
+        _settingsService.Current.EnableTextExpansion.Should().BeFalse();
+        _textExpansionService.DidNotReceive().Start();
+        _textExpansionService.DidNotReceive().Stop();
     }
 
     [Fact]

@@ -224,6 +224,17 @@ public class RecordingViewModelTests
     }
 
     [Fact]
+    public void IsMouseRecordingEnabled_WhenSaveFails_RollsBackValue()
+    {
+        _settingsService.When(x => x.Save()).Do(_ => throw new InvalidOperationException("disk full"));
+
+        _viewModel.IsMouseRecordingEnabled = false;
+
+        Assert.True(_viewModel.IsMouseRecordingEnabled);
+        Assert.True(_settingsService.Current.IsMouseRecordingEnabled);
+    }
+
+    [Fact]
     public void StopRecording_WhenRecorderThrows_ReturnsNullAndResetsState()
     {
         // Arrange

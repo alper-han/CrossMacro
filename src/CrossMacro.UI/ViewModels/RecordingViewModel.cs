@@ -131,12 +131,21 @@ public class RecordingViewModel : ViewModelBase, IDisposable
         {
             if (_isMouseRecordingEnabled != value)
             {
+                var previousValue = _isMouseRecordingEnabled;
                 _isMouseRecordingEnabled = value;
                 _settingsService.Current.IsMouseRecordingEnabled = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanStartRecording));
                 OnPropertyChanged(nameof(CanToggleRecording));
-                _ = _settingsService.SaveAsync();
+                TryPersistSettingChange(
+                    () =>
+                    {
+                        _isMouseRecordingEnabled = previousValue;
+                        _settingsService.Current.IsMouseRecordingEnabled = previousValue;
+                    },
+                    nameof(IsMouseRecordingEnabled),
+                    nameof(CanStartRecording),
+                    nameof(CanToggleRecording));
             }
         }
     }
@@ -148,12 +157,21 @@ public class RecordingViewModel : ViewModelBase, IDisposable
         {
             if (_isKeyboardRecordingEnabled != value)
             {
+                var previousValue = _isKeyboardRecordingEnabled;
                 _isKeyboardRecordingEnabled = value;
                 _settingsService.Current.IsKeyboardRecordingEnabled = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanStartRecording));
                 OnPropertyChanged(nameof(CanToggleRecording));
-                _ = _settingsService.SaveAsync();
+                TryPersistSettingChange(
+                    () =>
+                    {
+                        _isKeyboardRecordingEnabled = previousValue;
+                        _settingsService.Current.IsKeyboardRecordingEnabled = previousValue;
+                    },
+                    nameof(IsKeyboardRecordingEnabled),
+                    nameof(CanStartRecording),
+                    nameof(CanToggleRecording));
             }
         }
     }
@@ -168,11 +186,19 @@ public class RecordingViewModel : ViewModelBase, IDisposable
 
             if (_forceRelativeCoordinates != value)
             {
+                var previousValue = _forceRelativeCoordinates;
                 _forceRelativeCoordinates = value;
                 _settingsService.Current.ForceRelativeCoordinates = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(ShowSkipZeroZeroOption));
-                _ = _settingsService.SaveAsync();
+                TryPersistSettingChange(
+                    () =>
+                    {
+                        _forceRelativeCoordinates = previousValue;
+                        _settingsService.Current.ForceRelativeCoordinates = previousValue;
+                    },
+                    nameof(ForceRelativeCoordinates),
+                    nameof(ShowSkipZeroZeroOption));
             }
         }
     }
@@ -186,10 +212,17 @@ public class RecordingViewModel : ViewModelBase, IDisposable
         {
             if (_skipInitialZeroZero != value)
             {
+                var previousValue = _skipInitialZeroZero;
                 _skipInitialZeroZero = value;
                 _settingsService.Current.SkipInitialZeroZero = value;
                 OnPropertyChanged();
-                _ = _settingsService.SaveAsync();
+                TryPersistSettingChange(
+                    () =>
+                    {
+                        _skipInitialZeroZero = previousValue;
+                        _settingsService.Current.SkipInitialZeroZero = previousValue;
+                    },
+                    nameof(SkipInitialZeroZero));
             }
         }
     }
@@ -395,5 +428,25 @@ public class RecordingViewModel : ViewModelBase, IDisposable
         
         // Unsubscribe from events to prevent memory leaks
         _recorder.EventRecorded -= OnEventRecorded;
+    }
+
+    private bool TryPersistSettingChange(Action rollback, params string[] propertyNames)
+    {
+        try
+        {
+            _settingsService.Save();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            rollback();
+            foreach (var propertyName in propertyNames)
+            {
+                OnPropertyChanged(propertyName);
+            }
+
+            Log.Error(ex, "[RecordingViewModel] Failed to persist recording settings");
+            return false;
+        }
     }
 }

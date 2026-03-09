@@ -142,7 +142,14 @@ public partial class App : Application
         {
             Serilog.Log.Warning("[App] Theme apply fallback triggered for '{Theme}': {Error}", settingsService.Current.Theme, themeError);
             settingsService.Current.Theme = themeService.CurrentTheme;
-            _ = settingsService.SaveAsync();
+            try
+            {
+                settingsService.Save();
+            }
+            catch (Exception ex)
+            {
+                Serilog.Log.Warning(ex, "[App] Failed to persist fallback theme '{Theme}'", settingsService.Current.Theme);
+            }
         }
 
         var viewModel = runtimeServices.ResolveMainWindowViewModel();

@@ -64,34 +64,39 @@
   <screenshots>
     <screenshot type="default">
       <caption>Recording Tab - Record mouse and keyboard macros</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v0.9.8/screenshots/recording-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v0.9.9/screenshots/recording-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Playback Tab - Play recorded macros with customizable settings</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v0.9.8/screenshots/playback-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v0.9.9/screenshots/playback-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Text Expansion Tab - Create text shortcuts</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v0.9.8/screenshots/text-expansion-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v0.9.9/screenshots/text-expansion-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Shortcuts Tab - Assign macros to keyboard shortcuts</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v0.9.8/screenshots/shortcuts-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v0.9.9/screenshots/shortcuts-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Schedule Tab - Run macros at specific times</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v0.9.8/screenshots/schedule-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v0.9.9/screenshots/schedule-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Editor Tab - Edit macro actions with reorder and undo/redo</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/main/screenshots/editor-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v0.9.9/screenshots/editor-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Settings Tab - Configure application preferences</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v0.9.8/screenshots/settings-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v0.9.9/screenshots/settings-tab.png</image>
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.9.9" date="2026-03-09">
+      <description>
+        <p>This release improves Linux packaging reliability and refreshes the application metadata for the 0.9.9 release.</p>
+      </description>
+    </release>
     <release version="0.9.8" date="2026-03-01">
       <description>
         <p>This release adds full Flatpak support with Wayland compatibility.</p>

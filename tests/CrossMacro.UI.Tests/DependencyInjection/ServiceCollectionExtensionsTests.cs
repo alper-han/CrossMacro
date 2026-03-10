@@ -40,6 +40,7 @@ public class ServiceCollectionExtensionsTests
         Assert.Contains(services, sd => sd.ServiceType == typeof(IUpdateService));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IExternalUrlOpener));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IThemeService));
+        Assert.Contains(services, sd => sd.ServiceType == typeof(IDesktopStartupCoordinator));
     }
 
     [Fact]

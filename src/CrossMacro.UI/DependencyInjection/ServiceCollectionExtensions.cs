@@ -80,6 +80,29 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IUpdateService, GitHubUpdateService>();
             services.AddSingleton<IExternalUrlOpener, ExternalUrlOpener>();
             services.AddSingleton<IThemeService, ThemeService>();
+            services.AddSingleton<Func<ISettingsService>>(sp => () => sp.GetRequiredService<ISettingsService>());
+            services.AddSingleton<Func<IThemeService>>(sp => () => sp.GetRequiredService<IThemeService>());
+            services.AddSingleton<Func<ITrayIconService>>(sp => () => sp.GetRequiredService<ITrayIconService>());
+            services.AddSingleton<Func<ITextExpansionService>>(sp => () => sp.GetRequiredService<ITextExpansionService>());
+            services.AddSingleton<Func<MainWindowViewModel>>(sp => () => sp.GetRequiredService<MainWindowViewModel>());
+            services.AddSingleton<Func<IFlatpakQuickSetupService?>>(sp => () => sp.GetService<IFlatpakQuickSetupService>());
+            services.AddSingleton<Func<IAppImageQuickSetupService?>>(sp => () => sp.GetService<IAppImageQuickSetupService>());
+            services.AddSingleton<Func<IPermissionChecker?>>(sp => () => sp.GetService<IPermissionChecker>());
+            services.AddSingleton<Func<InputSimulatorPool?>>(sp => () => sp.GetService<InputSimulatorPool>());
+            services.AddSingleton<Func<IMousePositionProvider?>>(sp => () => sp.GetService<IMousePositionProvider>());
+            services.AddSingleton<IDesktopStartupCoordinator>(sp =>
+                new DesktopStartupCoordinator(
+                    sp.GetRequiredService<IDisplaySessionService>(),
+                    sp.GetRequiredService<Func<ISettingsService>>(),
+                    sp.GetRequiredService<Func<IThemeService>>(),
+                    sp.GetRequiredService<Func<ITrayIconService>>(),
+                    sp.GetRequiredService<Func<ITextExpansionService>>(),
+                    sp.GetRequiredService<Func<MainWindowViewModel>>(),
+                    sp.GetRequiredService<Func<IFlatpakQuickSetupService?>>(),
+                    sp.GetRequiredService<Func<IAppImageQuickSetupService?>>(),
+                    sp.GetRequiredService<Func<IPermissionChecker?>>(),
+                    sp.GetRequiredService<Func<InputSimulatorPool?>>(),
+                    sp.GetRequiredService<Func<IMousePositionProvider?>>()));
         }
 
         return services;

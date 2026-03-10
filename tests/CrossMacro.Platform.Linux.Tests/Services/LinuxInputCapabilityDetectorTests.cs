@@ -16,7 +16,9 @@ public class LinuxInputCapabilityDetectorTests
         var detector = new LinuxInputCapabilityDetector(
             fileExists: path => path == IpcProtocol.DefaultSocketPath,
             canOpenForWrite: _ => false,
+            canOpenForRead: _ => false,
             daemonHandshakeProbe: path => path == IpcProtocol.DefaultSocketPath,
+            getInputEventCandidates: () => [],
             utcNow: () => DateTime.UtcNow);
 
         // Act
@@ -34,7 +36,9 @@ public class LinuxInputCapabilityDetectorTests
         var detector = new LinuxInputCapabilityDetector(
             fileExists: _ => false,
             canOpenForWrite: path => path == LinuxConstants.UInputAlternatePath,
+            canOpenForRead: _ => false,
             daemonHandshakeProbe: _ => false,
+            getInputEventCandidates: () => [],
             utcNow: () => DateTime.UtcNow);
 
         // Act
@@ -52,7 +56,9 @@ public class LinuxInputCapabilityDetectorTests
         var detector = new LinuxInputCapabilityDetector(
             fileExists: path => path == IpcProtocol.DefaultSocketPath,
             canOpenForWrite: path => path == LinuxConstants.UInputAlternatePath,
+            canOpenForRead: _ => false,
             daemonHandshakeProbe: _ => false,
+            getInputEventCandidates: () => [],
             utcNow: () => DateTime.UtcNow);
 
         // Act
@@ -70,7 +76,9 @@ public class LinuxInputCapabilityDetectorTests
         var detector = new LinuxInputCapabilityDetector(
             fileExists: path => path == IpcProtocol.DefaultSocketPath,
             canOpenForWrite: _ => false,
+            canOpenForRead: _ => false,
             daemonHandshakeProbe: _ => false,
+            getInputEventCandidates: () => [],
             utcNow: () => DateTime.UtcNow);
 
         // Act
@@ -88,7 +96,9 @@ public class LinuxInputCapabilityDetectorTests
         var detector = new LinuxInputCapabilityDetector(
             fileExists: _ => false,
             canOpenForWrite: _ => false,
+            canOpenForRead: _ => false,
             daemonHandshakeProbe: _ => false,
+            getInputEventCandidates: () => [],
             utcNow: () => DateTime.UtcNow);
 
         // Act
@@ -112,11 +122,13 @@ public class LinuxInputCapabilityDetectorTests
                 path == IpcProtocol.DefaultSocketPath ||
                 path == LinuxConstants.UInputAlternatePath,
             canOpenForWrite: path => path == LinuxConstants.UInputAlternatePath,
+            canOpenForRead: _ => false,
             daemonHandshakeProbe: _ =>
             {
                 probeCount++;
                 return probeCount == 1;
             },
+            getInputEventCandidates: () => [],
             utcNow: () => now);
 
         // Act
@@ -143,11 +155,13 @@ public class LinuxInputCapabilityDetectorTests
                 (path == IpcProtocol.DefaultSocketPath && socketAvailable) ||
                 path == LinuxConstants.UInputAlternatePath,
             canOpenForWrite: path => path == LinuxConstants.UInputAlternatePath,
+            canOpenForRead: _ => false,
             daemonHandshakeProbe: _ =>
             {
                 probeCount++;
                 return true;
             },
+            getInputEventCandidates: () => [],
             utcNow: () => now);
 
         // Act
@@ -160,5 +174,43 @@ public class LinuxInputCapabilityDetectorTests
         Assert.Equal(InputProviderMode.Daemon, firstMode);
         Assert.Equal(InputProviderMode.Legacy, secondMode);
         Assert.Equal(1, probeCount);
+    }
+
+    [LinuxFact]
+    public void InvalidateCache_WhenPermissionsChange_ReprobesAndReturnsLegacy()
+    {
+        var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var uinputWritable = false;
+
+        var detector = new LinuxInputCapabilityDetector(
+            fileExists: _ => false,
+            canOpenForWrite: _ => uinputWritable,
+            canOpenForRead: _ => false,
+            daemonHandshakeProbe: _ => false,
+            getInputEventCandidates: () => [],
+            utcNow: () => now);
+
+        var firstMode = detector.DetermineMode();
+        Assert.Equal(InputProviderMode.None, firstMode);
+
+        uinputWritable = true;
+        detector.InvalidateCache();
+        var secondMode = detector.DetermineMode();
+
+        Assert.Equal(InputProviderMode.Legacy, secondMode);
+    }
+
+    [LinuxFact]
+    public void CanReadInputEvents_WhenReadableEventExists_ReturnsTrue()
+    {
+        var detector = new LinuxInputCapabilityDetector(
+            fileExists: _ => false,
+            canOpenForWrite: _ => false,
+            canOpenForRead: path => path == "/dev/input/event5",
+            daemonHandshakeProbe: _ => false,
+            getInputEventCandidates: () => ["/dev/input/event4", "/dev/input/event5"],
+            utcNow: () => DateTime.UtcNow);
+
+        Assert.True(detector.CanReadInputEvents);
     }
 }

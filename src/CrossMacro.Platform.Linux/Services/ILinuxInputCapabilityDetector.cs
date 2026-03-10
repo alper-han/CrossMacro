@@ -36,10 +36,20 @@ public interface ILinuxInputCapabilityDetector
     /// Checks if direct /dev/uinput write access is available.
     /// </summary>
     bool CanUseDirectUInput { get; }
+
+    /// <summary>
+    /// Checks if at least one /dev/input/event* device is readable.
+    /// </summary>
+    bool CanReadInputEvents { get; }
     
     /// <summary>
     /// Determines the appropriate input provider mode based on available capabilities.
     /// Result is cached briefly and refreshed periodically.
     /// </summary>
     InputProviderMode DetermineMode();
+
+    /// <summary>
+    /// Clears cached probe results after external setup changes device or daemon availability.
+    /// </summary>
+    void InvalidateCache();
 }

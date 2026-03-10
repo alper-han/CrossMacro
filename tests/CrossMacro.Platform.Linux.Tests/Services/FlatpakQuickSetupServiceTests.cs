@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Platform.Linux.Services;
+using CrossMacro.Platform.Linux.Services.QuickSetup;
 using CrossMacro.TestInfrastructure;
 using Xunit;
 
@@ -161,10 +162,14 @@ public sealed class FlatpakQuickSetupServiceTests
         uint? effectiveUid,
         Func<ProcessStartInfo, CancellationToken, Task<(int ExitCode, string StdOut, string StdErr)>> runProcess)
     {
+        var executor = new LinuxQuickSetupExecutor(
+            new LinuxQuickSetupIdentityResolver(() => userName, () => effectiveUid),
+            new LinuxQuickSetupScriptBuilder(),
+            runProcess);
+
         return new FlatpakQuickSetupService(
             key => env.TryGetValue(key, out var value) ? value : null,
-            () => userName,
-            () => effectiveUid,
-            runProcess);
+            executor,
+            new FlatpakHostCommandLauncher(_ => true, _ => true));
     }
 }

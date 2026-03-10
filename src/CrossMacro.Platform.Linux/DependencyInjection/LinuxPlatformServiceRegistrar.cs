@@ -6,6 +6,7 @@ using CrossMacro.Platform.Linux.Services;
 using CrossMacro.Platform.Linux.Services.Factories;
 using CrossMacro.Platform.Linux.Services.Factories.Selectors;
 using CrossMacro.Platform.Linux.Services.Keyboard;
+using CrossMacro.Platform.Linux.Services.QuickSetup;
 using CrossMacro.Platform.Linux.Strategies;
 using CrossMacro.Platform.Linux.Strategies.Selectors;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,9 +44,24 @@ public sealed class LinuxPlatformServiceRegistrar : IPlatformServiceRegistrar
 
         services.AddSingleton<ILinuxEnvironmentDetector, LinuxEnvironmentDetector>();
         services.AddSingleton<ILinuxInputCapabilityDetector, LinuxInputCapabilityDetector>();
+        services.AddSingleton<LinuxQuickSetupIdentityResolver>();
+        services.AddSingleton<LinuxQuickSetupScriptBuilder>();
+        services.AddSingleton<LinuxQuickSetupExecutor>();
+        services.AddSingleton<FlatpakHostCommandLauncher>();
+        services.AddSingleton<DirectPkexecHostCommandLauncher>();
         services.AddSingleton<IPlaybackBehaviorPolicy>(
             _ => new PlaybackBehaviorPolicy(preferRelativeForAbsoluteMoves: true, useHybridAbsoluteDragMovement: true));
-        services.AddSingleton<IFlatpakQuickSetupService, FlatpakQuickSetupService>();
+        services.AddSingleton<IFlatpakQuickSetupService>(sp =>
+            new FlatpakQuickSetupService(
+                Environment.GetEnvironmentVariable,
+                sp.GetRequiredService<LinuxQuickSetupExecutor>(),
+                sp.GetRequiredService<FlatpakHostCommandLauncher>()));
+        services.AddSingleton<IAppImageQuickSetupService>(sp =>
+            new AppImageQuickSetupService(
+                sp.GetRequiredService<ILinuxInputCapabilityDetector>(),
+                Environment.GetEnvironmentVariable,
+                sp.GetRequiredService<LinuxQuickSetupExecutor>(),
+                sp.GetRequiredService<DirectPkexecHostCommandLauncher>()));
 
         services.AddSingleton<IEnvironmentInfoProvider, LinuxEnvironmentInfoProvider>();
         services.AddSingleton<IMousePositionProvider>(sp =>

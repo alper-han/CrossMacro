@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using CrossMacro.Core.Ipc;
 using CrossMacro.Platform.Linux.Ipc;
@@ -19,10 +20,13 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
     private DateTime _lastSuccessfulDaemonProbeUtc = DateTime.MinValue;
     private int _consecutiveDaemonProbeFailures;
     private bool? _canUseDirectUInput;
+    private bool? _canReadInputEvents;
     private DateTime _lastModeResolutionUtc = DateTime.MinValue;
     private readonly Func<string, bool> _fileExists;
     private readonly Func<string, bool> _canOpenForWrite;
+    private readonly Func<string, bool> _canOpenForRead;
     private readonly Func<string, bool> _daemonHandshakeProbe;
+    private readonly Func<string[]> _getInputEventCandidates;
     private readonly Func<DateTime> _utcNow;
     private readonly Lock _lock = new();
     private static readonly TimeSpan DaemonProbeTtl = TimeSpan.FromSeconds(5);
@@ -32,19 +36,23 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
     private const int MaxConsecutiveDaemonFailuresBeforeFallback = 3;
 
     public LinuxInputCapabilityDetector()
-        : this(File.Exists, CanOpenForWrite, ProbeDaemonHandshake, static () => DateTime.UtcNow)
+        : this(File.Exists, CanOpenForWrite, CanOpenForRead, ProbeDaemonHandshake, GetInputEventCandidates, static () => DateTime.UtcNow)
     {
     }
 
     public LinuxInputCapabilityDetector(
         Func<string, bool> fileExists,
         Func<string, bool> canOpenForWrite,
+        Func<string, bool> canOpenForRead,
         Func<string, bool> daemonHandshakeProbe,
+        Func<string[]> getInputEventCandidates,
         Func<DateTime> utcNow)
     {
         _fileExists = fileExists ?? throw new ArgumentNullException(nameof(fileExists));
         _canOpenForWrite = canOpenForWrite ?? throw new ArgumentNullException(nameof(canOpenForWrite));
+        _canOpenForRead = canOpenForRead ?? throw new ArgumentNullException(nameof(canOpenForRead));
         _daemonHandshakeProbe = daemonHandshakeProbe ?? throw new ArgumentNullException(nameof(daemonHandshakeProbe));
+        _getInputEventCandidates = getInputEventCandidates ?? throw new ArgumentNullException(nameof(getInputEventCandidates));
         _utcNow = utcNow ?? throw new ArgumentNullException(nameof(utcNow));
     }
     
@@ -99,6 +107,37 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
         }
     }
 
+    public bool CanReadInputEvents
+    {
+        get
+        {
+            if (_canReadInputEvents.HasValue)
+            {
+                return _canReadInputEvents.Value;
+            }
+
+            using (_lock.EnterScope())
+            {
+                if (_canReadInputEvents.HasValue)
+                {
+                    return _canReadInputEvents.Value;
+                }
+
+                try
+                {
+                    _canReadInputEvents = ProbeReadableInputEventAccess();
+                }
+                catch (Exception ex)
+                {
+                    Log.Debug(ex, "[LinuxInputCapabilityDetector] Failed checking readable input events");
+                    _canReadInputEvents = false;
+                }
+
+                return _canReadInputEvents.Value;
+            }
+        }
+    }
+
     public InputProviderMode DetermineMode()
     {
         using (_lock.EnterScope())
@@ -121,6 +160,19 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
                 {
                     Log.Debug(ex, "[LinuxInputCapabilityDetector] Failed probing uinput write access");
                     _canUseDirectUInput = false;
+                }
+            }
+
+            if (!_canReadInputEvents.HasValue)
+            {
+                try
+                {
+                    _canReadInputEvents = ProbeReadableInputEventAccess();
+                }
+                catch (Exception ex)
+                {
+                    Log.Debug(ex, "[LinuxInputCapabilityDetector] Failed probing readable input events");
+                    _canReadInputEvents = false;
                 }
             }
 
@@ -180,6 +232,21 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
         }
     }
 
+    public void InvalidateCache()
+    {
+        using (_lock.EnterScope())
+        {
+            _cachedMode = null;
+            _canConnectToDaemon = false;
+            _lastDaemonProbeUtc = DateTime.MinValue;
+            _lastSuccessfulDaemonProbeUtc = DateTime.MinValue;
+            _consecutiveDaemonProbeFailures = 0;
+            _canUseDirectUInput = null;
+            _canReadInputEvents = null;
+            _lastModeResolutionUtc = DateTime.MinValue;
+        }
+    }
+
     private void RefreshDaemonConnectivity(DateTime now)
     {
         if (_lastSuccessfulDaemonProbeUtc != DateTime.MinValue && IsDaemonSocketPresent())
@@ -229,6 +296,17 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
     {
         return _canOpenForWrite(LinuxConstants.UInputDevicePath) ||
                _canOpenForWrite(LinuxConstants.UInputAlternatePath);
+    }
+
+    private bool ProbeReadableInputEventAccess()
+    {
+        var eventDevices = _getInputEventCandidates();
+        if (eventDevices.Length == 0)
+        {
+            return false;
+        }
+
+        return eventDevices.Any(_canOpenForRead);
     }
 
     private bool ProbeDaemonSocketAndHandshake()
@@ -282,6 +360,41 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
         catch
         {
             return false;
+        }
+    }
+
+    private static bool CanOpenForRead(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var fs = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string[] GetInputEventCandidates()
+    {
+        try
+        {
+            if (!Directory.Exists("/dev/input"))
+            {
+                return [];
+            }
+
+            return Directory.GetFiles("/dev/input", "event*");
+        }
+        catch
+        {
+            return [];
         }
     }
 

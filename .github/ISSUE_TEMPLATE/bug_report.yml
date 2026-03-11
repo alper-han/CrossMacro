@@ -24,6 +24,26 @@ body:
     validations:
       required: true
 
+  - type: dropdown
+    id: install_method
+    attributes:
+      label: Install Method
+      description: How did you install CrossMacro?
+      options:
+        - Flatpak (Flathub)
+        - AppImage
+        - .deb (Debian/Ubuntu)
+        - .rpm (Fedora/RHEL)
+        - AUR
+        - Nix / NixOS
+        - Windows Store
+        - winget
+        - Portable EXE
+        - DMG (macOS)
+        - Built from source
+    validations:
+      required: true
+
   - type: input
     id: os_version
     attributes:
@@ -32,6 +52,25 @@ body:
       placeholder: Arch Linux / Windows 11 / macOS
     validations:
       required: true
+
+  - type: input
+    id: app_version
+    attributes:
+      label: CrossMacro Version
+      description: App version shown in About or `crossmacro --version`
+      placeholder: 0.9.9
+    validations:
+      required: true
+
+  - type: dropdown
+    id: linux_mode
+    attributes:
+      label: Linux Mode (if applicable)
+      description: If you're on Linux, which mode are you using?
+      options:
+        - Daemon mode (socket at /run/crossmacro/crossmacro.sock)
+        - Direct mode (Wayland permissions)
+        - Not sure / Not Linux
 
   - type: textarea
     id: description
@@ -60,4 +99,11 @@ body:
     attributes:
       label: Logs
       description: Please copy and paste any relevant logs.
+      render: shell
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: `crossmacro doctor --json --verbose`
+      description: If possible, run `crossmacro doctor --json --verbose` and paste the output.
       render: shell

@@ -856,7 +856,7 @@ jobs:
   # ============================================
   create-release:
     name: Create Release
-    needs: [build-core, package-deb, package-rpm, package-rpm-arm64, package-appimage, package-flatpak, package-windows, build-macos-arm64, build-macos-x64]
+    needs: [build-core, package-deb, package-rpm, package-rpm-arm64, package-appimage, package-windows, build-macos-arm64, build-macos-x64]
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_prerelease == 'true')
     runs-on: ubuntu-latest
     permissions:
@@ -896,10 +896,35 @@ jobs:
         sha256sum deb-package-*/*.deb > crossmacro-deb.sha256
         sha256sum rpm-package-*/*.rpm > crossmacro-rpm.sha256
         sha256sum appimage-package-*/*.AppImage > crossmacro-appimage.sha256
-        sha256sum flatpak-package-*/*.flatpak > crossmacro-flatpak.sha256
         sha256sum windows-package/*.exe > crossmacro-windows.sha256
         sha256sum macos-arm64-package/*.dmg > crossmacro-macos-arm64.sha256
         sha256sum macos-x64-package/*.dmg > crossmacro-macos-x64.sha256
+
+    - name: Generate per-file checksums
+      run: |
+        set -euo pipefail
+        cd artifacts
+        mkdir -p checksums
+        shopt -s nullglob
+        files=(
+          deb-package-*/*.deb
+          rpm-package-*/*.rpm
+          appimage-package-*/*.AppImage
+          windows-package/*.exe
+          macos-arm64-package/*.dmg
+          macos-x64-package/*.dmg
+        )
+        for f in "${files[@]}"; do
+          base="$(basename "$f")"
+          sha256sum "$f" | sed -E "s#  .*#  ${base}#" > "checksums/${base}.sha256"
+        done
+
+    - name: Upload per-file checksums (artifact only)
+      uses: actions/upload-artifact@v7
+      with:
+        name: checksums-per-file
+        path: artifacts/checksums/*.sha256
+        retention-days: 30
     
     - name: Upload to Release
       uses: softprops/action-gh-release@v2
@@ -917,8 +942,6 @@ jobs:
           artifacts/crossmacro-rpm.sha256
           artifacts/appimage-package-*/*.AppImage
           artifacts/crossmacro-appimage.sha256
-          artifacts/flatpak-package-*/*.flatpak
-          artifacts/crossmacro-flatpak.sha256
           artifacts/windows-package/*.exe
           artifacts/crossmacro-windows.sha256
           artifacts/macos-arm64-package/*.dmg

@@ -376,6 +376,7 @@ public class RecordExecutionServiceTests
     {
         _mousePositionProvider.IsSupported.Returns(false);
         var delayedStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var startInvoked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _macroRecorder.StartRecordingAsync(
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
@@ -383,23 +384,25 @@ public class RecordExecutionServiceTests
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<CancellationToken>())
-            .Returns(delayedStartTask.Task);
+            .Returns(_ =>
+            {
+                startInvoked.TrySetResult();
+                return delayedStartTask.Task;
+            });
 
         _macroRecorder.IsRecording.Returns(false);
 
         using var cts = new CancellationTokenSource();
-        cts.CancelAfter(25);
-
-        _ = Task.Run(async () =>
-        {
-            await Task.Delay(80);
-            delayedStartTask.TrySetResult();
-        });
 
         var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
         {
             OutputFilePath = "/tmp/test-record-cancel-then-succeed.macro"
         }, cts.Token);
+
+        await startInvoked.Task;
+        cts.Cancel();
+
+        delayedStartTask.TrySetResult();
 
         var completed = await Task.WhenAny(executeTask, Task.Delay(TimeSpan.FromSeconds(2)));
         Assert.Same(executeTask, completed);

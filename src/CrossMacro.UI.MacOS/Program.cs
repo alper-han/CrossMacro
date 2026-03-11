@@ -8,6 +8,11 @@ namespace CrossMacro.UI.MacOS;
 [SupportedOSPlatform("macos")]
 internal static class Program
 {
+    // Avalonia configuration, don't remove; also used by visual designer.
+    public static AppBuilder BuildAvaloniaApp()
+        => CrossMacro.UI.Program.BuildAvaloniaApp()
+            .UseAvaloniaNative();
+
     [System.STAThread]
     public static int Main(string[] args)
     {

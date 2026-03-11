@@ -6,6 +6,12 @@ namespace CrossMacro.UI.Linux;
 
 internal static class Program
 {
+    // Avalonia configuration, don't remove; also used by visual designer.
+    public static AppBuilder BuildAvaloniaApp()
+        => CrossMacro.UI.Program.BuildAvaloniaApp()
+            .UseX11()
+            .UseSkia();
+
     [System.STAThread]
     public static int Main(string[] args)
     {

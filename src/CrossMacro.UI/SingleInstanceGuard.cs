@@ -21,19 +21,22 @@ internal sealed class SingleInstanceGuard : IDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var guard = TryAcquireCore(name);
+        var (guard, unauthorized) = TryAcquireCore(name);
         if (guard != null)
         {
             return guard;
         }
 
-        // Regular desktop users may not have permission to create a Global mutex on Windows.
-        // Fall back to a session-local lock so single-instance behavior still works.
-        if (OperatingSystem.IsWindows() &&
+        // Only fall back to a session-local lock when the Global mutex could not be
+        // created/accessed due to insufficient permissions.  If the Global mutex exists
+        // and is already held by another instance, we must NOT fall back — doing so would
+        // acquire a different (Local) mutex and allow a second instance to start.
+        if (unauthorized &&
+            OperatingSystem.IsWindows() &&
             name.StartsWith(GlobalPrefix, StringComparison.Ordinal))
         {
             var localName = LocalPrefix + name[GlobalPrefix.Length..];
-            guard = TryAcquireCore(localName);
+            (guard, _) = TryAcquireCore(localName);
 
             if (guard != null)
             {
@@ -44,7 +47,7 @@ internal sealed class SingleInstanceGuard : IDisposable
         return null;
     }
 
-    private static SingleInstanceGuard? TryAcquireCore(string name)
+    private static (SingleInstanceGuard? Guard, bool Unauthorized) TryAcquireCore(string name)
     {
         Mutex? mutex = null;
         bool hasHandle;
@@ -64,21 +67,21 @@ internal sealed class SingleInstanceGuard : IDisposable
             catch (UnauthorizedAccessException)
             {
                 mutex.Dispose();
-                return null;
+                return (null, true);
             }
 
             if (!hasHandle)
             {
                 mutex.Dispose();
-                return null;
+                return (null, false);
             }
 
-            return new SingleInstanceGuard(mutex, hasHandle: true);
+            return (new SingleInstanceGuard(mutex, hasHandle: true), false);
         }
         catch (UnauthorizedAccessException)
         {
             mutex?.Dispose();
-            return null;
+            return (null, true);
         }
         catch
         {

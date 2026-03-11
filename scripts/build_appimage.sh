@@ -227,14 +227,37 @@ if command -v patchelf >/dev/null; then
 fi
 
 cp "../src/CrossMacro.UI/Assets/icons/512x512/apps/crossmacro.png" "$APP_DIR/crossmacro.png"
-cp "../src/CrossMacro.UI/Assets/icons/256x256/apps/crossmacro.png" "$APP_DIR/.DirIcon"
+ln -sf "crossmacro.png" "$APP_DIR/.DirIcon"
 cp -r "../src/CrossMacro.UI/Assets/icons/"* "$APP_DIR/usr/share/icons/hicolor/"
 cp "assets/$APP_NAME.desktop" "$APP_DIR/$APP_NAME.desktop"
 cp "assets/$APP_NAME.desktop" "$APP_DIR/usr/share/applications/$APP_NAME.desktop"
 cp "assets/io.github.alper-han.CrossMacro.metainfo.xml" "$APP_DIR/usr/share/metainfo/"
 
 chmod +x "$APP_DIR/usr/bin/CrossMacro.UI"
+ln -sf "CrossMacro.UI" "$APP_DIR/usr/bin/crossmacro"
 ln -s "usr/bin/CrossMacro.UI" "$APP_DIR/AppRun"
+
+for desktop_file in "$APP_DIR/$APP_NAME.desktop" "$APP_DIR/usr/share/applications/$APP_NAME.desktop"; do
+    sed -i 's/^Exec=.*/Exec=AppRun/' "$desktop_file"
+
+    if ! grep -q '^TryExec=' "$desktop_file"; then
+        echo "TryExec=AppRun" >> "$desktop_file"
+    fi
+
+    if ! grep -q '^X-AppImage-Name=' "$desktop_file"; then
+        {
+            echo "X-AppImage-Name=$APP_NAME"
+            echo "X-AppImage-Version=$VERSION"
+            echo "X-AppImage-Arch=$APPIMAGE_ARCH"
+        } >> "$desktop_file"
+    fi
+done
+
+if command -v desktop-file-validate >/dev/null 2>&1; then
+    desktop-file-validate "$APP_DIR/$APP_NAME.desktop"
+else
+    echo "Warning: desktop-file-validate not found; skipping desktop file validation."
+fi
 
 APPIMAGETOOL_SHA256_RESOLVED="$(resolve_appimagetool_sha256)"
 

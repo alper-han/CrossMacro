@@ -11,7 +11,8 @@ internal static class Program
     // Avalonia configuration, don't remove; also used by visual designer.
     public static AppBuilder BuildAvaloniaApp()
         => CrossMacro.UI.Program.BuildAvaloniaApp()
-            .UseAvaloniaNative();
+            .UseAvaloniaNative()
+            .UseSkia();
 
     [System.STAThread]
     public static int Main(string[] args)
@@ -24,7 +25,7 @@ internal static class Program
             startGui: () => CrossMacro.UI.Program.RunGui(
                 args,
                 platformServiceRegistrar,
-                static (appBuilder, startupArgs) => appBuilder.UseAvaloniaNative().StartWithClassicDesktopLifetime(startupArgs)),
+                static (appBuilder, startupArgs) => appBuilder.UseAvaloniaNative().UseSkia().StartWithClassicDesktopLifetime(startupArgs)),
             getVersionString: CrossMacro.UI.Program.GetVersionString,
             tryAcquireSingleInstanceGuard: CrossMacro.UI.Program.TryAcquireRuntimeSingleInstanceGuard);
     }

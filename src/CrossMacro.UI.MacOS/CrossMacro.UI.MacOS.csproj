@@ -16,12 +16,14 @@
 
   <ItemGroup>
     <PackageReference Include="Avalonia.Native" />
+    <PackageReference Include="Avalonia.Skia" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(PublishTrimmed)' == 'true'">
     <TrimmerRootAssembly Include="CrossMacro.UI.Core" />
     <TrimmerRootAssembly Include="CrossMacro.Cli" />
     <TrimmerRootAssembly Include="Avalonia" />
+    <TrimmerRootAssembly Include="Avalonia.Skia" />
     <TrimmerRootAssembly Include="Avalonia.Themes.Fluent" />
     <TrimmerRootAssembly Include="Avalonia.Fonts.Inter" />
     <TrimmerRootAssembly Include="Avalonia.Native" />

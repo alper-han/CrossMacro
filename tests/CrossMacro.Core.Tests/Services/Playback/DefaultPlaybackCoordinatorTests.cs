@@ -87,4 +87,167 @@ public class DefaultPlaybackCoordinatorTests
         coordinator.CurrentX.Should().Be(200);
         coordinator.CurrentY.Should().Be(150);
     }
+
+    [Fact]
+    public async Task InitializeAsync_RelativeCurrentPositionMacro_DoesNotCornerResetEvenWhenSkipIsFalse()
+    {
+        // Arrange
+        var simulator = Substitute.For<IInputSimulator>();
+        var coordinator = new DefaultPlaybackCoordinator();
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = false,
+            Events =
+            [
+                new MacroEvent
+                {
+                    Type = EventType.Click,
+                    Button = MouseButton.Left,
+                    X = 0,
+                    Y = 0,
+                    UseCurrentPosition = true
+                }
+            ]
+        };
+
+        // Act
+        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, CancellationToken.None);
+
+        // Assert
+        simulator.DidNotReceive().MoveRelative(-20000, -20000);
+    }
+
+    [Fact]
+    public async Task PrepareIterationAsync_RelativeCurrentPositionMacro_DoesNotCornerResetEvenWhenSkipIsFalse()
+    {
+        // Arrange
+        var simulator = Substitute.For<IInputSimulator>();
+        var coordinator = new DefaultPlaybackCoordinator();
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = false,
+            Events =
+            [
+                new MacroEvent
+                {
+                    Type = EventType.Click,
+                    Button = MouseButton.Left,
+                    X = 0,
+                    Y = 0,
+                    UseCurrentPosition = true
+                }
+            ]
+        };
+
+        // Act
+        await coordinator.PrepareIterationAsync(1, macro, simulator, 1920, 1080, CancellationToken.None);
+
+        // Assert
+        simulator.DidNotReceive().MoveRelative(-20000, -20000);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_AbsoluteCurrentPositionClick_DoesNotMoveToStoredCoordinates()
+    {
+        // Arrange
+        var simulator = Substitute.For<IInputSimulator>();
+        var coordinator = new DefaultPlaybackCoordinator(preferRelativeForAbsoluteMoves: false);
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            Events =
+            [
+                new MacroEvent
+                {
+                    Type = EventType.Click,
+                    Button = MouseButton.Left,
+                    X = 800,
+                    Y = 600,
+                    UseCurrentPosition = true
+                }
+            ]
+        };
+
+        // Act
+        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, CancellationToken.None);
+
+        // Assert
+        simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
+        simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task InitializeAsync_AbsoluteLeadingCurrentPositionClick_DoesNotPreMoveToLaterAbsoluteEvent()
+    {
+        // Arrange
+        var simulator = Substitute.For<IInputSimulator>();
+        var coordinator = new DefaultPlaybackCoordinator(preferRelativeForAbsoluteMoves: false);
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            Events =
+            [
+                new MacroEvent
+                {
+                    Type = EventType.Click,
+                    Button = MouseButton.Left,
+                    X = 0,
+                    Y = 0,
+                    UseCurrentPosition = true
+                },
+                new MacroEvent
+                {
+                    Type = EventType.MouseMove,
+                    X = 900,
+                    Y = 700
+                }
+            ]
+        };
+
+        // Act
+        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, CancellationToken.None);
+
+        // Assert
+        simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
+        simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task PrepareIterationAsync_AbsoluteLeadingCurrentPositionClick_DoesNotPreMoveToLaterAbsoluteEvent()
+    {
+        // Arrange
+        var simulator = Substitute.For<IInputSimulator>();
+        var coordinator = new DefaultPlaybackCoordinator(preferRelativeForAbsoluteMoves: false);
+        coordinator.UpdatePosition(300, 200);
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            Events =
+            [
+                new MacroEvent
+                {
+                    Type = EventType.Click,
+                    Button = MouseButton.Left,
+                    X = 0,
+                    Y = 0,
+                    UseCurrentPosition = true
+                },
+                new MacroEvent
+                {
+                    Type = EventType.MouseMove,
+                    X = 900,
+                    Y = 700
+                }
+            ]
+        };
+
+        // Act
+        await coordinator.PrepareIterationAsync(1, macro, simulator, 1920, 1080, CancellationToken.None);
+
+        // Assert
+        simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
+        simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
+    }
 }

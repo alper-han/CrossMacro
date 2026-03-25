@@ -42,6 +42,31 @@ public class EditorActionConverterTests
     }
 
     [Fact]
+    public void ToMacroEvents_CurrentPositionClick_UsesZeroCoordinates()
+    {
+        // Arrange
+        var action = new EditorAction
+        {
+            Type = EditorActionType.MouseClick,
+            Button = MouseButton.Left,
+            IsAbsolute = false,
+            UseCurrentPosition = true,
+            X = 120,
+            Y = 240
+        };
+
+        // Act
+        var events = _converter.ToMacroEvents(action);
+
+        // Assert
+        events.Should().HaveCount(1);
+        events[0].Type.Should().Be(EventType.Click);
+        events[0].X.Should().Be(0);
+        events[0].Y.Should().Be(0);
+        events[0].UseCurrentPosition.Should().BeTrue();
+    }
+
+    [Fact]
     public void ToMacroEvents_DelayWithRandom_ProducesPlaceholderWithRandomMetadata()
     {
         // Arrange
@@ -261,5 +286,96 @@ public class EditorActionConverterTests
         // Assert
         actions.Should().HaveCount(2);
         actions.Should().OnlyContain(a => !a.IsAbsolute);
+    }
+
+    [Fact]
+    public void FromMacroSequence_WhenRelativeZeroCoordinateClick_MarksUseCurrentPosition()
+    {
+        // Arrange
+        var sequence = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            Events =
+            [
+                new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 0, Y = 0 }
+            ]
+        };
+
+        // Act
+        var actions = _converter.FromMacroSequence(sequence);
+
+        // Assert
+        actions.Should().HaveCount(1);
+        actions[0].Type.Should().Be(EditorActionType.MouseClick);
+        actions[0].UseCurrentPosition.Should().BeTrue();
+        actions[0].IsAbsolute.Should().BeFalse();
+    }
+
+    [Fact]
+    public void FromMacroSequence_WhenExplicitCurrentPositionClick_MarksUseCurrentPosition()
+    {
+        // Arrange
+        var sequence = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            Events =
+            [
+                new MacroEvent
+                {
+                    Type = EventType.Click,
+                    Button = MouseButton.Left,
+                    X = 0,
+                    Y = 0,
+                    UseCurrentPosition = true
+                }
+            ]
+        };
+
+        // Act
+        var actions = _converter.FromMacroSequence(sequence);
+
+        // Assert
+        actions.Should().HaveCount(1);
+        actions[0].UseCurrentPosition.Should().BeTrue();
+        actions[0].IsAbsolute.Should().BeFalse();
+    }
+
+    [Fact]
+    public void FromMacroSequence_WhenAbsoluteMacroContainsCurrentPositionClick_KeepsClickRelative()
+    {
+        // Arrange
+        var sequence = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            Events =
+            [
+                new MacroEvent
+                {
+                    Type = EventType.Click,
+                    Button = MouseButton.Left,
+                    X = 640,
+                    Y = 480,
+                    UseCurrentPosition = true
+                },
+                new MacroEvent
+                {
+                    Type = EventType.MouseMove,
+                    X = 800,
+                    Y = 600
+                }
+            ]
+        };
+
+        // Act
+        var actions = _converter.FromMacroSequence(sequence);
+
+        // Assert
+        actions.Should().HaveCount(2);
+        actions[0].Type.Should().Be(EditorActionType.MouseClick);
+        actions[0].UseCurrentPosition.Should().BeTrue();
+        actions[0].IsAbsolute.Should().BeFalse();
+        actions[1].Type.Should().Be(EditorActionType.MouseMove);
+        actions[1].IsAbsolute.Should().BeTrue();
     }
 }

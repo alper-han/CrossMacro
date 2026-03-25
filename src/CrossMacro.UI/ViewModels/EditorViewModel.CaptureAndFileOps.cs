@@ -157,9 +157,17 @@ public partial class EditorViewModel
                 return;
             }
 
-            var firstCoordinateAction = Actions.FirstOrDefault(action => UsesCoordinateFields(action.Type));
+            var firstCoordinateAction = Actions.FirstOrDefault(action =>
+                UsesCoordinateFields(action.Type) && !IsCurrentPositionClickAction(action));
             var isAbsolute = firstCoordinateAction?.IsAbsolute ?? false;
-            var sequence = _converter.ToMacroSequence(Actions, MacroName, isAbsolute, _skipInitialZeroZero);
+            var skipInitialZeroZero = _skipInitialZeroZero || RequiresSkipInitialZeroZero;
+            if (_skipInitialZeroZero != skipInitialZeroZero)
+            {
+                _skipInitialZeroZero = skipInitialZeroZero;
+                OnPropertyChanged(nameof(SkipInitialZeroZero));
+            }
+
+            var sequence = _converter.ToMacroSequence(Actions, MacroName, isAbsolute, skipInitialZeroZero);
             await _fileManager.SaveAsync(sequence, filePath);
 
             Status = $"Saved: {Path.GetFileName(filePath)}";
@@ -213,7 +221,6 @@ public partial class EditorViewModel
 
         Actions.Clear();
         MacroName = sequence.Name;
-        _skipInitialZeroZero = sequence.SkipInitialZeroZero;
 
         var editorActions = _converter.FromMacroSequence(sequence);
         foreach (var action in editorActions)
@@ -221,8 +228,14 @@ public partial class EditorViewModel
             Actions.Add(action);
         }
 
+        var hasCurrentPositionClicks = editorActions.Any(IsCurrentPositionClickAction);
+        _skipInitialZeroZero = sequence.SkipInitialZeroZero || hasCurrentPositionClicks;
+        _skipInitialZeroZeroForcedByCurrentPosition = hasCurrentPositionClicks;
+        _skipInitialZeroZeroBeforeCurrentPositionForce = sequence.SkipInitialZeroZero;
+
         SelectedAction = Actions.FirstOrDefault();
         OnPropertyChanged(nameof(HasActions));
+        RefreshCurrentPositionConfiguration();
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
     }

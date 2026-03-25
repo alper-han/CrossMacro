@@ -128,6 +128,15 @@
                                                FontWeight="SemiBold"/>
                                 </Border>
                             </StackPanel>
+
+                            <StackPanel Spacing="4" IsVisible="{Binding ShowCurrentPositionToggle}">
+                                <CheckBox IsChecked="{Binding SelectedAction.UseCurrentPosition}"
+                                          Content="Click at current cursor position"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Text="Playback starts from the live cursor position automatically."
+                                           Classes="caption"
+                                           IsVisible="{Binding SelectedAction.UseCurrentPosition}"/>
+                            </StackPanel>
                             
                             <!-- Coordinates (MouseMove, MouseClick, MouseDown, MouseUp) -->
                             <StackPanel Spacing="4" IsVisible="{Binding ShowCoordinates}">

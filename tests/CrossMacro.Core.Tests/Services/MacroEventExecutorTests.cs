@@ -171,6 +171,30 @@ public class MacroEventExecutorTests
     }
 
     [Fact]
+    public void Execute_CurrentPositionClick_IgnoresStoredCoordinatesForImplicitMovement()
+    {
+        // Arrange
+        var ev = new MacroEvent
+        {
+            Type = EventType.Click,
+            Button = MouseButton.Left,
+            X = 500,
+            Y = 300,
+            UseCurrentPosition = true
+        };
+        _buttonMapper.Map(MouseButton.Left).Returns((int)MouseButton.Left);
+
+        // Act
+        _executor.Execute(ev, isRecordedAbsolute: true);
+
+        // Assert
+        _simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
+        _simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
+        _simulator.Received(1).MouseButton((ushort)MouseButton.Left, true);
+        _simulator.Received(1).MouseButton((ushort)MouseButton.Left, false);
+    }
+
+    [Fact]
     public void Execute_MouseMove_Absolute_WhenSimulatorCannotMoveAbsolute_FallsBackToRelativeDelta()
     {
         var simulator = new TrackingSimulator(supportsAbsoluteCoordinates: false);

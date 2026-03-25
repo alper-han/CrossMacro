@@ -58,7 +58,10 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private string _status = InitialStatusText;
     private bool _isCapturing;
     private bool _skipInitialZeroZero;
+    private bool _skipInitialZeroZeroForcedByCurrentPosition;
+    private bool _skipInitialZeroZeroBeforeCurrentPositionForce;
     private bool _isRestoringState;
+    private bool _isSynchronizingActionProperties;
     private bool _disposed;
     private List<EditorAction> _lastKnownState = new();
     private DateTimeOffset _lastPropertyEditUndoAt = DateTimeOffset.MinValue;
@@ -91,7 +94,11 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
 
         Actions = new ObservableCollection<EditorAction>();
-        Actions.CollectionChanged += (_, _) => UpdateActionIndices();
+        Actions.CollectionChanged += (_, _) =>
+        {
+            UpdateActionIndices();
+            RefreshCurrentPositionConfiguration();
+        };
         RememberCurrentState();
     }
 
@@ -194,6 +201,28 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public bool CanUndo => _undoStack.Count > 0;
     public bool CanRedo => _redoStack.Count > 0;
     public bool HasActions => Actions.Count > 0;
+    public bool SkipInitialZeroZero
+    {
+        get => _skipInitialZeroZero;
+        set
+        {
+            var normalized = RequiresSkipInitialZeroZero ? true : value;
+            if (_skipInitialZeroZero == normalized)
+            {
+                return;
+            }
+
+            _skipInitialZeroZero = normalized;
+            if (!RequiresSkipInitialZeroZero && !_skipInitialZeroZeroForcedByCurrentPosition)
+            {
+                _skipInitialZeroZeroBeforeCurrentPositionForce = normalized;
+            }
+            OnPropertyChanged();
+        }
+    }
+
+    public bool RequiresSkipInitialZeroZero => Actions.Any(IsCurrentPositionClickAction);
+    public bool CanEditSkipInitialZeroZero => !RequiresSkipInitialZeroZero;
 
     public IEnumerable<EditorActionType> ActionTypes => Enum.GetValues<EditorActionType>();
     public IEnumerable<MouseButton> MouseButtons => Enum.GetValues<MouseButton>().Where(button => button != MouseButton.None);
@@ -205,12 +234,21 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Show coordinates for: MouseMove, MouseClick, MouseDown, MouseUp.
     /// </summary>
-    public bool ShowCoordinates => SelectedAction != null && UsesCoordinateFields(SelectedAction.Type);
+    public bool ShowCoordinates => SelectedAction != null
+        && UsesCoordinateFields(SelectedAction.Type)
+        && !IsCurrentPositionClickAction(SelectedAction);
 
     /// <summary>
     /// Show Absolute/Relative toggle for all coordinate-bearing mouse actions.
     /// </summary>
-    public bool ShowCoordModeToggle => SelectedAction != null && UsesCoordinateFields(SelectedAction.Type);
+    public bool ShowCoordModeToggle => SelectedAction != null
+        && UsesCoordinateFields(SelectedAction.Type)
+        && !IsCurrentPositionClickAction(SelectedAction);
+
+    /// <summary>
+    /// Show current-position toggle for click actions.
+    /// </summary>
+    public bool ShowCurrentPositionToggle => SelectedAction?.Type == EditorActionType.MouseClick;
 
     /// <summary>
     /// Show mouse button for: MouseClick, MouseDown, MouseUp
@@ -275,5 +313,10 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
         _disposed = true;
         _captureService.CancelCapture();
+    }
+
+    private static bool IsCurrentPositionClickAction(EditorAction? action)
+    {
+        return action?.Type == EditorActionType.MouseClick && action.UseCurrentPosition;
     }
 }

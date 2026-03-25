@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Text.Json;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
@@ -81,17 +80,17 @@ public class MacroFileManager : IMacroFileManager
                     
                 case EventType.ButtonPress:
                     // Format: P,X,Y,Button
-                    await writer.WriteLineAsync($"P,{ev.X},{ev.Y},{ev.Button}");
+                    await writer.WriteLineAsync(BuildMouseButtonLine("P", ev));
                     break;
                     
                 case EventType.ButtonRelease:
                     // Format: R,X,Y,Button
-                    await writer.WriteLineAsync($"R,{ev.X},{ev.Y},{ev.Button}");
+                    await writer.WriteLineAsync(BuildMouseButtonLine("R", ev));
                     break;
                     
                 case EventType.Click:
                     // Format: C,X,Y,Button (Used for Scroll)
-                    await writer.WriteLineAsync($"C,{ev.X},{ev.Y},{ev.Button}");
+                    await writer.WriteLineAsync(BuildMouseButtonLine("C", ev));
                     break;
                     
                 case EventType.KeyPress:
@@ -105,6 +104,13 @@ public class MacroFileManager : IMacroFileManager
                     break;
             }
         }
+    }
+
+    private static string BuildMouseButtonLine(string command, MacroEvent ev)
+    {
+        return ev.UseCurrentPosition
+            ? $"{command},{ev.X},{ev.Y},{ev.Button},CurrentPosition"
+            : $"{command},{ev.X},{ev.Y},{ev.Button}";
     }
     
     /// <summary>
@@ -223,6 +229,7 @@ public class MacroFileManager : IMacroFileManager
                     ev.X = int.Parse(parts[1]);
                     ev.Y = int.Parse(parts[2]);
                     ev.Button = Enum.Parse<MouseButton>(parts[3]);
+                    ev.UseCurrentPosition = parts.Length >= 5 && IsCurrentPositionToken(parts[4]);
                     validEvent = true;
                 }
                 // Handle Keyboard Events
@@ -285,6 +292,8 @@ public class MacroFileManager : IMacroFileManager
                 currentRandomDelayMaxMs = 0;
             }
         }
+
+        MarkLegacyCurrentPositionEvents(macro);
         
         // Recalculate stats
         macro.CalculateDuration();
@@ -292,5 +301,60 @@ public class MacroFileManager : IMacroFileManager
         macro.ClickCount = macro.Events.Count(e => e.Type != EventType.MouseMove);
         
         return macro;
+    }
+
+    private static bool IsCurrentPositionToken(string token)
+    {
+        return token.Trim().Equals("CurrentPosition", StringComparison.OrdinalIgnoreCase)
+            || token.Trim().Equals("Current", StringComparison.OrdinalIgnoreCase)
+            || token.Trim().Equals("Live", StringComparison.OrdinalIgnoreCase)
+            || token.Trim().Equals("true", StringComparison.OrdinalIgnoreCase)
+            || token.Trim().Equals("1", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void MarkLegacyCurrentPositionEvents(MacroSequence macro)
+    {
+        if (macro.IsAbsoluteCoordinates
+            || !macro.SkipInitialZeroZero
+            || macro.Events.Any(ev => ev.UseCurrentPosition))
+        {
+            return;
+        }
+
+        var markedAny = false;
+
+        for (int index = 0; index < macro.Events.Count; index++)
+        {
+            var ev = macro.Events[index];
+
+            if (ev.Type == EventType.MouseMove)
+            {
+                if (ev.X != 0 || ev.Y != 0)
+                {
+                    break;
+                }
+
+                continue;
+            }
+
+            if (!MacroPositionSemantics.IsNonScrollMouseButtonEvent(ev))
+            {
+                continue;
+            }
+
+            if (ev.X != 0 || ev.Y != 0)
+            {
+                if (!markedAny)
+                {
+                    return;
+                }
+
+                break;
+            }
+
+            ev.UseCurrentPosition = true;
+            macro.Events[index] = ev;
+            markedAny = true;
+        }
     }
 }

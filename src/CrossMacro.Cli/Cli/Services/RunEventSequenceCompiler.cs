@@ -102,7 +102,8 @@ internal sealed class RunEventSequenceCompiler
                     var downEvent = new MacroEvent
                     {
                         Type = EventType.ButtonPress,
-                        Button = downButton
+                        Button = downButton,
+                        UseCurrentPosition = moveIsAbsolute == null
                     };
 
                     if (moveIsAbsolute == true)
@@ -131,7 +132,8 @@ internal sealed class RunEventSequenceCompiler
                     var upEvent = new MacroEvent
                     {
                         Type = EventType.ButtonRelease,
-                        Button = upButton
+                        Button = upButton,
+                        UseCurrentPosition = moveIsAbsolute == null
                     };
 
                     if (moveIsAbsolute == true)
@@ -160,7 +162,8 @@ internal sealed class RunEventSequenceCompiler
                     var clickEvent = new MacroEvent
                     {
                         Type = EventType.Click,
-                        Button = clickButton
+                        Button = clickButton,
+                        UseCurrentPosition = moveIsAbsolute == null
                     };
 
                     if (moveIsAbsolute == true)

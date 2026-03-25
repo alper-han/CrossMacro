@@ -102,8 +102,9 @@ public class MacroEventExecutor : IEventExecutor
             // Skip scroll events - they don't have meaningful coordinates
             bool isScroll = ev.Button is MouseButton.ScrollUp or MouseButton.ScrollDown
                 or MouseButton.ScrollLeft or MouseButton.ScrollRight;
+            bool shouldResolveFromCurrentPosition = ev.UseCurrentPosition && !isScroll;
 
-            if (!isScroll)
+            if (!isScroll && !shouldResolveFromCurrentPosition)
             {
                 if (isRecordedAbsolute)
                 {

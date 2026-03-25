@@ -39,6 +39,7 @@ public partial class EditorViewModel
             && left.UseRandomDelay == right.UseRandomDelay
             && left.RandomDelayMinMs == right.RandomDelayMinMs
             && left.RandomDelayMaxMs == right.RandomDelayMaxMs
+            && left.UseCurrentPosition == right.UseCurrentPosition
             && left.ScrollAmount == right.ScrollAmount
             && string.Equals(left.KeyName, right.KeyName, StringComparison.Ordinal)
             && string.Equals(left.Text, right.Text, StringComparison.Ordinal);
@@ -64,7 +65,9 @@ public partial class EditorViewModel
 
     private bool GetCurrentCoordinateMode()
     {
-        return Actions.FirstOrDefault(action => UsesCoordinateFields(action.Type))?.IsAbsolute ?? true;
+        return Actions
+            .FirstOrDefault(action => UsesCoordinateFields(action.Type) && !IsCurrentPositionClickAction(action))
+            ?.IsAbsolute ?? true;
     }
 
     private void PropagateCoordinateMode(EditorAction sourceAction)
@@ -74,10 +77,30 @@ public partial class EditorViewModel
             return;
         }
 
+        if (IsCurrentPositionClickAction(sourceAction))
+        {
+            if (sourceAction.IsAbsolute)
+            {
+                sourceAction.IsAbsolute = false;
+            }
+
+            return;
+        }
+
         foreach (var action in Actions)
         {
             if (ReferenceEquals(action, sourceAction) || !UsesCoordinateFields(action.Type))
             {
+                continue;
+            }
+
+            if (IsCurrentPositionClickAction(action))
+            {
+                if (action.IsAbsolute)
+                {
+                    action.IsAbsolute = false;
+                }
+
                 continue;
             }
 
@@ -118,12 +141,20 @@ public partial class EditorViewModel
         var propertyName = e.PropertyName;
         var shouldTrackUndo = propertyName != null && !UndoSkipProperties.Contains(propertyName) && !_isRestoringState;
 
-        if (shouldTrackUndo && !ShouldCoalescePropertyUndo(sender as EditorAction, propertyName!))
+        if (shouldTrackUndo && !_isSynchronizingActionProperties && !ShouldCoalescePropertyUndo(sender as EditorAction, propertyName!))
         {
             SaveUndoState(_lastKnownState);
         }
 
-        if (e.PropertyName == nameof(EditorAction.Type) || e.PropertyName == nameof(EditorAction.UseRandomDelay))
+        if (sender is EditorAction selectedAction
+            && e.PropertyName is nameof(EditorAction.Type) or nameof(EditorAction.UseRandomDelay) or nameof(EditorAction.UseCurrentPosition))
+        {
+            NormalizeSelectedActionState(selectedAction);
+        }
+
+        if (e.PropertyName == nameof(EditorAction.Type)
+            || e.PropertyName == nameof(EditorAction.UseRandomDelay)
+            || e.PropertyName == nameof(EditorAction.UseCurrentPosition))
         {
             NotifyVisibilityChanged();
         }
@@ -147,6 +178,7 @@ public partial class EditorViewModel
         if (e.PropertyName == nameof(EditorAction.IsAbsolute) && sender is EditorAction coordAction)
         {
             PropagateCoordinateMode(coordAction);
+            RefreshCurrentPositionConfiguration();
         }
 
         if (shouldTrackUndo)
@@ -159,6 +191,7 @@ public partial class EditorViewModel
     {
         OnPropertyChanged(nameof(ShowCoordinates));
         OnPropertyChanged(nameof(ShowCoordModeToggle));
+        OnPropertyChanged(nameof(ShowCurrentPositionToggle));
         OnPropertyChanged(nameof(ShowMouseButton));
         OnPropertyChanged(nameof(ShowKeyCode));
         OnPropertyChanged(nameof(ShowDelay));
@@ -166,6 +199,75 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(ShowRandomDelayOptions));
         OnPropertyChanged(nameof(ShowScrollAmount));
         OnPropertyChanged(nameof(ShowTextInput));
+        OnPropertyChanged(nameof(SkipInitialZeroZero));
+        OnPropertyChanged(nameof(RequiresSkipInitialZeroZero));
+        OnPropertyChanged(nameof(CanEditSkipInitialZeroZero));
+    }
+
+    private void RefreshCurrentPositionConfiguration()
+    {
+        if (RequiresSkipInitialZeroZero)
+        {
+            if (!_skipInitialZeroZeroForcedByCurrentPosition)
+            {
+                _skipInitialZeroZeroBeforeCurrentPositionForce = _skipInitialZeroZero;
+                _skipInitialZeroZeroForcedByCurrentPosition = true;
+            }
+
+            if (!_skipInitialZeroZero)
+            {
+                _skipInitialZeroZero = true;
+            }
+        }
+        else if (_skipInitialZeroZeroForcedByCurrentPosition)
+        {
+            _skipInitialZeroZero = _skipInitialZeroZeroBeforeCurrentPositionForce;
+            _skipInitialZeroZeroForcedByCurrentPosition = false;
+        }
+
+        NotifyVisibilityChanged();
+    }
+
+    private void NormalizeSelectedActionState(EditorAction action)
+    {
+        if (_isSynchronizingActionProperties)
+        {
+            return;
+        }
+
+        try
+        {
+            _isSynchronizingActionProperties = true;
+
+            if (action.Type != EditorActionType.MouseClick && action.UseCurrentPosition)
+            {
+                action.UseCurrentPosition = false;
+            }
+
+            if (action.Type == EditorActionType.MouseClick && action.UseCurrentPosition)
+            {
+                if (action.X != 0)
+                {
+                    action.X = 0;
+                }
+
+                if (action.Y != 0)
+                {
+                    action.Y = 0;
+                }
+
+                if (action.IsAbsolute)
+                {
+                    action.IsAbsolute = false;
+                }
+            }
+        }
+        finally
+        {
+            _isSynchronizingActionProperties = false;
+        }
+
+        RefreshCurrentPositionConfiguration();
     }
 
     private void SaveUndoState()
@@ -220,6 +322,30 @@ public partial class EditorViewModel
         };
 
         Actions.Add(action);
+        SelectedAction = action;
+        Status = $"Added {action.DisplayName}";
+        OnPropertyChanged(nameof(HasActions));
+        ResetPropertyEditUndoCoalescing();
+        RememberCurrentState();
+    }
+
+    public void AddCurrentPositionClick()
+    {
+        SaveUndoState();
+
+        var action = new EditorAction
+        {
+            Type = EditorActionType.MouseClick,
+            IsAbsolute = false,
+            UseCurrentPosition = true,
+            Button = MouseButton.Left,
+            X = 0,
+            Y = 0
+        };
+
+        Actions.Add(action);
+        PropagateCoordinateMode(action);
+        SkipInitialZeroZero = true;
         SelectedAction = action;
         Status = $"Added {action.DisplayName}";
         OnPropertyChanged(nameof(HasActions));

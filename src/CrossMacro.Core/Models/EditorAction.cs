@@ -23,6 +23,7 @@ public class EditorAction : INotifyPropertyChanged
     private bool _useRandomDelay;
     private int _randomDelayMinMs;
     private int _randomDelayMaxMs;
+    private bool _useCurrentPosition;
     private int _scrollAmount = 1;
     private string? _keyName;
     private int _index;
@@ -186,6 +187,24 @@ public class EditorAction : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// Whether a mouse click should use the current cursor position at playback time.
+    /// Only applicable for MouseClick actions.
+    /// </summary>
+    public bool UseCurrentPosition
+    {
+        get => _useCurrentPosition;
+        set
+        {
+            if (_useCurrentPosition != value)
+            {
+                _useCurrentPosition = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DisplayName));
+            }
+        }
+    }
+
+    /// <summary>
     /// Minimum randomized delay in milliseconds.
     /// </summary>
     public int RandomDelayMinMs
@@ -298,6 +317,7 @@ public class EditorAction : INotifyPropertyChanged
         {
             EditorActionType.MouseMove when IsAbsolute => $"Move to ({X}, {Y})",
             EditorActionType.MouseMove => $"Move by ({X:+#;-#;0}, {Y:+#;-#;0})",
+            EditorActionType.MouseClick when UseCurrentPosition => $"Click {Button} at current position",
             EditorActionType.MouseClick => $"Click {Button}",
             EditorActionType.MouseDown => $"Hold {Button}",
             EditorActionType.MouseUp => $"Release {Button}",
@@ -330,6 +350,7 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.Delay => DelayMs >= 0,
             EditorActionType.KeyPress or EditorActionType.KeyDown or EditorActionType.KeyUp => KeyCode > 0,
             EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal => ScrollAmount != 0,
+            EditorActionType.MouseClick when UseCurrentPosition => !IsAbsolute,
             EditorActionType.TextInput => !string.IsNullOrEmpty(Text),
             _ => true
         };
@@ -350,6 +371,7 @@ public class EditorAction : INotifyPropertyChanged
             _useRandomDelay = UseRandomDelay,
             _randomDelayMinMs = RandomDelayMinMs,
             _randomDelayMaxMs = RandomDelayMaxMs,
+            _useCurrentPosition = UseCurrentPosition,
             _scrollAmount = ScrollAmount,
             _keyName = KeyName,
             _text = Text

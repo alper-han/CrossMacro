@@ -57,6 +57,12 @@ public struct MacroEvent
     /// Uses Linux input key codes (e.g., 30 = KEY_A, 57 = KEY_SPACE)
     /// </summary>
     public int KeyCode { get; set; }
+
+    /// <summary>
+    /// Whether a non-scroll mouse button event should use the live cursor
+    /// position at playback time instead of the stored coordinates.
+    /// </summary>
+    public bool UseCurrentPosition { get; set; }
 }
 
 /// <summary>

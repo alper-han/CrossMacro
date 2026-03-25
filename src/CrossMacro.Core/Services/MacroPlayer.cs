@@ -45,6 +45,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
     private const int StabilizationEventCount = 25;
     private const double MaxInitialSpeedMultiplier = 3.0;
     private const int YieldInterval = 50;
+    private const int IterationYieldInterval = 50;
     private static readonly int[] RestorableModifierKeys =
     [
         InputEventCode.KEY_LEFTCTRL,
@@ -217,10 +218,17 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
 
                 if (hasNextIteration && !_cts.Token.IsCancellationRequested)
                 {
-                    int delayMs = Math.Max(10, options.RepeatDelayMs);
-                    IsWaitingBetweenLoops = options.RepeatDelayMs > 0;
-                    await _timingService.WaitAsync(delayMs, this, _cts.Token);
-                    IsWaitingBetweenLoops = false;
+                    int delayMs = Math.Max(0, options.RepeatDelayMs);
+                    if (delayMs > 0)
+                    {
+                        IsWaitingBetweenLoops = true;
+                        await _timingService.WaitAsync(delayMs, this, _cts.Token);
+                        IsWaitingBetweenLoops = false;
+                    }
+                    else if ((iteration + 1) % IterationYieldInterval == 0)
+                    {
+                        await Task.Yield();
+                    }
                 }
 
                 iteration++;
@@ -264,8 +272,9 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
 
     private async Task AcquireSimulatorAsync(MacroSequence macro)
     {
-        int deviceWidth = macro.IsAbsoluteCoordinates ? _cachedScreenWidth : 0;
-        int deviceHeight = macro.IsAbsoluteCoordinates ? _cachedScreenHeight : 0;
+        bool needsAbsoluteDevice = macro.IsAbsoluteCoordinates;
+        int deviceWidth = needsAbsoluteDevice ? _cachedScreenWidth : 0;
+        int deviceHeight = needsAbsoluteDevice ? _cachedScreenHeight : 0;
 
         if (_simulatorPool != null)
         {
@@ -311,6 +320,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
 
     private async Task PlayOnceAsync(MacroSequence macro, double speedMultiplier, CancellationToken cancellationToken)
     {
+        bool useLegacyCurrentPositionInterpretation = MacroPositionSemantics.IsLegacyCurrentPositionMacro(macro);
         int eventCount = 0;
         int totalEvents = macro.Events.Count;
         bool isFirstEvent = true;
@@ -411,7 +421,16 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
                 Log.Debug("[MacroPlayer] Executing {Current}/{Total}: {Type} | X={X} Y={Y} | Key={Key} Button={Button}",
                     eventCount, totalEvents, ev.Type, ev.X, ev.Y, ev.KeyCode, ev.Button);
 
-                _eventExecutor!.Execute(ev, macro.IsAbsoluteCoordinates);
+                bool usesCurrentPosition = MacroPositionSemantics.UsesCurrentPosition(ev, useLegacyCurrentPositionInterpretation);
+                var eventToExecute = ev;
+                if (usesCurrentPosition)
+                {
+                    eventToExecute.UseCurrentPosition = true;
+                    eventToExecute.X = 0;
+                    eventToExecute.Y = 0;
+                }
+
+                _eventExecutor!.Execute(eventToExecute, macro.IsAbsoluteCoordinates);
             }
             catch (Exception ex)
             {

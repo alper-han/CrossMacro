@@ -1,4 +1,5 @@
 using CrossMacro.Core.Models;
+using CrossMacro.Core.Resources;
 using CrossMacro.Infrastructure.Services;
 using FluentAssertions;
 
@@ -118,5 +119,49 @@ public class EditorActionValidatorTests
         // Assert
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.Contains("Cannot mix Absolute and Relative coordinates"));
+    }
+
+    [Fact]
+    public void ValidateAll_WhenAbsoluteActionsIncludeCurrentPositionClick_DoesNotReturnMixedModeError()
+    {
+        // Arrange
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = true, X = 100, Y = 200 },
+            new EditorAction
+            {
+                Type = EditorActionType.MouseClick,
+                Button = MouseButton.Left,
+                UseCurrentPosition = true,
+                IsAbsolute = false
+            }
+        };
+
+        // Act
+        var result = _validator.ValidateAll(actions);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+        result.Errors.Should().NotContain(e => e.Contains("Cannot mix Absolute and Relative coordinates"));
+    }
+
+    [Fact]
+    public void Validate_CurrentPositionClickWithAbsoluteMode_ReturnsInvalid()
+    {
+        // Arrange
+        var action = new EditorAction
+        {
+            Type = EditorActionType.MouseClick,
+            Button = MouseButton.Left,
+            UseCurrentPosition = true,
+            IsAbsolute = true
+        };
+
+        // Act
+        var result = _validator.Validate(action);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Be(ValidationMessages.CurrentPositionClickMustBeRelative);
     }
 }

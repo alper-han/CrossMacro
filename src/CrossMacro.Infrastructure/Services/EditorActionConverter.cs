@@ -42,10 +42,11 @@ public class EditorActionConverter : IEditorActionConverter
                 events.Add(new MacroEvent
                 {
                     Type = EventType.Click,
-                    X = action.X,
-                    Y = action.Y,
+                    X = action.UseCurrentPosition ? 0 : action.X,
+                    Y = action.UseCurrentPosition ? 0 : action.Y,
                     Button = action.Button,
-                    DelayMs = action.DelayMs
+                    DelayMs = action.DelayMs,
+                    UseCurrentPosition = action.UseCurrentPosition
                 });
                 break;
                 
@@ -376,6 +377,7 @@ public class EditorActionConverter : IEditorActionConverter
     {
         var actions = new List<EditorAction>();
         var events = sequence.Events;
+        var useLegacyCurrentPositionInterpretation = MacroPositionSemantics.IsLegacyCurrentPositionMacro(sequence);
         
         for (int i = 0; i < events.Count; i++)
         {
@@ -427,6 +429,13 @@ public class EditorActionConverter : IEditorActionConverter
                 or EditorActionType.MouseUp)
             {
                 action.IsAbsolute = sequence.IsAbsoluteCoordinates;
+
+                if (action.Type == EditorActionType.MouseClick
+                    && MacroPositionSemantics.UsesCurrentPosition(ev, useLegacyCurrentPositionInterpretation))
+                {
+                    action.UseCurrentPosition = true;
+                    action.IsAbsolute = false;
+                }
             }
 
             if (action.Type == EditorActionType.Delay)

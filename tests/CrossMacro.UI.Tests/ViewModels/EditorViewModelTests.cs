@@ -323,6 +323,117 @@ public class EditorViewModelTests
     }
 
     [Fact]
+    public void AddCurrentPositionClick_AddsRelativeClickAndEnablesSkipInitialZeroZero()
+    {
+        // Act
+        _viewModel.AddCurrentPositionClick();
+
+        // Assert
+        _viewModel.Actions.Should().HaveCount(1);
+        _viewModel.SelectedAction.Should().NotBeNull();
+        _viewModel.SelectedAction!.Type.Should().Be(EditorActionType.MouseClick);
+        _viewModel.SelectedAction.UseCurrentPosition.Should().BeTrue();
+        _viewModel.SelectedAction.IsAbsolute.Should().BeFalse();
+        _viewModel.SkipInitialZeroZero.Should().BeTrue();
+    }
+
+    [Fact]
+    public void CurrentPositionClick_HidesCoordinateInputsAndCoordinateModeToggle()
+    {
+        // Arrange
+        _viewModel.AddCurrentPositionClick();
+
+        // Assert
+        _viewModel.ShowCoordinates.Should().BeFalse();
+        _viewModel.ShowCoordModeToggle.Should().BeFalse();
+        _viewModel.ShowCurrentPositionToggle.Should().BeTrue();
+    }
+
+    [Fact]
+    public void CurrentPositionClick_DoesNotChangeExistingAbsoluteMode()
+    {
+        // Arrange
+        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.AddAction();
+        var moveAction = _viewModel.SelectedAction!;
+        moveAction.IsAbsolute = true;
+
+        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.AddAction();
+        var clickAction = _viewModel.SelectedAction!;
+
+        // Act
+        clickAction.UseCurrentPosition = true;
+
+        // Assert
+        clickAction.IsAbsolute.Should().BeFalse();
+        moveAction.IsAbsolute.Should().BeTrue();
+        _viewModel.SkipInitialZeroZero.Should().BeTrue();
+    }
+
+    [Fact]
+    public void CurrentPositionClick_WhenAnotherActionSetToAbsolute_KeepsCurrentPositionClickRelative()
+    {
+        // Arrange
+        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.AddAction();
+        var moveAction = _viewModel.SelectedAction!;
+        moveAction.IsAbsolute = false;
+
+        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.AddAction();
+        var clickAction = _viewModel.SelectedAction!;
+        clickAction.UseCurrentPosition = true;
+
+        // Act
+        _viewModel.SelectedAction = moveAction;
+        moveAction.IsAbsolute = true;
+
+        // Assert
+        moveAction.IsAbsolute.Should().BeTrue();
+        clickAction.IsAbsolute.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CurrentPositionClick_WhenDisabled_RestoresPreviousSkipInitialZeroZeroValue()
+    {
+        // Arrange
+        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.AddAction();
+        var clickAction = _viewModel.SelectedAction!;
+        _viewModel.SkipInitialZeroZero.Should().BeFalse();
+
+        // Act
+        clickAction.UseCurrentPosition = true;
+        clickAction.UseCurrentPosition = false;
+
+        // Assert
+        _viewModel.SkipInitialZeroZero.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CurrentPositionClick_WhenDisabledInRelativeMode_RestoresPreviousSkipInitialZeroZeroValue()
+    {
+        // Arrange
+        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.AddAction();
+        _viewModel.SelectedAction!.IsAbsolute = false;
+
+        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.AddAction();
+        var clickAction = _viewModel.SelectedAction!;
+        clickAction.IsAbsolute.Should().BeFalse();
+        _viewModel.SkipInitialZeroZero.Should().BeFalse();
+
+        // Act
+        clickAction.UseCurrentPosition = true;
+        clickAction.UseCurrentPosition = false;
+
+        // Assert
+        _viewModel.SkipInitialZeroZero.Should().BeFalse();
+    }
+
+    [Fact]
     public void CoordinateModeChange_OnSelectedCoordinateAction_PropagatesToAllCoordinateActions()
     {
         // Arrange
@@ -374,5 +485,73 @@ public class EditorViewModelTests
             Arg.Any<string>(),
             true,
             Arg.Any<bool>());
+    }
+
+    [Fact]
+    public async Task SaveMacroAsync_WhenCurrentPositionClickExists_ForcesSkipInitialZeroZero()
+    {
+        // Arrange
+        _viewModel.AddCurrentPositionClick();
+
+        _dialogService
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .Returns("/tmp/editor-viewmodel-current-position-click.macro");
+
+        var generatedSequence = new MacroSequence
+        {
+            Name = "Generated",
+            Events = [new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 0, Y = 0 }]
+        };
+        _converter
+            .ToMacroSequence(Arg.Any<IEnumerable<EditorAction>>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<bool>())
+            .Returns(generatedSequence);
+
+        // Act
+        await _viewModel.SaveMacroAsync();
+
+        // Assert
+        _converter.Received(1).ToMacroSequence(
+            Arg.Any<IEnumerable<EditorAction>>(),
+            Arg.Any<string>(),
+            false,
+            true);
+    }
+
+    [Fact]
+    public async Task SaveMacroAsync_WhenCurrentPositionClickIsFirstAndOtherActionsAreAbsolute_UsesAbsoluteMacroMode()
+    {
+        // Arrange
+        _viewModel.AddCurrentPositionClick();
+        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.AddAction();
+        _viewModel.SelectedAction!.IsAbsolute = true;
+
+        _dialogService
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .Returns("/tmp/editor-viewmodel-current-position-with-absolute.macro");
+
+        var generatedSequence = new MacroSequence
+        {
+            Name = "Generated",
+            IsAbsoluteCoordinates = true,
+            Events =
+            [
+                new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 0, Y = 0, UseCurrentPosition = true },
+                new MacroEvent { Type = EventType.MouseMove, X = 120, Y = 90 }
+            ]
+        };
+        _converter
+            .ToMacroSequence(Arg.Any<IEnumerable<EditorAction>>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<bool>())
+            .Returns(generatedSequence);
+
+        // Act
+        await _viewModel.SaveMacroAsync();
+
+        // Assert
+        _converter.Received(1).ToMacroSequence(
+            Arg.Any<IEnumerable<EditorAction>>(),
+            Arg.Any<string>(),
+            true,
+            true);
     }
 }

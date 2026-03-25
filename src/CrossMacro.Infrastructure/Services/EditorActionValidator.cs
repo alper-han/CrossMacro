@@ -50,7 +50,7 @@ public class EditorActionValidator : IEditorActionValidator
             }
             
             // Validate coordinate mode consistency
-            if (UsesCoordinateMode(action.Type))
+            if (UsesGlobalCoordinateMode(action))
             {
                 if (firstCoordinateMode == null)
                 {
@@ -135,6 +135,9 @@ public class EditorActionValidator : IEditorActionValidator
             or MouseButton.ScrollLeft or MouseButton.ScrollRight)
             return (false, ValidationMessages.UseScrollActionForScrollButtons);
 
+        if (action.Type == EditorActionType.MouseClick && action.UseCurrentPosition && action.IsAbsolute)
+            return (false, ValidationMessages.CurrentPositionClickMustBeRelative);
+
         return ValidateCoordinateBounds(action, requireRelativeNonZero: false);
     }
 
@@ -167,6 +170,18 @@ public class EditorActionValidator : IEditorActionValidator
             EditorActionType.MouseClick or
             EditorActionType.MouseDown or
             EditorActionType.MouseUp;
+    }
+
+    private static bool UsesGlobalCoordinateMode(EditorAction action)
+    {
+        if (!UsesCoordinateMode(action.Type))
+        {
+            return false;
+        }
+
+        // Current-position clicks resolve from live cursor and should not force
+        // other coordinate actions to switch absolute/relative mode.
+        return !(action.Type == EditorActionType.MouseClick && action.UseCurrentPosition);
     }
     
     private static (bool IsValid, string? Error) ValidateTextInput(EditorAction action)

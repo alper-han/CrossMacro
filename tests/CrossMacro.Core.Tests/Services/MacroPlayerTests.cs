@@ -219,6 +219,41 @@ public class MacroPlayerTests
     }
 
     [Fact]
+    public async Task PlayAsync_WhenLoopingWithZeroRepeatDelay_DoesNotInjectMinimumDelay()
+    {
+        // Arrange
+        var simulator = Substitute.For<IInputSimulator>();
+        simulator.ProviderName.Returns("MockSimulator");
+        var timing = new RecordingTimingService();
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            timingService: timing,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10 }
+            }
+        };
+
+        var options = new PlaybackOptions
+        {
+            Loop = true,
+            RepeatCount = 2,
+            RepeatDelayMs = 0
+        };
+
+        // Act
+        await player.PlayAsync(macro, options);
+
+        // Assert
+        timing.WaitCalls.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task PlayAsync_WhenEventHasRandomDelay_UsesFixedPlusRandomDelay()
     {
         // Arrange
@@ -738,6 +773,107 @@ public class MacroPlayerTests
         simulator.Received(2).KeyPress(InputEventCode.KEY_LEFTCTRL, true);
     }
 
+    [Fact]
+    public async Task PlayAsync_WhenCurrentPositionClick_UsesLiveCursorWithoutSyntheticMove()
+    {
+        // Arrange
+        var simulator = new TrackingInputSimulator();
+
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.Click, Button = MouseButton.Left, UseCurrentPosition = true }
+            }
+        };
+
+        // Act
+        await player.PlayAsync(macro);
+
+        // Assert
+        simulator.InitializedWidth.Should().Be(0);
+        simulator.InitializedHeight.Should().Be(0);
+        simulator.AbsoluteMoves.Should().BeEmpty();
+        simulator.ButtonTransitions.Should().HaveCount(2);
+        simulator.Operations[0].Should().Be("btn:down");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenCurrentPositionClickLoops_DoesNotInjectSyntheticMovement()
+    {
+        // Arrange
+        var simulator = new TrackingInputSimulator();
+
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.Click, Button = MouseButton.Left, UseCurrentPosition = true }
+            }
+        };
+
+        var options = new PlaybackOptions
+        {
+            Loop = true,
+            RepeatCount = 2,
+            RepeatDelayMs = 0
+        };
+
+        // Act
+        await player.PlayAsync(macro, options);
+
+        // Assert
+        simulator.AbsoluteMoves.Should().BeEmpty();
+        simulator.ButtonTransitions.Should().HaveCount(4);
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenCurrentPositionEventHasStoredCoordinates_DoesNotMoveToStoredPosition()
+    {
+        // Arrange
+        var simulator = new TrackingInputSimulator();
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            Events = new List<MacroEvent>
+            {
+                new()
+                {
+                    Type = EventType.Click,
+                    Button = MouseButton.Left,
+                    X = 999,
+                    Y = 777,
+                    UseCurrentPosition = true
+                }
+            }
+        };
+
+        // Act
+        await player.PlayAsync(macro);
+
+        // Assert
+        simulator.AbsoluteMoves.Should().BeEmpty();
+    }
+
     private sealed class RecordingTimingService : IPlaybackTimingService
     {
         public List<int> WaitCalls { get; } = new();
@@ -810,6 +946,57 @@ public class MacroPlayerTests
             {
                 await pauseToken.WaitIfPausedAsync(cancellationToken);
             }
+        }
+    }
+
+    private sealed class TrackingInputSimulator : IInputSimulator, IInputSimulatorCapabilities
+    {
+        public string ProviderName => "Tracking";
+        public bool IsSupported => true;
+        public bool SupportsAbsoluteCoordinates => InitializedWidth > 0 && InitializedHeight > 0;
+        public int InitializedWidth { get; private set; }
+        public int InitializedHeight { get; private set; }
+        public List<(int X, int Y)> AbsoluteMoves { get; } = new();
+        public List<(int Button, bool Pressed)> ButtonTransitions { get; } = new();
+        public List<string> Operations { get; } = new();
+
+        public void Initialize(int screenWidth = 0, int screenHeight = 0)
+        {
+            InitializedWidth = screenWidth;
+            InitializedHeight = screenHeight;
+        }
+
+        public void MoveAbsolute(int x, int y)
+        {
+            AbsoluteMoves.Add((x, y));
+            Operations.Add($"abs:{x},{y}");
+        }
+
+        public void MoveRelative(int dx, int dy)
+        {
+            Operations.Add($"rel:{dx},{dy}");
+        }
+
+        public void MouseButton(int button, bool pressed)
+        {
+            ButtonTransitions.Add((button, pressed));
+            Operations.Add(pressed ? "btn:down" : "btn:up");
+        }
+
+        public void Scroll(int delta, bool isHorizontal = false)
+        {
+        }
+
+        public void KeyPress(int keyCode, bool pressed)
+        {
+        }
+
+        public void Sync()
+        {
+        }
+
+        public void Dispose()
+        {
         }
     }
 }

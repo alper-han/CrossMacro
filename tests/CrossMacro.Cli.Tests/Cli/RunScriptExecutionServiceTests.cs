@@ -72,6 +72,29 @@ public class RunScriptExecutionServiceTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WhenClickHasNoPositioningStep_UsesCurrentPositionSemantics()
+    {
+        // Arrange
+        MacroSequence? captured = null;
+        _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        // Act
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps = ["click left"]
+        }, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(captured);
+        Assert.Single(captured!.Events);
+        Assert.True(captured.Events[0].UseCurrentPosition);
+        Assert.True(captured.SkipInitialZeroZero);
+        Assert.False(captured.IsAbsoluteCoordinates);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WhenTapCombo_CompilesAndPlays()
     {
         _keyCodeMapper.GetKeyCode("ctrl").Returns(29);

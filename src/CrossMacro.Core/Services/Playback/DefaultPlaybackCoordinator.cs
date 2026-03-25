@@ -69,25 +69,42 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
             }
         }
         
-        // Find first mouse event to determine start position
-        var firstMouseEvent = macro.Events.FirstOrDefault(e =>
-            e.Type == EventType.MouseMove ||
-            e.Type == EventType.ButtonPress ||
-            e.Type == EventType.ButtonRelease ||
-            e.Type == EventType.Click);
-
-        if (firstMouseEvent.Type == EventType.None)
-        {
-            Log.Information("[PlaybackCoordinator] No mouse events found in macro, skipping start position move");
-            return;
-        }
-
         if (macro.IsAbsoluteCoordinates)
         {
-            await InitializeAbsoluteModeAsync(firstMouseEvent, simulator, screenWidth, screenHeight, cancellationToken);
+            // Determine the first position-relevant mouse event in timeline order.
+            var firstPositionRelevantMouseEvent = macro.Events.FirstOrDefault(e =>
+                e.Type == EventType.MouseMove
+                || MacroPositionSemantics.IsNonScrollMouseButtonEvent(e));
+
+            if (firstPositionRelevantMouseEvent.Type == EventType.None)
+            {
+                Log.Information("[PlaybackCoordinator] No absolute anchor mouse event found in macro, skipping start position move");
+                return;
+            }
+
+            if (MacroPositionSemantics.UsesCurrentPosition(firstPositionRelevantMouseEvent))
+            {
+                Log.Information("[PlaybackCoordinator] Absolute mode: leading current-position mouse event detected, skipping start position move");
+                return;
+            }
+
+            await InitializeAbsoluteModeAsync(firstPositionRelevantMouseEvent, simulator, screenWidth, screenHeight, cancellationToken);
         }
         else
         {
+            // Find first mouse event to determine start position
+            var firstMouseEvent = macro.Events.FirstOrDefault(e =>
+                e.Type == EventType.MouseMove ||
+                e.Type == EventType.ButtonPress ||
+                e.Type == EventType.ButtonRelease ||
+                e.Type == EventType.Click);
+
+            if (firstMouseEvent.Type == EventType.None)
+            {
+                Log.Information("[PlaybackCoordinator] No mouse events found in macro, skipping start position move");
+                return;
+            }
+
             await InitializeRelativeModeAsync(macro, simulator, cancellationToken);
         }
     }
@@ -147,7 +164,7 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
         IInputSimulator simulator, 
         CancellationToken cancellationToken)
     {
-        if (!macro.SkipInitialZeroZero)
+        if (!macro.SkipInitialZeroZero && !MacroPositionSemantics.HasCurrentPositionEvents(macro))
         {
             // Recording did Corner Reset, so we should too
             Log.Information("[PlaybackCoordinator] Relative mode: Performing Corner Reset (0,0)...");
@@ -197,11 +214,15 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
                 }
             }
 
-            var firstEvent = macro.Events.FirstOrDefault(e => e.Type == EventType.MouseMove);
-            if (firstEvent.Type != EventType.None)
+            var firstPositionRelevantMouseEvent = macro.Events.FirstOrDefault(e =>
+                e.Type == EventType.MouseMove
+                || MacroPositionSemantics.IsNonScrollMouseButtonEvent(e));
+
+            if (firstPositionRelevantMouseEvent.Type != EventType.None
+                && !MacroPositionSemantics.UsesCurrentPosition(firstPositionRelevantMouseEvent))
             {
-                int startX = Math.Clamp(firstEvent.X, 0, screenWidth);
-                int startY = Math.Clamp(firstEvent.Y, 0, screenHeight);
+                int startX = Math.Clamp(firstPositionRelevantMouseEvent.X, 0, screenWidth);
+                int startY = Math.Clamp(firstPositionRelevantMouseEvent.Y, 0, screenHeight);
 
                 int dx = startX - CurrentX;
                 int dy = startY - CurrentY;
@@ -221,7 +242,9 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
                 CurrentY = startY;
             }
         }
-        else if (!macro.IsAbsoluteCoordinates && !macro.SkipInitialZeroZero)
+        else if (!macro.IsAbsoluteCoordinates
+            && !macro.SkipInitialZeroZero
+            && !MacroPositionSemantics.HasCurrentPositionEvents(macro))
         {
             // Relative mode with Corner Reset
             Log.Information("[PlaybackCoordinator] Iteration {I}: Performing Corner Reset (0,0)", iteration + 1);

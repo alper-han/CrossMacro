@@ -312,6 +312,39 @@ public class MacroFileManagerTests : IDisposable
     }
 
     [Fact]
+    public async Task SaveAndLoad_RoundTrip_PreservesCurrentPositionFlag()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Current Position Test",
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            Events = new List<MacroEvent>
+            {
+                new()
+                {
+                    Type = EventType.Click,
+                    X = 0,
+                    Y = 0,
+                    Button = MouseButton.Left,
+                    UseCurrentPosition = true
+                }
+            }
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        await _manager.SaveAsync(macro, filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.Events.Should().ContainSingle();
+        loaded.Events[0].UseCurrentPosition.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Load_ParsesWaitCommands()
     {
         // Arrange - Manual file with WAIT command
@@ -360,6 +393,58 @@ M,100,100";
         loaded!.Events.Should().HaveCount(2);
         loaded.Events[0].DelayMs.Should().Be(0);
         loaded.Events[1].DelayMs.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Load_WhenLegacyCurrentPositionMacro_IsUpgradedToExplicitFlag()
+    {
+        // Arrange
+        var filePath = GetTempFilePath();
+        var content = @"# Name: Legacy Current Position Test
+# Created: 2024-01-01T00:00:00Z
+# DurationMs: 0
+# IsAbsolute: False
+# SkipInitialZero: True
+# Format: Cmd,Args...
+C,0,0,Left";
+
+        await File.WriteAllTextAsync(filePath, content);
+
+        // Act
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.Events.Should().ContainSingle();
+        loaded.Events[0].UseCurrentPosition.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Load_WhenLegacyCurrentPositionMacroHasLaterRelativeMove_UpgradesLeadingClickOnly()
+    {
+        // Arrange
+        var filePath = GetTempFilePath();
+        var content = @"# Name: Legacy Current Position Followed By Move
+# Created: 2024-01-01T00:00:00Z
+# DurationMs: 0
+# IsAbsolute: False
+# SkipInitialZero: True
+# Format: Cmd,Args...
+C,0,0,Left
+M,15,5
+C,0,0,Left";
+
+        await File.WriteAllTextAsync(filePath, content);
+
+        // Act
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.Events.Should().HaveCount(3);
+        loaded.Events[0].UseCurrentPosition.Should().BeTrue();
+        loaded.Events[1].Type.Should().Be(EventType.MouseMove);
+        loaded.Events[2].UseCurrentPosition.Should().BeFalse();
     }
 
     [Fact]

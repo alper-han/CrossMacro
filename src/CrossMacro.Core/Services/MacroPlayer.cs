@@ -376,7 +376,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
                 ev.RandomDelayMaxMs);
 
             var waitedForDelay = false;
-            if (!isFirstEvent && eventDelaySource > 0)
+            if (eventDelaySource > 0)
             {
                 double effectiveSpeed = speedMultiplier;
 

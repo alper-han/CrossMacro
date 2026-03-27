@@ -32,4 +32,9 @@ public static class ValidationMessages
     public const string InvalidMouseButton = "Invalid mouse button";
     public const string UseScrollActionForScrollButtons = "Use Scroll action for scroll buttons";
     public const string CurrentPositionClickMustBeRelative = "Current-position click must use relative coordinates";
+
+    // Text / Script
+    public const string TextInputRequired = "Text content is required";
+    public const string TextInputTooLong = "Text content exceeds maximum length";
+    public const string ActionPayloadRequired = "Action payload is required";
 }

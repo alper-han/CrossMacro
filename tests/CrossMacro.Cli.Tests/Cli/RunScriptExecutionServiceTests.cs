@@ -44,6 +44,44 @@ public class RunScriptExecutionServiceTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WhenEqualityConditionContainsComparatorLiteral_UsesEqualityBoundary()
+    {
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps =
+            [
+                "set mode=a>=b",
+                "if $mode == a>=b {",
+                "click left",
+                "}"
+            ],
+            DryRun = true
+        }, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal(CliExitCode.Success, result.ExitCode);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenSetAndConditionUseEscapedDollarLiteral_TreatsAsText()
+    {
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps =
+            [
+                "set mode=$$foo",
+                "if $mode == $$foo {",
+                "click left",
+                "}"
+            ],
+            DryRun = true
+        }, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal(CliExitCode.Success, result.ExitCode);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WhenAbsoluteMoveThenClick_ClickUsesLastAbsoluteCoordinates()
     {
         // Arrange
@@ -69,6 +107,33 @@ public class RunScriptExecutionServiceTests
         Assert.Equal(EventType.Click, captured.Events[1].Type);
         Assert.Equal(100, captured.Events[1].X);
         Assert.Equal(120, captured.Events[1].Y);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenAbsoluteMoveThenCurrentClick_PreservesCurrentPositionSemantics()
+    {
+        // Arrange
+        MacroSequence? captured = null;
+        _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        // Act
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps =
+            [
+                "move abs 100 120",
+                "click current left"
+            ]
+        }, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(captured);
+        Assert.Equal(2, captured!.Events.Count);
+        Assert.True(captured.IsAbsoluteCoordinates);
+        Assert.Equal(EventType.Click, captured.Events[1].Type);
+        Assert.True(captured.Events[1].UseCurrentPosition);
     }
 
     [Fact]
@@ -200,6 +265,34 @@ public class RunScriptExecutionServiceTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WhenLeadingDelayAndSpeedProvided_ScalesInitialDelayBeforePlayback()
+    {
+        var observedDelays = new List<TimeSpan>();
+        var service = new RunScriptExecutionService(
+            () => _player,
+            _keyCodeMapper,
+            (duration, _) =>
+            {
+                observedDelays.Add(duration);
+                return Task.CompletedTask;
+            });
+
+        var result = await service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps =
+            [
+                "delay 200",
+                "click left"
+            ],
+            SpeedMultiplier = 4.0
+        }, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Single(observedDelays);
+        Assert.Equal(50, observedDelays[0].TotalMilliseconds);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WhenTypeStep_CompilesCharacterEvents()
     {
         _keyCodeMapper.GetKeyCodeForCharacter('a').Returns(30);
@@ -222,6 +315,34 @@ public class RunScriptExecutionServiceTests
         Assert.Equal(30, captured.Events[0].KeyCode);
         Assert.Equal(EventType.KeyRelease, captured.Events[1].Type);
         Assert.Equal(30, captured.Events[1].KeyCode);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenTypeStepHasTrailingSpace_PreservesTrailingWhitespace()
+    {
+        _keyCodeMapper.GetKeyCodeForCharacter('c').Returns(46);
+        _keyCodeMapper.GetKeyCodeForCharacter('m').Returns(50);
+        _keyCodeMapper.GetKeyCodeForCharacter('d').Returns(32);
+        _keyCodeMapper.GetKeyCodeForCharacter(' ').Returns(57);
+        _keyCodeMapper.RequiresShift(Arg.Any<char>()).Returns(false);
+        _keyCodeMapper.RequiresAltGr(Arg.Any<char>()).Returns(false);
+
+        MacroSequence? captured = null;
+        _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps = ["type cmd "]
+        }, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(captured);
+        Assert.Equal(8, captured!.Events.Count);
+        Assert.Equal(46, captured.Events[0].KeyCode);
+        Assert.Equal(50, captured.Events[2].KeyCode);
+        Assert.Equal(32, captured.Events[4].KeyCode);
+        Assert.Equal(57, captured.Events[6].KeyCode);
     }
 
     [Fact]
@@ -363,6 +484,77 @@ public class RunScriptExecutionServiceTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WhenBreakUsedInsideLoop_StopsNearestLoop()
+    {
+        MacroSequence? captured = null;
+        _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps =
+            [
+                "repeat 5 {",
+                "click left",
+                "break",
+                "}"
+            ]
+        }, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(captured);
+        Assert.Single(captured!.Events);
+        Assert.Equal(EventType.Click, captured.Events[0].Type);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenContinueUsedInsideLoop_SkipsRemainingBodySteps()
+    {
+        MacroSequence? captured = null;
+        _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps =
+            [
+                "for i from 1 to 3 {",
+                "click left",
+                "continue",
+                "click right",
+                "}"
+            ]
+        }, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(captured);
+        Assert.Equal(3, captured!.Events.Count);
+        Assert.All(captured.Events, ev =>
+        {
+            Assert.Equal(EventType.Click, ev.Type);
+            Assert.Equal(MouseButton.Left, ev.Button);
+        });
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenBreakUsedOutsideLoop_ReturnsInvalidArguments()
+    {
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps =
+            [
+                "break",
+                "click left"
+            ]
+        }, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(CliExitCode.InvalidArguments, result.ExitCode);
+        Assert.Contains("break", result.Errors[0], StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("inside repeat/while/for blocks", result.Errors[0], StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WhenRepeatBlockMissingClosingBrace_ReturnsInvalidArguments()
     {
         var result = await _service.ExecuteAsync(new RunExecutionRequest
@@ -380,7 +572,7 @@ public class RunScriptExecutionServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WhenRandomDelayUsed_DelayFallsInRange()
+    public async Task ExecuteAsync_WhenRandomDelayUsed_PreservesRandomDelayMetadata()
     {
         MacroSequence? captured = null;
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
@@ -399,6 +591,207 @@ public class RunScriptExecutionServiceTests
         Assert.True(result.Success);
         Assert.NotNull(captured);
         Assert.Equal(2, captured!.Events.Count);
-        Assert.InRange(captured.Events[1].DelayMs, 10, 20);
+        Assert.Equal(0, captured.Events[1].DelayMs);
+        Assert.True(captured.Events[1].HasRandomDelay);
+        Assert.Equal(10, captured.Events[1].RandomDelayMinMs);
+        Assert.Equal(20, captured.Events[1].RandomDelayMaxMs);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenIfElseUsed_ExpandsMatchingBranch()
+    {
+        MacroSequence? captured = null;
+        _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps =
+            [
+                "set mode=fast",
+                "if $mode == fast {",
+                "click left",
+                "}",
+                "else {",
+                "click right",
+                "}"
+            ]
+        }, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(captured);
+        Assert.Single(captured!.Events);
+        Assert.Equal(EventType.Click, captured.Events[0].Type);
+        Assert.Equal(MouseButton.Left, captured.Events[0].Button);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenEqualityConditionRightOperandContainsComparator_UsesEqualityBoundary()
+    {
+        MacroSequence? captured = null;
+        _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps =
+            [
+                "set mode=a>=b",
+                "if $mode == a>=b {",
+                "click left",
+                "}",
+                "else {",
+                "click right",
+                "}"
+            ]
+        }, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(captured);
+        Assert.Single(captured!.Events);
+        Assert.Equal(EventType.Click, captured.Events[0].Type);
+        Assert.Equal(MouseButton.Left, captured.Events[0].Button);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenWhileWithIncUsed_ExpandsLoop()
+    {
+        MacroSequence? captured = null;
+        _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps =
+            [
+                "set i=0",
+                "while $i < 3 {",
+                "click left",
+                "inc i",
+                "}"
+            ]
+        }, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(captured);
+        Assert.Equal(3, captured!.Events.Count);
+        Assert.All(captured.Events, ev => Assert.Equal(EventType.Click, ev.Type));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenForLoopUsed_ExpandsRange()
+    {
+        MacroSequence? captured = null;
+        _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps =
+            [
+                "for i from 1 to 5 step 2 {",
+                "click left",
+                "}"
+            ]
+        }, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(captured);
+        Assert.Equal(3, captured!.Events.Count);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenForLoopUsesVariableBoundsAndStep_ExpandsRange()
+    {
+        MacroSequence? captured = null;
+        _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps =
+            [
+                "set start=1",
+                "set finish=5",
+                "set step=2",
+                "for i from $start to $finish step $step {",
+                "click left",
+                "}"
+            ]
+        }, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(captured);
+        Assert.Equal(3, captured!.Events.Count);
+        Assert.All(captured.Events, ev => Assert.Equal(EventType.Click, ev.Type));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenForLoopUsesSameVariableForEndAndStep_ExpandsRange()
+    {
+        MacroSequence? captured = null;
+        _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps =
+            [
+                "set limit=3",
+                "for i from 0 to $limit step $limit {",
+                "click left",
+                "}"
+            ]
+        }, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(captured);
+        Assert.Equal(2, captured!.Events.Count);
+        Assert.All(captured.Events, ev => Assert.Equal(EventType.Click, ev.Type));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenWhileUsesVariableIncrementAmount_ExpandsLoop()
+    {
+        MacroSequence? captured = null;
+        _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps =
+            [
+                "set i=0",
+                "set step=2",
+                "while $i < 5 {",
+                "click left",
+                "inc i $step",
+                "}"
+            ]
+        }, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(captured);
+        Assert.Equal(3, captured!.Events.Count);
+        Assert.All(captured.Events, ev => Assert.Equal(EventType.Click, ev.Type));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenWhileNeverProgresses_ReturnsIterationLimitError()
+    {
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps =
+            [
+                "set i=0",
+                "while $i < 3 {",
+                "click left",
+                "}"
+            ]
+        }, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(CliExitCode.InvalidArguments, result.ExitCode);
+        Assert.Contains("loop iteration limit exceeded", result.Errors[0], StringComparison.OrdinalIgnoreCase);
     }
 }

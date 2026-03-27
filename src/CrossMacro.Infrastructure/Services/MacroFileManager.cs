@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
@@ -14,6 +15,7 @@ public class MacroFileManager : IMacroFileManager
 {
     private const string TrailingDelayHeader = "# TrailingDelayMs: ";
     private const string TrailingRandomDelayHeader = "# TrailingRandomDelayMs: ";
+    private const string ScriptStepHeader = "# ScriptStepBase64: ";
 
     public MacroFileManager()
     {
@@ -55,6 +57,16 @@ public class MacroFileManager : IMacroFileManager
         if (macro.HasTrailingRandomDelay)
         {
             await writer.WriteLineAsync($"{TrailingRandomDelayHeader}{macro.TrailingDelayMinMs},{macro.TrailingDelayMaxMs}");
+        }
+        foreach (var scriptStep in macro.ScriptSteps)
+        {
+            if (string.IsNullOrWhiteSpace(scriptStep))
+            {
+                continue;
+            }
+
+            var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(scriptStep));
+            await writer.WriteLineAsync($"{ScriptStepHeader}{encoded}");
         }
         await writer.WriteLineAsync("# Format: Cmd,Args...");
         
@@ -162,6 +174,26 @@ public class MacroFileManager : IMacroFileManager
                         macro.HasTrailingRandomDelay = true;
                         macro.TrailingDelayMinMs = trailingRandomMin;
                         macro.TrailingDelayMaxMs = trailingRandomMax;
+                    }
+                }
+                else if (line.StartsWith(ScriptStepHeader, StringComparison.Ordinal))
+                {
+                    var encoded = line.Substring(ScriptStepHeader.Length).Trim();
+                    if (encoded.Length > 0)
+                    {
+                        try
+                        {
+                            var scriptStepBytes = Convert.FromBase64String(encoded);
+                            var scriptStep = Encoding.UTF8.GetString(scriptStepBytes);
+                            if (!string.IsNullOrWhiteSpace(scriptStep))
+                            {
+                                macro.ScriptSteps.Add(scriptStep);
+                            }
+                        }
+                        catch (FormatException ex)
+                        {
+                            Log.Warning(ex, "Ignoring malformed script step metadata");
+                        }
                     }
                 }
                 

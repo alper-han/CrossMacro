@@ -93,6 +93,8 @@ public class DesignMainWindowViewModel : MainWindowViewModel
         public EditorAction FromMacroEvent(MacroEvent ev, MacroEvent? nextEvent = null) => new() { Type = EditorActionType.Delay };
         public MacroSequence ToMacroSequence(IEnumerable<EditorAction> actions, string name, bool isAbsolute, bool skipInitialZeroZero = false) => new() { Name = name };
         public List<EditorAction> FromMacroSequence(MacroSequence sequence) => new();
+        public EditorActionRestoreResult FromMacroSequenceWithDiagnostics(MacroSequence sequence) =>
+            new(new List<EditorAction>(), new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false);
     }
 
     private class MockEditorActionValidator : IEditorActionValidator

@@ -392,19 +392,26 @@ public sealed class CliCommandRouter
                 "  move abs <x> <y>\n" +
                 "  move rel <dx> <dy>\n" +
                 "  down <button> | up <button> | click <button>\n" +
+                "  down current <button> | up current <button> | click current <button>\n" +
                 "  scroll <up|down|left|right> [count]\n" +
                 "  key down <key> | key up <key>\n" +
                 "  tap <combo>\n" +
                 "  delay <ms>\n" +
                 "  delay random <min> <max> | delay random <min>..<max>\n" +
                 "  set <name> <value> | set <name>=<value>\n" +
+                "  inc <name> [amount] | dec <name> [amount]\n" +
                 "  repeat <count> { ... }\n" +
+                "  if <left> <op> <right> { ... } else { ... }\n" +
+                "  while <left> <op> <right> { ... }\n" +
+                "  for <var> from <start> to <end> [step <n>] { ... }\n" +
+                "  break | continue\n" +
                 "  type <text>\n\n" +
                 "Examples:\n" +
                 "  crossmacro run --step \"move abs 500 300\" --step \"click left\" --dry-run\n" +
                 "  crossmacro run move rel 100 0 delay 40 click left\n" +
                 "  crossmacro run --step \"set x=640\" --step \"set y=360\" --step \"move abs $x $y\"\n" +
                 "  crossmacro run --step \"repeat 3 {\" --step \"click left\" --step \"delay random 40 90\" --step \"}\"\n" +
+                "  crossmacro run --step \"set i=0\" --step \"while $i < 3 {\" --step \"click left\" --step \"inc i\" --step \"}\"\n" +
                 "  crossmacro run --step \"delay random 40..90\" --step \"click left\"\n" +
                 "  crossmacro run --file ./steps.txt --json\n";
         }

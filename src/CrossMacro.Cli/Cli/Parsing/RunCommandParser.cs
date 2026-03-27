@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using CrossMacro.Core.Models;
+using CrossMacro.Core.Services;
 
 namespace CrossMacro.Cli;
 
@@ -128,7 +130,7 @@ internal static class RunCommandParser
             return CliParseResult.Error("--timeout must be >= 0");
         }
 
-        if (speed < 0.1 || speed > 10.0)
+        if (speed < PlaybackOptions.MinSpeedMultiplier || speed > PlaybackOptions.MaxSpeedMultiplier)
         {
             return CliParseResult.Error("--speed must be between 0.1 and 10.");
         }
@@ -170,8 +172,21 @@ internal static class RunCommandParser
         {
             if (index + 1 >= args.Length)
             {
-                error = $"Invalid inline step syntax for {token}. Expected: {token} <button>";
+                error = $"Invalid inline step syntax for {token}. Expected: {token} <button> or {token} {RunScriptSyntax.CurrentPositionToken} <button>";
                 return false;
+            }
+
+            if (RunScriptSyntax.IsCurrentPositionToken(args[index + 1]))
+            {
+                if (index + 2 >= args.Length)
+                {
+                    error = $"Invalid inline step syntax for {token}. Expected: {token} {RunScriptSyntax.CurrentPositionToken} <button>";
+                    return false;
+                }
+
+                step = $"{token} {RunScriptSyntax.CurrentPositionToken} {args[index + 2]}";
+                index += 2;
+                return true;
             }
 
             step = $"{token} {args[index + 1]}";
@@ -287,6 +302,29 @@ internal static class RunCommandParser
             return true;
         }
 
+        if (string.Equals(token, "inc", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "dec", StringComparison.OrdinalIgnoreCase))
+        {
+            if (index + 1 >= args.Length)
+            {
+                error = $"Invalid inline step syntax for {token}. Expected: {token} <name> [amount]";
+                return false;
+            }
+
+            if (index + 2 < args.Length
+                && (int.TryParse(args[index + 2], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
+                    || IsVariableReferenceToken(args[index + 2])))
+            {
+                step = $"{token} {args[index + 1]} {args[index + 2]}";
+                index += 2;
+                return true;
+            }
+
+            step = $"{token} {args[index + 1]}";
+            index += 1;
+            return true;
+        }
+
         if (string.Equals(token, "repeat", StringComparison.OrdinalIgnoreCase))
         {
             if (index + 2 >= args.Length || !string.Equals(args[index + 2], "{", StringComparison.Ordinal))
@@ -300,13 +338,116 @@ internal static class RunCommandParser
             return true;
         }
 
-        if (string.Equals(token, "}", StringComparison.Ordinal))
+        if (string.Equals(token, "if", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "while", StringComparison.OrdinalIgnoreCase))
         {
-            step = "}";
+            if (index + 4 >= args.Length || !string.Equals(args[index + 4], "{", StringComparison.Ordinal))
+            {
+                error = $"Invalid inline step syntax for {token}. Expected: {token} <left> <op> <right> {{";
+                return false;
+            }
+
+            step = $"{token} {args[index + 1]} {args[index + 2]} {args[index + 3]} {{";
+            index += 4;
+            return true;
+        }
+
+        if (string.Equals(token, "else", StringComparison.OrdinalIgnoreCase))
+        {
+            if (index + 1 >= args.Length || !string.Equals(args[index + 1], "{", StringComparison.Ordinal))
+            {
+                error = "Invalid inline step syntax for else. Expected: else {";
+                return false;
+            }
+
+            step = "else {";
+            index += 1;
+            return true;
+        }
+
+        if (string.Equals(token, "for", StringComparison.OrdinalIgnoreCase))
+        {
+            if (index + 5 >= args.Length)
+            {
+                error = "Invalid inline step syntax for for. Expected: for <var> from <start> to <end> [step <n>] {";
+                return false;
+            }
+
+            if (!string.Equals(args[index + 2], "from", StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(args[index + 4], "to", StringComparison.OrdinalIgnoreCase))
+            {
+                error = "Invalid inline step syntax for for. Expected: for <var> from <start> to <end> [step <n>] {";
+                return false;
+            }
+
+            if (index + 6 < args.Length && string.Equals(args[index + 6], "{", StringComparison.Ordinal))
+            {
+                step = $"for {args[index + 1]} from {args[index + 3]} to {args[index + 5]} {{";
+                index += 6;
+                return true;
+            }
+
+            if (index + 8 < args.Length
+                && string.Equals(args[index + 6], "step", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(args[index + 8], "{", StringComparison.Ordinal))
+            {
+                step = $"for {args[index + 1]} from {args[index + 3]} to {args[index + 5]} step {args[index + 7]} {{";
+                index += 8;
+                return true;
+            }
+
+            error = "Invalid inline step syntax for for. Expected: for <var> from <start> to <end> [step <n>] {";
+            return false;
+        }
+
+        if (RunScriptSyntax.IsBreakCommand(token))
+        {
+            step = RunScriptSyntax.BreakCommand;
+            return true;
+        }
+
+        if (RunScriptSyntax.IsContinueCommand(token))
+        {
+            step = RunScriptSyntax.ContinueCommand;
+            return true;
+        }
+
+        if (RunScriptSyntax.IsBlockEndToken(token))
+        {
+            step = RunScriptSyntax.BlockEndToken;
             return true;
         }
 
         error = $"Unknown inline run step command: {token}";
         return false;
+    }
+
+    private static bool IsVariableReferenceToken(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token) || !token.StartsWith('$'))
+        {
+            return false;
+        }
+
+        var name = token[1..];
+        if (name.Length == 0)
+        {
+            return false;
+        }
+
+        if (!(name[0] == '_' || char.IsLetter(name[0])))
+        {
+            return false;
+        }
+
+        for (var i = 1; i < name.Length; i++)
+        {
+            if (!(name[i] == '_' || char.IsLetterOrDigit(name[i])))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

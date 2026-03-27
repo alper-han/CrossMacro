@@ -385,6 +385,22 @@ public class CliCommandRouterTests
     }
 
     [Fact]
+    public void Parse_WhenRunWithInlineCurrentPositionClick_ReturnsRunOptions()
+    {
+        var result = _router.Parse([
+            "run",
+            "move", "abs", "100", "200",
+            "click", "current", "left"
+        ]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<RunCliOptions>(result.Options);
+        Assert.Equal(2, options.Steps.Count);
+        Assert.Equal("move abs 100 200", options.Steps[0]);
+        Assert.Equal("click current left", options.Steps[1]);
+    }
+
+    [Fact]
     public void Parse_WhenRunWithInlineRepeatAndSet_ReturnsRunOptions()
     {
         var result = _router.Parse([
@@ -404,6 +420,71 @@ public class CliCommandRouterTests
         Assert.Equal("click left", options.Steps[2]);
         Assert.Equal("delay random 10 20", options.Steps[3]);
         Assert.Equal("}", options.Steps[4]);
+    }
+
+    [Fact]
+    public void Parse_WhenRunWithInlineIfWhileFor_ReturnsRunOptions()
+    {
+        var result = _router.Parse([
+            "run",
+            "if", "$x", "==", "1", "{",
+            "click", "left",
+            "}",
+            "while", "$i", "<", "3", "{",
+            "inc", "i",
+            "}",
+            "for", "n", "from", "1", "to", "5", "step", "2", "{",
+            "click", "right",
+            "}"
+        ]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<RunCliOptions>(result.Options);
+        Assert.Equal("if $x == 1 {", options.Steps[0]);
+        Assert.Equal("while $i < 3 {", options.Steps[3]);
+        Assert.Equal("inc i", options.Steps[4]);
+        Assert.Equal("for n from 1 to 5 step 2 {", options.Steps[6]);
+    }
+
+    [Fact]
+    public void Parse_WhenRunWithInlineBreakAndContinue_ReturnsRunOptions()
+    {
+        var result = _router.Parse([
+            "run",
+            "repeat", "2", "{",
+            "continue",
+            "}",
+            "for", "i", "from", "1", "to", "2", "{",
+            "break",
+            "}"
+        ]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<RunCliOptions>(result.Options);
+        Assert.Equal(6, options.Steps.Count);
+        Assert.Equal("repeat 2 {", options.Steps[0]);
+        Assert.Equal("continue", options.Steps[1]);
+        Assert.Equal("}", options.Steps[2]);
+        Assert.Equal("for i from 1 to 2 {", options.Steps[3]);
+        Assert.Equal("break", options.Steps[4]);
+        Assert.Equal("}", options.Steps[5]);
+    }
+
+    [Fact]
+    public void Parse_WhenRunWithInlineIncVariableAmount_ReturnsRunOptions()
+    {
+        var result = _router.Parse([
+            "run",
+            "set", "step", "2",
+            "inc", "i", "$step",
+            "click", "left"
+        ]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<RunCliOptions>(result.Options);
+        Assert.Equal("set step 2", options.Steps[0]);
+        Assert.Equal("inc i $step", options.Steps[1]);
+        Assert.Equal("click left", options.Steps[2]);
     }
 
     [Fact]
@@ -471,6 +552,7 @@ public class CliCommandRouterTests
 
         Assert.Contains("--file <steps-file>", usage);
         Assert.Contains("type <text>", usage);
+        Assert.Contains("break | continue", usage);
         Assert.Contains("Examples:", usage);
     }
 

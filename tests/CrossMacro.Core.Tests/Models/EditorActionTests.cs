@@ -23,7 +23,25 @@ public class EditorActionTests
             RandomDelayMinMs = 50,
             RandomDelayMaxMs = 150,
             ScrollAmount = -2,
-            Text = "hello"
+            Text = "hello",
+            ScriptVariableName = "counter",
+            ScriptValueType = ScriptValueType.Number,
+            ScriptValue = "42",
+            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
+            ScriptNumericValue = "stepAmount",
+            ScriptLeftOperandType = ScriptOperandType.VariableReference,
+            ScriptLeftOperand = "counter",
+            ScriptConditionOperator = ScriptConditionOperator.LessThanOrEqual,
+            ScriptRightOperandType = ScriptOperandType.Number,
+            ScriptRightOperand = "100",
+            ForVariableName = "i",
+            ForStartType = ScriptNumericSourceType.Number,
+            ForStartValue = "0",
+            ForEndType = ScriptNumericSourceType.Number,
+            ForEndValue = "10",
+            ForHasStep = true,
+            ForStepType = ScriptNumericSourceType.Number,
+            ForStepValue = "2"
         };
 
         // Act
@@ -45,6 +63,24 @@ public class EditorActionTests
         clone.RandomDelayMaxMs.Should().Be(source.RandomDelayMaxMs);
         clone.ScrollAmount.Should().Be(source.ScrollAmount);
         clone.Text.Should().Be(source.Text);
+        clone.ScriptVariableName.Should().Be(source.ScriptVariableName);
+        clone.ScriptValueType.Should().Be(source.ScriptValueType);
+        clone.ScriptValue.Should().Be(source.ScriptValue);
+        clone.ScriptNumericSourceType.Should().Be(source.ScriptNumericSourceType);
+        clone.ScriptNumericValue.Should().Be(source.ScriptNumericValue);
+        clone.ScriptLeftOperandType.Should().Be(source.ScriptLeftOperandType);
+        clone.ScriptLeftOperand.Should().Be(source.ScriptLeftOperand);
+        clone.ScriptConditionOperator.Should().Be(source.ScriptConditionOperator);
+        clone.ScriptRightOperandType.Should().Be(source.ScriptRightOperandType);
+        clone.ScriptRightOperand.Should().Be(source.ScriptRightOperand);
+        clone.ForVariableName.Should().Be(source.ForVariableName);
+        clone.ForStartType.Should().Be(source.ForStartType);
+        clone.ForStartValue.Should().Be(source.ForStartValue);
+        clone.ForEndType.Should().Be(source.ForEndType);
+        clone.ForEndValue.Should().Be(source.ForEndValue);
+        clone.ForHasStep.Should().Be(source.ForHasStep);
+        clone.ForStepType.Should().Be(source.ForStepType);
+        clone.ForStepValue.Should().Be(source.ForStepValue);
     }
 
     [Fact]
@@ -83,5 +119,48 @@ public class EditorActionTests
         delay.IsValid().Should().BeFalse();
         randomDelay.IsValid().Should().BeFalse();
         scroll.IsValid().Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsValid_WhenScriptVariableReferencesUseDollarPrefix_ReturnsTrue()
+    {
+        // Arrange
+        var action = new EditorAction
+        {
+            Type = EditorActionType.SetVariable,
+            ScriptVariableName = "$target",
+            ScriptValueType = ScriptValueType.VariableReference,
+            ScriptValue = "$source"
+        };
+
+        // Act + Assert
+        action.IsValid().Should().BeTrue();
+    }
+
+    [Fact]
+    public void DisplayName_WhenForVariableValuesUseDollarPrefix_DoesNotDuplicateDollar()
+    {
+        // Arrange
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ForBlockStart,
+            ForVariableName = "i",
+            ForStartType = ScriptNumericSourceType.VariableReference,
+            ForStartValue = "$start",
+            ForEndType = ScriptNumericSourceType.VariableReference,
+            ForEndValue = "$finish",
+            ForHasStep = true,
+            ForStepType = ScriptNumericSourceType.VariableReference,
+            ForStepValue = "$step"
+        };
+
+        // Act
+        var displayName = action.DisplayName;
+
+        // Assert
+        displayName.Should().Contain("$start");
+        displayName.Should().Contain("$finish");
+        displayName.Should().Contain("$step");
+        displayName.Should().NotContain("$$");
     }
 }

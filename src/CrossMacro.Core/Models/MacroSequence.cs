@@ -23,6 +23,12 @@ public class MacroSequence
     /// List of events in the macro
     /// </summary>
     public List<MacroEvent> Events { get; set; } = new(10000);
+
+    /// <summary>
+    /// Optional source script steps that produced this macro.
+    /// Used by the editor to restore structured script actions on reload.
+    /// </summary>
+    public List<string> ScriptSteps { get; set; } = new();
     
     /// <summary>
     /// When the macro was created

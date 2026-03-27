@@ -10,46 +10,49 @@
 
     <UserControl.Resources>
         <local:NullableIntConverter x:Key="NullableIntConverter"/>
+        <local:IndentLevelToMarginConverter x:Key="IndentLevelToMarginConverter"/>
     </UserControl.Resources>
 
     <Grid RowDefinitions="*,Auto">
-        
+
         <!-- Main Content: Action List + Properties -->
         <Grid Grid.Row="0" ColumnDefinitions="1*,1*">
-            
+
             <!-- Left: Action List -->
             <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="12" Margin="0,0,8,0">
                 <Grid RowDefinitions="Auto,*,Auto">
                     <TextBlock Grid.Row="0" Text="Actions" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8"/>
-                    
-                    <ListBox Grid.Row="1" 
-                             ItemsSource="{Binding Actions}" 
-                             SelectedItem="{Binding SelectedAction}"
+
+                        <ListBox Grid.Row="1"
+                             ItemsSource="{Binding ActionListItems}"
+                             SelectedItem="{Binding SelectedActionListItem}"
                              Classes="editor-action-list"
                              Background="Transparent"
                              SelectionMode="Single">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Border Background="{DynamicResource SurfaceBrush}" 
-                                            CornerRadius="3" 
+                                <StackPanel Orientation="Horizontal"
+                                            Spacing="6"
+                                            Margin="{Binding IndentLevel, Converter={StaticResource IndentLevelToMarginConverter}}">
+                                    <Border Background="{DynamicResource SurfaceBrush}"
+                                            CornerRadius="3"
                                             Padding="6,2"
                                             VerticalAlignment="Center"
                                             MinWidth="24">
-                                        <TextBlock Text="{Binding Index}" 
-                                                   FontSize="10" 
+                                        <TextBlock Text="{Binding Index}"
+                                                   FontSize="10"
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                    FontWeight="SemiBold"
                                                    HorizontalAlignment="Center"/>
                                     </Border>
-                                    <TextBlock Text="{Binding DisplayName}" 
+                                    <TextBlock Text="{Binding DisplayName}"
                                                TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center"/>
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-                    
+
                     <!-- Action List Buttons -->
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4" Margin="0,8,0,0">
                         <Button Command="{Binding RemoveAction}"
@@ -60,6 +63,12 @@
                                 <TextBlock Text="−"/>
                                 <TextBlock Text="Remove"/>
                             </StackPanel>
+                        </Button>
+                        <Button Command="{Binding RemoveBlock}"
+                                Classes="danger compact"
+                                IsEnabled="{Binding CanRemoveBlock}"
+                                ToolTip.Tip="Remove Block">
+                            <TextBlock Text="Block"/>
                         </Button>
                         <Button Command="{Binding MoveUp}"
                                 Classes="secondary compact"
@@ -82,17 +91,17 @@
                     </StackPanel>
                 </Grid>
             </Border>
-            
+
             <!-- Right: Properties Panel -->
             <Border Grid.Column="1" Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="12" Margin="8,0,0,0">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="16">
-                        
+
                         <!-- Add New Action Section -->
                         <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="6" Padding="12">
                             <StackPanel Spacing="8">
                                 <TextBlock Text="Add New Action" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <ComboBox ItemsSource="{Binding ActionTypes}" 
+                                <ComboBox ItemsSource="{Binding AddableActionTypes}"
                                           SelectedItem="{Binding NewActionType}"
                                           Background="{DynamicResource SurfaceBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"
@@ -114,43 +123,51 @@
                             </Button>
                             </StackPanel>
                         </Border>
-                        
+
                         <!-- Selected Action Properties -->
                         <StackPanel Spacing="12" IsVisible="{Binding HasSelectedAction}">
                             <TextBlock Text="Selected Action Properties" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                            
+
                             <!-- Action Type (Read-only display) -->
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Type:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="4" Padding="8,6">
-                                    <TextBlock Text="{Binding SelectedAction.Type}" 
-                                               Foreground="{DynamicResource TextPrimaryBrush}" 
+                                    <TextBlock Text="{Binding SelectedAction.Type}"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                                FontWeight="SemiBold"/>
                                 </Border>
                             </StackPanel>
 
+                            <Button Command="{Binding InsertElseBlock}"
+                                    Classes="secondary compact"
+                                    IsVisible="{Binding CanInsertElseBlock}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center">
+                                <TextBlock Text="Insert Else Block"/>
+                            </Button>
+
                             <StackPanel Spacing="4" IsVisible="{Binding ShowCurrentPositionToggle}">
                                 <CheckBox IsChecked="{Binding SelectedAction.UseCurrentPosition}"
-                                          Content="Click at current cursor position"
+                                          Content="{Binding CurrentPositionToggleLabel}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBlock Text="Playback starts from the live cursor position automatically."
+                                <TextBlock Text="Playback resolves this action at the live cursor position."
                                            Classes="caption"
                                            IsVisible="{Binding SelectedAction.UseCurrentPosition}"/>
                             </StackPanel>
-                            
+
                             <!-- Coordinates (MouseMove, MouseClick, MouseDown, MouseUp) -->
                             <StackPanel Spacing="4" IsVisible="{Binding ShowCoordinates}">
                                 <TextBlock Text="Coordinates:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <Grid ColumnDefinitions="*,8,*">
-                                    <TextBox Text="{Binding SelectedAction.X, Converter={StaticResource NullableIntConverter}}" 
+                                    <TextBox Text="{Binding SelectedAction.X, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                              Watermark="X"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
                                              BorderThickness="0"
                                              CornerRadius="4"
                                              Padding="8,6"/>
-                                    <TextBox Grid.Column="2" 
-                                             Text="{Binding SelectedAction.Y, Converter={StaticResource NullableIntConverter}}" 
+                                    <TextBox Grid.Column="2"
+                                             Text="{Binding SelectedAction.Y, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                              Watermark="Y"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
@@ -179,39 +196,39 @@
                                     </StackPanel>
                                 </Button>
                             </StackPanel>
-                            
+
                             <!-- Absolute/Relative Toggle (all coordinate-bearing mouse actions) -->
                             <StackPanel Spacing="4" IsVisible="{Binding ShowCoordModeToggle}">
                                 <TextBlock Text="Coordinate Mode:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <RadioButton GroupName="CoordMode" 
-                                                 IsChecked="{Binding SelectedAction.IsAbsolute}" 
+                                    <RadioButton GroupName="CoordMode"
+                                                 IsChecked="{Binding SelectedAction.IsAbsolute}"
                                                  Foreground="{DynamicResource TextPrimaryBrush}">
                                         <TextBlock Text="Absolute" FontSize="12"/>
                                     </RadioButton>
-                                    <RadioButton GroupName="CoordMode" 
-                                                 IsChecked="{Binding !SelectedAction.IsAbsolute}" 
+                                    <RadioButton GroupName="CoordMode"
+                                                 IsChecked="{Binding !SelectedAction.IsAbsolute}"
                                                  Foreground="{DynamicResource TextPrimaryBrush}">
                                         <TextBlock Text="Relative" FontSize="12"/>
                                     </RadioButton>
                                 </StackPanel>
                             </StackPanel>
-                            
+
                             <!-- Mouse Button (MouseClick, MouseDown, MouseUp) -->
                             <StackPanel Spacing="4" IsVisible="{Binding ShowMouseButton}">
                                 <TextBlock Text="Mouse Button:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
-                                <ComboBox ItemsSource="{Binding MouseButtons}" 
+                                <ComboBox ItemsSource="{Binding MouseButtons}"
                                           SelectedItem="{Binding SelectedAction.Button}"
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                           HorizontalAlignment="Stretch"/>
                             </StackPanel>
-                            
+
                             <!-- Key Code (KeyPress, KeyDown, KeyUp) -->
                             <StackPanel Spacing="4" IsVisible="{Binding ShowKeyCode}">
                                 <TextBlock Text="Key:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <Grid ColumnDefinitions="80,8,*">
-                                    <TextBox Text="{Binding SelectedAction.KeyCode, Converter={StaticResource NullableIntConverter}}" 
+                                    <TextBox Text="{Binding SelectedAction.KeyCode, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                              Watermark="Code"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
@@ -219,12 +236,12 @@
                                              CornerRadius="4"
                                              Padding="8,6"
                                              MaxLength="3"/>
-                                    <Border Grid.Column="2" 
-                                            Background="{DynamicResource SurfaceBrush}" 
-                                            CornerRadius="4" 
+                                    <Border Grid.Column="2"
+                                            Background="{DynamicResource SurfaceBrush}"
+                                            CornerRadius="4"
                                             Padding="12,6">
-                                        <TextBlock Text="{Binding SelectedAction.KeyName, FallbackValue='(enter code)'}" 
-                                                   Foreground="{DynamicResource TextPrimaryBrush}" 
+                                        <TextBlock Text="{Binding SelectedAction.KeyName, FallbackValue='(enter code)'}"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                                    FontWeight="SemiBold"
                                                    HorizontalAlignment="Center"/>
                                     </Border>
@@ -240,7 +257,7 @@
                                     </StackPanel>
                                 </Button>
                             </StackPanel>
-                            
+
                             <!-- Delay (Delay action only) -->
                             <StackPanel Spacing="4" IsVisible="{Binding ShowDelay}">
                                 <CheckBox IsChecked="{Binding SelectedAction.UseRandomDelay}"
@@ -249,7 +266,7 @@
 
                                 <StackPanel Spacing="4" IsVisible="{Binding ShowFixedDelayInput}">
                                     <TextBlock Text="Delay (ms):" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
-                                    <TextBox Text="{Binding SelectedAction.DelayMs, Converter={StaticResource NullableIntConverter}}" 
+                                    <TextBox Text="{Binding SelectedAction.DelayMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                              Watermark="ms"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
@@ -261,7 +278,7 @@
                                 <StackPanel Spacing="4" IsVisible="{Binding ShowRandomDelayOptions}">
                                     <TextBlock Text="Random Delay Range (ms):" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                     <Grid ColumnDefinitions="*,8,*">
-                                        <TextBox Text="{Binding SelectedAction.RandomDelayMinMs, Converter={StaticResource NullableIntConverter}}"
+                                        <TextBox Text="{Binding SelectedAction.RandomDelayMinMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                                  Watermark="Min"
                                                  Background="{DynamicResource SurfaceHoverBrush}"
                                                  Foreground="{DynamicResource TextPrimaryBrush}"
@@ -269,7 +286,7 @@
                                                  CornerRadius="4"
                                                  Padding="8,6"/>
                                         <TextBox Grid.Column="2"
-                                                 Text="{Binding SelectedAction.RandomDelayMaxMs, Converter={StaticResource NullableIntConverter}}"
+                                                 Text="{Binding SelectedAction.RandomDelayMaxMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                                  Watermark="Max"
                                                  Background="{DynamicResource SurfaceHoverBrush}"
                                                  Foreground="{DynamicResource TextPrimaryBrush}"
@@ -279,11 +296,11 @@
                                     </Grid>
                                 </StackPanel>
                             </StackPanel>
-                            
+
                             <!-- Scroll Amount (ScrollVertical, ScrollHorizontal) -->
                             <StackPanel Spacing="4" IsVisible="{Binding ShowScrollAmount}">
                                 <TextBlock Text="Scroll Amount:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
-                                <TextBox Text="{Binding SelectedAction.ScrollAmount, Converter={StaticResource NullableIntConverter}}" 
+                                <TextBox Text="{Binding SelectedAction.ScrollAmount, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                          Watermark="Amount"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
@@ -292,27 +309,231 @@
                                          Padding="8,6"/>
                                 <TextBlock Text="(+) up/right, (-) down/left" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
                             </StackPanel>
-                            
-                            <!-- Text Input (TextInput action only) -->
+
+                            <!-- Text input -->
                             <StackPanel Spacing="4" IsVisible="{Binding ShowTextInput}">
-                                <TextBlock Text="Text to Type:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
-                                <TextBox Text="{Binding SelectedAction.Text}" 
-                                         Watermark="Enter text to type..."
+                                <TextBlock Text="{Binding TextInputLabel}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBox Text="{Binding SelectedAction.Text, UpdateSourceTrigger=PropertyChanged}"
+                                         Watermark="{Binding TextInputWatermark}"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"
                                          CornerRadius="4"
                                          Padding="8,6"
-                                         AcceptsReturn="False"
+                                         AcceptsReturn="{Binding TextInputAcceptsReturn}"
                                          TextWrapping="NoWrap"
                                          MaxLength="500"/>
-                                <TextBlock Text="Each character is typed as a separate key press (max 500 chars)" 
-                                           Foreground="{DynamicResource TextSecondaryBrush}" 
+                                <TextBlock Text="{Binding TextInputHint}"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="11"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
+
+                            <!-- Set variable -->
+                            <StackPanel Spacing="6" IsVisible="{Binding ShowSetVariableFields}">
+                                <TextBlock Text="Set Variable:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBox Text="{Binding SelectedAction.ScriptVariableName, UpdateSourceTrigger=PropertyChanged}"
+                                         Watermark="Variable name (e.g. i)"
+                                         Background="{DynamicResource SurfaceHoverBrush}"
+                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                         BorderThickness="0"
+                                         CornerRadius="4"
+                                         Padding="8,6"/>
+                                <ComboBox ItemsSource="{Binding AvailableVariableNames}"
+                                          SelectedItem="{Binding SelectedSetVariableSuggestion}"
+                                          IsVisible="{Binding ShowSetVariablePicker}"
+                                          Background="{DynamicResource SurfaceHoverBrush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          HorizontalAlignment="Stretch"/>
+                                <ComboBox ItemsSource="{Binding ScriptValueTypes}"
+                                          SelectedItem="{Binding SelectedAction.ScriptValueType}"
+                                          Background="{DynamicResource SurfaceHoverBrush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBox Text="{Binding SelectedAction.ScriptValue, UpdateSourceTrigger=PropertyChanged}"
+                                         Watermark="Value"
+                                         Background="{DynamicResource SurfaceHoverBrush}"
+                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                         BorderThickness="0"
+                                         CornerRadius="4"
+                                         Padding="8,6"/>
+                                <TextBlock Text="Name, type, and value are stored separately. Compiles to: set &lt;name&gt; &lt;value&gt;"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <!-- Increment / Decrement -->
+                            <StackPanel Spacing="6" IsVisible="{Binding ShowIncDecFields}">
+                                <TextBlock Text="Variable Update:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBox Text="{Binding SelectedAction.ScriptVariableName, UpdateSourceTrigger=PropertyChanged}"
+                                         Watermark="Variable name (e.g. i)"
+                                         Background="{DynamicResource SurfaceHoverBrush}"
+                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                         BorderThickness="0"
+                                         CornerRadius="4"
+                                         Padding="8,6"/>
+                                <ComboBox ItemsSource="{Binding AvailableVariableNames}"
+                                          SelectedItem="{Binding SelectedIncDecVariableSuggestion}"
+                                          IsVisible="{Binding ShowIncDecVariablePicker}"
+                                          Background="{DynamicResource SurfaceHoverBrush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          HorizontalAlignment="Stretch"/>
+                                <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
+                                          SelectedItem="{Binding SelectedAction.ScriptNumericSourceType}"
+                                          Background="{DynamicResource SurfaceHoverBrush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBox Text="{Binding SelectedAction.ScriptNumericValue, UpdateSourceTrigger=PropertyChanged}"
+                                         Watermark="Amount / variable"
+                                         Background="{DynamicResource SurfaceHoverBrush}"
+                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                         BorderThickness="0"
+                                         CornerRadius="4"
+                                         Padding="8,6"/>
+                                <TextBlock Text="Increment/Decrement amount can be a number or a variable reference."
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <!-- Repeat -->
+                            <StackPanel Spacing="6" IsVisible="{Binding ShowRepeatFields}">
+                                <TextBlock Text="Repeat Block:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
+                                          SelectedItem="{Binding SelectedAction.ScriptNumericSourceType}"
+                                          Background="{DynamicResource SurfaceHoverBrush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBox Text="{Binding SelectedAction.ScriptNumericValue, UpdateSourceTrigger=PropertyChanged}"
+                                         Watermark="Count / variable"
+                                         Background="{DynamicResource SurfaceHoverBrush}"
+                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                         BorderThickness="0"
+                                         CornerRadius="4"
+                                         Padding="8,6"/>
+                            </StackPanel>
+
+                            <!-- If / While condition -->
+                            <StackPanel Spacing="6" IsVisible="{Binding ShowConditionFields}">
+                                <TextBlock Text="Condition:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBlock Text="Left Operand" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+                                <Grid ColumnDefinitions="*,8,*">
+                                    <ComboBox ItemsSource="{Binding ScriptOperandTypes}"
+                                              SelectedItem="{Binding SelectedAction.ScriptLeftOperandType}"
+                                              Background="{DynamicResource SurfaceHoverBrush}"
+                                              Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBox Grid.Column="2"
+                                             Text="{Binding SelectedAction.ScriptLeftOperand, UpdateSourceTrigger=PropertyChanged}"
+                                             Watermark="Left value"
+                                             Background="{DynamicResource SurfaceHoverBrush}"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"
+                                             BorderThickness="0"
+                                             CornerRadius="4"
+                                             Padding="8,6"/>
+                                </Grid>
+                                <ComboBox ItemsSource="{Binding AvailableVariableNames}"
+                                          SelectedItem="{Binding SelectedConditionLeftVariableSuggestion}"
+                                          IsVisible="{Binding ShowConditionLeftVariablePicker}"
+                                          Background="{DynamicResource SurfaceHoverBrush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          HorizontalAlignment="Stretch"/>
+                                <ComboBox ItemsSource="{Binding ScriptConditionOperators}"
+                                          SelectedItem="{Binding SelectedAction.ScriptConditionOperator}"
+                                          Background="{DynamicResource SurfaceHoverBrush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Text="Right Operand" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+                                <Grid ColumnDefinitions="*,8,*">
+                                    <ComboBox ItemsSource="{Binding ScriptOperandTypes}"
+                                              SelectedItem="{Binding SelectedAction.ScriptRightOperandType}"
+                                              Background="{DynamicResource SurfaceHoverBrush}"
+                                              Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBox Grid.Column="2"
+                                             Text="{Binding SelectedAction.ScriptRightOperand, UpdateSourceTrigger=PropertyChanged}"
+                                             Watermark="Right value"
+                                             Background="{DynamicResource SurfaceHoverBrush}"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"
+                                             BorderThickness="0"
+                                             CornerRadius="4"
+                                             Padding="8,6"/>
+                                </Grid>
+                                <ComboBox ItemsSource="{Binding AvailableVariableNames}"
+                                          SelectedItem="{Binding SelectedConditionRightVariableSuggestion}"
+                                          IsVisible="{Binding ShowConditionRightVariablePicker}"
+                                          Background="{DynamicResource SurfaceHoverBrush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          HorizontalAlignment="Stretch"/>
+                            </StackPanel>
+
+                            <!-- For -->
+                            <StackPanel Spacing="6" IsVisible="{Binding ShowForFields}">
+                                <TextBlock Text="For Block:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBox Text="{Binding SelectedAction.ForVariableName, UpdateSourceTrigger=PropertyChanged}"
+                                         Watermark="Loop variable (e.g. i)"
+                                         Background="{DynamicResource SurfaceHoverBrush}"
+                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                         BorderThickness="0"
+                                         CornerRadius="4"
+                                         Padding="8,6"/>
+                                <ComboBox ItemsSource="{Binding AvailableVariableNames}"
+                                          SelectedItem="{Binding SelectedForVariableSuggestion}"
+                                          IsVisible="{Binding ShowForVariablePicker}"
+                                          Background="{DynamicResource SurfaceHoverBrush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          HorizontalAlignment="Stretch"/>
+
+                                <TextBlock Text="Start" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+                                <Grid ColumnDefinitions="*,8,*">
+                                    <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
+                                              SelectedItem="{Binding SelectedAction.ForStartType}"
+                                              Background="{DynamicResource SurfaceHoverBrush}"
+                                              Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBox Grid.Column="2"
+                                             Text="{Binding SelectedAction.ForStartValue, UpdateSourceTrigger=PropertyChanged}"
+                                             Watermark="Start"
+                                             Background="{DynamicResource SurfaceHoverBrush}"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"
+                                             BorderThickness="0"
+                                             CornerRadius="4"
+                                             Padding="8,6"/>
+                                </Grid>
+
+                                <TextBlock Text="End" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+                                <Grid ColumnDefinitions="*,8,*">
+                                    <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
+                                              SelectedItem="{Binding SelectedAction.ForEndType}"
+                                              Background="{DynamicResource SurfaceHoverBrush}"
+                                              Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBox Grid.Column="2"
+                                             Text="{Binding SelectedAction.ForEndValue, UpdateSourceTrigger=PropertyChanged}"
+                                             Watermark="End"
+                                             Background="{DynamicResource SurfaceHoverBrush}"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"
+                                             BorderThickness="0"
+                                             CornerRadius="4"
+                                             Padding="8,6"/>
+                                </Grid>
+
+                                <CheckBox IsChecked="{Binding SelectedAction.ForHasStep}"
+                                          Content="Use explicit step"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+                                <StackPanel Spacing="4" IsVisible="{Binding ShowForStepFields}">
+                                    <Grid ColumnDefinitions="*,8,*">
+                                        <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
+                                                  SelectedItem="{Binding SelectedAction.ForStepType}"
+                                                  Background="{DynamicResource SurfaceHoverBrush}"
+                                                  Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBox Grid.Column="2"
+                                                 Text="{Binding SelectedAction.ForStepValue, UpdateSourceTrigger=PropertyChanged}"
+                                                 Watermark="Step"
+                                                 Background="{DynamicResource SurfaceHoverBrush}"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderThickness="0"
+                                                 CornerRadius="4"
+                                                 Padding="8,6"/>
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
                         </StackPanel>
-                        
+
                         <!-- No Selection Message -->
                         <TextBlock Text="Select an action to edit its properties"
                                    IsVisible="{Binding !HasSelectedAction}"
@@ -320,65 +541,87 @@
                                    FontStyle="Italic"
                                    HorizontalAlignment="Center"
                                    Margin="0,20"/>
-                        
+
                     </StackPanel>
                 </ScrollViewer>
             </Border>
         </Grid>
-        
+
         <!-- Footer: Status + Actions -->
         <Border Grid.Row="2" Margin="0,16,0,0">
-            <Grid ColumnDefinitions="*,Auto">
-                <!-- Undo/Redo + Clear -->
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Command="{Binding Undo}"
-                            Classes="secondary compact"
-                            IsEnabled="{Binding CanUndo}"
-                            ToolTip.Tip="Undo">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="↩"/>
-                            <TextBlock Text="Undo"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Command="{Binding Redo}"
-                            Classes="secondary compact"
-                            IsEnabled="{Binding CanRedo}"
-                            ToolTip.Tip="Redo">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="↪"/>
-                            <TextBlock Text="Redo"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Command="{Binding ClearAll}"
-                            Classes="secondary compact"
-                            IsEnabled="{Binding HasActions}"
-                            ToolTip.Tip="Clear All">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="🗑️" Classes="emoji-icon"/>
-                            <TextBlock Text="Clear"/>
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
-                
-                <!-- Save/Load -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                    <Button Command="{Binding LoadMacroAsync}"
-                            Classes="secondary compact">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="📂" Classes="emoji-icon"/>
-                            <TextBlock Text="Load"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Command="{Binding SaveMacroAsync}"
-                            Classes="primary compact"
-                            IsEnabled="{Binding HasActions}">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="💾" Classes="emoji-icon"/>
-                            <TextBlock Text="Save"/>
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
-            </Grid>
+            <StackPanel Spacing="8">
+                <Border IsVisible="{Binding HasLoadWarnings}"
+                        Background="{DynamicResource SurfaceHoverBrush}"
+                        CornerRadius="6"
+                        Padding="10,8">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Restore Warnings"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource WarningBrush}"/>
+                        <ItemsControl ItemsSource="{Binding LoadWarnings}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <Grid ColumnDefinitions="*,Auto">
+                    <!-- Undo/Redo + Clear -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Command="{Binding Undo}"
+                                Classes="secondary compact"
+                                IsEnabled="{Binding CanUndo}"
+                                ToolTip.Tip="Undo">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="↩"/>
+                                <TextBlock Text="Undo"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding Redo}"
+                                Classes="secondary compact"
+                                IsEnabled="{Binding CanRedo}"
+                                ToolTip.Tip="Redo">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="↪"/>
+                                <TextBlock Text="Redo"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding ClearAll}"
+                                Classes="secondary compact"
+                                IsEnabled="{Binding HasActions}"
+                                ToolTip.Tip="Clear All">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="🗑️" Classes="emoji-icon"/>
+                                <TextBlock Text="Clear"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- Save/Load -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                        <Button Command="{Binding LoadMacroAsync}"
+                                Classes="secondary compact">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="📂" Classes="emoji-icon"/>
+                                <TextBlock Text="Load"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding SaveMacroAsync}"
+                                Classes="primary compact"
+                                IsEnabled="{Binding HasActions}">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="💾" Classes="emoji-icon"/>
+                                <TextBlock Text="Save"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
         </Border>
     </Grid>
 </UserControl>

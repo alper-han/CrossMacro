@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CrossMacro.Core.Models;
+using CrossMacro.Core.Services;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -42,7 +43,26 @@ public partial class EditorViewModel
             && left.UseCurrentPosition == right.UseCurrentPosition
             && left.ScrollAmount == right.ScrollAmount
             && string.Equals(left.KeyName, right.KeyName, StringComparison.Ordinal)
-            && string.Equals(left.Text, right.Text, StringComparison.Ordinal);
+            && string.Equals(left.Text, right.Text, StringComparison.Ordinal)
+            && string.Equals(left.ScriptVariableName, right.ScriptVariableName, StringComparison.Ordinal)
+            && left.ScriptValueType == right.ScriptValueType
+            && string.Equals(left.ScriptValue, right.ScriptValue, StringComparison.Ordinal)
+            && left.ScriptNumericSourceType == right.ScriptNumericSourceType
+            && string.Equals(left.ScriptNumericValue, right.ScriptNumericValue, StringComparison.Ordinal)
+            && left.ScriptLeftOperandType == right.ScriptLeftOperandType
+            && string.Equals(left.ScriptLeftOperand, right.ScriptLeftOperand, StringComparison.Ordinal)
+            && left.ScriptConditionOperator == right.ScriptConditionOperator
+            && left.ScriptRightOperandType == right.ScriptRightOperandType
+            && string.Equals(left.ScriptRightOperand, right.ScriptRightOperand, StringComparison.Ordinal)
+            && string.Equals(left.ForVariableName, right.ForVariableName, StringComparison.Ordinal)
+            && left.ForStartType == right.ForStartType
+            && string.Equals(left.ForStartValue, right.ForStartValue, StringComparison.Ordinal)
+            && left.ForEndType == right.ForEndType
+            && string.Equals(left.ForEndValue, right.ForEndValue, StringComparison.Ordinal)
+            && left.ForHasStep == right.ForHasStep
+            && left.ForStepType == right.ForStepType
+            && string.Equals(left.ForStepValue, right.ForStepValue, StringComparison.Ordinal)
+            && left.PreferLegacyScriptText == right.PreferLegacyScriptText;
     }
 
     private static bool AreStatesEquivalent(IReadOnlyList<EditorAction> left, IReadOnlyList<EditorAction> right)
@@ -66,7 +86,7 @@ public partial class EditorViewModel
     private bool GetCurrentCoordinateMode()
     {
         return Actions
-            .FirstOrDefault(action => UsesCoordinateFields(action.Type) && !IsCurrentPositionClickAction(action))
+            .FirstOrDefault(action => UsesCoordinateFields(action.Type) && !IsCurrentPositionMouseButtonAction(action))
             ?.IsAbsolute ?? true;
     }
 
@@ -77,7 +97,7 @@ public partial class EditorViewModel
             return;
         }
 
-        if (IsCurrentPositionClickAction(sourceAction))
+        if (IsCurrentPositionMouseButtonAction(sourceAction))
         {
             if (sourceAction.IsAbsolute)
             {
@@ -94,7 +114,7 @@ public partial class EditorViewModel
                 continue;
             }
 
-            if (IsCurrentPositionClickAction(action))
+            if (IsCurrentPositionMouseButtonAction(action))
             {
                 if (action.IsAbsolute)
                 {
@@ -154,9 +174,32 @@ public partial class EditorViewModel
 
         if (e.PropertyName == nameof(EditorAction.Type)
             || e.PropertyName == nameof(EditorAction.UseRandomDelay)
-            || e.PropertyName == nameof(EditorAction.UseCurrentPosition))
+            || e.PropertyName == nameof(EditorAction.UseCurrentPosition)
+            || e.PropertyName == nameof(EditorAction.ForHasStep)
+            || e.PropertyName == nameof(EditorAction.ScriptValueType)
+            || e.PropertyName == nameof(EditorAction.ScriptNumericSourceType)
+            || e.PropertyName == nameof(EditorAction.ScriptLeftOperandType)
+            || e.PropertyName == nameof(EditorAction.ScriptRightOperandType)
+            || e.PropertyName == nameof(EditorAction.ForStartType)
+            || e.PropertyName == nameof(EditorAction.ForEndType)
+            || e.PropertyName == nameof(EditorAction.ForStepType))
         {
             NotifyVisibilityChanged();
+        }
+
+        if (e.PropertyName is nameof(EditorAction.Type)
+            or nameof(EditorAction.Text)
+            or nameof(EditorAction.ScriptVariableName)
+            or nameof(EditorAction.ForVariableName)
+            or nameof(EditorAction.ScriptValue)
+            or nameof(EditorAction.ScriptNumericValue)
+            or nameof(EditorAction.ScriptLeftOperand)
+            or nameof(EditorAction.ScriptRightOperand)
+            or nameof(EditorAction.ForStartValue)
+            or nameof(EditorAction.ForEndValue)
+            or nameof(EditorAction.ForStepValue))
+        {
+            RefreshAvailableVariableNames();
         }
 
         if (e.PropertyName == nameof(EditorAction.KeyCode) && sender is EditorAction action)
@@ -192,6 +235,7 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(ShowCoordinates));
         OnPropertyChanged(nameof(ShowCoordModeToggle));
         OnPropertyChanged(nameof(ShowCurrentPositionToggle));
+        OnPropertyChanged(nameof(CurrentPositionToggleLabel));
         OnPropertyChanged(nameof(ShowMouseButton));
         OnPropertyChanged(nameof(ShowKeyCode));
         OnPropertyChanged(nameof(ShowDelay));
@@ -199,9 +243,26 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(ShowRandomDelayOptions));
         OnPropertyChanged(nameof(ShowScrollAmount));
         OnPropertyChanged(nameof(ShowTextInput));
+        OnPropertyChanged(nameof(ShowSetVariableFields));
+        OnPropertyChanged(nameof(ShowIncDecFields));
+        OnPropertyChanged(nameof(ShowRepeatFields));
+        OnPropertyChanged(nameof(ShowConditionFields));
+        OnPropertyChanged(nameof(ShowForFields));
+        OnPropertyChanged(nameof(ShowForStepFields));
+        OnPropertyChanged(nameof(ShowSetVariablePicker));
+        OnPropertyChanged(nameof(ShowIncDecVariablePicker));
+        OnPropertyChanged(nameof(ShowConditionLeftVariablePicker));
+        OnPropertyChanged(nameof(ShowConditionRightVariablePicker));
+        OnPropertyChanged(nameof(ShowForVariablePicker));
+        OnPropertyChanged(nameof(TextInputLabel));
+        OnPropertyChanged(nameof(TextInputWatermark));
+        OnPropertyChanged(nameof(TextInputHint));
+        OnPropertyChanged(nameof(TextInputAcceptsReturn));
         OnPropertyChanged(nameof(SkipInitialZeroZero));
         OnPropertyChanged(nameof(RequiresSkipInitialZeroZero));
         OnPropertyChanged(nameof(CanEditSkipInitialZeroZero));
+        OnPropertyChanged(nameof(CanRemoveBlock));
+        RefreshAvailableVariableNames();
     }
 
     private void RefreshCurrentPositionConfiguration()
@@ -239,12 +300,14 @@ public partial class EditorViewModel
         {
             _isSynchronizingActionProperties = true;
 
-            if (action.Type != EditorActionType.MouseClick && action.UseCurrentPosition)
+            if (action.Type is not (EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp)
+                && action.UseCurrentPosition)
             {
                 action.UseCurrentPosition = false;
             }
 
-            if (action.Type == EditorActionType.MouseClick && action.UseCurrentPosition)
+            if (action.Type is EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp
+                && action.UseCurrentPosition)
             {
                 if (action.X != 0)
                 {
@@ -305,6 +368,25 @@ public partial class EditorViewModel
 
     public void AddAction()
     {
+        if (!IsUserAddableActionType(NewActionType))
+        {
+            Status = "This action is managed automatically.";
+            return;
+        }
+
+        var insertionIndex = GetInsertionIndexAfterSelection();
+        if (!CanApplyScriptStructureMutation(candidate =>
+            {
+                candidate.Insert(insertionIndex, new EditorAction { Type = NewActionType });
+                if (IsAutoManagedBlockStartAction(NewActionType))
+                {
+                    candidate.Insert(insertionIndex + 1, new EditorAction { Type = EditorActionType.BlockEnd });
+                }
+            }))
+        {
+            return;
+        }
+
         SaveUndoState();
 
         var isCoordinateAction = UsesCoordinateFields(NewActionType);
@@ -321,7 +403,15 @@ public partial class EditorViewModel
             ScrollAmount = NewActionType is EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal ? 1 : 0
         };
 
-        Actions.Add(action);
+        Actions.Insert(insertionIndex, action);
+        if (IsAutoManagedBlockStartAction(NewActionType))
+        {
+            Actions.Insert(insertionIndex + 1, new EditorAction
+            {
+                Type = EditorActionType.BlockEnd
+            });
+        }
+
         SelectedAction = action;
         Status = $"Added {action.DisplayName}";
         OnPropertyChanged(nameof(HasActions));
@@ -331,6 +421,13 @@ public partial class EditorViewModel
 
     public void AddCurrentPositionClick()
     {
+        var insertionIndex = GetInsertionIndexAfterSelection();
+        if (!CanApplyScriptStructureMutation(candidate =>
+            candidate.Insert(insertionIndex, new EditorAction { Type = EditorActionType.MouseClick })))
+        {
+            return;
+        }
+
         SaveUndoState();
 
         var action = new EditorAction
@@ -343,11 +440,94 @@ public partial class EditorViewModel
             Y = 0
         };
 
-        Actions.Add(action);
+        Actions.Insert(insertionIndex, action);
         PropagateCoordinateMode(action);
         SkipInitialZeroZero = true;
         SelectedAction = action;
         Status = $"Added {action.DisplayName}";
+        OnPropertyChanged(nameof(HasActions));
+        ResetPropertyEditUndoCoalescing();
+        RememberCurrentState();
+    }
+
+    public void InsertElseBlock()
+    {
+        if (SelectedAction?.Type != EditorActionType.IfBlockStart)
+        {
+            Status = StatusSelectIfBlockFirst;
+            return;
+        }
+
+        var ifStartIndex = Actions.IndexOf(SelectedAction);
+        if (ifStartIndex < 0 || !TryFindMatchingBlockEnd(ifStartIndex, out var ifBlockEndIndex))
+        {
+            Status = StatusSelectIfBlockFirst;
+            return;
+        }
+
+        if (ifBlockEndIndex + 1 < Actions.Count
+            && Actions[ifBlockEndIndex + 1].Type == EditorActionType.ElseBlockStart)
+        {
+            Status = StatusElseAlreadyExists;
+            return;
+        }
+
+        SaveUndoState();
+
+        var elseStartAction = new EditorAction
+        {
+            Type = EditorActionType.ElseBlockStart
+        };
+        var elseEndAction = new EditorAction
+        {
+            Type = EditorActionType.BlockEnd
+        };
+
+        Actions.Insert(ifBlockEndIndex + 1, elseStartAction);
+        Actions.Insert(ifBlockEndIndex + 2, elseEndAction);
+        SelectedAction = elseStartAction;
+
+        Status = StatusInsertedElseBlock;
+        OnPropertyChanged(nameof(HasActions));
+        ResetPropertyEditUndoCoalescing();
+        RememberCurrentState();
+    }
+
+    public void RemoveBlock()
+    {
+        if (!TryGetSelectedBlockRange(out var startIndex, out var endIndex))
+        {
+            Status = StatusSelectActionFirst;
+            return;
+        }
+
+        if (!CanApplyScriptStructureMutation(candidate =>
+            {
+                for (var index = endIndex; index >= startIndex; index--)
+                {
+                    candidate.RemoveAt(index);
+                }
+            }))
+        {
+            return;
+        }
+
+        SaveUndoState();
+        for (var index = endIndex; index >= startIndex; index--)
+        {
+            Actions.RemoveAt(index);
+        }
+
+        if (Actions.Count > 0)
+        {
+            SelectedAction = Actions[Math.Min(startIndex, Actions.Count - 1)];
+        }
+        else
+        {
+            SelectedAction = null;
+        }
+
+        Status = StatusRemovedBlock;
         OnPropertyChanged(nameof(HasActions));
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
@@ -360,8 +540,18 @@ public partial class EditorViewModel
             return;
         }
 
-        SaveUndoState();
         var index = Actions.IndexOf(SelectedAction);
+        if (index < 0)
+        {
+            return;
+        }
+
+        if (!CanApplyScriptStructureMutation(candidate => candidate.RemoveAt(index)))
+        {
+            return;
+        }
+
+        SaveUndoState();
         Actions.Remove(SelectedAction);
 
         if (Actions.Count > 0)
@@ -392,6 +582,11 @@ public partial class EditorViewModel
             return;
         }
 
+        if (!CanApplyScriptStructureMutation(candidate => MoveAction(candidate, index, index - 1)))
+        {
+            return;
+        }
+
         SaveUndoState();
         var action = SelectedAction;
         Actions.Move(index, index - 1);
@@ -414,6 +609,11 @@ public partial class EditorViewModel
             return;
         }
 
+        if (!CanApplyScriptStructureMutation(candidate => MoveAction(candidate, index, index + 1)))
+        {
+            return;
+        }
+
         SaveUndoState();
         var action = SelectedAction;
         Actions.Move(index, index + 1);
@@ -430,9 +630,19 @@ public partial class EditorViewModel
             return;
         }
 
+        var index = Actions.IndexOf(SelectedAction);
+        if (index < 0)
+        {
+            return;
+        }
+
+        if (!CanApplyScriptStructureMutation(candidate => candidate.Insert(index + 1, candidate[index].Clone())))
+        {
+            return;
+        }
+
         SaveUndoState();
         var clone = SelectedAction.Clone();
-        var index = Actions.IndexOf(SelectedAction);
         Actions.Insert(index + 1, clone);
         SelectedAction = clone;
         Status = StatusDuplicatedAction;
@@ -450,6 +660,7 @@ public partial class EditorViewModel
 
         SaveUndoState();
         Actions.Clear();
+        SetLoadWarnings(Array.Empty<EditorActionRestoreWarning>());
         SelectedAction = null;
         Status = StatusClearedAllActions;
         OnPropertyChanged(nameof(HasActions));
@@ -526,4 +737,179 @@ public partial class EditorViewModel
             _isRestoringState = false;
         }
     }
+
+    private bool TryFindMatchingBlockEnd(int startIndex, out int endIndex)
+    {
+        endIndex = -1;
+        if (startIndex < 0 || startIndex >= Actions.Count || !IsScriptBlockStartAction(Actions[startIndex].Type))
+        {
+            return false;
+        }
+
+        var depth = 0;
+        for (var index = startIndex; index < Actions.Count; index++)
+        {
+            var actionType = Actions[index].Type;
+            if (IsScriptBlockStartAction(actionType))
+            {
+                depth++;
+            }
+            else if (actionType == EditorActionType.BlockEnd)
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    endIndex = index;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private bool TryFindMatchingBlockStart(int endIndex, out int startIndex)
+    {
+        startIndex = -1;
+        if (endIndex < 0 || endIndex >= Actions.Count || Actions[endIndex].Type != EditorActionType.BlockEnd)
+        {
+            return false;
+        }
+
+        var blockStack = new Stack<int>();
+        for (var index = 0; index <= endIndex; index++)
+        {
+            var actionType = Actions[index].Type;
+            if (IsScriptBlockStartAction(actionType))
+            {
+                blockStack.Push(index);
+                continue;
+            }
+
+            if (actionType != EditorActionType.BlockEnd)
+            {
+                continue;
+            }
+
+            if (blockStack.Count == 0)
+            {
+                return false;
+            }
+
+            var matchedStartIndex = blockStack.Pop();
+            if (index == endIndex)
+            {
+                startIndex = matchedStartIndex;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private int GetInsertionIndexAfterSelection()
+    {
+        if (SelectedAction == null)
+        {
+            return Actions.Count;
+        }
+
+        var selectedIndex = Actions.IndexOf(SelectedAction);
+        return selectedIndex >= 0 ? selectedIndex + 1 : Actions.Count;
+    }
+
+    private bool TryGetSelectedBlockRange(out int startIndex, out int endIndex)
+    {
+        startIndex = -1;
+        endIndex = -1;
+
+        if (SelectedAction == null)
+        {
+            return false;
+        }
+
+        var selectedIndex = Actions.IndexOf(SelectedAction);
+        if (selectedIndex < 0)
+        {
+            return false;
+        }
+
+        if (IsScriptBlockStartAction(SelectedAction.Type))
+        {
+            startIndex = selectedIndex;
+            if (!TryFindMatchingBlockEnd(selectedIndex, out endIndex))
+            {
+                return false;
+            }
+
+            ExtendIfRangeWithElse(startIndex, ref endIndex);
+            return true;
+        }
+
+        if (SelectedAction.Type != EditorActionType.BlockEnd)
+        {
+            return false;
+        }
+
+        endIndex = selectedIndex;
+        if (!TryFindMatchingBlockStart(selectedIndex, out startIndex))
+        {
+            return false;
+        }
+
+        ExtendIfRangeWithElse(startIndex, ref endIndex);
+        return true;
+    }
+
+    private void ExtendIfRangeWithElse(int startIndex, ref int endIndex)
+    {
+        if (startIndex < 0
+            || startIndex >= Actions.Count
+            || Actions[startIndex].Type != EditorActionType.IfBlockStart)
+        {
+            return;
+        }
+
+        var elseIndex = endIndex + 1;
+        if (elseIndex >= Actions.Count || Actions[elseIndex].Type != EditorActionType.ElseBlockStart)
+        {
+            return;
+        }
+
+        if (TryFindMatchingBlockEnd(elseIndex, out var elseEndIndex))
+        {
+            endIndex = elseEndIndex;
+        }
+    }
+
+    private bool CanApplyScriptStructureMutation(Action<List<EditorAction>> mutation)
+    {
+        var candidate = CloneState(Actions);
+        mutation(candidate);
+        if (ScriptBlockStructureValidator.Validate(candidate).IsValid)
+        {
+            return true;
+        }
+
+        Status = StatusOperationBlocked;
+        return false;
+    }
+
+    private static void MoveAction(List<EditorAction> actions, int sourceIndex, int destinationIndex)
+    {
+        var action = actions[sourceIndex];
+        actions.RemoveAt(sourceIndex);
+        actions.Insert(destinationIndex, action);
+    }
+
+    private static bool IsScriptBlockStartAction(EditorActionType actionType)
+    {
+        return actionType is
+            EditorActionType.RepeatBlockStart
+            or EditorActionType.IfBlockStart
+            or EditorActionType.ElseBlockStart
+            or EditorActionType.WhileBlockStart
+            or EditorActionType.ForBlockStart;
+    }
+
 }

@@ -41,4 +41,11 @@ public interface IEditorActionConverter
     /// <param name="sequence">The macro sequence to convert.</param>
     /// <returns>List of EditorActions.</returns>
     List<EditorAction> FromMacroSequence(MacroSequence sequence);
+
+    /// <summary>
+    /// Converts a MacroSequence to editor actions and returns restore diagnostics.
+    /// </summary>
+    /// <param name="sequence">The macro sequence to convert.</param>
+    /// <returns>Restore result with actions and warnings.</returns>
+    EditorActionRestoreResult FromMacroSequenceWithDiagnostics(MacroSequence sequence);
 }

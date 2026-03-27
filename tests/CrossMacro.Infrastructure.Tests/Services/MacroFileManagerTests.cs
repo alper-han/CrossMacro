@@ -540,4 +540,34 @@ M,100,100";
         loaded.Events[1].RandomDelayMinMs.Should().Be(100);
         loaded.Events[1].RandomDelayMaxMs.Should().Be(250);
     }
+
+    [Fact]
+    public async Task SaveAndLoad_RoundTrip_PreservesScriptSteps()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Script Step Round Trip",
+            ScriptSteps =
+            [
+                "set i 0",
+                "for i from 1 to 10 {",
+                "click left",
+                "}"
+            ],
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.Click, Button = MouseButton.Left, DelayMs = 0 }
+            }
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        await _manager.SaveAsync(macro, filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.ScriptSteps.Should().Equal(macro.ScriptSteps);
+    }
 }

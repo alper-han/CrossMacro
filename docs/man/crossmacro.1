@@ -146,7 +146,9 @@ Run inline event steps directly from CLI (without a .macro file).
 Supported steps:
 \fBmove abs|rel\fR, \fBdown\fR, \fBup\fR, \fBclick\fR, \fBscroll\fR,
 \fBkey down|up\fR, \fBtap\fR, \fBdelay\fR, \fBtype\fR,
-\fBset\fR variables, and \fBrepeat\fR blocks.
+\fBset\fR variables, \fBinc\fR/\fBdec\fR counters,
+\fBrepeat\fR blocks, \fBif\fR/\fBelse\fR, \fBwhile\fR, and \fBfor\fR blocks,
+plus loop control with \fBbreak\fR and \fBcontinue\fR.
 Randomized timing is supported with
 \fBdelay random <min> <max>\fR or \fBdelay random <min>..<max>\fR.
 .TP
@@ -189,11 +191,20 @@ Run diagnostics and print JSON.
 .B crossmacro run --step "move abs 800 400" --step "click left" --dry-run
 Compile and validate direct run steps without sending input.
 .TP
+.B crossmacro run --step "move abs 800 400" --step "click current left"
+Force click at live cursor even after absolute moves.
+.TP
 .B crossmacro run move rel 100 0 delay 30 click left
 Execute chained inline run steps in sequence.
 .TP
 .B crossmacro run --step "set n=3" --step "repeat $n {" --step "click left" --step "delay random 20 50" --step "}"
 Run a repeated block with variable substitution and randomized delay.
+.TP
+.B crossmacro run --step "set i=0" --step "while $i < 10 {" --step "click left" --step "inc i" --step "}"
+Run a bounded while loop with explicit counter increment.
+.TP
+.B crossmacro run --step "for n from 1 to 5 step 2 {" --step "click right" --step "}"
+Run a for loop with custom step value.
 .TP
 .B crossmacro run --file ./steps.txt
 Load run steps from a plain text file (one step per line, '#' comments allowed).

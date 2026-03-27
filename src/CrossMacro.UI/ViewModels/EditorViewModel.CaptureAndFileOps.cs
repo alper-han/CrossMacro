@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Threading;
 using CrossMacro.Core.Models;
+using CrossMacro.Core.Services;
 using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.ViewModels;
@@ -158,7 +159,7 @@ public partial class EditorViewModel
             }
 
             var firstCoordinateAction = Actions.FirstOrDefault(action =>
-                UsesCoordinateFields(action.Type) && !IsCurrentPositionClickAction(action));
+                UsesCoordinateFields(action.Type) && !IsCurrentPositionMouseButtonAction(action));
             var isAbsolute = firstCoordinateAction?.IsAbsolute ?? false;
             var skipInitialZeroZero = _skipInitialZeroZero || RequiresSkipInitialZeroZero;
             if (_skipInitialZeroZero != skipInitialZeroZero)
@@ -199,12 +200,16 @@ public partial class EditorViewModel
             var sequence = await _fileManager.LoadAsync(filePath);
             if (sequence == null)
             {
+                SetLoadWarnings(Array.Empty<EditorActionRestoreWarning>());
                 Status = StatusLoadFailed;
                 return;
             }
 
             LoadMacroSequence(sequence);
-            Status = $"Loaded: {Path.GetFileName(filePath)}";
+            var baseStatus = $"Loaded: {Path.GetFileName(filePath)}";
+            Status = HasLoadWarnings
+                ? $"{baseStatus} ({LoadWarnings.Count} restore warning(s))"
+                : baseStatus;
         }
         catch (Exception ex)
         {
@@ -222,15 +227,22 @@ public partial class EditorViewModel
         Actions.Clear();
         MacroName = sequence.Name;
 
-        var editorActions = _converter.FromMacroSequence(sequence);
+        var restoreResult = _converter.FromMacroSequenceWithDiagnostics(sequence);
+        var editorActions = restoreResult.Actions;
+        SetLoadWarnings(restoreResult.Warnings);
+        if (sequence.ScriptSteps.Count > 0 && !restoreResult.RestoredFromScriptSteps)
+        {
+            LoadWarnings.Add("Script steps could not be restored; loaded from event stream.");
+        }
+
         foreach (var action in editorActions)
         {
             Actions.Add(action);
         }
 
-        var hasCurrentPositionClicks = editorActions.Any(IsCurrentPositionClickAction);
-        _skipInitialZeroZero = sequence.SkipInitialZeroZero || hasCurrentPositionClicks;
-        _skipInitialZeroZeroForcedByCurrentPosition = hasCurrentPositionClicks;
+        var hasCurrentPositionMouseButtons = editorActions.Any(IsCurrentPositionMouseButtonAction);
+        _skipInitialZeroZero = sequence.SkipInitialZeroZero || hasCurrentPositionMouseButtons;
+        _skipInitialZeroZeroForcedByCurrentPosition = hasCurrentPositionMouseButtons;
         _skipInitialZeroZeroBeforeCurrentPositionForce = sequence.SkipInitialZeroZero;
 
         SelectedAction = Actions.FirstOrDefault();

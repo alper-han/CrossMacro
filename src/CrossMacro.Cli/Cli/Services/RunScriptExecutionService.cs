@@ -12,10 +12,13 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
     private readonly RunSequenceExecutor _runSequenceExecutor;
     private static readonly PlaybackValidator Validator = new(new NullMousePositionProvider("CLI Run Validation Provider"));
 
-    public RunScriptExecutionService(Func<IMacroPlayer> macroPlayerFactory, IKeyCodeMapper keyCodeMapper)
+    public RunScriptExecutionService(
+        Func<IMacroPlayer> macroPlayerFactory,
+        IKeyCodeMapper keyCodeMapper,
+        Func<TimeSpan, CancellationToken, Task>? delayAsync = null)
     {
         _runStepCompiler = new RunStepCompiler(keyCodeMapper);
-        _runSequenceExecutor = new RunSequenceExecutor(macroPlayerFactory);
+        _runSequenceExecutor = new RunSequenceExecutor(macroPlayerFactory, delayAsync);
     }
 
     public async Task<MacroExecutionResult> ExecuteAsync(RunExecutionRequest request, CancellationToken cancellationToken)
@@ -64,7 +67,13 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
                 Message = "Run script validation failed.",
                 Errors = validation.Errors,
                 Warnings = validation.Warnings,
-                Data = BuildData(sequence, steps.Count, compileResult.InitialDelayMs)
+                Data = BuildData(
+                    sequence,
+                    steps.Count,
+                    compileResult.InitialDelayMs,
+                    compileResult.InitialHasRandomDelay,
+                    compileResult.InitialRandomDelayMinMs,
+                    compileResult.InitialRandomDelayMaxMs)
             };
         }
 
@@ -76,7 +85,13 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
                 ExitCode = CliExitCode.Success,
                 Message = "Run script parsed successfully (dry-run).",
                 Warnings = validation.Warnings,
-                Data = BuildData(sequence, steps.Count, compileResult.InitialDelayMs)
+                Data = BuildData(
+                    sequence,
+                    steps.Count,
+                    compileResult.InitialDelayMs,
+                    compileResult.InitialHasRandomDelay,
+                    compileResult.InitialRandomDelayMinMs,
+                    compileResult.InitialRandomDelayMaxMs)
             };
         }
 
@@ -85,6 +100,9 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
             request.SpeedMultiplier,
             request.CountdownSeconds,
             compileResult.InitialDelayMs,
+            compileResult.InitialHasRandomDelay,
+            compileResult.InitialRandomDelayMinMs,
+            compileResult.InitialRandomDelayMaxMs,
             cancellationToken);
 
         if (executionResult.Success)
@@ -95,7 +113,13 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
                 ExitCode = CliExitCode.Success,
                 Message = "Run script execution complete.",
                 Warnings = validation.Warnings,
-                Data = BuildData(sequence, steps.Count, compileResult.InitialDelayMs)
+                Data = BuildData(
+                    sequence,
+                    steps.Count,
+                    compileResult.InitialDelayMs,
+                    compileResult.InitialHasRandomDelay,
+                    compileResult.InitialRandomDelayMinMs,
+                    compileResult.InitialRandomDelayMaxMs)
             };
         }
 
@@ -116,11 +140,23 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
             Message = "Run script execution failed.",
             Errors = [executionResult.ErrorMessage ?? "Unknown runtime error."],
             Warnings = validation.Warnings,
-            Data = BuildData(sequence, steps.Count, compileResult.InitialDelayMs)
+            Data = BuildData(
+                sequence,
+                steps.Count,
+                compileResult.InitialDelayMs,
+                compileResult.InitialHasRandomDelay,
+                compileResult.InitialRandomDelayMinMs,
+                compileResult.InitialRandomDelayMaxMs)
         };
     }
 
-    private static object BuildData(MacroSequence sequence, int stepCount, int initialDelayMs)
+    private static object BuildData(
+        MacroSequence sequence,
+        int stepCount,
+        int initialDelayMs,
+        bool initialHasRandomDelay,
+        int initialRandomDelayMinMs,
+        int initialRandomDelayMaxMs)
     {
         return new
         {
@@ -128,6 +164,9 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
             eventCount = sequence.EventCount,
             totalDurationMs = sequence.TotalDurationMs,
             initialDelayMs,
+            initialHasRandomDelay,
+            initialRandomDelayMinMs,
+            initialRandomDelayMaxMs,
             trailingDelayMs = sequence.TrailingDelayMs,
             coordinateMode = sequence.IsAbsoluteCoordinates ? "absolute" : "relative"
         };

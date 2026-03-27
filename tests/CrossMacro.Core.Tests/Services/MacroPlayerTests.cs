@@ -293,6 +293,53 @@ public class MacroPlayerTests
     }
 
     [Fact]
+    public async Task PlayAsync_WhenFirstEventHasDelay_WaitsBeforeExecutingFirstEvent()
+    {
+        // Arrange
+        var simulator = Substitute.For<IInputSimulator>();
+        simulator.ProviderName.Returns("MockSimulator");
+        var timing = new RecordingTimingService
+        {
+            WaitEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+            ContinueWait = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)
+        };
+
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            timingService: timing,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            SkipInitialZeroZero = true,
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 40 },
+                new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 0 }
+            }
+        };
+
+        // Act
+        var playbackTask = player.PlayAsync(macro);
+        await timing.WaitEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Assert (before delay released)
+        simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
+
+        timing.ContinueWait.TrySetResult(true);
+        await playbackTask;
+
+        timing.WaitCalls.Should().ContainSingle();
+        timing.WaitCalls[0].Should().BeInRange(39, 40);
+        Received.InOrder(() =>
+        {
+            simulator.MoveRelative(10, 10);
+            simulator.MoveRelative(20, 20);
+        });
+    }
+
+    [Fact]
     public async Task PlayAsync_WhenMacroHasTrailingRandomDelay_UsesFixedPlusRandomDelay()
     {
         // Arrange

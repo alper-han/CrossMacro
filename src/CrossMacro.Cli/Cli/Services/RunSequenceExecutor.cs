@@ -9,10 +9,14 @@ namespace CrossMacro.Cli.Services;
 internal sealed class RunSequenceExecutor
 {
     private readonly Func<IMacroPlayer> _macroPlayerFactory;
+    private readonly Func<TimeSpan, CancellationToken, Task> _delayAsync;
 
-    public RunSequenceExecutor(Func<IMacroPlayer> macroPlayerFactory)
+    public RunSequenceExecutor(
+        Func<IMacroPlayer> macroPlayerFactory,
+        Func<TimeSpan, CancellationToken, Task>? delayAsync = null)
     {
-        _macroPlayerFactory = macroPlayerFactory;
+        _macroPlayerFactory = macroPlayerFactory ?? throw new ArgumentNullException(nameof(macroPlayerFactory));
+        _delayAsync = delayAsync ?? Task.Delay;
     }
 
     public async Task<RunSequenceExecutionResult> ExecuteAsync(
@@ -20,23 +24,36 @@ internal sealed class RunSequenceExecutor
         double speedMultiplier,
         int countdownSeconds,
         int initialDelayMs,
+        bool initialHasRandomDelay,
+        int initialRandomDelayMinMs,
+        int initialRandomDelayMaxMs,
         CancellationToken cancellationToken)
     {
         try
         {
+            var normalizedSpeed = PlaybackOptions.NormalizeSpeedMultiplier(speedMultiplier);
             if (countdownSeconds > 0)
             {
-                await Task.Delay(TimeSpan.FromSeconds(countdownSeconds), cancellationToken);
+                await _delayAsync(TimeSpan.FromSeconds(countdownSeconds), cancellationToken);
             }
 
-            if (initialDelayMs > 0)
+            var resolvedInitialDelayMs = ResolveDelayMs(
+                initialDelayMs,
+                initialHasRandomDelay,
+                initialRandomDelayMinMs,
+                initialRandomDelayMaxMs);
+            if (resolvedInitialDelayMs > 0)
             {
-                await Task.Delay(initialDelayMs, cancellationToken);
+                var adjustedInitialDelayMs = (int)Math.Floor(resolvedInitialDelayMs / normalizedSpeed);
+                if (adjustedInitialDelayMs > 0)
+                {
+                    await _delayAsync(TimeSpan.FromMilliseconds(adjustedInitialDelayMs), cancellationToken);
+                }
             }
 
             var playbackOptions = new PlaybackOptions
             {
-                SpeedMultiplier = speedMultiplier
+                SpeedMultiplier = normalizedSpeed
             };
 
             using var player = _macroPlayerFactory();
@@ -62,6 +79,36 @@ internal sealed class RunSequenceExecutor
         {
             return RunSequenceExecutionResult.Failed(ex.Message);
         }
+    }
+
+    private static int ResolveDelayMs(int fixedDelayMs, bool hasRandomDelay, int randomDelayMinMs, int randomDelayMaxMs)
+    {
+        long totalDelayMs = Math.Max(0, fixedDelayMs);
+
+        if (hasRandomDelay)
+        {
+            var min = Math.Min(randomDelayMinMs, randomDelayMaxMs);
+            var max = Math.Max(randomDelayMinMs, randomDelayMaxMs);
+            if (min == max)
+            {
+                totalDelayMs += min;
+            }
+            else if (max == int.MaxValue)
+            {
+                totalDelayMs += Random.Shared.NextInt64(min, (long)max + 1);
+            }
+            else
+            {
+                totalDelayMs += Random.Shared.Next(min, max + 1);
+            }
+        }
+
+        if (totalDelayMs > int.MaxValue)
+        {
+            return int.MaxValue;
+        }
+
+        return (int)totalDelayMs;
     }
 }
 

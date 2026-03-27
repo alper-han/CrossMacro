@@ -278,9 +278,65 @@ crossmacro shortcut list
 crossmacro shortcut run <shortcut-guid>
 
 crossmacro record --output ./recorded.macro --duration 10
-crossmacro run --step "move abs 800 400" --step "click left" --dry-run
 crossmacro headless
 ```
+
+### Run Command Reference
+
+<details>
+<summary><strong>Run Syntax and Options</strong></summary>
+
+Syntax:
+
+```bash
+crossmacro run --step <step> [--step <step> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]
+crossmacro run <step-command> [<step-command> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]
+```
+
+Options:
+
+- `--step`: Add one run step (repeatable).
+- `--file`: Load steps from file (one step per line, `#` comments allowed).
+- `--speed`: Playback speed multiplier (`0.1`..`10.0`).
+- `--countdown`: Countdown before execution in seconds (`>= 0`).
+- `--timeout`: Command timeout in seconds (`>= 0`).
+- `--dry-run`: Parse/compile/validate only, do not send input.
+- `--json`: Print machine-readable JSON result.
+- `--log-level`: Override log level (`Debug|Information|Warning|Error`).
+
+</details>
+
+<details>
+<summary><strong>Run Step Commands and Examples</strong></summary>
+
+Step commands:
+
+- `move abs <x> <y>`, `move rel <dx> <dy>`
+- `click <button>`, `down <button>`, `up <button>`
+- `click current <button>`, `down current <button>`, `up current <button>`
+- `scroll <up|down|left|right> [count]`
+- `key down <key>`, `key up <key>`, `tap <combo>`, `type <text>`
+- `delay <ms>`, `delay random <min> <max>`, `delay random <min>..<max>`
+- `set <name> <value>` or `set <name>=<value>`
+- `inc <name> [amount]`, `dec <name> [amount]`
+- `repeat <count> { ... }`
+- `if <left> <op> <right> { ... } else { ... }`
+- `while <left> <op> <right> { ... }`
+- `for <var> from <start> to <end> [step <n>] { ... }`
+- `break`, `continue`, `}`
+
+Examples:
+
+```bash
+crossmacro run --step "move abs 800 400" --step "click left" --dry-run
+crossmacro run --step "set n=3" --step "repeat $n {" --step "click left" --step "delay random 20 50" --step "}"
+crossmacro run --step "set i=0" --step "while $i < 10 {" --step "click left" --step "inc i" --step "}"
+crossmacro run --step "for i from 0 to 10 {" --step "if $i == 3 {" --step "continue" --step "}" --step "if $i == 8 {" --step "break" --step "}" --step "click left" --step "}"
+crossmacro run --step "move abs 800 400" --step "click current left"
+crossmacro run --file ./steps.txt --json
+```
+
+</details>
 
 ## Troubleshooting
 

@@ -92,6 +92,17 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.0.1" date="2026-03-28">
+      <description>
+        <p>CrossMacro 1.0.1 delivers major Linux workflow improvements for scripting and Wayland environments.</p>
+        <ul>
+          <li>Fixed a Linux mutex contention issue that could cause intermittent daemon synchronization failures.</li>
+          <li>Added Wayfire Wayland compositor support for absolute pointer position integration.</li>
+          <li>Added the current-position action for using live cursor coordinates in automation flows.</li>
+          <li>Expanded the script engine with structured control flow: if, for, while, continue, and break.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.9.9" date="2026-03-09">
       <description>
         <p>This release improves Linux packaging reliability and refreshes the application metadata for the 0.9.9 release.</p>

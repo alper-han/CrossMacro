@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
@@ -122,11 +123,7 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
         var endpoint = new UnixDomainSocketEndPoint(_socketPath!);
         await socket.ConnectAsync(endpoint, linkedCts.Token).ConfigureAwait(false);
 
-        var requestPayload = JsonSerializer.SerializeToUtf8Bytes(new
-        {
-            method,
-            data = new { }
-        });
+        var requestPayload = BuildRequestPayload(method);
 
         var header = new byte[4];
         BinaryPrimitives.WriteInt32LittleEndian(header, requestPayload.Length);
@@ -273,6 +270,22 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
 
             readTotal += read;
         }
+    }
+
+    private static ReadOnlyMemory<byte> BuildRequestPayload(string method)
+    {
+        var buffer = new ArrayBufferWriter<byte>();
+        using var writer = new Utf8JsonWriter(buffer);
+
+        writer.WriteStartObject();
+        writer.WriteString("method", method);
+        writer.WritePropertyName("data");
+        writer.WriteStartObject();
+        writer.WriteEndObject();
+        writer.WriteEndObject();
+        writer.Flush();
+
+        return buffer.WrittenMemory;
     }
 
     public void Dispose()

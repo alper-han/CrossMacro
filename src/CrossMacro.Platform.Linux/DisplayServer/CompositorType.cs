@@ -8,6 +8,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer
         Unknown,
         X11,
         HYPRLAND,
+        WAYFIRE,
         KDE,
         GNOME,
         Other

@@ -390,6 +390,7 @@ CrossMacro works on Wayland.
 
 - Absolute cursor position is available on:
   - Hyprland (IPC)
+  - Wayfire (IPC, `ipc` + `ipc-rules` plugins, v0.10+)
   - KDE Plasma (D-Bus)
   - GNOME (Shell Extension)
 - If an absolute cursor provider is unavailable, CrossMacro automatically falls back to relative-position mode.

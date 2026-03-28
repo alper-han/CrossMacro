@@ -20,6 +20,7 @@ public class LinuxEnvironmentDetector : ILinuxEnvironmentDetector
     public bool IsWayland => DetectedCompositor switch
     {
         CompositorType.HYPRLAND => true,
+        CompositorType.WAYFIRE => true,
         CompositorType.GNOME => true,
         CompositorType.KDE => true,
         CompositorType.Other => true,

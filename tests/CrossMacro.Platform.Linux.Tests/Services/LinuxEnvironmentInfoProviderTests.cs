@@ -9,6 +9,7 @@ public class LinuxEnvironmentInfoProviderTests
     [Theory]
     [InlineData(CompositorType.X11, DisplayEnvironment.LinuxX11, false)]
     [InlineData(CompositorType.HYPRLAND, DisplayEnvironment.LinuxHyprland, true)]
+    [InlineData(CompositorType.WAYFIRE, DisplayEnvironment.LinuxWayland, false)]
     [InlineData(CompositorType.KDE, DisplayEnvironment.LinuxKDE, false)]
     [InlineData(CompositorType.GNOME, DisplayEnvironment.LinuxGnome, false)]
     [InlineData(CompositorType.Other, DisplayEnvironment.LinuxWayland, false)]

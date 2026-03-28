@@ -49,11 +49,15 @@ namespace CrossMacro.Platform.Linux.DisplayServer
 
             // Detect specific compositor
             var currentDesktop = Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "";
+            var wayfireSocket = Environment.GetEnvironmentVariable("WAYFIRE_SOCKET");
 
             return currentDesktop.ToUpperInvariant() switch
             {
                 var desktop when desktop.Contains("HYPRLAND") => 
                     LogAndReturn(CompositorType.HYPRLAND, "Hyprland"),
+
+                var desktop when desktop.Contains("WAYFIRE") || !string.IsNullOrWhiteSpace(wayfireSocket) =>
+                    LogAndReturn(CompositorType.WAYFIRE, "Wayfire"),
                 
                 "KDE" => 
                     LogAndReturn(CompositorType.KDE, "KDE Plasma"),

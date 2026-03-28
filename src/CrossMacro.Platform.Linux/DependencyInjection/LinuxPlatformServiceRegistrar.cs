@@ -170,6 +170,7 @@ public sealed class LinuxPlatformServiceRegistrar : IPlatformServiceRegistrar
         services.AddSingleton<IPositionProviderSelector, GnomePositionProviderSelector>();
         services.AddSingleton<IPositionProviderSelector, KdePositionProviderSelector>();
         services.AddSingleton<IPositionProviderSelector, HyprlandPositionProviderSelector>();
+        services.AddSingleton<IPositionProviderSelector, WayfirePositionProviderSelector>();
         services.AddSingleton<IPositionProviderSelector, FallbackPositionProviderSelector>();
     }
 

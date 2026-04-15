@@ -3,7 +3,7 @@
 crossmacro \- keyboard and mouse macro automation CLI
 .SH SYNOPSIS
 .B crossmacro
-[\fB\-h\fR|\fB\-\-help\fR] [\fB\-v\fR|\fB\-\-version\fR]
+[\fB\-h\fR|\fB\-\-help\fR] [\fB\-v\fR|\fB\-\-version\fR] [\fB\-\-start-minimized\fR]
 .br
 .B crossmacro
 (no arguments) starts GUI mode
@@ -72,6 +72,9 @@ Show command help.
 .B \-v, \-\-version
 Show version.
 .TP
+.B \-\-start-minimized
+Start GUI minimized. When tray support is available, CrossMacro starts hidden to tray instead.
+.TP
 .B \-\-json
 Print command output as JSON.
 .TP
@@ -90,7 +93,7 @@ Shows help for that command topic (for example \fBrun\fR or \fBrecord\fR).
 Standalone CLI-only options such as \fB\-\-json\fR and \fB\-\-log-level\fR require a command and return exit code 2.
 .TP
 .B Non-CLI startup switches
-Known GUI startup switches are routed to GUI startup (for example \fB--drm\fR, \fB--fbdev\fR, \fB--display\fR, Finder-style \fB-psn_*\fR).
+Known GUI startup switches are routed to GUI startup (for example \fB--start-minimized\fR, \fB--drm\fR, \fB--fbdev\fR, \fB--display\fR, Finder-style \fB-psn_*\fR).
 .TP
 .B Unknown tokens
 Unknown commands/options return CLI parse error (exit code 2) instead of falling through to GUI.
@@ -211,5 +214,8 @@ Load run steps from a plain text file (one step per line, '#' comments allowed).
 .TP
 .B crossmacro headless
 Start headless runtime and keep running until interrupted.
+.TP
+.B crossmacro \-\-start-minimized
+Start GUI hidden to tray when tray icon support is available for the current session.
 .SH SEE ALSO
 Project repository: https://github.com/alper-han/CrossMacro

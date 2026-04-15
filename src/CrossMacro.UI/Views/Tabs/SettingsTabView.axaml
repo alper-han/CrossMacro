@@ -60,6 +60,23 @@
                                          OffContent=""
                                          VerticalAlignment="Center"/>
                         </Grid>
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="2">
+                                <TextBlock Text="Start Minimized"
+                                          FontWeight="Medium"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Text="Launch hidden to tray when available; otherwise start minimized."
+                                          FontSize="12"
+                                          Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </StackPanel>
+
+                            <ToggleSwitch Grid.Column="1"
+                                         IsChecked="{Binding StartMinimized}"
+                                         OnContent=""
+                                         OffContent=""
+                                         VerticalAlignment="Center"/>
+                        </Grid>
                         
                         <!-- Text Expansion -->
                         <Grid ColumnDefinitions="*,Auto">

@@ -2,8 +2,10 @@ using System;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Threading;
 using CrossMacro.Core.Diagnostics;
 using CrossMacro.Core.Services;
+using CrossMacro.UI.Startup;
 using CrossMacro.UI.ViewModels;
 using CrossMacro.UI.Views;
 
@@ -11,6 +13,8 @@ namespace CrossMacro.UI.Services;
 
 internal sealed class DesktopStartupCoordinator : IDesktopStartupCoordinator
 {
+    private readonly record struct DesktopRuntimeStartResult(Window MainWindow, DesktopStartupDisplayMode DisplayMode);
+
     private readonly IDisplaySessionService _displaySessionService;
     private readonly Func<ISettingsService> _getSettingsService;
     private readonly Func<IThemeService> _getThemeService;
@@ -22,6 +26,7 @@ internal sealed class DesktopStartupCoordinator : IDesktopStartupCoordinator
     private readonly Func<IPermissionChecker?> _getPermissionChecker;
     private readonly Func<InputSimulatorPool?> _getInputSimulatorPool;
     private readonly Func<IMousePositionProvider?> _getPositionProvider;
+    private readonly GuiStartupOptions _startupOptions;
 
     public DesktopStartupCoordinator(
         IDisplaySessionService displaySessionService,
@@ -34,7 +39,8 @@ internal sealed class DesktopStartupCoordinator : IDesktopStartupCoordinator
         Func<IAppImageQuickSetupService?> getAppImageQuickSetupService,
         Func<IPermissionChecker?> getPermissionChecker,
         Func<InputSimulatorPool?> getInputSimulatorPool,
-        Func<IMousePositionProvider?> getPositionProvider)
+        Func<IMousePositionProvider?> getPositionProvider,
+        GuiStartupOptions startupOptions)
     {
         _displaySessionService = displaySessionService ?? throw new ArgumentNullException(nameof(displaySessionService));
         _getSettingsService = getSettingsService ?? throw new ArgumentNullException(nameof(getSettingsService));
@@ -47,6 +53,7 @@ internal sealed class DesktopStartupCoordinator : IDesktopStartupCoordinator
         _getPermissionChecker = getPermissionChecker ?? throw new ArgumentNullException(nameof(getPermissionChecker));
         _getInputSimulatorPool = getInputSimulatorPool ?? throw new ArgumentNullException(nameof(getInputSimulatorPool));
         _getPositionProvider = getPositionProvider ?? throw new ArgumentNullException(nameof(getPositionProvider));
+        _startupOptions = startupOptions ?? throw new ArgumentNullException(nameof(startupOptions));
     }
 
     public Task StartAsync(IClassicDesktopStyleApplicationLifetime desktop)
@@ -77,14 +84,29 @@ internal sealed class DesktopStartupCoordinator : IDesktopStartupCoordinator
             return HandleAppImageQuickSetupAsync(desktop);
         }
 
-        InitializeDesktopRuntime(desktop);
+        StartDesktopRuntime(desktop);
         return Task.CompletedTask;
     }
 
-    private void InitializeDesktopRuntime(IClassicDesktopStyleApplicationLifetime desktop)
+    private void StartDesktopRuntime(IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        var startupPreferences = LoadStartupPreferences();
+        var startupResult = InitializeDesktopRuntime(desktop, startupPreferences);
+        ShowWindowForStartup(startupResult.MainWindow, startupResult.DisplayMode);
+    }
+
+    private DesktopStartupPreferences LoadStartupPreferences()
     {
         var settingsService = _getSettingsService();
         settingsService.Load();
+
+        ApplyTheme(settingsService);
+        return DesktopStartupPreferences.Resolve(settingsService.Current, _startupOptions);
+    }
+
+    private void ApplyTheme(ISettingsService settingsService)
+    {
+        ArgumentNullException.ThrowIfNull(settingsService);
 
         var themeService = _getThemeService();
         if (!themeService.TryApplyTheme(settingsService.Current.Theme, out var themeError))
@@ -100,13 +122,22 @@ internal sealed class DesktopStartupCoordinator : IDesktopStartupCoordinator
                 Serilog.Log.Warning(ex, "[App] Failed to persist fallback theme '{Theme}'", settingsService.Current.Theme);
             }
         }
+    }
 
-        desktop.MainWindow = new MainWindow
+    private DesktopRuntimeStartResult InitializeDesktopRuntime(
+        IClassicDesktopStyleApplicationLifetime desktop,
+        DesktopStartupPreferences startupPreferences)
+    {
+        ArgumentNullException.ThrowIfNull(desktop);
+
+        var mainWindowViewModel = _getMainWindowViewModel();
+        var mainWindow = new MainWindow
         {
-            DataContext = _getMainWindowViewModel()
+            DataContext = mainWindowViewModel
         };
 
         var trayIconService = _getTrayIconService();
+        desktop.MainWindow = mainWindow;
         trayIconService.Initialize();
 
         var inputSimulatorPool = _getInputSimulatorPool();
@@ -116,8 +147,86 @@ internal sealed class DesktopStartupCoordinator : IDesktopStartupCoordinator
         }
 
         _getTextExpansionService().Start();
-        trayIconService.SetEnabled(settingsService.Current.EnableTrayIcon);
-        _getMainWindowViewModel().TrayIconEnabledChanged += (_, enabled) => trayIconService.SetEnabled(enabled);
+        trayIconService.SetEnabled(startupPreferences.ShouldEnableTrayDuringStartup);
+        mainWindowViewModel.TrayIconEnabledChanged += (_, enabled) => trayIconService.SetEnabled(enabled);
+
+        var displayMode = startupPreferences.ResolveDisplayMode(trayIconService.IsAvailable);
+        if (displayMode == DesktopStartupDisplayMode.HiddenToTray)
+        {
+            mainWindow.ShowInTaskbar = false;
+
+            if (startupPreferences.UseStartupTrayOnly)
+            {
+                DisableStartupOnlyTrayAfterInitialRestore(mainWindow, trayIconService);
+            }
+        }
+        else if (displayMode == DesktopStartupDisplayMode.Minimized)
+        {
+            mainWindow.ShowActivated = false;
+            mainWindow.WindowState = WindowState.Minimized;
+        }
+
+        desktop.ShutdownMode = displayMode == DesktopStartupDisplayMode.HiddenToTray
+            ? ShutdownMode.OnExplicitShutdown
+            : ShutdownMode.OnLastWindowClose;
+
+        switch (displayMode)
+        {
+            case DesktopStartupDisplayMode.Visible:
+                Serilog.Log.Information("[DesktopStartupCoordinator] Started visible.");
+                break;
+            case DesktopStartupDisplayMode.Minimized:
+                Serilog.Log.Information("[DesktopStartupCoordinator] Started minimized.");
+                break;
+            case DesktopStartupDisplayMode.HiddenToTray:
+                Serilog.Log.Information("[DesktopStartupCoordinator] Started hidden to tray.");
+                break;
+        }
+
+        return new DesktopRuntimeStartResult(mainWindow, displayMode);
+    }
+
+    private static void DisableStartupOnlyTrayAfterInitialRestore(Window mainWindow, ITrayIconService trayIconService)
+    {
+        ArgumentNullException.ThrowIfNull(mainWindow);
+        ArgumentNullException.ThrowIfNull(trayIconService);
+
+        void OnOpened(object? sender, EventArgs e)
+        {
+            mainWindow.Opened -= OnOpened;
+            trayIconService.SetEnabled(false);
+            Serilog.Log.Information("[DesktopStartupCoordinator] Disabled startup-only tray after initial restore.");
+        }
+
+        mainWindow.Opened += OnOpened;
+    }
+
+    private static void ShowWindowForStartup(Window mainWindow, DesktopStartupDisplayMode displayMode)
+    {
+        ArgumentNullException.ThrowIfNull(mainWindow);
+
+        switch (displayMode)
+        {
+            case DesktopStartupDisplayMode.HiddenToTray:
+                return;
+            case DesktopStartupDisplayMode.Minimized:
+                if (!mainWindow.IsVisible)
+                {
+                    mainWindow.ShowActivated = false;
+                    mainWindow.ShowInTaskbar = true;
+                    mainWindow.Show();
+                    Dispatcher.UIThread.Post(() => mainWindow.ShowActivated = true);
+                }
+                return;
+            case DesktopStartupDisplayMode.Visible:
+                if (!mainWindow.IsVisible)
+                {
+                    mainWindow.Show();
+                }
+                return;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(displayMode), displayMode, "Unknown initial display mode.");
+        }
     }
 
     private async Task HandleFlatpakQuickSetupAsync(
@@ -153,7 +262,6 @@ internal sealed class DesktopStartupCoordinator : IDesktopStartupCoordinator
                 if (!shouldRunSetup)
                 {
                     ShowUnsupportedSessionDialog(desktop, initialReason);
-                    ShowReplacementMainWindowIfNeeded(desktop, bootstrapOwner);
                     return;
                 }
 
@@ -161,25 +269,21 @@ internal sealed class DesktopStartupCoordinator : IDesktopStartupCoordinator
                 if (!setupResult.Success)
                 {
                     ShowUnsupportedSessionDialog(desktop, $"{initialReason}\n\n{setupResult.Message}");
-                    ShowReplacementMainWindowIfNeeded(desktop, bootstrapOwner);
                     return;
                 }
 
                 if (!_displaySessionService.IsSessionSupported(out var reasonAfterSetup))
                 {
                     ShowUnsupportedSessionDialog(desktop, reasonAfterSetup);
-                    ShowReplacementMainWindowIfNeeded(desktop, bootstrapOwner);
                     return;
                 }
 
-                InitializeDesktopRuntime(desktop);
-                ShowReplacementMainWindowIfNeeded(desktop, bootstrapOwner);
+                StartDesktopRuntime(desktop);
             }
             catch (Exception ex)
             {
                 Serilog.Log.Error(ex, "[DesktopStartupCoordinator] Flatpak quick setup flow failed");
                 ShowUnsupportedSessionDialog(desktop, "Quick setup failed due to an unexpected error.");
-                ShowReplacementMainWindowIfNeeded(desktop, bootstrapOwner);
             }
         });
     }
@@ -189,7 +293,7 @@ internal sealed class DesktopStartupCoordinator : IDesktopStartupCoordinator
         var quickSetupService = _getAppImageQuickSetupService();
         if (quickSetupService == null)
         {
-            InitializeDesktopRuntime(desktop);
+            StartDesktopRuntime(desktop);
             return;
         }
 
@@ -228,14 +332,12 @@ internal sealed class DesktopStartupCoordinator : IDesktopStartupCoordinator
                     }
                 }
 
-                InitializeDesktopRuntime(desktop);
-                ShowReplacementMainWindowIfNeeded(desktop, bootstrapOwner);
+                StartDesktopRuntime(desktop);
             }
             catch (Exception ex)
             {
                 Serilog.Log.Error(ex, "[DesktopStartupCoordinator] AppImage quick setup flow failed");
-                InitializeDesktopRuntime(desktop);
-                ShowReplacementMainWindowIfNeeded(desktop, bootstrapOwner);
+                StartDesktopRuntime(desktop);
             }
         });
     }
@@ -371,22 +473,6 @@ internal sealed class DesktopStartupCoordinator : IDesktopStartupCoordinator
         }
     }
 
-    private static void ShowReplacementMainWindowIfNeeded(
-        IClassicDesktopStyleApplicationLifetime desktop,
-        Window bootstrapOwner)
-    {
-        var replacementWindow = desktop.MainWindow;
-        if (replacementWindow == null || ReferenceEquals(replacementWindow, bootstrapOwner))
-        {
-            return;
-        }
-
-        if (!replacementWindow.IsVisible)
-        {
-            replacementWindow.Show();
-        }
-    }
-
     private static Window CreateBootstrapOwnerWindow()
     {
         return new Window
@@ -403,10 +489,19 @@ internal sealed class DesktopStartupCoordinator : IDesktopStartupCoordinator
 
     private static void ShowUnsupportedSessionDialog(IClassicDesktopStyleApplicationLifetime desktop, string reason)
     {
-        desktop.MainWindow = new CrossMacro.UI.Views.Dialogs.ConfirmationDialog(
+        desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
+
+        var dialog = new CrossMacro.UI.Views.Dialogs.ConfirmationDialog(
             "Unsupported Session",
             reason,
             "Exit",
             null);
+
+        desktop.MainWindow = dialog;
+
+        if (!dialog.IsVisible)
+        {
+            dialog.Show();
+        }
     }
 }

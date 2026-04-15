@@ -23,7 +23,7 @@ internal static class Program
             startGui: () => CrossMacro.UI.Program.RunGui(
                 args,
                 platformServiceRegistrar,
-                static (appBuilder, startupArgs) => appBuilder.UseWin32().UseSkia().StartWithClassicDesktopLifetime(startupArgs)),
+                static appBuilder => appBuilder.UseWin32().UseSkia()),
             getVersionString: CrossMacro.UI.Program.GetVersionString,
             tryAcquireSingleInstanceGuard: CrossMacro.UI.Program.TryAcquireRuntimeSingleInstanceGuard);
     }

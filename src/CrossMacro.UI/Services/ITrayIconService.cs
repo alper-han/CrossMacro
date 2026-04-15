@@ -8,6 +8,11 @@ namespace CrossMacro.UI.Services;
 public interface ITrayIconService : IDisposable
 {
     /// <summary>
+    /// Returns true when tray functionality is operational in the current session.
+    /// </summary>
+    bool IsAvailable { get; }
+
+    /// <summary>
     /// Initialize the tray icon
     /// </summary>
     void Initialize();

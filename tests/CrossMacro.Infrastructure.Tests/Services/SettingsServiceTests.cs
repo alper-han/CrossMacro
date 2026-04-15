@@ -109,6 +109,7 @@ public class SettingsServiceTests : IDisposable
         service.Current.PlaybackSpeed = 3.0;
         service.Current.IsLooping = true;
         service.Current.LoopCount = 5;
+        service.Current.StartMinimized = true;
 
         // Act
         service.Save();
@@ -120,6 +121,7 @@ public class SettingsServiceTests : IDisposable
         loaded.PlaybackSpeed.Should().Be(3.0);
         loaded.IsLooping.Should().BeTrue();
         loaded.LoopCount.Should().Be(5);
+        loaded.StartMinimized.Should().BeTrue();
     }
 
     [Fact]

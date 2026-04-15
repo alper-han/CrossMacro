@@ -13,6 +13,7 @@ public class AppSettingsTests
 
         // Assert - Tray Settings
         settings.EnableTrayIcon.Should().BeFalse();
+        settings.StartMinimized.Should().BeFalse();
 
         // Assert - Playback Settings
         settings.PlaybackSpeed.Should().Be(1.0);
@@ -90,6 +91,17 @@ public class AppSettingsTests
 
         // Assert
         settings.EnableTextExpansion.Should().BeTrue();
+    }
+
+    [Fact]
+    public void AppSettings_CanEnableStartMinimized()
+    {
+        var settings = new AppSettings
+        {
+            StartMinimized = true
+        };
+
+        settings.StartMinimized.Should().BeTrue();
     }
 
     [Fact]

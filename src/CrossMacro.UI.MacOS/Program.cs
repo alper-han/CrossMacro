@@ -25,7 +25,7 @@ internal static class Program
             startGui: () => CrossMacro.UI.Program.RunGui(
                 args,
                 platformServiceRegistrar,
-                static (appBuilder, startupArgs) => appBuilder.UseAvaloniaNative().UseSkia().StartWithClassicDesktopLifetime(startupArgs)),
+                static appBuilder => appBuilder.UseAvaloniaNative().UseSkia()),
             getVersionString: CrossMacro.UI.Program.GetVersionString,
             tryAcquireSingleInstanceGuard: CrossMacro.UI.Program.TryAcquireRuntimeSingleInstanceGuard);
     }

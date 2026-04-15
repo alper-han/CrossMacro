@@ -30,6 +30,11 @@ public sealed class CliCommandRouter
         "--file"
     };
 
+    private static readonly HashSet<string> KnownGuiStartupOptionTokens = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "--start-minimized"
+    };
+
     private static readonly string[] KnownGuiStartupOptionPrefixes =
     [
         "--drm",
@@ -137,6 +142,7 @@ public sealed class CliCommandRouter
 
         return
             "Usage:\n" +
+            "  crossmacro [--start-minimized]\n" +
             "  crossmacro macro validate <macro-file> [--json] [--log-level <level>]\n" +
             "  crossmacro macro info <macro-file> [--json] [--log-level <level>]\n" +
             "  crossmacro play <macro-file> [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]\n" +
@@ -158,6 +164,7 @@ public sealed class CliCommandRouter
             "Options:\n" +
             "  -h, --help       Show help\n" +
             "  -v, --version    Show version\n" +
+            "  --start-minimized  Start GUI minimized and hide to tray when available\n" +
             "  --json           Print result in JSON format\n" +
             "  --log-level      Override logger level (Verbose, Debug, Information, Warning, Error, Fatal)\n";
     }
@@ -459,6 +466,11 @@ public sealed class CliCommandRouter
     private static bool ShouldTreatAsGuiStartup(string firstToken)
     {
         if (string.IsNullOrWhiteSpace(firstToken))
+        {
+            return true;
+        }
+
+        if (KnownGuiStartupOptionTokens.Contains(firstToken))
         {
             return true;
         }

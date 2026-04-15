@@ -27,6 +27,7 @@ public class SettingsViewModel : ViewModelBase
     private string _playbackHotkey;
     private string _pauseHotkey;
     private bool _enableTrayIcon;
+    private bool _startMinimized;
     private string _selectedLogLevel;
     
     /// <summary>
@@ -60,6 +61,7 @@ public class SettingsViewModel : ViewModelBase
         
         // Initialize tray icon setting
         _enableTrayIcon = _settingsService.Current.EnableTrayIcon;
+        _startMinimized = _settingsService.Current.StartMinimized;
         
         // Initialize log level setting
         _selectedLogLevel = _settingsService.Current.LogLevel;
@@ -133,20 +135,81 @@ public class SettingsViewModel : ViewModelBase
         {
             if (_enableTrayIcon != value)
             {
-                var previousValue = _enableTrayIcon;
+                var previousTrayIcon = _enableTrayIcon;
+                var previousStartMinimized = _startMinimized;
+
                 _enableTrayIcon = value;
                 _settingsService.Current.EnableTrayIcon = value;
+
+                // Keep persisted startup state coherent: tray-first minimized startup cannot
+                // coexist with tray being disabled on supported desktop sessions.
+                var startMinimizedStateChanged = false;
+                if (!value && IsTraySettingsVisible && _startMinimized)
+                {
+                    _startMinimized = false;
+                    _settingsService.Current.StartMinimized = false;
+                    startMinimizedStateChanged = true;
+                }
+
                 OnPropertyChanged();
+                if (startMinimizedStateChanged)
+                {
+                    OnPropertyChanged(nameof(StartMinimized));
+                }
+
+                var propertyNames = startMinimizedStateChanged
+                    ? new[] { nameof(EnableTrayIcon), nameof(StartMinimized) }
+                    : new[] { nameof(EnableTrayIcon) };
 
                 if (TryPersistSettings(
-                    () =>
-                    {
-                        _enableTrayIcon = previousValue;
-                        _settingsService.Current.EnableTrayIcon = previousValue;
-                    },
-                    nameof(EnableTrayIcon)))
+                    () => RestoreStartupPreferences(previousTrayIcon, previousStartMinimized),
+                    propertyNames))
                 {
-                    TrayIconEnabledChanged?.Invoke(this, value);
+                    TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon);
+                }
+            }
+        }
+    }
+
+    public bool StartMinimized
+    {
+        get => _startMinimized;
+        set
+        {
+            if (_startMinimized != value)
+            {
+                var previousStartMinimized = _startMinimized;
+                var previousTrayIcon = _enableTrayIcon;
+
+                _startMinimized = value;
+                _settingsService.Current.StartMinimized = value;
+
+                if (value && IsTraySettingsVisible && !_enableTrayIcon)
+                {
+                    _enableTrayIcon = true;
+                    _settingsService.Current.EnableTrayIcon = true;
+                }
+
+                OnPropertyChanged();
+
+                var trayIconStateChanged = previousTrayIcon != _enableTrayIcon;
+                if (trayIconStateChanged)
+                {
+                    OnPropertyChanged(nameof(EnableTrayIcon));
+                }
+
+                var propertyNames = trayIconStateChanged
+                    ? new[] { nameof(StartMinimized), nameof(EnableTrayIcon) }
+                    : new[] { nameof(StartMinimized) };
+
+                if (TryPersistSettings(
+                    () => RestoreStartupPreferences(previousTrayIcon, previousStartMinimized),
+                    propertyNames))
+                {
+                    if (trayIconStateChanged)
+                    {
+                        TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon);
+                    }
                 }
             }
         }
@@ -273,6 +336,14 @@ public class SettingsViewModel : ViewModelBase
     }
 
     public IEnumerable<string> AvailableThemes => _themeService.AvailableThemes;
+
+    private void RestoreStartupPreferences(bool trayIconEnabled, bool startMinimized)
+    {
+        _enableTrayIcon = trayIconEnabled;
+        _settingsService.Current.EnableTrayIcon = trayIconEnabled;
+        _startMinimized = startMinimized;
+        _settingsService.Current.StartMinimized = startMinimized;
+    }
 
     
     private void UpdateHotkeys()

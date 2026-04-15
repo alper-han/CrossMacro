@@ -32,6 +32,8 @@ public class TrayIconService : ITrayIconService
         _runtimeContext = runtimeContext ?? new RuntimeContext();
     }
 
+    public bool IsAvailable => _trayIcon != null;
+
     public static bool IsTraySupported(IRuntimeContext runtimeContext)
     {
         ArgumentNullException.ThrowIfNull(runtimeContext);
@@ -182,6 +184,11 @@ public class TrayIconService : ITrayIconService
         if (!_isExiting && _isEnabled)
         {
             e.Cancel = true;
+            SetShutdownMode(ShutdownMode.OnExplicitShutdown);
+            if (_mainWindow != null)
+            {
+                _mainWindow.ShowInTaskbar = false;
+            }
             _mainWindow?.Hide();
             Log.Debug("Window minimized to tray");
         }
@@ -207,11 +214,15 @@ public class TrayIconService : ITrayIconService
 
         if (_mainWindow.IsVisible)
         {
+            SetShutdownMode(ShutdownMode.OnExplicitShutdown);
+            _mainWindow.ShowInTaskbar = false;
             _mainWindow.Hide();
             Log.Debug("Window hidden via tray icon");
         }
         else
         {
+            SetShutdownMode(ShutdownMode.OnLastWindowClose);
+            _mainWindow.ShowInTaskbar = true;
             _mainWindow.Show();
             _mainWindow.Activate();
             _mainWindow.BringIntoView();
@@ -310,12 +321,27 @@ public class TrayIconService : ITrayIconService
 
     public void SetEnabled(bool enabled)
     {
-        if (_trayIcon == null)
-            return;
+        var isEnabled = enabled && _trayIcon != null;
+        _isEnabled = isEnabled;
 
-        _isEnabled = enabled;
-        _trayIcon.IsVisible = enabled;
-        Log.Information("Tray icon {Status}", enabled ? "enabled" : "disabled");
+        if (_trayIcon != null)
+        {
+            _trayIcon.IsVisible = isEnabled;
+        }
+
+        SetShutdownMode(isEnabled && _mainWindow?.IsVisible != true
+            ? ShutdownMode.OnExplicitShutdown
+            : ShutdownMode.OnLastWindowClose);
+
+        Log.Information("Tray icon {Status}", isEnabled ? "enabled" : "disabled");
+    }
+
+    private static void SetShutdownMode(ShutdownMode mode)
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.ShutdownMode = mode;
+        }
     }
 
     public void Dispose()

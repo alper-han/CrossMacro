@@ -10,6 +10,12 @@ public class AppSettings
     /// When disabled, closing the window will exit the application instead of minimizing to tray
     /// </summary>
     public bool EnableTrayIcon { get; set; } = false;
+
+    /// <summary>
+    /// Whether the GUI should start minimized.
+    /// When tray icon support is available, startup hides to tray; otherwise the window starts minimized.
+    /// </summary>
+    public bool StartMinimized { get; set; } = false;
     
     // Playback Settings
     

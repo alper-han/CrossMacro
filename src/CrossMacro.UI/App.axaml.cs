@@ -8,7 +8,7 @@ using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using CrossMacro.Core.Services;
 using CrossMacro.UI.DependencyInjection;
-using CrossMacro.UI.Services;
+using CrossMacro.UI.Startup;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.UI;
@@ -16,6 +16,7 @@ namespace CrossMacro.UI;
 public partial class App : Application
 {
     internal static IPlatformServiceRegistrar? PlatformServiceRegistrar { get; set; }
+    internal static GuiStartupOptions StartupOptions { get; set; } = GuiStartupOptions.Default;
     private IServiceProvider? _serviceProvider;
 
     public IServiceProvider? Services => _serviceProvider;
@@ -36,13 +37,14 @@ public partial class App : Application
         }
 
         var services = new ServiceCollection();
+        services.AddSingleton(StartupOptions);
         services.AddCrossMacroServices(PlatformServiceRegistrar);
         _serviceProvider = services.BuildServiceProvider();
     }
 
     public override void OnFrameworkInitializationCompleted()
     {
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime)
         {
             if (!Design.IsDesignMode && PlatformServiceRegistrar == null)
             {
@@ -56,9 +58,6 @@ public partial class App : Application
             {
                 throw new InvalidOperationException("Service provider is not initialized");
             }
-
-            var startupCoordinator = _serviceProvider.GetRequiredService<IDesktopStartupCoordinator>();
-            _ = startupCoordinator.StartAsync(desktop);
         }
 
         base.OnFrameworkInitializationCompleted();

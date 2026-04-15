@@ -124,6 +124,15 @@ public class CliCommandRouterTests
     }
 
     [Fact]
+    public void Parse_WhenStartMinimizedGuiFlag_StartsGui()
+    {
+        var result = _router.Parse(["--start-minimized"]);
+
+        Assert.True(result.ShouldStartGui);
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
     public void Parse_WhenExistingPathToken_ReturnsUnknownCommandError()
     {
         var path = Path.GetTempFileName();
@@ -758,6 +767,7 @@ public class CliCommandRouterTests
     {
         var usage = _router.GetUsage();
 
+        Assert.Contains("crossmacro [--start-minimized]", usage);
         Assert.Contains("record (--output|-o)", usage);
         Assert.Contains("crossmacro --headless", usage);
     }

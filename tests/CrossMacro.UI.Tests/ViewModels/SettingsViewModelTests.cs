@@ -49,7 +49,7 @@ public class SettingsViewModelTests
             });
         
         // Setup initial settings
-        _settingsService.Current.Returns(new AppSettings { EnableTrayIcon = false, EnableTextExpansion = false, Theme = "Classic" });
+        _settingsService.Current.Returns(new AppSettings { EnableTrayIcon = false, StartMinimized = false, EnableTextExpansion = false, Theme = "Classic" });
 
         _viewModel = new SettingsViewModel(
             _hotkeyService, 
@@ -65,6 +65,7 @@ public class SettingsViewModelTests
     {
         _viewModel.RecordingHotkey.Should().Be("F8"); // Default
         _viewModel.EnableTrayIcon.Should().BeFalse();
+        _viewModel.StartMinimized.Should().BeFalse();
         _viewModel.SelectedTheme.Should().Be("Classic");
     }
 
@@ -128,6 +129,100 @@ public class SettingsViewModelTests
         _settingsService.Current.EnableTrayIcon.Should().BeTrue();
         _settingsService.Received(1).Save();
         eventFired.Should().BeTrue();
+    }
+
+    [Fact]
+    public void StartMinimized_WhenChanged_SavesSettingsAndAutoEnablesTray()
+    {
+        bool trayEventFired = false;
+        _viewModel.TrayIconEnabledChanged += (_, enabled) =>
+        {
+            trayEventFired = true;
+            enabled.Should().BeTrue();
+        };
+
+        _viewModel.StartMinimized = true;
+
+        _viewModel.StartMinimized.Should().BeTrue();
+        _viewModel.EnableTrayIcon.Should().BeTrue();
+        _settingsService.Current.StartMinimized.Should().BeTrue();
+        _settingsService.Current.EnableTrayIcon.Should().BeTrue();
+        _settingsService.Received(1).Save();
+        trayEventFired.Should().BeTrue();
+    }
+
+    [Fact]
+    public void EnableTrayIcon_WhenDisabledWhileStartMinimizedIsEnabled_DisablesStartMinimizedToo()
+    {
+        _viewModel.StartMinimized = true;
+
+        _viewModel.EnableTrayIcon = false;
+
+        _viewModel.EnableTrayIcon.Should().BeFalse();
+        _viewModel.StartMinimized.Should().BeFalse();
+        _settingsService.Current.EnableTrayIcon.Should().BeFalse();
+        _settingsService.Current.StartMinimized.Should().BeFalse();
+        _settingsService.Received(2).Save();
+    }
+
+    [Fact]
+    public void EnableTrayIcon_WhenDisablingWouldSaveInvalidStartupStateAndSaveFails_RollsBackBoth()
+    {
+        _viewModel.StartMinimized = true;
+        _settingsService.ClearReceivedCalls();
+        _settingsService.When(x => x.Save()).Do(_ => throw new InvalidOperationException("disk full"));
+
+        _viewModel.EnableTrayIcon = false;
+
+        _viewModel.EnableTrayIcon.Should().BeTrue();
+        _viewModel.StartMinimized.Should().BeTrue();
+        _settingsService.Current.EnableTrayIcon.Should().BeTrue();
+        _settingsService.Current.StartMinimized.Should().BeTrue();
+    }
+
+    [Fact]
+    public void StartMinimized_WhenSaveFails_RollsBackAndDoesNotEnableTray()
+    {
+        _settingsService.When(x => x.Save()).Do(_ => throw new InvalidOperationException("disk full"));
+
+        _viewModel.StartMinimized = true;
+
+        _viewModel.StartMinimized.Should().BeFalse();
+        _viewModel.EnableTrayIcon.Should().BeFalse();
+        _settingsService.Current.StartMinimized.Should().BeFalse();
+        _settingsService.Current.EnableTrayIcon.Should().BeFalse();
+    }
+
+    [Fact]
+    public void StartMinimized_WhenTrayIsUnsupported_SavesWithoutEnablingTray()
+    {
+        var settings = new AppSettings
+        {
+            EnableTrayIcon = false,
+            StartMinimized = false,
+            EnableTextExpansion = false,
+            Theme = "Classic"
+        };
+        _settingsService.Current.Returns(settings);
+
+        var viewModel = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            _themeService,
+            new FakeRuntimeContext { IsFlatpak = true });
+
+        viewModel.IsTraySettingsVisible.Should().BeFalse();
+
+        viewModel.StartMinimized = true;
+
+        viewModel.StartMinimized.Should().BeTrue();
+        viewModel.EnableTrayIcon.Should().BeFalse();
+        _settingsService.Current.StartMinimized.Should().BeTrue();
+        _settingsService.Current.EnableTrayIcon.Should().BeFalse();
+        _settingsService.Received(1).Save();
     }
 
     [Fact]

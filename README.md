@@ -281,6 +281,8 @@ crossmacro record --output ./recorded.macro --duration 10
 crossmacro headless
 ```
 
+For desktop autostart, use `crossmacro --start-minimized`. When tray icon support is available, CrossMacro starts hidden to tray; otherwise it starts as a minimized window.
+
 ### Run Command Reference
 
 <details>

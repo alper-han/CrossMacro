@@ -1,8 +1,10 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.DependencyInjection;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.UI.Startup;
 using CrossMacro.UI.ViewModels;
 using CrossMacro.UI.Services;
 
@@ -45,6 +47,7 @@ public static class ServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(platformServiceRegistrar);
 
+        services.TryAddSingleton(GuiStartupOptions.Default);
         services.AddCommonServices();
         platformServiceRegistrar.RegisterPlatformServices(services);
         services.AddSharedPostPlatformServices(includeGuiOnlyServices: true, allowAvaloniaClipboardFallback: true);
@@ -102,7 +105,8 @@ public static class ServiceCollectionExtensions
                     sp.GetRequiredService<Func<IAppImageQuickSetupService?>>(),
                     sp.GetRequiredService<Func<IPermissionChecker?>>(),
                     sp.GetRequiredService<Func<InputSimulatorPool?>>(),
-                    sp.GetRequiredService<Func<IMousePositionProvider?>>()));
+                    sp.GetRequiredService<Func<IMousePositionProvider?>>(),
+                    sp.GetRequiredService<GuiStartupOptions>()));
         }
 
         return services;

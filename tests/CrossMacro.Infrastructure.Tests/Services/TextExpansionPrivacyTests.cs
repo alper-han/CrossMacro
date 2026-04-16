@@ -8,6 +8,7 @@ using CrossMacro.Core.Services;
 using CrossMacro.Core.Services.TextExpansion;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Infrastructure.Services.TextExpansion;
+using CrossMacro.TestInfrastructure;
 using NSubstitute;
 using Serilog;
 using Serilog.Core;
@@ -174,6 +175,269 @@ public class TextExpansionPrivacyTests
         Assert.DoesNotContain(rendered, message => message.Contains(replacement, StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task ExpandAsync_WhenDirectTypingMode_DoesNotTouchClipboard()
+    {
+        var clipboardService = Substitute.For<IClipboardService>();
+        clipboardService.IsSupported.Returns(true);
+
+        var keyboardLayoutService = Substitute.For<IKeyboardLayoutService>();
+        keyboardLayoutService.GetInputForChar(Arg.Any<char>())
+            .Returns((30, false, false));
+
+        var inputSimulator = new TestInputSimulator();
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            keyboardLayoutService,
+            () => inputSimulator);
+
+        var expansion = new TextExpansion(
+            ":a",
+            "typed",
+            method: PasteMethod.CtrlShiftV,
+            insertionMode: TextInsertionMode.DirectTyping);
+
+        await executor.ExpandAsync(expansion);
+
+        await clipboardService.DidNotReceive().GetTextAsync();
+        await clipboardService.DidNotReceive().SetTextAsync(Arg.Any<string>());
+        Assert.Contains(30, inputSimulator.PressedKeys);
+    }
+
+    [Fact]
+    public async Task ExpandAsync_WhenDirectTypingNeedsUnicode_UsesSimulatorUnicodeCapability()
+    {
+        var clipboardService = Substitute.For<IClipboardService>();
+        clipboardService.IsSupported.Returns(true);
+
+        var keyboardLayoutService = Substitute.For<IKeyboardLayoutService>();
+        keyboardLayoutService.GetInputForChar(Arg.Any<char>())
+            .Returns(default((int KeyCode, bool Shift, bool AltGr)?));
+
+        var inputSimulator = new UnicodeCapableTestInputSimulator();
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            keyboardLayoutService,
+            () => inputSimulator);
+
+        var expansion = new TextExpansion(
+            ":emoji",
+            "🙂",
+            insertionMode: TextInsertionMode.DirectTyping);
+
+        await executor.ExpandAsync(expansion);
+
+        await clipboardService.DidNotReceive().GetTextAsync();
+        await clipboardService.DidNotReceive().SetTextAsync(Arg.Any<string>());
+        Assert.Contains("🙂", inputSimulator.TypedText);
+    }
+
+    [Fact]
+    public async Task ExpandAsync_WhenDirectTypingAndSimulatorSupportsUnicode_PrefersUnicodeOverKeyboardLayout()
+    {
+        var clipboardService = Substitute.For<IClipboardService>();
+        clipboardService.IsSupported.Returns(true);
+
+        var keyboardLayoutService = Substitute.For<IKeyboardLayoutService>();
+        keyboardLayoutService.GetInputForChar(Arg.Any<char>())
+            .Returns((30, false, false));
+
+        var inputSimulator = new UnicodeCapableTestInputSimulator();
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            keyboardLayoutService,
+            () => inputSimulator);
+
+        var expansion = new TextExpansion(
+            ":ascii",
+            "typed",
+            insertionMode: TextInsertionMode.DirectTyping);
+
+        await executor.ExpandAsync(expansion);
+
+        Assert.Equal("typed", string.Concat(inputSimulator.TypedText));
+        Assert.DoesNotContain(30, inputSimulator.PressedKeys);
+        keyboardLayoutService.DidNotReceiveWithAnyArgs().GetInputForChar(default);
+    }
+
+    [Fact]
+    public async Task ExpandAsync_WhenPasteFallsBackToDirectTyping_UsesSimulatorUnicodeCapability()
+    {
+        var clipboardService = Substitute.For<IClipboardService>();
+        clipboardService.IsSupported.Returns(false);
+
+        var keyboardLayoutService = Substitute.For<IKeyboardLayoutService>();
+        keyboardLayoutService.GetInputForChar(Arg.Any<char>())
+            .Returns(default((int KeyCode, bool Shift, bool AltGr)?));
+
+        var inputSimulator = new UnicodeCapableTestInputSimulator();
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            keyboardLayoutService,
+            () => inputSimulator);
+
+        var expansion = new TextExpansion(":emoji", "🙂");
+
+        await executor.ExpandAsync(expansion);
+
+        await clipboardService.DidNotReceive().GetTextAsync();
+        await clipboardService.DidNotReceive().SetTextAsync(Arg.Any<string>());
+        Assert.Contains("🙂", inputSimulator.TypedText);
+    }
+
+    [LinuxFact]
+    public async Task ExpandAsync_WhenLinuxUnicodeFallbackNeedsHexLetters_UsesLayoutAwareHexInput()
+    {
+        var clipboardService = Substitute.For<IClipboardService>();
+        clipboardService.IsSupported.Returns(false);
+
+        var keyboardLayoutService = Substitute.For<IKeyboardLayoutService>();
+        keyboardLayoutService.GetInputForChar(Arg.Any<char>())
+            .Returns(callInfo => callInfo.Arg<char>() switch
+            {
+                'u' => (35, false, false),
+                '1' => (17, true, false),
+                'f' => (48, false, true),
+                '6' => (32, false, false),
+                '4' => (25, true, false),
+                '2' => (99, false, false),
+                _ => default((int KeyCode, bool Shift, bool AltGr)?)
+            });
+
+        var inputSimulator = new TestInputSimulator();
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            keyboardLayoutService,
+            () => inputSimulator);
+
+        var expansion = new TextExpansion(":emoji", "🙂", insertionMode: TextInsertionMode.DirectTyping);
+
+        await executor.ExpandAsync(expansion);
+
+        Assert.Contains(35, inputSimulator.PressedKeys);
+        Assert.Contains(17, inputSimulator.PressedKeys);
+        Assert.Contains(48, inputSimulator.PressedKeys);
+        Assert.Contains(32, inputSimulator.PressedKeys);
+        Assert.Contains(25, inputSimulator.PressedKeys);
+        Assert.Contains(99, inputSimulator.PressedKeys);
+        keyboardLayoutService.Received().GetInputForChar('u');
+        keyboardLayoutService.Received().GetInputForChar('f');
+    }
+
+    [LinuxFact]
+    public async Task ExpandAsync_WhenLinuxUnicodeFallbackMissingLowercaseHex_UsesUppercaseFallback()
+    {
+        var clipboardService = Substitute.For<IClipboardService>();
+        clipboardService.IsSupported.Returns(false);
+
+        var keyboardLayoutService = Substitute.For<IKeyboardLayoutService>();
+        keyboardLayoutService.GetInputForChar(Arg.Any<char>())
+            .Returns(callInfo => callInfo.Arg<char>() switch
+            {
+                'u' => (35, false, false),
+                '1' => (17, false, false),
+                'F' => (52, true, false),
+                '6' => (32, false, false),
+                '4' => (25, false, false),
+                '2' => (99, false, false),
+                _ => default((int KeyCode, bool Shift, bool AltGr)?)
+            });
+
+        var inputSimulator = new TestInputSimulator();
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            keyboardLayoutService,
+            () => inputSimulator);
+
+        var expansion = new TextExpansion(":emoji", "🙂", insertionMode: TextInsertionMode.DirectTyping);
+
+        await executor.ExpandAsync(expansion);
+
+        Assert.Contains(52, inputSimulator.PressedKeys);
+        keyboardLayoutService.Received().GetInputForChar('f');
+        keyboardLayoutService.Received().GetInputForChar('F');
+    }
+
+    [LinuxFact]
+    public async Task ExpandAsync_WhenLinuxUnicodeFallbackCannotTypeRequiredHexDigit_DoesNotEraseTriggerAndLogsClearError()
+    {
+        var clipboardService = Substitute.For<IClipboardService>();
+        clipboardService.IsSupported.Returns(false);
+
+        var keyboardLayoutService = Substitute.For<IKeyboardLayoutService>();
+        keyboardLayoutService.GetInputForChar(Arg.Any<char>())
+            .Returns(callInfo => callInfo.Arg<char>() switch
+            {
+                'u' => (35, false, false),
+                '1' => (17, false, false),
+                '6' => (32, false, false),
+                '4' => (25, false, false),
+                '2' => (99, false, false),
+                _ => default((int KeyCode, bool Shift, bool AltGr)?)
+            });
+
+        var inputSimulator = new TestInputSimulator();
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            keyboardLayoutService,
+            () => inputSimulator);
+
+        var expansion = new TextExpansion(":emoji", "🙂", insertionMode: TextInsertionMode.DirectTyping);
+
+        var originalLogger = Log.Logger;
+        var sink = new TestSink();
+        try
+        {
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Verbose()
+                .WriteTo.Sink(sink)
+                .CreateLogger();
+
+            await executor.ExpandAsync(expansion);
+        }
+        finally
+        {
+            Log.Logger = originalLogger;
+        }
+
+        Assert.Contains(sink.Events, static e =>
+            e.Exception?.Message.Contains(
+                "Current keyboard layout cannot type Linux unicode hex digit 'f' or 'F' required for code point U+1F642.",
+                StringComparison.Ordinal) == true);
+        Assert.Empty(inputSimulator.PressedKeys);
+    }
+
+    [LinuxFact]
+    public async Task ExpandAsync_WhenPasteFallbackCannotTypeRequiredHexDigit_DoesNotEraseTrigger()
+    {
+        var clipboardService = Substitute.For<IClipboardService>();
+        clipboardService.IsSupported.Returns(false);
+
+        var keyboardLayoutService = Substitute.For<IKeyboardLayoutService>();
+        keyboardLayoutService.GetInputForChar(Arg.Any<char>())
+            .Returns(callInfo => callInfo.Arg<char>() switch
+            {
+                'u' => (35, false, false),
+                '1' => (17, false, false),
+                '6' => (32, false, false),
+                '4' => (25, false, false),
+                '2' => (99, false, false),
+                _ => default((int KeyCode, bool Shift, bool AltGr)?)
+            });
+
+        var inputSimulator = new TestInputSimulator();
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            keyboardLayoutService,
+            () => inputSimulator);
+
+        var expansion = new TextExpansion(":emoji", "🙂");
+
+        await executor.ExpandAsync(expansion);
+
+        Assert.Empty(inputSimulator.PressedKeys);
+    }
+
     private sealed class TestSink : ILogEventSink
     {
         public ConcurrentBag<LogEvent> Events { get; } = new();
@@ -184,8 +448,10 @@ public class TextExpansionPrivacyTests
         }
     }
 
-    private sealed class TestInputSimulator : IInputSimulator
+    private class TestInputSimulator : IInputSimulator
     {
+        public List<int> PressedKeys { get; } = new();
+
         public string ProviderName => "test";
 
         public bool IsSupported => true;
@@ -212,6 +478,10 @@ public class TextExpansionPrivacyTests
 
         public void KeyPress(int keyCode, bool pressed)
         {
+            if (pressed)
+            {
+                PressedKeys.Add(keyCode);
+            }
         }
 
         public void Sync()
@@ -220,6 +490,18 @@ public class TextExpansionPrivacyTests
 
         public void Dispose()
         {
+        }
+    }
+
+    private sealed class UnicodeCapableTestInputSimulator : TestInputSimulator, IUnicodeTextInputSimulator
+    {
+        public bool SupportsUnicodeTextInput => true;
+
+        public List<string> TypedText { get; } = new();
+
+        public void TypeText(string text)
+        {
+            TypedText.Add(text);
         }
     }
 }

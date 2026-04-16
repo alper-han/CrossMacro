@@ -47,7 +47,7 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
             UpdateModifiers(e);
 
             // Toggle CapsLock on Press
-            if (e.Code == 58 && e.Value == 1) // Caps Lock Press
+            if (e.Code == InputEventCode.KEY_CAPSLOCK && e.Value == 1)
             {
                 _isCapsLockOn = !_isCapsLockOn;
                 return;
@@ -66,12 +66,12 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
             _lastPressTime = now;
 
             // Check for Special Keys first
-            if (e.Code == 14) // Backspace
+            if (e.Code == InputEventCode.KEY_BACKSPACE)
             {
                 SpecialKeyReceived?.Invoke(e.Code);
                 return;
             }
-            if (e.Code == 28) // Enter
+            if (e.Code == InputEventCode.KEY_ENTER)
             {
                 SpecialKeyReceived?.Invoke(e.Code);
                 // Enter might also produce a char (newline), but usually clears buffer
@@ -87,12 +87,19 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
             {
                 CharacterReceived?.Invoke(charValue.Value);
             }
-            else if (e.Code == 57) // Space
+            else if (e.Code == InputEventCode.KEY_SPACE)
             {
                 // Explicitly handle space if layout service returns null for it (it shouldn't, but safe fallback)
                 // Or if layout service handles it, the above block catches it. 
                 // Let's assume layout service handles space, but if not:
-                 var spaceChar = _layoutService.GetCharFromKeyCode(57, false, false, false, false, false, false);
+                 var spaceChar = _layoutService.GetCharFromKeyCode(
+                     InputEventCode.KEY_SPACE,
+                     false,
+                     false,
+                     false,
+                     false,
+                     false,
+                     false);
                  if (spaceChar.HasValue)
                  {
                      CharacterReceived?.Invoke(spaceChar.Value);
@@ -108,15 +115,25 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
 
             switch (e.Code)
             {
-                case 42: _isLeftShiftPressed = isPressed; break;
-                case 54: _isRightShiftPressed = isPressed; break;
-                case 100: 
+                case InputEventCode.KEY_LEFTSHIFT:
+                    _isLeftShiftPressed = isPressed;
+                    break;
+                case InputEventCode.KEY_RIGHTSHIFT:
+                    _isRightShiftPressed = isPressed;
+                    break;
+                case InputEventCode.KEY_RIGHTALT:
                     _isRightAltPressed = isPressed;
                     _isAltGrPressed = _isRightAltPressed; // Treat Right Alt as AltGr
                     break;
-                case 56: _isLeftAltPressed = isPressed; break;
-                case 29: _isLeftCtrlPressed = isPressed; break;
-                case 97: _isRightCtrlPressed = isPressed; break;
+                case InputEventCode.KEY_LEFTALT:
+                    _isLeftAltPressed = isPressed;
+                    break;
+                case InputEventCode.KEY_LEFTCTRL:
+                    _isLeftCtrlPressed = isPressed;
+                    break;
+                case InputEventCode.KEY_RIGHTCTRL:
+                    _isRightCtrlPressed = isPressed;
+                    break;
             }
         }
 

@@ -65,9 +65,9 @@ public class RuntimeServiceCollectionExtensionsTests
         AssertImplementationRegistration<IShortcutService, ShortcutService>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ITextExpansionStorageService, TextExpansionStorageService>(services, ServiceLifetime.Singleton);
 
-        AssertImplementationRegistration<IInputProcessor, InputProcessor>(services, ServiceLifetime.Transient);
-        AssertImplementationRegistration<ITextBufferState, TextBufferState>(services, ServiceLifetime.Transient);
-        AssertImplementationRegistration<ITextExpansionExecutor, TextExpansionExecutor>(services, ServiceLifetime.Transient);
+        AssertImplementationRegistration<IInputProcessor, InputProcessor>(services, ServiceLifetime.Singleton);
+        AssertImplementationRegistration<ITextBufferState, TextBufferState>(services, ServiceLifetime.Singleton);
+        AssertImplementationRegistration<ITextExpansionExecutor, TextExpansionExecutor>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ITextExpansionService, TextExpansionService>(services, ServiceLifetime.Singleton);
 
         AssertImplementationRegistration<IEditorActionConverter, EditorActionConverter>(services, ServiceLifetime.Singleton);

@@ -135,7 +135,7 @@ public class TextExpansionStorageServiceTests : IDisposable
         var expansions = new List<TextExpansion>
         {
             new(":mail", "test@example.com"),
-            new(":sig", "Best regards,\nTest User")
+            new(":sig", "Best regards,\nTest User", true, PasteMethod.ShiftInsert, TextInsertionMode.DirectTyping)
         };
 
         // Act
@@ -147,6 +147,36 @@ public class TextExpansionStorageServiceTests : IDisposable
         loaded[0].Trigger.Should().Be(":mail");
         loaded[0].Replacement.Should().Be("test@example.com");
         loaded[1].Trigger.Should().Be(":sig");
+        loaded[1].Method.Should().Be(PasteMethod.ShiftInsert);
+        loaded[1].InsertionMode.Should().Be(TextInsertionMode.DirectTyping);
+    }
+
+    [Fact]
+    public async Task LoadAsync_WhenInsertionModeIsMissing_DefaultsToPaste()
+    {
+        // Arrange
+        var service = CreateService();
+        var legacyJson = """
+            [
+              {
+                "trigger": ":mail",
+                "replacement": "test@example.com",
+                "isEnabled": true,
+                "method": 1
+              }
+            ]
+            """;
+
+        await File.WriteAllTextAsync(service.FilePath, legacyJson);
+
+        // Act
+        var loaded = await service.LoadAsync();
+
+        // Assert
+        loaded.Should().ContainSingle();
+        loaded[0].Trigger.Should().Be(":mail");
+        loaded[0].Method.Should().Be(PasteMethod.CtrlShiftV);
+        loaded[0].InsertionMode.Should().Be(TextInsertionMode.Paste);
     }
 
     [Fact]

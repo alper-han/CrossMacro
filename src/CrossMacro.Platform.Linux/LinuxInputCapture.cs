@@ -78,10 +78,7 @@ public class LinuxInputCapture : IInputCapture
         
         var nativeDevices = _deviceEnumerator();
         
-        var devicesToUse = nativeDevices.Where(d => 
-            (_captureMouse && d.IsMouse) || 
-            (_captureKeyboard && d.IsKeyboard)
-        ).ToList();
+        var devicesToUse = nativeDevices.Where(ShouldCaptureDevice).ToList();
         
         if (devicesToUse.Count == 0)
         {
@@ -202,6 +199,16 @@ public class LinuxInputCapture : IInputCapture
             InputEventType.Sync => _captureMouse,
             _ => false
         };
+    }
+
+    private bool ShouldCaptureDevice(InputDeviceHelper.InputDevice device)
+    {
+        if (VirtualDeviceConstants.IsCrossMacroVirtualDeviceName(device.Name))
+        {
+            return false;
+        }
+
+        return (_captureMouse && device.IsMouse) || (_captureKeyboard && device.IsKeyboard);
     }
     
 

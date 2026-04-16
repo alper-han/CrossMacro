@@ -66,6 +66,7 @@ public class TextExpansionViewModelTests
         // Assert
         _viewModel.Expansions.Should().HaveCount(1);
         _viewModel.Expansions[0].Trigger.Should().Be(":new");
+        _viewModel.Expansions[0].InsertionMode.Should().Be(TextInsertionMode.Paste);
         _viewModel.TriggerInput.Should().BeEmpty(); // Should clear input
         
         await _storageService.Received(1).SaveAsync(Arg.Any<IEnumerable<TextExpansion>>());
@@ -156,6 +157,30 @@ public class TextExpansionViewModelTests
     }
 
     [Fact]
+    public void SelectedInsertionMode_DefaultsToPaste()
+    {
+        _viewModel.SelectedInsertionMode.Should().Be(TextInsertionMode.Paste);
+    }
+
+    [Fact]
+    public void IsPasteMethodSelectorVisible_HidesWhenDirectTypingIsSelected()
+    {
+        // Arrange
+        var envProvider = Substitute.For<IEnvironmentInfoProvider>();
+        envProvider.CurrentEnvironment.Returns(DisplayEnvironment.LinuxX11);
+        var vm = new TextExpansionViewModel(_storageService, _dialogService, envProvider);
+
+        // Assert
+        vm.IsPasteMethodSelectorVisible.Should().BeTrue();
+
+        // Act
+        vm.SelectedInsertionMode = TextInsertionMode.DirectTyping;
+
+        // Assert
+        vm.IsPasteMethodSelectorVisible.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task AddExpansion_ResetsSelectedPasteMethodToDefault()
     {
         // Arrange
@@ -168,6 +193,23 @@ public class TextExpansionViewModelTests
 
         // Assert
         _viewModel.SelectedPasteMethod.Should().Be(PasteMethod.CtrlV);
+    }
+
+    [Fact]
+    public async Task AddExpansion_WhenDirectTypingSelected_PersistsInsertionModeAndResetsToDefault()
+    {
+        // Arrange
+        _viewModel.SelectedInsertionMode = TextInsertionMode.DirectTyping;
+        _viewModel.TriggerInput = ":typed";
+        _viewModel.ReplacementInput = "value";
+
+        // Act
+        await _viewModel.AddExpansionCommand.ExecuteAsync(null);
+
+        // Assert
+        _viewModel.Expansions.Should().ContainSingle();
+        _viewModel.Expansions[0].InsertionMode.Should().Be(TextInsertionMode.DirectTyping);
+        _viewModel.SelectedInsertionMode.Should().Be(TextInsertionMode.Paste);
     }
 
     [Fact]

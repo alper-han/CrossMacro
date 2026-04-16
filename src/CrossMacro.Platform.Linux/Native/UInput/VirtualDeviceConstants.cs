@@ -14,4 +14,9 @@ public static class VirtualDeviceConstants
     
     // Naming constants
     public const string DeviceName = "CrossMacro Virtual Input Device";
+
+    public static bool IsCrossMacroVirtualDeviceName(string? deviceName)
+    {
+        return string.Equals(deviceName, DeviceName, StringComparison.Ordinal);
+    }
 }

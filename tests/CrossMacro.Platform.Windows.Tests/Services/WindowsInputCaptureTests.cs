@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Core.Services;
 using CrossMacro.Platform.Windows.Native;
 using CrossMacro.Platform.Windows.Services;
 using CrossMacro.TestInfrastructure;
@@ -10,6 +11,17 @@ namespace CrossMacro.Platform.Windows.Tests.Services;
 
 public class WindowsInputCaptureTests
 {
+    [Theory]
+    [InlineData(0u, 0L, false)]
+    [InlineData(0x10u, 0L, false)]
+    [InlineData(0u, InputEventMarkers.TextExpansionKeyboardEvent, false)]
+    [InlineData(0x10u, InputEventMarkers.TextExpansionKeyboardEvent, true)]
+    [InlineData(0x12u, InputEventMarkers.TextExpansionKeyboardEvent, true)]
+    public void ShouldIgnoreKeyboardHookEvent_RecognizesOnlyCrossMacroInjectedFlags(uint hookFlags, long extraInfo, bool expected)
+    {
+        Assert.Equal(expected, WindowsInputCapture.ShouldIgnoreKeyboardHookEvent(hookFlags, InputEventMarkers.ToIntPtr(extraInfo)));
+    }
+
     [WindowsFact]
     public async Task StartAsync_WhenMouseHookInstallFails_ThrowsInvalidOperationException()
     {

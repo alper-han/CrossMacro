@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Core.Services.TextExpansion;
+using CrossMacro.Infrastructure.Services.TextExpansion;
 using Serilog;
 
 namespace CrossMacro.Infrastructure.Services;
@@ -248,12 +249,12 @@ public class TextExpansionService : ITextExpansionService
 
     private void OnSpecialKeyReceived(int keyCode)
     {
-        if (keyCode == 14) // Backspace
+        if (keyCode == InputEventCode.KEY_BACKSPACE)
         {
             _bufferState.Backspace();
             Log.Debug("[TextExpansionService] Backspace received");
         }
-        else if (keyCode == 28) // Enter
+        else if (keyCode == InputEventCode.KEY_ENTER)
         {
              _bufferState.Clear();
              Log.Debug("[TextExpansionService] Enter received, buffer cleared");
@@ -267,12 +268,12 @@ public class TextExpansionService : ITextExpansionService
         try
         {
             // Wait for Modifiers to be released (Safety)
-            int timeoutMs = 2000;
-            int elapsed = 0;
-            while (_inputProcessor.AreModifiersPressed && elapsed < timeoutMs)
+            var elapsed = TimeSpan.Zero;
+            while (_inputProcessor.AreModifiersPressed &&
+                   elapsed < TextExpansionExecutionTimings.ModifierReleaseTimeout)
             {
-                await Task.Delay(50);
-                elapsed += 50;
+                await Task.Delay(TextExpansionExecutionTimings.ModifierReleasePollInterval);
+                elapsed += TextExpansionExecutionTimings.ModifierReleasePollInterval;
             }
 
             Log.Debug(

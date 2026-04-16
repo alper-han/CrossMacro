@@ -230,6 +230,8 @@ internal static class CoreGraphics
         KeyboardEventAutorepeat = 8,
         KeyboardEventKeycode = 9,
         KeyboardEventKeyboardType = 10,
+        EventSourceUnixProcessID = 41,
+        EventSourceUserData = 42,
         ScrollWheelEventDeltaAxis1 = 11,
         ScrollWheelEventDeltaAxis2 = 12,
         ScrollWheelEventDeltaAxis3 = 13,

@@ -104,9 +104,9 @@ public static class RuntimeServiceCollectionExtensions
         services.AddSingleton<IShortcutService, ShortcutService>();
         services.AddSingleton<ITextExpansionStorageService, TextExpansionStorageService>();
 
-        services.AddTransient<IInputProcessor, InputProcessor>();
-        services.AddTransient<ITextBufferState, TextBufferState>();
-        services.AddTransient<ITextExpansionExecutor, TextExpansionExecutor>();
+        services.AddSingleton<IInputProcessor, InputProcessor>();
+        services.AddSingleton<ITextBufferState, TextBufferState>();
+        services.AddSingleton<ITextExpansionExecutor, TextExpansionExecutor>();
         services.AddSingleton<ITextExpansionService, TextExpansionService>();
 
         services.AddSingleton<IEditorActionConverter, EditorActionConverter>();

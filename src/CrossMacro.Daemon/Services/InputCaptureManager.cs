@@ -37,7 +37,7 @@ public class InputCaptureManager : IInputCaptureManager
             StopCapture(); // Clear existing
 
             var devices = _deviceEnumerator();
-            var targetDevices = devices.Where(d => (captureMouse && d.IsMouse) || (captureKeyboard && d.IsKeyboard)).ToList();
+            var targetDevices = devices.Where(d => ShouldCaptureDevice(d, captureMouse, captureKeyboard)).ToList();
             
             Log.Information("[InputCaptureManager] Starting capture on {Count} devices", targetDevices.Count);
 
@@ -118,6 +118,16 @@ public class InputCaptureManager : IInputCaptureManager
             UInputNative.EV_SYN => captureMouse,
             _ => false
         };
+    }
+
+    private static bool ShouldCaptureDevice(InputDeviceHelper.InputDevice device, bool captureMouse, bool captureKeyboard)
+    {
+        if (VirtualDeviceConstants.IsCrossMacroVirtualDeviceName(device.Name))
+        {
+            return false;
+        }
+
+        return (captureMouse && device.IsMouse) || (captureKeyboard && device.IsKeyboard);
     }
 
     internal interface ILinuxCaptureReader : IDisposable

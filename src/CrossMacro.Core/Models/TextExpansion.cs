@@ -26,6 +26,11 @@ public class TextExpansion
     public PasteMethod Method { get; set; } = PasteMethod.CtrlV;
 
     /// <summary>
+    /// The strategy used to insert the replacement text
+    /// </summary>
+    public TextInsertionMode InsertionMode { get; set; } = TextInsertionMode.Paste;
+
+    /// <summary>
     /// Creates a new text expansion
     /// </summary>
     public TextExpansion()
@@ -35,13 +40,35 @@ public class TextExpansion
     /// <summary>
     /// Creates a new text expansion with the specified trigger and replacement
     /// </summary>
-    public TextExpansion(string trigger, string replacement, bool isEnabled = true, PasteMethod method = PasteMethod.CtrlV)
+    public TextExpansion(
+        string trigger,
+        string replacement,
+        bool isEnabled = true,
+        PasteMethod method = PasteMethod.CtrlV,
+        TextInsertionMode insertionMode = TextInsertionMode.Paste)
     {
         Trigger = trigger;
         Replacement = replacement;
         IsEnabled = isEnabled;
         Method = method;
+        InsertionMode = insertionMode;
     }
+}
+
+/// <summary>
+/// Defines how the replacement text should be inserted
+/// </summary>
+public enum TextInsertionMode
+{
+    /// <summary>
+    /// Insert by placing the text on the clipboard and pasting it
+    /// </summary>
+    Paste,
+
+    /// <summary>
+    /// Insert by simulating direct typing without using the clipboard
+    /// </summary>
+    DirectTyping
 }
 
 /// <summary>

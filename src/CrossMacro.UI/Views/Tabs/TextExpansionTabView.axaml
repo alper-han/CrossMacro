@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="450"
@@ -20,7 +21,7 @@
                                    FontWeight="Bold" 
                                    Foreground="{DynamicResource TextSecondaryBrush}"/>
                         
-                        <Grid ColumnDefinitions="*,Auto,*" RowDefinitions="Auto,Auto">
+                        <Grid ColumnDefinitions="*,Auto,*" RowDefinitions="Auto,Auto,Auto">
                             <!-- Trigger -->
                             <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6">
                                 <TextBlock Text="Trigger" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -46,14 +47,35 @@
                                          CornerRadius="6"
                                          Padding="10"/>
                             </StackPanel>
+                            <!-- Insertion Mode -->
+                            <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Spacing="6" Margin="0,16,0,0">
+                                <TextBlock Text="Insertion Mode" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <ComboBox ItemsSource="{Binding InsertionModes}"
+                                          SelectedItem="{Binding SelectedInsertionMode}"
+                                          HorizontalAlignment="Stretch"
+                                          CornerRadius="6">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={x:Static tabs:TextExpansionConverters.InsertionModeDisplayText}}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
+
                             <!-- Paste Method -->
-                            <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Spacing="6" Margin="0,16,0,0"
-                                        IsVisible="{Binding IsPasteMethodVisible}">
+                            <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Spacing="6" Margin="0,12,0,0"
+                                        IsVisible="{Binding IsPasteMethodSelectorVisible}">
                                 <TextBlock Text="Paste Method" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 <ComboBox ItemsSource="{Binding PasteMethods}" 
                                           SelectedItem="{Binding SelectedPasteMethod}"
                                           HorizontalAlignment="Stretch"
-                                          CornerRadius="6"/>
+                                          CornerRadius="6">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={x:Static tabs:TextExpansionConverters.PasteMethodDisplayText}}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
                             </StackPanel>
                         </Grid>
                         
@@ -131,10 +153,22 @@
                                                                Foreground="{DynamicResource TextPrimaryBrush}"
                                                                FontSize="14"
                                                                TextWrapping="Wrap"/>
-                                                    <StackPanel Orientation="Horizontal" 
-                                                                IsVisible="{Binding #Root.((vm:TextExpansionViewModel)DataContext).IsPasteMethodVisible}">
-                                                        <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="4" Padding="4,2" HorizontalAlignment="Left" IsVisible="{Binding Method, Converter={x:Static ObjectConverters.IsNotNull}}">
-                                                            <TextBlock Text="{Binding Method}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="4" Padding="4,2" HorizontalAlignment="Left">
+                                                            <TextBlock Text="{Binding InsertionMode, Converter={x:Static tabs:TextExpansionConverters.InsertionModeDisplayText}}"
+                                                                       FontSize="10"
+                                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                        </Border>
+                                                        <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="4" Padding="4,2" HorizontalAlignment="Left">
+                                                            <Border.IsVisible>
+                                                                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                                                    <Binding Path="InsertionMode" Converter="{x:Static tabs:TextExpansionConverters.IsPasteMode}" FallbackValue="False"/>
+                                                                    <Binding Path="#Root.((vm:TextExpansionViewModel)DataContext).IsPasteMethodVisible" FallbackValue="False"/>
+                                                                </MultiBinding>
+                                                            </Border.IsVisible>
+                                                            <TextBlock Text="{Binding Method, Converter={x:Static tabs:TextExpansionConverters.PasteMethodDisplayText}}"
+                                                                       FontSize="10"
+                                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
                                                         </Border>
                                                     </StackPanel>
                                                 </StackPanel>

@@ -5,10 +5,17 @@ using CrossMacro.Platform.MacOS.Native;
 
 namespace CrossMacro.Platform.MacOS.Services;
 
-public class MacOSInputSimulator : IInputSimulator, IInputSimulatorCapabilities
+public class MacOSInputSimulator :
+    IInputSimulator,
+    IInputSimulatorCapabilities,
+    IUnicodeTextInputSimulator,
+    ITaggedKeyboardInputSimulator,
+    ITaggedUnicodeTextInputSimulator
 {
     public string ProviderName => "macOS CoreGraphics";
     public bool IsSupported => OperatingSystem.IsMacOS();
+    public bool SupportsUnicodeTextInput => IsSupported;
+    public bool SupportsTaggedKeyboardInput => IsSupported;
     public bool SupportsAbsoluteCoordinates => true;
 
     public void Initialize(int screenWidth = 0, int screenHeight = 0)
@@ -94,12 +101,22 @@ public class MacOSInputSimulator : IInputSimulator, IInputSimulatorCapabilities
 
     public void KeyPress(int keyCode, bool pressed)
     {
-        var ushortCode = KeyMap.ToMacKey(keyCode);
-        if (ushortCode == 0xFFFF) return;
+        PostKeyboardEvent(keyCode, pressed, marker: null);
+    }
 
-        var eventRef = CoreGraphics.CGEventCreateKeyboardEvent(IntPtr.Zero, ushortCode, pressed);
-        CoreGraphics.CGEventPost(CoreGraphics.CGEventTapLocation.HIDEventTap, eventRef);
-        CoreFoundation.CFRelease(eventRef);
+    public void KeyPressTagged(int keyCode, bool pressed, long tag)
+    {
+        PostKeyboardEvent(keyCode, pressed, tag);
+    }
+
+    public void TypeText(string text)
+    {
+        TypeTextCore(text, marker: null);
+    }
+
+    public void TypeTextTagged(string text, long tag)
+    {
+        TypeTextCore(text, tag);
     }
 
     public void Sync()
@@ -109,12 +126,54 @@ public class MacOSInputSimulator : IInputSimulator, IInputSimulatorCapabilities
     public void Dispose()
     {
     }
-    
+
+    private static void TypeTextCore(string text, long? marker)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+
+        if (text.Length == 0)
+        {
+            return;
+        }
+
+        var codeUnits = text.ToCharArray();
+        PostUnicodeKeyboardEvent(codeUnits, keyDown: true, marker);
+        PostUnicodeKeyboardEvent(codeUnits, keyDown: false, marker);
+    }
+
     private CoreGraphics.CGPoint GetCursorPos()
     {
         var eventRef = CoreGraphics.CGEventCreate(IntPtr.Zero);
         var loc = CoreGraphics.CGEventGetLocation(eventRef);
         CoreFoundation.CFRelease(eventRef);
         return loc;
+    }
+
+    private static void PostUnicodeKeyboardEvent(char[] codeUnits, bool keyDown, long? marker)
+    {
+        var eventRef = CoreGraphics.CGEventCreateKeyboardEvent(IntPtr.Zero, 0, keyDown);
+        ApplyKeyboardMarker(eventRef, marker);
+        CoreGraphics.CGEventKeyboardSetUnicodeString(eventRef, (nuint)codeUnits.Length, codeUnits);
+        CoreGraphics.CGEventPost(CoreGraphics.CGEventTapLocation.HIDEventTap, eventRef);
+        CoreFoundation.CFRelease(eventRef);
+    }
+
+    private static void PostKeyboardEvent(int keyCode, bool pressed, long? marker)
+    {
+        var ushortCode = KeyMap.ToMacKey(keyCode);
+        if (ushortCode == 0xFFFF) return;
+
+        var eventRef = CoreGraphics.CGEventCreateKeyboardEvent(IntPtr.Zero, ushortCode, pressed);
+        ApplyKeyboardMarker(eventRef, marker);
+        CoreGraphics.CGEventPost(CoreGraphics.CGEventTapLocation.HIDEventTap, eventRef);
+        CoreFoundation.CFRelease(eventRef);
+    }
+
+    private static void ApplyKeyboardMarker(IntPtr eventRef, long? marker)
+    {
+        if (marker.HasValue)
+        {
+            CoreGraphics.CGEventSetIntegerValueField(eventRef, CoreGraphics.CGEventField.EventSourceUserData, marker.Value);
+        }
     }
 }

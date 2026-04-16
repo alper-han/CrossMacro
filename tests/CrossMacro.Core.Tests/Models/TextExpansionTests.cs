@@ -15,18 +15,27 @@ public class TextExpansionTests
         expansion.Trigger.Should().BeEmpty();
         expansion.Replacement.Should().BeEmpty();
         expansion.IsEnabled.Should().BeTrue();
+        expansion.Method.Should().Be(PasteMethod.CtrlV);
+        expansion.InsertionMode.Should().Be(TextInsertionMode.Paste);
     }
 
     [Fact]
     public void TextExpansion_ParameterizedConstructor_SetsAllValues()
     {
         // Arrange & Act
-        var expansion = new TextExpansion(":mail", "test@example.com", true);
+        var expansion = new TextExpansion(
+            ":mail",
+            "test@example.com",
+            true,
+            PasteMethod.CtrlShiftV,
+            TextInsertionMode.DirectTyping);
 
         // Assert
         expansion.Trigger.Should().Be(":mail");
         expansion.Replacement.Should().Be("test@example.com");
         expansion.IsEnabled.Should().BeTrue();
+        expansion.Method.Should().Be(PasteMethod.CtrlShiftV);
+        expansion.InsertionMode.Should().Be(TextInsertionMode.DirectTyping);
     }
 
     [Fact]

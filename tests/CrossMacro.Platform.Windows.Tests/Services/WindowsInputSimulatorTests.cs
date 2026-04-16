@@ -1,31 +1,31 @@
-using CrossMacro.Platform.MacOS.Services;
 using CrossMacro.Core.Services;
+using CrossMacro.Platform.Windows.Services;
 using Xunit;
 
-namespace CrossMacro.Platform.MacOS.Tests.Services;
+namespace CrossMacro.Platform.Windows.Tests.Services;
 
-public class MacOSInputSimulatorTests
+public class WindowsInputSimulatorTests
 {
     [Fact]
     public void ProviderName_IsExpected()
     {
-        var simulator = new MacOSInputSimulator();
+        var simulator = new WindowsInputSimulator();
 
-        Assert.Equal("macOS CoreGraphics", simulator.ProviderName);
+        Assert.Equal("Windows SendInput", simulator.ProviderName);
     }
 
     [Fact]
     public void IsSupported_MatchesCurrentPlatform()
     {
-        var simulator = new MacOSInputSimulator();
+        var simulator = new WindowsInputSimulator();
 
-        Assert.Equal(OperatingSystem.IsMacOS(), simulator.IsSupported);
+        Assert.Equal(OperatingSystem.IsWindows(), simulator.IsSupported);
     }
 
     [Fact]
     public void SupportsUnicodeTextInput_MatchesPlatformSupport()
     {
-        var simulator = new MacOSInputSimulator();
+        var simulator = new WindowsInputSimulator();
 
         Assert.IsAssignableFrom<IUnicodeTextInputSimulator>(simulator);
         Assert.IsAssignableFrom<ITaggedKeyboardInputSimulator>(simulator);

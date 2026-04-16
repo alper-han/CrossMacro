@@ -9,6 +9,10 @@ namespace CrossMacro.Platform.Windows.Services;
 
 public class WindowsInputCapture : IInputCapture
 {
+    private const uint LowLevelKeyboardHookFlagExtended = 0x01;
+    private const uint LowLevelKeyboardHookFlagLowerIntegrityInjected = 0x02;
+    private const uint LowLevelKeyboardHookFlagInjected = 0x10;
+
     public string ProviderName => "Windows Hooks";
     public bool IsSupported => OperatingSystem.IsWindows();
     
@@ -297,6 +301,11 @@ public class WindowsInputCapture : IInputCapture
         {
             var hookStruct = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
             uint msg = (uint)wParam;
+
+            if (ShouldIgnoreKeyboardHookEvent(hookStruct.flags, hookStruct.dwExtraInfo))
+            {
+                return User32.CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
+            }
             
             bool isDown = (msg == User32.WM_KEYDOWN || msg == User32.WM_SYSKEYDOWN);
             bool isUp = (msg == User32.WM_KEYUP || msg == User32.WM_SYSKEYUP);
@@ -313,7 +322,7 @@ public class WindowsInputCapture : IInputCapture
                 }
                 
                 // Handle Extended Keys (distinguish Numpad vs Standard)
-                bool isExtended = (hookStruct.flags & 1) == 1; // LLKHF_EXTENDED is bit 0 in flags
+                bool isExtended = (hookStruct.flags & LowLevelKeyboardHookFlagExtended) == LowLevelKeyboardHookFlagExtended;
                 
                 // Fix for Right Alt (AltGr) appearing as Generic Menu (0x12) or Left Alt (0xA4) with Extended flag
                 if ((hookStruct.vkCode == 0x12 || hookStruct.vkCode == 0xA4) && isExtended)
@@ -351,5 +360,11 @@ public class WindowsInputCapture : IInputCapture
             }
         }
         return User32.CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
+    }
+
+    internal static bool ShouldIgnoreKeyboardHookEvent(uint hookFlags, IntPtr extraInfo)
+    {
+        var isInjected = (hookFlags & (LowLevelKeyboardHookFlagInjected | LowLevelKeyboardHookFlagLowerIntegrityInjected)) != 0;
+        return isInjected && extraInfo == InputEventMarkers.ToIntPtr(InputEventMarkers.TextExpansionKeyboardEvent);
     }
 }

@@ -111,9 +111,52 @@ public class InputCaptureManagerTests
         Assert.Single(received);
     }
 
+    [Fact]
+    public void StartCapture_WhenDeviceListContainsCrossMacroVirtualDevice_ShouldSkipIt()
+    {
+        var virtualFactoryCalls = 0;
+        var realReader = new FakeLinuxCaptureReader();
+        var manager = new InputCaptureManager(
+            () => new[]
+            {
+                new InputDeviceHelper.InputDevice
+                {
+                    Path = "/dev/input/event-virtual",
+                    Name = VirtualDeviceConstants.DeviceName,
+                    IsKeyboard = true
+                },
+                new InputDeviceHelper.InputDevice
+                {
+                    Path = "/dev/input/event-real",
+                    Name = "Real Keyboard",
+                    IsKeyboard = true
+                }
+            },
+            device =>
+            {
+                if (device.Name == VirtualDeviceConstants.DeviceName)
+                {
+                    virtualFactoryCalls++;
+                    return new FakeLinuxCaptureReader();
+                }
+
+                return realReader;
+            });
+
+        var received = new List<UInputNative.input_event>();
+        var result = manager.StartCapture(captureMouse: false, captureKeyboard: true, received.Add);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, result.StartedDeviceCount);
+        Assert.Equal(0, virtualFactoryCalls);
+        Assert.Equal(1, realReader.StartCalls);
+    }
+
     private sealed class FakeLinuxCaptureReader : InputCaptureManager.ILinuxCaptureReader
     {
         private event Action<InputCaptureManager.ILinuxCaptureReader, UInputNative.input_event>? EventReceivedInternal;
+
+        public int StartCalls { get; private set; }
 
         public event Action<InputCaptureManager.ILinuxCaptureReader, UInputNative.input_event>? EventReceived
         {
@@ -123,6 +166,7 @@ public class InputCaptureManagerTests
 
         public void Start()
         {
+            StartCalls++;
         }
 
         public void Dispose()

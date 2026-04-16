@@ -160,17 +160,59 @@ public class LinuxInputCaptureTests
         Assert.Equal(512, received.Value.Value);
     }
 
+    [LinuxFact]
+    public async Task StartAsync_WhenDeviceListContainsCrossMacroVirtualDevice_ShouldSkipIt()
+    {
+        var virtualFactoryCalls = 0;
+        var devices = new[]
+        {
+            new InputDeviceHelper.InputDevice
+            {
+                Path = "/dev/input/event-virtual",
+                Name = VirtualDeviceConstants.DeviceName,
+                IsKeyboard = true
+            },
+            new InputDeviceHelper.InputDevice
+            {
+                Path = "/dev/input/event-real",
+                Name = "Real Keyboard",
+                IsKeyboard = true
+            }
+        };
+
+        var realReader = new FakeLinuxInputReader(deviceName: "Real Keyboard");
+        using var capture = new LinuxInputCapture(
+            () => devices,
+            device =>
+            {
+                if (device.Name == VirtualDeviceConstants.DeviceName)
+                {
+                    virtualFactoryCalls++;
+                    return new FakeLinuxInputReader(deviceName: VirtualDeviceConstants.DeviceName);
+                }
+
+                return realReader;
+            });
+
+        await capture.StartAsync(CancellationToken.None);
+
+        Assert.Equal(0, virtualFactoryCalls);
+        Assert.Equal(1, realReader.StartCalls);
+    }
+
     private sealed class FakeLinuxInputReader : LinuxInputCapture.ILinuxInputReader
     {
         private readonly Exception? _startException;
+        private readonly string _deviceName;
         private event Action<LinuxInputCapture.ILinuxInputReader, UInputNative.input_event>? EventReceivedInternal;
 
-        public FakeLinuxInputReader(Exception? startException = null)
+        public FakeLinuxInputReader(string deviceName = "Fake Reader", Exception? startException = null)
         {
+            _deviceName = deviceName;
             _startException = startException;
         }
 
-        public string DeviceName => "Fake Reader";
+        public string DeviceName => _deviceName;
         public int StartCalls { get; private set; }
         public int StopCalls { get; private set; }
 

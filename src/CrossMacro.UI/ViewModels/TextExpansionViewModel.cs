@@ -42,6 +42,9 @@ public partial class TextExpansionViewModel : ViewModelBase
     
     public bool IsPasteMethodVisible => IsLinuxEnvironment(_environmentInfoProvider.CurrentEnvironment);
 
+    public bool IsPasteMethodSelectorVisible =>
+        IsPasteMethodVisible && SelectedInsertionMode == TextInsertionMode.Paste;
+
     private static bool IsLinuxEnvironment(DisplayEnvironment env)
     {
         return env == DisplayEnvironment.LinuxX11 ||
@@ -63,12 +66,27 @@ public partial class TextExpansionViewModel : ViewModelBase
     }
 
     private PasteMethod _selectedPasteMethod = PasteMethod.CtrlV;
+    private TextInsertionMode _selectedInsertionMode = TextInsertionMode.Paste;
+
+    public TextInsertionMode SelectedInsertionMode
+    {
+        get => _selectedInsertionMode;
+        set
+        {
+            if (SetProperty(ref _selectedInsertionMode, value))
+            {
+                OnPropertyChanged(nameof(IsPasteMethodSelectorVisible));
+            }
+        }
+    }
 
     public PasteMethod SelectedPasteMethod
     {
         get => _selectedPasteMethod;
         set => SetProperty(ref _selectedPasteMethod, value);
     }
+
+    public IEnumerable<TextInsertionMode> InsertionModes { get; } = Enum.GetValues<TextInsertionMode>();
     
     // Expose enum values for UI
     public IEnumerable<PasteMethod> PasteMethods { get; } = Enum.GetValues<PasteMethod>();
@@ -116,7 +134,12 @@ public partial class TextExpansionViewModel : ViewModelBase
     [RelayCommand(CanExecute = nameof(CanAddExpansion))]
     private async Task AddExpansionAsync()
     {
-        var newExpansion = new TextExpansion(TriggerInput, ReplacementInput, true, SelectedPasteMethod);
+        var newExpansion = new TextExpansion(
+            TriggerInput,
+            ReplacementInput,
+            true,
+            SelectedPasteMethod,
+            SelectedInsertionMode);
         
         // Add to UI collection
         Expansions.Insert(0, newExpansion);
@@ -130,6 +153,7 @@ public partial class TextExpansionViewModel : ViewModelBase
         // Clear inputs
         TriggerInput = string.Empty;
         ReplacementInput = string.Empty;
+        SelectedInsertionMode = TextInsertionMode.Paste;
         // Reset method to default
         SelectedPasteMethod = PasteMethod.CtrlV; 
     }

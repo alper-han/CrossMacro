@@ -239,6 +239,12 @@ public class MacOSInputCapture : IInputCapture
          if (!_captureMouse && IsMouseEvent(type)) return;
          if (!_captureKeyboard && IsKeyEvent(type)) return;
 
+         if (IsKeyEvent(type) &&
+             ShouldIgnoreKeyboardEvent(CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.EventSourceUserData)))
+         {
+             return;
+         }
+
          long timestamp = DateTime.UtcNow.Ticks;
 
          if (IsKeyEvent(type))
@@ -354,6 +360,11 @@ public class MacOSInputCapture : IInputCapture
         return type == CoreGraphics.CGEventType.KeyDown ||
                type == CoreGraphics.CGEventType.KeyUp ||
                type == CoreGraphics.CGEventType.FlagsChanged;
+    }
+
+    internal static bool ShouldIgnoreKeyboardEvent(long eventSourceUserData)
+    {
+        return eventSourceUserData == InputEventMarkers.TextExpansionKeyboardEvent;
     }
 
     public void Dispose()

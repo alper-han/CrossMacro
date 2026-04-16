@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Core.Services;
 using CrossMacro.Platform.MacOS.Services;
 using CrossMacro.TestInfrastructure;
 using Xunit;
@@ -9,6 +10,14 @@ namespace CrossMacro.Platform.MacOS.Tests.Services;
 
 public class MacOSInputCaptureTests
 {
+    [Fact]
+    public void ShouldIgnoreKeyboardEvent_RecognizesOnlyCrossMacroMarker()
+    {
+        Assert.True(MacOSInputCapture.ShouldIgnoreKeyboardEvent(InputEventMarkers.TextExpansionKeyboardEvent));
+        Assert.False(MacOSInputCapture.ShouldIgnoreKeyboardEvent(0));
+        Assert.False(MacOSInputCapture.ShouldIgnoreKeyboardEvent(123));
+    }
+
     [MacOSFact]
     public void IsSupported_OnMacOS_ShouldBeTrue()
     {

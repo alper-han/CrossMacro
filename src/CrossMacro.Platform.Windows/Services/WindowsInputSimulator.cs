@@ -5,7 +5,12 @@ using CrossMacro.Platform.Windows.Native;
 
 namespace CrossMacro.Platform.Windows.Services;
 
-public class WindowsInputSimulator : IInputSimulator, IInputSimulatorCapabilities
+public class WindowsInputSimulator :
+    IInputSimulator,
+    IInputSimulatorCapabilities,
+    IUnicodeTextInputSimulator,
+    ITaggedKeyboardInputSimulator,
+    ITaggedUnicodeTextInputSimulator
 {
     private int _screenWidth;
     private int _screenHeight;
@@ -18,6 +23,8 @@ public class WindowsInputSimulator : IInputSimulator, IInputSimulatorCapabilitie
 
     public string ProviderName => "Windows SendInput";
     public bool IsSupported => OperatingSystem.IsWindows();
+    public bool SupportsUnicodeTextInput => IsSupported;
+    public bool SupportsTaggedKeyboardInput => IsSupported;
     public bool SupportsAbsoluteCoordinates => true;
 
     public void Initialize(int screenWidth = 0, int screenHeight = 0)
@@ -144,33 +151,22 @@ public class WindowsInputSimulator : IInputSimulator, IInputSimulatorCapabilitie
 
     public void KeyPress(int keyCode, bool pressed)
     {
-        ushort vk = WindowsKeyMap.GetVirtualKey(keyCode);
-        if (vk == 0) return; 
+        SendKeyPress(keyCode, pressed, marker: null);
+    }
 
-        uint flags = pressed ? 0u : KeyEventFlags.KEYEVENTF_KEYUP;
-        
-        if (ExtendedKeys.Contains(vk))
-        {
-            flags |= KeyEventFlags.KEYEVENTF_EXTENDEDKEY;
-        }
-        
-        var input = new INPUT
-        {
-            type = InputType.INPUT_KEYBOARD,
-            U = new InputUnion
-            {
-                ki = new KEYBDINPUT
-                {
-                    wVk = vk,
-                    wScan = 0,
-                    dwFlags = flags,
-                    time = 0,
-                    dwExtraInfo = IntPtr.Zero
-                }
-            }
-        };
-        
-        SendInput(input);
+    public void KeyPressTagged(int keyCode, bool pressed, long tag)
+    {
+        SendKeyPress(keyCode, pressed, tag);
+    }
+
+    public void TypeText(string text)
+    {
+        TypeTextCore(text, marker: null);
+    }
+
+    public void TypeTextTagged(string text, long tag)
+    {
+        TypeTextCore(text, tag);
     }
 
     public void Sync()
@@ -179,6 +175,32 @@ public class WindowsInputSimulator : IInputSimulator, IInputSimulatorCapabilitie
 
     public void Dispose()
     {
+    }
+
+    private void SendKeyPress(int keyCode, bool pressed, long? marker)
+    {
+        ushort vk = WindowsKeyMap.GetVirtualKey(keyCode);
+        if (vk == 0) return;
+
+        uint flags = pressed ? 0u : KeyEventFlags.KEYEVENTF_KEYUP;
+
+        if (ExtendedKeys.Contains(vk))
+        {
+            flags |= KeyEventFlags.KEYEVENTF_EXTENDEDKEY;
+        }
+
+        SendKeyboardInput(vk, 0, flags, marker);
+    }
+
+    private static void TypeTextCore(string text, long? marker)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+
+        foreach (char codeUnit in text)
+        {
+            SendUnicodeInput(codeUnit, keyUp: false, marker);
+            SendUnicodeInput(codeUnit, keyUp: true, marker);
+        }
     }
 
     private static int CalculateAbsoluteCoordinate(int val, int max)
@@ -192,5 +214,35 @@ public class WindowsInputSimulator : IInputSimulator, IInputSimulatorCapabilitie
         var buffer = InputBuffer;
         buffer[0] = input;
         User32.SendInput(1, buffer, INPUT.Size);
+    }
+
+    private static void SendUnicodeInput(char codeUnit, bool keyUp, long? marker)
+    {
+        SendKeyboardInput(
+            virtualKey: 0,
+            scanCode: codeUnit,
+            flags: KeyEventFlags.KEYEVENTF_UNICODE | (keyUp ? KeyEventFlags.KEYEVENTF_KEYUP : 0),
+            marker);
+    }
+
+    private static void SendKeyboardInput(ushort virtualKey, ushort scanCode, uint flags, long? marker)
+    {
+        var input = new INPUT
+        {
+            type = InputType.INPUT_KEYBOARD,
+            U = new InputUnion
+            {
+                ki = new KEYBDINPUT
+                {
+                    wVk = virtualKey,
+                    wScan = scanCode,
+                    dwFlags = flags,
+                    time = 0,
+                    dwExtraInfo = marker.HasValue ? InputEventMarkers.ToIntPtr(marker.Value) : IntPtr.Zero
+                }
+            }
+        };
+
+        SendInput(input);
     }
 }

@@ -169,7 +169,10 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
                 SpeedMultiplier = PlaybackOptions.NormalizeSpeedMultiplier(settings.PlaybackSpeed),
                 Loop = settings.IsLooping,
                 RepeatCount = settings.LoopCount,
-                RepeatDelayMs = settings.LoopDelayMs
+                RepeatDelayMs = settings.LoopDelayMs,
+                UseRandomRepeatDelay = settings.UseRandomLoopDelay,
+                RepeatDelayMinMs = settings.LoopDelayMinMs,
+                RepeatDelayMaxMs = settings.LoopDelayMaxMs
             };
 
             _activePlayer = player;

@@ -18,7 +18,7 @@
                 <StackPanel Spacing="8">
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Grid.Column="0" Classes="label" Text="Playback Speed"/>
-                        <TextBlock Grid.Column="1" Text="{Binding PlaybackSpeed, StringFormat='{}{0:0.0}x'}" 
+                        <TextBlock Grid.Column="1" Text="{Binding PlaybackSpeed, StringFormat='{}{0:0.0}x'}"
                                   FontWeight="Medium"
                                   FontSize="16"
                                   Foreground="{DynamicResource PrimaryBrush}"/>
@@ -27,28 +27,61 @@
                             TickFrequency="0.1" IsSnapToTickEnabled="True"
                             IsEnabled="{Binding !IsPlaying}"/>
                 </StackPanel>
-    
+
                 <!-- Loop Controls -->
                 <StackPanel Spacing="12">
-                    <CheckBox Content="Loop Playback" IsChecked="{Binding IsLooping}" IsEnabled="{Binding !IsPlaying}"/>
-                    
-                    <Grid ColumnDefinitions="*,*" IsVisible="{Binding IsLooping}">
-                        <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                        <CheckBox Grid.Row="0"
+                                  Grid.Column="0"
+                                  Content="Loop Playback"
+                                  IsChecked="{Binding IsLooping}"
+                                  IsEnabled="{Binding !IsPlaying}"/>
+
+                        <CheckBox Grid.Row="0"
+                                  Grid.Column="1"
+                                  Margin="8,0,0,0"
+                                  Content="Randomize loop delay"
+                                  IsChecked="{Binding UseRandomLoopDelay}"
+                                  IsEnabled="{Binding !IsPlaying}"
+                                  IsVisible="{Binding IsLooping}"/>
+
+                        <StackPanel Grid.Row="1"
+                                    Grid.Column="0"
+                                    Margin="0,0,8,0"
+                                    Spacing="4"
+                                    IsVisible="{Binding IsLooping}">
                             <TextBlock Classes="label" Text="Loop Count"/>
                             <NumericUpDown Value="{Binding LoopCount}" Minimum="0" Maximum="1000" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Spacing="4" Margin="8,0,0,0">
+
+                        <StackPanel Grid.Row="1"
+                                    Grid.Column="1"
+                                    Margin="8,0,0,0"
+                                    Spacing="4"
+                                    IsVisible="{Binding ShowFixedLoopDelayInput}">
                             <TextBlock Classes="label" Text="Loop Delay (ms)"/>
                             <NumericUpDown Value="{Binding LoopDelayMs}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
                         </StackPanel>
+
+                        <StackPanel Grid.Row="1"
+                                    Grid.Column="1"
+                                    Margin="8,0,0,0"
+                                    Spacing="4"
+                                    IsVisible="{Binding ShowRandomLoopDelayInputs}">
+                            <TextBlock Classes="label" Text="Loop Delay Range (ms)"/>
+                            <Grid ColumnDefinitions="*,8,*">
+                                <NumericUpDown Value="{Binding LoopDelayMinMs}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
+                                <NumericUpDown Grid.Column="2" Value="{Binding LoopDelayMaxMs}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
+                            </Grid>
+                        </StackPanel>
                     </Grid>
                 </StackPanel>
-                
+
                 <!-- Countdown -->
                 <StackPanel Spacing="8">
                      <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Grid.Column="0" Classes="label" Text="Countdown (sec)"/>
-                        <TextBlock Grid.Column="1" Text="{Binding CountdownSeconds}" 
+                        <TextBlock Grid.Column="1" Text="{Binding CountdownSeconds}"
                                   FontWeight="Medium"
                                   FontSize="16"
                                   Foreground="{DynamicResource PrimaryBrush}"/>
@@ -56,7 +89,7 @@
                     <NumericUpDown Minimum="0" Maximum="2147483647" Value="{Binding CountdownSeconds}"
                             Increment="1" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
                 </StackPanel>
-    
+
                 <!-- Play Controls -->
                 <Grid ColumnDefinitions="*,*">
                     <Button Grid.Column="0" Grid.ColumnSpan="2"
@@ -71,7 +104,7 @@
                             <TextBlock Text="Play Macro"/>
                         </StackPanel>
                     </Button>
-                           
+
                      <Button Grid.Column="0" Grid.ColumnSpan="2"
                            Classes="danger"
                            Command="{Binding StopPlayback}"
@@ -86,7 +119,7 @@
                         </StackPanel>
                      </Button>
                 </Grid>
-    
+
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
                     <TextBlock Text="💡" FontSize="12" Classes="caption emoji-icon"/>
                     <TextBlock Text="Tip: Loop Count 0 means infinite loop" Classes="caption"/>

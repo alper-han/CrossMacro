@@ -218,7 +218,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
 
                 if (hasNextIteration && !_cts.Token.IsCancellationRequested)
                 {
-                    int delayMs = Math.Max(0, options.RepeatDelayMs);
+                    int delayMs = ResolveRepeatDelayMs(options);
                     if (delayMs > 0)
                     {
                         IsWaitingBetweenLoops = true;
@@ -446,6 +446,16 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
         }
 
         Log.Debug("[MacroPlayer] Completed playback of {Total} events", totalEvents);
+    }
+
+    private int ResolveRepeatDelayMs(PlaybackOptions options)
+    {
+        if (options.UseRandomRepeatDelay)
+        {
+            return ResolveDelayMs(0, true, options.RepeatDelayMinMs, options.RepeatDelayMaxMs);
+        }
+
+        return Math.Max(0, options.RepeatDelayMs);
     }
 
     private int ResolveDelayMs(int fixedDelayMs, bool hasRandomDelay, int randomDelayMinMs, int randomDelayMaxMs)

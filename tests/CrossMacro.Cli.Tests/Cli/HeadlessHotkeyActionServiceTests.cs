@@ -254,6 +254,99 @@ public class HeadlessHotkeyActionServiceTests
     }
 
     [Fact]
+    public async Task PlaybackHotkeyToggle_ForwardsRandomLoopDelaySettings()
+    {
+        var hotkeys = Substitute.For<IGlobalHotkeyService>();
+        var settings = Substitute.For<ISettingsService>();
+        settings.Current.Returns(new AppSettings
+        {
+            IsMouseRecordingEnabled = true,
+            IsKeyboardRecordingEnabled = true,
+            IsLooping = true,
+            LoopCount = 2,
+            UseRandomLoopDelay = true,
+            LoopDelayMinMs = 40,
+            LoopDelayMaxMs = 80
+        });
+
+        var isRecording = false;
+        var recorder = Substitute.For<IMacroRecorder>();
+        recorder.IsRecording.Returns(_ => isRecording);
+        recorder.StartRecordingAsync(
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<IEnumerable<int>>(),
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                isRecording = true;
+                return Task.CompletedTask;
+            });
+
+        recorder.StopRecording().Returns(_ =>
+        {
+            isRecording = false;
+            return new MacroSequence
+            {
+                Events =
+                [
+                    new MacroEvent
+                    {
+                        Type = EventType.Click,
+                        Button = MouseButton.Left
+                    }
+                ]
+            };
+        });
+
+        var player = Substitute.For<IMacroPlayer>();
+        var playStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        PlaybackOptions? capturedOptions = null;
+        player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                capturedOptions = ci.ArgAt<PlaybackOptions>(1);
+                var token = ci.ArgAt<CancellationToken>(2);
+                playStarted.TrySetResult(true);
+                return Task.Delay(Timeout.Infinite, token);
+            });
+
+        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings);
+        service.Start();
+
+        hotkeys.ToggleRecordingRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
+        await WaitUntilAsync(() => isRecording);
+        hotkeys.ToggleRecordingRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
+        await WaitUntilAsync(() => !isRecording);
+
+        hotkeys.TogglePlaybackRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
+        await playStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.NotNull(capturedOptions);
+        Assert.True(capturedOptions!.UseRandomRepeatDelay);
+        Assert.Equal(40, capturedOptions.RepeatDelayMinMs);
+        Assert.Equal(80, capturedOptions.RepeatDelayMaxMs);
+
+        hotkeys.TogglePlaybackRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
+        await WaitUntilAsync(() =>
+        {
+            try
+            {
+                player.Received(1).Stop();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        });
+
+        service.Dispose();
+    }
+
+    [Fact]
     public async Task Dispose_WaitsForActivePlaybackTaskToFinishCleanup()
     {
         var hotkeys = Substitute.For<IGlobalHotkeyService>();

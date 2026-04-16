@@ -180,5 +180,12 @@ public class SettingsService : ISettingsService
     private static void NormalizeSettings(AppSettings settings)
     {
         settings.PlaybackSpeed = PlaybackOptions.NormalizeSpeedMultiplier(settings.PlaybackSpeed);
+        settings.LoopDelayMs = PlaybackOptions.NormalizeDelayMs(settings.LoopDelayMs);
+
+        var (loopDelayMinMs, loopDelayMaxMs) = PlaybackOptions.NormalizeDelayRange(
+            settings.LoopDelayMinMs,
+            settings.LoopDelayMaxMs);
+        settings.LoopDelayMinMs = loopDelayMinMs;
+        settings.LoopDelayMaxMs = loopDelayMaxMs;
     }
 }

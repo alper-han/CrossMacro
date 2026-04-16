@@ -109,6 +109,10 @@ public class SettingsServiceTests : IDisposable
         service.Current.PlaybackSpeed = 3.0;
         service.Current.IsLooping = true;
         service.Current.LoopCount = 5;
+        service.Current.LoopDelayMs = 150;
+        service.Current.UseRandomLoopDelay = true;
+        service.Current.LoopDelayMinMs = 100;
+        service.Current.LoopDelayMaxMs = 250;
         service.Current.StartMinimized = true;
 
         // Act
@@ -121,6 +125,10 @@ public class SettingsServiceTests : IDisposable
         loaded.PlaybackSpeed.Should().Be(3.0);
         loaded.IsLooping.Should().BeTrue();
         loaded.LoopCount.Should().Be(5);
+        loaded.LoopDelayMs.Should().Be(150);
+        loaded.UseRandomLoopDelay.Should().BeTrue();
+        loaded.LoopDelayMinMs.Should().Be(100);
+        loaded.LoopDelayMaxMs.Should().Be(250);
         loaded.StartMinimized.Should().BeTrue();
     }
 

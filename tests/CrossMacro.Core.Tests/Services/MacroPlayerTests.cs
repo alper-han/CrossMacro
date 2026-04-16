@@ -254,6 +254,41 @@ public class MacroPlayerTests
     }
 
     [Fact]
+    public async Task PlayAsync_WhenLoopingWithRandomRepeatDelay_UsesRandomDelayRange()
+    {
+        var simulator = Substitute.For<IInputSimulator>();
+        simulator.ProviderName.Returns("MockSimulator");
+        var timing = new RecordingTimingService();
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            timingService: timing,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10 }
+            }
+        };
+
+        var options = new PlaybackOptions
+        {
+            Loop = true,
+            RepeatCount = 2,
+            RepeatDelayMs = 999,
+            UseRandomRepeatDelay = true,
+            RepeatDelayMinMs = 77,
+            RepeatDelayMaxMs = 77
+        };
+
+        await player.PlayAsync(macro, options);
+
+        timing.WaitCalls.Should().ContainSingle().Which.Should().Be(77);
+    }
+
+    [Fact]
     public async Task PlayAsync_WhenEventHasRandomDelay_UsesFixedPlusRandomDelay()
     {
         // Arrange

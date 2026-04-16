@@ -14,7 +14,7 @@
         Background="{DynamicResource BackgroundBrush}"
         TransparencyLevelHint="AcrylicBlur"
         ExtendClientAreaToDecorationsHint="True"
-        SystemDecorations="None"
+        WindowDecorations="None"
         CanResize="False"
         FontFamily="{StaticResource StandardFont}">
 

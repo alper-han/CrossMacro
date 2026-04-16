@@ -13,7 +13,7 @@
                 <!-- Macro Name -->
                 <StackPanel Spacing="8">
                     <TextBlock Classes="label" Text="Macro Name"/>
-                    <TextBox Text="{Binding MacroName}" Watermark="Enter macro name..."/>
+                    <TextBox Text="{Binding MacroName}" PlaceholderText="Enter macro name..."/>
                 </StackPanel>
                 
                 <Button Command="{Binding LoadMacroAsync}"

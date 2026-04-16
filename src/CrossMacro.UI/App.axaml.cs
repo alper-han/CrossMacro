@@ -1,10 +1,7 @@
 using System;
-using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Data.Core;
-using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using CrossMacro.Core.Services;
 using CrossMacro.UI.DependencyInjection;
@@ -52,7 +49,6 @@ public partial class App : Application
                     "Platform service registrar is not configured. Start the app via a platform host project.");
             }
 
-            DisableAvaloniaDataAnnotationValidation();
 
             if (_serviceProvider == null)
             {
@@ -63,15 +59,4 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
-    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "We are removing a validator plugin. If it's trimmed, it's not there to remove, which is fine.")]
-    private void DisableAvaloniaDataAnnotationValidation()
-    {
-        var dataValidationPluginsToRemove =
-            BindingPlugins.DataValidators.OfType<DataAnnotationsValidationPlugin>().ToArray();
-
-        foreach (var plugin in dataValidationPluginsToRemove)
-        {
-            BindingPlugins.DataValidators.Remove(plugin);
-        }
-    }
 }

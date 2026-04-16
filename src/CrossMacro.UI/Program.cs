@@ -101,6 +101,7 @@ public static class Program
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .WithInterFont()
+            .UseHarfBuzz()
             .LogToTrace()
             .With(new FontManagerOptions
             {

@@ -135,7 +135,7 @@
                     <StackPanel Spacing="4">
                         <TextBlock Text="Name" Classes="caption"/>
                         <TextBox Text="{Binding SelectedTask.Name, Mode=TwoWay, FallbackValue=''}" 
-                                Watermark="Shortcut name"/>
+                                PlaceholderText="Shortcut name"/>
                     </StackPanel>
                     
                     <!-- Hotkey Capture -->

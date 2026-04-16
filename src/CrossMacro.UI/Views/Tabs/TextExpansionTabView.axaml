@@ -12,37 +12,37 @@
     <Panel>
         <ScrollViewer Padding="16">
             <StackPanel Spacing="24">
-                
+
                 <!-- ADD NEW EXPANSION -->
                 <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="16">
                     <StackPanel Spacing="16">
-                        <TextBlock Text="ADD NEW EXPANSION" 
-                                   FontSize="12" 
-                                   FontWeight="Bold" 
+                        <TextBlock Text="ADD NEW EXPANSION"
+                                   FontSize="12"
+                                   FontWeight="Bold"
                                    Foreground="{DynamicResource TextSecondaryBrush}"/>
-                        
+
                         <Grid ColumnDefinitions="*,Auto,*" RowDefinitions="Auto,Auto,Auto">
                             <!-- Trigger -->
                             <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6">
                                 <TextBlock Text="Trigger" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                <TextBox Watermark=":mail" 
+                                <TextBox PlaceholderText=":mail"
                                          Text="{Binding TriggerInput, FallbackValue=''}"
                                          CornerRadius="6"
                                          Padding="10"/>
                             </StackPanel>
-                            
+
                             <!-- Arrow -->
-                            <TextBlock Grid.Row="0" Grid.Column="1" 
-                                       Text="→" 
-                                       FontSize="20" 
+                            <TextBlock Grid.Row="0" Grid.Column="1"
+                                       Text="→"
+                                       FontSize="20"
                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                        VerticalAlignment="Center"
                                        Margin="12,22,12,0"/>
-                            
+
                             <!-- Replacement -->
                             <StackPanel Grid.Row="0" Grid.Column="2" Spacing="6">
                                 <TextBlock Text="Replacement" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                <TextBox Watermark="email@example.com" 
+                                <TextBox PlaceholderText="email@example.com"
                                          Text="{Binding ReplacementInput, FallbackValue=''}"
                                          CornerRadius="6"
                                          Padding="10"/>
@@ -66,7 +66,7 @@
                             <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Spacing="6" Margin="0,12,0,0"
                                         IsVisible="{Binding IsPasteMethodSelectorVisible}">
                                 <TextBlock Text="Paste Method" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                <ComboBox ItemsSource="{Binding PasteMethods}" 
+                                <ComboBox ItemsSource="{Binding PasteMethods}"
                                           SelectedItem="{Binding SelectedPasteMethod}"
                                           HorizontalAlignment="Stretch"
                                           CornerRadius="6">
@@ -78,78 +78,78 @@
                                 </ComboBox>
                             </StackPanel>
                         </Grid>
-                        
-                        <Button Content="+ Add" 
+
+                        <Button Content="+ Add"
                                 Classes="primary"
                                 Command="{Binding AddExpansionCommand}"
-                                HorizontalAlignment="Stretch" 
+                                HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Center"/>
                     </StackPanel>
                 </Border>
-    
+
                 <!-- SAVED EXPANSIONS -->
                 <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="16" MinHeight="200"
                         IsVisible="{Binding HasExpansions, FallbackValue=False}">
                     <Grid RowDefinitions="Auto,*">
                         <!-- Header -->
                         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
-                            <TextBlock Text="SAVED EXPANSIONS" 
+                            <TextBlock Text="SAVED EXPANSIONS"
                                        VerticalAlignment="Center"
-                                       FontSize="12" 
-                                       FontWeight="Bold" 
+                                       FontSize="12"
+                                       FontWeight="Bold"
                                        Foreground="{DynamicResource TextSecondaryBrush}"/>
-                            
+
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{Binding Expansions.Count, StringFormat='{}{0} items', FallbackValue='0 items'}" 
+                                <TextBlock Text="{Binding Expansions.Count, StringFormat='{}{0} items', FallbackValue='0 items'}"
                                            VerticalAlignment="Center"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"/>
                                 <!-- Trash icon could go here if implementing bulk delete -->
                             </StackPanel>
                         </Grid>
-                        
+
                         <!-- Empty State -->
-                        <TextBlock Grid.Row="1" 
-                                   Text="No saved expansions" 
-                                   Foreground="{DynamicResource TextSecondaryBrush}" 
-                                   HorizontalAlignment="Center" 
+                        <TextBlock Grid.Row="1"
+                                   Text="No saved expansions"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   HorizontalAlignment="Center"
                                    VerticalAlignment="Center"
                                    IsVisible="{Binding !Expansions.Count, FallbackValue=True}"/>
-    
+
                         <!-- List -->
                         <ItemsControl Grid.Row="1" ItemsSource="{Binding Expansions}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="Transparent" 
-                                            BorderBrush="{DynamicResource SurfaceHoverBrush}" 
-                                            BorderThickness="0,0,0,0" 
+                                    <Border Background="Transparent"
+                                            BorderBrush="{DynamicResource SurfaceHoverBrush}"
+                                            BorderThickness="0,0,0,0"
                                             Padding="0,12">
                                         <Grid ColumnDefinitions="Auto,*,Auto">
-                                            
+
     <!-- Checkbox -->
-                                            <CheckBox Grid.Column="0" 
-                                                      IsChecked="{Binding IsEnabled}" 
+                                            <CheckBox Grid.Column="0"
+                                                      IsChecked="{Binding IsEnabled}"
                                                       Command="{Binding #Root.((vm:TextExpansionViewModel)DataContext).ToggleExpansionCommand}"
                                                       CommandParameter="{Binding}"
                                                       VerticalAlignment="Center"
                                                       Margin="0,0,12,0"/>
-                                            
+
                                             <!-- Content -->
                                             <Grid Grid.Column="1" ColumnDefinitions="Auto,Auto,*" VerticalAlignment="Center">
-                                                <TextBlock Grid.Column="0" 
-                                                           Text="{Binding Trigger, FallbackValue=''}" 
-                                                           Foreground="{DynamicResource PrimaryBrush}" 
+                                                <TextBlock Grid.Column="0"
+                                                           Text="{Binding Trigger, FallbackValue=''}"
+                                                           Foreground="{DynamicResource PrimaryBrush}"
                                                            FontWeight="Bold"
                                                            FontSize="14"/>
-                                                
-                                                <TextBlock Grid.Column="1" 
-                                                           Text="→" 
-                                                           Foreground="{DynamicResource TextSecondaryBrush}" 
+
+                                                <TextBlock Grid.Column="1"
+                                                           Text="→"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
                                                            FontSize="14"
                                                            Margin="8,0"/>
-                                                
+
                                                 <StackPanel Grid.Column="2" Spacing="4">
-                                                    <TextBlock Text="{Binding Replacement, FallbackValue=''}" 
+                                                    <TextBlock Text="{Binding Replacement, FallbackValue=''}"
                                                                Foreground="{DynamicResource TextPrimaryBrush}"
                                                                FontSize="14"
                                                                TextWrapping="Wrap"/>
@@ -173,7 +173,7 @@
                                                     </StackPanel>
                                                 </StackPanel>
                                             </Grid>
-                                            
+
                                             <!-- Delete Button -->
                                             <Button Grid.Column="2"
                                                     Classes="row-action danger"
@@ -191,7 +191,7 @@
                         </ItemsControl>
                     </Grid>
                 </Border>
-                
+
                 <!-- Footer Info -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
                     <TextBlock Text="💡" FontSize="12" Classes="emoji-icon" Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -200,7 +200,7 @@
 
                 <!-- NEW: Bottom Spacer -->
                 <Rectangle Height="40" Fill="Transparent"/>
-                
+
             </StackPanel>
         </ScrollViewer>
     </Panel>

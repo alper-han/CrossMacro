@@ -8,10 +8,9 @@
         Width="400" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
-        SystemDecorations="BorderOnly"
+        WindowDecorations="BorderOnly"
         Background="{DynamicResource BackgroundColor}"
         ExtendClientAreaToDecorationsHint="True"
-        ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1">
 
     <Border BorderBrush="{DynamicResource SurfaceHoverColor}" BorderThickness="1">

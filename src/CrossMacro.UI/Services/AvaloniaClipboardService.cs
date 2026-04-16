@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using CrossMacro.Core.Services;
 using Serilog;
@@ -34,7 +34,7 @@ public class AvaloniaClipboardService : IClipboardService
                 try 
                 {
                     Log.Debug("[AvaloniaClipboard] Setting text to clipboard instance: {Type}", clipboard.GetType().Name);
-                    await clipboard.SetTextAsync(text);
+                    await ClipboardExtensions.SetTextAsync(clipboard, text);
                     Log.Debug("[AvaloniaClipboard] SetTextAsync completed successfully");
                 }
                 catch (Exception ex)
@@ -67,9 +67,7 @@ public class AvaloniaClipboardService : IClipboardService
                 var clipboard = GetClipboard();
                 if (clipboard != null)
                 {
-#pragma warning disable CS0618 
-                    return await clipboard.GetTextAsync();
-#pragma warning restore CS0618 
+                    return await ClipboardExtensions.TryGetTextAsync(clipboard);
                 }
                 return null;
             }
@@ -81,7 +79,7 @@ public class AvaloniaClipboardService : IClipboardService
         });
     }
 
-    private Avalonia.Input.Platform.IClipboard? GetClipboard()
+    private IClipboard? GetClipboard()
     {
         if (Application.Current == null)
         {

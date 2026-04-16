@@ -128,7 +128,7 @@
                     <StackPanel Spacing="4">
                         <TextBlock Text="Name" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <TextBox Text="{Binding SelectedTask.Name, Mode=TwoWay, FallbackValue=''}" 
-                                Watermark="Task name"/>
+                                PlaceholderText="Task name"/>
                     </StackPanel>
                     
                     <!-- Playback Speed -->

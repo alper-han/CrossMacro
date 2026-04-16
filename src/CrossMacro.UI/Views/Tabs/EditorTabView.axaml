@@ -160,7 +160,7 @@
                                 <TextBlock Text="Coordinates:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <Grid ColumnDefinitions="*,8,*">
                                     <TextBox Text="{Binding SelectedAction.X, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
-                                             Watermark="X"
+                                             PlaceholderText="X"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
                                              BorderThickness="0"
@@ -168,7 +168,7 @@
                                              Padding="8,6"/>
                                     <TextBox Grid.Column="2"
                                              Text="{Binding SelectedAction.Y, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
-                                             Watermark="Y"
+                                             PlaceholderText="Y"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
                                              BorderThickness="0"
@@ -229,7 +229,7 @@
                                 <TextBlock Text="Key:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <Grid ColumnDefinitions="80,8,*">
                                     <TextBox Text="{Binding SelectedAction.KeyCode, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
-                                             Watermark="Code"
+                                             PlaceholderText="Code"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
                                              BorderThickness="0"
@@ -267,7 +267,7 @@
                                 <StackPanel Spacing="4" IsVisible="{Binding ShowFixedDelayInput}">
                                     <TextBlock Text="Delay (ms):" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                     <TextBox Text="{Binding SelectedAction.DelayMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
-                                             Watermark="ms"
+                                             PlaceholderText="ms"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
                                              BorderThickness="0"
@@ -279,7 +279,7 @@
                                     <TextBlock Text="Random Delay Range (ms):" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                     <Grid ColumnDefinitions="*,8,*">
                                         <TextBox Text="{Binding SelectedAction.RandomDelayMinMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
-                                                 Watermark="Min"
+                                                 PlaceholderText="Min"
                                                  Background="{DynamicResource SurfaceHoverBrush}"
                                                  Foreground="{DynamicResource TextPrimaryBrush}"
                                                  BorderThickness="0"
@@ -287,7 +287,7 @@
                                                  Padding="8,6"/>
                                         <TextBox Grid.Column="2"
                                                  Text="{Binding SelectedAction.RandomDelayMaxMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
-                                                 Watermark="Max"
+                                                 PlaceholderText="Max"
                                                  Background="{DynamicResource SurfaceHoverBrush}"
                                                  Foreground="{DynamicResource TextPrimaryBrush}"
                                                  BorderThickness="0"
@@ -301,7 +301,7 @@
                             <StackPanel Spacing="4" IsVisible="{Binding ShowScrollAmount}">
                                 <TextBlock Text="Scroll Amount:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <TextBox Text="{Binding SelectedAction.ScrollAmount, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
-                                         Watermark="Amount"
+                                         PlaceholderText="Amount"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"
@@ -314,7 +314,7 @@
                             <StackPanel Spacing="4" IsVisible="{Binding ShowTextInput}">
                                 <TextBlock Text="{Binding TextInputLabel}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <TextBox Text="{Binding SelectedAction.Text, UpdateSourceTrigger=PropertyChanged}"
-                                         Watermark="{Binding TextInputWatermark}"
+                                         PlaceholderText="{Binding TextInputWatermark}"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"
@@ -333,7 +333,7 @@
                             <StackPanel Spacing="6" IsVisible="{Binding ShowSetVariableFields}">
                                 <TextBlock Text="Set Variable:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptVariableName, UpdateSourceTrigger=PropertyChanged}"
-                                         Watermark="Variable name (e.g. i)"
+                                         PlaceholderText="Variable name (e.g. i)"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"
@@ -350,7 +350,7 @@
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptValue, UpdateSourceTrigger=PropertyChanged}"
-                                         Watermark="Value"
+                                         PlaceholderText="Value"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"
@@ -366,7 +366,7 @@
                             <StackPanel Spacing="6" IsVisible="{Binding ShowIncDecFields}">
                                 <TextBlock Text="Variable Update:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptVariableName, UpdateSourceTrigger=PropertyChanged}"
-                                         Watermark="Variable name (e.g. i)"
+                                         PlaceholderText="Variable name (e.g. i)"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"
@@ -383,7 +383,7 @@
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptNumericValue, UpdateSourceTrigger=PropertyChanged}"
-                                         Watermark="Amount / variable"
+                                         PlaceholderText="Amount / variable"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"
@@ -403,7 +403,7 @@
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptNumericValue, UpdateSourceTrigger=PropertyChanged}"
-                                         Watermark="Count / variable"
+                                         PlaceholderText="Count / variable"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"
@@ -422,7 +422,7 @@
                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
                                     <TextBox Grid.Column="2"
                                              Text="{Binding SelectedAction.ScriptLeftOperand, UpdateSourceTrigger=PropertyChanged}"
-                                             Watermark="Left value"
+                                             PlaceholderText="Left value"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
                                              BorderThickness="0"
@@ -447,7 +447,7 @@
                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
                                     <TextBox Grid.Column="2"
                                              Text="{Binding SelectedAction.ScriptRightOperand, UpdateSourceTrigger=PropertyChanged}"
-                                             Watermark="Right value"
+                                             PlaceholderText="Right value"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
                                              BorderThickness="0"
@@ -466,7 +466,7 @@
                             <StackPanel Spacing="6" IsVisible="{Binding ShowForFields}">
                                 <TextBlock Text="For Block:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <TextBox Text="{Binding SelectedAction.ForVariableName, UpdateSourceTrigger=PropertyChanged}"
-                                         Watermark="Loop variable (e.g. i)"
+                                         PlaceholderText="Loop variable (e.g. i)"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"
@@ -487,7 +487,7 @@
                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
                                     <TextBox Grid.Column="2"
                                              Text="{Binding SelectedAction.ForStartValue, UpdateSourceTrigger=PropertyChanged}"
-                                             Watermark="Start"
+                                             PlaceholderText="Start"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
                                              BorderThickness="0"
@@ -503,7 +503,7 @@
                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
                                     <TextBox Grid.Column="2"
                                              Text="{Binding SelectedAction.ForEndValue, UpdateSourceTrigger=PropertyChanged}"
-                                             Watermark="End"
+                                             PlaceholderText="End"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
                                              BorderThickness="0"
@@ -523,7 +523,7 @@
                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
                                         <TextBox Grid.Column="2"
                                                  Text="{Binding SelectedAction.ForStepValue, UpdateSourceTrigger=PropertyChanged}"
-                                                 Watermark="Step"
+                                                 PlaceholderText="Step"
                                                  Background="{DynamicResource SurfaceHoverBrush}"
                                                  Foreground="{DynamicResource TextPrimaryBrush}"
                                                  BorderThickness="0"

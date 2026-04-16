@@ -15,7 +15,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia.FreeDesktop" />
     <PackageReference Include="Avalonia.X11" />
   </ItemGroup>
 

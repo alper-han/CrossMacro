@@ -482,7 +482,7 @@ internal sealed class DesktopStartupCoordinator : IDesktopStartupCoordinator
             Opacity = 0,
             ShowInTaskbar = false,
             CanResize = false,
-            SystemDecorations = SystemDecorations.None,
+            WindowDecorations = WindowDecorations.None,
             WindowStartupLocation = WindowStartupLocation.Manual
         };
     }

@@ -1,11 +1,16 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:core="using:CrossMacro.Core.Models"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="700"
              x:Class="CrossMacro.UI.Views.Tabs.ScheduleTabView"
              x:DataType="vm:ScheduleViewModel">
+
+    <Design.DataContext>
+        <vm:DesignScheduleViewModel/>
+    </Design.DataContext>
 
     <ScrollViewer Padding="10">
         <StackPanel Spacing="16" Margin="0,0,0,50">
@@ -39,7 +44,7 @@
                     
                     <ItemsControl ItemsSource="{Binding Tasks}">
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate>
+                            <DataTemplate x:DataType="core:ScheduledTask">
                                 <Border Padding="10,8" 
                                         CornerRadius="8" 
                                         Margin="0,2"
@@ -128,7 +133,7 @@
                     <StackPanel Spacing="4">
                         <TextBlock Text="Name" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <TextBox Text="{Binding SelectedTask.Name, Mode=TwoWay, FallbackValue=''}" 
-                                PlaceholderText="Task name"/>
+                                PlaceholderText="Nightly export task"/>
                     </StackPanel>
                     
                     <!-- Playback Speed -->

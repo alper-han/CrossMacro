@@ -8,6 +8,10 @@
              x:Class="CrossMacro.UI.Views.Tabs.EditorTabView"
              x:DataType="vm:EditorViewModel">
 
+    <Design.DataContext>
+        <vm:DesignEditorViewModel/>
+    </Design.DataContext>
+
     <UserControl.Resources>
         <local:NullableIntConverter x:Key="NullableIntConverter"/>
         <local:IndentLevelToMarginConverter x:Key="IndentLevelToMarginConverter"/>
@@ -30,7 +34,7 @@
                              Background="Transparent"
                              SelectionMode="Single">
                         <ListBox.ItemTemplate>
-                            <DataTemplate>
+                            <DataTemplate x:DataType="vm:EditorActionListItem">
                                 <StackPanel Orientation="Horizontal"
                                             Spacing="6"
                                             Margin="{Binding IndentLevel, Converter={StaticResource IndentLevelToMarginConverter}}">
@@ -333,7 +337,7 @@
                             <StackPanel Spacing="6" IsVisible="{Binding ShowSetVariableFields}">
                                 <TextBlock Text="Set Variable:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptVariableName, UpdateSourceTrigger=PropertyChanged}"
-                                         PlaceholderText="Variable name (e.g. i)"
+                                         PlaceholderText="Variable name (e.g. retryCount)"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"
@@ -366,7 +370,7 @@
                             <StackPanel Spacing="6" IsVisible="{Binding ShowIncDecFields}">
                                 <TextBlock Text="Variable Update:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptVariableName, UpdateSourceTrigger=PropertyChanged}"
-                                         PlaceholderText="Variable name (e.g. i)"
+                                         PlaceholderText="Variable name (e.g. retryCount)"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"
@@ -466,7 +470,7 @@
                             <StackPanel Spacing="6" IsVisible="{Binding ShowForFields}">
                                 <TextBlock Text="For Block:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <TextBox Text="{Binding SelectedAction.ForVariableName, UpdateSourceTrigger=PropertyChanged}"
-                                         PlaceholderText="Loop variable (e.g. i)"
+                                         PlaceholderText="Loop variable (e.g. rowIndex)"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"

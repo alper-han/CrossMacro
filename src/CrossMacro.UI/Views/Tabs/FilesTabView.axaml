@@ -7,13 +7,17 @@
              x:Class="CrossMacro.UI.Views.Tabs.FilesTabView"
              x:DataType="vm:FilesViewModel">
 
+    <Design.DataContext>
+        <vm:DesignFilesViewModel/>
+    </Design.DataContext>
+
     <Panel>
         <ScrollViewer Padding="10">
             <StackPanel Spacing="20">
                 <!-- Macro Name -->
                 <StackPanel Spacing="8">
                     <TextBlock Classes="label" Text="Macro Name"/>
-                    <TextBox Text="{Binding MacroName}" PlaceholderText="Enter macro name..."/>
+                    <TextBox Text="{Binding MacroName}" PlaceholderText="Nightly export macro"/>
                 </StackPanel>
                 
                 <Button Command="{Binding LoadMacroAsync}"

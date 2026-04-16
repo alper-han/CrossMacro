@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:CrossMacro.UI.ViewModels"
+        xmlns:models="using:CrossMacro.UI.Models"
 
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -67,7 +68,7 @@
                          VerticalAlignment="Top"
                          Margin="0,0">
                     <ListBox.ItemTemplate>
-                        <DataTemplate>
+                        <DataTemplate x:DataType="models:NavigationItem">
                             <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center"
                                         ToolTip.Tip="{Binding Label}"
                                         ToolTip.ShowDelay="400">
@@ -100,7 +101,7 @@
                          VerticalAlignment="Bottom"
                          Margin="0">
                     <ListBox.ItemTemplate>
-                        <DataTemplate>
+                        <DataTemplate x:DataType="models:NavigationItem">
                             <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center"
                                         ToolTip.Tip="{Binding Label}"
                                         ToolTip.ShowDelay="400">

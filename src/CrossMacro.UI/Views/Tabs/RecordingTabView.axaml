@@ -7,6 +7,10 @@
              x:Class="CrossMacro.UI.Views.Tabs.RecordingTabView"
              x:DataType="vm:RecordingViewModel">
 
+    <Design.DataContext>
+        <vm:DesignRecordingViewModel/>
+    </Design.DataContext>
+
     <ScrollViewer Padding="10">
         <StackPanel Spacing="20">
             <Grid ColumnDefinitions="2*,1.5*,*" RowDefinitions="Auto,Auto">

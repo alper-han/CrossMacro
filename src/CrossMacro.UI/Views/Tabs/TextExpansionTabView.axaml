@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:core="using:CrossMacro.Core.Models"
              xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -8,6 +9,10 @@
              x:Class="CrossMacro.UI.Views.Tabs.TextExpansionTabView"
              x:DataType="vm:TextExpansionViewModel"
              x:Name="Root">
+
+    <Design.DataContext>
+        <vm:DesignTextExpansionViewModel/>
+    </Design.DataContext>
 
     <Panel>
         <ScrollViewer Padding="16">
@@ -25,7 +30,7 @@
                             <!-- Trigger -->
                             <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6">
                                 <TextBlock Text="Trigger" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                <TextBox PlaceholderText=":mail"
+                                <TextBox PlaceholderText=":sync-ok"
                                          Text="{Binding TriggerInput, FallbackValue=''}"
                                          CornerRadius="6"
                                          Padding="10"/>
@@ -42,7 +47,7 @@
                             <!-- Replacement -->
                             <StackPanel Grid.Row="0" Grid.Column="2" Spacing="6">
                                 <TextBlock Text="Replacement" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                <TextBox PlaceholderText="email@example.com"
+                                <TextBox PlaceholderText="Inventory sync completed successfully"
                                          Text="{Binding ReplacementInput, FallbackValue=''}"
                                          CornerRadius="6"
                                          Padding="10"/>
@@ -119,7 +124,7 @@
                         <!-- List -->
                         <ItemsControl Grid.Row="1" ItemsSource="{Binding Expansions}">
                             <ItemsControl.ItemTemplate>
-                                <DataTemplate>
+                                <DataTemplate x:DataType="core:TextExpansion">
                                     <Border Background="Transparent"
                                             BorderBrush="{DynamicResource SurfaceHoverBrush}"
                                             BorderThickness="0,0,0,0"

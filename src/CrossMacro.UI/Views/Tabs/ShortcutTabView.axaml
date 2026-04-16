@@ -1,12 +1,17 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:core="using:CrossMacro.Core.Models"
              xmlns:controls="using:CrossMacro.UI.Controls"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="700"
              x:Class="CrossMacro.UI.Views.Tabs.ShortcutTabView"
              x:DataType="vm:ShortcutViewModel">
+
+    <Design.DataContext>
+        <vm:DesignShortcutViewModel/>
+    </Design.DataContext>
 
     <ScrollViewer Padding="10">
         <StackPanel Spacing="16" Margin="0,0,0,50">
@@ -40,7 +45,7 @@
                     
                     <ItemsControl ItemsSource="{Binding Tasks}">
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate>
+                            <DataTemplate x:DataType="core:ShortcutTask">
                                 <Border Padding="10,8" 
                                         CornerRadius="8" 
                                         Margin="0,2"
@@ -135,7 +140,7 @@
                     <StackPanel Spacing="4">
                         <TextBlock Text="Name" Classes="caption"/>
                         <TextBox Text="{Binding SelectedTask.Name, Mode=TwoWay, FallbackValue=''}" 
-                                PlaceholderText="Shortcut name"/>
+                                PlaceholderText="Invoice entry shortcut"/>
                     </StackPanel>
                     
                     <!-- Hotkey Capture -->

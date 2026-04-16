@@ -7,6 +7,10 @@
              x:Class="CrossMacro.UI.Views.Tabs.PlaybackTabView"
              x:DataType="vm:PlaybackViewModel">
 
+    <Design.DataContext>
+        <vm:DesignPlaybackViewModel/>
+    </Design.DataContext>
+
     <Panel>
         <ScrollViewer Padding="10">
             <StackPanel Spacing="20">

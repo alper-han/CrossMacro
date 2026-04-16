@@ -8,6 +8,10 @@
              x:Class="CrossMacro.UI.Views.Tabs.SettingsTabView"
              x:DataType="vm:SettingsViewModel">
 
+    <Design.DataContext>
+        <vm:DesignSettingsViewModel/>
+    </Design.DataContext>
+
     <Panel>
         <ScrollViewer Padding="10" 
                       VerticalScrollBarVisibility="Auto">

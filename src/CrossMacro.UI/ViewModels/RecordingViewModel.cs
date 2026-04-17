@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CrossMacro.Core.Models;
@@ -287,9 +288,7 @@ public class RecordingViewModel : ViewModelBase, IDisposable
         try
         {
             IsRecording = true;
-            EventCount = 0;
-            MouseEventCount = 0;
-            KeyboardEventCount = 0;
+            ClearEventCounters();
             
             // Disable playback and pause hotkeys during recording so they can be recorded
             _hotkeyService.SetPlaybackPauseHotkeysEnabled(false);
@@ -376,38 +375,68 @@ public class RecordingViewModel : ViewModelBase, IDisposable
         return macro;
     }
     
-    /// <summary>
-    /// Set the current macro (called when loading from file)
-    /// </summary>
-    public void SetMacro(MacroSequence macro)
+    private void ClearEventCounters()
     {
-        if (macro == null)
-            return;
-
-        var events = macro.Events ?? [];
-
-        EventCount = events.Count;
+        EventCount = 0;
         MouseEventCount = 0;
         KeyboardEventCount = 0;
+    }
+
+    private void ApplyEventCounters(IEnumerable<MacroEvent> events)
+    {
+        var totalCount = 0;
+        var mouseCount = 0;
+        var keyboardCount = 0;
 
         foreach (var e in events)
         {
+            totalCount++;
+
             switch (e.Type)
             {
                 case EventType.ButtonPress:
                 case EventType.ButtonRelease:
                 case EventType.MouseMove:
                 case EventType.Click:
-                    MouseEventCount++;
+                    mouseCount++;
                     break;
                 case EventType.KeyPress:
                 case EventType.KeyRelease:
-                    KeyboardEventCount++;
+                    keyboardCount++;
                     break;
             }
         }
 
-        RecordingStatus = $"Loaded {events.Count} events";
+        EventCount = totalCount;
+        MouseEventCount = mouseCount;
+        KeyboardEventCount = keyboardCount;
+    }
+
+    /// <summary>
+    /// Set the current macro summary (called when loading from file or changing loaded selection).
+    /// </summary>
+    public void SetMacro(MacroSequence? macro, bool updateStatus = true)
+    {
+        if (macro == null)
+        {
+            ClearEventCounters();
+            if (updateStatus)
+            {
+                RecordingStatus = "Ready";
+            }
+
+            return;
+        }
+
+        IEnumerable<MacroEvent> events = macro.Events is null
+            ? Array.Empty<MacroEvent>()
+            : macro.Events;
+        ApplyEventCounters(events);
+
+        if (updateStatus)
+        {
+            RecordingStatus = $"Loaded {EventCount} events";
+        }
     }
     
     /// <summary>

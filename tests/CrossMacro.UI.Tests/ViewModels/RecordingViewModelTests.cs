@@ -275,4 +275,25 @@ public class RecordingViewModelTests
         Assert.Equal(2, _viewModel.KeyboardEventCount);
         Assert.Equal("Loaded 4 events", _viewModel.RecordingStatus);
     }
+
+    [Fact]
+    public void SetMacro_WhenNull_ClearsEventCountersAndResetsStatus()
+    {
+        var macro = new MacroSequence
+        {
+            Events =
+            {
+                new MacroEvent { Type = EventType.MouseMove },
+                new MacroEvent { Type = EventType.KeyPress }
+            }
+        };
+
+        _viewModel.SetMacro(macro);
+        _viewModel.SetMacro(null);
+
+        Assert.Equal(0, _viewModel.EventCount);
+        Assert.Equal(0, _viewModel.MouseEventCount);
+        Assert.Equal(0, _viewModel.KeyboardEventCount);
+        Assert.Equal("Ready", _viewModel.RecordingStatus);
+    }
 }

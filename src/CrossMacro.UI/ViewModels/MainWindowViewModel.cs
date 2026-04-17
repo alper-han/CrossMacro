@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
@@ -38,6 +38,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private bool _isAppNotificationSuccess;
     private bool _isAppNotificationError;
     private bool _isAppNotificationWarning;
+    private bool _suppressRecordingStatusForwarding;
+    private bool _suppressSelectedMacroRecordingSync;
     
     public RecordingViewModel Recording { get; }
     public PlaybackViewModel Playback { get; }
@@ -329,25 +331,21 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     
     private void SetupViewModelCommunication()
     {
-        // When recording completes, update Files and Playback
+        // When recording completes, add the macro to the session and select it
         Recording.RecordingCompleted += (s, macro) =>
         {
             try
             {
+                _suppressSelectedMacroRecordingSync = true;
                 Files.SetMacro(macro);
             }
             catch (Exception ex)
             {
                 Serilog.Log.Error(ex, "[MainWindowViewModel] Failed to sync recorded macro to FilesViewModel");
             }
-
-            try
+            finally
             {
-                Playback.SetMacro(macro);
-            }
-            catch (Exception ex)
-            {
-                Serilog.Log.Error(ex, "[MainWindowViewModel] Failed to sync recorded macro to PlaybackViewModel");
+                _suppressSelectedMacroRecordingSync = false;
             }
 
             var eventCount = macro?.Events?.Count ?? 0;
@@ -360,39 +358,81 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             Playback.CanPlayMacroExternal = !isRecording;
         };
         
-        // When playback state changes, update Recording's ability to start
+        // When playback state changes, update Recording's ability to start and freeze Files interactions
         Playback.PlaybackStateChanged += (s, isPlaying) =>
         {
             Recording.CanStartRecordingExternal = !isPlaying;
+            Files.CanManageLoadedMacrosExternal = !isPlaying;
+
+            if (!isPlaying)
+            {
+                SyncRecordingMacroSummary();
+            }
         };
+
+        void SyncSelectedMacroSummary(object? _, EventArgs __)
+        {
+            if (_suppressSelectedMacroRecordingSync)
+            {
+                return;
+            }
+
+            SyncRecordingMacroSummary();
+        }
+
+        // Keep recording statistics in sync when selection changes or the selected macro payload is replaced.
+        Files.SelectedMacroChanged += SyncSelectedMacroSummary;
+        Files.SelectedMacroUpdated += SyncSelectedMacroSummary;
         
-        // When a macro is loaded, update Playback and Recording
+        // When a macro is loaded from disk, update global status.
         Files.MacroLoaded += (s, macro) =>
         {
-            Playback.SetMacro(macro);
-            Recording.SetMacro(macro);
             SetGlobalStatusThreadSafe($"Loaded: {macro.Name}");
         };
         
-        // When a macro is created in Editor, update Files and Playback
-        Editor.MacroCreated += (s, macro) =>
+        // When a macro is created in Editor, update the linked loaded macro or add a new one.
+        Editor.MacroCreated += (s, e) =>
         {
-            Files.SetMacro(macro);
-            Playback.SetMacro(macro);
-            SetGlobalStatusThreadSafe($"Created: {macro.Name} ({macro.EventCount} events)");
+            var linkedItem = Files.UpsertMacro(Editor.LinkedLoadedMacroSessionId, e.Macro, e.SourcePath);
+            if (linkedItem != null)
+            {
+                Editor.TrackLoadedMacroSession(linkedItem.SessionId);
+            }
+
+            SetGlobalStatusThreadSafe($"Created: {e.Macro.Name} ({e.Macro.EventCount} events)");
         };
         
         // Forward status changes
         Recording.PropertyChanged += (s, e) =>
         {
-            if (e.PropertyName == nameof(Recording.RecordingStatus))
+            if (e.PropertyName == nameof(Recording.RecordingStatus) && !_suppressRecordingStatusForwarding)
+            {
                 SetGlobalStatusThreadSafe(Recording.RecordingStatus);
+            }
         };
         
         Playback.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
         Files.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
         Schedule.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
         Editor.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
+    }
+
+    private void SyncRecordingMacroSummary()
+    {
+        if (Playback.IsPlaying || Recording.IsRecording)
+        {
+            return;
+        }
+
+        try
+        {
+            _suppressRecordingStatusForwarding = true;
+            Recording.SetMacro(Files.GetCurrentMacro(), updateStatus: true);
+        }
+        finally
+        {
+            _suppressRecordingStatusForwarding = false;
+        }
     }
 
     private void SetGlobalStatusThreadSafe(string status)

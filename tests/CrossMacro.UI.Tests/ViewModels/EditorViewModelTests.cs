@@ -318,6 +318,22 @@ public class EditorViewModelTests
     }
 
     [Fact]
+    public void LoadMacroSequence_ClearsTrackedLoadedMacroSession()
+    {
+        // Arrange
+        var sequence = new MacroSequence { Name = "Loaded Macro" };
+        _viewModel.TrackLoadedMacroSession(Guid.NewGuid());
+        _converter.FromMacroSequenceWithDiagnostics(sequence)
+            .Returns(new EditorActionRestoreResult(new List<EditorAction>(), new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
+
+        // Act
+        _viewModel.LoadMacroSequence(sequence);
+
+        // Assert
+        _viewModel.LinkedLoadedMacroSessionId.Should().BeNull();
+    }
+
+    [Fact]
     public void LoadMacroSequence_LoadsConvertedActionsAndName()
     {
         // Arrange
@@ -864,6 +880,33 @@ public class EditorViewModelTests
         // Assert
         moveAction.IsAbsolute.Should().BeFalse();
         clickAction.IsAbsolute.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SaveMacroAsync_WhenSuccessful_RaisesMacroCreatedWithSourcePath()
+    {
+        _viewModel.AddAction();
+        _dialogService
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .Returns("/tmp/editor-raised-path.macro");
+
+        var generatedSequence = new MacroSequence
+        {
+            Name = "Generated",
+            Events = [new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 10, Y = 10 }]
+        };
+        _converter
+            .ToMacroSequence(Arg.Any<IEnumerable<EditorAction>>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<bool>())
+            .Returns(generatedSequence);
+
+        EditorMacroCreatedEventArgs? raisedArgs = null;
+        _viewModel.MacroCreated += (_, args) => raisedArgs = args;
+
+        await _viewModel.SaveMacroAsync();
+
+        raisedArgs.Should().NotBeNull();
+        raisedArgs!.Macro.Should().BeSameAs(generatedSequence);
+        raisedArgs.SourcePath.Should().Be("/tmp/editor-raised-path.macro");
     }
 
     [Fact]

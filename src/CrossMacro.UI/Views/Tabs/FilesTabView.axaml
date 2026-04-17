@@ -1,49 +1,162 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:models="using:CrossMacro.UI.Models"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="400"
              x:Class="CrossMacro.UI.Views.Tabs.FilesTabView"
-             x:DataType="vm:FilesViewModel">
+             x:DataType="vm:FilesViewModel"
+             x:Name="FilesRoot">
 
     <Design.DataContext>
         <vm:DesignFilesViewModel/>
     </Design.DataContext>
 
     <Panel>
-        <ScrollViewer Padding="10">
+        <ScrollViewer Padding="10,10,20,10">
             <StackPanel Spacing="20">
-                <!-- Macro Name -->
                 <StackPanel Spacing="8">
-                    <TextBlock Classes="label" Text="Macro Name"/>
-                    <TextBox Text="{Binding MacroName}" PlaceholderText="Nightly export macro"/>
+                    <TextBlock Classes="label" Text="Loaded Macros"/>
+                    <Border Background="{DynamicResource SurfaceColor}"
+                            BorderBrush="{DynamicResource SurfaceHoverColor}"
+                            BorderThickness="1"
+                            CornerRadius="12"
+                            Padding="8">
+                        <ListBox Classes="loaded-macro-list"
+                                 ItemsSource="{Binding LoadedMacros}"
+                                 SelectedItem="{Binding SelectedMacroItem}"
+                                 MinHeight="220"
+                                 IsEnabled="{Binding CanManageLoadedMacrosExternal}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="models:LoadedMacroListItem">
+                                    <Grid ColumnDefinitions="*,Auto"
+                                          ColumnSpacing="8">
+                                        <Border Classes="loaded-macro-card"
+                                                Grid.Column="0">
+                                            <Grid ColumnDefinitions="*,Auto"
+                                                  RowDefinitions="Auto,Auto"
+                                                  ColumnSpacing="12"
+                                                  RowSpacing="4">
+                                                <TextBlock Text="{Binding Name}"
+                                                           Classes="loaded-macro-title"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding SequenceRepeatSummary}"
+                                                           Classes="loaded-macro-meta"
+                                                           TextWrapping="NoWrap"/>
+                                                <TextBlock Grid.Row="1"
+                                                           Grid.ColumnSpan="2"
+                                                           Text="{Binding Description}"
+                                                           Classes="loaded-macro-meta"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                            </Grid>
+                                        </Border>
+
+                                        <Button Grid.Column="1"
+                                                VerticalAlignment="Center"
+                                                HorizontalAlignment="Center"
+                                                Margin="0,0,2,0"
+                                                Classes="flat row-action danger loaded-macro-remove"
+                                                Background="Transparent"
+                                                Padding="8"
+                                                Command="{Binding #FilesRoot.((vm:FilesViewModel)DataContext).RemoveLoadedMacroCommand}"
+                                                CommandParameter="{Binding}"
+                                                Cursor="Hand"
+                                                ToolTip.Tip="Remove loaded macro">
+                                            <TextBlock Text="🗑"
+                                                       FontSize="14"
+                                                       Classes="emoji-icon"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                    <Grid ColumnDefinitions="*,12,*">
+                        <Button Grid.Column="0"
+                                Command="{Binding LoadMacroAsync}"
+                                Classes="primary"
+                                IsEnabled="{Binding CanLoadMacro}"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="📂" Classes="emoji-icon"/>
+                                <TextBlock Text="Load Macro"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Grid.Column="2"
+                                Command="{Binding SaveMacroAsync}"
+                                Classes="primary"
+                                IsEnabled="{Binding CanSaveMacro}"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="💾" Classes="emoji-icon"/>
+                                <TextBlock Text="Save Macro"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
                 </StackPanel>
-                
-                <Button Command="{Binding LoadMacroAsync}"
-                        Classes="primary"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="📂" Classes="emoji-icon"/>
-                        <TextBlock Text="Load Macro"/>
-                    </StackPanel>
-                </Button>
-    
-                <Button Command="{Binding SaveMacroAsync}"
-                        Classes="primary"
-                        IsEnabled="{Binding HasRecordedMacro}"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="💾" Classes="emoji-icon"/>
-                        <TextBlock Text="Save Macro"/>
-                    </StackPanel>
-                </Button>
 
-                <!-- NEW: Bottom Spacer -->
+                <StackPanel Spacing="8"
+                            IsVisible="{Binding HasLoadedMacros}"
+                            IsEnabled="{Binding CanManageLoadedMacrosExternal}">
+                    <TextBlock Classes="label" Text="Selected Macro"/>
+                    <Grid ColumnDefinitions="*,12,Auto">
+                        <StackPanel Grid.Column="0" Spacing="8">
+                            <TextBlock Classes="label" Text="Macro Name"/>
+                            <TextBox Text="{Binding MacroName}"
+                                     PlaceholderText="Nightly export macro"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2"
+                                    Spacing="8"
+                                    IsVisible="{Binding ShowSequenceRepeatSettings}">
+                            <TextBlock Classes="label" Text="Sequence Repeat"/>
+                            <NumericUpDown Value="{Binding SelectedSequenceRepeatCount}"
+                                           Width="136"
+                                           Minimum="1"
+                                           Maximum="1000"
+                                           FormatString="0"/>
+                        </StackPanel>
+                    </Grid>
+                    <TextBlock Text="Sequence Repeat applies only while Sequential cycle playback runs through the loaded list."
+                               Classes="caption"
+                               TextWrapping="Wrap"
+                               IsVisible="{Binding ShowSequenceRepeatSettings}"/>
+                </StackPanel>
+
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="label" Text="Playback Mode"/>
+                    <StackPanel Spacing="10" IsEnabled="{Binding CanManageLoadedMacrosExternal}">
+                        <StackPanel Spacing="2">
+                            <RadioButton GroupName="LoadedMacroPlaybackMode"
+                                         Content="Selected macro only"
+                                         IsChecked="{Binding IsSelectedOnlyMode}"/>
+                            <TextBlock Text="Play only the selected macro. Global loop settings apply to that one macro."
+                                       Classes="caption playback-mode-description"/>
+                        </StackPanel>
+                        <StackPanel Spacing="2">
+                            <RadioButton GroupName="LoadedMacroPlaybackMode"
+                                         Content="Play selected, then select next"
+                                         IsChecked="{Binding IsAdvanceSelectionMode}"/>
+                            <TextBlock Text="Run the selected macro with the current playback settings, then move selection to the next loaded macro. It does not auto-play the next item."
+                                       Classes="caption playback-mode-description"/>
+                        </StackPanel>
+                        <StackPanel Spacing="2">
+                            <RadioButton GroupName="LoadedMacroPlaybackMode"
+                                         Content="Sequential cycle playback"
+                                         IsChecked="{Binding IsSequentialCycleMode}"/>
+                            <TextBlock Text="Run from the selected macro through the whole loaded list. Sequence Repeat is used only in this mode."
+                                       Classes="caption playback-mode-description"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
                 <Rectangle Height="40" Fill="Transparent"/>
-
             </StackPanel>
         </ScrollViewer>
     </Panel>

@@ -81,6 +81,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private string? _selectedConditionLeftVariableSuggestion;
     private string? _selectedConditionRightVariableSuggestion;
     private string? _selectedForVariableSuggestion;
+    private Guid? _linkedLoadedMacroSessionId;
     private DateTimeOffset _lastPropertyEditUndoAt = DateTimeOffset.MinValue;
     private EditorAction? _lastPropertyEditAction;
     private string? _lastPropertyEditName;
@@ -92,8 +93,9 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     /// <summary>
     /// Event fired when a macro is created/saved.
+    /// Includes the persisted source path chosen during save.
     /// </summary>
-    public event EventHandler<MacroSequence>? MacroCreated;
+    public event EventHandler<EditorMacroCreatedEventArgs>? MacroCreated;
 
     /// <summary>
     /// Event fired when status changes.
@@ -227,6 +229,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         }
     }
 
+    public Guid? LinkedLoadedMacroSessionId => _linkedLoadedMacroSessionId;
+
     public string Status
     {
         get => _status;
@@ -241,6 +245,16 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             OnPropertyChanged();
             StatusChanged?.Invoke(this, value);
         }
+    }
+
+    public void TrackLoadedMacroSession(Guid sessionId)
+    {
+        _linkedLoadedMacroSessionId = sessionId;
+    }
+
+    public void ClearLoadedMacroSessionLink()
+    {
+        _linkedLoadedMacroSessionId = null;
     }
 
     public bool IsCapturing

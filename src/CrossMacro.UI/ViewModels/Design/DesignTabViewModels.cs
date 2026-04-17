@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Linq;
 using CrossMacro.Core.Models;
+using CrossMacro.UI.Models;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -24,9 +25,15 @@ public sealed class DesignPlaybackViewModel : PlaybackViewModel
     }
 
     internal DesignPlaybackViewModel(DesignPreviewContext context)
-        : base(context.MacroPlayer, context.SettingsService)
+        : base(context.MacroPlayer, context.SettingsService, context.LoadedMacroSession)
     {
-        SetMacro(DesignPreviewSamples.CreateMacro("Refresh Dashboard Loop"));
+        context.LoadedMacroSession.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
+
+        var first = context.LoadedMacroSession.AddMacro(DesignPreviewSamples.CreateMacro("Refresh Dashboard Loop"));
+        first.SequenceRepeatCount = 4;
+
+        var second = context.LoadedMacroSession.AddMacro(DesignPreviewSamples.CreateMacro("Retry Failed Uploads"));
+        second.SequenceRepeatCount = 2;
     }
 }
 
@@ -37,10 +44,19 @@ public sealed class DesignFilesViewModel : FilesViewModel
     }
 
     internal DesignFilesViewModel(DesignPreviewContext context)
-        : base(context.MacroFileManager, context.DialogService)
+        : base(context.MacroFileManager, context.DialogService, context.LoadedMacroSession)
     {
-        MacroName = "Nightly Export Retry";
-        SetMacro(DesignPreviewSamples.CreateMacro(MacroName));
+        context.LoadedMacroSession.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
+
+        var first = context.LoadedMacroSession.AddMacro(
+            DesignPreviewSamples.CreateMacro("Nightly Export Retry"),
+            "/tmp/nightly-export-retry.macro");
+        first.SequenceRepeatCount = 3;
+
+        var second = context.LoadedMacroSession.AddMacro(
+            DesignPreviewSamples.CreateMacro("Refresh Dashboard Loop"),
+            "/tmp/refresh-dashboard-loop.macro");
+        second.SequenceRepeatCount = 2;
     }
 }
 

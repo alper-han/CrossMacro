@@ -172,7 +172,7 @@ public partial class EditorViewModel
             await _fileManager.SaveAsync(sequence, filePath);
 
             Status = $"Saved: {Path.GetFileName(filePath)}";
-            MacroCreated?.Invoke(this, sequence);
+            MacroCreated?.Invoke(this, new EditorMacroCreatedEventArgs(sequence, filePath));
         }
         catch (Exception ex)
         {
@@ -224,6 +224,7 @@ public partial class EditorViewModel
     {
         SaveUndoState();
 
+        ClearLoadedMacroSessionLink();
         Actions.Clear();
         MacroName = sequence.Name;
 

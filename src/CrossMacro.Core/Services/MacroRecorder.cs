@@ -66,7 +66,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
 
         _currentSequence = new MacroSequence
         {
-            Name = "New Macro",
+            Name = MacroNameDefaults.NewRecordedMacroName,
             CreatedAt = DateTime.UtcNow,
             IsAbsoluteCoordinates = useAbsoluteCoordinates,
             SkipInitialZeroZero = skipInitialZero

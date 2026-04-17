@@ -24,6 +24,7 @@ internal sealed class DesignPreviewContext
         ExternalUrlOpener = new DesignExternalUrlOpener();
         ThemeService = new DesignThemeService(SettingsService.Current.Theme);
         DialogService = new DesignDialogService();
+        LoadedMacroSession = new LoadedMacroSession();
         TextExpansionStorageService = new DesignTextExpansionStorageService();
         TextExpansionService = new DesignTextExpansionService();
         SchedulerService = new DesignSchedulerService();
@@ -55,6 +56,8 @@ internal sealed class DesignPreviewContext
     public DesignThemeService ThemeService { get; }
 
     public DesignDialogService DialogService { get; }
+
+    public LoadedMacroSession LoadedMacroSession { get; }
 
     public DesignTextExpansionStorageService TextExpansionStorageService { get; }
 

@@ -147,6 +147,7 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddViewModels(this IServiceCollection services)
     {
+        services.AddSingleton<ILoadedMacroSession, LoadedMacroSession>();
         services.AddSingleton<RecordingViewModel>();
         services.AddSingleton<PlaybackViewModel>();
         services.AddSingleton<FilesViewModel>();

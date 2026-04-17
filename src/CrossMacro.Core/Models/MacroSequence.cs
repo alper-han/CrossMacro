@@ -17,7 +17,7 @@ public class MacroSequence
     /// <summary>
     /// Name of the macro
     /// </summary>
-    public string Name { get; set; } = "Unnamed Macro";
+    public string Name { get; set; } = MacroNameDefaults.UnnamedMacroName;
     
     /// <summary>
     /// List of events in the macro
@@ -142,5 +142,32 @@ public class MacroSequence
         }
         
         TotalDurationMs = Events.Last().Timestamp;
+    }
+
+    /// <summary>
+    /// Creates a detached copy of the macro sequence.
+    /// </summary>
+    public MacroSequence Clone()
+    {
+        return new MacroSequence
+        {
+            Id = Id,
+            Name = Name,
+            Events = Events is null ? null! : new List<MacroEvent>(Events),
+            ScriptSteps = ScriptSteps is null ? null! : new List<string>(ScriptSteps),
+            CreatedAt = CreatedAt,
+            TotalDurationMs = TotalDurationMs,
+            RecordedAt = RecordedAt,
+            ActualDuration = ActualDuration,
+            MouseMoveCount = MouseMoveCount,
+            ClickCount = ClickCount,
+            EventsPerSecond = EventsPerSecond,
+            IsAbsoluteCoordinates = IsAbsoluteCoordinates,
+            SkipInitialZeroZero = SkipInitialZeroZero,
+            TrailingDelayMs = TrailingDelayMs,
+            HasTrailingRandomDelay = HasTrailingRandomDelay,
+            TrailingDelayMinMs = TrailingDelayMinMs,
+            TrailingDelayMaxMs = TrailingDelayMaxMs
+        };
     }
 }

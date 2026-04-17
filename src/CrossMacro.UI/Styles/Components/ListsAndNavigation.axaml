@@ -79,6 +79,86 @@
         <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
 
+    <Style Selector="ListBox.loaded-macro-list">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+    </Style>
+
+    <Style Selector="ListBox.loaded-macro-list ListBoxItem">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Margin" Value="0,0,0,8"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+
+    <Style Selector="ListBox.loaded-macro-list ListBoxItem /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="Padding" Value="0"/>
+    </Style>
+
+    <Style Selector="ListBox.loaded-macro-list Border.loaded-macro-card">
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="12,10"/>
+    </Style>
+
+    <Style Selector="ListBox.loaded-macro-list ListBoxItem:pointerover Border.loaded-macro-card">
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+    </Style>
+
+    <Style Selector="ListBox.loaded-macro-list ListBoxItem:selected Border.loaded-macro-card">
+        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+    </Style>
+
+    <Style Selector="ListBox.loaded-macro-list ListBoxItem:selected:pointerover Border.loaded-macro-card">
+        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+    </Style>
+
+    <Style Selector="ListBox.loaded-macro-list TextBlock.loaded-macro-title">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+
+    <Style Selector="ListBox.loaded-macro-list TextBlock.loaded-macro-meta">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+
+    <Style Selector="ListBox.loaded-macro-list ListBoxItem:selected TextBlock.loaded-macro-title">
+        <Setter Property="Foreground" Value="{DynamicResource TextOnPrimaryBrush}"/>
+    </Style>
+
+    <Style Selector="ListBox.loaded-macro-list ListBoxItem:selected TextBlock.loaded-macro-meta">
+        <Setter Property="Foreground" Value="{DynamicResource TextOnPrimaryBrush}"/>
+        <Setter Property="Opacity" Value="0.84"/>
+    </Style>
+
+    <Style Selector="ListBox.loaded-macro-list Button.loaded-macro-remove">
+        <Setter Property="MinWidth" Value="34"/>
+        <Setter Property="MinHeight" Value="34"/>
+    </Style>
+
+    <Style Selector="ListBox.loaded-macro-list Button.loaded-macro-remove TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+    </Style>
+
+    <Style Selector="TextBlock.playback-mode-description">
+        <Setter Property="Margin" Value="28,0,0,0"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+        <Setter Property="MaxWidth" Value="420"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+
     <Style Selector="Button.window-close:pointerover /template/ ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource DangerBrush}"/>
     </Style>

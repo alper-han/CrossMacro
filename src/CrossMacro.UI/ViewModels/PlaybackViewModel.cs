@@ -1,8 +1,12 @@
 using System;
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.UI.Models;
+using CrossMacro.UI.Services;
 using Serilog;
 
 namespace CrossMacro.UI.ViewModels;
@@ -14,6 +18,8 @@ public class PlaybackViewModel : ViewModelBase
 {
     private readonly IMacroPlayer _player;
     private readonly ISettingsService _settingsService;
+    private readonly ILoadedMacroSession _loadedMacroSession;
+    private readonly Random _random = Random.Shared;
 
     private double _playbackSpeed = 1.0;
     private bool _isLooping;
@@ -26,8 +32,18 @@ public class PlaybackViewModel : ViewModelBase
     private bool _isPlaying;
     private bool _isPaused;
     private string _playbackStatus = "Ready";
+    private bool _stopRequested;
+    private bool _isSequencePlayback;
+    private bool _isWaitingBetweenSequenceCycles;
+    private int _sequenceMacroIndex;
+    private int _sequenceMacroCount;
+    private int _sequenceCycle;
+    private int _sequenceTotalCycles;
+    private string _sequenceMacroName = string.Empty;
+    private int _sequenceMacroRepeatCount = 1;
 
     private MacroSequence? _currentMacro;
+    private CancellationTokenSource? _playbackCts;
     private DispatcherTimer? _statusUpdateTimer;
 
     /// <summary>
@@ -42,10 +58,12 @@ public class PlaybackViewModel : ViewModelBase
 
     public PlaybackViewModel(
         IMacroPlayer player,
-        ISettingsService settingsService)
+        ISettingsService settingsService,
+        ILoadedMacroSession loadedMacroSession)
     {
         _player = player;
         _settingsService = settingsService;
+        _loadedMacroSession = loadedMacroSession;
 
         // Initialize playback settings from saved settings
         _playbackSpeed = _settingsService.Current.PlaybackSpeed;
@@ -56,6 +74,11 @@ public class PlaybackViewModel : ViewModelBase
         _loopDelayMinMs = _settingsService.Current.LoopDelayMinMs;
         _loopDelayMaxMs = _settingsService.Current.LoopDelayMaxMs;
         _countdownSeconds = _settingsService.Current.CountdownSeconds;
+        _currentMacro = _loadedMacroSession.SelectedMacro;
+
+        _loadedMacroSession.SelectedMacroChanged += OnLoadedMacroSelectionChanged;
+        _loadedMacroSession.SelectedMacroUpdated += OnLoadedMacroUpdated;
+        _loadedMacroSession.PlaybackModeChanged += OnLoadedMacroPlaybackModeChanged;
 
         // Setup status update timer
         _statusUpdateTimer = new DispatcherTimer
@@ -67,7 +90,7 @@ public class PlaybackViewModel : ViewModelBase
 
     private void OnStatusUpdateTimerTick(object? sender, EventArgs e)
     {
-        if (IsPlaying && !IsPaused)
+        if (IsPlaying && !IsPaused && !_stopRequested)
         {
             UpdatePlaybackStatus();
         }
@@ -75,6 +98,35 @@ public class PlaybackViewModel : ViewModelBase
 
     private void UpdatePlaybackStatus()
     {
+        if (_isSequencePlayback)
+        {
+            if (_isWaitingBetweenSequenceCycles)
+            {
+                PlaybackStatus = $"Waiting {GetLoopDelayWaitText()} before next sequence...";
+                return;
+            }
+
+            var macroName = string.IsNullOrWhiteSpace(_sequenceMacroName) ? "macro" : _sequenceMacroName;
+            var macroIndex = Math.Max(1, _sequenceMacroIndex);
+            var macroCount = Math.Max(1, _sequenceMacroCount);
+            var cycleText = _sequenceTotalCycles == 0
+                ? $"{Math.Max(1, _sequenceCycle)} - Infinite"
+                : $"{Math.Max(1, _sequenceCycle)}/{Math.Max(1, _sequenceTotalCycles)}";
+            var repeatCount = Math.Max(1, _sequenceMacroRepeatCount);
+            var repeatText = string.Empty;
+
+            if (repeatCount > 1)
+            {
+                var currentRepeat = _player.TotalLoops == repeatCount
+                    ? Math.Clamp(Math.Max(1, _player.CurrentLoop), 1, repeatCount)
+                    : 1;
+                repeatText = $" - Repeat {currentRepeat}/{repeatCount}";
+            }
+
+            PlaybackStatus = $"Playing {macroName} ({macroIndex}/{macroCount}){repeatText} - Sequence {cycleText}";
+            return;
+        }
+
         var currentLoop = _player.CurrentLoop;
         var totalLoops = _player.TotalLoops;
         var isWaiting = _player.IsWaitingBetweenLoops;
@@ -356,7 +408,8 @@ public class PlaybackViewModel : ViewModelBase
         }
     }
 
-    public bool HasMacro => (_currentMacro?.Events?.Count ?? 0) > 0;
+    public bool HasMacro => PlaybackExecutionPlanner.HasPlayableEvents(
+        PlaybackExecutionPlanner.GetPreviewMacro(_loadedMacroSession, _currentMacro));
 
     public bool CanPlayMacro => HasMacro && !IsPlaying && CanPlayMacroExternal;
 
@@ -380,7 +433,8 @@ public class PlaybackViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Set the macro to be played
+    /// Set the fallback macro to be played.
+    /// Session-backed selection takes precedence when present.
     /// </summary>
     public void SetMacro(MacroSequence? macro)
     {
@@ -391,44 +445,61 @@ public class PlaybackViewModel : ViewModelBase
 
     public async Task PlayMacroAsync()
     {
-        if (_currentMacro == null || IsPlaying || !CanPlayMacroExternal)
+        if (IsPlaying || !CanPlayMacroExternal)
+        {
             return;
+        }
+
+        var executionPlan = PlaybackExecutionPlanner.CreatePlan(_loadedMacroSession, _currentMacro);
+        if (!string.IsNullOrEmpty(executionPlan.ValidationError))
+        {
+            PlaybackStatus = executionPlan.ValidationError;
+            return;
+        }
+
+        if (!PlaybackExecutionPlanner.HasPlayableEvents(executionPlan.ActiveMacro))
+        {
+            return;
+        }
+
+        var playbackMode = executionPlan.Mode;
+        var activeMacro = executionPlan.ActiveMacro!;
+        var sequenceSnapshot = executionPlan.SequenceSnapshot;
+
+        _playbackCts?.Dispose();
+        _playbackCts = new CancellationTokenSource();
+        _stopRequested = false;
+        ResetSequenceState();
 
         try
         {
             IsPlaying = true;
             IsPaused = false;
 
-            var countdown = CountdownSeconds ?? 0;
-            if (countdown > 0)
+            await WaitForCountdownAsync(_playbackCts.Token);
+            if (_stopRequested)
             {
-                for (int i = countdown; i > 0; i--)
-                {
-                    PlaybackStatus = $"Starting in {i}...";
-                    await Task.Delay(1000);
-                    if (!IsPlaying)
-                    {
-                        return;
-                    }
-                }
+                return;
             }
 
             _statusUpdateTimer?.Start();
-            UpdatePlaybackStatus();
 
-            var options = new PlaybackOptions
+            if (executionPlan.UsesSequence)
             {
-                SpeedMultiplier = PlaybackOptions.NormalizeSpeedMultiplier(PlaybackSpeed),
-                Loop = IsLooping,
-                RepeatCount = LoopCount,
-                RepeatDelayMs = LoopDelayMs ?? 0,
-                UseRandomRepeatDelay = UseRandomLoopDelay,
-                RepeatDelayMinMs = LoopDelayMinMs ?? 0,
-                RepeatDelayMaxMs = LoopDelayMaxMs ?? 0
-            };
+                await PlaySequentialCycleAsync(sequenceSnapshot, _playbackCts.Token);
+            }
+            else
+            {
+                await PlaySingleMacroModeAsync(activeMacro, playbackMode, _playbackCts.Token);
+            }
 
-            await _player.PlayAsync(_currentMacro, options);
-            PlaybackStatus = "Playback complete";
+            if (!_stopRequested)
+            {
+                PlaybackStatus = "Playback complete";
+            }
+        }
+        catch (OperationCanceledException) when (_stopRequested)
+        {
         }
         catch (Exception ex)
         {
@@ -437,6 +508,9 @@ public class PlaybackViewModel : ViewModelBase
         finally
         {
             _statusUpdateTimer?.Stop();
+            _playbackCts?.Dispose();
+            _playbackCts = null;
+            ResetSequenceState();
             IsPlaying = false;
             IsPaused = false;
         }
@@ -444,18 +518,28 @@ public class PlaybackViewModel : ViewModelBase
 
     public void StopPlayback()
     {
-        if (IsPlaying)
+        if (!IsPlaying)
+        {
+            return;
+        }
+
+        _stopRequested = true;
+        _isWaitingBetweenSequenceCycles = false;
+        _statusUpdateTimer?.Stop();
+        _playbackCts?.Cancel();
+        IsPaused = false;
+        _player.Stop();
+        PlaybackStatus = "Playback stopped";
+
+        if (_playbackCts == null)
         {
             IsPlaying = false;
-            IsPaused = false;
-            _player.Stop();
-            PlaybackStatus = "Playback stopped";
         }
     }
 
     public void TogglePause()
     {
-        if (!IsPlaying)
+        if (!IsPlaying || _isWaitingBetweenSequenceCycles || _stopRequested)
         {
             return;
         }
@@ -487,6 +571,210 @@ public class PlaybackViewModel : ViewModelBase
         {
             _ = PlayMacroAsync();
         }
+    }
+
+    private PlaybackOptions BuildSingleMacroPlaybackOptions()
+    {
+        return new PlaybackOptions
+        {
+            SpeedMultiplier = PlaybackOptions.NormalizeSpeedMultiplier(PlaybackSpeed),
+            Loop = IsLooping,
+            RepeatCount = LoopCount,
+            RepeatDelayMs = LoopDelayMs ?? 0,
+            UseRandomRepeatDelay = UseRandomLoopDelay,
+            RepeatDelayMinMs = LoopDelayMinMs ?? 0,
+            RepeatDelayMaxMs = LoopDelayMaxMs ?? 0
+        };
+    }
+
+    private PlaybackOptions BuildSequenceMacroPlaybackOptions(LoadedMacroListItem item)
+    {
+        var repeatCount = Math.Max(1, item.SequenceRepeatCount);
+
+        return new PlaybackOptions
+        {
+            SpeedMultiplier = PlaybackOptions.NormalizeSpeedMultiplier(PlaybackSpeed),
+            Loop = repeatCount > 1,
+            RepeatCount = repeatCount,
+            RepeatDelayMs = 0,
+            UseRandomRepeatDelay = false,
+            RepeatDelayMinMs = 0,
+            RepeatDelayMaxMs = 0
+        };
+    }
+
+    private async Task WaitForCountdownAsync(CancellationToken cancellationToken)
+    {
+        var countdown = CountdownSeconds ?? 0;
+        if (countdown <= 0)
+        {
+            return;
+        }
+
+        for (var i = countdown; i > 0; i--)
+        {
+            PlaybackStatus = $"Starting in {i}...";
+            await Task.Delay(1000, cancellationToken);
+            if (_stopRequested)
+            {
+                return;
+            }
+        }
+    }
+
+    private async Task PlaySingleMacroModeAsync(
+        MacroSequence macro,
+        LoadedMacroPlaybackMode playbackMode,
+        CancellationToken cancellationToken)
+    {
+        UpdatePlaybackStatus();
+        await _player.PlayAsync(macro, BuildSingleMacroPlaybackOptions(), cancellationToken);
+        if (_stopRequested)
+        {
+            return;
+        }
+
+        if (playbackMode == LoadedMacroPlaybackMode.AdvanceSelection)
+        {
+            _loadedMacroSession.SelectNext();
+        }
+    }
+
+    private async Task PlaySequentialCycleAsync(
+        IReadOnlyList<LoadedMacroListItem> sequenceSnapshot,
+        CancellationToken cancellationToken)
+    {
+        if (sequenceSnapshot.Count == 0)
+        {
+            return;
+        }
+
+        _isSequencePlayback = true;
+        _sequenceMacroCount = sequenceSnapshot.Count;
+        _sequenceTotalCycles = IsLooping ? LoopCount : 1;
+
+        var startItemSessionId = sequenceSnapshot[0].SessionId;
+        var infiniteCycles = IsLooping && LoopCount == 0;
+        var completedCycles = 0;
+
+        try
+        {
+            while ((infiniteCycles || completedCycles < _sequenceTotalCycles) && !cancellationToken.IsCancellationRequested)
+            {
+                _sequenceCycle = completedCycles + 1;
+
+                for (var index = 0; index < sequenceSnapshot.Count; index++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var item = sequenceSnapshot[index];
+                    _sequenceMacroIndex = index + 1;
+                    _sequenceMacroName = item.Name;
+                    _sequenceMacroRepeatCount = item.SequenceRepeatCount;
+                    SelectLiveMacroBySessionId(item.SessionId);
+                    UpdatePlaybackStatus();
+
+                    await _player.PlayAsync(item.Macro, BuildSequenceMacroPlaybackOptions(item), cancellationToken);
+                    if (_stopRequested)
+                    {
+                        return;
+                    }
+                }
+
+                completedCycles++;
+                var hasNextCycle = infiniteCycles || completedCycles < _sequenceTotalCycles;
+                if (!hasNextCycle)
+                {
+                    break;
+                }
+
+                SelectLiveMacroBySessionId(startItemSessionId);
+                var cycleDelay = ResolveSequenceCycleDelayMs();
+                if (cycleDelay > 0)
+                {
+                    _isWaitingBetweenSequenceCycles = true;
+                    UpdatePlaybackStatus();
+                    await Task.Delay(cycleDelay, cancellationToken);
+                    _isWaitingBetweenSequenceCycles = false;
+                }
+            }
+        }
+        finally
+        {
+            SelectLiveMacroBySessionId(startItemSessionId);
+        }
+    }
+
+    private void SelectLiveMacroBySessionId(Guid sessionId)
+    {
+        foreach (var item in _loadedMacroSession.LoadedMacros)
+        {
+            if (item.SessionId == sessionId)
+            {
+                _loadedMacroSession.SelectedMacroItem = item;
+                return;
+            }
+        }
+    }
+
+    private int ResolveSequenceCycleDelayMs()
+    {
+        if (!UseRandomLoopDelay)
+        {
+            return Math.Max(0, LoopDelayMs ?? 0);
+        }
+
+        var min = Math.Max(0, LoopDelayMinMs ?? 0);
+        var max = Math.Max(0, LoopDelayMaxMs ?? 0);
+        if (max < min)
+        {
+            max = min;
+        }
+
+        if (min == max)
+        {
+            return min;
+        }
+
+        if (max == int.MaxValue)
+        {
+            return (int)_random.NextInt64(min, (long)max + 1);
+        }
+
+        return _random.Next(min, max + 1);
+    }
+
+    private void ResetSequenceState()
+    {
+        _isSequencePlayback = false;
+        _isWaitingBetweenSequenceCycles = false;
+        _sequenceMacroIndex = 0;
+        _sequenceMacroCount = 0;
+        _sequenceCycle = 0;
+        _sequenceTotalCycles = 0;
+        _sequenceMacroName = string.Empty;
+        _sequenceMacroRepeatCount = 1;
+    }
+
+    private void OnLoadedMacroSelectionChanged(object? sender, EventArgs e)
+    {
+        NotifyPlaybackAvailabilityChanged();
+    }
+
+    private void OnLoadedMacroUpdated(object? sender, EventArgs e)
+    {
+        NotifyPlaybackAvailabilityChanged();
+    }
+
+    private void OnLoadedMacroPlaybackModeChanged(object? sender, EventArgs e)
+    {
+        NotifyPlaybackAvailabilityChanged();
+    }
+
+    private void NotifyPlaybackAvailabilityChanged()
+    {
+        OnPropertyChanged(nameof(HasMacro));
+        OnPropertyChanged(nameof(CanPlayMacro));
     }
 
     private static int NormalizeDelayInput(int? value)

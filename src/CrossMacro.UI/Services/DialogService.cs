@@ -3,12 +3,21 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using CrossMacro.Core.Services;
+using CrossMacro.UI.Localization;
 using CrossMacro.UI.Views.Dialogs;
 
 namespace CrossMacro.UI.Services;
 
 public class DialogService : IDialogService
 {
+    private readonly ILocalizationService _localizationService;
+
+    public DialogService(ILocalizationService localizationService)
+    {
+        _localizationService = localizationService;
+    }
+
     public async Task<bool> ShowConfirmationAsync(string title, string message, string yesText = "Yes", string noText = "No")
     {
         var desktop = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
@@ -19,7 +28,9 @@ public class DialogService : IDialogService
             return false;
         }
 
-        var dialog = new ConfirmationDialog(title, message, yesText, noText);
+        var resolvedYesText = yesText == "Yes" ? _localizationService["Dialog_Yes"] : yesText;
+        var resolvedNoText = noText == "No" ? _localizationService["Dialog_No"] : noText;
+        var dialog = new ConfirmationDialog(title, message, resolvedYesText, resolvedNoText);
         return await dialog.ShowDialog<bool>(owner);
     }
 
@@ -33,7 +44,8 @@ public class DialogService : IDialogService
             return;
         }
 
-        var dialog = new ConfirmationDialog(title, message, buttonText, null);
+        var resolvedButtonText = buttonText == "OK" ? _localizationService["Dialog_Ok"] : buttonText;
+        var dialog = new ConfirmationDialog(title, message, resolvedButtonText, null);
         await dialog.ShowDialog<bool>(owner);
     }
 

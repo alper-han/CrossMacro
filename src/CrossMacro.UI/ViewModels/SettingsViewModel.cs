@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using CrossMacro.Core.Diagnostics;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Logging;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
 using Serilog;
 
@@ -15,6 +17,8 @@ namespace CrossMacro.UI.ViewModels;
 /// </summary>
 public class SettingsViewModel : ViewModelBase
 {
+    private static readonly string[] SupportedLanguageCodes = ["en", "tr", "zh", "ja", "es", "ar", "fr", "pt", "ru"];
+
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ISettingsService _settingsService;
     private readonly ITextExpansionService _textExpansionService;
@@ -22,6 +26,7 @@ public class SettingsViewModel : ViewModelBase
     private readonly IExternalUrlOpener _externalUrlOpener;
     private readonly IRuntimeContext _runtimeContext;
     private readonly IThemeService _themeService;
+    private readonly ILocalizationService _localizationService;
     
     private string _recordingHotkey;
     private string _playbackHotkey;
@@ -29,6 +34,8 @@ public class SettingsViewModel : ViewModelBase
     private bool _enableTrayIcon;
     private bool _startMinimized;
     private string _selectedLogLevel;
+    private string _selectedLanguage;
+    private IReadOnlyList<LanguageOption> _availableLanguages;
     
     /// <summary>
     /// Event fired when tray icon setting changes
@@ -42,6 +49,7 @@ public class SettingsViewModel : ViewModelBase
         HotkeySettings hotkeySettings,
         IExternalUrlOpener externalUrlOpener,
         IThemeService themeService,
+        ILocalizationService? localizationService = null,
         IRuntimeContext? runtimeContext = null)
     {
         ArgumentNullException.ThrowIfNull(themeService);
@@ -53,6 +61,7 @@ public class SettingsViewModel : ViewModelBase
         _externalUrlOpener = externalUrlOpener;
         _runtimeContext = runtimeContext ?? new RuntimeContext();
         _themeService = themeService;
+        _localizationService = localizationService ?? new LocalizationService();
         
         // Initialize hotkey properties
         _recordingHotkey = _hotkeySettings.RecordingHotkey;
@@ -68,12 +77,37 @@ public class SettingsViewModel : ViewModelBase
 
         // Initialize theme setting
         _selectedTheme = _settingsService.Current.Theme;
+
+        _selectedLanguage = NormalizeSupportedLanguage(_settingsService.Current.Language);
+        _settingsService.Current.Language = _selectedLanguage;
+        _availableLanguages = CreateLanguageOptions();
+        RefreshLanguageOptions();
         
         // Hide update settings if running as Flatpak
         IsUpdateSettingsVisible = !_runtimeContext.IsFlatpak;
 
         // Hide tray settings if tray is not supported (Flatpak sandbox blocks D-Bus StatusNotifierItem)
         IsTraySettingsVisible = TrayIconService.IsTraySupported(_runtimeContext);
+    }
+
+    public SettingsViewModel(
+        IGlobalHotkeyService hotkeyService,
+        ISettingsService settingsService,
+        ITextExpansionService textExpansionService,
+        HotkeySettings hotkeySettings,
+        IExternalUrlOpener externalUrlOpener,
+        IThemeService themeService,
+        IRuntimeContext runtimeContext)
+        : this(
+            hotkeyService,
+            settingsService,
+            textExpansionService,
+            hotkeySettings,
+            externalUrlOpener,
+            themeService,
+            null,
+            runtimeContext)
+    {
     }
 
     public bool IsUpdateSettingsVisible { get; }
@@ -300,6 +334,103 @@ public class SettingsViewModel : ViewModelBase
         "Warning",
         "Error"
     };
+
+    public IReadOnlyList<LanguageOption> AvailableLanguages => _availableLanguages;
+
+    public LanguageOption? SelectedLanguageOption
+    {
+        get => _availableLanguages.FirstOrDefault(option => option.Code == _selectedLanguage);
+        set
+        {
+            if (value is null)
+            {
+                return;
+            }
+
+            SelectedLanguage = value.Code;
+        }
+    }
+
+    public string SelectedLanguage
+    {
+        get => _selectedLanguage;
+        set
+        {
+            if (_selectedLanguage != value)
+            {
+                var previousValue = _selectedLanguage;
+                _selectedLanguage = value;
+                _settingsService.Current.Language = value;
+                _localizationService.SetCulture(value);
+                RefreshLanguageOptions();
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(SelectedLanguageOption));
+
+                TryPersistSettings(
+                    () =>
+                    {
+                        _selectedLanguage = previousValue;
+                        _settingsService.Current.Language = previousValue;
+                        _localizationService.SetCulture(previousValue);
+                        RefreshLanguageOptions();
+                    },
+                    nameof(SelectedLanguage),
+                    nameof(AvailableLanguages),
+                    nameof(SelectedLanguageOption));
+            }
+        }
+    }
+
+    private void RefreshLanguageOptions()
+    {
+        foreach (var option in _availableLanguages)
+        {
+            option.DisplayName = GetLanguageDisplayName(option.Code);
+        }
+
+        OnPropertyChanged(nameof(AvailableLanguages));
+        OnPropertyChanged(nameof(SelectedLanguageOption));
+    }
+
+    private IReadOnlyList<LanguageOption> CreateLanguageOptions()
+    {
+        return SupportedLanguageCodes
+            .Select(code => new LanguageOption
+            {
+                Code = code,
+                DisplayName = GetLanguageDisplayName(code)
+            })
+            .ToArray();
+    }
+
+    private string GetLanguageDisplayName(string code)
+    {
+        return code switch
+        {
+            "en" => _localizationService["Language_English"],
+            "tr" => _localizationService["Language_Turkish"],
+            "zh" => _localizationService["Language_Chinese"],
+            "ja" => _localizationService["Language_Japanese"],
+            "es" => _localizationService["Language_Spanish"],
+            "ar" => _localizationService["Language_Arabic"],
+            "fr" => _localizationService["Language_French"],
+            "pt" => _localizationService["Language_Portuguese"],
+            "ru" => _localizationService["Language_Russian"],
+            _ => _localizationService["Language_English"]
+        };
+    }
+
+    private static string NormalizeSupportedLanguage(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+        {
+            return "en";
+        }
+
+        return SupportedLanguageCodes.Contains(language, StringComparer.OrdinalIgnoreCase)
+            ? language.ToLowerInvariant()
+            : "en";
+    }
 
     private string _selectedTheme;
     public string SelectedTheme

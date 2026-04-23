@@ -1,7 +1,10 @@
 using System;
+using System.Globalization;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CrossMacro.Core.Models;
+using CrossMacro.Core.Services;
+using CrossMacro.UI.Localization;
 
 namespace CrossMacro.UI.Models;
 
@@ -10,13 +13,17 @@ public sealed class LoadedMacroListItem : ObservableObject
     private const int MinimumSequenceRepeatCount = 1;
     private string _name;
     private int _sequenceRepeatCount = MinimumSequenceRepeatCount;
+    private readonly ILocalizationService? _localizationService;
+    private bool _usesGeneratedName;
 
-    public LoadedMacroListItem(MacroSequence macro, string? sourcePath = null, Guid? sessionId = null)
+    public LoadedMacroListItem(MacroSequence macro, string? sourcePath = null, Guid? sessionId = null, ILocalizationService? localizationService = null)
     {
         Macro = macro ?? throw new ArgumentNullException(nameof(macro));
         SourcePath = sourcePath;
         SessionId = sessionId ?? Guid.NewGuid();
-        _name = string.IsNullOrWhiteSpace(macro.Name) ? MacroNameDefaults.UnnamedMacroName : macro.Name;
+        _localizationService = localizationService;
+        _usesGeneratedName = string.IsNullOrWhiteSpace(macro.Name);
+        _name = _usesGeneratedName ? GetString("Files_UnnamedMacro", MacroNameDefaults.NewRecordedMacroName) : macro.Name;
         Macro.Name = _name;
     }
 
@@ -31,7 +38,8 @@ public sealed class LoadedMacroListItem : ObservableObject
         get => _name;
         set
         {
-            var normalized = string.IsNullOrWhiteSpace(value) ? MacroNameDefaults.UnnamedMacroName : value.Trim();
+            _usesGeneratedName = string.IsNullOrWhiteSpace(value);
+            var normalized = _usesGeneratedName ? GetString("Files_UnnamedMacro", MacroNameDefaults.NewRecordedMacroName) : value.Trim();
             if (_name == normalized)
             {
                 return;
@@ -64,16 +72,16 @@ public sealed class LoadedMacroListItem : ObservableObject
     public int EventCount => Macro.Events?.Count ?? 0;
 
     public string SourceDescription => string.IsNullOrWhiteSpace(SourcePath)
-        ? "Session"
+        ? GetString("Files_SourceSession", "Session")
         : Path.GetFileName(SourcePath) ?? SourcePath;
 
-    public string SequenceRepeatSummary => $"Seq x{SequenceRepeatCount}";
+    public string SequenceRepeatSummary => string.Format(GetCulture(), GetString("Files_SequenceRepeatSummary", "Seq x{0}"), SequenceRepeatCount);
 
-    public string Description => $"{EventCount} events | {SourceDescription}";
+    public string Description => string.Format(GetCulture(), GetString("Files_LoadedMacroDescription", "{0} events | {1}"), EventCount, SourceDescription);
 
     public LoadedMacroListItem CreateSnapshot()
     {
-        var snapshot = new LoadedMacroListItem(Macro.Clone(), SourcePath, SessionId)
+        var snapshot = new LoadedMacroListItem(Macro.Clone(), SourcePath, SessionId, _localizationService)
         {
             SequenceRepeatCount = SequenceRepeatCount
         };
@@ -104,7 +112,8 @@ public sealed class LoadedMacroListItem : ObservableObject
             UpdateSourcePath(sourcePath);
         }
 
-        var normalized = string.IsNullOrWhiteSpace(macro.Name) ? MacroNameDefaults.UnnamedMacroName : macro.Name.Trim();
+        _usesGeneratedName = string.IsNullOrWhiteSpace(macro.Name);
+        var normalized = _usesGeneratedName ? GetString("Files_UnnamedMacro", MacroNameDefaults.NewRecordedMacroName) : macro.Name.Trim();
         Macro.Name = normalized;
 
         var nameChanged = _name != normalized;
@@ -118,5 +127,33 @@ public sealed class LoadedMacroListItem : ObservableObject
         OnPropertyChanged(nameof(Macro));
         OnPropertyChanged(nameof(EventCount));
         OnPropertyChanged(nameof(Description));
+    }
+
+    public void RefreshLocalizedProperties()
+    {
+        if (_usesGeneratedName)
+        {
+            var localizedName = GetString("Files_UnnamedMacro", MacroNameDefaults.NewRecordedMacroName);
+            if (_name != localizedName)
+            {
+                _name = localizedName;
+                Macro.Name = localizedName;
+                OnPropertyChanged(nameof(Name));
+            }
+        }
+
+        OnPropertyChanged(nameof(SourceDescription));
+        OnPropertyChanged(nameof(SequenceRepeatSummary));
+        OnPropertyChanged(nameof(Description));
+    }
+
+    private string GetString(string key, string fallback)
+    {
+        return _localizationService?[key] ?? Resources.ResourceManager.GetString(key, Resources.Culture) ?? fallback;
+    }
+
+    private CultureInfo GetCulture()
+    {
+        return _localizationService?.CurrentCulture ?? Resources.Culture ?? CultureInfo.CurrentUICulture;
     }
 }

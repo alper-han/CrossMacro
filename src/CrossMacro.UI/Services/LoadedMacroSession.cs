@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using CrossMacro.Core.Models;
+using CrossMacro.Core.Services;
 using CrossMacro.UI.Models;
 
 namespace CrossMacro.UI.Services;
@@ -9,11 +10,13 @@ namespace CrossMacro.UI.Services;
 public sealed class LoadedMacroSession : ILoadedMacroSession
 {
     private readonly ObservableCollection<LoadedMacroListItem> _loadedMacros = new();
+    private readonly ILocalizationService? _localizationService;
     private LoadedMacroListItem? _selectedMacroItem;
     private LoadedMacroPlaybackMode _playbackMode;
 
-    public LoadedMacroSession()
+    public LoadedMacroSession(ILocalizationService localizationService)
     {
+        _localizationService = localizationService;
         LoadedMacros = new ReadOnlyObservableCollection<LoadedMacroListItem>(_loadedMacros);
     }
 
@@ -61,7 +64,7 @@ public sealed class LoadedMacroSession : ILoadedMacroSession
 
     public LoadedMacroListItem AddMacro(MacroSequence macro, string? sourcePath = null)
     {
-        var item = new LoadedMacroListItem(macro, sourcePath);
+        var item = new LoadedMacroListItem(macro, sourcePath, localizationService: _localizationService);
         _loadedMacros.Add(item);
         SelectedMacroItem = item;
         return item;

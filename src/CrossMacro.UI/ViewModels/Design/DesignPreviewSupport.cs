@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.ViewModels;
@@ -23,8 +24,9 @@ internal sealed class DesignPreviewContext
         RuntimeContext = new DesignRuntimeContext();
         ExternalUrlOpener = new DesignExternalUrlOpener();
         ThemeService = new DesignThemeService(SettingsService.Current.Theme);
+        LocalizationService = new LocalizationService();
         DialogService = new DesignDialogService();
-        LoadedMacroSession = new LoadedMacroSession();
+        LoadedMacroSession = new LoadedMacroSession(LocalizationService);
         TextExpansionStorageService = new DesignTextExpansionStorageService();
         TextExpansionService = new DesignTextExpansionService();
         SchedulerService = new DesignSchedulerService();
@@ -83,6 +85,8 @@ internal sealed class DesignPreviewContext
 
     public DesignTimeProvider TimeProvider { get; }
 
+    public LocalizationService LocalizationService { get; }
+
     private static AppSettings CreateSettings()
     {
         return new AppSettings
@@ -101,7 +105,8 @@ internal sealed class DesignPreviewContext
             EnableTextExpansion = true,
             CheckForUpdates = true,
             LogLevel = "Information",
-            Theme = "Nord"
+            Theme = "Nord",
+            Language = "en"
         };
     }
 
@@ -153,7 +158,7 @@ internal static class DesignPreviewSamples
     {
         return
         [
-            new TextExpansion(":sync-ok", "Inventory sync completed successfully", true, PasteMethod.CtrlV, TextInsertionMode.Paste),
+            new TextExpansion(":mail", "email@example.com", true, PasteMethod.CtrlV, TextInsertionMode.Paste),
             new TextExpansion(":retry-note", "Retry failed upload after reconnecting VPN", true, PasteMethod.CtrlShiftV, TextInsertionMode.Paste),
             new TextExpansion(":runbook", "Open dashboard and start the nightly export macro", true, PasteMethod.CtrlV, TextInsertionMode.DirectTyping)
         ];

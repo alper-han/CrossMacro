@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.ViewModels;
@@ -15,11 +16,12 @@ namespace CrossMacro.UI.ViewModels;
 /// <summary>
 /// ViewModel for the Text Expansion tab - handles creating and managing text expansions
 /// </summary>
-public partial class TextExpansionViewModel : ViewModelBase
+public partial class TextExpansionViewModel : ViewModelBase, IDisposable
 {
     private readonly ITextExpansionStorageService _storageService;
     private readonly IDialogService _dialogService;
     private readonly IEnvironmentInfoProvider _environmentInfoProvider;
+    private readonly ILocalizationService _localizationService;
 
     private string _triggerInput = string.Empty;
     private string _replacementInput = string.Empty;
@@ -28,11 +30,14 @@ public partial class TextExpansionViewModel : ViewModelBase
     public TextExpansionViewModel(
         ITextExpansionStorageService storageService, 
         IDialogService dialogService,
-        IEnvironmentInfoProvider environmentInfoProvider)
+        IEnvironmentInfoProvider environmentInfoProvider,
+        ILocalizationService localizationService)
     {
         _storageService = storageService;
         _dialogService = dialogService;
         _environmentInfoProvider = environmentInfoProvider;
+        _localizationService = localizationService;
+        _localizationService.CultureChanged += OnCultureChanged;
         
         // Load existing expansions asynchronously
         InitializationTask = LoadExpansionsAsync();
@@ -63,10 +68,15 @@ public partial class TextExpansionViewModel : ViewModelBase
         {
             _expansions.Add(expansion);
         }
+
+        OnPropertyChanged(nameof(HasExpansions));
+        OnPropertyChanged(nameof(ExpansionCountText));
     }
 
     private PasteMethod _selectedPasteMethod = PasteMethod.CtrlV;
     private TextInsertionMode _selectedInsertionMode = TextInsertionMode.Paste;
+    private IReadOnlyList<TextInsertionMode> _insertionModes = Enum.GetValues<TextInsertionMode>();
+    private IReadOnlyList<PasteMethod> _pasteMethods = Enum.GetValues<PasteMethod>();
 
     public TextInsertionMode SelectedInsertionMode
     {
@@ -86,10 +96,19 @@ public partial class TextExpansionViewModel : ViewModelBase
         set => SetProperty(ref _selectedPasteMethod, value);
     }
 
-    public IEnumerable<TextInsertionMode> InsertionModes { get; } = Enum.GetValues<TextInsertionMode>();
+    public IEnumerable<TextInsertionMode> InsertionModes => _insertionModes;
     
     // Expose enum values for UI
-    public IEnumerable<PasteMethod> PasteMethods { get; } = Enum.GetValues<PasteMethod>();
+    public IEnumerable<PasteMethod> PasteMethods => _pasteMethods;
+
+    private void OnCultureChanged(object? sender, EventArgs e)
+    {
+        _insertionModes = Enum.GetValues<TextInsertionMode>();
+        _pasteMethods = Enum.GetValues<PasteMethod>();
+        OnPropertyChanged(nameof(ExpansionCountText));
+        OnPropertyChanged(nameof(InsertionModes));
+        OnPropertyChanged(nameof(PasteMethods));
+    }
 
     public string TriggerInput
     {
@@ -125,6 +144,11 @@ public partial class TextExpansionViewModel : ViewModelBase
 
     public bool HasExpansions => Expansions.Count > 0;
 
+    public string ExpansionCountText => string.Format(
+        _localizationService.CurrentCulture,
+        _localizationService["TextExpansion_Items"],
+        Expansions.Count);
+
     private bool CanAddExpansion()
     {
         return !string.IsNullOrWhiteSpace(TriggerInput) && 
@@ -149,6 +173,7 @@ public partial class TextExpansionViewModel : ViewModelBase
         
         // Notify HasExpansions property changed
         OnPropertyChanged(nameof(HasExpansions));
+        OnPropertyChanged(nameof(ExpansionCountText));
         
         // Clear inputs
         TriggerInput = string.Empty;
@@ -165,8 +190,11 @@ public partial class TextExpansionViewModel : ViewModelBase
         if (expansion == null) return;
         
         var confirmed = await _dialogService.ShowConfirmationAsync(
-            "Delete Expansion", 
-            $"Are you sure you want to delete the expansion '{expansion.Trigger}'?");
+            _localizationService["TextExpansion_DeleteTitle"],
+            string.Format(
+                _localizationService.CurrentCulture,
+                _localizationService["TextExpansion_DeleteMessage"],
+                expansion.Trigger));
             
         if (!confirmed) return;
 
@@ -176,6 +204,7 @@ public partial class TextExpansionViewModel : ViewModelBase
             
             // Notify HasExpansions property changed
             OnPropertyChanged(nameof(HasExpansions));
+            OnPropertyChanged(nameof(ExpansionCountText));
         }
     }
 
@@ -188,5 +217,10 @@ public partial class TextExpansionViewModel : ViewModelBase
         // The IsEnabled property is bound TwoWay, so it's already updated in the object.
         // We just need to persist the changes.
         await _storageService.SaveAsync(Expansions);
+    }
+
+    public void Dispose()
+    {
+        _localizationService.CultureChanged -= OnCultureChanged;
     }
 }

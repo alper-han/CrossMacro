@@ -7,6 +7,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
 using Serilog;
 
@@ -19,10 +20,13 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
 {
     private readonly IShortcutService _shortcutService;
     private readonly IDialogService _dialogService;
+    private readonly ILocalizationService _localizationService;
     private ShortcutTask? _selectedTask;
     private bool _disposed;
     
     public ObservableCollection<ShortcutTask> Tasks => _shortcutService.Tasks;
+
+    public string TaskCountText => string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_ItemsText"], Tasks.Count);
     
     public ShortcutTask? SelectedTask
     {
@@ -60,7 +64,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     
     public string SelectedMacroFileName => 
         string.IsNullOrEmpty(SelectedTask?.MacroFilePath) 
-            ? "No file selected" 
+            ? _localizationService["Shortcut_NoFileSelected"] 
             : Path.GetFileName(SelectedTask.MacroFilePath);
     
     public string SelectedHotkeyString
@@ -80,14 +84,17 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     // Events for global status
     public event EventHandler<string>? StatusChanged;
     
-    public ShortcutViewModel(IShortcutService shortcutService, IDialogService dialogService)
+    public ShortcutViewModel(IShortcutService shortcutService, IDialogService dialogService, ILocalizationService localizationService)
     {
         _shortcutService = shortcutService;
         _dialogService = dialogService;
+        _localizationService = localizationService;
+        _localizationService.CultureChanged += OnCultureChanged;
         
         // Subscribe to shortcut execution events
         _shortcutService.ShortcutStarting += OnShortcutStarting;
         _shortcutService.ShortcutExecuted += OnShortcutExecuted;
+        _shortcutService.Tasks?.CollectionChanged += (_, _) => OnPropertyChanged(nameof(TaskCountText));
         
         // Load saved shortcuts and start listening
         _ = InitializeAsyncSafe();
@@ -103,7 +110,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             Log.Error(ex, "[ShortcutViewModel] Failed to initialize shortcuts");
-            RaiseStatus($"Shortcut: failed to initialize ({ex.Message})");
+            RaiseStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_StatusInitFailed"], ex.Message));
         }
     }
     
@@ -112,10 +119,11 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     {
         var task = new ShortcutTask
         {
-            Name = $"Shortcut {Tasks.Count + 1}"
+            Name = string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_DefaultTaskName"], Tasks.Count + 1)
         };
         _shortcutService.AddTask(task);
         SelectedTask = task;
+        OnPropertyChanged(nameof(TaskCountText));
     }
     
     [RelayCommand]
@@ -124,8 +132,8 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         if (task == null) return;
         
         var confirmed = await _dialogService.ShowConfirmationAsync(
-            "Delete Shortcut", 
-            $"Are you sure you want to delete the shortcut '{task.Name}'?");
+            _localizationService["Shortcut_DeleteTitle"],
+            string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_DeleteMessage"], task.Name));
             
         if (!confirmed) return;
         
@@ -153,11 +161,11 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         
         var filters = new FileDialogFilter[]
         {
-            new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "macro" } }
+            new FileDialogFilter { Name = _localizationService["Shortcut_OpenMacroDialogFilter"], Extensions = new[] { "macro" } }
         };
         
         var filePath = await _dialogService.ShowOpenFileDialogAsync(
-            "Select Macro File",
+            _localizationService["Shortcut_OpenMacroDialogTitle"],
             filters);
         
         if (!string.IsNullOrEmpty(filePath))
@@ -179,17 +187,17 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
             await _shortcutService.SaveAsync();
             if (showSuccessStatus)
             {
-                RaiseStatus("Shortcut: changes saved");
+                RaiseStatus(_localizationService["Shortcut_StatusChangesSaved"]);
             }
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[ShortcutViewModel] Failed to save shortcut tasks");
-            var status = $"Shortcut: failed to save changes ({ex.Message})";
+            var status = string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_StatusSaveFailed"], ex.Message);
             RaiseStatus(status);
             try
             {
-                await _dialogService.ShowMessageAsync("Shortcut Save Failed", status);
+                await _dialogService.ShowMessageAsync(_localizationService["Shortcut_SaveFailedTitle"], status);
             }
             catch (Exception dialogEx)
             {
@@ -207,7 +215,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     {
         Dispatcher.UIThread.Post(() =>
         {
-            RaiseStatus($"Shortcut: Running {task.Name}...");
+            RaiseStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_StatusRunning"], task.Name));
             
             if (SelectedTask?.Id == task.Id)
             {
@@ -221,8 +229,8 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         Dispatcher.UIThread.Post(() =>
         {
             var statusText = e.Success 
-                ? $"Shortcut: {e.Task.Name} completed" 
-                : $"Shortcut: {e.Task.Name} - {e.Message}";
+                ? string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_StatusCompleted"], e.Task.Name)
+                : string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_StatusFailed"], e.Task.Name, e.Message);
             RaiseStatus(statusText);
             
             if (SelectedTask?.Id == e.Task.Id)
@@ -242,6 +250,13 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
 
         Dispatcher.UIThread.Post(() => StatusChanged?.Invoke(this, message));
     }
+
+    private void OnCultureChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(TaskCountText));
+        OnPropertyChanged(nameof(SelectedMacroFileName));
+        OnPropertyChanged(nameof(SelectedTask));
+    }
     
     public void Dispose()
     {
@@ -250,5 +265,6 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         
         _shortcutService.ShortcutStarting -= OnShortcutStarting;
         _shortcutService.ShortcutExecuted -= OnShortcutExecuted;
+        _localizationService.CultureChanged -= OnCultureChanged;
     }
 }

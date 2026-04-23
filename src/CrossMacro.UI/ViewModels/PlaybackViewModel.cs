@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.UI.Localization;
 using CrossMacro.UI.Models;
 using CrossMacro.UI.Services;
 using Serilog;
@@ -14,11 +15,12 @@ namespace CrossMacro.UI.ViewModels;
 /// <summary>
 /// ViewModel for the Playback tab - handles macro playback functionality
 /// </summary>
-public class PlaybackViewModel : ViewModelBase
+public class PlaybackViewModel : ViewModelBase, IDisposable
 {
     private readonly IMacroPlayer _player;
     private readonly ISettingsService _settingsService;
     private readonly ILoadedMacroSession _loadedMacroSession;
+    private readonly ILocalizationService _localizationService;
     private readonly Random _random = Random.Shared;
 
     private double _playbackSpeed = 1.0;
@@ -31,7 +33,7 @@ public class PlaybackViewModel : ViewModelBase
     private int? _countdownSeconds = 0;
     private bool _isPlaying;
     private bool _isPaused;
-    private string _playbackStatus = "Ready";
+    private string _playbackStatus;
     private bool _stopRequested;
     private bool _isSequencePlayback;
     private bool _isWaitingBetweenSequenceCycles;
@@ -59,11 +61,14 @@ public class PlaybackViewModel : ViewModelBase
     public PlaybackViewModel(
         IMacroPlayer player,
         ISettingsService settingsService,
-        ILoadedMacroSession loadedMacroSession)
+        ILoadedMacroSession loadedMacroSession,
+        ILocalizationService? localizationService = null)
     {
         _player = player;
         _settingsService = settingsService;
         _loadedMacroSession = loadedMacroSession;
+        _localizationService = localizationService ?? new LocalizationService();
+        _playbackStatus = _localizationService["Playback_StatusReady"];
 
         // Initialize playback settings from saved settings
         _playbackSpeed = _settingsService.Current.PlaybackSpeed;
@@ -79,6 +84,7 @@ public class PlaybackViewModel : ViewModelBase
         _loadedMacroSession.SelectedMacroChanged += OnLoadedMacroSelectionChanged;
         _loadedMacroSession.SelectedMacroUpdated += OnLoadedMacroUpdated;
         _loadedMacroSession.PlaybackModeChanged += OnLoadedMacroPlaybackModeChanged;
+        _localizationService.CultureChanged += OnCultureChanged;
 
         // Setup status update timer
         _statusUpdateTimer = new DispatcherTimer
@@ -102,7 +108,7 @@ public class PlaybackViewModel : ViewModelBase
         {
             if (_isWaitingBetweenSequenceCycles)
             {
-                PlaybackStatus = $"Waiting {GetLoopDelayWaitText()} before next sequence...";
+                PlaybackStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Playback_StatusWaitingNextSequence"], GetLoopDelayWaitText());
                 return;
             }
 
@@ -123,7 +129,7 @@ public class PlaybackViewModel : ViewModelBase
                 repeatText = $" - Repeat {currentRepeat}/{repeatCount}";
             }
 
-            PlaybackStatus = $"Playing {macroName} ({macroIndex}/{macroCount}){repeatText} - Sequence {cycleText}";
+            PlaybackStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Playback_StatusSequencePlaying"], macroName, macroIndex, macroCount, repeatText, cycleText);
             return;
         }
 
@@ -133,22 +139,45 @@ public class PlaybackViewModel : ViewModelBase
 
         if (isWaiting)
         {
-            PlaybackStatus = $"Waiting {GetLoopDelayWaitText()} before next loop...";
+            PlaybackStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Playback_StatusWaitingNextLoop"], GetLoopDelayWaitText());
             return;
         }
 
         if (totalLoops == 0)
         {
-            PlaybackStatus = $"Playing (Loop {currentLoop} - Infinite)";
+            PlaybackStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Playback_StatusLoopInfinite"], currentLoop);
         }
         else if (totalLoops > 1)
         {
-            PlaybackStatus = $"Playing (Loop {currentLoop}/{totalLoops})";
+            PlaybackStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Playback_StatusLoopProgress"], currentLoop, totalLoops);
         }
         else
         {
-            PlaybackStatus = "Playing...";
+            PlaybackStatus = _localizationService["Playback_StatusPlaying"];
         }
+    }
+
+    private void OnCultureChanged(object? sender, EventArgs e)
+    {
+        if (IsPlaying && !IsPaused && !_stopRequested)
+        {
+            UpdatePlaybackStatus();
+            return;
+        }
+
+        if (IsPaused)
+        {
+            PlaybackStatus = _localizationService["Playback_StatusPaused"];
+            return;
+        }
+
+        if (_stopRequested)
+        {
+            PlaybackStatus = _localizationService["Playback_StatusStopped"];
+            return;
+        }
+
+        PlaybackStatus = _localizationService["Playback_StatusReady"];
     }
 
     public double PlaybackSpeed
@@ -495,7 +524,7 @@ public class PlaybackViewModel : ViewModelBase
 
             if (!_stopRequested)
             {
-                PlaybackStatus = "Playback complete";
+                PlaybackStatus = _localizationService["Playback_StatusComplete"];
             }
         }
         catch (OperationCanceledException) when (_stopRequested)
@@ -503,7 +532,7 @@ public class PlaybackViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            PlaybackStatus = $"Playback error: {ex.Message}";
+            PlaybackStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Playback_StatusError"], ex.Message);
         }
         finally
         {
@@ -529,7 +558,7 @@ public class PlaybackViewModel : ViewModelBase
         _playbackCts?.Cancel();
         IsPaused = false;
         _player.Stop();
-        PlaybackStatus = "Playback stopped";
+        PlaybackStatus = _localizationService["Playback_StatusStopped"];
 
         if (_playbackCts == null)
         {
@@ -554,7 +583,7 @@ public class PlaybackViewModel : ViewModelBase
         {
             _player.Pause();
             IsPaused = true;
-            PlaybackStatus = "Paused";
+            PlaybackStatus = _localizationService["Playback_StatusPaused"];
         }
     }
 
@@ -571,6 +600,23 @@ public class PlaybackViewModel : ViewModelBase
         {
             _ = PlayMacroAsync();
         }
+    }
+
+    public void Dispose()
+    {
+        _statusUpdateTimer?.Stop();
+        if (_statusUpdateTimer != null)
+        {
+            _statusUpdateTimer.Tick -= OnStatusUpdateTimerTick;
+            _statusUpdateTimer = null;
+        }
+
+        _localizationService.CultureChanged -= OnCultureChanged;
+        _loadedMacroSession.SelectedMacroChanged -= OnLoadedMacroSelectionChanged;
+        _loadedMacroSession.SelectedMacroUpdated -= OnLoadedMacroUpdated;
+        _loadedMacroSession.PlaybackModeChanged -= OnLoadedMacroPlaybackModeChanged;
+        _playbackCts?.Dispose();
+        _playbackCts = null;
     }
 
     private PlaybackOptions BuildSingleMacroPlaybackOptions()
@@ -613,7 +659,7 @@ public class PlaybackViewModel : ViewModelBase
 
         for (var i = countdown; i > 0; i--)
         {
-            PlaybackStatus = $"Starting in {i}...";
+            PlaybackStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Playback_StatusStartingIn"], i);
             await Task.Delay(1000, cancellationToken);
             if (_stopRequested)
             {

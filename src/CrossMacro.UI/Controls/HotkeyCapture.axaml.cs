@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using CrossMacro.Core.Services;
+using CrossMacro.UI.Localization;
 using Microsoft.Extensions.DependencyInjection;
 using CrossMacro.Core;
 using Serilog;
@@ -39,13 +40,11 @@ public partial class HotkeyCapture : UserControl
     private const string CapturingClass = "capturing";
     private const string InvalidClass = "invalid";
     private const string EmptyClass = "empty";
-    private const string CapturingDisplayText = "Press a key...";
-    private const string EmptyDisplayText = "Click to set hotkey";
-    private const string ServiceErrorDisplayText = "Service Error";
     private const int ValidationResetDelayMs = 2000;
     private CancellationTokenSource? _validationResetCts;
     private CancellationTokenSource? _captureCts;
     private bool _isDetached = true;
+    private ILocalizationService? _localizationService;
 
     public string Hotkey
     {
@@ -108,6 +107,7 @@ public partial class HotkeyCapture : UserControl
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         _isDetached = true;
+        DetachLocalizationService();
         CancelCapture();
         CancelValidationResetTimer();
         IsCapturing = false;
@@ -120,7 +120,48 @@ public partial class HotkeyCapture : UserControl
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         _isDetached = false;
+        AttachLocalizationService();
+        UpdateDisplayString();
         base.OnAttachedToVisualTree(e);
+    }
+
+    private void AttachLocalizationService()
+    {
+        var localizationService = (Application.Current as App)?.Services?.GetService<ILocalizationService>();
+        if (ReferenceEquals(_localizationService, localizationService))
+        {
+            return;
+        }
+
+        DetachLocalizationService();
+        _localizationService = localizationService;
+        if (_localizationService != null)
+        {
+            _localizationService.CultureChanged += OnCultureChanged;
+        }
+    }
+
+    private void DetachLocalizationService()
+    {
+        if (_localizationService != null)
+        {
+            _localizationService.CultureChanged -= OnCultureChanged;
+            _localizationService = null;
+        }
+    }
+
+    private void OnCultureChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_isDetached)
+            {
+                return;
+            }
+
+            UpdateDisplayString();
+            UpdateVisualStateClasses();
+        });
     }
 
     private void UpdateDisplayString()
@@ -310,4 +351,10 @@ public partial class HotkeyCapture : UserControl
             HotkeyBorder.Classes.Set(EmptyClass, !IsCapturing && string.IsNullOrWhiteSpace(Hotkey));
         }
     }
+
+    private string CapturingDisplayText => _localizationService?["HotkeyCapture_PressAKey"] ?? "Press a key...";
+
+    private string EmptyDisplayText => _localizationService?["HotkeyCapture_ClickToSet"] ?? "Click to set hotkey";
+
+    private string ServiceErrorDisplayText => _localizationService?["HotkeyCapture_ServiceError"] ?? "Service Error";
 }

@@ -25,16 +25,17 @@ public sealed class DesignMainWindowViewModel : MainWindowViewModel
             context.MousePositionProvider,
             context.EnvironmentInfoProvider,
             context.ExternalUrlOpener,
+            context.LocalizationService,
             null)
     {
         IsPaneOpen = true;
         HasExtensionWarning = true;
-        ExtensionWarning = "GNOME extension is disabled in this preview, so tray-related behavior is shown with a warning state.";
-        GlobalStatus = "Macro preview loaded";
+        ExtensionWarning = "GNOME extension preview warning";
+        GlobalStatus = "Preview loaded";
         LatestVersion = "v1.1.0";
         IsUpdateNotificationVisible = true;
-        AppNotificationTitle = "Macro Preview";
-        AppNotificationMessage = "Showing deterministic macro automation data for the selected page.";
+        AppNotificationTitle = "Preview";
+        AppNotificationMessage = "Showing sample macro data for the selected page.";
         AppNotificationIcon = "i";
         IsAppNotificationSuccess = true;
         IsAppNotificationVisible = true;

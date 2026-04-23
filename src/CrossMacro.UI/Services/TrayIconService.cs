@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform;
+using CrossMacro.UI.Localization;
 using CrossMacro.UI.ViewModels;
 using Serilog;
 using CrossMacro.Core;
@@ -18,6 +19,7 @@ public class TrayIconService : ITrayIconService
     private TrayIcon? _trayIcon;
     private readonly MainWindowViewModel _viewModel;
     private readonly IRuntimeContext _runtimeContext;
+    private readonly ILocalizationService _localizationService;
     private Window? _mainWindow;
     private bool _isExiting;
     private bool _isEnabled = true;
@@ -25,10 +27,13 @@ public class TrayIconService : ITrayIconService
     private NativeMenuItem? _startRecordingItem;
     private NativeMenuItem? _startPlaybackItem;
     private NativeMenuItem? _stopItem;
+    private NativeMenuItem? _showHideItem;
+    private NativeMenuItem? _exitItem;
 
-    public TrayIconService(MainWindowViewModel viewModel, IRuntimeContext? runtimeContext = null)
+    public TrayIconService(MainWindowViewModel viewModel, ILocalizationService localizationService, IRuntimeContext? runtimeContext = null)
     {
         _viewModel = viewModel;
+        _localizationService = localizationService;
         _runtimeContext = runtimeContext ?? new RuntimeContext();
     }
 
@@ -73,6 +78,7 @@ public class TrayIconService : ITrayIconService
 
             // Subscribe to hotkey changes
             _viewModel.Settings.PropertyChanged += OnSettingsPropertyChanged;
+            _localizationService.CultureChanged += OnCultureChanged;
 
             Log.Information("Tray icon initialized successfully");
         }
@@ -104,30 +110,30 @@ public class TrayIconService : ITrayIconService
 
             var menu = new NativeMenu();
 
-            var showHideItem = new NativeMenuItem { Header = "Show/Hide" };
-            showHideItem.Click += OnShowHideClicked;
-            menu.Add(showHideItem);
+            _showHideItem = new NativeMenuItem { Header = _localizationService["Tray_ShowHide"] };
+            _showHideItem.Click += OnShowHideClicked;
+            menu.Add(_showHideItem);
 
             menu.Add(new NativeMenuItemSeparator());
 
             // Use actual hotkey values from settings
-            _startRecordingItem = new NativeMenuItem { Header = $"Start Recording ({_viewModel.Settings.RecordingHotkey})" };
+            _startRecordingItem = new NativeMenuItem { Header = string.Format(_localizationService.CurrentCulture, _localizationService["Tray_StartRecording"], _viewModel.Settings.RecordingHotkey) };
             _startRecordingItem.Click += OnStartRecordingClicked;
             menu.Add(_startRecordingItem);
 
-            _startPlaybackItem = new NativeMenuItem { Header = $"Start Playback ({_viewModel.Settings.PlaybackHotkey})" };
+            _startPlaybackItem = new NativeMenuItem { Header = string.Format(_localizationService.CurrentCulture, _localizationService["Tray_StartPlayback"], _viewModel.Settings.PlaybackHotkey) };
             _startPlaybackItem.Click += OnStartPlaybackClicked;
             menu.Add(_startPlaybackItem);
 
-            _stopItem = new NativeMenuItem { Header = $"Stop ({_viewModel.Settings.PauseHotkey})" };
+            _stopItem = new NativeMenuItem { Header = string.Format(_localizationService.CurrentCulture, _localizationService["Tray_Stop"], _viewModel.Settings.PauseHotkey) };
             _stopItem.Click += OnStopClicked;
             menu.Add(_stopItem);
 
             menu.Add(new NativeMenuItemSeparator());
 
-            var exitItem = new NativeMenuItem { Header = "Exit" };
-            exitItem.Click += OnExitClicked;
-            menu.Add(exitItem);
+            _exitItem = new NativeMenuItem { Header = _localizationService["Tray_Exit"] };
+            _exitItem.Click += OnExitClicked;
+            menu.Add(_exitItem);
 
             _trayIcon.Menu = menu;
             _trayIcon.Clicked += OnTrayIconClicked;
@@ -156,20 +162,66 @@ public class TrayIconService : ITrayIconService
     
     private void OnSettingsPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        switch (e.PropertyName)
+        RefreshMenuLabels(e.PropertyName);
+    }
+
+    private void OnCultureChanged(object? sender, EventArgs e)
+    {
+        RefreshMenuLabels();
+    }
+
+    private void RefreshMenuLabels(string? changedPropertyName = null)
+    {
+        switch (changedPropertyName)
         {
             case nameof(_viewModel.Settings.RecordingHotkey):
-                if (_startRecordingItem != null)
-                    _startRecordingItem.Header = $"Start Recording ({_viewModel.Settings.RecordingHotkey})";
+                UpdateRecordingHeader();
                 break;
             case nameof(_viewModel.Settings.PlaybackHotkey):
-                if (_startPlaybackItem != null)
-                    _startPlaybackItem.Header = $"Start Playback ({_viewModel.Settings.PlaybackHotkey})";
+                UpdatePlaybackHeader();
                 break;
             case nameof(_viewModel.Settings.PauseHotkey):
-                if (_stopItem != null)
-                    _stopItem.Header = $"Stop ({_viewModel.Settings.PauseHotkey})";
+                UpdateStopHeader();
                 break;
+            default:
+                if (_showHideItem != null)
+                {
+                    _showHideItem.Header = _localizationService["Tray_ShowHide"];
+                }
+
+                UpdateRecordingHeader();
+                UpdatePlaybackHeader();
+                UpdateStopHeader();
+
+                if (_exitItem != null)
+                {
+                    _exitItem.Header = _localizationService["Tray_Exit"];
+                }
+                break;
+        }
+    }
+
+    private void UpdateRecordingHeader()
+    {
+        if (_startRecordingItem != null)
+        {
+            _startRecordingItem.Header = string.Format(_localizationService.CurrentCulture, _localizationService["Tray_StartRecording"], _viewModel.Settings.RecordingHotkey);
+        }
+    }
+
+    private void UpdatePlaybackHeader()
+    {
+        if (_startPlaybackItem != null)
+        {
+            _startPlaybackItem.Header = string.Format(_localizationService.CurrentCulture, _localizationService["Tray_StartPlayback"], _viewModel.Settings.PlaybackHotkey);
+        }
+    }
+
+    private void UpdateStopHeader()
+    {
+        if (_stopItem != null)
+        {
+            _stopItem.Header = string.Format(_localizationService.CurrentCulture, _localizationService["Tray_Stop"], _viewModel.Settings.PauseHotkey);
         }
     }
 
@@ -357,6 +409,7 @@ public class TrayIconService : ITrayIconService
         }
         
         _viewModel.Settings.PropertyChanged -= OnSettingsPropertyChanged;
+        _localizationService.CultureChanged -= OnCultureChanged;
         
         _trayIcon?.Dispose();
         Log.Debug("Tray icon service disposed");

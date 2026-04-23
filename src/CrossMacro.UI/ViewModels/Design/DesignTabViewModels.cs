@@ -12,7 +12,7 @@ public sealed class DesignRecordingViewModel : RecordingViewModel
     }
 
     internal DesignRecordingViewModel(DesignPreviewContext context)
-        : base(context.MacroRecorder, context.HotkeyService, context.SettingsService)
+        : base(context.MacroRecorder, context.HotkeyService, context.SettingsService, context.LocalizationService)
     {
         SetMacro(DesignPreviewSamples.CreateMacro("Invoice Form Fill"));
     }
@@ -25,7 +25,7 @@ public sealed class DesignPlaybackViewModel : PlaybackViewModel
     }
 
     internal DesignPlaybackViewModel(DesignPreviewContext context)
-        : base(context.MacroPlayer, context.SettingsService, context.LoadedMacroSession)
+        : base(context.MacroPlayer, context.SettingsService, context.LoadedMacroSession, context.LocalizationService)
     {
         context.LoadedMacroSession.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
 
@@ -44,7 +44,7 @@ public sealed class DesignFilesViewModel : FilesViewModel
     }
 
     internal DesignFilesViewModel(DesignPreviewContext context)
-        : base(context.MacroFileManager, context.DialogService, context.LoadedMacroSession)
+        : base(context.MacroFileManager, context.DialogService, context.LoadedMacroSession, context.LocalizationService)
     {
         context.LoadedMacroSession.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
 
@@ -67,7 +67,7 @@ public sealed class DesignTextExpansionViewModel : TextExpansionViewModel
     }
 
     internal DesignTextExpansionViewModel(DesignPreviewContext context)
-        : base(context.TextExpansionStorageService, context.DialogService, context.EnvironmentInfoProvider)
+        : base(context.TextExpansionStorageService, context.DialogService, context.EnvironmentInfoProvider, context.LocalizationService)
     {
         TriggerInput = ":sync-ok";
         ReplacementInput = "Inventory sync completed successfully";
@@ -92,6 +92,7 @@ public sealed class DesignSettingsViewModel : SettingsViewModel
             context.HotkeySettings,
             context.ExternalUrlOpener,
             context.ThemeService,
+            context.LocalizationService,
             context.RuntimeContext)
     {
     }
@@ -104,7 +105,7 @@ public sealed class DesignScheduleViewModel : ScheduleViewModel
     }
 
     internal DesignScheduleViewModel(DesignPreviewContext context)
-        : base(context.SchedulerService, context.DialogService, context.TimeProvider)
+        : base(context.SchedulerService, context.DialogService, context.TimeProvider, context.LocalizationService)
     {
         SelectedTask = Tasks.FirstOrDefault();
     }
@@ -117,7 +118,7 @@ public sealed class DesignShortcutViewModel : ShortcutViewModel
     }
 
     internal DesignShortcutViewModel(DesignPreviewContext context)
-        : base(context.ShortcutService, context.DialogService)
+        : base(context.ShortcutService, context.DialogService, context.LocalizationService)
     {
         SelectedTask = Tasks.FirstOrDefault();
     }
@@ -136,7 +137,9 @@ public sealed class DesignEditorViewModel : EditorViewModel
             context.CoordinateCaptureService,
             context.MacroFileManager,
             context.DialogService,
-            context.KeyCodeMapper)
+            context.KeyCodeMapper,
+            context.LocalizationService,
+            new CrossMacro.UI.Localization.EditorActionDisplayFormatter(context.LocalizationService))
     {
         MacroName = "Recover Failed Export";
 

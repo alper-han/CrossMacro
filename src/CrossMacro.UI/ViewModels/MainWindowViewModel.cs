@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.UI.Localization;
 using CrossMacro.UI.Models;
 using CrossMacro.UI.Services;
 using System.Collections.ObjectModel;
@@ -19,6 +20,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly IMousePositionProvider _positionProvider;
     private readonly IExternalUrlOpener _externalUrlOpener;
+    private readonly ILocalizationService _localizationService;
     private readonly IExtensionStatusNotifier? _extensionNotifier;
     private readonly IUpdateService? _updateService;
     private readonly DisplayEnvironment _currentEnvironment;
@@ -30,7 +32,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private bool _disposed;
     private CancellationTokenSource? _appNotificationCts;
 
-    private string _globalStatus = "Ready";
+    private string _globalStatus;
     private bool _isAppNotificationVisible;
     private string _appNotificationTitle = string.Empty;
     private string _appNotificationMessage = string.Empty;
@@ -172,6 +174,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         IMousePositionProvider positionProvider,
         IEnvironmentInfoProvider environmentInfo,
         IExternalUrlOpener externalUrlOpener,
+        ILocalizationService localizationService,
         IExtensionStatusNotifier? extensionNotifier = null,
         IUpdateService? updateService = null)
     {
@@ -186,9 +189,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _hotkeyService = hotkeyService;
         _positionProvider = positionProvider;
         _externalUrlOpener = externalUrlOpener;
+        _localizationService = localizationService ?? new LocalizationService();
         _extensionNotifier = extensionNotifier;
         _updateService = updateService;
         _currentEnvironment = environmentInfo.CurrentEnvironment;
+        _globalStatus = _localizationService["Status_Ready"];
+        _localizationService.CultureChanged += OnCultureChanged;
         
         // Use abstraction for close button visibility (DIP: depends on Core interface)
         IsCloseButtonVisible = !environmentInfo.WindowManagerHandlesCloseButton;
@@ -222,20 +228,20 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         // Initialize Navigation
         TopNavigationItems = new ObservableCollection<NavigationItem>
         {
-            new NavigationItem { Label = "Recording", Icon = "🔴", ViewModel = Recording },
-            new NavigationItem { Label = "Playback", Icon = "▶️", ViewModel = Playback },
-            new NavigationItem { Label = "Files", Icon = "💾", ViewModel = Files },
-            new NavigationItem { Label = "Text Expansion", Icon = "📝", ViewModel = TextExpansion },
-            new NavigationItem { Label = "Shortcuts", Icon = "⌨️", ViewModel = Shortcuts },
-            new NavigationItem { Label = "Schedule", Icon = "🕐", ViewModel = Schedule },
-            new NavigationItem { Label = "Editor", Icon = "🛠️", ViewModel = Editor }
+            CreateNavigationItem("Navigation_Recording", "🔴", Recording),
+            CreateNavigationItem("Navigation_Playback", "▶️", Playback),
+            CreateNavigationItem("Navigation_Files", "💾", Files),
+            CreateNavigationItem("Navigation_TextExpansion", "📝", TextExpansion),
+            CreateNavigationItem("Navigation_Shortcuts", "⌨️", Shortcuts),
+            CreateNavigationItem("Navigation_Schedule", "🕐", Schedule),
+            CreateNavigationItem("Navigation_Editor", "🛠️", Editor)
         };
         
 
 
         BottomNavigationItems = new ObservableCollection<NavigationItem>
         {
-            new NavigationItem { Label = "Settings", Icon = "⚙️", ViewModel = Settings }
+            CreateNavigationItem("Navigation_Settings", "⚙️", Settings)
         };
 
         SelectedTopItem = TopNavigationItems.First();
@@ -281,6 +287,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
+    public string UpdateAvailableVersionText => string.Format(
+        _localizationService.CurrentCulture,
+        _localizationService["MainWindow_UpdateAvailableVersion"],
+        LatestVersion);
+
     private async System.Threading.Tasks.Task CheckForUpdatesAsync()
     {
         try
@@ -298,6 +309,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
                     LatestVersion = result.LatestVersion;
                     _updateReleaseUrl = result.ReleaseUrl;
                     IsUpdateNotificationVisible = true;
+                    OnPropertyChanged(nameof(UpdateAvailableVersionText));
                 });
             }
         }
@@ -349,7 +361,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             }
 
             var eventCount = macro?.Events?.Count ?? 0;
-            SetGlobalStatusThreadSafe($"Recorded {eventCount} events");
+            SetGlobalStatusThreadSafe(string.Format(
+                _localizationService.CurrentCulture,
+                _localizationService["Status_RecordedEvents"],
+                eventCount));
         };
         
         // When recording state changes, update Playback's ability to start
@@ -387,7 +402,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         // When a macro is loaded from disk, update global status.
         Files.MacroLoaded += (s, macro) =>
         {
-            SetGlobalStatusThreadSafe($"Loaded: {macro.Name}");
+            SetGlobalStatusThreadSafe(string.Format(
+                _localizationService.CurrentCulture,
+                _localizationService["Status_LoadedMacro"],
+                macro.Name));
         };
         
         // When a macro is created in Editor, update the linked loaded macro or add a new one.
@@ -399,7 +417,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
                 Editor.TrackLoadedMacroSession(linkedItem.SessionId);
             }
 
-            SetGlobalStatusThreadSafe($"Created: {e.Macro.Name} ({e.Macro.EventCount} events)");
+            SetGlobalStatusThreadSafe(string.Format(
+                _localizationService.CurrentCulture,
+                _localizationService["Status_CreatedMacro"],
+                e.Macro.Name,
+                e.Macro.EventCount));
         };
         
         // Forward status changes
@@ -452,6 +474,55 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         if (_extensionNotifier != null)
         {
             _extensionNotifier.ExtensionStatusUpdated += OnExtensionStatusUpdated;
+        }
+    }
+
+    private void OnCultureChanged(object? sender, EventArgs e)
+    {
+        RefreshNavigationLabels();
+
+        RefreshIdleGlobalStatus();
+
+        OnPropertyChanged(nameof(UpdateAvailableVersionText));
+    }
+
+    private void RefreshIdleGlobalStatus()
+    {
+        if (Recording.IsRecording || Playback.IsPlaying)
+        {
+            return;
+        }
+
+        if (Files.GetCurrentMacro() is not null)
+        {
+            SetGlobalStatusThreadSafe(Recording.RecordingStatus);
+            return;
+        }
+
+        SetGlobalStatusThreadSafe(_localizationService["Status_Ready"]);
+    }
+
+    private NavigationItem CreateNavigationItem(string localizationKey, string icon, ViewModelBase viewModel)
+    {
+        return new NavigationItem
+        {
+            LocalizationKey = localizationKey,
+            Label = _localizationService[localizationKey],
+            Icon = icon,
+            ViewModel = viewModel
+        };
+    }
+
+    private void RefreshNavigationLabels()
+    {
+        foreach (var item in TopNavigationItems)
+        {
+            item.Label = _localizationService[item.LocalizationKey];
+        }
+
+        foreach (var item in BottomNavigationItems)
+        {
+            item.Label = _localizationService[item.LocalizationKey];
         }
     }
     

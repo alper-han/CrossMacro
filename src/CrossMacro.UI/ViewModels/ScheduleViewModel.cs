@@ -7,6 +7,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
 using Serilog;
 
@@ -20,14 +21,17 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     private readonly ISchedulerService _schedulerService;
     private readonly IDialogService _dialogService;
     private readonly ITimeProvider _timeProvider;
+    private readonly ILocalizationService _localizationService;
     private readonly object _initializeLock = new();
     private Task? _initializeTask;
     private ScheduledTask? _selectedTask;
     private bool _isIntervalSelected = true;
     private bool _isDateTimeSelected;
     private bool _disposed;
-    
-    public ObservableCollection<ScheduledTask> Tasks => _schedulerService.Tasks;
+
+    public ObservableCollection<ScheduledTask> Tasks => _schedulerService.Tasks ?? new ObservableCollection<ScheduledTask>();
+
+    public string TaskCountText => string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_ItemsText"], Tasks.Count);
     
     public ScheduledTask? SelectedTask
     {
@@ -66,9 +70,9 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     
     public string SelectedMacroFileName => 
         string.IsNullOrEmpty(SelectedTask?.MacroFilePath) 
-            ? "No file selected" 
+            ? _localizationService["Schedule_NoFileSelected"] 
             : Path.GetFileName(SelectedTask.MacroFilePath);
-    
+
     public bool IsIntervalSelected
     {
         get => _isIntervalSelected;
@@ -113,15 +117,19 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     public ScheduleViewModel(
         ISchedulerService schedulerService,
         IDialogService dialogService,
-        ITimeProvider timeProvider)
+        ITimeProvider timeProvider,
+        ILocalizationService localizationService)
     {
         _schedulerService = schedulerService ?? throw new ArgumentNullException(nameof(schedulerService));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _localizationService = localizationService;
+        _localizationService.CultureChanged += OnCultureChanged;
         
         // Subscribe to task execution events
         _schedulerService.TaskStarting += OnTaskStarting;
         _schedulerService.TaskExecuted += OnTaskExecuted;
+        _schedulerService.Tasks?.CollectionChanged += OnTasksCollectionChanged;
         
     }
     
@@ -143,7 +151,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            RaiseStatus($"Schedule: failed to initialize ({ex.Message})");
+            RaiseStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_StatusInitFailed"], ex.Message));
         }
     }
     
@@ -215,13 +223,14 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     {
         var task = new ScheduledTask
         {
-            Name = $"Task {Tasks.Count + 1}",
+            Name = string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_DefaultTaskName"], Tasks.Count + 1),
             Type = ScheduleType.Interval,
             IntervalValue = 30,
             IntervalUnit = IntervalUnit.Seconds
         };
         _schedulerService.AddTask(task);
         SelectedTask = task;
+        OnPropertyChanged(nameof(TaskCountText));
     }
     
     [RelayCommand]
@@ -230,8 +239,8 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         if (task == null) return;
         
         var confirmed = await _dialogService.ShowConfirmationAsync(
-            "Delete Task", 
-            $"Are you sure you want to delete the task '{task.Name}'?");
+            _localizationService["Schedule_DeleteTitle"],
+            string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_DeleteMessage"], task.Name));
             
         if (!confirmed) return;
         
@@ -241,6 +250,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             SelectedTask = Tasks.FirstOrDefault();
         }
         await SaveChangesAsync(showSuccessStatus: false);
+        OnPropertyChanged(nameof(TaskCountText));
     }
     
     [RelayCommand]
@@ -248,8 +258,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     {
         if (task != null)
         {
-            // Toggle: if already selected, deselect; otherwise select
-            SelectedTask = SelectedTask?.Id == task.Id ? null : task;
+            SelectedTask = task;
         }
     }
     
@@ -260,11 +269,11 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         
         var filters = new FileDialogFilter[]
         {
-            new FileDialogFilter { Name = "Macro Files", Extensions = new[] { "macro" } }
+            new FileDialogFilter { Name = _localizationService["Schedule_OpenMacroDialogFilter"], Extensions = new[] { "macro" } }
         };
         
         var filePath = await _dialogService.ShowOpenFileDialogAsync(
-            "Select Macro File",
+            _localizationService["Schedule_OpenMacroDialogTitle"],
             filters);
         
         if (!string.IsNullOrEmpty(filePath))
@@ -283,20 +292,20 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            await _schedulerService.SaveAsync();
+                await _schedulerService.SaveAsync();
             if (showSuccessStatus)
             {
-                RaiseStatus("Schedule: changes saved");
+                RaiseStatus(_localizationService["Schedule_StatusChangesSaved"]);
             }
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[ScheduleViewModel] Failed to save scheduled tasks");
-            var status = $"Schedule: failed to save changes ({ex.Message})";
+            var status = string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_StatusSaveFailed"], ex.Message);
             RaiseStatus(status);
             try
             {
-                await _dialogService.ShowMessageAsync("Schedule Save Failed", status);
+                await _dialogService.ShowMessageAsync(_localizationService["Schedule_SaveFailedTitle"], status);
             }
             catch (Exception dialogEx)
             {
@@ -311,7 +320,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             !string.IsNullOrWhiteSpace(task.MacroFilePath) &&
             !task.MacroFilePath.EndsWith(".macro", StringComparison.OrdinalIgnoreCase))
         {
-            RaiseStatus("Schedule: macro file extension is not .macro (still allowed)");
+            RaiseStatus(_localizationService["Schedule_StatusExtensionWarning"]);
         }
 
         _schedulerService.SetTaskEnabled(task.Id, task.IsEnabled);
@@ -321,7 +330,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     {
         Dispatcher.UIThread.Post(() =>
         {
-            RaiseStatus($"Schedule: Running {task.Name}...");
+            RaiseStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_StatusRunning"], task.Name));
             
             // Refresh the selected task to update status display
             if (SelectedTask?.Id == task.Id)
@@ -337,8 +346,8 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         {
             // Update global status
             var statusText = e.Success 
-                ? $"Schedule: {e.Task.Name} completed" 
-                : $"Schedule: {e.Task.Name} - {e.Message}";
+                ? string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_StatusCompleted"], e.Task.Name)
+                : string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_StatusFailedExecution"], e.Task.Name, e.Message);
             RaiseStatus(statusText);
             
             // Refresh the selected task to update LastRunTime display
@@ -359,6 +368,20 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
 
         Dispatcher.UIThread.Post(() => StatusChanged?.Invoke(this, message));
     }
+
+    private void OnCultureChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(Tasks));
+        OnPropertyChanged(nameof(TaskCountText));
+        OnPropertyChanged(nameof(SelectedMacroFileName));
+        OnPropertyChanged(nameof(SelectedTask));
+    }
+
+    private void OnTasksCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(Tasks));
+        OnPropertyChanged(nameof(TaskCountText));
+    }
     
     public void Dispose()
     {
@@ -368,6 +391,8 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         // Unsubscribe from events to prevent memory leaks
         _schedulerService.TaskStarting -= OnTaskStarting;
         _schedulerService.TaskExecuted -= OnTaskExecuted;
+        _schedulerService.Tasks?.CollectionChanged -= OnTasksCollectionChanged;
+        _localizationService.CultureChanged -= OnCultureChanged;
     }
 
 }

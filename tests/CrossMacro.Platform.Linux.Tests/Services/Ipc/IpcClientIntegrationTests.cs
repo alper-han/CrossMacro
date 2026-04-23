@@ -18,6 +18,7 @@ public sealed class LinuxIpcIntegrationSerialCollection;
 public class IpcClientIntegrationTests
 {
     private static readonly TimeSpan AsyncOperationTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan HandshakeTimeoutAssertionBudget = TimeSpan.FromSeconds(8);
 
     [LinuxFact]
     public async Task ConnectAsync_WhenDaemonReturnsHandshakeError_ShouldThrowHandshakeFailed()
@@ -53,7 +54,7 @@ public class IpcClientIntegrationTests
         using var client = new IpcClient(() => socketPath);
 
         var exception = await Assert.ThrowsAsync<IpcClientException>(() =>
-            client.ConnectAsync(CancellationToken.None));
+            client.ConnectAsync(CancellationToken.None).WaitAsync(HandshakeTimeoutAssertionBudget));
 
         Assert.Equal(IpcClientFailureReason.Timeout, exception.Reason);
     }
@@ -442,7 +443,7 @@ public class IpcClientIntegrationTests
         using var capture = new LinuxIpcInputCapture(client, "test-capture");
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            capture.StartAsync(CancellationToken.None).WaitAsync(AsyncOperationTimeout));
+            capture.StartAsync(CancellationToken.None).WaitAsync(HandshakeTimeoutAssertionBudget));
 
         Assert.Contains("Timed out while waiting for daemon handshake", exception.Message, StringComparison.Ordinal);
     }

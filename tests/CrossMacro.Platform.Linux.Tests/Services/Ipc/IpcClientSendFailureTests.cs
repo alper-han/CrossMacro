@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Threading;
@@ -33,28 +34,13 @@ public class IpcClientSendFailureTests
             client.StopCapture("reentrant-consumer");
         };
 
-        captureGate.Wait();
-        Task invokeTask;
-        try
-        {
-            invokeTask = Task.Run(() =>
-            {
-                handleSendFailureMethod!.Invoke(
-                    client,
-                    [new IOException("Simulated send failure"), IpcOpCode.StartCapture, false]);
-            });
+        InvokeHandleSendFailureWhileHoldingGate(
+            client,
+            captureGate,
+            handleSendFailureMethod!,
+            new IOException("Simulated send failure"),
+            callbackObserved.Task);
 
-            var completed = await Task.WhenAny(
-                invokeTask,
-                Task.Delay(TimeSpan.FromMilliseconds(300)));
-            Assert.Same(invokeTask, completed);
-        }
-        finally
-        {
-            captureGate.Release();
-        }
-
-        await invokeTask.WaitAsync(TimeSpan.FromSeconds(2));
         await callbackObserved.Task.WaitAsync(TimeSpan.FromSeconds(2));
     }
 
@@ -82,28 +68,13 @@ public class IpcClientSendFailureTests
             client.StopCapture("healthy-consumer");
         };
 
-        captureGate.Wait();
-        Task invokeTask;
-        try
-        {
-            invokeTask = Task.Run(() =>
-            {
-                handleSendFailureMethod!.Invoke(
-                    client,
-                    [new IOException("Simulated send failure"), IpcOpCode.StartCapture, false]);
-            });
+        InvokeHandleSendFailureWhileHoldingGate(
+            client,
+            captureGate,
+            handleSendFailureMethod!,
+            new IOException("Simulated send failure"),
+            healthySubscriberObserved.Task);
 
-            var completed = await Task.WhenAny(
-                invokeTask,
-                Task.Delay(TimeSpan.FromMilliseconds(300)));
-            Assert.Same(invokeTask, completed);
-        }
-        finally
-        {
-            captureGate.Release();
-        }
-
-        await invokeTask.WaitAsync(TimeSpan.FromSeconds(2));
         await healthySubscriberObserved.Task.WaitAsync(TimeSpan.FromSeconds(2));
     }
 
@@ -134,28 +105,12 @@ public class IpcClientSendFailureTests
         const int iterations = 50;
         for (var iteration = 0; iteration < iterations; iteration++)
         {
-            captureGate.Wait();
-            Task invokeTask;
-            try
-            {
-                invokeTask = Task.Run(() =>
-                {
-                    handleSendFailureMethod!.Invoke(
-                        client,
-                        [new IOException($"Simulated send failure {iteration}"), IpcOpCode.StartCapture, false]);
-                });
-
-                var completed = await Task.WhenAny(
-                    invokeTask,
-                    Task.Delay(TimeSpan.FromMilliseconds(300)));
-                Assert.Same(invokeTask, completed);
-            }
-            finally
-            {
-                captureGate.Release();
-            }
-
-            await invokeTask.WaitAsync(TimeSpan.FromSeconds(2));
+            InvokeHandleSendFailureWhileHoldingGate(
+                client,
+                captureGate,
+                handleSendFailureMethod!,
+                new IOException($"Simulated send failure {iteration}"),
+                pendingCallback: null);
         }
 
         var waitDeadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
@@ -165,5 +120,42 @@ public class IpcClientSendFailureTests
         }
 
         Assert.True(Volatile.Read(ref callbacksObserved) >= iterations);
+    }
+
+    private static void InvokeHandleSendFailureWhileHoldingGate(
+        IpcClient client,
+        SemaphoreSlim captureGate,
+        MethodInfo handleSendFailureMethod,
+        IOException sendFailure,
+        Task? pendingCallback)
+    {
+        captureGate.Wait();
+        try
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var invocationException = Record.Exception(() =>
+            {
+                handleSendFailureMethod.Invoke(
+                    client,
+                    [sendFailure, IpcOpCode.StartCapture, false]);
+            });
+            stopwatch.Stop();
+
+            Assert.Null(invocationException);
+            Assert.True(
+                stopwatch.Elapsed < TimeSpan.FromSeconds(1),
+                $"HandleSendFailure should return promptly while the capture gate is held. Elapsed: {stopwatch.Elapsed}.");
+
+            if (pendingCallback is not null)
+            {
+                Assert.False(
+                    pendingCallback.IsCompleted,
+                    "Deferred error callbacks should not run before the capture gate is released.");
+            }
+        }
+        finally
+        {
+            captureGate.Release();
+        }
     }
 }

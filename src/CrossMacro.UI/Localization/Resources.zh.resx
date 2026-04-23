@@ -1,0 +1,1293 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="App_Title" xml:space="preserve">
+    <value>CrossMacro</value>
+  </data>
+  <data name="MainWindow_MinimizeTooltip" xml:space="preserve">
+    <value>最小化</value>
+  </data>
+  <data name="MainWindow_CloseTooltip" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+  <data name="MainWindow_DismissTooltip" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+  <data name="MainWindow_GnomeExtensionTitle" xml:space="preserve">
+    <value>GNOME 扩展</value>
+  </data>
+  <data name="MainWindow_UpdateAvailableTitle" xml:space="preserve">
+    <value>可用更新</value>
+  </data>
+  <data name="MainWindow_ViewOnGitHub" xml:space="preserve">
+    <value>在 GitHub 上查看</value>
+  </data>
+  <data name="MainWindow_UpdateAvailableVersion" xml:space="preserve">
+    <value>v{0} 可用</value>
+  </data>
+  <data name="Navigation_Recording" xml:space="preserve">
+    <value>录制</value>
+  </data>
+  <data name="Navigation_Playback" xml:space="preserve">
+    <value>回放</value>
+  </data>
+  <data name="Navigation_Files" xml:space="preserve">
+    <value>文件</value>
+  </data>
+  <data name="Navigation_TextExpansion" xml:space="preserve">
+    <value>文本扩展</value>
+  </data>
+  <data name="Navigation_Shortcuts" xml:space="preserve">
+    <value>快捷方式</value>
+  </data>
+  <data name="Navigation_Schedule" xml:space="preserve">
+    <value>计划任务</value>
+  </data>
+  <data name="Navigation_Editor" xml:space="preserve">
+    <value>编辑器</value>
+  </data>
+  <data name="Navigation_Settings" xml:space="preserve">
+    <value>设置</value>
+  </data>
+  <data name="Settings_GlobalHotkeys" xml:space="preserve">
+    <value>全局热键</value>
+  </data>
+  <data name="Settings_ToggleRecording" xml:space="preserve">
+    <value>切换录制（开始/停止）</value>
+  </data>
+  <data name="Settings_TogglePlayback" xml:space="preserve">
+    <value>切换播放（开始/停止）</value>
+  </data>
+  <data name="Settings_PauseResumePlayback" xml:space="preserve">
+    <value>暂停/恢复播放</value>
+  </data>
+  <data name="Settings_EnableTrayIcon" xml:space="preserve">
+    <value>启用托盘图标</value>
+  </data>
+  <data name="Settings_StartMinimized" xml:space="preserve">
+    <value>启动最小化</value>
+  </data>
+  <data name="Settings_StartMinimizedDescription" xml:space="preserve">
+    <value>可用时启动后隐藏到托盘；否则以最小化方式启动。</value>
+  </data>
+  <data name="Settings_EnableTextExpansion" xml:space="preserve">
+    <value>启用文本扩展</value>
+  </data>
+  <data name="Settings_CheckForUpdates" xml:space="preserve">
+    <value>启动时检查更新</value>
+  </data>
+  <data name="Settings_LogLevel" xml:space="preserve">
+    <value>日志级别</value>
+  </data>
+  <data name="Settings_LogLevelDescription" xml:space="preserve">
+    <value>控制记录的诊断信息量</value>
+  </data>
+  <data name="Settings_Theme" xml:space="preserve">
+    <value>主题</value>
+  </data>
+  <data name="Settings_ThemeDescription" xml:space="preserve">
+    <value>选择应用程序视觉主题</value>
+  </data>
+  <data name="Settings_Language" xml:space="preserve">
+    <value>语言</value>
+  </data>
+  <data name="Settings_LanguageDescription" xml:space="preserve">
+    <value>选择应用程序语言</value>
+  </data>
+  <data name="Settings_SupportTitle" xml:space="preserve">
+    <value>支持 CrossMacro</value>
+  </data>
+  <data name="Settings_SupportDescription" xml:space="preserve">
+    <value>如果您喜欢这个项目，请考虑在 GitHub 上给它一颗星！</value>
+  </data>
+  <data name="Settings_StarOnGitHub" xml:space="preserve">
+    <value>在 GitHub 上加星标</value>
+  </data>
+  <data name="Settings_HotkeyAlreadyAssignedTitle" xml:space="preserve">
+    <value>热键已分配</value>
+  </data>
+  <data name="Language_Auto" xml:space="preserve">
+    <value>系统默认值</value>
+  </data>
+  <data name="Language_English" xml:space="preserve">
+    <value>英语</value>
+  </data>
+  <data name="Language_Turkish" xml:space="preserve">
+    <value>土耳其语</value>
+  </data>
+  <data name="Status_Ready" xml:space="preserve">
+    <value>准备好</value>
+  </data>
+  <data name="Status_RecordedEvents" xml:space="preserve">
+    <value>已记录 {0} 个事件</value>
+  </data>
+  <data name="Status_LoadedMacro" xml:space="preserve">
+    <value>已加载：{0}</value>
+  </data>
+  <data name="Status_CreatedMacro" xml:space="preserve">
+    <value>已创建：{0}（{1} 个事件）</value>
+  </data>
+  <data name="Recording_LabelStatus" xml:space="preserve">
+    <value>状态</value>
+  </data>
+  <data name="Recording_LabelEvents" xml:space="preserve">
+    <value>事件</value>
+  </data>
+  <data name="Recording_LabelState" xml:space="preserve">
+    <value>状态</value>
+  </data>
+  <data name="Recording_TooltipRecording" xml:space="preserve">
+    <value>录制中...</value>
+  </data>
+  <data name="Recording_TooltipReady" xml:space="preserve">
+    <value>准备好</value>
+  </data>
+  <data name="Recording_CaptureSettings" xml:space="preserve">
+    <value>捕获设置</value>
+  </data>
+  <data name="Recording_Mouse" xml:space="preserve">
+    <value>鼠标</value>
+  </data>
+  <data name="Recording_Keyboard" xml:space="preserve">
+    <value>键盘</value>
+  </data>
+  <data name="Recording_ForceRelativeCoordinates" xml:space="preserve">
+    <value>强制使用相对坐标</value>
+  </data>
+  <data name="Recording_ForceRelativeCoordinatesDescription" xml:space="preserve">
+    <value>即使支持绝对鼠标位置，也使用相对鼠标位置</value>
+  </data>
+  <data name="Recording_ForceRelativeCoordinatesHelp" xml:space="preserve">
+    <value>需要在游戏中使用宏。</value>
+  </data>
+  <data name="Recording_SkipInitialZeroZero" xml:space="preserve">
+    <value>跳过初始 0,0 位置</value>
+  </data>
+  <data name="Recording_SkipInitialZeroZeroDescription" xml:space="preserve">
+    <value>录制开始时不要将光标移动到原点</value>
+  </data>
+  <data name="Recording_StartRecording" xml:space="preserve">
+    <value>开始录制</value>
+  </data>
+  <data name="Recording_StopRecording" xml:space="preserve">
+    <value>停止录制</value>
+  </data>
+  <data name="Recording_Tip" xml:space="preserve">
+    <value>提示：在其他应用程序中使用全局热键控制录制</value>
+  </data>
+  <data name="Schedule_ItemsText" xml:space="preserve">
+    <value>{0} 项</value>
+  </data>
+  <data name="Schedule_DefaultTaskName" xml:space="preserve">
+    <value>任务{0}</value>
+  </data>
+  <data name="Shortcut_ItemsText" xml:space="preserve">
+    <value>{0} 项</value>
+  </data>
+  <data name="Shortcut_DefaultTaskName" xml:space="preserve">
+    <value>快捷方式{0}</value>
+  </data>
+  <data name="Schedule_NoFile" xml:space="preserve">
+    <value>无文件</value>
+  </data>
+  <data name="Schedule_ListSummary" xml:space="preserve">
+    <value>{0} • {1}</value>
+  </data>
+  <data name="Schedule_StatusPlaceholder" xml:space="preserve">
+    <value>尚未运行</value>
+  </data>
+  <data name="Shortcut_StatusPlaceholder" xml:space="preserve">
+    <value>尚未触发</value>
+  </data>
+  <data name="Playback_PlaybackSpeed" xml:space="preserve">
+    <value>播放速度</value>
+  </data>
+  <data name="Playback_LoopPlayback" xml:space="preserve">
+    <value>循环播放</value>
+  </data>
+  <data name="Playback_RandomizeLoopDelay" xml:space="preserve">
+    <value>随机化循环延迟</value>
+  </data>
+  <data name="Playback_LoopCount" xml:space="preserve">
+    <value>循环计数</value>
+  </data>
+  <data name="Playback_LoopDelayMs" xml:space="preserve">
+    <value>循环延迟（毫秒）</value>
+  </data>
+  <data name="Playback_LoopDelayRangeMs" xml:space="preserve">
+    <value>循环延迟范围（毫秒）</value>
+  </data>
+  <data name="Playback_CountdownSec" xml:space="preserve">
+    <value>倒计时（秒）</value>
+  </data>
+  <data name="Playback_PlayMacro" xml:space="preserve">
+    <value>播放宏</value>
+  </data>
+  <data name="Playback_StopPlayback" xml:space="preserve">
+    <value>停止播放</value>
+  </data>
+  <data name="Playback_LoopTip" xml:space="preserve">
+    <value>提示：循环次数为 0 表示无限循环</value>
+  </data>
+  <data name="Files_LoadedMacros" xml:space="preserve">
+    <value>已加载的宏</value>
+  </data>
+  <data name="Files_RemoveLoadedMacroTooltip" xml:space="preserve">
+    <value>删除加载的宏</value>
+  </data>
+  <data name="Files_LoadMacro" xml:space="preserve">
+    <value>加载宏</value>
+  </data>
+  <data name="Files_SaveMacro" xml:space="preserve">
+    <value>保存宏</value>
+  </data>
+  <data name="Files_SelectedMacro" xml:space="preserve">
+    <value>选定的宏</value>
+  </data>
+  <data name="Files_MacroName" xml:space="preserve">
+    <value>宏名称</value>
+  </data>
+  <data name="Files_MacroNamePlaceholder" xml:space="preserve">
+    <value>每晚导出宏</value>
+  </data>
+  <data name="Files_SequenceRepeat" xml:space="preserve">
+    <value>序列重复</value>
+  </data>
+  <data name="Files_SequenceRepeatDescription" xml:space="preserve">
+    <value>仅当顺序循环播放遍历加载的列表时，顺序重复才适用。</value>
+  </data>
+  <data name="Files_PlaybackMode" xml:space="preserve">
+    <value>播放模式</value>
+  </data>
+  <data name="Files_PlaybackModeSelectedOnly" xml:space="preserve">
+    <value>仅选定的宏</value>
+  </data>
+  <data name="Files_PlaybackModeSelectedOnlyDescription" xml:space="preserve">
+    <value>仅播放选定的宏。全局循环设置适用于该宏。</value>
+  </data>
+  <data name="Files_PlaybackModeAdvanceSelection" xml:space="preserve">
+    <value>播放所选内容，然后选择下一个</value>
+  </data>
+  <data name="Files_PlaybackModeAdvanceSelectionDescription" xml:space="preserve">
+    <value>使用当前播放设置运行选定的宏，然后将选择移至下一个加载的宏。它不会自动播放下一个项目。</value>
+  </data>
+  <data name="Files_PlaybackModeSequentialCycle" xml:space="preserve">
+    <value>顺序循环播放</value>
+  </data>
+  <data name="Files_PlaybackModeSequentialCycleDescription" xml:space="preserve">
+    <value>从选定的宏运行整个加载的列表。序列重复仅在此模式下使用。</value>
+  </data>
+  <data name="TextExpansion_AddNewExpansion" xml:space="preserve">
+    <value>添加新扩展</value>
+  </data>
+  <data name="TextExpansion_Trigger" xml:space="preserve">
+    <value>触发词</value>
+  </data>
+  <data name="TextExpansion_TriggerPlaceholder" xml:space="preserve">
+    <value>:邮件</value>
+  </data>
+  <data name="TextExpansion_Replacement" xml:space="preserve">
+    <value>替换内容</value>
+  </data>
+  <data name="TextExpansion_ReplacementPlaceholder" xml:space="preserve">
+    <value>ming.li@example.com</value>
+  </data>
+  <data name="Files_UnnamedMacro" xml:space="preserve">
+    <value>新宏</value>
+  </data>
+  <data name="Files_SourceSession" xml:space="preserve">
+    <value>会话</value>
+  </data>
+  <data name="Files_SequenceRepeatSummary" xml:space="preserve">
+    <value>序列 x{0}</value>
+  </data>
+  <data name="Files_LoadedMacroDescription" xml:space="preserve">
+    <value>{0} 个事件 | {1}</value>
+  </data>
+  <data name="TextExpansion_InsertionMode" xml:space="preserve">
+    <value>插入方式</value>
+  </data>
+  <data name="TextExpansion_PasteMethod" xml:space="preserve">
+    <value>粘贴法</value>
+  </data>
+  <data name="TextExpansion_Add" xml:space="preserve">
+    <value>+ 添加</value>
+  </data>
+  <data name="TextExpansion_SavedExpansions" xml:space="preserve">
+    <value>已保存的扩展</value>
+  </data>
+  <data name="TextExpansion_Items" xml:space="preserve">
+    <value>{0} 项</value>
+  </data>
+  <data name="TextExpansion_NoSavedExpansions" xml:space="preserve">
+    <value>没有保存的扩展</value>
+  </data>
+  <data name="TextExpansion_EnableInSettingsTip" xml:space="preserve">
+    <value>在“设置”选项卡中启用以开始扩展</value>
+  </data>
+  <data name="TextExpansion_DeleteTitle" xml:space="preserve">
+    <value>删除扩展</value>
+  </data>
+  <data name="TextExpansion_DeleteMessage" xml:space="preserve">
+    <value>您确定要删除扩展“{0}”吗？</value>
+  </data>
+  <data name="Schedule_Title" xml:space="preserve">
+    <value>预定任务</value>
+  </data>
+  <data name="Schedule_Items" xml:space="preserve">
+    <value>{0} 项</value>
+  </data>
+  <data name="Schedule_EditTask" xml:space="preserve">
+    <value>编辑任务</value>
+  </data>
+  <data name="Schedule_DeleteTask" xml:space="preserve">
+    <value>删除任务</value>
+  </data>
+  <data name="Schedule_TaskSettings" xml:space="preserve">
+    <value>任务设置</value>
+  </data>
+  <data name="Schedule_Name" xml:space="preserve">
+    <value>名称</value>
+  </data>
+  <data name="Schedule_NamePlaceholder" xml:space="preserve">
+    <value>每晚导出任务</value>
+  </data>
+  <data name="Schedule_PlaybackSpeed" xml:space="preserve">
+    <value>播放速度</value>
+  </data>
+  <data name="Schedule_MacroFile" xml:space="preserve">
+    <value>宏文件</value>
+  </data>
+  <data name="Schedule_NoFileSelected" xml:space="preserve">
+    <value>未选择文件</value>
+  </data>
+  <data name="Schedule_Browse" xml:space="preserve">
+    <value>浏览</value>
+  </data>
+  <data name="Schedule_Type" xml:space="preserve">
+    <value>计划类型</value>
+  </data>
+  <data name="Schedule_TypeInterval" xml:space="preserve">
+    <value>间隔（重复）</value>
+  </data>
+  <data name="Schedule_TypeDateTime" xml:space="preserve">
+    <value>日期/时间（一次）</value>
+  </data>
+  <data name="Schedule_IntervalSettings" xml:space="preserve">
+    <value>间隔设置</value>
+  </data>
+  <data name="Schedule_RunEvery" xml:space="preserve">
+    <value>运行宏每隔：</value>
+  </data>
+  <data name="Schedule_Seconds" xml:space="preserve">
+    <value>秒数</value>
+  </data>
+  <data name="Schedule_Minutes" xml:space="preserve">
+    <value>分钟</value>
+  </data>
+  <data name="Schedule_Hours" xml:space="preserve">
+    <value>小时</value>
+  </data>
+  <data name="Schedule_DateTimeSettings" xml:space="preserve">
+    <value>日期/时间设置</value>
+  </data>
+  <data name="Schedule_RunAt" xml:space="preserve">
+    <value>运行宏：</value>
+  </data>
+  <data name="Schedule_RunOnceTip" xml:space="preserve">
+    <value>宏将在选定的日期运行一次</value>
+  </data>
+  <data name="Schedule_Status" xml:space="preserve">
+    <value>状态</value>
+  </data>
+  <data name="Schedule_LastRun" xml:space="preserve">
+    <value>最后一次运行：</value>
+  </data>
+  <data name="Schedule_NextRun" xml:space="preserve">
+    <value>下次运行：</value>
+  </data>
+  <data name="Schedule_StatusLabel" xml:space="preserve">
+    <value>状态：</value>
+  </data>
+  <data name="Schedule_Never" xml:space="preserve">
+    <value>从不</value>
+  </data>
+  <data name="Schedule_NotScheduled" xml:space="preserve">
+    <value>未安排</value>
+  </data>
+  <data name="Schedule_SaveAllTasks" xml:space="preserve">
+    <value>保存所有任务</value>
+  </data>
+  <data name="Schedule_NoTaskSelected" xml:space="preserve">
+    <value>未选择任务</value>
+  </data>
+  <data name="Schedule_SelectTaskHint" xml:space="preserve">
+    <value>从上面的列表中选择一项任务或添加新任务</value>
+  </data>
+  <data name="Schedule_DeleteTitle" xml:space="preserve">
+    <value>删除任务</value>
+  </data>
+  <data name="Schedule_DeleteMessage" xml:space="preserve">
+    <value>您确定要删除任务“{0}”吗？</value>
+  </data>
+  <data name="Schedule_OpenMacroDialogTitle" xml:space="preserve">
+    <value>选择宏文件</value>
+  </data>
+  <data name="Schedule_OpenMacroDialogFilter" xml:space="preserve">
+    <value>宏文件</value>
+  </data>
+  <data name="Schedule_StatusInitFailed" xml:space="preserve">
+    <value>计划：初始化失败 ({0})</value>
+  </data>
+  <data name="Schedule_StatusChangesSaved" xml:space="preserve">
+    <value>计划：更改已保存</value>
+  </data>
+  <data name="Schedule_StatusSaveFailed" xml:space="preserve">
+    <value>计划：保存更改失败 ({0})</value>
+  </data>
+  <data name="Schedule_SaveFailedTitle" xml:space="preserve">
+    <value>计划保存失败</value>
+  </data>
+  <data name="Schedule_StatusExtensionWarning" xml:space="preserve">
+    <value>计划：宏文件扩展名不是 .macro（仍允许使用）</value>
+  </data>
+  <data name="Schedule_StatusRunning" xml:space="preserve">
+    <value>计划：正在运行 {0}...</value>
+  </data>
+  <data name="Schedule_StatusCompleted" xml:space="preserve">
+    <value>计划：{0} 已完成</value>
+  </data>
+  <data name="Schedule_StatusFailedExecution" xml:space="preserve">
+    <value>时间表：{0} - {1}</value>
+  </data>
+  <data name="Shortcut_Title" xml:space="preserve">
+    <value>快捷键</value>
+  </data>
+  <data name="Shortcut_Items" xml:space="preserve">
+    <value>{0} 项</value>
+  </data>
+  <data name="Shortcut_NameFallback" xml:space="preserve">
+    <value>快捷方式名称</value>
+  </data>
+  <data name="Shortcut_NoFile" xml:space="preserve">
+    <value>没有文件</value>
+  </data>
+  <data name="Shortcut_EditTooltip" xml:space="preserve">
+    <value>编辑快捷方式</value>
+  </data>
+  <data name="Shortcut_DeleteTooltip" xml:space="preserve">
+    <value>删除快捷方式</value>
+  </data>
+  <data name="Shortcut_Settings" xml:space="preserve">
+    <value>快捷方式设置</value>
+  </data>
+  <data name="Shortcut_Name" xml:space="preserve">
+    <value>姓名</value>
+  </data>
+  <data name="Shortcut_NamePlaceholder" xml:space="preserve">
+    <value>发票录入快捷方式</value>
+  </data>
+  <data name="Shortcut_Trigger" xml:space="preserve">
+    <value>触发（键盘/鼠标）</value>
+  </data>
+  <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
+    <value>播放速度</value>
+  </data>
+  <data name="Shortcut_LoopPlayback" xml:space="preserve">
+    <value>循环播放</value>
+  </data>
+  <data name="Shortcut_PressToStartStop" xml:space="preserve">
+    <value>按开始/停止</value>
+  </data>
+  <data name="Shortcut_PressToStartStopTooltip" xml:space="preserve">
+    <value>按快捷键开始循环；再按一次即可停止。</value>
+  </data>
+  <data name="Shortcut_RunWhenHeld" xml:space="preserve">
+    <value>按住时运行</value>
+  </data>
+  <data name="Shortcut_RunWhenHeldTooltip" xml:space="preserve">
+    <value>按住快捷键即可运行；松开即可停止。</value>
+  </data>
+  <data name="Shortcut_LoopCount" xml:space="preserve">
+    <value>循环计数</value>
+  </data>
+  <data name="Shortcut_LoopDelayMs" xml:space="preserve">
+    <value>循环延迟（毫秒）</value>
+  </data>
+  <data name="Shortcut_LoopTip" xml:space="preserve">
+    <value>提示：循环次数为 0 表示无限循环</value>
+  </data>
+  <data name="Shortcut_MacroFile" xml:space="preserve">
+    <value>宏文件</value>
+  </data>
+  <data name="Shortcut_NoFileSelected" xml:space="preserve">
+    <value>未选择文件</value>
+  </data>
+  <data name="Shortcut_Browse" xml:space="preserve">
+    <value>浏览</value>
+  </data>
+  <data name="Shortcut_Status" xml:space="preserve">
+    <value>状态</value>
+  </data>
+  <data name="Shortcut_LastTriggered" xml:space="preserve">
+    <value>最后触发：</value>
+  </data>
+  <data name="Shortcut_StatusLabel" xml:space="preserve">
+    <value>状态：</value>
+  </data>
+  <data name="Shortcut_Never" xml:space="preserve">
+    <value>绝不</value>
+  </data>
+  <data name="Shortcut_SaveAll" xml:space="preserve">
+    <value>保存所有快捷方式</value>
+  </data>
+  <data name="Shortcut_NoSelected" xml:space="preserve">
+    <value>未选择快捷方式</value>
+  </data>
+  <data name="Shortcut_SelectHint" xml:space="preserve">
+    <value>从上面的列表中选择快捷方式或添加新快捷方式</value>
+  </data>
+  <data name="Shortcut_DeleteTitle" xml:space="preserve">
+    <value>删除快捷方式</value>
+  </data>
+  <data name="Shortcut_DeleteMessage" xml:space="preserve">
+    <value>您确定要删除快捷方式“{0}”吗？</value>
+  </data>
+  <data name="Shortcut_OpenMacroDialogTitle" xml:space="preserve">
+    <value>选择宏文件</value>
+  </data>
+  <data name="Shortcut_OpenMacroDialogFilter" xml:space="preserve">
+    <value>宏文件</value>
+  </data>
+  <data name="Shortcut_StatusInitFailed" xml:space="preserve">
+    <value>快捷方式：初始化失败 ({0})</value>
+  </data>
+  <data name="Shortcut_StatusChangesSaved" xml:space="preserve">
+    <value>快捷方式：已保存更改</value>
+  </data>
+  <data name="Shortcut_StatusSaveFailed" xml:space="preserve">
+    <value>快捷方式：未能保存更改 ({0})</value>
+  </data>
+  <data name="Shortcut_SaveFailedTitle" xml:space="preserve">
+    <value>快捷方式保存失败</value>
+  </data>
+  <data name="Shortcut_StatusRunning" xml:space="preserve">
+    <value>快捷方式：运行 {0}...</value>
+  </data>
+  <data name="Shortcut_StatusCompleted" xml:space="preserve">
+    <value>快捷方式：{0}已完成</value>
+  </data>
+  <data name="Shortcut_StatusFailed" xml:space="preserve">
+    <value>快捷方式：{0} - {1}</value>
+  </data>
+  <data name="Files_StatusReady" xml:space="preserve">
+    <value>准备好</value>
+  </data>
+  <data name="Files_OpenMacroDialogFilter" xml:space="preserve">
+    <value>宏文件</value>
+  </data>
+  <data name="Files_SaveDialogTitle" xml:space="preserve">
+    <value>保存宏</value>
+  </data>
+  <data name="Files_LoadDialogTitle" xml:space="preserve">
+    <value>加载宏</value>
+  </data>
+  <data name="Files_StatusSaveCancelled" xml:space="preserve">
+    <value>保存已取消</value>
+  </data>
+  <data name="Files_StatusSavedTo" xml:space="preserve">
+    <value>保存到{0}</value>
+  </data>
+  <data name="Files_StatusSaveError" xml:space="preserve">
+    <value>保存错误：{0}</value>
+  </data>
+  <data name="Files_StatusLoadCancelled" xml:space="preserve">
+    <value>加载已取消</value>
+  </data>
+  <data name="Files_StatusLoadUnreadable" xml:space="preserve">
+    <value>加载错误：无法读取文件</value>
+  </data>
+  <data name="Files_StatusLoaded" xml:space="preserve">
+    <value>已加载{0}</value>
+  </data>
+  <data name="Files_StatusLoadError" xml:space="preserve">
+    <value>加载错误：{0}</value>
+  </data>
+  <data name="Files_DeleteLoadedMacroTitle" xml:space="preserve">
+    <value>删除加载的宏</value>
+  </data>
+  <data name="Files_DeleteLoadedMacroMessage" xml:space="preserve">
+    <value>您确定要删除加载的宏“{0}”吗？</value>
+  </data>
+  <data name="Files_StatusRemoved" xml:space="preserve">
+    <value>已删除{0}</value>
+  </data>
+  <data name="Playback_StatusReady" xml:space="preserve">
+    <value>准备好</value>
+  </data>
+  <data name="Playback_StatusPlaying" xml:space="preserve">
+    <value>正在播放...</value>
+  </data>
+  <data name="Playback_StatusComplete" xml:space="preserve">
+    <value>播放完成</value>
+  </data>
+  <data name="Playback_StatusStopped" xml:space="preserve">
+    <value>播放停止</value>
+  </data>
+  <data name="Playback_StatusPaused" xml:space="preserve">
+    <value>已暂停</value>
+  </data>
+  <data name="Playback_StatusError" xml:space="preserve">
+    <value>播放错误：{0}</value>
+  </data>
+  <data name="Playback_StatusWaitingNextSequence" xml:space="preserve">
+    <value>在下一个序列之前等待 {0}...</value>
+  </data>
+  <data name="Playback_StatusSequencePlaying" xml:space="preserve">
+    <value>播放 {0} ({1}/{2}){3} - 序列 {4}</value>
+  </data>
+  <data name="Playback_StatusWaitingNextLoop" xml:space="preserve">
+    <value>在下一个循环之前等待 {0}...</value>
+  </data>
+  <data name="Playback_StatusLoopInfinite" xml:space="preserve">
+    <value>播放（循环 {0} - 无限）</value>
+  </data>
+  <data name="Playback_StatusLoopProgress" xml:space="preserve">
+    <value>播放（循环{0}/{1}）</value>
+  </data>
+  <data name="Playback_StatusStartingIn" xml:space="preserve">
+    <value>{0} 秒后开始...</value>
+  </data>
+  <data name="Recording_StatusReady" xml:space="preserve">
+    <value>准备好</value>
+  </data>
+  <data name="Recording_StatusRecording" xml:space="preserve">
+    <value>记录...</value>
+  </data>
+  <data name="Recording_StatusError" xml:space="preserve">
+    <value>错误：{0}</value>
+  </data>
+  <data name="Recording_StatusRecordedEvents" xml:space="preserve">
+    <value>已记录 {0} 个事件</value>
+  </data>
+  <data name="Recording_StatusLoadedEvents" xml:space="preserve">
+    <value>已加载 {0} 个事件</value>
+  </data>
+  <data name="Editor_DefaultMacroName" xml:space="preserve">
+    <value>手动宏</value>
+  </data>
+  <data name="Editor_StatusReady" xml:space="preserve">
+    <value>准备好</value>
+  </data>
+  <data name="Editor_StatusRemovedAction" xml:space="preserve">
+    <value>删除了动作</value>
+  </data>
+  <data name="Editor_StatusMovedActionUp" xml:space="preserve">
+    <value>动作上移</value>
+  </data>
+  <data name="Editor_StatusMovedActionDown" xml:space="preserve">
+    <value>下移了动作</value>
+  </data>
+  <data name="Editor_StatusDuplicatedAction" xml:space="preserve">
+    <value>重复动作</value>
+  </data>
+  <data name="Editor_StatusClearedAllActions" xml:space="preserve">
+    <value>清除所有动作</value>
+  </data>
+  <data name="Editor_StatusUndone" xml:space="preserve">
+    <value>已撤销</value>
+  </data>
+  <data name="Editor_StatusRedone" xml:space="preserve">
+    <value>重做</value>
+  </data>
+  <data name="Editor_StatusSelectActionFirst" xml:space="preserve">
+    <value>首先选择一个动作</value>
+  </data>
+  <data name="Editor_StatusCaptureMousePrompt" xml:space="preserve">
+    <value>单击任意位置捕获位置（Esc 取消）...</value>
+  </data>
+  <data name="Editor_StatusCaptureKeyPrompt" xml:space="preserve">
+    <value>按一个键即可捕获...</value>
+  </data>
+  <data name="Editor_StatusCaptureCancelled" xml:space="preserve">
+    <value>捕获已取消</value>
+  </data>
+  <data name="Editor_StatusCaptureSelectionChanged" xml:space="preserve">
+    <value>捕获被忽略：选定的操作已更改</value>
+  </data>
+  <data name="Editor_StatusSaveCancelled" xml:space="preserve">
+    <value>保存已取消</value>
+  </data>
+  <data name="Editor_StatusLoadCancelled" xml:space="preserve">
+    <value>加载已取消</value>
+  </data>
+  <data name="Editor_StatusLoadFailed" xml:space="preserve">
+    <value>加载宏失败</value>
+  </data>
+  <data name="Editor_StatusInsertedElseBlock" xml:space="preserve">
+    <value>已插入 else 块</value>
+  </data>
+  <data name="Editor_StatusElseAlreadyExists" xml:space="preserve">
+    <value>所选 if 块已包含 else</value>
+  </data>
+  <data name="Editor_StatusSelectIfBlockFirst" xml:space="preserve">
+    <value>首先选择一个 if 块</value>
+  </data>
+  <data name="Editor_StatusRemovedBlock" xml:space="preserve">
+    <value>已移除块</value>
+  </data>
+  <data name="Editor_StatusOperationBlocked" xml:space="preserve">
+    <value>操作被阻止：会破坏块结构</value>
+  </data>
+  <data name="Editor_SaveDialogTitle" xml:space="preserve">
+    <value>保存宏</value>
+  </data>
+  <data name="Editor_LoadDialogTitle" xml:space="preserve">
+    <value>加载宏</value>
+  </data>
+  <data name="Editor_MacroFileDialogName" xml:space="preserve">
+    <value>宏文件</value>
+  </data>
+  <data name="Editor_DialogTitleNoActions" xml:space="preserve">
+    <value>无任何操作</value>
+  </data>
+  <data name="Editor_DialogMessageNoActions" xml:space="preserve">
+    <value>保存前请至少添加一项操作。</value>
+  </data>
+  <data name="Editor_DialogTitleValidationErrors" xml:space="preserve">
+    <value>验证错误</value>
+  </data>
+  <data name="Editor_ValidationErrorHeader" xml:space="preserve">
+    <value>请修正以下错误：</value>
+  </data>
+  <data name="Editor_StatusCapturedPosition" xml:space="preserve">
+    <value>捕获的位置：({0}, {1})</value>
+  </data>
+  <data name="Editor_StatusCaptureError" xml:space="preserve">
+    <value>捕获错误：{0}</value>
+  </data>
+  <data name="Editor_StatusCapturedKey" xml:space="preserve">
+    <value>已捕获：{0}（代码：{1}）</value>
+  </data>
+  <data name="Editor_StatusValidationFailed" xml:space="preserve">
+    <value>验证失败：{0} 个错误</value>
+  </data>
+  <data name="Editor_StatusSaved" xml:space="preserve">
+    <value>已保存：{0}</value>
+  </data>
+  <data name="Editor_StatusSaveError" xml:space="preserve">
+    <value>保存错误：{0}</value>
+  </data>
+  <data name="Editor_StatusLoaded" xml:space="preserve">
+    <value>已加载：{0}</value>
+  </data>
+  <data name="Editor_StatusLoadedWithWarnings" xml:space="preserve">
+    <value>已加载：{0}（{1} 恢复警告）</value>
+  </data>
+  <data name="Editor_StatusLoadError" xml:space="preserve">
+    <value>加载错误：{0}</value>
+  </data>
+  <data name="Editor_StatusRestoreWarningFallback" xml:space="preserve">
+    <value>无法恢复脚本步骤；从事件流加载。</value>
+  </data>
+  <data name="Editor_StatusAutoManagedAction" xml:space="preserve">
+    <value>此操作是自动管理的。</value>
+  </data>
+  <data name="Editor_Actions" xml:space="preserve">
+    <value>操作</value>
+  </data>
+  <data name="Editor_RemoveActionTooltip" xml:space="preserve">
+    <value>删除操作</value>
+  </data>
+  <data name="Editor_Remove" xml:space="preserve">
+    <value>移除</value>
+  </data>
+  <data name="Editor_RemoveBlockTooltip" xml:space="preserve">
+    <value>移除方块</value>
+  </data>
+  <data name="Editor_Block" xml:space="preserve">
+    <value>块</value>
+  </data>
+  <data name="Editor_MoveUpTooltip" xml:space="preserve">
+    <value>向上移动</value>
+  </data>
+  <data name="Editor_MoveDownTooltip" xml:space="preserve">
+    <value>下移</value>
+  </data>
+  <data name="Editor_DuplicateTooltip" xml:space="preserve">
+    <value>复制</value>
+  </data>
+  <data name="Editor_AddNewAction" xml:space="preserve">
+    <value>添加新动作</value>
+  </data>
+  <data name="Editor_AddAction" xml:space="preserve">
+    <value>添加动作</value>
+  </data>
+  <data name="Editor_SelectedActionProperties" xml:space="preserve">
+    <value>选定的操作属性</value>
+  </data>
+  <data name="Editor_Type" xml:space="preserve">
+    <value>类型：</value>
+  </data>
+  <data name="Editor_InsertElseBlock" xml:space="preserve">
+    <value>插入其他块</value>
+  </data>
+  <data name="Editor_CurrentPositionHint" xml:space="preserve">
+    <value>回放会在实时光标位置解析此操作。</value>
+  </data>
+  <data name="Editor_Coordinates" xml:space="preserve">
+    <value>坐标：</value>
+  </data>
+  <data name="Editor_CapturePosition" xml:space="preserve">
+    <value>捕获位置</value>
+  </data>
+  <data name="Editor_CancelCapture" xml:space="preserve">
+    <value>取消捕捉</value>
+  </data>
+  <data name="Editor_CoordinateMode" xml:space="preserve">
+    <value>坐标模式：</value>
+  </data>
+  <data name="Editor_Absolute" xml:space="preserve">
+    <value>绝对</value>
+  </data>
+  <data name="Editor_Relative" xml:space="preserve">
+    <value>相对的</value>
+  </data>
+  <data name="Editor_MouseButton" xml:space="preserve">
+    <value>鼠标按钮：</value>
+  </data>
+  <data name="Editor_Key" xml:space="preserve">
+    <value>按键：</value>
+  </data>
+  <data name="Editor_KeyPlaceholder" xml:space="preserve">
+    <value>代码</value>
+  </data>
+  <data name="Editor_KeyFallback" xml:space="preserve">
+    <value>（输入代码）</value>
+  </data>
+  <data name="Editor_CaptureKey" xml:space="preserve">
+    <value>捕获按键</value>
+  </data>
+  <data name="Editor_RandomizeDelay" xml:space="preserve">
+    <value>随机化延迟</value>
+  </data>
+  <data name="Editor_DelayMs" xml:space="preserve">
+    <value>延迟（毫秒）：</value>
+  </data>
+  <data name="Editor_DelayPlaceholder" xml:space="preserve">
+    <value>ms</value>
+  </data>
+  <data name="Editor_RandomDelayRangeMs" xml:space="preserve">
+    <value>随机延迟范围（毫秒）：</value>
+  </data>
+  <data name="Editor_Min" xml:space="preserve">
+    <value>最小</value>
+  </data>
+  <data name="Editor_Max" xml:space="preserve">
+    <value>最大</value>
+  </data>
+  <data name="Editor_ScrollAmount" xml:space="preserve">
+    <value>滚动量：</value>
+  </data>
+  <data name="Editor_Amount" xml:space="preserve">
+    <value>数量</value>
+  </data>
+  <data name="Editor_ScrollHint" xml:space="preserve">
+    <value>(+) 上/右，(-) 下/左</value>
+  </data>
+  <data name="Editor_SetVariable" xml:space="preserve">
+    <value>设置变量：</value>
+  </data>
+  <data name="Editor_VariableNamePlaceholder" xml:space="preserve">
+    <value>变量名称（例如 retryCount）</value>
+  </data>
+  <data name="Editor_Value" xml:space="preserve">
+    <value>值</value>
+  </data>
+  <data name="Editor_SetVariableHint" xml:space="preserve">
+    <value>名称、类型和值会分别存储。编译结果为：set &lt;名称&gt; &lt;值&gt;</value>
+  </data>
+  <data name="Editor_VariableUpdate" xml:space="preserve">
+    <value>变量更新：</value>
+  </data>
+  <data name="Editor_AmountOrVariable" xml:space="preserve">
+    <value>金额/变量</value>
+  </data>
+  <data name="Editor_IncrementDecrementHint" xml:space="preserve">
+    <value>增量/减量可以是数字或变量引用。</value>
+  </data>
+  <data name="Editor_RepeatBlock" xml:space="preserve">
+    <value>重复块：</value>
+  </data>
+  <data name="Editor_CountOrVariable" xml:space="preserve">
+    <value>计数/变量</value>
+  </data>
+  <data name="Editor_Condition" xml:space="preserve">
+    <value>条件：</value>
+  </data>
+  <data name="Editor_LeftOperand" xml:space="preserve">
+    <value>左操作数</value>
+  </data>
+  <data name="Editor_LeftValue" xml:space="preserve">
+    <value>左值</value>
+  </data>
+  <data name="Editor_RightOperand" xml:space="preserve">
+    <value>右操作数</value>
+  </data>
+  <data name="Editor_RightValue" xml:space="preserve">
+    <value>右值</value>
+  </data>
+  <data name="Editor_ForBlock" xml:space="preserve">
+    <value>For 块：</value>
+  </data>
+  <data name="Editor_LoopVariablePlaceholder" xml:space="preserve">
+    <value>循环变量（例如 rowIndex）</value>
+  </data>
+  <data name="Editor_Start" xml:space="preserve">
+    <value>开始</value>
+  </data>
+  <data name="Editor_End" xml:space="preserve">
+    <value>结尾</value>
+  </data>
+  <data name="Editor_UseExplicitStep" xml:space="preserve">
+    <value>使用显式步骤</value>
+  </data>
+  <data name="Editor_Step" xml:space="preserve">
+    <value>步</value>
+  </data>
+  <data name="Editor_SelectActionPrompt" xml:space="preserve">
+    <value>选择一个操作来编辑其属性</value>
+  </data>
+  <data name="Editor_RestoreWarnings" xml:space="preserve">
+    <value>恢复警告</value>
+  </data>
+  <data name="Editor_UndoTooltip" xml:space="preserve">
+    <value>撤消</value>
+  </data>
+  <data name="Editor_Undo" xml:space="preserve">
+    <value>撤消</value>
+  </data>
+  <data name="Editor_RedoTooltip" xml:space="preserve">
+    <value>重做</value>
+  </data>
+  <data name="Editor_Redo" xml:space="preserve">
+    <value>重做</value>
+  </data>
+  <data name="Editor_ClearAllTooltip" xml:space="preserve">
+    <value>全部清除</value>
+  </data>
+  <data name="Editor_Clear" xml:space="preserve">
+    <value>清除</value>
+  </data>
+  <data name="Editor_Load" xml:space="preserve">
+    <value>加载</value>
+  </data>
+  <data name="Editor_Save" xml:space="preserve">
+    <value>保存</value>
+  </data>
+  <data name="TextExpansion_ModeDirectTyping" xml:space="preserve">
+    <value>直接打字</value>
+  </data>
+  <data name="TextExpansion_ModePaste" xml:space="preserve">
+    <value>粘贴</value>
+  </data>
+  <data name="HotkeyCapture_PressAKey" xml:space="preserve">
+    <value>按一个键...</value>
+  </data>
+  <data name="HotkeyCapture_ClickToSet" xml:space="preserve">
+    <value>点击设置热键</value>
+  </data>
+  <data name="HotkeyCapture_ServiceError" xml:space="preserve">
+    <value>服务错误</value>
+  </data>
+  <data name="Dialog_Yes" xml:space="preserve">
+    <value>是</value>
+  </data>
+  <data name="Dialog_No" xml:space="preserve">
+    <value>否</value>
+  </data>
+  <data name="Dialog_Ok" xml:space="preserve">
+    <value>好的</value>
+  </data>
+  <data name="Tray_ShowHide" xml:space="preserve">
+    <value>显示/隐藏</value>
+  </data>
+  <data name="Tray_StartRecording" xml:space="preserve">
+    <value>开始录音 ({0})</value>
+  </data>
+  <data name="Tray_StartPlayback" xml:space="preserve">
+    <value>开始播放 ({0})</value>
+  </data>
+  <data name="Tray_Stop" xml:space="preserve">
+    <value>停止 ({0})</value>
+  </data>
+  <data name="Tray_Exit" xml:space="preserve">
+    <value>退出</value>
+  </data>
+  <data name="Editor_CurrentPositionClick" xml:space="preserve">
+    <value>单击当前光标位置</value>
+  </data>
+  <data name="Editor_CurrentPositionHold" xml:space="preserve">
+    <value>保持在当前光标位置</value>
+  </data>
+  <data name="Editor_CurrentPositionRelease" xml:space="preserve">
+    <value>在当前光标位置释放</value>
+  </data>
+  <data name="Editor_CurrentPositionUse" xml:space="preserve">
+    <value>使用当前光标位置</value>
+  </data>
+  <data name="Editor_RawScriptStep" xml:space="preserve">
+    <value>原始脚本步骤：</value>
+  </data>
+  <data name="Editor_TextToType" xml:space="preserve">
+    <value>要输入的文本：</value>
+  </data>
+  <data name="Editor_OriginalScriptLine" xml:space="preserve">
+    <value>原始脚本行</value>
+  </data>
+  <data name="Editor_EnterTextToType" xml:space="preserve">
+    <value>输入要输入的文字...</value>
+  </data>
+  <data name="Editor_RawScriptHint" xml:space="preserve">
+    <value>此步骤无法映射到结构化字段，将按原样保存。</value>
+  </data>
+  <data name="Editor_TextToTypeHint" xml:space="preserve">
+    <value>每个字符均作为单独的按键输入（最多 {0} 个字符）</value>
+  </data>
+  <data name="Editor_StatusAddedAction" xml:space="preserve">
+    <value>添加了{0}</value>
+  </data>
+  <data name="Editor_BlockName_If" xml:space="preserve">
+    <value>如果</value>
+  </data>
+  <data name="Editor_BlockName_Else" xml:space="preserve">
+    <value>否则</value>
+  </data>
+  <data name="Editor_BlockName_While" xml:space="preserve">
+    <value>While</value>
+  </data>
+  <data name="Editor_BlockName_For" xml:space="preserve">
+    <value>For</value>
+  </data>
+  <data name="Editor_BlockName_Repeat" xml:space="preserve">
+    <value>重复</value>
+  </data>
+  <data name="Editor_BlockName_Block" xml:space="preserve">
+    <value>块</value>
+  </data>
+  <data name="Editor_Action_MouseMoveAbsolute" xml:space="preserve">
+    <value>移至（{0}，{1}）</value>
+  </data>
+  <data name="Editor_Action_MouseMoveRelative" xml:space="preserve">
+    <value>移动 ({0:+#;-#;0}, {1:+#;-#;0})</value>
+  </data>
+  <data name="Editor_Action_MouseClickCurrent" xml:space="preserve">
+    <value>点击当前位置的{0}</value>
+  </data>
+  <data name="Editor_Action_MouseClick" xml:space="preserve">
+    <value>点击{0}</value>
+  </data>
+  <data name="Editor_Action_MouseDown" xml:space="preserve">
+    <value>按住{0}</value>
+  </data>
+  <data name="Editor_Action_MouseUp" xml:space="preserve">
+    <value>释放{0}</value>
+  </data>
+  <data name="Editor_Action_KeyPress" xml:space="preserve">
+    <value>按“{0}”</value>
+  </data>
+  <data name="Editor_Action_KeyDown" xml:space="preserve">
+    <value>按住“{0}”</value>
+  </data>
+  <data name="Editor_Action_KeyUp" xml:space="preserve">
+    <value>释放“{0}”</value>
+  </data>
+  <data name="Editor_Action_DelayRandom" xml:space="preserve">
+    <value>等待 {0}-{1} 毫秒（随机）</value>
+  </data>
+  <data name="Editor_Action_Delay" xml:space="preserve">
+    <value>等待 {0} 毫秒</value>
+  </data>
+  <data name="Editor_Action_ScrollUp" xml:space="preserve">
+    <value>向上滚动{0}</value>
+  </data>
+  <data name="Editor_Action_ScrollDown" xml:space="preserve">
+    <value>向下滚动{0}</value>
+  </data>
+  <data name="Editor_Action_ScrollRight" xml:space="preserve">
+    <value>向右滚动{0}</value>
+  </data>
+  <data name="Editor_Action_ScrollLeft" xml:space="preserve">
+    <value>向左滚动 {0}</value>
+  </data>
+  <data name="Editor_Action_TextInputEmpty" xml:space="preserve">
+    <value>文本输入（空）</value>
+  </data>
+  <data name="Editor_Action_TextInput" xml:space="preserve">
+    <value>输入“{0}”</value>
+  </data>
+  <data name="Editor_Action_SetVariableShort" xml:space="preserve">
+    <value>设置变量</value>
+  </data>
+  <data name="Editor_Action_IncrementVariableShort" xml:space="preserve">
+    <value>递增变量</value>
+  </data>
+  <data name="Editor_Action_DecrementVariableShort" xml:space="preserve">
+    <value>递减变量</value>
+  </data>
+  <data name="Editor_Action_RepeatBlockShort" xml:space="preserve">
+    <value>重复</value>
+  </data>
+  <data name="Editor_Action_IfBlockShort" xml:space="preserve">
+    <value>如果</value>
+  </data>
+  <data name="Editor_Action_ElseBlockShort" xml:space="preserve">
+    <value>否则块</value>
+  </data>
+  <data name="Editor_Action_WhileBlockShort" xml:space="preserve">
+    <value>While</value>
+  </data>
+  <data name="Editor_Action_ForBlockShort" xml:space="preserve">
+    <value>For</value>
+  </data>
+  <data name="Editor_Action_BreakShort" xml:space="preserve">
+    <value>Break</value>
+  </data>
+  <data name="Editor_Action_ContinueShort" xml:space="preserve">
+    <value>继续</value>
+  </data>
+  <data name="Editor_Action_EndBlockShort" xml:space="preserve">
+    <value>结束块</value>
+  </data>
+  <data name="Editor_Action_RawScriptStepShort" xml:space="preserve">
+    <value>原始脚本步骤</value>
+  </data>
+  <data name="Editor_Action_RawScriptStep" xml:space="preserve">
+    <value>原始脚本：{0}</value>
+  </data>
+  <data name="Editor_Action_UnknownShort" xml:space="preserve">
+    <value>未知操作</value>
+  </data>
+  <data name="Editor_ActionType_MouseMove" xml:space="preserve">
+    <value>鼠标移动</value>
+  </data>
+  <data name="Editor_ActionType_MouseClick" xml:space="preserve">
+    <value>鼠标点击</value>
+  </data>
+  <data name="Editor_ActionType_MouseDown" xml:space="preserve">
+    <value>鼠标按下</value>
+  </data>
+  <data name="Editor_ActionType_MouseUp" xml:space="preserve">
+    <value>松开鼠标</value>
+  </data>
+  <data name="Editor_ActionType_KeyPress" xml:space="preserve">
+    <value>按键</value>
+  </data>
+  <data name="Editor_ActionType_KeyDown" xml:space="preserve">
+    <value>按下按键</value>
+  </data>
+  <data name="Editor_ActionType_KeyUp" xml:space="preserve">
+    <value>松开按键</value>
+  </data>
+  <data name="Editor_ActionType_Delay" xml:space="preserve">
+    <value>延迟</value>
+  </data>
+  <data name="Editor_ActionType_ScrollVertical" xml:space="preserve">
+    <value>垂直滚动</value>
+  </data>
+  <data name="Editor_ActionType_ScrollHorizontal" xml:space="preserve">
+    <value>水平滚动</value>
+  </data>
+  <data name="Editor_ActionType_TextInput" xml:space="preserve">
+    <value>文字输入</value>
+  </data>
+  <data name="Editor_ActionType_SetVariable" xml:space="preserve">
+    <value>设置变量</value>
+  </data>
+  <data name="Editor_ActionType_IncrementVariable" xml:space="preserve">
+    <value>递增变量</value>
+  </data>
+  <data name="Editor_ActionType_DecrementVariable" xml:space="preserve">
+    <value>递减变量</value>
+  </data>
+  <data name="Editor_ActionType_RepeatBlockStart" xml:space="preserve">
+    <value>重复块开始</value>
+  </data>
+  <data name="Editor_ActionType_IfBlockStart" xml:space="preserve">
+    <value>If 块开始</value>
+  </data>
+  <data name="Editor_ActionType_ElseBlockStart" xml:space="preserve">
+    <value>Else 块开始</value>
+  </data>
+  <data name="Editor_ActionType_WhileBlockStart" xml:space="preserve">
+    <value>While 块开始</value>
+  </data>
+  <data name="Editor_ActionType_ForBlockStart" xml:space="preserve">
+    <value>对于块启动</value>
+  </data>
+  <data name="Editor_ActionType_BlockEnd" xml:space="preserve">
+    <value>结束块</value>
+  </data>
+  <data name="Editor_ActionType_Break" xml:space="preserve">
+    <value>Break</value>
+  </data>
+  <data name="Editor_ActionType_Continue" xml:space="preserve">
+    <value>继续</value>
+  </data>
+  <data name="Editor_ActionType_RawScriptStep" xml:space="preserve">
+    <value>原始脚本步骤</value>
+  </data>
+  <data name="MouseButton_Left" xml:space="preserve">
+    <value>左键</value>
+  </data>
+  <data name="MouseButton_Right" xml:space="preserve">
+    <value>右键</value>
+  </data>
+  <data name="MouseButton_Middle" xml:space="preserve">
+    <value>中间</value>
+  </data>
+  <data name="MouseButton_ScrollUp" xml:space="preserve">
+    <value>向上滚动</value>
+  </data>
+  <data name="MouseButton_ScrollDown" xml:space="preserve">
+    <value>向下滚动</value>
+  </data>
+  <data name="MouseButton_ScrollLeft" xml:space="preserve">
+    <value>向左滚动</value>
+  </data>
+  <data name="MouseButton_ScrollRight" xml:space="preserve">
+    <value>向右滚动</value>
+  </data>
+  <data name="Language_Chinese" xml:space="preserve">
+    <value>中文</value>
+  </data>
+  <data name="Language_Japanese" xml:space="preserve">
+    <value>日语</value>
+  </data>
+  <data name="Language_Spanish" xml:space="preserve">
+    <value>西班牙语</value>
+  </data>
+  <data name="Language_Arabic" xml:space="preserve">
+    <value>阿拉伯</value>
+  </data>
+  <data name="Language_French" xml:space="preserve">
+    <value>法语</value>
+  </data>
+  <data name="Language_Portuguese" xml:space="preserve">
+    <value>葡萄牙语</value>
+  </data>
+  <data name="Language_Russian" xml:space="preserve">
+    <value>俄语</value>
+  </data>
+</root>

@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <ApplicationManifest>..\CrossMacro.UI\app.manifest</ApplicationManifest>
     <ApplicationIcon>..\CrossMacro.UI\Assets\mouse-icon.ico</ApplicationIcon>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>

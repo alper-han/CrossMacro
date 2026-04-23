@@ -7,6 +7,7 @@ using CrossMacro.Infrastructure.Services;
 using CrossMacro.UI.Startup;
 using CrossMacro.UI.ViewModels;
 using CrossMacro.UI.Services;
+using CrossMacro.UI.Localization;
 
 namespace CrossMacro.UI.DependencyInjection;
 
@@ -78,6 +79,9 @@ public static class ServiceCollectionExtensions
 
         if (includeGuiOnlyServices)
         {
+            services.AddSingleton<LocalizationService>();
+            services.AddSingleton<ILocalizationService>(sp => sp.GetRequiredService<LocalizationService>());
+            services.AddSingleton<EditorActionDisplayFormatter>();
             services.AddSingleton<ITrayIconService, TrayIconService>();
             services.AddSingleton<IDialogService, DialogService>();
             services.AddSingleton<IUpdateService, GitHubUpdateService>();

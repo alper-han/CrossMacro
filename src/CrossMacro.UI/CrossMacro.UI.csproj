@@ -6,8 +6,12 @@
     <Nullable>enable</Nullable>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <AvaloniaStatsTaskEnabled>false</AvaloniaStatsTaskEnabled>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <InvariantGlobalization>false</InvariantGlobalization>
     <Description>Cross-platform mouse and keyboard macro automation tool with text expansion support.</Description>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <GenerateResourceDesignerFiles>true</GenerateResourceDesignerFiles>
   </PropertyGroup>
 
   <!-- Self-contained deployment for Linux packages (DEB/RPM) -->
@@ -23,6 +27,22 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Localization\Resources.resx">
+      <Generator>PublicResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <CustomToolNamespace>CrossMacro.UI.Localization</CustomToolNamespace>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Localization\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
   </ItemGroup>
 
   <ItemGroup>

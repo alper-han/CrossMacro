@@ -142,4 +142,9 @@ public class AppSettings
     /// Current UI Theme (Classic, Latte, Mocha, Dracula, Nord, Everforest, Gruvbox, Solarized, Crimson)
     /// </summary>
     public string Theme { get; set; } = "Mocha";
+
+    /// <summary>
+    /// Current UI language (en, tr, zh, ja, es, ar, fr, pt, ru).
+    /// </summary>
+    public string Language { get; set; } = "en";
 }

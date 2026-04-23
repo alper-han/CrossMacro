@@ -1,0 +1,1293 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="App_Title" xml:space="preserve">
+    <value>CrossMacro</value>
+  </data>
+  <data name="MainWindow_MinimizeTooltip" xml:space="preserve">
+    <value>最小化する</value>
+  </data>
+  <data name="MainWindow_CloseTooltip" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
+  <data name="MainWindow_DismissTooltip" xml:space="preserve">
+    <value>却下する</value>
+  </data>
+  <data name="MainWindow_GnomeExtensionTitle" xml:space="preserve">
+    <value>GNOME 拡張機能</value>
+  </data>
+  <data name="MainWindow_UpdateAvailableTitle" xml:space="preserve">
+    <value>利用可能なアップデート</value>
+  </data>
+  <data name="MainWindow_ViewOnGitHub" xml:space="preserve">
+    <value>GitHub で見る</value>
+  </data>
+  <data name="MainWindow_UpdateAvailableVersion" xml:space="preserve">
+    <value>v{0} は利用可能です</value>
+  </data>
+  <data name="Navigation_Recording" xml:space="preserve">
+    <value>記録</value>
+  </data>
+  <data name="Navigation_Playback" xml:space="preserve">
+    <value>再生</value>
+  </data>
+  <data name="Navigation_Files" xml:space="preserve">
+    <value>ファイル</value>
+  </data>
+  <data name="Navigation_TextExpansion" xml:space="preserve">
+    <value>テキスト展開</value>
+  </data>
+  <data name="Navigation_Shortcuts" xml:space="preserve">
+    <value>ショートカット</value>
+  </data>
+  <data name="Navigation_Schedule" xml:space="preserve">
+    <value>スケジュール</value>
+  </data>
+  <data name="Navigation_Editor" xml:space="preserve">
+    <value>エディタ</value>
+  </data>
+  <data name="Navigation_Settings" xml:space="preserve">
+    <value>設定</value>
+  </data>
+  <data name="Settings_GlobalHotkeys" xml:space="preserve">
+    <value>グローバルホットキー</value>
+  </data>
+  <data name="Settings_ToggleRecording" xml:space="preserve">
+    <value>記録の切り替え (開始/停止)</value>
+  </data>
+  <data name="Settings_TogglePlayback" xml:space="preserve">
+    <value>再生の切り替え (開始/停止)</value>
+  </data>
+  <data name="Settings_PauseResumePlayback" xml:space="preserve">
+    <value>再生の一時停止/再開</value>
+  </data>
+  <data name="Settings_EnableTrayIcon" xml:space="preserve">
+    <value>トレイアイコンを有効にする</value>
+  </data>
+  <data name="Settings_StartMinimized" xml:space="preserve">
+    <value>最小化して開始</value>
+  </data>
+  <data name="Settings_StartMinimizedDescription" xml:space="preserve">
+    <value>利用可能な場合はトレイに隠して起動します。それ以外の場合は最小化して開始します。</value>
+  </data>
+  <data name="Settings_EnableTextExpansion" xml:space="preserve">
+    <value>テキスト展開を有効にする</value>
+  </data>
+  <data name="Settings_CheckForUpdates" xml:space="preserve">
+    <value>起動時にアップデートを確認する</value>
+  </data>
+  <data name="Settings_LogLevel" xml:space="preserve">
+    <value>ログレベル</value>
+  </data>
+  <data name="Settings_LogLevelDescription" xml:space="preserve">
+    <value>ログに記録される診断情報の量を制御します</value>
+  </data>
+  <data name="Settings_Theme" xml:space="preserve">
+    <value>テーマ</value>
+  </data>
+  <data name="Settings_ThemeDescription" xml:space="preserve">
+    <value>アプリケーションのビジュアルテーマを選択してください</value>
+  </data>
+  <data name="Settings_Language" xml:space="preserve">
+    <value>言語</value>
+  </data>
+  <data name="Settings_LanguageDescription" xml:space="preserve">
+    <value>アプリケーション言語を選択してください</value>
+  </data>
+  <data name="Settings_SupportTitle" xml:space="preserve">
+    <value>クロスマクロのサポート</value>
+  </data>
+  <data name="Settings_SupportDescription" xml:space="preserve">
+    <value>このプロジェクトが気に入ったら、GitHub でスターを付けることを検討してください。</value>
+  </data>
+  <data name="Settings_StarOnGitHub" xml:space="preserve">
+    <value>GitHub でスターを付ける</value>
+  </data>
+  <data name="Settings_HotkeyAlreadyAssignedTitle" xml:space="preserve">
+    <value>ホットキーはすでに割り当てられています</value>
+  </data>
+  <data name="Language_Auto" xml:space="preserve">
+    <value>システムのデフォルト</value>
+  </data>
+  <data name="Language_English" xml:space="preserve">
+    <value>英語</value>
+  </data>
+  <data name="Language_Turkish" xml:space="preserve">
+    <value>トルコ語</value>
+  </data>
+  <data name="Status_Ready" xml:space="preserve">
+    <value>準備完了</value>
+  </data>
+  <data name="Status_RecordedEvents" xml:space="preserve">
+    <value>{0} 件のイベントを記録しました</value>
+  </data>
+  <data name="Status_LoadedMacro" xml:space="preserve">
+    <value>ロード済み: {0}</value>
+  </data>
+  <data name="Status_CreatedMacro" xml:space="preserve">
+    <value>作成済み: {0} ({1} イベント)</value>
+  </data>
+  <data name="Recording_LabelStatus" xml:space="preserve">
+    <value>状態</value>
+  </data>
+  <data name="Recording_LabelEvents" xml:space="preserve">
+    <value>イベント</value>
+  </data>
+  <data name="Recording_LabelState" xml:space="preserve">
+    <value>状態</value>
+  </data>
+  <data name="Recording_TooltipRecording" xml:space="preserve">
+    <value>記録中...</value>
+  </data>
+  <data name="Recording_TooltipReady" xml:space="preserve">
+    <value>準備完了</value>
+  </data>
+  <data name="Recording_CaptureSettings" xml:space="preserve">
+    <value>キャプチャ設定</value>
+  </data>
+  <data name="Recording_Mouse" xml:space="preserve">
+    <value>マウス</value>
+  </data>
+  <data name="Recording_Keyboard" xml:space="preserve">
+    <value>キーボード</value>
+  </data>
+  <data name="Recording_ForceRelativeCoordinates" xml:space="preserve">
+    <value>相対座標を強制する</value>
+  </data>
+  <data name="Recording_ForceRelativeCoordinatesDescription" xml:space="preserve">
+    <value>絶対位置がサポートされている場合でも、相対マウス位置を使用する</value>
+  </data>
+  <data name="Recording_ForceRelativeCoordinatesHelp" xml:space="preserve">
+    <value>ゲーム内でマクロを使用するために必要です。</value>
+  </data>
+  <data name="Recording_SkipInitialZeroZero" xml:space="preserve">
+    <value>最初の 0,0 位置をスキップ</value>
+  </data>
+  <data name="Recording_SkipInitialZeroZeroDescription" xml:space="preserve">
+    <value>記録開始時にカーソルを原点に移動しない</value>
+  </data>
+  <data name="Recording_StartRecording" xml:space="preserve">
+    <value>記録を開始</value>
+  </data>
+  <data name="Recording_StopRecording" xml:space="preserve">
+    <value>記録を停止</value>
+  </data>
+  <data name="Recording_Tip" xml:space="preserve">
+    <value>ヒント: 他のアプリを使用中でもグローバルホットキーで記録を操作できます</value>
+  </data>
+  <data name="Schedule_ItemsText" xml:space="preserve">
+    <value>{0} 個のアイテム</value>
+  </data>
+  <data name="Schedule_DefaultTaskName" xml:space="preserve">
+    <value>タスク {0}</value>
+  </data>
+  <data name="Shortcut_ItemsText" xml:space="preserve">
+    <value>{0} 個のアイテム</value>
+  </data>
+  <data name="Shortcut_DefaultTaskName" xml:space="preserve">
+    <value>ショートカット {0}</value>
+  </data>
+  <data name="Schedule_NoFile" xml:space="preserve">
+    <value>ファイルがありません</value>
+  </data>
+  <data name="Schedule_ListSummary" xml:space="preserve">
+    <value>{0} • {1}</value>
+  </data>
+  <data name="Schedule_StatusPlaceholder" xml:space="preserve">
+    <value>まだ実行されていません</value>
+  </data>
+  <data name="Shortcut_StatusPlaceholder" xml:space="preserve">
+    <value>まだトリガーされていません</value>
+  </data>
+  <data name="Playback_PlaybackSpeed" xml:space="preserve">
+    <value>再生速度</value>
+  </data>
+  <data name="Playback_LoopPlayback" xml:space="preserve">
+    <value>ループ再生</value>
+  </data>
+  <data name="Playback_RandomizeLoopDelay" xml:space="preserve">
+    <value>ループ遅延をランダム化する</value>
+  </data>
+  <data name="Playback_LoopCount" xml:space="preserve">
+    <value>ループ数</value>
+  </data>
+  <data name="Playback_LoopDelayMs" xml:space="preserve">
+    <value>ループ遅延 (ミリ秒)</value>
+  </data>
+  <data name="Playback_LoopDelayRangeMs" xml:space="preserve">
+    <value>ループ遅延範囲 (ms)</value>
+  </data>
+  <data name="Playback_CountdownSec" xml:space="preserve">
+    <value>カウントダウン (秒)</value>
+  </data>
+  <data name="Playback_PlayMacro" xml:space="preserve">
+    <value>マクロを再生する</value>
+  </data>
+  <data name="Playback_StopPlayback" xml:space="preserve">
+    <value>再生を停止する</value>
+  </data>
+  <data name="Playback_LoopTip" xml:space="preserve">
+    <value>ヒント: ループ数 0 は無限ループを意味します</value>
+  </data>
+  <data name="Files_LoadedMacros" xml:space="preserve">
+    <value>ロードされたマクロ</value>
+  </data>
+  <data name="Files_RemoveLoadedMacroTooltip" xml:space="preserve">
+    <value>読み込まれたマクロを削除する</value>
+  </data>
+  <data name="Files_LoadMacro" xml:space="preserve">
+    <value>マクロのロード</value>
+  </data>
+  <data name="Files_SaveMacro" xml:space="preserve">
+    <value>マクロの保存</value>
+  </data>
+  <data name="Files_SelectedMacro" xml:space="preserve">
+    <value>選択したマクロ</value>
+  </data>
+  <data name="Files_MacroName" xml:space="preserve">
+    <value>マクロ名</value>
+  </data>
+  <data name="Files_MacroNamePlaceholder" xml:space="preserve">
+    <value>夜間エクスポートマクロ</value>
+  </data>
+  <data name="Files_SequenceRepeat" xml:space="preserve">
+    <value>シーケンスの繰り返し</value>
+  </data>
+  <data name="Files_SequenceRepeatDescription" xml:space="preserve">
+    <value>シーケンスの繰り返しは、ロードされたリスト全体でシーケンシャル サイクルの再生が実行されている間にのみ適用されます。</value>
+  </data>
+  <data name="Files_PlaybackMode" xml:space="preserve">
+    <value>再生モード</value>
+  </data>
+  <data name="Files_PlaybackModeSelectedOnly" xml:space="preserve">
+    <value>選択したマクロのみ</value>
+  </data>
+  <data name="Files_PlaybackModeSelectedOnlyDescription" xml:space="preserve">
+    <value>選択したマクロのみを再生します。グローバル ループ設定は、その 1 つのマクロに適用されます。</value>
+  </data>
+  <data name="Files_PlaybackModeAdvanceSelection" xml:space="preserve">
+    <value>選択したものを再生し、次へを選択します</value>
+  </data>
+  <data name="Files_PlaybackModeAdvanceSelectionDescription" xml:space="preserve">
+    <value>現在の再生設定で選択したマクロを実行し、次にロードされたマクロに選択を移動します。次の項目は自動再生されません。</value>
+  </data>
+  <data name="Files_PlaybackModeSequentialCycle" xml:space="preserve">
+    <value>シーケンシャルサイクル再生</value>
+  </data>
+  <data name="Files_PlaybackModeSequentialCycleDescription" xml:space="preserve">
+    <value>選択したマクロからロードされたリスト全体を実行します。シーケンスリピートはこのモードでのみ使用されます。</value>
+  </data>
+  <data name="TextExpansion_AddNewExpansion" xml:space="preserve">
+    <value>新しい拡張を追加</value>
+  </data>
+  <data name="TextExpansion_Trigger" xml:space="preserve">
+    <value>トリガー</value>
+  </data>
+  <data name="TextExpansion_TriggerPlaceholder" xml:space="preserve">
+    <value>:mail</value>
+  </data>
+  <data name="TextExpansion_Replacement" xml:space="preserve">
+    <value>置換テキスト</value>
+  </data>
+  <data name="TextExpansion_ReplacementPlaceholder" xml:space="preserve">
+    <value>taro.yamada@example.com</value>
+  </data>
+  <data name="Files_UnnamedMacro" xml:space="preserve">
+    <value>新しいマクロ</value>
+  </data>
+  <data name="Files_SourceSession" xml:space="preserve">
+    <value>セッション</value>
+  </data>
+  <data name="Files_SequenceRepeatSummary" xml:space="preserve">
+    <value>シーケンス x{0}</value>
+  </data>
+  <data name="Files_LoadedMacroDescription" xml:space="preserve">
+    <value>{0} イベント | {1}</value>
+  </data>
+  <data name="TextExpansion_InsertionMode" xml:space="preserve">
+    <value>挿入モード</value>
+  </data>
+  <data name="TextExpansion_PasteMethod" xml:space="preserve">
+    <value>貼り付け方法</value>
+  </data>
+  <data name="TextExpansion_Add" xml:space="preserve">
+    <value>+追加</value>
+  </data>
+  <data name="TextExpansion_SavedExpansions" xml:space="preserve">
+    <value>保存された拡張</value>
+  </data>
+  <data name="TextExpansion_Items" xml:space="preserve">
+    <value>{0} 個のアイテム</value>
+  </data>
+  <data name="TextExpansion_NoSavedExpansions" xml:space="preserve">
+    <value>保存された拡張はありません</value>
+  </data>
+  <data name="TextExpansion_EnableInSettingsTip" xml:space="preserve">
+    <value>[設定] タブで有効にして展開を開始します</value>
+  </data>
+  <data name="TextExpansion_DeleteTitle" xml:space="preserve">
+    <value>拡張の削除</value>
+  </data>
+  <data name="TextExpansion_DeleteMessage" xml:space="preserve">
+    <value>拡張 &apos;{0}&apos; を削除してもよろしいですか?</value>
+  </data>
+  <data name="Schedule_Title" xml:space="preserve">
+    <value>スケジュールされたタスク</value>
+  </data>
+  <data name="Schedule_Items" xml:space="preserve">
+    <value>{0} 個のアイテム</value>
+  </data>
+  <data name="Schedule_EditTask" xml:space="preserve">
+    <value>タスクの編集</value>
+  </data>
+  <data name="Schedule_DeleteTask" xml:space="preserve">
+    <value>タスクの削除</value>
+  </data>
+  <data name="Schedule_TaskSettings" xml:space="preserve">
+    <value>タスクの設定</value>
+  </data>
+  <data name="Schedule_Name" xml:space="preserve">
+    <value>名前</value>
+  </data>
+  <data name="Schedule_NamePlaceholder" xml:space="preserve">
+    <value>夜間のエクスポートタスク</value>
+  </data>
+  <data name="Schedule_PlaybackSpeed" xml:space="preserve">
+    <value>再生速度</value>
+  </data>
+  <data name="Schedule_MacroFile" xml:space="preserve">
+    <value>マクロファイル</value>
+  </data>
+  <data name="Schedule_NoFileSelected" xml:space="preserve">
+    <value>ファイルが選択されていません</value>
+  </data>
+  <data name="Schedule_Browse" xml:space="preserve">
+    <value>ブラウズ</value>
+  </data>
+  <data name="Schedule_Type" xml:space="preserve">
+    <value>スケジュールの種類</value>
+  </data>
+  <data name="Schedule_TypeInterval" xml:space="preserve">
+    <value>インターバル（リピート）</value>
+  </data>
+  <data name="Schedule_TypeDateTime" xml:space="preserve">
+    <value>日時（1回）</value>
+  </data>
+  <data name="Schedule_IntervalSettings" xml:space="preserve">
+    <value>インターバル設定</value>
+  </data>
+  <data name="Schedule_RunEvery" xml:space="preserve">
+    <value>マクロを実行する間隔:</value>
+  </data>
+  <data name="Schedule_Seconds" xml:space="preserve">
+    <value>秒</value>
+  </data>
+  <data name="Schedule_Minutes" xml:space="preserve">
+    <value>分</value>
+  </data>
+  <data name="Schedule_Hours" xml:space="preserve">
+    <value>時間</value>
+  </data>
+  <data name="Schedule_DateTimeSettings" xml:space="preserve">
+    <value>日付/時刻の設定</value>
+  </data>
+  <data name="Schedule_RunAt" xml:space="preserve">
+    <value>マクロを実行する日時:</value>
+  </data>
+  <data name="Schedule_RunOnceTip" xml:space="preserve">
+    <value>マクロは選択した日付に 1 回実行されます</value>
+  </data>
+  <data name="Schedule_Status" xml:space="preserve">
+    <value>状態</value>
+  </data>
+  <data name="Schedule_LastRun" xml:space="preserve">
+    <value>最終実行:</value>
+  </data>
+  <data name="Schedule_NextRun" xml:space="preserve">
+    <value>次の実行:</value>
+  </data>
+  <data name="Schedule_StatusLabel" xml:space="preserve">
+    <value>状態:</value>
+  </data>
+  <data name="Schedule_Never" xml:space="preserve">
+    <value>なし</value>
+  </data>
+  <data name="Schedule_NotScheduled" xml:space="preserve">
+    <value>予定されていません</value>
+  </data>
+  <data name="Schedule_SaveAllTasks" xml:space="preserve">
+    <value>すべてのタスクを保存</value>
+  </data>
+  <data name="Schedule_NoTaskSelected" xml:space="preserve">
+    <value>タスクが選択されていません</value>
+  </data>
+  <data name="Schedule_SelectTaskHint" xml:space="preserve">
+    <value>上のリストからタスクを選択するか、新しいタスクを追加します</value>
+  </data>
+  <data name="Schedule_DeleteTitle" xml:space="preserve">
+    <value>タスクの削除</value>
+  </data>
+  <data name="Schedule_DeleteMessage" xml:space="preserve">
+    <value>タスク &apos;{0}&apos; を削除してもよろしいですか?</value>
+  </data>
+  <data name="Schedule_OpenMacroDialogTitle" xml:space="preserve">
+    <value>マクロファイルの選択</value>
+  </data>
+  <data name="Schedule_OpenMacroDialogFilter" xml:space="preserve">
+    <value>マクロファイル</value>
+  </data>
+  <data name="Schedule_StatusInitFailed" xml:space="preserve">
+    <value>スケジュール: 初期化に失敗しました ({0})</value>
+  </data>
+  <data name="Schedule_StatusChangesSaved" xml:space="preserve">
+    <value>スケジュール: 変更が保存されました</value>
+  </data>
+  <data name="Schedule_StatusSaveFailed" xml:space="preserve">
+    <value>スケジュール: 変更を保存できませんでした ({0})</value>
+  </data>
+  <data name="Schedule_SaveFailedTitle" xml:space="preserve">
+    <value>スケジュールの保存に失敗しました</value>
+  </data>
+  <data name="Schedule_StatusExtensionWarning" xml:space="preserve">
+    <value>スケジュール: マクロ ファイル拡張子は .macro ではありません (引き続き許可されます)</value>
+  </data>
+  <data name="Schedule_StatusRunning" xml:space="preserve">
+    <value>スケジュール: {0} を実行中...</value>
+  </data>
+  <data name="Schedule_StatusCompleted" xml:space="preserve">
+    <value>スケジュール: {0} 完了しました</value>
+  </data>
+  <data name="Schedule_StatusFailedExecution" xml:space="preserve">
+    <value>スケジュール: {0} - {1}</value>
+  </data>
+  <data name="Shortcut_Title" xml:space="preserve">
+    <value>ショートカット</value>
+  </data>
+  <data name="Shortcut_Items" xml:space="preserve">
+    <value>{0} 個のアイテム</value>
+  </data>
+  <data name="Shortcut_NameFallback" xml:space="preserve">
+    <value>ショートカット名</value>
+  </data>
+  <data name="Shortcut_NoFile" xml:space="preserve">
+    <value>ファイルがありません</value>
+  </data>
+  <data name="Shortcut_EditTooltip" xml:space="preserve">
+    <value>ショートカットを編集する</value>
+  </data>
+  <data name="Shortcut_DeleteTooltip" xml:space="preserve">
+    <value>ショートカットの削除</value>
+  </data>
+  <data name="Shortcut_Settings" xml:space="preserve">
+    <value>ショートカット設定</value>
+  </data>
+  <data name="Shortcut_Name" xml:space="preserve">
+    <value>名前</value>
+  </data>
+  <data name="Shortcut_NamePlaceholder" xml:space="preserve">
+    <value>請求書入力のショートカット</value>
+  </data>
+  <data name="Shortcut_Trigger" xml:space="preserve">
+    <value>トリガー (キーボード/マウス)</value>
+  </data>
+  <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
+    <value>再生速度</value>
+  </data>
+  <data name="Shortcut_LoopPlayback" xml:space="preserve">
+    <value>ループ再生</value>
+  </data>
+  <data name="Shortcut_PressToStartStop" xml:space="preserve">
+    <value>押すと開始/停止します</value>
+  </data>
+  <data name="Shortcut_PressToStartStopTooltip" xml:space="preserve">
+    <value>ショートカットを押してループを開始します。もう一度押すと停止します。</value>
+  </data>
+  <data name="Shortcut_RunWhenHeld" xml:space="preserve">
+    <value>押している間だけ実行</value>
+  </data>
+  <data name="Shortcut_RunWhenHeldTooltip" xml:space="preserve">
+    <value>ショートカットを長押しして実行します。放すと停止します。</value>
+  </data>
+  <data name="Shortcut_LoopCount" xml:space="preserve">
+    <value>ループ数</value>
+  </data>
+  <data name="Shortcut_LoopDelayMs" xml:space="preserve">
+    <value>ループ遅延 (ミリ秒)</value>
+  </data>
+  <data name="Shortcut_LoopTip" xml:space="preserve">
+    <value>ヒント: ループ数 0 は無限ループを意味します</value>
+  </data>
+  <data name="Shortcut_MacroFile" xml:space="preserve">
+    <value>マクロファイル</value>
+  </data>
+  <data name="Shortcut_NoFileSelected" xml:space="preserve">
+    <value>ファイルが選択されていません</value>
+  </data>
+  <data name="Shortcut_Browse" xml:space="preserve">
+    <value>ブラウズ</value>
+  </data>
+  <data name="Shortcut_Status" xml:space="preserve">
+    <value>状態</value>
+  </data>
+  <data name="Shortcut_LastTriggered" xml:space="preserve">
+    <value>最終実行:</value>
+  </data>
+  <data name="Shortcut_StatusLabel" xml:space="preserve">
+    <value>状態：</value>
+  </data>
+  <data name="Shortcut_Never" xml:space="preserve">
+    <value>一度もない</value>
+  </data>
+  <data name="Shortcut_SaveAll" xml:space="preserve">
+    <value>すべてのショートカットを保存</value>
+  </data>
+  <data name="Shortcut_NoSelected" xml:space="preserve">
+    <value>ショートカットが選択されていません</value>
+  </data>
+  <data name="Shortcut_SelectHint" xml:space="preserve">
+    <value>上のリストからショートカットを選択するか、新しいショートカットを追加します</value>
+  </data>
+  <data name="Shortcut_DeleteTitle" xml:space="preserve">
+    <value>ショートカットの削除</value>
+  </data>
+  <data name="Shortcut_DeleteMessage" xml:space="preserve">
+    <value>ショートカット &apos;{0}&apos; を削除してもよろしいですか?</value>
+  </data>
+  <data name="Shortcut_OpenMacroDialogTitle" xml:space="preserve">
+    <value>マクロファイルの選択</value>
+  </data>
+  <data name="Shortcut_OpenMacroDialogFilter" xml:space="preserve">
+    <value>マクロファイル</value>
+  </data>
+  <data name="Shortcut_StatusInitFailed" xml:space="preserve">
+    <value>ショートカット: 初期化に失敗しました ({0})</value>
+  </data>
+  <data name="Shortcut_StatusChangesSaved" xml:space="preserve">
+    <value>ショートカット: 変更が保存されました</value>
+  </data>
+  <data name="Shortcut_StatusSaveFailed" xml:space="preserve">
+    <value>ショートカット: 変更を保存できませんでした ({0})</value>
+  </data>
+  <data name="Shortcut_SaveFailedTitle" xml:space="preserve">
+    <value>ショートカットの保存に失敗しました</value>
+  </data>
+  <data name="Shortcut_StatusRunning" xml:space="preserve">
+    <value>ショートカット: {0} を実行中...</value>
+  </data>
+  <data name="Shortcut_StatusCompleted" xml:space="preserve">
+    <value>ショートカット: {0} が完了しました</value>
+  </data>
+  <data name="Shortcut_StatusFailed" xml:space="preserve">
+    <value>ショートカット: {0} - {1}</value>
+  </data>
+  <data name="Files_StatusReady" xml:space="preserve">
+    <value>準備完了</value>
+  </data>
+  <data name="Files_OpenMacroDialogFilter" xml:space="preserve">
+    <value>マクロファイル</value>
+  </data>
+  <data name="Files_SaveDialogTitle" xml:space="preserve">
+    <value>マクロの保存</value>
+  </data>
+  <data name="Files_LoadDialogTitle" xml:space="preserve">
+    <value>マクロのロード</value>
+  </data>
+  <data name="Files_StatusSaveCancelled" xml:space="preserve">
+    <value>保存がキャンセルされました</value>
+  </data>
+  <data name="Files_StatusSavedTo" xml:space="preserve">
+    <value>{0} に保存されました</value>
+  </data>
+  <data name="Files_StatusSaveError" xml:space="preserve">
+    <value>保存エラー: {0}</value>
+  </data>
+  <data name="Files_StatusLoadCancelled" xml:space="preserve">
+    <value>ロードがキャンセルされました</value>
+  </data>
+  <data name="Files_StatusLoadUnreadable" xml:space="preserve">
+    <value>ロード エラー: ファイルを読み取れませんでした</value>
+  </data>
+  <data name="Files_StatusLoaded" xml:space="preserve">
+    <value>{0}をロードしました</value>
+  </data>
+  <data name="Files_StatusLoadError" xml:space="preserve">
+    <value>読み込みエラー: {0}</value>
+  </data>
+  <data name="Files_DeleteLoadedMacroTitle" xml:space="preserve">
+    <value>ロードされたマクロの削除</value>
+  </data>
+  <data name="Files_DeleteLoadedMacroMessage" xml:space="preserve">
+    <value>ロードされたマクロ &apos;{0}&apos; を削除してもよろしいですか?</value>
+  </data>
+  <data name="Files_StatusRemoved" xml:space="preserve">
+    <value>{0} を削除しました</value>
+  </data>
+  <data name="Playback_StatusReady" xml:space="preserve">
+    <value>準備完了</value>
+  </data>
+  <data name="Playback_StatusPlaying" xml:space="preserve">
+    <value>再生中...</value>
+  </data>
+  <data name="Playback_StatusComplete" xml:space="preserve">
+    <value>再生完了</value>
+  </data>
+  <data name="Playback_StatusStopped" xml:space="preserve">
+    <value>再生が停止しました</value>
+  </data>
+  <data name="Playback_StatusPaused" xml:space="preserve">
+    <value>一時停止中</value>
+  </data>
+  <data name="Playback_StatusError" xml:space="preserve">
+    <value>再生エラー: {0}</value>
+  </data>
+  <data name="Playback_StatusWaitingNextSequence" xml:space="preserve">
+    <value>次のシーケンスまで {0} 待っています...</value>
+  </data>
+  <data name="Playback_StatusSequencePlaying" xml:space="preserve">
+    <value>{0} ({1}/{2}){3} を再生中 - シーケンス {4}</value>
+  </data>
+  <data name="Playback_StatusWaitingNextLoop" xml:space="preserve">
+    <value>次のループの前に {0} を待機しています...</value>
+  </data>
+  <data name="Playback_StatusLoopInfinite" xml:space="preserve">
+    <value>再生中 (ループ {0} - 無限)</value>
+  </data>
+  <data name="Playback_StatusLoopProgress" xml:space="preserve">
+    <value>再生中 (ループ {0}/{1})</value>
+  </data>
+  <data name="Playback_StatusStartingIn" xml:space="preserve">
+    <value>{0} 秒後に開始...</value>
+  </data>
+  <data name="Recording_StatusReady" xml:space="preserve">
+    <value>準備完了</value>
+  </data>
+  <data name="Recording_StatusRecording" xml:space="preserve">
+    <value>録音中...</value>
+  </data>
+  <data name="Recording_StatusError" xml:space="preserve">
+    <value>エラー: {0}</value>
+  </data>
+  <data name="Recording_StatusRecordedEvents" xml:space="preserve">
+    <value>{0} 件のイベントを記録しました</value>
+  </data>
+  <data name="Recording_StatusLoadedEvents" xml:space="preserve">
+    <value>{0} イベントをロードしました</value>
+  </data>
+  <data name="Editor_DefaultMacroName" xml:space="preserve">
+    <value>手動マクロ</value>
+  </data>
+  <data name="Editor_StatusReady" xml:space="preserve">
+    <value>準備完了</value>
+  </data>
+  <data name="Editor_StatusRemovedAction" xml:space="preserve">
+    <value>アクションを削除しました</value>
+  </data>
+  <data name="Editor_StatusMovedActionUp" xml:space="preserve">
+    <value>アクションを上に移動しました</value>
+  </data>
+  <data name="Editor_StatusMovedActionDown" xml:space="preserve">
+    <value>アクションを下に移動しました</value>
+  </data>
+  <data name="Editor_StatusDuplicatedAction" xml:space="preserve">
+    <value>アクションを複製しました</value>
+  </data>
+  <data name="Editor_StatusClearedAllActions" xml:space="preserve">
+    <value>すべてのアクションを消去しました</value>
+  </data>
+  <data name="Editor_StatusUndone" xml:space="preserve">
+    <value>元に戻す</value>
+  </data>
+  <data name="Editor_StatusRedone" xml:space="preserve">
+    <value>やり直し</value>
+  </data>
+  <data name="Editor_StatusSelectActionFirst" xml:space="preserve">
+    <value>最初にアクションを選択してください</value>
+  </data>
+  <data name="Editor_StatusCaptureMousePrompt" xml:space="preserve">
+    <value>任意の場所をクリックして位置をキャプチャします (キャンセルするには Esc)...</value>
+  </data>
+  <data name="Editor_StatusCaptureKeyPrompt" xml:space="preserve">
+    <value>キーを押してキャプチャします...</value>
+  </data>
+  <data name="Editor_StatusCaptureCancelled" xml:space="preserve">
+    <value>キャプチャがキャンセルされました</value>
+  </data>
+  <data name="Editor_StatusCaptureSelectionChanged" xml:space="preserve">
+    <value>キャプチャは無視されました: 選択されたアクションが変更されました</value>
+  </data>
+  <data name="Editor_StatusSaveCancelled" xml:space="preserve">
+    <value>保存がキャンセルされました</value>
+  </data>
+  <data name="Editor_StatusLoadCancelled" xml:space="preserve">
+    <value>ロードがキャンセルされました</value>
+  </data>
+  <data name="Editor_StatusLoadFailed" xml:space="preserve">
+    <value>マクロのロードに失敗しました</value>
+  </data>
+  <data name="Editor_StatusInsertedElseBlock" xml:space="preserve">
+    <value>else ブロックを挿入しました</value>
+  </data>
+  <data name="Editor_StatusElseAlreadyExists" xml:space="preserve">
+    <value>選択した if ブロックにはすでに else があります</value>
+  </data>
+  <data name="Editor_StatusSelectIfBlockFirst" xml:space="preserve">
+    <value>最初に if ブロックを選択してください</value>
+  </data>
+  <data name="Editor_StatusRemovedBlock" xml:space="preserve">
+    <value>削除されたブロック</value>
+  </data>
+  <data name="Editor_StatusOperationBlocked" xml:space="preserve">
+    <value>操作がブロックされました: ブロック構造が壊れる可能性があります</value>
+  </data>
+  <data name="Editor_SaveDialogTitle" xml:space="preserve">
+    <value>マクロの保存</value>
+  </data>
+  <data name="Editor_LoadDialogTitle" xml:space="preserve">
+    <value>マクロのロード</value>
+  </data>
+  <data name="Editor_MacroFileDialogName" xml:space="preserve">
+    <value>マクロファイル</value>
+  </data>
+  <data name="Editor_DialogTitleNoActions" xml:space="preserve">
+    <value>アクションなし</value>
+  </data>
+  <data name="Editor_DialogMessageNoActions" xml:space="preserve">
+    <value>保存する前に、少なくとも 1 つのアクションを追加してください。</value>
+  </data>
+  <data name="Editor_DialogTitleValidationErrors" xml:space="preserve">
+    <value>検証エラー</value>
+  </data>
+  <data name="Editor_ValidationErrorHeader" xml:space="preserve">
+    <value>次のエラーを修正してください。</value>
+  </data>
+  <data name="Editor_StatusCapturedPosition" xml:space="preserve">
+    <value>キャプチャされた位置: ({0}、{1})</value>
+  </data>
+  <data name="Editor_StatusCaptureError" xml:space="preserve">
+    <value>キャプチャエラー: {0}</value>
+  </data>
+  <data name="Editor_StatusCapturedKey" xml:space="preserve">
+    <value>キャプチャ: {0} (コード: {1})</value>
+  </data>
+  <data name="Editor_StatusValidationFailed" xml:space="preserve">
+    <value>検証に失敗しました: {0} 個のエラー</value>
+  </data>
+  <data name="Editor_StatusSaved" xml:space="preserve">
+    <value>保存済み: {0}</value>
+  </data>
+  <data name="Editor_StatusSaveError" xml:space="preserve">
+    <value>保存エラー: {0}</value>
+  </data>
+  <data name="Editor_StatusLoaded" xml:space="preserve">
+    <value>ロード済み: {0}</value>
+  </data>
+  <data name="Editor_StatusLoadedWithWarnings" xml:space="preserve">
+    <value>ロード済み: {0} ({1} 個の復元警告)</value>
+  </data>
+  <data name="Editor_StatusLoadError" xml:space="preserve">
+    <value>読み込みエラー: {0}</value>
+  </data>
+  <data name="Editor_StatusRestoreWarningFallback" xml:space="preserve">
+    <value>スクリプトステップを復元できませんでした。イベントストリームからロードされます。</value>
+  </data>
+  <data name="Editor_StatusAutoManagedAction" xml:space="preserve">
+    <value>このアクションは自動的に管理されます。</value>
+  </data>
+  <data name="Editor_Actions" xml:space="preserve">
+    <value>アクション</value>
+  </data>
+  <data name="Editor_RemoveActionTooltip" xml:space="preserve">
+    <value>アクションの削除</value>
+  </data>
+  <data name="Editor_Remove" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="Editor_RemoveBlockTooltip" xml:space="preserve">
+    <value>ブロックの削除</value>
+  </data>
+  <data name="Editor_Block" xml:space="preserve">
+    <value>ブロック</value>
+  </data>
+  <data name="Editor_MoveUpTooltip" xml:space="preserve">
+    <value>上に移動</value>
+  </data>
+  <data name="Editor_MoveDownTooltip" xml:space="preserve">
+    <value>下に移動</value>
+  </data>
+  <data name="Editor_DuplicateTooltip" xml:space="preserve">
+    <value>重複</value>
+  </data>
+  <data name="Editor_AddNewAction" xml:space="preserve">
+    <value>新しいアクションの追加</value>
+  </data>
+  <data name="Editor_AddAction" xml:space="preserve">
+    <value>アクションの追加</value>
+  </data>
+  <data name="Editor_SelectedActionProperties" xml:space="preserve">
+    <value>選択したアクションのプロパティ</value>
+  </data>
+  <data name="Editor_Type" xml:space="preserve">
+    <value>タイプ：</value>
+  </data>
+  <data name="Editor_InsertElseBlock" xml:space="preserve">
+    <value>Else ブロックを挿入</value>
+  </data>
+  <data name="Editor_CurrentPositionHint" xml:space="preserve">
+    <value>再生では、ライブ カーソルの位置でこのアクションが解決されます。</value>
+  </data>
+  <data name="Editor_Coordinates" xml:space="preserve">
+    <value>座標:</value>
+  </data>
+  <data name="Editor_CapturePosition" xml:space="preserve">
+    <value>キャプチャ位置</value>
+  </data>
+  <data name="Editor_CancelCapture" xml:space="preserve">
+    <value>キャプチャのキャンセル</value>
+  </data>
+  <data name="Editor_CoordinateMode" xml:space="preserve">
+    <value>座標モード:</value>
+  </data>
+  <data name="Editor_Absolute" xml:space="preserve">
+    <value>絶対</value>
+  </data>
+  <data name="Editor_Relative" xml:space="preserve">
+    <value>相対</value>
+  </data>
+  <data name="Editor_MouseButton" xml:space="preserve">
+    <value>マウスボタン:</value>
+  </data>
+  <data name="Editor_Key" xml:space="preserve">
+    <value>キー:</value>
+  </data>
+  <data name="Editor_KeyPlaceholder" xml:space="preserve">
+    <value>コード</value>
+  </data>
+  <data name="Editor_KeyFallback" xml:space="preserve">
+    <value>(コードを入力してください)</value>
+  </data>
+  <data name="Editor_CaptureKey" xml:space="preserve">
+    <value>キャプチャキー</value>
+  </data>
+  <data name="Editor_RandomizeDelay" xml:space="preserve">
+    <value>遅延をランダム化する</value>
+  </data>
+  <data name="Editor_DelayMs" xml:space="preserve">
+    <value>遅延 (ミリ秒):</value>
+  </data>
+  <data name="Editor_DelayPlaceholder" xml:space="preserve">
+    <value>MS</value>
+  </data>
+  <data name="Editor_RandomDelayRangeMs" xml:space="preserve">
+    <value>ランダム遅延範囲 (ms):</value>
+  </data>
+  <data name="Editor_Min" xml:space="preserve">
+    <value>最小</value>
+  </data>
+  <data name="Editor_Max" xml:space="preserve">
+    <value>最大</value>
+  </data>
+  <data name="Editor_ScrollAmount" xml:space="preserve">
+    <value>スクロール量:</value>
+  </data>
+  <data name="Editor_Amount" xml:space="preserve">
+    <value>量</value>
+  </data>
+  <data name="Editor_ScrollHint" xml:space="preserve">
+    <value>(+) 上/右、(-) 下/左</value>
+  </data>
+  <data name="Editor_SetVariable" xml:space="preserve">
+    <value>変数を設定:</value>
+  </data>
+  <data name="Editor_VariableNamePlaceholder" xml:space="preserve">
+    <value>変数名 (例: retryCount)</value>
+  </data>
+  <data name="Editor_Value" xml:space="preserve">
+    <value>値</value>
+  </data>
+  <data name="Editor_SetVariableHint" xml:space="preserve">
+    <value>名前、タイプ、値は個別に保存されます。コンパイル: set &lt;名前&gt; &lt;値&gt;</value>
+  </data>
+  <data name="Editor_VariableUpdate" xml:space="preserve">
+    <value>変数の更新:</value>
+  </data>
+  <data name="Editor_AmountOrVariable" xml:space="preserve">
+    <value>金額/変数</value>
+  </data>
+  <data name="Editor_IncrementDecrementHint" xml:space="preserve">
+    <value>増減量には数値または変数参照を指定できます。</value>
+  </data>
+  <data name="Editor_RepeatBlock" xml:space="preserve">
+    <value>リピートブロック:</value>
+  </data>
+  <data name="Editor_CountOrVariable" xml:space="preserve">
+    <value>カウント / 変数</value>
+  </data>
+  <data name="Editor_Condition" xml:space="preserve">
+    <value>条件:</value>
+  </data>
+  <data name="Editor_LeftOperand" xml:space="preserve">
+    <value>左オペランド</value>
+  </data>
+  <data name="Editor_LeftValue" xml:space="preserve">
+    <value>左の値</value>
+  </data>
+  <data name="Editor_RightOperand" xml:space="preserve">
+    <value>右オペランド</value>
+  </data>
+  <data name="Editor_RightValue" xml:space="preserve">
+    <value>右辺の値</value>
+  </data>
+  <data name="Editor_ForBlock" xml:space="preserve">
+    <value>ブロックの場合:</value>
+  </data>
+  <data name="Editor_LoopVariablePlaceholder" xml:space="preserve">
+    <value>ループ変数 (例: rowIndex)</value>
+  </data>
+  <data name="Editor_Start" xml:space="preserve">
+    <value>開始</value>
+  </data>
+  <data name="Editor_End" xml:space="preserve">
+    <value>終了</value>
+  </data>
+  <data name="Editor_UseExplicitStep" xml:space="preserve">
+    <value>明示的なステップを使用する</value>
+  </data>
+  <data name="Editor_Step" xml:space="preserve">
+    <value>ステップ</value>
+  </data>
+  <data name="Editor_SelectActionPrompt" xml:space="preserve">
+    <value>アクションを選択してそのプロパティを編集します</value>
+  </data>
+  <data name="Editor_RestoreWarnings" xml:space="preserve">
+    <value>復元の警告</value>
+  </data>
+  <data name="Editor_UndoTooltip" xml:space="preserve">
+    <value>元に戻す</value>
+  </data>
+  <data name="Editor_Undo" xml:space="preserve">
+    <value>元に戻す</value>
+  </data>
+  <data name="Editor_RedoTooltip" xml:space="preserve">
+    <value>やり直し</value>
+  </data>
+  <data name="Editor_Redo" xml:space="preserve">
+    <value>やり直し</value>
+  </data>
+  <data name="Editor_ClearAllTooltip" xml:space="preserve">
+    <value>すべてクリア</value>
+  </data>
+  <data name="Editor_Clear" xml:space="preserve">
+    <value>クリア</value>
+  </data>
+  <data name="Editor_Load" xml:space="preserve">
+    <value>読み込み</value>
+  </data>
+  <data name="Editor_Save" xml:space="preserve">
+    <value>保存</value>
+  </data>
+  <data name="TextExpansion_ModeDirectTyping" xml:space="preserve">
+    <value>直接入力</value>
+  </data>
+  <data name="TextExpansion_ModePaste" xml:space="preserve">
+    <value>ペースト</value>
+  </data>
+  <data name="HotkeyCapture_PressAKey" xml:space="preserve">
+    <value>キーを押してください...</value>
+  </data>
+  <data name="HotkeyCapture_ClickToSet" xml:space="preserve">
+    <value>クリックしてホットキーを設定します</value>
+  </data>
+  <data name="HotkeyCapture_ServiceError" xml:space="preserve">
+    <value>サービスエラー</value>
+  </data>
+  <data name="Dialog_Yes" xml:space="preserve">
+    <value>はい</value>
+  </data>
+  <data name="Dialog_No" xml:space="preserve">
+    <value>いいえ</value>
+  </data>
+  <data name="Dialog_Ok" xml:space="preserve">
+    <value>わかりました</value>
+  </data>
+  <data name="Tray_ShowHide" xml:space="preserve">
+    <value>表示/非表示</value>
+  </data>
+  <data name="Tray_StartRecording" xml:space="preserve">
+    <value>録音開始 ({0})</value>
+  </data>
+  <data name="Tray_StartPlayback" xml:space="preserve">
+    <value>再生開始 ({0})</value>
+  </data>
+  <data name="Tray_Stop" xml:space="preserve">
+    <value>停止 ({0})</value>
+  </data>
+  <data name="Tray_Exit" xml:space="preserve">
+    <value>終了</value>
+  </data>
+  <data name="Editor_CurrentPositionClick" xml:space="preserve">
+    <value>現在のカーソル位置をクリックします</value>
+  </data>
+  <data name="Editor_CurrentPositionHold" xml:space="preserve">
+    <value>現在のカーソル位置でホールド</value>
+  </data>
+  <data name="Editor_CurrentPositionRelease" xml:space="preserve">
+    <value>現在のカーソル位置でリリース</value>
+  </data>
+  <data name="Editor_CurrentPositionUse" xml:space="preserve">
+    <value>現在のカーソル位置を使用する</value>
+  </data>
+  <data name="Editor_RawScriptStep" xml:space="preserve">
+    <value>生のスクリプトのステップ:</value>
+  </data>
+  <data name="Editor_TextToType" xml:space="preserve">
+    <value>入力するテキスト:</value>
+  </data>
+  <data name="Editor_OriginalScriptLine" xml:space="preserve">
+    <value>オリジナルのスクリプト行</value>
+  </data>
+  <data name="Editor_EnterTextToType" xml:space="preserve">
+    <value>入力するテキストを入力してください...</value>
+  </data>
+  <data name="Editor_RawScriptHint" xml:space="preserve">
+    <value>このステップは構造化フィールドにマップできなかったため、そのまま保存されます。</value>
+  </data>
+  <data name="Editor_TextToTypeHint" xml:space="preserve">
+    <value>各文字は個別のキー押下として入力されます (最大 {0} 文字)</value>
+  </data>
+  <data name="Editor_StatusAddedAction" xml:space="preserve">
+    <value>{0}を追加しました</value>
+  </data>
+  <data name="Editor_BlockName_If" xml:space="preserve">
+    <value>If</value>
+  </data>
+  <data name="Editor_BlockName_Else" xml:space="preserve">
+    <value>Else</value>
+  </data>
+  <data name="Editor_BlockName_While" xml:space="preserve">
+    <value>While</value>
+  </data>
+  <data name="Editor_BlockName_For" xml:space="preserve">
+    <value>For</value>
+  </data>
+  <data name="Editor_BlockName_Repeat" xml:space="preserve">
+    <value>繰り返す</value>
+  </data>
+  <data name="Editor_BlockName_Block" xml:space="preserve">
+    <value>ブロック</value>
+  </data>
+  <data name="Editor_Action_MouseMoveAbsolute" xml:space="preserve">
+    <value>({0}、{1}) に移動</value>
+  </data>
+  <data name="Editor_Action_MouseMoveRelative" xml:space="preserve">
+    <value>({0:+#;-#;0}、{1:+#;-#;0}) ずつ移動します</value>
+  </data>
+  <data name="Editor_Action_MouseClickCurrent" xml:space="preserve">
+    <value>現在の位置で {0} をクリックします</value>
+  </data>
+  <data name="Editor_Action_MouseClick" xml:space="preserve">
+    <value>{0}をクリックします</value>
+  </data>
+  <data name="Editor_Action_MouseDown" xml:space="preserve">
+    <value>{0}を押し続けます</value>
+  </data>
+  <data name="Editor_Action_MouseUp" xml:space="preserve">
+    <value>{0}を解放します</value>
+  </data>
+  <data name="Editor_Action_KeyPress" xml:space="preserve">
+    <value>「{0}」を押してください</value>
+  </data>
+  <data name="Editor_Action_KeyDown" xml:space="preserve">
+    <value>「{0}」を押し続けます</value>
+  </data>
+  <data name="Editor_Action_KeyUp" xml:space="preserve">
+    <value>「{0}」をリリースします</value>
+  </data>
+  <data name="Editor_Action_DelayRandom" xml:space="preserve">
+    <value>{0}～{1}ミリ秒待ちます（ランダム）</value>
+  </data>
+  <data name="Editor_Action_Delay" xml:space="preserve">
+    <value>{0}ミリ秒待ちます</value>
+  </data>
+  <data name="Editor_Action_ScrollUp" xml:space="preserve">
+    <value>上にスクロール {0}</value>
+  </data>
+  <data name="Editor_Action_ScrollDown" xml:space="preserve">
+    <value>下にスクロール {0}</value>
+  </data>
+  <data name="Editor_Action_ScrollRight" xml:space="preserve">
+    <value>右にスクロール {0}</value>
+  </data>
+  <data name="Editor_Action_ScrollLeft" xml:space="preserve">
+    <value>左にスクロール {0}</value>
+  </data>
+  <data name="Editor_Action_TextInputEmpty" xml:space="preserve">
+    <value>テキスト入力 (空)</value>
+  </data>
+  <data name="Editor_Action_TextInput" xml:space="preserve">
+    <value>「{0}」と入力します</value>
+  </data>
+  <data name="Editor_Action_SetVariableShort" xml:space="preserve">
+    <value>変数の設定</value>
+  </data>
+  <data name="Editor_Action_IncrementVariableShort" xml:space="preserve">
+    <value>変数を増やす</value>
+  </data>
+  <data name="Editor_Action_DecrementVariableShort" xml:space="preserve">
+    <value>変数を減らす</value>
+  </data>
+  <data name="Editor_Action_RepeatBlockShort" xml:space="preserve">
+    <value>繰り返す</value>
+  </data>
+  <data name="Editor_Action_IfBlockShort" xml:space="preserve">
+    <value>もし</value>
+  </data>
+  <data name="Editor_Action_ElseBlockShort" xml:space="preserve">
+    <value>Else ブロック</value>
+  </data>
+  <data name="Editor_Action_WhileBlockShort" xml:space="preserve">
+    <value>その間</value>
+  </data>
+  <data name="Editor_Action_ForBlockShort" xml:space="preserve">
+    <value>のために</value>
+  </data>
+  <data name="Editor_Action_BreakShort" xml:space="preserve">
+    <value>Break</value>
+  </data>
+  <data name="Editor_Action_ContinueShort" xml:space="preserve">
+    <value>Continue</value>
+  </data>
+  <data name="Editor_Action_EndBlockShort" xml:space="preserve">
+    <value>エンドブロック</value>
+  </data>
+  <data name="Editor_Action_RawScriptStepShort" xml:space="preserve">
+    <value>生のスクリプトステップ</value>
+  </data>
+  <data name="Editor_Action_RawScriptStep" xml:space="preserve">
+    <value>生のスクリプト: {0}</value>
+  </data>
+  <data name="Editor_Action_UnknownShort" xml:space="preserve">
+    <value>不明なアクション</value>
+  </data>
+  <data name="Editor_ActionType_MouseMove" xml:space="preserve">
+    <value>マウスの移動</value>
+  </data>
+  <data name="Editor_ActionType_MouseClick" xml:space="preserve">
+    <value>マウスクリック</value>
+  </data>
+  <data name="Editor_ActionType_MouseDown" xml:space="preserve">
+    <value>マウスダウン</value>
+  </data>
+  <data name="Editor_ActionType_MouseUp" xml:space="preserve">
+    <value>マウスアップ</value>
+  </data>
+  <data name="Editor_ActionType_KeyPress" xml:space="preserve">
+    <value>キーを押す</value>
+  </data>
+  <data name="Editor_ActionType_KeyDown" xml:space="preserve">
+    <value>キーダウン</value>
+  </data>
+  <data name="Editor_ActionType_KeyUp" xml:space="preserve">
+    <value>キーアップ</value>
+  </data>
+  <data name="Editor_ActionType_Delay" xml:space="preserve">
+    <value>遅れ</value>
+  </data>
+  <data name="Editor_ActionType_ScrollVertical" xml:space="preserve">
+    <value>垂直スクロール</value>
+  </data>
+  <data name="Editor_ActionType_ScrollHorizontal" xml:space="preserve">
+    <value>水平スクロール</value>
+  </data>
+  <data name="Editor_ActionType_TextInput" xml:space="preserve">
+    <value>テキスト入力</value>
+  </data>
+  <data name="Editor_ActionType_SetVariable" xml:space="preserve">
+    <value>変数の設定</value>
+  </data>
+  <data name="Editor_ActionType_IncrementVariable" xml:space="preserve">
+    <value>インクリメント変数</value>
+  </data>
+  <data name="Editor_ActionType_DecrementVariable" xml:space="preserve">
+    <value>変数をデクリメントする</value>
+  </data>
+  <data name="Editor_ActionType_RepeatBlockStart" xml:space="preserve">
+    <value>リピートブロックスタート</value>
+  </data>
+  <data name="Editor_ActionType_IfBlockStart" xml:space="preserve">
+    <value>ブロックスタートの場合</value>
+  </data>
+  <data name="Editor_ActionType_ElseBlockStart" xml:space="preserve">
+    <value>それ以外の場合はブロック開始</value>
+  </data>
+  <data name="Editor_ActionType_WhileBlockStart" xml:space="preserve">
+    <value>ブロックスタート中</value>
+  </data>
+  <data name="Editor_ActionType_ForBlockStart" xml:space="preserve">
+    <value>ブロックスタートの場合</value>
+  </data>
+  <data name="Editor_ActionType_BlockEnd" xml:space="preserve">
+    <value>ブロックエンド</value>
+  </data>
+  <data name="Editor_ActionType_Break" xml:space="preserve">
+    <value>壊す</value>
+  </data>
+  <data name="Editor_ActionType_Continue" xml:space="preserve">
+    <value>続く</value>
+  </data>
+  <data name="Editor_ActionType_RawScriptStep" xml:space="preserve">
+    <value>生のスクリプトステップ</value>
+  </data>
+  <data name="MouseButton_Left" xml:space="preserve">
+    <value>左</value>
+  </data>
+  <data name="MouseButton_Right" xml:space="preserve">
+    <value>右</value>
+  </data>
+  <data name="MouseButton_Middle" xml:space="preserve">
+    <value>真ん中</value>
+  </data>
+  <data name="MouseButton_ScrollUp" xml:space="preserve">
+    <value>上にスクロール</value>
+  </data>
+  <data name="MouseButton_ScrollDown" xml:space="preserve">
+    <value>下にスクロール</value>
+  </data>
+  <data name="MouseButton_ScrollLeft" xml:space="preserve">
+    <value>左にスクロール</value>
+  </data>
+  <data name="MouseButton_ScrollRight" xml:space="preserve">
+    <value>右にスクロール</value>
+  </data>
+  <data name="Language_Chinese" xml:space="preserve">
+    <value>中国語</value>
+  </data>
+  <data name="Language_Japanese" xml:space="preserve">
+    <value>日本語</value>
+  </data>
+  <data name="Language_Spanish" xml:space="preserve">
+    <value>スペイン語</value>
+  </data>
+  <data name="Language_Arabic" xml:space="preserve">
+    <value>アラビア語</value>
+  </data>
+  <data name="Language_French" xml:space="preserve">
+    <value>フランス語</value>
+  </data>
+  <data name="Language_Portuguese" xml:space="preserve">
+    <value>ポルトガル語</value>
+  </data>
+  <data name="Language_Russian" xml:space="preserve">
+    <value>ロシア語</value>
+  </data>
+</root>

@@ -3,8 +3,10 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media;
 using Avalonia.Threading;
 using CrossMacro.Core.Services;
+using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
 using CrossMacro.UI.Startup;
+using CrossMacro.UI.Views.Tabs;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using System;
@@ -79,7 +81,21 @@ public static class Program
         var services = application.Services
             ?? throw new InvalidOperationException("Service provider is not initialized.");
 
+        InitializeLocalization(services);
+
         return services.GetRequiredService<IDesktopStartupCoordinator>();
+    }
+
+    private static void InitializeLocalization(IServiceProvider services)
+    {
+        var settingsService = services.GetRequiredService<ISettingsService>();
+        settingsService.Load();
+
+        var localizationService = services.GetRequiredService<LocalizationService>();
+        LocalizationBindingSource.Instance.Initialize(localizationService);
+        localizationService.SetCulture(settingsService.Current.Language);
+        ActionTypeConverters.Configure(services.GetRequiredService<EditorActionDisplayFormatter>());
+        ScheduleTaskConverters.Configure(localizationService);
     }
 
     private static async Task RunStartupAsync(

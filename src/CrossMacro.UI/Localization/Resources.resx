@@ -1,0 +1,1293 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="App_Title" xml:space="preserve">
+    <value>CrossMacro</value>
+  </data>
+  <data name="MainWindow_MinimizeTooltip" xml:space="preserve">
+    <value>Minimize</value>
+  </data>
+  <data name="MainWindow_CloseTooltip" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="MainWindow_DismissTooltip" xml:space="preserve">
+    <value>Dismiss</value>
+  </data>
+  <data name="MainWindow_GnomeExtensionTitle" xml:space="preserve">
+    <value>GNOME Extension</value>
+  </data>
+  <data name="MainWindow_UpdateAvailableTitle" xml:space="preserve">
+    <value>Update Available</value>
+  </data>
+  <data name="MainWindow_ViewOnGitHub" xml:space="preserve">
+    <value>View on GitHub</value>
+  </data>
+  <data name="MainWindow_UpdateAvailableVersion" xml:space="preserve">
+    <value>v{0} is available</value>
+  </data>
+  <data name="Navigation_Recording" xml:space="preserve">
+    <value>Recording</value>
+  </data>
+  <data name="Navigation_Playback" xml:space="preserve">
+    <value>Playback</value>
+  </data>
+  <data name="Navigation_Files" xml:space="preserve">
+    <value>Files</value>
+  </data>
+  <data name="Navigation_TextExpansion" xml:space="preserve">
+    <value>Text Expansion</value>
+  </data>
+  <data name="Navigation_Shortcuts" xml:space="preserve">
+    <value>Shortcuts</value>
+  </data>
+  <data name="Navigation_Schedule" xml:space="preserve">
+    <value>Schedule</value>
+  </data>
+  <data name="Navigation_Editor" xml:space="preserve">
+    <value>Editor</value>
+  </data>
+  <data name="Navigation_Settings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Settings_GlobalHotkeys" xml:space="preserve">
+    <value>Global Hotkeys</value>
+  </data>
+  <data name="Settings_ToggleRecording" xml:space="preserve">
+    <value>Toggle Recording (Start/Stop)</value>
+  </data>
+  <data name="Settings_TogglePlayback" xml:space="preserve">
+    <value>Toggle Playback (Start/Stop)</value>
+  </data>
+  <data name="Settings_PauseResumePlayback" xml:space="preserve">
+    <value>Pause/Resume Playback</value>
+  </data>
+  <data name="Settings_EnableTrayIcon" xml:space="preserve">
+    <value>Enable Tray Icon</value>
+  </data>
+  <data name="Settings_StartMinimized" xml:space="preserve">
+    <value>Start Minimized</value>
+  </data>
+  <data name="Settings_StartMinimizedDescription" xml:space="preserve">
+    <value>Launch hidden to tray when available; otherwise start minimized.</value>
+  </data>
+  <data name="Settings_EnableTextExpansion" xml:space="preserve">
+    <value>Enable Text Expansion</value>
+  </data>
+  <data name="Settings_CheckForUpdates" xml:space="preserve">
+    <value>Check for Updates at Startup</value>
+  </data>
+  <data name="Settings_LogLevel" xml:space="preserve">
+    <value>Log Level</value>
+  </data>
+  <data name="Settings_LogLevelDescription" xml:space="preserve">
+    <value>Controls amount of diagnostic information logged</value>
+  </data>
+  <data name="Settings_Theme" xml:space="preserve">
+    <value>Theme</value>
+  </data>
+  <data name="Settings_ThemeDescription" xml:space="preserve">
+    <value>Choose application visual theme</value>
+  </data>
+  <data name="Settings_Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="Settings_LanguageDescription" xml:space="preserve">
+    <value>Choose application language</value>
+  </data>
+  <data name="Settings_SupportTitle" xml:space="preserve">
+    <value>Support CrossMacro</value>
+  </data>
+  <data name="Settings_SupportDescription" xml:space="preserve">
+    <value>If you like this project, please consider giving it a star on GitHub!</value>
+  </data>
+  <data name="Settings_StarOnGitHub" xml:space="preserve">
+    <value>Star on GitHub</value>
+  </data>
+  <data name="Settings_HotkeyAlreadyAssignedTitle" xml:space="preserve">
+    <value>Hotkey Already Assigned</value>
+  </data>
+  <data name="Language_Auto" xml:space="preserve">
+    <value>System Default</value>
+  </data>
+  <data name="Language_English" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="Language_Turkish" xml:space="preserve">
+    <value>Turkish</value>
+  </data>
+  <data name="Status_Ready" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="Status_RecordedEvents" xml:space="preserve">
+    <value>Recorded {0} events</value>
+  </data>
+  <data name="Status_LoadedMacro" xml:space="preserve">
+    <value>Loaded: {0}</value>
+  </data>
+  <data name="Status_CreatedMacro" xml:space="preserve">
+    <value>Created: {0} ({1} events)</value>
+  </data>
+  <data name="Recording_LabelStatus" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Recording_LabelEvents" xml:space="preserve">
+    <value>Events</value>
+  </data>
+  <data name="Recording_LabelState" xml:space="preserve">
+    <value>State</value>
+  </data>
+  <data name="Recording_TooltipRecording" xml:space="preserve">
+    <value>Recording...</value>
+  </data>
+  <data name="Recording_TooltipReady" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="Recording_CaptureSettings" xml:space="preserve">
+    <value>CAPTURE SETTINGS</value>
+  </data>
+  <data name="Recording_Mouse" xml:space="preserve">
+    <value>Mouse</value>
+  </data>
+  <data name="Recording_Keyboard" xml:space="preserve">
+    <value>Keyboard</value>
+  </data>
+  <data name="Recording_ForceRelativeCoordinates" xml:space="preserve">
+    <value>Force Relative Coordinates</value>
+  </data>
+  <data name="Recording_ForceRelativeCoordinatesDescription" xml:space="preserve">
+    <value>Use relative mouse position even if absolute is supported</value>
+  </data>
+  <data name="Recording_ForceRelativeCoordinatesHelp" xml:space="preserve">
+    <value>Required to use macros in-game.</value>
+  </data>
+  <data name="Recording_SkipInitialZeroZero" xml:space="preserve">
+    <value>Skip Initial 0,0 Position</value>
+  </data>
+  <data name="Recording_SkipInitialZeroZeroDescription" xml:space="preserve">
+    <value>Don&apos;t move cursor to origin when recording starts</value>
+  </data>
+  <data name="Recording_StartRecording" xml:space="preserve">
+    <value>Start Recording</value>
+  </data>
+  <data name="Recording_StopRecording" xml:space="preserve">
+    <value>Stop Recording</value>
+  </data>
+  <data name="Recording_Tip" xml:space="preserve">
+    <value>Tip: Use global hotkeys to control recording while in other apps</value>
+  </data>
+  <data name="Schedule_ItemsText" xml:space="preserve">
+    <value>{0} items</value>
+  </data>
+  <data name="Schedule_DefaultTaskName" xml:space="preserve">
+    <value>Task {0}</value>
+  </data>
+  <data name="Shortcut_ItemsText" xml:space="preserve">
+    <value>{0} items</value>
+  </data>
+  <data name="Shortcut_DefaultTaskName" xml:space="preserve">
+    <value>Shortcut {0}</value>
+  </data>
+  <data name="Schedule_NoFile" xml:space="preserve">
+    <value>No file</value>
+  </data>
+  <data name="Schedule_ListSummary" xml:space="preserve">
+    <value>{0} • {1}</value>
+  </data>
+  <data name="Schedule_StatusPlaceholder" xml:space="preserve">
+    <value>Not run yet</value>
+  </data>
+  <data name="Shortcut_StatusPlaceholder" xml:space="preserve">
+    <value>Not triggered yet</value>
+  </data>
+  <data name="Playback_PlaybackSpeed" xml:space="preserve">
+    <value>Playback Speed</value>
+  </data>
+  <data name="Playback_LoopPlayback" xml:space="preserve">
+    <value>Loop Playback</value>
+  </data>
+  <data name="Playback_RandomizeLoopDelay" xml:space="preserve">
+    <value>Randomize loop delay</value>
+  </data>
+  <data name="Playback_LoopCount" xml:space="preserve">
+    <value>Loop Count</value>
+  </data>
+  <data name="Playback_LoopDelayMs" xml:space="preserve">
+    <value>Loop Delay (ms)</value>
+  </data>
+  <data name="Playback_LoopDelayRangeMs" xml:space="preserve">
+    <value>Loop Delay Range (ms)</value>
+  </data>
+  <data name="Playback_CountdownSec" xml:space="preserve">
+    <value>Countdown (sec)</value>
+  </data>
+  <data name="Playback_PlayMacro" xml:space="preserve">
+    <value>Play Macro</value>
+  </data>
+  <data name="Playback_StopPlayback" xml:space="preserve">
+    <value>STOP PLAYBACK</value>
+  </data>
+  <data name="Playback_LoopTip" xml:space="preserve">
+    <value>Tip: Loop Count 0 means infinite loop</value>
+  </data>
+  <data name="Files_LoadedMacros" xml:space="preserve">
+    <value>Loaded Macros</value>
+  </data>
+  <data name="Files_RemoveLoadedMacroTooltip" xml:space="preserve">
+    <value>Remove loaded macro</value>
+  </data>
+  <data name="Files_LoadMacro" xml:space="preserve">
+    <value>Load Macro</value>
+  </data>
+  <data name="Files_SaveMacro" xml:space="preserve">
+    <value>Save Macro</value>
+  </data>
+  <data name="Files_SelectedMacro" xml:space="preserve">
+    <value>Selected Macro</value>
+  </data>
+  <data name="Files_MacroName" xml:space="preserve">
+    <value>Macro Name</value>
+  </data>
+  <data name="Files_MacroNamePlaceholder" xml:space="preserve">
+    <value>Nightly export macro</value>
+  </data>
+  <data name="Files_SequenceRepeat" xml:space="preserve">
+    <value>Sequence Repeat</value>
+  </data>
+  <data name="Files_SequenceRepeatDescription" xml:space="preserve">
+    <value>Sequence Repeat applies only while Sequential cycle playback runs through the loaded list.</value>
+  </data>
+  <data name="Files_PlaybackMode" xml:space="preserve">
+    <value>Playback Mode</value>
+  </data>
+  <data name="Files_PlaybackModeSelectedOnly" xml:space="preserve">
+    <value>Selected macro only</value>
+  </data>
+  <data name="Files_PlaybackModeSelectedOnlyDescription" xml:space="preserve">
+    <value>Play only the selected macro. Global loop settings apply to that one macro.</value>
+  </data>
+  <data name="Files_PlaybackModeAdvanceSelection" xml:space="preserve">
+    <value>Play selected, then select next</value>
+  </data>
+  <data name="Files_PlaybackModeAdvanceSelectionDescription" xml:space="preserve">
+    <value>Run the selected macro with the current playback settings, then move selection to the next loaded macro. It does not auto-play the next item.</value>
+  </data>
+  <data name="Files_PlaybackModeSequentialCycle" xml:space="preserve">
+    <value>Sequential cycle playback</value>
+  </data>
+  <data name="Files_PlaybackModeSequentialCycleDescription" xml:space="preserve">
+    <value>Run from the selected macro through the whole loaded list. Sequence Repeat is used only in this mode.</value>
+  </data>
+  <data name="TextExpansion_AddNewExpansion" xml:space="preserve">
+    <value>ADD NEW EXPANSION</value>
+  </data>
+  <data name="TextExpansion_Trigger" xml:space="preserve">
+    <value>Trigger</value>
+  </data>
+  <data name="TextExpansion_TriggerPlaceholder" xml:space="preserve">
+    <value>:mail</value>
+  </data>
+  <data name="TextExpansion_Replacement" xml:space="preserve">
+    <value>Replacement</value>
+  </data>
+  <data name="TextExpansion_ReplacementPlaceholder" xml:space="preserve">
+    <value>email@example.com</value>
+  </data>
+  <data name="Files_UnnamedMacro" xml:space="preserve">
+    <value>New Macro</value>
+  </data>
+  <data name="Files_SourceSession" xml:space="preserve">
+    <value>Session</value>
+  </data>
+  <data name="Files_SequenceRepeatSummary" xml:space="preserve">
+    <value>Seq x{0}</value>
+  </data>
+  <data name="Files_LoadedMacroDescription" xml:space="preserve">
+    <value>{0} events | {1}</value>
+  </data>
+  <data name="TextExpansion_InsertionMode" xml:space="preserve">
+    <value>Insertion Mode</value>
+  </data>
+  <data name="TextExpansion_PasteMethod" xml:space="preserve">
+    <value>Paste Method</value>
+  </data>
+  <data name="TextExpansion_Add" xml:space="preserve">
+    <value>+ Add</value>
+  </data>
+  <data name="TextExpansion_SavedExpansions" xml:space="preserve">
+    <value>SAVED EXPANSIONS</value>
+  </data>
+  <data name="TextExpansion_Items" xml:space="preserve">
+    <value>{0} items</value>
+  </data>
+  <data name="TextExpansion_NoSavedExpansions" xml:space="preserve">
+    <value>No saved expansions</value>
+  </data>
+  <data name="TextExpansion_EnableInSettingsTip" xml:space="preserve">
+    <value>Enable in Settings tab to start expanding</value>
+  </data>
+  <data name="TextExpansion_DeleteTitle" xml:space="preserve">
+    <value>Delete Expansion</value>
+  </data>
+  <data name="TextExpansion_DeleteMessage" xml:space="preserve">
+    <value>Are you sure you want to delete the expansion &apos;{0}&apos;?</value>
+  </data>
+  <data name="Schedule_Title" xml:space="preserve">
+    <value>SCHEDULED TASKS</value>
+  </data>
+  <data name="Schedule_Items" xml:space="preserve">
+    <value>{0} items</value>
+  </data>
+  <data name="Schedule_EditTask" xml:space="preserve">
+    <value>Edit task</value>
+  </data>
+  <data name="Schedule_DeleteTask" xml:space="preserve">
+    <value>Delete task</value>
+  </data>
+  <data name="Schedule_TaskSettings" xml:space="preserve">
+    <value>TASK SETTINGS</value>
+  </data>
+  <data name="Schedule_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Schedule_NamePlaceholder" xml:space="preserve">
+    <value>Nightly export task</value>
+  </data>
+  <data name="Schedule_PlaybackSpeed" xml:space="preserve">
+    <value>Playback Speed</value>
+  </data>
+  <data name="Schedule_MacroFile" xml:space="preserve">
+    <value>Macro File</value>
+  </data>
+  <data name="Schedule_NoFileSelected" xml:space="preserve">
+    <value>No file selected</value>
+  </data>
+  <data name="Schedule_Browse" xml:space="preserve">
+    <value>Browse</value>
+  </data>
+  <data name="Schedule_Type" xml:space="preserve">
+    <value>Schedule Type</value>
+  </data>
+  <data name="Schedule_TypeInterval" xml:space="preserve">
+    <value>Interval (repeat)</value>
+  </data>
+  <data name="Schedule_TypeDateTime" xml:space="preserve">
+    <value>Date/Time (once)</value>
+  </data>
+  <data name="Schedule_IntervalSettings" xml:space="preserve">
+    <value>INTERVAL SETTINGS</value>
+  </data>
+  <data name="Schedule_RunEvery" xml:space="preserve">
+    <value>Run macro every:</value>
+  </data>
+  <data name="Schedule_Seconds" xml:space="preserve">
+    <value>Seconds</value>
+  </data>
+  <data name="Schedule_Minutes" xml:space="preserve">
+    <value>Minutes</value>
+  </data>
+  <data name="Schedule_Hours" xml:space="preserve">
+    <value>Hours</value>
+  </data>
+  <data name="Schedule_DateTimeSettings" xml:space="preserve">
+    <value>DATE/TIME SETTINGS</value>
+  </data>
+  <data name="Schedule_RunAt" xml:space="preserve">
+    <value>Run macro at:</value>
+  </data>
+  <data name="Schedule_RunOnceTip" xml:space="preserve">
+    <value>The macro will run once at the selected date</value>
+  </data>
+  <data name="Schedule_Status" xml:space="preserve">
+    <value>STATUS</value>
+  </data>
+  <data name="Schedule_LastRun" xml:space="preserve">
+    <value>Last Run:</value>
+  </data>
+  <data name="Schedule_NextRun" xml:space="preserve">
+    <value>Next Run:</value>
+  </data>
+  <data name="Schedule_StatusLabel" xml:space="preserve">
+    <value>Status:</value>
+  </data>
+  <data name="Schedule_Never" xml:space="preserve">
+    <value>Never</value>
+  </data>
+  <data name="Schedule_NotScheduled" xml:space="preserve">
+    <value>Not scheduled</value>
+  </data>
+  <data name="Schedule_SaveAllTasks" xml:space="preserve">
+    <value>Save All Tasks</value>
+  </data>
+  <data name="Schedule_NoTaskSelected" xml:space="preserve">
+    <value>No Task Selected</value>
+  </data>
+  <data name="Schedule_SelectTaskHint" xml:space="preserve">
+    <value>Select a task from the list above or add a new one</value>
+  </data>
+  <data name="Schedule_DeleteTitle" xml:space="preserve">
+    <value>Delete Task</value>
+  </data>
+  <data name="Schedule_DeleteMessage" xml:space="preserve">
+    <value>Are you sure you want to delete the task &apos;{0}&apos;?</value>
+  </data>
+  <data name="Schedule_OpenMacroDialogTitle" xml:space="preserve">
+    <value>Select Macro File</value>
+  </data>
+  <data name="Schedule_OpenMacroDialogFilter" xml:space="preserve">
+    <value>Macro Files</value>
+  </data>
+  <data name="Schedule_StatusInitFailed" xml:space="preserve">
+    <value>Schedule: failed to initialize ({0})</value>
+  </data>
+  <data name="Schedule_StatusChangesSaved" xml:space="preserve">
+    <value>Schedule: changes saved</value>
+  </data>
+  <data name="Schedule_StatusSaveFailed" xml:space="preserve">
+    <value>Schedule: failed to save changes ({0})</value>
+  </data>
+  <data name="Schedule_SaveFailedTitle" xml:space="preserve">
+    <value>Schedule Save Failed</value>
+  </data>
+  <data name="Schedule_StatusExtensionWarning" xml:space="preserve">
+    <value>Schedule: macro file extension is not .macro (still allowed)</value>
+  </data>
+  <data name="Schedule_StatusRunning" xml:space="preserve">
+    <value>Schedule: Running {0}...</value>
+  </data>
+  <data name="Schedule_StatusCompleted" xml:space="preserve">
+    <value>Schedule: {0} completed</value>
+  </data>
+  <data name="Schedule_StatusFailedExecution" xml:space="preserve">
+    <value>Schedule: {0} - {1}</value>
+  </data>
+  <data name="Shortcut_Title" xml:space="preserve">
+    <value>SHORTCUTS</value>
+  </data>
+  <data name="Shortcut_Items" xml:space="preserve">
+    <value>{0} items</value>
+  </data>
+  <data name="Shortcut_NameFallback" xml:space="preserve">
+    <value>Shortcut Name</value>
+  </data>
+  <data name="Shortcut_NoFile" xml:space="preserve">
+    <value>No file</value>
+  </data>
+  <data name="Shortcut_EditTooltip" xml:space="preserve">
+    <value>Edit shortcut</value>
+  </data>
+  <data name="Shortcut_DeleteTooltip" xml:space="preserve">
+    <value>Delete shortcut</value>
+  </data>
+  <data name="Shortcut_Settings" xml:space="preserve">
+    <value>SHORTCUT SETTINGS</value>
+  </data>
+  <data name="Shortcut_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Shortcut_NamePlaceholder" xml:space="preserve">
+    <value>Invoice entry shortcut</value>
+  </data>
+  <data name="Shortcut_Trigger" xml:space="preserve">
+    <value>Trigger (Keyboard/Mouse)</value>
+  </data>
+  <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
+    <value>Playback Speed</value>
+  </data>
+  <data name="Shortcut_LoopPlayback" xml:space="preserve">
+    <value>Loop Playback</value>
+  </data>
+  <data name="Shortcut_PressToStartStop" xml:space="preserve">
+    <value>Press to start/stop</value>
+  </data>
+  <data name="Shortcut_PressToStartStopTooltip" xml:space="preserve">
+    <value>Press shortcut to start looping; press again to stop.</value>
+  </data>
+  <data name="Shortcut_RunWhenHeld" xml:space="preserve">
+    <value>Run when held</value>
+  </data>
+  <data name="Shortcut_RunWhenHeldTooltip" xml:space="preserve">
+    <value>Hold shortcut to run; release to stop.</value>
+  </data>
+  <data name="Shortcut_LoopCount" xml:space="preserve">
+    <value>Loop Count</value>
+  </data>
+  <data name="Shortcut_LoopDelayMs" xml:space="preserve">
+    <value>Loop Delay (ms)</value>
+  </data>
+  <data name="Shortcut_LoopTip" xml:space="preserve">
+    <value>Tip: Loop Count 0 means infinite loop</value>
+  </data>
+  <data name="Shortcut_MacroFile" xml:space="preserve">
+    <value>Macro File</value>
+  </data>
+  <data name="Shortcut_NoFileSelected" xml:space="preserve">
+    <value>No file selected</value>
+  </data>
+  <data name="Shortcut_Browse" xml:space="preserve">
+    <value>Browse</value>
+  </data>
+  <data name="Shortcut_Status" xml:space="preserve">
+    <value>STATUS</value>
+  </data>
+  <data name="Shortcut_LastTriggered" xml:space="preserve">
+    <value>Last Triggered:</value>
+  </data>
+  <data name="Shortcut_StatusLabel" xml:space="preserve">
+    <value>Status:</value>
+  </data>
+  <data name="Shortcut_Never" xml:space="preserve">
+    <value>Never</value>
+  </data>
+  <data name="Shortcut_SaveAll" xml:space="preserve">
+    <value>Save All Shortcuts</value>
+  </data>
+  <data name="Shortcut_NoSelected" xml:space="preserve">
+    <value>No Shortcut Selected</value>
+  </data>
+  <data name="Shortcut_SelectHint" xml:space="preserve">
+    <value>Select a shortcut from the list above or add a new one</value>
+  </data>
+  <data name="Shortcut_DeleteTitle" xml:space="preserve">
+    <value>Delete Shortcut</value>
+  </data>
+  <data name="Shortcut_DeleteMessage" xml:space="preserve">
+    <value>Are you sure you want to delete the shortcut &apos;{0}&apos;?</value>
+  </data>
+  <data name="Shortcut_OpenMacroDialogTitle" xml:space="preserve">
+    <value>Select Macro File</value>
+  </data>
+  <data name="Shortcut_OpenMacroDialogFilter" xml:space="preserve">
+    <value>Macro Files</value>
+  </data>
+  <data name="Shortcut_StatusInitFailed" xml:space="preserve">
+    <value>Shortcut: failed to initialize ({0})</value>
+  </data>
+  <data name="Shortcut_StatusChangesSaved" xml:space="preserve">
+    <value>Shortcut: changes saved</value>
+  </data>
+  <data name="Shortcut_StatusSaveFailed" xml:space="preserve">
+    <value>Shortcut: failed to save changes ({0})</value>
+  </data>
+  <data name="Shortcut_SaveFailedTitle" xml:space="preserve">
+    <value>Shortcut Save Failed</value>
+  </data>
+  <data name="Shortcut_StatusRunning" xml:space="preserve">
+    <value>Shortcut: Running {0}...</value>
+  </data>
+  <data name="Shortcut_StatusCompleted" xml:space="preserve">
+    <value>Shortcut: {0} completed</value>
+  </data>
+  <data name="Shortcut_StatusFailed" xml:space="preserve">
+    <value>Shortcut: {0} - {1}</value>
+  </data>
+  <data name="Files_StatusReady" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="Files_OpenMacroDialogFilter" xml:space="preserve">
+    <value>Macro Files</value>
+  </data>
+  <data name="Files_SaveDialogTitle" xml:space="preserve">
+    <value>Save Macro</value>
+  </data>
+  <data name="Files_LoadDialogTitle" xml:space="preserve">
+    <value>Load Macro</value>
+  </data>
+  <data name="Files_StatusSaveCancelled" xml:space="preserve">
+    <value>Save cancelled</value>
+  </data>
+  <data name="Files_StatusSavedTo" xml:space="preserve">
+    <value>Saved to {0}</value>
+  </data>
+  <data name="Files_StatusSaveError" xml:space="preserve">
+    <value>Save error: {0}</value>
+  </data>
+  <data name="Files_StatusLoadCancelled" xml:space="preserve">
+    <value>Load cancelled</value>
+  </data>
+  <data name="Files_StatusLoadUnreadable" xml:space="preserve">
+    <value>Load error: file could not be read</value>
+  </data>
+  <data name="Files_StatusLoaded" xml:space="preserve">
+    <value>Loaded {0}</value>
+  </data>
+  <data name="Files_StatusLoadError" xml:space="preserve">
+    <value>Load error: {0}</value>
+  </data>
+  <data name="Files_DeleteLoadedMacroTitle" xml:space="preserve">
+    <value>Delete Loaded Macro</value>
+  </data>
+  <data name="Files_DeleteLoadedMacroMessage" xml:space="preserve">
+    <value>Are you sure you want to remove the loaded macro &apos;{0}&apos;?</value>
+  </data>
+  <data name="Files_StatusRemoved" xml:space="preserve">
+    <value>Removed {0}</value>
+  </data>
+  <data name="Playback_StatusReady" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="Playback_StatusPlaying" xml:space="preserve">
+    <value>Playing...</value>
+  </data>
+  <data name="Playback_StatusComplete" xml:space="preserve">
+    <value>Playback complete</value>
+  </data>
+  <data name="Playback_StatusStopped" xml:space="preserve">
+    <value>Playback stopped</value>
+  </data>
+  <data name="Playback_StatusPaused" xml:space="preserve">
+    <value>Paused</value>
+  </data>
+  <data name="Playback_StatusError" xml:space="preserve">
+    <value>Playback error: {0}</value>
+  </data>
+  <data name="Playback_StatusWaitingNextSequence" xml:space="preserve">
+    <value>Waiting {0} before next sequence...</value>
+  </data>
+  <data name="Playback_StatusSequencePlaying" xml:space="preserve">
+    <value>Playing {0} ({1}/{2}){3} - Sequence {4}</value>
+  </data>
+  <data name="Playback_StatusWaitingNextLoop" xml:space="preserve">
+    <value>Waiting {0} before next loop...</value>
+  </data>
+  <data name="Playback_StatusLoopInfinite" xml:space="preserve">
+    <value>Playing (Loop {0} - Infinite)</value>
+  </data>
+  <data name="Playback_StatusLoopProgress" xml:space="preserve">
+    <value>Playing (Loop {0}/{1})</value>
+  </data>
+  <data name="Playback_StatusStartingIn" xml:space="preserve">
+    <value>Starting in {0}...</value>
+  </data>
+  <data name="Recording_StatusReady" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="Recording_StatusRecording" xml:space="preserve">
+    <value>Recording...</value>
+  </data>
+  <data name="Recording_StatusError" xml:space="preserve">
+    <value>Error: {0}</value>
+  </data>
+  <data name="Recording_StatusRecordedEvents" xml:space="preserve">
+    <value>Recorded {0} events</value>
+  </data>
+  <data name="Recording_StatusLoadedEvents" xml:space="preserve">
+    <value>Loaded {0} events</value>
+  </data>
+  <data name="Editor_DefaultMacroName" xml:space="preserve">
+    <value>Manual Macro</value>
+  </data>
+  <data name="Editor_StatusReady" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="Editor_StatusRemovedAction" xml:space="preserve">
+    <value>Removed action</value>
+  </data>
+  <data name="Editor_StatusMovedActionUp" xml:space="preserve">
+    <value>Moved action up</value>
+  </data>
+  <data name="Editor_StatusMovedActionDown" xml:space="preserve">
+    <value>Moved action down</value>
+  </data>
+  <data name="Editor_StatusDuplicatedAction" xml:space="preserve">
+    <value>Duplicated action</value>
+  </data>
+  <data name="Editor_StatusClearedAllActions" xml:space="preserve">
+    <value>Cleared all actions</value>
+  </data>
+  <data name="Editor_StatusUndone" xml:space="preserve">
+    <value>Undone</value>
+  </data>
+  <data name="Editor_StatusRedone" xml:space="preserve">
+    <value>Redone</value>
+  </data>
+  <data name="Editor_StatusSelectActionFirst" xml:space="preserve">
+    <value>Select an action first</value>
+  </data>
+  <data name="Editor_StatusCaptureMousePrompt" xml:space="preserve">
+    <value>Click anywhere to capture position (Esc to cancel)...</value>
+  </data>
+  <data name="Editor_StatusCaptureKeyPrompt" xml:space="preserve">
+    <value>Press a key to capture...</value>
+  </data>
+  <data name="Editor_StatusCaptureCancelled" xml:space="preserve">
+    <value>Capture cancelled</value>
+  </data>
+  <data name="Editor_StatusCaptureSelectionChanged" xml:space="preserve">
+    <value>Capture ignored: selected action changed</value>
+  </data>
+  <data name="Editor_StatusSaveCancelled" xml:space="preserve">
+    <value>Save cancelled</value>
+  </data>
+  <data name="Editor_StatusLoadCancelled" xml:space="preserve">
+    <value>Load cancelled</value>
+  </data>
+  <data name="Editor_StatusLoadFailed" xml:space="preserve">
+    <value>Failed to load macro</value>
+  </data>
+  <data name="Editor_StatusInsertedElseBlock" xml:space="preserve">
+    <value>Inserted else block</value>
+  </data>
+  <data name="Editor_StatusElseAlreadyExists" xml:space="preserve">
+    <value>Selected if block already has else</value>
+  </data>
+  <data name="Editor_StatusSelectIfBlockFirst" xml:space="preserve">
+    <value>Select an if block first</value>
+  </data>
+  <data name="Editor_StatusRemovedBlock" xml:space="preserve">
+    <value>Removed block</value>
+  </data>
+  <data name="Editor_StatusOperationBlocked" xml:space="preserve">
+    <value>Operation blocked: would break block structure</value>
+  </data>
+  <data name="Editor_SaveDialogTitle" xml:space="preserve">
+    <value>Save Macro</value>
+  </data>
+  <data name="Editor_LoadDialogTitle" xml:space="preserve">
+    <value>Load Macro</value>
+  </data>
+  <data name="Editor_MacroFileDialogName" xml:space="preserve">
+    <value>Macro Files</value>
+  </data>
+  <data name="Editor_DialogTitleNoActions" xml:space="preserve">
+    <value>No Actions</value>
+  </data>
+  <data name="Editor_DialogMessageNoActions" xml:space="preserve">
+    <value>Please add at least one action before saving.</value>
+  </data>
+  <data name="Editor_DialogTitleValidationErrors" xml:space="preserve">
+    <value>Validation Errors</value>
+  </data>
+  <data name="Editor_ValidationErrorHeader" xml:space="preserve">
+    <value>Please fix the following errors:</value>
+  </data>
+  <data name="Editor_StatusCapturedPosition" xml:space="preserve">
+    <value>Captured position: ({0}, {1})</value>
+  </data>
+  <data name="Editor_StatusCaptureError" xml:space="preserve">
+    <value>Capture error: {0}</value>
+  </data>
+  <data name="Editor_StatusCapturedKey" xml:space="preserve">
+    <value>Captured: {0} (code: {1})</value>
+  </data>
+  <data name="Editor_StatusValidationFailed" xml:space="preserve">
+    <value>Validation failed: {0} error(s)</value>
+  </data>
+  <data name="Editor_StatusSaved" xml:space="preserve">
+    <value>Saved: {0}</value>
+  </data>
+  <data name="Editor_StatusSaveError" xml:space="preserve">
+    <value>Save error: {0}</value>
+  </data>
+  <data name="Editor_StatusLoaded" xml:space="preserve">
+    <value>Loaded: {0}</value>
+  </data>
+  <data name="Editor_StatusLoadedWithWarnings" xml:space="preserve">
+    <value>Loaded: {0} ({1} restore warning(s))</value>
+  </data>
+  <data name="Editor_StatusLoadError" xml:space="preserve">
+    <value>Load error: {0}</value>
+  </data>
+  <data name="Editor_StatusRestoreWarningFallback" xml:space="preserve">
+    <value>Script steps could not be restored; loaded from event stream.</value>
+  </data>
+  <data name="Editor_StatusAutoManagedAction" xml:space="preserve">
+    <value>This action is managed automatically.</value>
+  </data>
+  <data name="Editor_Actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="Editor_RemoveActionTooltip" xml:space="preserve">
+    <value>Remove Action</value>
+  </data>
+  <data name="Editor_Remove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="Editor_RemoveBlockTooltip" xml:space="preserve">
+    <value>Remove Block</value>
+  </data>
+  <data name="Editor_Block" xml:space="preserve">
+    <value>Block</value>
+  </data>
+  <data name="Editor_MoveUpTooltip" xml:space="preserve">
+    <value>Move Up</value>
+  </data>
+  <data name="Editor_MoveDownTooltip" xml:space="preserve">
+    <value>Move Down</value>
+  </data>
+  <data name="Editor_DuplicateTooltip" xml:space="preserve">
+    <value>Duplicate</value>
+  </data>
+  <data name="Editor_AddNewAction" xml:space="preserve">
+    <value>Add New Action</value>
+  </data>
+  <data name="Editor_AddAction" xml:space="preserve">
+    <value>Add Action</value>
+  </data>
+  <data name="Editor_SelectedActionProperties" xml:space="preserve">
+    <value>Selected Action Properties</value>
+  </data>
+  <data name="Editor_Type" xml:space="preserve">
+    <value>Type:</value>
+  </data>
+  <data name="Editor_InsertElseBlock" xml:space="preserve">
+    <value>Insert Else Block</value>
+  </data>
+  <data name="Editor_CurrentPositionHint" xml:space="preserve">
+    <value>Playback resolves this action at the live cursor position.</value>
+  </data>
+  <data name="Editor_Coordinates" xml:space="preserve">
+    <value>Coordinates:</value>
+  </data>
+  <data name="Editor_CapturePosition" xml:space="preserve">
+    <value>Capture Position</value>
+  </data>
+  <data name="Editor_CancelCapture" xml:space="preserve">
+    <value>Cancel Capture</value>
+  </data>
+  <data name="Editor_CoordinateMode" xml:space="preserve">
+    <value>Coordinate Mode:</value>
+  </data>
+  <data name="Editor_Absolute" xml:space="preserve">
+    <value>Absolute</value>
+  </data>
+  <data name="Editor_Relative" xml:space="preserve">
+    <value>Relative</value>
+  </data>
+  <data name="Editor_MouseButton" xml:space="preserve">
+    <value>Mouse Button:</value>
+  </data>
+  <data name="Editor_Key" xml:space="preserve">
+    <value>Key:</value>
+  </data>
+  <data name="Editor_KeyPlaceholder" xml:space="preserve">
+    <value>Code</value>
+  </data>
+  <data name="Editor_KeyFallback" xml:space="preserve">
+    <value>(enter code)</value>
+  </data>
+  <data name="Editor_CaptureKey" xml:space="preserve">
+    <value>Capture Key</value>
+  </data>
+  <data name="Editor_RandomizeDelay" xml:space="preserve">
+    <value>Randomize delay</value>
+  </data>
+  <data name="Editor_DelayMs" xml:space="preserve">
+    <value>Delay (ms):</value>
+  </data>
+  <data name="Editor_DelayPlaceholder" xml:space="preserve">
+    <value>ms</value>
+  </data>
+  <data name="Editor_RandomDelayRangeMs" xml:space="preserve">
+    <value>Random Delay Range (ms):</value>
+  </data>
+  <data name="Editor_Min" xml:space="preserve">
+    <value>Min</value>
+  </data>
+  <data name="Editor_Max" xml:space="preserve">
+    <value>Max</value>
+  </data>
+  <data name="Editor_ScrollAmount" xml:space="preserve">
+    <value>Scroll Amount:</value>
+  </data>
+  <data name="Editor_Amount" xml:space="preserve">
+    <value>Amount</value>
+  </data>
+  <data name="Editor_ScrollHint" xml:space="preserve">
+    <value>(+) up/right, (-) down/left</value>
+  </data>
+  <data name="Editor_SetVariable" xml:space="preserve">
+    <value>Set Variable:</value>
+  </data>
+  <data name="Editor_VariableNamePlaceholder" xml:space="preserve">
+    <value>Variable name (e.g. retryCount)</value>
+  </data>
+  <data name="Editor_Value" xml:space="preserve">
+    <value>Value</value>
+  </data>
+  <data name="Editor_SetVariableHint" xml:space="preserve">
+    <value>Name, type, and value are stored separately. Compiles to: set &lt;name&gt; &lt;value&gt;</value>
+  </data>
+  <data name="Editor_VariableUpdate" xml:space="preserve">
+    <value>Variable Update:</value>
+  </data>
+  <data name="Editor_AmountOrVariable" xml:space="preserve">
+    <value>Amount / variable</value>
+  </data>
+  <data name="Editor_IncrementDecrementHint" xml:space="preserve">
+    <value>Increment/Decrement amount can be a number or a variable reference.</value>
+  </data>
+  <data name="Editor_RepeatBlock" xml:space="preserve">
+    <value>Repeat Block:</value>
+  </data>
+  <data name="Editor_CountOrVariable" xml:space="preserve">
+    <value>Count / variable</value>
+  </data>
+  <data name="Editor_Condition" xml:space="preserve">
+    <value>Condition:</value>
+  </data>
+  <data name="Editor_LeftOperand" xml:space="preserve">
+    <value>Left Operand</value>
+  </data>
+  <data name="Editor_LeftValue" xml:space="preserve">
+    <value>Left value</value>
+  </data>
+  <data name="Editor_RightOperand" xml:space="preserve">
+    <value>Right Operand</value>
+  </data>
+  <data name="Editor_RightValue" xml:space="preserve">
+    <value>Right value</value>
+  </data>
+  <data name="Editor_ForBlock" xml:space="preserve">
+    <value>For Block:</value>
+  </data>
+  <data name="Editor_LoopVariablePlaceholder" xml:space="preserve">
+    <value>Loop variable (e.g. rowIndex)</value>
+  </data>
+  <data name="Editor_Start" xml:space="preserve">
+    <value>Start</value>
+  </data>
+  <data name="Editor_End" xml:space="preserve">
+    <value>End</value>
+  </data>
+  <data name="Editor_UseExplicitStep" xml:space="preserve">
+    <value>Use explicit step</value>
+  </data>
+  <data name="Editor_Step" xml:space="preserve">
+    <value>Step</value>
+  </data>
+  <data name="Editor_SelectActionPrompt" xml:space="preserve">
+    <value>Select an action to edit its properties</value>
+  </data>
+  <data name="Editor_RestoreWarnings" xml:space="preserve">
+    <value>Restore Warnings</value>
+  </data>
+  <data name="Editor_UndoTooltip" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="Editor_Undo" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="Editor_RedoTooltip" xml:space="preserve">
+    <value>Redo</value>
+  </data>
+  <data name="Editor_Redo" xml:space="preserve">
+    <value>Redo</value>
+  </data>
+  <data name="Editor_ClearAllTooltip" xml:space="preserve">
+    <value>Clear All</value>
+  </data>
+  <data name="Editor_Clear" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="Editor_Load" xml:space="preserve">
+    <value>Load</value>
+  </data>
+  <data name="Editor_Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="TextExpansion_ModeDirectTyping" xml:space="preserve">
+    <value>Direct Typing</value>
+  </data>
+  <data name="TextExpansion_ModePaste" xml:space="preserve">
+    <value>Paste</value>
+  </data>
+  <data name="HotkeyCapture_PressAKey" xml:space="preserve">
+    <value>Press a key...</value>
+  </data>
+  <data name="HotkeyCapture_ClickToSet" xml:space="preserve">
+    <value>Click to set hotkey</value>
+  </data>
+  <data name="HotkeyCapture_ServiceError" xml:space="preserve">
+    <value>Service Error</value>
+  </data>
+  <data name="Dialog_Yes" xml:space="preserve">
+    <value>Yes</value>
+  </data>
+  <data name="Dialog_No" xml:space="preserve">
+    <value>No</value>
+  </data>
+  <data name="Dialog_Ok" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="Tray_ShowHide" xml:space="preserve">
+    <value>Show/Hide</value>
+  </data>
+  <data name="Tray_StartRecording" xml:space="preserve">
+    <value>Start Recording ({0})</value>
+  </data>
+  <data name="Tray_StartPlayback" xml:space="preserve">
+    <value>Start Playback ({0})</value>
+  </data>
+  <data name="Tray_Stop" xml:space="preserve">
+    <value>Stop ({0})</value>
+  </data>
+  <data name="Tray_Exit" xml:space="preserve">
+    <value>Exit</value>
+  </data>
+  <data name="Editor_CurrentPositionClick" xml:space="preserve">
+    <value>Click at current cursor position</value>
+  </data>
+  <data name="Editor_CurrentPositionHold" xml:space="preserve">
+    <value>Hold at current cursor position</value>
+  </data>
+  <data name="Editor_CurrentPositionRelease" xml:space="preserve">
+    <value>Release at current cursor position</value>
+  </data>
+  <data name="Editor_CurrentPositionUse" xml:space="preserve">
+    <value>Use current cursor position</value>
+  </data>
+  <data name="Editor_RawScriptStep" xml:space="preserve">
+    <value>Raw Script Step:</value>
+  </data>
+  <data name="Editor_TextToType" xml:space="preserve">
+    <value>Text to Type:</value>
+  </data>
+  <data name="Editor_OriginalScriptLine" xml:space="preserve">
+    <value>Original script line</value>
+  </data>
+  <data name="Editor_EnterTextToType" xml:space="preserve">
+    <value>Enter text to type...</value>
+  </data>
+  <data name="Editor_RawScriptHint" xml:space="preserve">
+    <value>This step could not be mapped to structured fields and will be saved as-is.</value>
+  </data>
+  <data name="Editor_TextToTypeHint" xml:space="preserve">
+    <value>Each character is typed as a separate key press (max {0} chars)</value>
+  </data>
+  <data name="Editor_StatusAddedAction" xml:space="preserve">
+    <value>Added {0}</value>
+  </data>
+  <data name="Editor_BlockName_If" xml:space="preserve">
+    <value>If</value>
+  </data>
+  <data name="Editor_BlockName_Else" xml:space="preserve">
+    <value>Else</value>
+  </data>
+  <data name="Editor_BlockName_While" xml:space="preserve">
+    <value>While</value>
+  </data>
+  <data name="Editor_BlockName_For" xml:space="preserve">
+    <value>For</value>
+  </data>
+  <data name="Editor_BlockName_Repeat" xml:space="preserve">
+    <value>Repeat</value>
+  </data>
+  <data name="Editor_BlockName_Block" xml:space="preserve">
+    <value>Block</value>
+  </data>
+  <data name="Editor_Action_MouseMoveAbsolute" xml:space="preserve">
+    <value>Move to ({0}, {1})</value>
+  </data>
+  <data name="Editor_Action_MouseMoveRelative" xml:space="preserve">
+    <value>Move by ({0:+#;-#;0}, {1:+#;-#;0})</value>
+  </data>
+  <data name="Editor_Action_MouseClickCurrent" xml:space="preserve">
+    <value>Click {0} at current position</value>
+  </data>
+  <data name="Editor_Action_MouseClick" xml:space="preserve">
+    <value>Click {0}</value>
+  </data>
+  <data name="Editor_Action_MouseDown" xml:space="preserve">
+    <value>Hold {0}</value>
+  </data>
+  <data name="Editor_Action_MouseUp" xml:space="preserve">
+    <value>Release {0}</value>
+  </data>
+  <data name="Editor_Action_KeyPress" xml:space="preserve">
+    <value>Press &apos;{0}&apos;</value>
+  </data>
+  <data name="Editor_Action_KeyDown" xml:space="preserve">
+    <value>Hold &apos;{0}&apos;</value>
+  </data>
+  <data name="Editor_Action_KeyUp" xml:space="preserve">
+    <value>Release &apos;{0}&apos;</value>
+  </data>
+  <data name="Editor_Action_DelayRandom" xml:space="preserve">
+    <value>Wait {0}-{1}ms (random)</value>
+  </data>
+  <data name="Editor_Action_Delay" xml:space="preserve">
+    <value>Wait {0}ms</value>
+  </data>
+  <data name="Editor_Action_ScrollUp" xml:space="preserve">
+    <value>Scroll Up {0}</value>
+  </data>
+  <data name="Editor_Action_ScrollDown" xml:space="preserve">
+    <value>Scroll Down {0}</value>
+  </data>
+  <data name="Editor_Action_ScrollRight" xml:space="preserve">
+    <value>Scroll Right {0}</value>
+  </data>
+  <data name="Editor_Action_ScrollLeft" xml:space="preserve">
+    <value>Scroll Left {0}</value>
+  </data>
+  <data name="Editor_Action_TextInputEmpty" xml:space="preserve">
+    <value>Text Input (empty)</value>
+  </data>
+  <data name="Editor_Action_TextInput" xml:space="preserve">
+    <value>Type &quot;{0}&quot;</value>
+  </data>
+  <data name="Editor_Action_SetVariableShort" xml:space="preserve">
+    <value>Set Variable</value>
+  </data>
+  <data name="Editor_Action_IncrementVariableShort" xml:space="preserve">
+    <value>Increment Variable</value>
+  </data>
+  <data name="Editor_Action_DecrementVariableShort" xml:space="preserve">
+    <value>Decrement Variable</value>
+  </data>
+  <data name="Editor_Action_RepeatBlockShort" xml:space="preserve">
+    <value>Repeat</value>
+  </data>
+  <data name="Editor_Action_IfBlockShort" xml:space="preserve">
+    <value>If</value>
+  </data>
+  <data name="Editor_Action_ElseBlockShort" xml:space="preserve">
+    <value>Else Block</value>
+  </data>
+  <data name="Editor_Action_WhileBlockShort" xml:space="preserve">
+    <value>While</value>
+  </data>
+  <data name="Editor_Action_ForBlockShort" xml:space="preserve">
+    <value>For</value>
+  </data>
+  <data name="Editor_Action_BreakShort" xml:space="preserve">
+    <value>Break</value>
+  </data>
+  <data name="Editor_Action_ContinueShort" xml:space="preserve">
+    <value>Continue</value>
+  </data>
+  <data name="Editor_Action_EndBlockShort" xml:space="preserve">
+    <value>End Block</value>
+  </data>
+  <data name="Editor_Action_RawScriptStepShort" xml:space="preserve">
+    <value>Raw Script Step</value>
+  </data>
+  <data name="Editor_Action_RawScriptStep" xml:space="preserve">
+    <value>Raw Script: {0}</value>
+  </data>
+  <data name="Editor_Action_UnknownShort" xml:space="preserve">
+    <value>Unknown Action</value>
+  </data>
+  <data name="Editor_ActionType_MouseMove" xml:space="preserve">
+    <value>Mouse Move</value>
+  </data>
+  <data name="Editor_ActionType_MouseClick" xml:space="preserve">
+    <value>Mouse Click</value>
+  </data>
+  <data name="Editor_ActionType_MouseDown" xml:space="preserve">
+    <value>Mouse Down</value>
+  </data>
+  <data name="Editor_ActionType_MouseUp" xml:space="preserve">
+    <value>Mouse Up</value>
+  </data>
+  <data name="Editor_ActionType_KeyPress" xml:space="preserve">
+    <value>Key Press</value>
+  </data>
+  <data name="Editor_ActionType_KeyDown" xml:space="preserve">
+    <value>Key Down</value>
+  </data>
+  <data name="Editor_ActionType_KeyUp" xml:space="preserve">
+    <value>Key Up</value>
+  </data>
+  <data name="Editor_ActionType_Delay" xml:space="preserve">
+    <value>Delay</value>
+  </data>
+  <data name="Editor_ActionType_ScrollVertical" xml:space="preserve">
+    <value>Scroll Vertical</value>
+  </data>
+  <data name="Editor_ActionType_ScrollHorizontal" xml:space="preserve">
+    <value>Scroll Horizontal</value>
+  </data>
+  <data name="Editor_ActionType_TextInput" xml:space="preserve">
+    <value>Text Input</value>
+  </data>
+  <data name="Editor_ActionType_SetVariable" xml:space="preserve">
+    <value>Set Variable</value>
+  </data>
+  <data name="Editor_ActionType_IncrementVariable" xml:space="preserve">
+    <value>Increment Variable</value>
+  </data>
+  <data name="Editor_ActionType_DecrementVariable" xml:space="preserve">
+    <value>Decrement Variable</value>
+  </data>
+  <data name="Editor_ActionType_RepeatBlockStart" xml:space="preserve">
+    <value>Repeat Block Start</value>
+  </data>
+  <data name="Editor_ActionType_IfBlockStart" xml:space="preserve">
+    <value>If Block Start</value>
+  </data>
+  <data name="Editor_ActionType_ElseBlockStart" xml:space="preserve">
+    <value>Else Block Start</value>
+  </data>
+  <data name="Editor_ActionType_WhileBlockStart" xml:space="preserve">
+    <value>While Block Start</value>
+  </data>
+  <data name="Editor_ActionType_ForBlockStart" xml:space="preserve">
+    <value>For Block Start</value>
+  </data>
+  <data name="Editor_ActionType_BlockEnd" xml:space="preserve">
+    <value>Block End</value>
+  </data>
+  <data name="Editor_ActionType_Break" xml:space="preserve">
+    <value>Break</value>
+  </data>
+  <data name="Editor_ActionType_Continue" xml:space="preserve">
+    <value>Continue</value>
+  </data>
+  <data name="Editor_ActionType_RawScriptStep" xml:space="preserve">
+    <value>Raw Script Step</value>
+  </data>
+  <data name="MouseButton_Left" xml:space="preserve">
+    <value>Left</value>
+  </data>
+  <data name="MouseButton_Right" xml:space="preserve">
+    <value>Right</value>
+  </data>
+  <data name="MouseButton_Middle" xml:space="preserve">
+    <value>Middle</value>
+  </data>
+  <data name="MouseButton_ScrollUp" xml:space="preserve">
+    <value>Scroll Up</value>
+  </data>
+  <data name="MouseButton_ScrollDown" xml:space="preserve">
+    <value>Scroll Down</value>
+  </data>
+  <data name="MouseButton_ScrollLeft" xml:space="preserve">
+    <value>Scroll Left</value>
+  </data>
+  <data name="MouseButton_ScrollRight" xml:space="preserve">
+    <value>Scroll Right</value>
+  </data>
+  <data name="Language_Chinese" xml:space="preserve">
+    <value>Chinese</value>
+  </data>
+  <data name="Language_Japanese" xml:space="preserve">
+    <value>Japanese</value>
+  </data>
+  <data name="Language_Spanish" xml:space="preserve">
+    <value>Spanish</value>
+  </data>
+  <data name="Language_Arabic" xml:space="preserve">
+    <value>Arabic</value>
+  </data>
+  <data name="Language_French" xml:space="preserve">
+    <value>French</value>
+  </data>
+  <data name="Language_Portuguese" xml:space="preserve">
+    <value>Portuguese</value>
+  </data>
+  <data name="Language_Russian" xml:space="preserve">
+    <value>Russian</value>
+  </data>
+</root>

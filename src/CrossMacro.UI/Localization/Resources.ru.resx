@@ -1,0 +1,1293 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="App_Title" xml:space="preserve">
+    <value>CrossMacro</value>
+  </data>
+  <data name="MainWindow_MinimizeTooltip" xml:space="preserve">
+    <value>Свернуть</value>
+  </data>
+  <data name="MainWindow_CloseTooltip" xml:space="preserve">
+    <value>Закрыть</value>
+  </data>
+  <data name="MainWindow_DismissTooltip" xml:space="preserve">
+    <value>Отклонить</value>
+  </data>
+  <data name="MainWindow_GnomeExtensionTitle" xml:space="preserve">
+    <value>Расширение GNOME</value>
+  </data>
+  <data name="MainWindow_UpdateAvailableTitle" xml:space="preserve">
+    <value>Доступно обновление</value>
+  </data>
+  <data name="MainWindow_ViewOnGitHub" xml:space="preserve">
+    <value>Посмотреть на GitHub</value>
+  </data>
+  <data name="MainWindow_UpdateAvailableVersion" xml:space="preserve">
+    <value>v{0} доступен</value>
+  </data>
+  <data name="Navigation_Recording" xml:space="preserve">
+    <value>Запись</value>
+  </data>
+  <data name="Navigation_Playback" xml:space="preserve">
+    <value>Воспроизведение</value>
+  </data>
+  <data name="Navigation_Files" xml:space="preserve">
+    <value>Файлы</value>
+  </data>
+  <data name="Navigation_TextExpansion" xml:space="preserve">
+    <value>Расширение текста</value>
+  </data>
+  <data name="Navigation_Shortcuts" xml:space="preserve">
+    <value>Ярлыки</value>
+  </data>
+  <data name="Navigation_Schedule" xml:space="preserve">
+    <value>Расписание</value>
+  </data>
+  <data name="Navigation_Editor" xml:space="preserve">
+    <value>Редактор</value>
+  </data>
+  <data name="Navigation_Settings" xml:space="preserve">
+    <value>Настройки</value>
+  </data>
+  <data name="Settings_GlobalHotkeys" xml:space="preserve">
+    <value>Глобальные горячие клавиши</value>
+  </data>
+  <data name="Settings_ToggleRecording" xml:space="preserve">
+    <value>Переключить запись (запуск/остановка)</value>
+  </data>
+  <data name="Settings_TogglePlayback" xml:space="preserve">
+    <value>Переключение воспроизведения (старт/стоп)</value>
+  </data>
+  <data name="Settings_PauseResumePlayback" xml:space="preserve">
+    <value>Пауза/возобновление воспроизведения</value>
+  </data>
+  <data name="Settings_EnableTrayIcon" xml:space="preserve">
+    <value>Включить значок в трее</value>
+  </data>
+  <data name="Settings_StartMinimized" xml:space="preserve">
+    <value>Запускать свернутым</value>
+  </data>
+  <data name="Settings_StartMinimizedDescription" xml:space="preserve">
+    <value>Запускает приложение скрытым в трее, если это возможно, иначе открывает его свернутым.</value>
+  </data>
+  <data name="Settings_EnableTextExpansion" xml:space="preserve">
+    <value>Включить расширение текста</value>
+  </data>
+  <data name="Settings_CheckForUpdates" xml:space="preserve">
+    <value>Проверка обновлений при запуске</value>
+  </data>
+  <data name="Settings_LogLevel" xml:space="preserve">
+    <value>Уровень журнала</value>
+  </data>
+  <data name="Settings_LogLevelDescription" xml:space="preserve">
+    <value>Управляет количеством записываемой диагностической информации.</value>
+  </data>
+  <data name="Settings_Theme" xml:space="preserve">
+    <value>Тема</value>
+  </data>
+  <data name="Settings_ThemeDescription" xml:space="preserve">
+    <value>Выберите визуальную тему приложения</value>
+  </data>
+  <data name="Settings_Language" xml:space="preserve">
+    <value>Язык</value>
+  </data>
+  <data name="Settings_LanguageDescription" xml:space="preserve">
+    <value>Выберите язык приложения</value>
+  </data>
+  <data name="Settings_SupportTitle" xml:space="preserve">
+    <value>Поддержать CrossMacro</value>
+  </data>
+  <data name="Settings_SupportDescription" xml:space="preserve">
+    <value>Если вам нравится этот проект, поставьте ему звездочку на GitHub!</value>
+  </data>
+  <data name="Settings_StarOnGitHub" xml:space="preserve">
+    <value>Поставить звезду на GitHub</value>
+  </data>
+  <data name="Settings_HotkeyAlreadyAssignedTitle" xml:space="preserve">
+    <value>Горячая клавиша уже назначена</value>
+  </data>
+  <data name="Language_Auto" xml:space="preserve">
+    <value>Системные настройки по умолчанию</value>
+  </data>
+  <data name="Language_English" xml:space="preserve">
+    <value>английский</value>
+  </data>
+  <data name="Language_Turkish" xml:space="preserve">
+    <value>турецкий</value>
+  </data>
+  <data name="Status_Ready" xml:space="preserve">
+    <value>Готово</value>
+  </data>
+  <data name="Status_RecordedEvents" xml:space="preserve">
+    <value>Записано {0} событий</value>
+  </data>
+  <data name="Status_LoadedMacro" xml:space="preserve">
+    <value>Загружено: {0}</value>
+  </data>
+  <data name="Status_CreatedMacro" xml:space="preserve">
+    <value>Создано: {0} (событий: {1})</value>
+  </data>
+  <data name="Recording_LabelStatus" xml:space="preserve">
+    <value>Статус</value>
+  </data>
+  <data name="Recording_LabelEvents" xml:space="preserve">
+    <value>События</value>
+  </data>
+  <data name="Recording_LabelState" xml:space="preserve">
+    <value>Состояние</value>
+  </data>
+  <data name="Recording_TooltipRecording" xml:space="preserve">
+    <value>Запись...</value>
+  </data>
+  <data name="Recording_TooltipReady" xml:space="preserve">
+    <value>Готово</value>
+  </data>
+  <data name="Recording_CaptureSettings" xml:space="preserve">
+    <value>НАСТРОЙКИ ЗАХВАТА</value>
+  </data>
+  <data name="Recording_Mouse" xml:space="preserve">
+    <value>Мышь</value>
+  </data>
+  <data name="Recording_Keyboard" xml:space="preserve">
+    <value>Клавиатура</value>
+  </data>
+  <data name="Recording_ForceRelativeCoordinates" xml:space="preserve">
+    <value>Использовать относительные координаты</value>
+  </data>
+  <data name="Recording_ForceRelativeCoordinatesDescription" xml:space="preserve">
+    <value>Используйте относительное положение мыши, даже если поддерживается абсолютное.</value>
+  </data>
+  <data name="Recording_ForceRelativeCoordinatesHelp" xml:space="preserve">
+    <value>Требуется для использования макросов в игре.</value>
+  </data>
+  <data name="Recording_SkipInitialZeroZero" xml:space="preserve">
+    <value>Пропустить начальную позицию 0,0</value>
+  </data>
+  <data name="Recording_SkipInitialZeroZeroDescription" xml:space="preserve">
+    <value>Не перемещайте курсор в исходное положение при начале записи.</value>
+  </data>
+  <data name="Recording_StartRecording" xml:space="preserve">
+    <value>Начать запись</value>
+  </data>
+  <data name="Recording_StopRecording" xml:space="preserve">
+    <value>Остановить запись</value>
+  </data>
+  <data name="Recording_Tip" xml:space="preserve">
+    <value>Совет: используйте глобальные горячие клавиши для управления записью в других приложениях.</value>
+  </data>
+  <data name="Schedule_ItemsText" xml:space="preserve">
+    <value>{0} элементов</value>
+  </data>
+  <data name="Schedule_DefaultTaskName" xml:space="preserve">
+    <value>Задача {0}</value>
+  </data>
+  <data name="Shortcut_ItemsText" xml:space="preserve">
+    <value>{0} элементов</value>
+  </data>
+  <data name="Shortcut_DefaultTaskName" xml:space="preserve">
+    <value>Ярлык {0}</value>
+  </data>
+  <data name="Schedule_NoFile" xml:space="preserve">
+    <value>Нет файла</value>
+  </data>
+  <data name="Schedule_ListSummary" xml:space="preserve">
+    <value>{0} • {1}</value>
+  </data>
+  <data name="Schedule_StatusPlaceholder" xml:space="preserve">
+    <value>Еще не запущено</value>
+  </data>
+  <data name="Shortcut_StatusPlaceholder" xml:space="preserve">
+    <value>Еще не активировано</value>
+  </data>
+  <data name="Playback_PlaybackSpeed" xml:space="preserve">
+    <value>Скорость воспроизведения</value>
+  </data>
+  <data name="Playback_LoopPlayback" xml:space="preserve">
+    <value>Циклическое воспроизведение</value>
+  </data>
+  <data name="Playback_RandomizeLoopDelay" xml:space="preserve">
+    <value>Случайная задержка между циклами</value>
+  </data>
+  <data name="Playback_LoopCount" xml:space="preserve">
+    <value>Количество циклов</value>
+  </data>
+  <data name="Playback_LoopDelayMs" xml:space="preserve">
+    <value>Задержка цикла (мс)</value>
+  </data>
+  <data name="Playback_LoopDelayRangeMs" xml:space="preserve">
+    <value>Диапазон задержки между циклами (мс)</value>
+  </data>
+  <data name="Playback_CountdownSec" xml:space="preserve">
+    <value>Обратный отсчет (сек)</value>
+  </data>
+  <data name="Playback_PlayMacro" xml:space="preserve">
+    <value>Воспроизвести макрос</value>
+  </data>
+  <data name="Playback_StopPlayback" xml:space="preserve">
+    <value>ОСТАНОВИТЬ ВОСПРОИЗВЕДЕНИЕ</value>
+  </data>
+  <data name="Playback_LoopTip" xml:space="preserve">
+    <value>Совет: Число циклов 0 означает бесконечный цикл.</value>
+  </data>
+  <data name="Files_LoadedMacros" xml:space="preserve">
+    <value>Загруженные макросы</value>
+  </data>
+  <data name="Files_RemoveLoadedMacroTooltip" xml:space="preserve">
+    <value>Удалить загруженный макрос</value>
+  </data>
+  <data name="Files_LoadMacro" xml:space="preserve">
+    <value>Загрузить макрос</value>
+  </data>
+  <data name="Files_SaveMacro" xml:space="preserve">
+    <value>Сохранить макрос</value>
+  </data>
+  <data name="Files_SelectedMacro" xml:space="preserve">
+    <value>Выбранный макрос</value>
+  </data>
+  <data name="Files_MacroName" xml:space="preserve">
+    <value>Имя макроса</value>
+  </data>
+  <data name="Files_MacroNamePlaceholder" xml:space="preserve">
+    <value>Макрос ночного экспорта</value>
+  </data>
+  <data name="Files_SequenceRepeat" xml:space="preserve">
+    <value>Повтор последовательности</value>
+  </data>
+  <data name="Files_SequenceRepeatDescription" xml:space="preserve">
+    <value>Повтор последовательности применяется только при последовательном циклическом воспроизведении загруженного списка.</value>
+  </data>
+  <data name="Files_PlaybackMode" xml:space="preserve">
+    <value>Режим воспроизведения</value>
+  </data>
+  <data name="Files_PlaybackModeSelectedOnly" xml:space="preserve">
+    <value>Только выбранный макрос</value>
+  </data>
+  <data name="Files_PlaybackModeSelectedOnlyDescription" xml:space="preserve">
+    <value>Воспроизвести только выбранный макрос. Глобальные настройки цикла применяются к этому одному макросу.</value>
+  </data>
+  <data name="Files_PlaybackModeAdvanceSelection" xml:space="preserve">
+    <value>Воспроизвести выбранное, затем выбрать следующее.</value>
+  </data>
+  <data name="Files_PlaybackModeAdvanceSelectionDescription" xml:space="preserve">
+    <value>Запустите выбранный макрос с текущими настройками воспроизведения, затем переместите выделение на следующий загруженный макрос. Следующий элемент не воспроизводится автоматически.</value>
+  </data>
+  <data name="Files_PlaybackModeSequentialCycle" xml:space="preserve">
+    <value>Последовательное циклическое воспроизведение</value>
+  </data>
+  <data name="Files_PlaybackModeSequentialCycleDescription" xml:space="preserve">
+    <value>Выполняет макросы по очереди, начиная с выбранного, до конца списка. Повтор последовательности используется только в этом режиме.</value>
+  </data>
+  <data name="TextExpansion_AddNewExpansion" xml:space="preserve">
+    <value>ДОБАВИТЬ НОВОЕ РАСШИРЕНИЕ</value>
+  </data>
+  <data name="TextExpansion_Trigger" xml:space="preserve">
+    <value>Триггер</value>
+  </data>
+  <data name="TextExpansion_TriggerPlaceholder" xml:space="preserve">
+    <value>:мейл</value>
+  </data>
+  <data name="TextExpansion_Replacement" xml:space="preserve">
+    <value>Замена</value>
+  </data>
+  <data name="TextExpansion_ReplacementPlaceholder" xml:space="preserve">
+    <value>ivan.ivanov@example.com</value>
+  </data>
+  <data name="Files_UnnamedMacro" xml:space="preserve">
+    <value>Новый макрос</value>
+  </data>
+  <data name="Files_SourceSession" xml:space="preserve">
+    <value>Сессия</value>
+  </data>
+  <data name="Files_SequenceRepeatSummary" xml:space="preserve">
+    <value>Последовательность x{0}</value>
+  </data>
+  <data name="Files_LoadedMacroDescription" xml:space="preserve">
+    <value>{0} событий | {1}</value>
+  </data>
+  <data name="TextExpansion_InsertionMode" xml:space="preserve">
+    <value>Режим вставки</value>
+  </data>
+  <data name="TextExpansion_PasteMethod" xml:space="preserve">
+    <value>Метод вставки</value>
+  </data>
+  <data name="TextExpansion_Add" xml:space="preserve">
+    <value>+ Добавить</value>
+  </data>
+  <data name="TextExpansion_SavedExpansions" xml:space="preserve">
+    <value>СОХРАНЕННЫЕ РАСШИРЕНИЯ</value>
+  </data>
+  <data name="TextExpansion_Items" xml:space="preserve">
+    <value>{0} шт.</value>
+  </data>
+  <data name="TextExpansion_NoSavedExpansions" xml:space="preserve">
+    <value>Нет сохраненных расширений</value>
+  </data>
+  <data name="TextExpansion_EnableInSettingsTip" xml:space="preserve">
+    <value>Включите эту функцию на вкладке «Настройки», чтобы начать разворачивать текст</value>
+  </data>
+  <data name="TextExpansion_DeleteTitle" xml:space="preserve">
+    <value>Удалить расширение</value>
+  </data>
+  <data name="TextExpansion_DeleteMessage" xml:space="preserve">
+    <value>Вы уверены, что хотите удалить расширение &apos;{0}&apos;?</value>
+  </data>
+  <data name="Schedule_Title" xml:space="preserve">
+    <value>ЗАПЛАНИРОВАННЫЕ ЗАДАЧИ</value>
+  </data>
+  <data name="Schedule_Items" xml:space="preserve">
+    <value>{0} шт.</value>
+  </data>
+  <data name="Schedule_EditTask" xml:space="preserve">
+    <value>Редактировать задачу</value>
+  </data>
+  <data name="Schedule_DeleteTask" xml:space="preserve">
+    <value>Удалить задачу</value>
+  </data>
+  <data name="Schedule_TaskSettings" xml:space="preserve">
+    <value>НАСТРОЙКИ ЗАДАЧ</value>
+  </data>
+  <data name="Schedule_Name" xml:space="preserve">
+    <value>Имя</value>
+  </data>
+  <data name="Schedule_NamePlaceholder" xml:space="preserve">
+    <value>Ночное задание экспорта</value>
+  </data>
+  <data name="Schedule_PlaybackSpeed" xml:space="preserve">
+    <value>Скорость воспроизведения</value>
+  </data>
+  <data name="Schedule_MacroFile" xml:space="preserve">
+    <value>Файл макроса</value>
+  </data>
+  <data name="Schedule_NoFileSelected" xml:space="preserve">
+    <value>Файл не выбран</value>
+  </data>
+  <data name="Schedule_Browse" xml:space="preserve">
+    <value>Обзор</value>
+  </data>
+  <data name="Schedule_Type" xml:space="preserve">
+    <value>Тип расписания</value>
+  </data>
+  <data name="Schedule_TypeInterval" xml:space="preserve">
+    <value>Интервал (повтор)</value>
+  </data>
+  <data name="Schedule_TypeDateTime" xml:space="preserve">
+    <value>Дата/время (один раз)</value>
+  </data>
+  <data name="Schedule_IntervalSettings" xml:space="preserve">
+    <value>НАСТРОЙКИ ИНТЕРВАЛА</value>
+  </data>
+  <data name="Schedule_RunEvery" xml:space="preserve">
+    <value>Запускать макрос каждые:</value>
+  </data>
+  <data name="Schedule_Seconds" xml:space="preserve">
+    <value>Секунды</value>
+  </data>
+  <data name="Schedule_Minutes" xml:space="preserve">
+    <value>Минуты</value>
+  </data>
+  <data name="Schedule_Hours" xml:space="preserve">
+    <value>Часов</value>
+  </data>
+  <data name="Schedule_DateTimeSettings" xml:space="preserve">
+    <value>НАСТРОЙКИ ДАТЫ/ВРЕМЕНИ</value>
+  </data>
+  <data name="Schedule_RunAt" xml:space="preserve">
+    <value>Запустить макрос по адресу:</value>
+  </data>
+  <data name="Schedule_RunOnceTip" xml:space="preserve">
+    <value>Макрос запустится один раз в выбранную дату.</value>
+  </data>
+  <data name="Schedule_Status" xml:space="preserve">
+    <value>СТАТУС</value>
+  </data>
+  <data name="Schedule_LastRun" xml:space="preserve">
+    <value>Последний запуск:</value>
+  </data>
+  <data name="Schedule_NextRun" xml:space="preserve">
+    <value>Следующий запуск:</value>
+  </data>
+  <data name="Schedule_StatusLabel" xml:space="preserve">
+    <value>Статус:</value>
+  </data>
+  <data name="Schedule_Never" xml:space="preserve">
+    <value>Никогда</value>
+  </data>
+  <data name="Schedule_NotScheduled" xml:space="preserve">
+    <value>Не запланировано</value>
+  </data>
+  <data name="Schedule_SaveAllTasks" xml:space="preserve">
+    <value>Сохранить все задачи</value>
+  </data>
+  <data name="Schedule_NoTaskSelected" xml:space="preserve">
+    <value>Задача не выбрана</value>
+  </data>
+  <data name="Schedule_SelectTaskHint" xml:space="preserve">
+    <value>Выберите задачу из списка выше или добавьте новую</value>
+  </data>
+  <data name="Schedule_DeleteTitle" xml:space="preserve">
+    <value>Удалить задачу</value>
+  </data>
+  <data name="Schedule_DeleteMessage" xml:space="preserve">
+    <value>Вы уверены, что хотите удалить задачу «{0}»?</value>
+  </data>
+  <data name="Schedule_OpenMacroDialogTitle" xml:space="preserve">
+    <value>Выберите файл макроса</value>
+  </data>
+  <data name="Schedule_OpenMacroDialogFilter" xml:space="preserve">
+    <value>Файлы макросов</value>
+  </data>
+  <data name="Schedule_StatusInitFailed" xml:space="preserve">
+    <value>Расписание: не удалось инициализировать ({0})</value>
+  </data>
+  <data name="Schedule_StatusChangesSaved" xml:space="preserve">
+    <value>Расписание: изменения сохранены</value>
+  </data>
+  <data name="Schedule_StatusSaveFailed" xml:space="preserve">
+    <value>Расписание: не удалось сохранить изменения ({0})</value>
+  </data>
+  <data name="Schedule_SaveFailedTitle" xml:space="preserve">
+    <value>Не удалось сохранить расписание</value>
+  </data>
+  <data name="Schedule_StatusExtensionWarning" xml:space="preserve">
+    <value>Расписание: расширение файла макроса не .macro (все еще разрешено)</value>
+  </data>
+  <data name="Schedule_StatusRunning" xml:space="preserve">
+    <value>Расписание: работает {0}...</value>
+  </data>
+  <data name="Schedule_StatusCompleted" xml:space="preserve">
+    <value>Расписание: {0} завершено</value>
+  </data>
+  <data name="Schedule_StatusFailedExecution" xml:space="preserve">
+    <value>Расписание: {0} – {1}</value>
+  </data>
+  <data name="Shortcut_Title" xml:space="preserve">
+    <value>ЯРЛЫКИ</value>
+  </data>
+  <data name="Shortcut_Items" xml:space="preserve">
+    <value>{0} шт.</value>
+  </data>
+  <data name="Shortcut_NameFallback" xml:space="preserve">
+    <value>Имя ярлыка</value>
+  </data>
+  <data name="Shortcut_NoFile" xml:space="preserve">
+    <value>Нет файла</value>
+  </data>
+  <data name="Shortcut_EditTooltip" xml:space="preserve">
+    <value>Изменить ярлык</value>
+  </data>
+  <data name="Shortcut_DeleteTooltip" xml:space="preserve">
+    <value>Удалить ярлык</value>
+  </data>
+  <data name="Shortcut_Settings" xml:space="preserve">
+    <value>НАСТРОЙКИ ЯРЛЫКОВ</value>
+  </data>
+  <data name="Shortcut_Name" xml:space="preserve">
+    <value>Имя</value>
+  </data>
+  <data name="Shortcut_NamePlaceholder" xml:space="preserve">
+    <value>Ярлык для ввода счета-фактуры</value>
+  </data>
+  <data name="Shortcut_Trigger" xml:space="preserve">
+    <value>Триггер (клавиатура/мышь)</value>
+  </data>
+  <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
+    <value>Скорость воспроизведения</value>
+  </data>
+  <data name="Shortcut_LoopPlayback" xml:space="preserve">
+    <value>Циклическое воспроизведение</value>
+  </data>
+  <data name="Shortcut_PressToStartStop" xml:space="preserve">
+    <value>Нажмите, чтобы начать/остановить</value>
+  </data>
+  <data name="Shortcut_PressToStartStopTooltip" xml:space="preserve">
+    <value>Нажмите ярлык, чтобы начать цикл; нажмите еще раз, чтобы остановить.</value>
+  </data>
+  <data name="Shortcut_RunWhenHeld" xml:space="preserve">
+    <value>Выполнять при удержании</value>
+  </data>
+  <data name="Shortcut_RunWhenHeldTooltip" xml:space="preserve">
+    <value>Удерживайте ярлык для запуска; отпустите, чтобы остановиться.</value>
+  </data>
+  <data name="Shortcut_LoopCount" xml:space="preserve">
+    <value>Количество циклов</value>
+  </data>
+  <data name="Shortcut_LoopDelayMs" xml:space="preserve">
+    <value>Задержка цикла (мс)</value>
+  </data>
+  <data name="Shortcut_LoopTip" xml:space="preserve">
+    <value>Совет: Число циклов 0 означает бесконечный цикл.</value>
+  </data>
+  <data name="Shortcut_MacroFile" xml:space="preserve">
+    <value>Макрос-файл</value>
+  </data>
+  <data name="Shortcut_NoFileSelected" xml:space="preserve">
+    <value>Файл не выбран</value>
+  </data>
+  <data name="Shortcut_Browse" xml:space="preserve">
+    <value>Обзор</value>
+  </data>
+  <data name="Shortcut_Status" xml:space="preserve">
+    <value>СТАТУС</value>
+  </data>
+  <data name="Shortcut_LastTriggered" xml:space="preserve">
+    <value>Последнее срабатывание:</value>
+  </data>
+  <data name="Shortcut_StatusLabel" xml:space="preserve">
+    <value>Статус:</value>
+  </data>
+  <data name="Shortcut_Never" xml:space="preserve">
+    <value>Никогда</value>
+  </data>
+  <data name="Shortcut_SaveAll" xml:space="preserve">
+    <value>Сохранить все ярлыки</value>
+  </data>
+  <data name="Shortcut_NoSelected" xml:space="preserve">
+    <value>Ярлык не выбран</value>
+  </data>
+  <data name="Shortcut_SelectHint" xml:space="preserve">
+    <value>Выберите ярлык из списка выше или добавьте новый.</value>
+  </data>
+  <data name="Shortcut_DeleteTitle" xml:space="preserve">
+    <value>Удалить ярлык</value>
+  </data>
+  <data name="Shortcut_DeleteMessage" xml:space="preserve">
+    <value>Вы уверены, что хотите удалить ярлык &apos;{0}&apos;?</value>
+  </data>
+  <data name="Shortcut_OpenMacroDialogTitle" xml:space="preserve">
+    <value>Выберите файл макроса</value>
+  </data>
+  <data name="Shortcut_OpenMacroDialogFilter" xml:space="preserve">
+    <value>Макросы</value>
+  </data>
+  <data name="Shortcut_StatusInitFailed" xml:space="preserve">
+    <value>Ярлык: не удалось инициализировать ({0})</value>
+  </data>
+  <data name="Shortcut_StatusChangesSaved" xml:space="preserve">
+    <value>Ярлык: изменения сохранены.</value>
+  </data>
+  <data name="Shortcut_StatusSaveFailed" xml:space="preserve">
+    <value>Ярлык: не удалось сохранить изменения ({0})</value>
+  </data>
+  <data name="Shortcut_SaveFailedTitle" xml:space="preserve">
+    <value>Не удалось сохранить ярлык</value>
+  </data>
+  <data name="Shortcut_StatusRunning" xml:space="preserve">
+    <value>Ярлык: Запуск {0}...</value>
+  </data>
+  <data name="Shortcut_StatusCompleted" xml:space="preserve">
+    <value>Ярлык: {0} завершено</value>
+  </data>
+  <data name="Shortcut_StatusFailed" xml:space="preserve">
+    <value>Ярлык: {0} – {1}</value>
+  </data>
+  <data name="Files_StatusReady" xml:space="preserve">
+    <value>Готов</value>
+  </data>
+  <data name="Files_OpenMacroDialogFilter" xml:space="preserve">
+    <value>Макрофайлы</value>
+  </data>
+  <data name="Files_SaveDialogTitle" xml:space="preserve">
+    <value>Сохранить макрос</value>
+  </data>
+  <data name="Files_LoadDialogTitle" xml:space="preserve">
+    <value>Загрузить макрос</value>
+  </data>
+  <data name="Files_StatusSaveCancelled" xml:space="preserve">
+    <value>Сохранение отменено</value>
+  </data>
+  <data name="Files_StatusSavedTo" xml:space="preserve">
+    <value>Сохранено в {0}.</value>
+  </data>
+  <data name="Files_StatusSaveError" xml:space="preserve">
+    <value>Ошибка сохранения: {0}</value>
+  </data>
+  <data name="Files_StatusLoadCancelled" xml:space="preserve">
+    <value>Загрузка отменена</value>
+  </data>
+  <data name="Files_StatusLoadUnreadable" xml:space="preserve">
+    <value>Ошибка загрузки: файл не может быть прочитан</value>
+  </data>
+  <data name="Files_StatusLoaded" xml:space="preserve">
+    <value>Загружено {0}</value>
+  </data>
+  <data name="Files_StatusLoadError" xml:space="preserve">
+    <value>Ошибка загрузки: {0}</value>
+  </data>
+  <data name="Files_DeleteLoadedMacroTitle" xml:space="preserve">
+    <value>Удалить загруженный макрос</value>
+  </data>
+  <data name="Files_DeleteLoadedMacroMessage" xml:space="preserve">
+    <value>Вы уверены, что хотите удалить загруженный макрос &apos;{0}&apos;?</value>
+  </data>
+  <data name="Files_StatusRemoved" xml:space="preserve">
+    <value>Удален {0}</value>
+  </data>
+  <data name="Playback_StatusReady" xml:space="preserve">
+    <value>Готово</value>
+  </data>
+  <data name="Playback_StatusPlaying" xml:space="preserve">
+    <value>Воспроизведение...</value>
+  </data>
+  <data name="Playback_StatusComplete" xml:space="preserve">
+    <value>Воспроизведение завершено</value>
+  </data>
+  <data name="Playback_StatusStopped" xml:space="preserve">
+    <value>Воспроизведение остановлено.</value>
+  </data>
+  <data name="Playback_StatusPaused" xml:space="preserve">
+    <value>Приостановлено</value>
+  </data>
+  <data name="Playback_StatusError" xml:space="preserve">
+    <value>Ошибка воспроизведения: {0}</value>
+  </data>
+  <data name="Playback_StatusWaitingNextSequence" xml:space="preserve">
+    <value>Ожидание {0} перед следующей последовательностью...</value>
+  </data>
+  <data name="Playback_StatusSequencePlaying" xml:space="preserve">
+    <value>Воспроизведение {0} ({1}/{2}){3} – последовательность {4}</value>
+  </data>
+  <data name="Playback_StatusWaitingNextLoop" xml:space="preserve">
+    <value>Ожидание {0} перед следующим циклом...</value>
+  </data>
+  <data name="Playback_StatusLoopInfinite" xml:space="preserve">
+    <value>Играю (цикл {0} – бесконечный)</value>
+  </data>
+  <data name="Playback_StatusLoopProgress" xml:space="preserve">
+    <value>Воспроизведение (цикл {0}/{1})</value>
+  </data>
+  <data name="Playback_StatusStartingIn" xml:space="preserve">
+    <value>Начало в {0}...</value>
+  </data>
+  <data name="Recording_StatusReady" xml:space="preserve">
+    <value>Готово</value>
+  </data>
+  <data name="Recording_StatusRecording" xml:space="preserve">
+    <value>Запись...</value>
+  </data>
+  <data name="Recording_StatusError" xml:space="preserve">
+    <value>Ошибка: {0}</value>
+  </data>
+  <data name="Recording_StatusRecordedEvents" xml:space="preserve">
+    <value>Записано {0} событий</value>
+  </data>
+  <data name="Recording_StatusLoadedEvents" xml:space="preserve">
+    <value>Загружено {0} событий</value>
+  </data>
+  <data name="Editor_DefaultMacroName" xml:space="preserve">
+    <value>Ручной макрос</value>
+  </data>
+  <data name="Editor_StatusReady" xml:space="preserve">
+    <value>Готово</value>
+  </data>
+  <data name="Editor_StatusRemovedAction" xml:space="preserve">
+    <value>Удалено действие</value>
+  </data>
+  <data name="Editor_StatusMovedActionUp" xml:space="preserve">
+    <value>Действие перенесено вверх.</value>
+  </data>
+  <data name="Editor_StatusMovedActionDown" xml:space="preserve">
+    <value>Действие перемещено вниз.</value>
+  </data>
+  <data name="Editor_StatusDuplicatedAction" xml:space="preserve">
+    <value>Дублируемое действие</value>
+  </data>
+  <data name="Editor_StatusClearedAllActions" xml:space="preserve">
+    <value>Все действия удалены.</value>
+  </data>
+  <data name="Editor_StatusUndone" xml:space="preserve">
+    <value>Отменено</value>
+  </data>
+  <data name="Editor_StatusRedone" xml:space="preserve">
+    <value>Переделано</value>
+  </data>
+  <data name="Editor_StatusSelectActionFirst" xml:space="preserve">
+    <value>Сначала выберите действие</value>
+  </data>
+  <data name="Editor_StatusCaptureMousePrompt" xml:space="preserve">
+    <value>Щелкните в любом месте, чтобы зафиксировать положение (Esc для отмены)...</value>
+  </data>
+  <data name="Editor_StatusCaptureKeyPrompt" xml:space="preserve">
+    <value>Нажмите клавишу, чтобы захватить...</value>
+  </data>
+  <data name="Editor_StatusCaptureCancelled" xml:space="preserve">
+    <value>Захват отменен.</value>
+  </data>
+  <data name="Editor_StatusCaptureSelectionChanged" xml:space="preserve">
+    <value>Захват игнорируется: выбранное действие изменено</value>
+  </data>
+  <data name="Editor_StatusSaveCancelled" xml:space="preserve">
+    <value>Сохранение отменено</value>
+  </data>
+  <data name="Editor_StatusLoadCancelled" xml:space="preserve">
+    <value>Загрузка отменена</value>
+  </data>
+  <data name="Editor_StatusLoadFailed" xml:space="preserve">
+    <value>Не удалось загрузить макрос.</value>
+  </data>
+  <data name="Editor_StatusInsertedElseBlock" xml:space="preserve">
+    <value>Вставлен блок else</value>
+  </data>
+  <data name="Editor_StatusElseAlreadyExists" xml:space="preserve">
+    <value>Выбирается, если в блоке уже есть else</value>
+  </data>
+  <data name="Editor_StatusSelectIfBlockFirst" xml:space="preserve">
+    <value>Сначала выберите блок if</value>
+  </data>
+  <data name="Editor_StatusRemovedBlock" xml:space="preserve">
+    <value>Блокировка удалена.</value>
+  </data>
+  <data name="Editor_StatusOperationBlocked" xml:space="preserve">
+    <value>Операция заблокирована: нарушит структуру блока</value>
+  </data>
+  <data name="Editor_SaveDialogTitle" xml:space="preserve">
+    <value>Сохранить макрос</value>
+  </data>
+  <data name="Editor_LoadDialogTitle" xml:space="preserve">
+    <value>Загрузить макрос</value>
+  </data>
+  <data name="Editor_MacroFileDialogName" xml:space="preserve">
+    <value>Макрофайлы</value>
+  </data>
+  <data name="Editor_DialogTitleNoActions" xml:space="preserve">
+    <value>Нет действий</value>
+  </data>
+  <data name="Editor_DialogMessageNoActions" xml:space="preserve">
+    <value>Пожалуйста, добавьте хотя бы одно действие перед сохранением.</value>
+  </data>
+  <data name="Editor_DialogTitleValidationErrors" xml:space="preserve">
+    <value>Ошибки проверки</value>
+  </data>
+  <data name="Editor_ValidationErrorHeader" xml:space="preserve">
+    <value>Пожалуйста, исправьте следующие ошибки:</value>
+  </data>
+  <data name="Editor_StatusCapturedPosition" xml:space="preserve">
+    <value>Захваченная позиция: ({0}, {1})</value>
+  </data>
+  <data name="Editor_StatusCaptureError" xml:space="preserve">
+    <value>Ошибка захвата: {0}</value>
+  </data>
+  <data name="Editor_StatusCapturedKey" xml:space="preserve">
+    <value>Снято: {0} (код: {1})</value>
+  </data>
+  <data name="Editor_StatusValidationFailed" xml:space="preserve">
+    <value>Проверка не удалась: ошибок: {0}</value>
+  </data>
+  <data name="Editor_StatusSaved" xml:space="preserve">
+    <value>Сохранено: {0}</value>
+  </data>
+  <data name="Editor_StatusSaveError" xml:space="preserve">
+    <value>Ошибка сохранения: {0}</value>
+  </data>
+  <data name="Editor_StatusLoaded" xml:space="preserve">
+    <value>Загружено: {0}</value>
+  </data>
+  <data name="Editor_StatusLoadedWithWarnings" xml:space="preserve">
+    <value>Загружено: {0} (предупреждений о восстановлении: {1}))</value>
+  </data>
+  <data name="Editor_StatusLoadError" xml:space="preserve">
+    <value>Ошибка загрузки: {0}</value>
+  </data>
+  <data name="Editor_StatusRestoreWarningFallback" xml:space="preserve">
+    <value>Шаги сценария не удалось восстановить; загружается из потока событий.</value>
+  </data>
+  <data name="Editor_StatusAutoManagedAction" xml:space="preserve">
+    <value>Это действие выполняется автоматически.</value>
+  </data>
+  <data name="Editor_Actions" xml:space="preserve">
+    <value>Действия</value>
+  </data>
+  <data name="Editor_RemoveActionTooltip" xml:space="preserve">
+    <value>Удалить действие</value>
+  </data>
+  <data name="Editor_Remove" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Editor_RemoveBlockTooltip" xml:space="preserve">
+    <value>Удалить блок</value>
+  </data>
+  <data name="Editor_Block" xml:space="preserve">
+    <value>Блок</value>
+  </data>
+  <data name="Editor_MoveUpTooltip" xml:space="preserve">
+    <value>Переместить вверх</value>
+  </data>
+  <data name="Editor_MoveDownTooltip" xml:space="preserve">
+    <value>Вниз</value>
+  </data>
+  <data name="Editor_DuplicateTooltip" xml:space="preserve">
+    <value>Дублировать</value>
+  </data>
+  <data name="Editor_AddNewAction" xml:space="preserve">
+    <value>Добавить новое действие</value>
+  </data>
+  <data name="Editor_AddAction" xml:space="preserve">
+    <value>Добавить действие</value>
+  </data>
+  <data name="Editor_SelectedActionProperties" xml:space="preserve">
+    <value>Свойства выбранного действия</value>
+  </data>
+  <data name="Editor_Type" xml:space="preserve">
+    <value>Тип:</value>
+  </data>
+  <data name="Editor_InsertElseBlock" xml:space="preserve">
+    <value>Вставить блок Else</value>
+  </data>
+  <data name="Editor_CurrentPositionHint" xml:space="preserve">
+    <value>Воспроизведение выполняет это действие в текущей позиции курсора.</value>
+  </data>
+  <data name="Editor_Coordinates" xml:space="preserve">
+    <value>Координаты:</value>
+  </data>
+  <data name="Editor_CapturePosition" xml:space="preserve">
+    <value>Захватить позицию</value>
+  </data>
+  <data name="Editor_CancelCapture" xml:space="preserve">
+    <value>Отменить захват</value>
+  </data>
+  <data name="Editor_CoordinateMode" xml:space="preserve">
+    <value>Координатный режим:</value>
+  </data>
+  <data name="Editor_Absolute" xml:space="preserve">
+    <value>Абсолютный</value>
+  </data>
+  <data name="Editor_Relative" xml:space="preserve">
+    <value>Относительный</value>
+  </data>
+  <data name="Editor_MouseButton" xml:space="preserve">
+    <value>Кнопка мыши:</value>
+  </data>
+  <data name="Editor_Key" xml:space="preserve">
+    <value>Клавиша:</value>
+  </data>
+  <data name="Editor_KeyPlaceholder" xml:space="preserve">
+    <value>Код</value>
+  </data>
+  <data name="Editor_KeyFallback" xml:space="preserve">
+    <value>(введите код)</value>
+  </data>
+  <data name="Editor_CaptureKey" xml:space="preserve">
+    <value>Захватить клавишу</value>
+  </data>
+  <data name="Editor_RandomizeDelay" xml:space="preserve">
+    <value>Рандомизировать задержку</value>
+  </data>
+  <data name="Editor_DelayMs" xml:space="preserve">
+    <value>Задержка (мс):</value>
+  </data>
+  <data name="Editor_DelayPlaceholder" xml:space="preserve">
+    <value>мс</value>
+  </data>
+  <data name="Editor_RandomDelayRangeMs" xml:space="preserve">
+    <value>Диапазон случайной задержки (мс):</value>
+  </data>
+  <data name="Editor_Min" xml:space="preserve">
+    <value>Мин</value>
+  </data>
+  <data name="Editor_Max" xml:space="preserve">
+    <value>Макс</value>
+  </data>
+  <data name="Editor_ScrollAmount" xml:space="preserve">
+    <value>Величина прокрутки:</value>
+  </data>
+  <data name="Editor_Amount" xml:space="preserve">
+    <value>Величина</value>
+  </data>
+  <data name="Editor_ScrollHint" xml:space="preserve">
+    <value>(+) вверх/вправо, (-) вниз/влево</value>
+  </data>
+  <data name="Editor_SetVariable" xml:space="preserve">
+    <value>Установить переменную:</value>
+  </data>
+  <data name="Editor_VariableNamePlaceholder" xml:space="preserve">
+    <value>Имя переменной (например, retryCount)</value>
+  </data>
+  <data name="Editor_Value" xml:space="preserve">
+    <value>Значение</value>
+  </data>
+  <data name="Editor_SetVariableHint" xml:space="preserve">
+    <value>Имя, тип и значение хранятся отдельно. Компилируется в: set &lt;имя&gt; &lt;значение&gt;</value>
+  </data>
+  <data name="Editor_VariableUpdate" xml:space="preserve">
+    <value>Обновление переменной:</value>
+  </data>
+  <data name="Editor_AmountOrVariable" xml:space="preserve">
+    <value>Величина / переменная</value>
+  </data>
+  <data name="Editor_IncrementDecrementHint" xml:space="preserve">
+    <value>Величина приращения/уменьшения может быть числом или ссылкой на переменную.</value>
+  </data>
+  <data name="Editor_RepeatBlock" xml:space="preserve">
+    <value>Блок repeat:</value>
+  </data>
+  <data name="Editor_CountOrVariable" xml:space="preserve">
+    <value>Число/переменная</value>
+  </data>
+  <data name="Editor_Condition" xml:space="preserve">
+    <value>Условие:</value>
+  </data>
+  <data name="Editor_LeftOperand" xml:space="preserve">
+    <value>Левый операнд</value>
+  </data>
+  <data name="Editor_LeftValue" xml:space="preserve">
+    <value>Левое значение</value>
+  </data>
+  <data name="Editor_RightOperand" xml:space="preserve">
+    <value>Правый операнд</value>
+  </data>
+  <data name="Editor_RightValue" xml:space="preserve">
+    <value>Правое значение</value>
+  </data>
+  <data name="Editor_ForBlock" xml:space="preserve">
+    <value>Блок for:</value>
+  </data>
+  <data name="Editor_LoopVariablePlaceholder" xml:space="preserve">
+    <value>Переменная цикла (например, rowIndex)</value>
+  </data>
+  <data name="Editor_Start" xml:space="preserve">
+    <value>Старт</value>
+  </data>
+  <data name="Editor_End" xml:space="preserve">
+    <value>Конец</value>
+  </data>
+  <data name="Editor_UseExplicitStep" xml:space="preserve">
+    <value>Использовать явный шаг</value>
+  </data>
+  <data name="Editor_Step" xml:space="preserve">
+    <value>Шаг</value>
+  </data>
+  <data name="Editor_SelectActionPrompt" xml:space="preserve">
+    <value>Выберите действие для редактирования его свойств.</value>
+  </data>
+  <data name="Editor_RestoreWarnings" xml:space="preserve">
+    <value>Восстановить предупреждения</value>
+  </data>
+  <data name="Editor_UndoTooltip" xml:space="preserve">
+    <value>Отменить</value>
+  </data>
+  <data name="Editor_Undo" xml:space="preserve">
+    <value>Отменить</value>
+  </data>
+  <data name="Editor_RedoTooltip" xml:space="preserve">
+    <value>Повторить</value>
+  </data>
+  <data name="Editor_Redo" xml:space="preserve">
+    <value>Повторить</value>
+  </data>
+  <data name="Editor_ClearAllTooltip" xml:space="preserve">
+    <value>Очистить все</value>
+  </data>
+  <data name="Editor_Clear" xml:space="preserve">
+    <value>Очистить</value>
+  </data>
+  <data name="Editor_Load" xml:space="preserve">
+    <value>Загрузить</value>
+  </data>
+  <data name="Editor_Save" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+  <data name="TextExpansion_ModeDirectTyping" xml:space="preserve">
+    <value>Прямой ввод</value>
+  </data>
+  <data name="TextExpansion_ModePaste" xml:space="preserve">
+    <value>Вставить</value>
+  </data>
+  <data name="HotkeyCapture_PressAKey" xml:space="preserve">
+    <value>Нажмите клавишу...</value>
+  </data>
+  <data name="HotkeyCapture_ClickToSet" xml:space="preserve">
+    <value>Нажмите, чтобы установить горячую клавишу.</value>
+  </data>
+  <data name="HotkeyCapture_ServiceError" xml:space="preserve">
+    <value>Ошибка службы</value>
+  </data>
+  <data name="Dialog_Yes" xml:space="preserve">
+    <value>Да</value>
+  </data>
+  <data name="Dialog_No" xml:space="preserve">
+    <value>Нет</value>
+  </data>
+  <data name="Dialog_Ok" xml:space="preserve">
+    <value>ОК</value>
+  </data>
+  <data name="Tray_ShowHide" xml:space="preserve">
+    <value>Показать/Скрыть</value>
+  </data>
+  <data name="Tray_StartRecording" xml:space="preserve">
+    <value>Начать запись ({0})</value>
+  </data>
+  <data name="Tray_StartPlayback" xml:space="preserve">
+    <value>Начать воспроизведение ({0})</value>
+  </data>
+  <data name="Tray_Stop" xml:space="preserve">
+    <value>Стоп ({0})</value>
+  </data>
+  <data name="Tray_Exit" xml:space="preserve">
+    <value>Выход</value>
+  </data>
+  <data name="Editor_CurrentPositionClick" xml:space="preserve">
+    <value>Щелкните в текущей позиции курсора.</value>
+  </data>
+  <data name="Editor_CurrentPositionHold" xml:space="preserve">
+    <value>Удерживать в текущей позиции курсора</value>
+  </data>
+  <data name="Editor_CurrentPositionRelease" xml:space="preserve">
+    <value>Отпустите в текущей позиции курсора.</value>
+  </data>
+  <data name="Editor_CurrentPositionUse" xml:space="preserve">
+    <value>Использовать текущую позицию курсора</value>
+  </data>
+  <data name="Editor_RawScriptStep" xml:space="preserve">
+    <value>Шаг необработанного сценария:</value>
+  </data>
+  <data name="Editor_TextToType" xml:space="preserve">
+    <value>Введите текст:</value>
+  </data>
+  <data name="Editor_OriginalScriptLine" xml:space="preserve">
+    <value>Исходная строка сценария</value>
+  </data>
+  <data name="Editor_EnterTextToType" xml:space="preserve">
+    <value>Введите текст для ввода...</value>
+  </data>
+  <data name="Editor_RawScriptHint" xml:space="preserve">
+    <value>Этот шаг невозможно сопоставить со структурированными полями, и он будет сохранен как есть.</value>
+  </data>
+  <data name="Editor_TextToTypeHint" xml:space="preserve">
+    <value>Каждый символ набирается как отдельное нажатие клавиши (максимум {0} символов)</value>
+  </data>
+  <data name="Editor_StatusAddedAction" xml:space="preserve">
+    <value>Добавлен {0}</value>
+  </data>
+  <data name="Editor_BlockName_If" xml:space="preserve">
+    <value>Если</value>
+  </data>
+  <data name="Editor_BlockName_Else" xml:space="preserve">
+    <value>Else</value>
+  </data>
+  <data name="Editor_BlockName_While" xml:space="preserve">
+    <value>Пока</value>
+  </data>
+  <data name="Editor_BlockName_For" xml:space="preserve">
+    <value>Для</value>
+  </data>
+  <data name="Editor_BlockName_Repeat" xml:space="preserve">
+    <value>Повторить</value>
+  </data>
+  <data name="Editor_BlockName_Block" xml:space="preserve">
+    <value>Блок</value>
+  </data>
+  <data name="Editor_Action_MouseMoveAbsolute" xml:space="preserve">
+    <value>Перейти к ({0}, {1})</value>
+  </data>
+  <data name="Editor_Action_MouseMoveRelative" xml:space="preserve">
+    <value>Переместить на ({0:+#;-#;0}, {1:+#;-#;0})</value>
+  </data>
+  <data name="Editor_Action_MouseClickCurrent" xml:space="preserve">
+    <value>Нажмите {0} в текущей позиции.</value>
+  </data>
+  <data name="Editor_Action_MouseClick" xml:space="preserve">
+    <value>Нажмите {0}</value>
+  </data>
+  <data name="Editor_Action_MouseDown" xml:space="preserve">
+    <value>Удерживайте {0}</value>
+  </data>
+  <data name="Editor_Action_MouseUp" xml:space="preserve">
+    <value>Отпустить {0}</value>
+  </data>
+  <data name="Editor_Action_KeyPress" xml:space="preserve">
+    <value>Нажмите &apos;{0}&apos;</value>
+  </data>
+  <data name="Editor_Action_KeyDown" xml:space="preserve">
+    <value>Удерживайте &apos;{0}&apos;</value>
+  </data>
+  <data name="Editor_Action_KeyUp" xml:space="preserve">
+    <value>Отпустить &apos;{0}&apos;</value>
+  </data>
+  <data name="Editor_Action_DelayRandom" xml:space="preserve">
+    <value>Подождите {0}-{1}мс (случайно)</value>
+  </data>
+  <data name="Editor_Action_Delay" xml:space="preserve">
+    <value>Подождите {0}мс.</value>
+  </data>
+  <data name="Editor_Action_ScrollUp" xml:space="preserve">
+    <value>Прокрутите вверх {0}</value>
+  </data>
+  <data name="Editor_Action_ScrollDown" xml:space="preserve">
+    <value>Прокрутите вниз {0}</value>
+  </data>
+  <data name="Editor_Action_ScrollRight" xml:space="preserve">
+    <value>Прокрутите вправо {0}</value>
+  </data>
+  <data name="Editor_Action_ScrollLeft" xml:space="preserve">
+    <value>Прокрутите влево {0}</value>
+  </data>
+  <data name="Editor_Action_TextInputEmpty" xml:space="preserve">
+    <value>Ввод текста (пусто)</value>
+  </data>
+  <data name="Editor_Action_TextInput" xml:space="preserve">
+    <value>Введите &quot;{0}&quot;</value>
+  </data>
+  <data name="Editor_Action_SetVariableShort" xml:space="preserve">
+    <value>Установить переменную</value>
+  </data>
+  <data name="Editor_Action_IncrementVariableShort" xml:space="preserve">
+    <value>Увеличить переменную</value>
+  </data>
+  <data name="Editor_Action_DecrementVariableShort" xml:space="preserve">
+    <value>Уменьшить переменную</value>
+  </data>
+  <data name="Editor_Action_RepeatBlockShort" xml:space="preserve">
+    <value>Повторить</value>
+  </data>
+  <data name="Editor_Action_IfBlockShort" xml:space="preserve">
+    <value>Если</value>
+  </data>
+  <data name="Editor_Action_ElseBlockShort" xml:space="preserve">
+    <value>Блок else</value>
+  </data>
+  <data name="Editor_Action_WhileBlockShort" xml:space="preserve">
+    <value>Пока</value>
+  </data>
+  <data name="Editor_Action_ForBlockShort" xml:space="preserve">
+    <value>Для</value>
+  </data>
+  <data name="Editor_Action_BreakShort" xml:space="preserve">
+    <value>Break</value>
+  </data>
+  <data name="Editor_Action_ContinueShort" xml:space="preserve">
+    <value>Продолжить</value>
+  </data>
+  <data name="Editor_Action_EndBlockShort" xml:space="preserve">
+    <value>Конечный блок</value>
+  </data>
+  <data name="Editor_Action_RawScriptStepShort" xml:space="preserve">
+    <value>Шаг необработанного сценария</value>
+  </data>
+  <data name="Editor_Action_RawScriptStep" xml:space="preserve">
+    <value>Необработанный сценарий: {0}</value>
+  </data>
+  <data name="Editor_Action_UnknownShort" xml:space="preserve">
+    <value>Неизвестное действие</value>
+  </data>
+  <data name="Editor_ActionType_MouseMove" xml:space="preserve">
+    <value>Перемещение мышью</value>
+  </data>
+  <data name="Editor_ActionType_MouseClick" xml:space="preserve">
+    <value>Щелчок мышью</value>
+  </data>
+  <data name="Editor_ActionType_MouseDown" xml:space="preserve">
+    <value>Мышь вниз</value>
+  </data>
+  <data name="Editor_ActionType_MouseUp" xml:space="preserve">
+    <value>Мышь вверх</value>
+  </data>
+  <data name="Editor_ActionType_KeyPress" xml:space="preserve">
+    <value>Нажатие клавиши</value>
+  </data>
+  <data name="Editor_ActionType_KeyDown" xml:space="preserve">
+    <value>Клавиша вниз</value>
+  </data>
+  <data name="Editor_ActionType_KeyUp" xml:space="preserve">
+    <value>Клавиша вверх</value>
+  </data>
+  <data name="Editor_ActionType_Delay" xml:space="preserve">
+    <value>Задержка</value>
+  </data>
+  <data name="Editor_ActionType_ScrollVertical" xml:space="preserve">
+    <value>Прокрутка по вертикали</value>
+  </data>
+  <data name="Editor_ActionType_ScrollHorizontal" xml:space="preserve">
+    <value>Прокрутка по горизонтали</value>
+  </data>
+  <data name="Editor_ActionType_TextInput" xml:space="preserve">
+    <value>Ввод текста</value>
+  </data>
+  <data name="Editor_ActionType_SetVariable" xml:space="preserve">
+    <value>Установить переменную</value>
+  </data>
+  <data name="Editor_ActionType_IncrementVariable" xml:space="preserve">
+    <value>Приращение переменной</value>
+  </data>
+  <data name="Editor_ActionType_DecrementVariable" xml:space="preserve">
+    <value>Уменьшить переменную</value>
+  </data>
+  <data name="Editor_ActionType_RepeatBlockStart" xml:space="preserve">
+    <value>Повторить начало блока</value>
+  </data>
+  <data name="Editor_ActionType_IfBlockStart" xml:space="preserve">
+    <value>Если блокировать запуск</value>
+  </data>
+  <data name="Editor_ActionType_ElseBlockStart" xml:space="preserve">
+    <value>Иначе Блокировать Старт</value>
+  </data>
+  <data name="Editor_ActionType_WhileBlockStart" xml:space="preserve">
+    <value>Пока блокируется запуск</value>
+  </data>
+  <data name="Editor_ActionType_ForBlockStart" xml:space="preserve">
+    <value>Для начала блока</value>
+  </data>
+  <data name="Editor_ActionType_BlockEnd" xml:space="preserve">
+    <value>Конец блока</value>
+  </data>
+  <data name="Editor_ActionType_Break" xml:space="preserve">
+    <value>Перерыв</value>
+  </data>
+  <data name="Editor_ActionType_Continue" xml:space="preserve">
+    <value>Продолжить</value>
+  </data>
+  <data name="Editor_ActionType_RawScriptStep" xml:space="preserve">
+    <value>Шаг необработанного сценария</value>
+  </data>
+  <data name="MouseButton_Left" xml:space="preserve">
+    <value>Слева</value>
+  </data>
+  <data name="MouseButton_Right" xml:space="preserve">
+    <value>Правая кнопка</value>
+  </data>
+  <data name="MouseButton_Middle" xml:space="preserve">
+    <value>Средний</value>
+  </data>
+  <data name="MouseButton_ScrollUp" xml:space="preserve">
+    <value>Прокрутите вверх</value>
+  </data>
+  <data name="MouseButton_ScrollDown" xml:space="preserve">
+    <value>Прокрутите вниз</value>
+  </data>
+  <data name="MouseButton_ScrollLeft" xml:space="preserve">
+    <value>Прокрутка влево</value>
+  </data>
+  <data name="MouseButton_ScrollRight" xml:space="preserve">
+    <value>Прокрутите вправо</value>
+  </data>
+  <data name="Language_Chinese" xml:space="preserve">
+    <value>Китайский</value>
+  </data>
+  <data name="Language_Japanese" xml:space="preserve">
+    <value>японский</value>
+  </data>
+  <data name="Language_Spanish" xml:space="preserve">
+    <value>Испанский</value>
+  </data>
+  <data name="Language_Arabic" xml:space="preserve">
+    <value>арабский</value>
+  </data>
+  <data name="Language_French" xml:space="preserve">
+    <value>Французский</value>
+  </data>
+  <data name="Language_Portuguese" xml:space="preserve">
+    <value>Португальский</value>
+  </data>
+  <data name="Language_Russian" xml:space="preserve">
+    <value>Русский</value>
+  </data>
+</root>

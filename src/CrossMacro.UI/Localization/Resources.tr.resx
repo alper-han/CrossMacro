@@ -1,0 +1,1293 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="App_Title" xml:space="preserve">
+    <value>CrossMacro</value>
+  </data>
+  <data name="MainWindow_MinimizeTooltip" xml:space="preserve">
+    <value>Küçült</value>
+  </data>
+  <data name="MainWindow_CloseTooltip" xml:space="preserve">
+    <value>Kapat</value>
+  </data>
+  <data name="MainWindow_DismissTooltip" xml:space="preserve">
+    <value>Kapat</value>
+  </data>
+  <data name="MainWindow_GnomeExtensionTitle" xml:space="preserve">
+    <value>GNOME Uzantısı</value>
+  </data>
+  <data name="MainWindow_UpdateAvailableTitle" xml:space="preserve">
+    <value>Güncelleme Mevcut</value>
+  </data>
+  <data name="MainWindow_ViewOnGitHub" xml:space="preserve">
+    <value>GitHub&apos;da Gör</value>
+  </data>
+  <data name="MainWindow_UpdateAvailableVersion" xml:space="preserve">
+    <value>v{0} sürümü mevcut</value>
+  </data>
+  <data name="Navigation_Recording" xml:space="preserve">
+    <value>Kayıt</value>
+  </data>
+  <data name="Navigation_Playback" xml:space="preserve">
+    <value>Oynatma</value>
+  </data>
+  <data name="Navigation_Files" xml:space="preserve">
+    <value>Dosyalar</value>
+  </data>
+  <data name="Navigation_TextExpansion" xml:space="preserve">
+    <value>Metin Genişletme</value>
+  </data>
+  <data name="Navigation_Shortcuts" xml:space="preserve">
+    <value>Kısayollar</value>
+  </data>
+  <data name="Navigation_Schedule" xml:space="preserve">
+    <value>Zamanlama</value>
+  </data>
+  <data name="Navigation_Editor" xml:space="preserve">
+    <value>Düzenleyici</value>
+  </data>
+  <data name="Navigation_Settings" xml:space="preserve">
+    <value>Ayarlar</value>
+  </data>
+  <data name="Settings_GlobalHotkeys" xml:space="preserve">
+    <value>Genel Kısayollar</value>
+  </data>
+  <data name="Settings_ToggleRecording" xml:space="preserve">
+    <value>Kaydı Aç/Kapat (Başlat/Durdur)</value>
+  </data>
+  <data name="Settings_TogglePlayback" xml:space="preserve">
+    <value>Oynatmayı Aç/Kapat (Başlat/Durdur)</value>
+  </data>
+  <data name="Settings_PauseResumePlayback" xml:space="preserve">
+    <value>Oynatmayı Duraklat/Sürdür</value>
+  </data>
+  <data name="Settings_EnableTrayIcon" xml:space="preserve">
+    <value>Sistem Tepsisi Simgesini Etkinleştir</value>
+  </data>
+  <data name="Settings_StartMinimized" xml:space="preserve">
+    <value>Küçültülmüş Başlat</value>
+  </data>
+  <data name="Settings_StartMinimizedDescription" xml:space="preserve">
+    <value>Mümkünse sistem tepsisine gizlenmiş olarak başlatır; değilse pencereyi küçültülmüş açar.</value>
+  </data>
+  <data name="Settings_EnableTextExpansion" xml:space="preserve">
+    <value>Metin Genişletmeyi Etkinleştir</value>
+  </data>
+  <data name="Settings_CheckForUpdates" xml:space="preserve">
+    <value>Açılışta Güncellemeleri Denetle</value>
+  </data>
+  <data name="Settings_LogLevel" xml:space="preserve">
+    <value>Günlük Düzeyi</value>
+  </data>
+  <data name="Settings_LogLevelDescription" xml:space="preserve">
+    <value>Kaydedilecek tanılama bilgisinin ayrıntı düzeyini belirler</value>
+  </data>
+  <data name="Settings_Theme" xml:space="preserve">
+    <value>Tema</value>
+  </data>
+  <data name="Settings_ThemeDescription" xml:space="preserve">
+    <value>Uygulamanın görsel temasını seçin</value>
+  </data>
+  <data name="Settings_Language" xml:space="preserve">
+    <value>Dil</value>
+  </data>
+  <data name="Settings_LanguageDescription" xml:space="preserve">
+    <value>Uygulama dilini seçin</value>
+  </data>
+  <data name="Settings_SupportTitle" xml:space="preserve">
+    <value>CrossMacro&apos;yu Destekle</value>
+  </data>
+  <data name="Settings_SupportDescription" xml:space="preserve">
+    <value>Projeyi beğendiysen GitHub&apos;da yıldız vererek destek olabilirsin.</value>
+  </data>
+  <data name="Settings_StarOnGitHub" xml:space="preserve">
+    <value>GitHub&apos;da Yıldızla</value>
+  </data>
+  <data name="Settings_HotkeyAlreadyAssignedTitle" xml:space="preserve">
+    <value>Kısayol Zaten Atanmış</value>
+  </data>
+  <data name="Language_Auto" xml:space="preserve">
+    <value>Sistem Varsayılanı</value>
+  </data>
+  <data name="Language_English" xml:space="preserve">
+    <value>İngilizce</value>
+  </data>
+  <data name="Language_Turkish" xml:space="preserve">
+    <value>Türkçe</value>
+  </data>
+  <data name="Status_Ready" xml:space="preserve">
+    <value>Hazır</value>
+  </data>
+  <data name="Status_RecordedEvents" xml:space="preserve">
+    <value>{0} olay kaydedildi</value>
+  </data>
+  <data name="Status_LoadedMacro" xml:space="preserve">
+    <value>Yüklendi: {0}</value>
+  </data>
+  <data name="Status_CreatedMacro" xml:space="preserve">
+    <value>Oluşturuldu: {0} ({1} olay)</value>
+  </data>
+  <data name="Recording_LabelStatus" xml:space="preserve">
+    <value>Durum</value>
+  </data>
+  <data name="Recording_LabelEvents" xml:space="preserve">
+    <value>Olaylar</value>
+  </data>
+  <data name="Recording_LabelState" xml:space="preserve">
+    <value>Gösterge</value>
+  </data>
+  <data name="Recording_TooltipRecording" xml:space="preserve">
+    <value>Kayıt yapılıyor...</value>
+  </data>
+  <data name="Recording_TooltipReady" xml:space="preserve">
+    <value>Hazır</value>
+  </data>
+  <data name="Recording_CaptureSettings" xml:space="preserve">
+    <value>YAKALAMA AYARLARI</value>
+  </data>
+  <data name="Recording_Mouse" xml:space="preserve">
+    <value>Fare</value>
+  </data>
+  <data name="Recording_Keyboard" xml:space="preserve">
+    <value>Klavye</value>
+  </data>
+  <data name="Recording_ForceRelativeCoordinates" xml:space="preserve">
+    <value>Göreli Koordinatları Kullan</value>
+  </data>
+  <data name="Recording_ForceRelativeCoordinatesDescription" xml:space="preserve">
+    <value>Mutlak koordinatlar desteklense bile fare konumunu göreli olarak kaydeder</value>
+  </data>
+  <data name="Recording_ForceRelativeCoordinatesHelp" xml:space="preserve">
+    <value>Makroları oyun içinde kullanmak için gereklidir.</value>
+  </data>
+  <data name="Recording_SkipInitialZeroZero" xml:space="preserve">
+    <value>Başlangıçtaki 0,0 Konumunu Atla</value>
+  </data>
+  <data name="Recording_SkipInitialZeroZeroDescription" xml:space="preserve">
+    <value>Kayıt başlarken imleci başlangıç noktasına götürmez</value>
+  </data>
+  <data name="Recording_StartRecording" xml:space="preserve">
+    <value>Kaydı Başlat</value>
+  </data>
+  <data name="Recording_StopRecording" xml:space="preserve">
+    <value>Kaydı Durdur</value>
+  </data>
+  <data name="Recording_Tip" xml:space="preserve">
+    <value>İpucu: Diğer uygulamalardayken kaydı denetlemek için genel kısayolları kullan</value>
+  </data>
+  <data name="Schedule_ItemsText" xml:space="preserve">
+    <value>{0} öğe</value>
+  </data>
+  <data name="Schedule_DefaultTaskName" xml:space="preserve">
+    <value>Görev {0}</value>
+  </data>
+  <data name="Shortcut_ItemsText" xml:space="preserve">
+    <value>{0} öğe</value>
+  </data>
+  <data name="Shortcut_DefaultTaskName" xml:space="preserve">
+    <value>Kısayol {0}</value>
+  </data>
+  <data name="Schedule_NoFile" xml:space="preserve">
+    <value>Dosya yok</value>
+  </data>
+  <data name="Schedule_ListSummary" xml:space="preserve">
+    <value>{0} • {1}</value>
+  </data>
+  <data name="Schedule_StatusPlaceholder" xml:space="preserve">
+    <value>Henüz çalışmadı</value>
+  </data>
+  <data name="Shortcut_StatusPlaceholder" xml:space="preserve">
+    <value>Henüz tetiklenmedi</value>
+  </data>
+  <data name="Playback_PlaybackSpeed" xml:space="preserve">
+    <value>Oynatma Hızı</value>
+  </data>
+  <data name="Playback_LoopPlayback" xml:space="preserve">
+    <value>Oynatmayı Döngüye Al</value>
+  </data>
+  <data name="Playback_RandomizeLoopDelay" xml:space="preserve">
+    <value>Döngü gecikmesini rastgeleleştir</value>
+  </data>
+  <data name="Playback_LoopCount" xml:space="preserve">
+    <value>Döngü Sayısı</value>
+  </data>
+  <data name="Playback_LoopDelayMs" xml:space="preserve">
+    <value>Döngü Gecikmesi (ms)</value>
+  </data>
+  <data name="Playback_LoopDelayRangeMs" xml:space="preserve">
+    <value>Döngü Gecikme Aralığı (ms)</value>
+  </data>
+  <data name="Playback_CountdownSec" xml:space="preserve">
+    <value>Geri Sayım (sn)</value>
+  </data>
+  <data name="Playback_PlayMacro" xml:space="preserve">
+    <value>Makroyu Oynat</value>
+  </data>
+  <data name="Playback_StopPlayback" xml:space="preserve">
+    <value>OYNATMAYI DURDUR</value>
+  </data>
+  <data name="Playback_LoopTip" xml:space="preserve">
+    <value>İpucu: Döngü Sayısı 0 ise sonsuz döngü anlamına gelir</value>
+  </data>
+  <data name="Files_LoadedMacros" xml:space="preserve">
+    <value>Yüklü Makrolar</value>
+  </data>
+  <data name="Files_RemoveLoadedMacroTooltip" xml:space="preserve">
+    <value>Yüklü makroyu kaldır</value>
+  </data>
+  <data name="Files_LoadMacro" xml:space="preserve">
+    <value>Makro Yükle</value>
+  </data>
+  <data name="Files_SaveMacro" xml:space="preserve">
+    <value>Makro Kaydet</value>
+  </data>
+  <data name="Files_SelectedMacro" xml:space="preserve">
+    <value>Seçili Makro</value>
+  </data>
+  <data name="Files_MacroName" xml:space="preserve">
+    <value>Makro Adı</value>
+  </data>
+  <data name="Files_MacroNamePlaceholder" xml:space="preserve">
+    <value>Gece dışa aktarma makrosu</value>
+  </data>
+  <data name="Files_SequenceRepeat" xml:space="preserve">
+    <value>Dizi Tekrarı</value>
+  </data>
+  <data name="Files_SequenceRepeatDescription" xml:space="preserve">
+    <value>Dizi Tekrarı yalnızca Ardışık Oynatma modunda, listedeki makrolar sırayla çalıştırılırken kullanılır.</value>
+  </data>
+  <data name="Files_PlaybackMode" xml:space="preserve">
+    <value>Oynatma Modu</value>
+  </data>
+  <data name="Files_PlaybackModeSelectedOnly" xml:space="preserve">
+    <value>Yalnızca seçili makro</value>
+  </data>
+  <data name="Files_PlaybackModeSelectedOnlyDescription" xml:space="preserve">
+    <value>Yalnızca seçili makroyu oynat. Genel döngü ayarları bu tek makroya uygulanır.</value>
+  </data>
+  <data name="Files_PlaybackModeAdvanceSelection" xml:space="preserve">
+    <value>Seçiliyi oynat, sonra bir sonrakini seç</value>
+  </data>
+  <data name="Files_PlaybackModeAdvanceSelectionDescription" xml:space="preserve">
+    <value>Seçili makroyu geçerli oynatma ayarlarıyla çalıştırır, ardından seçimi listedeki bir sonraki makroya taşır. Sonraki öğeyi otomatik olarak oynatmaz.</value>
+  </data>
+  <data name="Files_PlaybackModeSequentialCycle" xml:space="preserve">
+    <value>Ardışık Oynatma</value>
+  </data>
+  <data name="Files_PlaybackModeSequentialCycleDescription" xml:space="preserve">
+    <value>Seçili makrodan başlayarak listedeki tüm makroları sırayla çalıştırır. Dizi Tekrarı yalnızca bu modda kullanılır.</value>
+  </data>
+  <data name="TextExpansion_AddNewExpansion" xml:space="preserve">
+    <value>YENİ GENİŞLETME EKLE</value>
+  </data>
+  <data name="TextExpansion_Trigger" xml:space="preserve">
+    <value>Tetikleyici</value>
+  </data>
+  <data name="TextExpansion_TriggerPlaceholder" xml:space="preserve">
+    <value>:mail</value>
+  </data>
+  <data name="TextExpansion_Replacement" xml:space="preserve">
+    <value>Yerine Geçecek Metin</value>
+  </data>
+  <data name="TextExpansion_ReplacementPlaceholder" xml:space="preserve">
+    <value>ali.yilmaz@example.com</value>
+  </data>
+  <data name="Files_UnnamedMacro" xml:space="preserve">
+    <value>Yeni Makro</value>
+  </data>
+  <data name="Files_SourceSession" xml:space="preserve">
+    <value>Oturum</value>
+  </data>
+  <data name="Files_SequenceRepeatSummary" xml:space="preserve">
+    <value>Sıra x{0}</value>
+  </data>
+  <data name="Files_LoadedMacroDescription" xml:space="preserve">
+    <value>{0} olay | {1}</value>
+  </data>
+  <data name="TextExpansion_InsertionMode" xml:space="preserve">
+    <value>Ekleme Modu</value>
+  </data>
+  <data name="TextExpansion_PasteMethod" xml:space="preserve">
+    <value>Yapıştırma Yöntemi</value>
+  </data>
+  <data name="TextExpansion_Add" xml:space="preserve">
+    <value>+ Ekle</value>
+  </data>
+  <data name="TextExpansion_SavedExpansions" xml:space="preserve">
+    <value>KAYITLI GENİŞLETMELER</value>
+  </data>
+  <data name="TextExpansion_Items" xml:space="preserve">
+    <value>{0} öğe</value>
+  </data>
+  <data name="TextExpansion_NoSavedExpansions" xml:space="preserve">
+    <value>Kayıtlı genişletme yok</value>
+  </data>
+  <data name="TextExpansion_EnableInSettingsTip" xml:space="preserve">
+    <value>Kullanmaya başlamak için bu özelliği Ayarlar sekmesinden etkinleştirin</value>
+  </data>
+  <data name="TextExpansion_DeleteTitle" xml:space="preserve">
+    <value>Genişletmeyi Sil</value>
+  </data>
+  <data name="TextExpansion_DeleteMessage" xml:space="preserve">
+    <value>&apos;{0}&apos; genişletmesini silmek istediğinize emin misiniz?</value>
+  </data>
+  <data name="Schedule_Title" xml:space="preserve">
+    <value>ZAMANLANMIŞ GÖREVLER</value>
+  </data>
+  <data name="Schedule_Items" xml:space="preserve">
+    <value>{0} öğe</value>
+  </data>
+  <data name="Schedule_EditTask" xml:space="preserve">
+    <value>Görevi düzenle</value>
+  </data>
+  <data name="Schedule_DeleteTask" xml:space="preserve">
+    <value>Görevi sil</value>
+  </data>
+  <data name="Schedule_TaskSettings" xml:space="preserve">
+    <value>GÖREV AYARLARI</value>
+  </data>
+  <data name="Schedule_Name" xml:space="preserve">
+    <value>Ad</value>
+  </data>
+  <data name="Schedule_NamePlaceholder" xml:space="preserve">
+    <value>Gece dışa aktarma görevi</value>
+  </data>
+  <data name="Schedule_PlaybackSpeed" xml:space="preserve">
+    <value>Oynatma Hızı</value>
+  </data>
+  <data name="Schedule_MacroFile" xml:space="preserve">
+    <value>Makro Dosyası</value>
+  </data>
+  <data name="Schedule_NoFileSelected" xml:space="preserve">
+    <value>Dosya seçilmedi</value>
+  </data>
+  <data name="Schedule_Browse" xml:space="preserve">
+    <value>Gözat</value>
+  </data>
+  <data name="Schedule_Type" xml:space="preserve">
+    <value>Zamanlama Türü</value>
+  </data>
+  <data name="Schedule_TypeInterval" xml:space="preserve">
+    <value>Aralıklı (yinelenen)</value>
+  </data>
+  <data name="Schedule_TypeDateTime" xml:space="preserve">
+    <value>Tarih/Saat (bir kez)</value>
+  </data>
+  <data name="Schedule_IntervalSettings" xml:space="preserve">
+    <value>ARALIK AYARLARI</value>
+  </data>
+  <data name="Schedule_RunEvery" xml:space="preserve">
+    <value>Makroyu şu aralıkla çalıştır:</value>
+  </data>
+  <data name="Schedule_Seconds" xml:space="preserve">
+    <value>Saniye</value>
+  </data>
+  <data name="Schedule_Minutes" xml:space="preserve">
+    <value>Dakika</value>
+  </data>
+  <data name="Schedule_Hours" xml:space="preserve">
+    <value>Saat</value>
+  </data>
+  <data name="Schedule_DateTimeSettings" xml:space="preserve">
+    <value>TARİH/SAAT AYARLARI</value>
+  </data>
+  <data name="Schedule_RunAt" xml:space="preserve">
+    <value>Makroyu şu zamanda çalıştır:</value>
+  </data>
+  <data name="Schedule_RunOnceTip" xml:space="preserve">
+    <value>Makro seçilen tarih ve saatte bir kez çalıştırılır</value>
+  </data>
+  <data name="Schedule_Status" xml:space="preserve">
+    <value>DURUM</value>
+  </data>
+  <data name="Schedule_LastRun" xml:space="preserve">
+    <value>Son Çalışma:</value>
+  </data>
+  <data name="Schedule_NextRun" xml:space="preserve">
+    <value>Sonraki Çalışma:</value>
+  </data>
+  <data name="Schedule_StatusLabel" xml:space="preserve">
+    <value>Durum:</value>
+  </data>
+  <data name="Schedule_Never" xml:space="preserve">
+    <value>Hiçbir zaman</value>
+  </data>
+  <data name="Schedule_NotScheduled" xml:space="preserve">
+    <value>Zamanlanmadı</value>
+  </data>
+  <data name="Schedule_SaveAllTasks" xml:space="preserve">
+    <value>Tüm Görevleri Kaydet</value>
+  </data>
+  <data name="Schedule_NoTaskSelected" xml:space="preserve">
+    <value>Görev Seçilmedi</value>
+  </data>
+  <data name="Schedule_SelectTaskHint" xml:space="preserve">
+    <value>Yukarıdaki listeden bir görev seçin veya yeni bir görev ekleyin</value>
+  </data>
+  <data name="Schedule_DeleteTitle" xml:space="preserve">
+    <value>Görevi Sil</value>
+  </data>
+  <data name="Schedule_DeleteMessage" xml:space="preserve">
+    <value>&apos;{0}&apos; görevini silmek istediğinize emin misiniz?</value>
+  </data>
+  <data name="Schedule_OpenMacroDialogTitle" xml:space="preserve">
+    <value>Makro Dosyası Seç</value>
+  </data>
+  <data name="Schedule_OpenMacroDialogFilter" xml:space="preserve">
+    <value>Makro Dosyaları</value>
+  </data>
+  <data name="Schedule_StatusInitFailed" xml:space="preserve">
+    <value>Zamanlama: başlatılamadı ({0})</value>
+  </data>
+  <data name="Schedule_StatusChangesSaved" xml:space="preserve">
+    <value>Zamanlama: değişiklikler kaydedildi</value>
+  </data>
+  <data name="Schedule_StatusSaveFailed" xml:space="preserve">
+    <value>Zamanlama: değişiklikler kaydedilemedi ({0})</value>
+  </data>
+  <data name="Schedule_SaveFailedTitle" xml:space="preserve">
+    <value>Zamanlama Kaydı Başarısız</value>
+  </data>
+  <data name="Schedule_StatusExtensionWarning" xml:space="preserve">
+    <value>Zamanlama: makro dosyasının uzantısı .macro değil (yine de kullanılabilir)</value>
+  </data>
+  <data name="Schedule_StatusRunning" xml:space="preserve">
+    <value>Zamanlama: {0} çalışıyor...</value>
+  </data>
+  <data name="Schedule_StatusCompleted" xml:space="preserve">
+    <value>Zamanlama: {0} tamamlandı</value>
+  </data>
+  <data name="Schedule_StatusFailedExecution" xml:space="preserve">
+    <value>Zamanlama: {0} - {1}</value>
+  </data>
+  <data name="Shortcut_Title" xml:space="preserve">
+    <value>KISAYOLLAR</value>
+  </data>
+  <data name="Shortcut_Items" xml:space="preserve">
+    <value>{0} öğe</value>
+  </data>
+  <data name="Shortcut_NameFallback" xml:space="preserve">
+    <value>Kısayol Adı</value>
+  </data>
+  <data name="Shortcut_NoFile" xml:space="preserve">
+    <value>Dosya yok</value>
+  </data>
+  <data name="Shortcut_EditTooltip" xml:space="preserve">
+    <value>Kısayolu düzenle</value>
+  </data>
+  <data name="Shortcut_DeleteTooltip" xml:space="preserve">
+    <value>Kısayolu sil</value>
+  </data>
+  <data name="Shortcut_Settings" xml:space="preserve">
+    <value>KISAYOL AYARLARI</value>
+  </data>
+  <data name="Shortcut_Name" xml:space="preserve">
+    <value>Ad</value>
+  </data>
+  <data name="Shortcut_NamePlaceholder" xml:space="preserve">
+    <value>Fatura giriş kısayolu</value>
+  </data>
+  <data name="Shortcut_Trigger" xml:space="preserve">
+    <value>Tetikleyici (Klavye/Fare)</value>
+  </data>
+  <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
+    <value>Oynatma Hızı</value>
+  </data>
+  <data name="Shortcut_LoopPlayback" xml:space="preserve">
+    <value>Oynatmayı Döngüye Al</value>
+  </data>
+  <data name="Shortcut_PressToStartStop" xml:space="preserve">
+    <value>Basınca başlat, tekrar basınca durdur</value>
+  </data>
+  <data name="Shortcut_PressToStartStopTooltip" xml:space="preserve">
+    <value>Döngüyü başlatmak için kısayola basın; durdurmak için tekrar basın.</value>
+  </data>
+  <data name="Shortcut_RunWhenHeld" xml:space="preserve">
+    <value>Basılı tutulduğu sürece çalıştır</value>
+  </data>
+  <data name="Shortcut_RunWhenHeldTooltip" xml:space="preserve">
+    <value>Kısayol basılı tutulduğu sürece çalışır; bıraktığınızda durur.</value>
+  </data>
+  <data name="Shortcut_LoopCount" xml:space="preserve">
+    <value>Döngü Sayısı</value>
+  </data>
+  <data name="Shortcut_LoopDelayMs" xml:space="preserve">
+    <value>Döngü Gecikmesi (ms)</value>
+  </data>
+  <data name="Shortcut_LoopTip" xml:space="preserve">
+    <value>İpucu: Döngü Sayısı 0 ise sonsuz döngü anlamına gelir</value>
+  </data>
+  <data name="Shortcut_MacroFile" xml:space="preserve">
+    <value>Makro Dosyası</value>
+  </data>
+  <data name="Shortcut_NoFileSelected" xml:space="preserve">
+    <value>Dosya seçilmedi</value>
+  </data>
+  <data name="Shortcut_Browse" xml:space="preserve">
+    <value>Gözat</value>
+  </data>
+  <data name="Shortcut_Status" xml:space="preserve">
+    <value>DURUM</value>
+  </data>
+  <data name="Shortcut_LastTriggered" xml:space="preserve">
+    <value>Son Tetikleme:</value>
+  </data>
+  <data name="Shortcut_StatusLabel" xml:space="preserve">
+    <value>Durum:</value>
+  </data>
+  <data name="Shortcut_Never" xml:space="preserve">
+    <value>Hiçbir zaman</value>
+  </data>
+  <data name="Shortcut_SaveAll" xml:space="preserve">
+    <value>Tüm Kısayolları Kaydet</value>
+  </data>
+  <data name="Shortcut_NoSelected" xml:space="preserve">
+    <value>Kısayol Seçilmedi</value>
+  </data>
+  <data name="Shortcut_SelectHint" xml:space="preserve">
+    <value>Yukarıdaki listeden bir kısayol seçin veya yeni bir tane ekleyin</value>
+  </data>
+  <data name="Shortcut_DeleteTitle" xml:space="preserve">
+    <value>Kısayolu Sil</value>
+  </data>
+  <data name="Shortcut_DeleteMessage" xml:space="preserve">
+    <value>&apos;{0}&apos; kısayolunu silmek istediğinize emin misiniz?</value>
+  </data>
+  <data name="Shortcut_OpenMacroDialogTitle" xml:space="preserve">
+    <value>Makro Dosyası Seç</value>
+  </data>
+  <data name="Shortcut_OpenMacroDialogFilter" xml:space="preserve">
+    <value>Makro Dosyaları</value>
+  </data>
+  <data name="Shortcut_StatusInitFailed" xml:space="preserve">
+    <value>Kısayol: başlatılamadı ({0})</value>
+  </data>
+  <data name="Shortcut_StatusChangesSaved" xml:space="preserve">
+    <value>Kısayol: değişiklikler kaydedildi</value>
+  </data>
+  <data name="Shortcut_StatusSaveFailed" xml:space="preserve">
+    <value>Kısayol: değişiklikler kaydedilemedi ({0})</value>
+  </data>
+  <data name="Shortcut_SaveFailedTitle" xml:space="preserve">
+    <value>Kısayol Kaydı Başarısız</value>
+  </data>
+  <data name="Shortcut_StatusRunning" xml:space="preserve">
+    <value>Kısayol: {0} çalışıyor...</value>
+  </data>
+  <data name="Shortcut_StatusCompleted" xml:space="preserve">
+    <value>Kısayol: {0} tamamlandı</value>
+  </data>
+  <data name="Shortcut_StatusFailed" xml:space="preserve">
+    <value>Kısayol: {0} - {1}</value>
+  </data>
+  <data name="Files_StatusReady" xml:space="preserve">
+    <value>Hazır</value>
+  </data>
+  <data name="Files_OpenMacroDialogFilter" xml:space="preserve">
+    <value>Makro Dosyaları</value>
+  </data>
+  <data name="Files_SaveDialogTitle" xml:space="preserve">
+    <value>Makroyu Kaydet</value>
+  </data>
+  <data name="Files_LoadDialogTitle" xml:space="preserve">
+    <value>Makro Yükle</value>
+  </data>
+  <data name="Files_StatusSaveCancelled" xml:space="preserve">
+    <value>Kaydetme iptal edildi</value>
+  </data>
+  <data name="Files_StatusSavedTo" xml:space="preserve">
+    <value>{0} konumuna kaydedildi</value>
+  </data>
+  <data name="Files_StatusSaveError" xml:space="preserve">
+    <value>Kaydetme hatası: {0}</value>
+  </data>
+  <data name="Files_StatusLoadCancelled" xml:space="preserve">
+    <value>Yükleme iptal edildi</value>
+  </data>
+  <data name="Files_StatusLoadUnreadable" xml:space="preserve">
+    <value>Yükleme hatası: dosya okunamadı</value>
+  </data>
+  <data name="Files_StatusLoaded" xml:space="preserve">
+    <value>{0} yüklendi</value>
+  </data>
+  <data name="Files_StatusLoadError" xml:space="preserve">
+    <value>Yükleme hatası: {0}</value>
+  </data>
+  <data name="Files_DeleteLoadedMacroTitle" xml:space="preserve">
+    <value>Yüklü Makroyu Sil</value>
+  </data>
+  <data name="Files_DeleteLoadedMacroMessage" xml:space="preserve">
+    <value>&apos;{0}&apos; yüklü makrosunu kaldırmak istediğinize emin misiniz?</value>
+  </data>
+  <data name="Files_StatusRemoved" xml:space="preserve">
+    <value>{0} kaldırıldı</value>
+  </data>
+  <data name="Playback_StatusReady" xml:space="preserve">
+    <value>Hazır</value>
+  </data>
+  <data name="Playback_StatusPlaying" xml:space="preserve">
+    <value>Oynatılıyor...</value>
+  </data>
+  <data name="Playback_StatusComplete" xml:space="preserve">
+    <value>Oynatma tamamlandı</value>
+  </data>
+  <data name="Playback_StatusStopped" xml:space="preserve">
+    <value>Oynatma durduruldu</value>
+  </data>
+  <data name="Playback_StatusPaused" xml:space="preserve">
+    <value>Duraklatıldı</value>
+  </data>
+  <data name="Playback_StatusError" xml:space="preserve">
+    <value>Oynatma hatası: {0}</value>
+  </data>
+  <data name="Playback_StatusWaitingNextSequence" xml:space="preserve">
+    <value>Sonraki sıra öncesi {0} bekleniyor...</value>
+  </data>
+  <data name="Playback_StatusSequencePlaying" xml:space="preserve">
+    <value>{0} oynatılıyor ({1}/{2}){3} - Sıra {4}</value>
+  </data>
+  <data name="Playback_StatusWaitingNextLoop" xml:space="preserve">
+    <value>Sonraki döngü öncesi {0} bekleniyor...</value>
+  </data>
+  <data name="Playback_StatusLoopInfinite" xml:space="preserve">
+    <value>Oynatılıyor (Döngü {0} - Sonsuz)</value>
+  </data>
+  <data name="Playback_StatusLoopProgress" xml:space="preserve">
+    <value>Oynatılıyor (Döngü {0}/{1})</value>
+  </data>
+  <data name="Playback_StatusStartingIn" xml:space="preserve">
+    <value>{0} içinde başlıyor...</value>
+  </data>
+  <data name="Recording_StatusReady" xml:space="preserve">
+    <value>Hazır</value>
+  </data>
+  <data name="Recording_StatusRecording" xml:space="preserve">
+    <value>Kayıt yapılıyor...</value>
+  </data>
+  <data name="Recording_StatusError" xml:space="preserve">
+    <value>Hata: {0}</value>
+  </data>
+  <data name="Recording_StatusRecordedEvents" xml:space="preserve">
+    <value>{0} olay kaydedildi</value>
+  </data>
+  <data name="Recording_StatusLoadedEvents" xml:space="preserve">
+    <value>{0} olay yüklendi</value>
+  </data>
+  <data name="Editor_DefaultMacroName" xml:space="preserve">
+    <value>Elle Oluşturulan Makro</value>
+  </data>
+  <data name="Editor_StatusReady" xml:space="preserve">
+    <value>Hazır</value>
+  </data>
+  <data name="Editor_StatusRemovedAction" xml:space="preserve">
+    <value>Eylem kaldırıldı</value>
+  </data>
+  <data name="Editor_StatusMovedActionUp" xml:space="preserve">
+    <value>Eylem yukarı taşındı</value>
+  </data>
+  <data name="Editor_StatusMovedActionDown" xml:space="preserve">
+    <value>Eylem aşağı taşındı</value>
+  </data>
+  <data name="Editor_StatusDuplicatedAction" xml:space="preserve">
+    <value>Eylem çoğaltıldı</value>
+  </data>
+  <data name="Editor_StatusClearedAllActions" xml:space="preserve">
+    <value>Tüm eylemler temizlendi</value>
+  </data>
+  <data name="Editor_StatusUndone" xml:space="preserve">
+    <value>Geri alındı</value>
+  </data>
+  <data name="Editor_StatusRedone" xml:space="preserve">
+    <value>Yineleme yapıldı</value>
+  </data>
+  <data name="Editor_StatusSelectActionFirst" xml:space="preserve">
+    <value>Önce bir eylem seçin</value>
+  </data>
+  <data name="Editor_StatusCaptureMousePrompt" xml:space="preserve">
+    <value>Konumu yakalamak için herhangi bir yere tıklayın (iptal etmek için Esc)...</value>
+  </data>
+  <data name="Editor_StatusCaptureKeyPrompt" xml:space="preserve">
+    <value>Yakalamak için bir tuşa basın...</value>
+  </data>
+  <data name="Editor_StatusCaptureCancelled" xml:space="preserve">
+    <value>Yakalama iptal edildi</value>
+  </data>
+  <data name="Editor_StatusCaptureSelectionChanged" xml:space="preserve">
+    <value>Yakalama yok sayıldı: seçili eylem değişti</value>
+  </data>
+  <data name="Editor_StatusSaveCancelled" xml:space="preserve">
+    <value>Kaydetme iptal edildi</value>
+  </data>
+  <data name="Editor_StatusLoadCancelled" xml:space="preserve">
+    <value>Yükleme iptal edildi</value>
+  </data>
+  <data name="Editor_StatusLoadFailed" xml:space="preserve">
+    <value>Makro yüklenemedi</value>
+  </data>
+  <data name="Editor_StatusInsertedElseBlock" xml:space="preserve">
+    <value>Else bloğu eklendi</value>
+  </data>
+  <data name="Editor_StatusElseAlreadyExists" xml:space="preserve">
+    <value>Seçili If bloğunda zaten bir Else bloğu var</value>
+  </data>
+  <data name="Editor_StatusSelectIfBlockFirst" xml:space="preserve">
+    <value>Önce bir If bloğu seçin</value>
+  </data>
+  <data name="Editor_StatusRemovedBlock" xml:space="preserve">
+    <value>Blok kaldırıldı</value>
+  </data>
+  <data name="Editor_StatusOperationBlocked" xml:space="preserve">
+    <value>İşlem engellendi: blok yapısı bozulacaktı</value>
+  </data>
+  <data name="Editor_SaveDialogTitle" xml:space="preserve">
+    <value>Makroyu Kaydet</value>
+  </data>
+  <data name="Editor_LoadDialogTitle" xml:space="preserve">
+    <value>Makro Yükle</value>
+  </data>
+  <data name="Editor_MacroFileDialogName" xml:space="preserve">
+    <value>Makro Dosyaları</value>
+  </data>
+  <data name="Editor_DialogTitleNoActions" xml:space="preserve">
+    <value>Eylem Yok</value>
+  </data>
+  <data name="Editor_DialogMessageNoActions" xml:space="preserve">
+    <value>Kaydetmeden önce lütfen en az bir eylem ekleyin.</value>
+  </data>
+  <data name="Editor_DialogTitleValidationErrors" xml:space="preserve">
+    <value>Doğrulama Hataları</value>
+  </data>
+  <data name="Editor_ValidationErrorHeader" xml:space="preserve">
+    <value>Lütfen aşağıdaki hataları düzeltin:</value>
+  </data>
+  <data name="Editor_StatusCapturedPosition" xml:space="preserve">
+    <value>Konum yakalandı: ({0}, {1})</value>
+  </data>
+  <data name="Editor_StatusCaptureError" xml:space="preserve">
+    <value>Yakalama hatası: {0}</value>
+  </data>
+  <data name="Editor_StatusCapturedKey" xml:space="preserve">
+    <value>Yakalandı: {0} (kod: {1})</value>
+  </data>
+  <data name="Editor_StatusValidationFailed" xml:space="preserve">
+    <value>Doğrulama başarısız: {0} hata</value>
+  </data>
+  <data name="Editor_StatusSaved" xml:space="preserve">
+    <value>Kaydedildi: {0}</value>
+  </data>
+  <data name="Editor_StatusSaveError" xml:space="preserve">
+    <value>Kaydetme hatası: {0}</value>
+  </data>
+  <data name="Editor_StatusLoaded" xml:space="preserve">
+    <value>Yüklendi: {0}</value>
+  </data>
+  <data name="Editor_StatusLoadedWithWarnings" xml:space="preserve">
+    <value>Yüklendi: {0} ({1} geri yükleme uyarısı)</value>
+  </data>
+  <data name="Editor_StatusLoadError" xml:space="preserve">
+    <value>Yükleme hatası: {0}</value>
+  </data>
+  <data name="Editor_StatusRestoreWarningFallback" xml:space="preserve">
+    <value>Betik adımları geri yüklenemedi; olay akışından yüklendi.</value>
+  </data>
+  <data name="Editor_StatusAutoManagedAction" xml:space="preserve">
+    <value>Bu eylem otomatik olarak yönetilir.</value>
+  </data>
+  <data name="Editor_Actions" xml:space="preserve">
+    <value>Eylemler</value>
+  </data>
+  <data name="Editor_RemoveActionTooltip" xml:space="preserve">
+    <value>Eylemi Kaldır</value>
+  </data>
+  <data name="Editor_Remove" xml:space="preserve">
+    <value>Kaldır</value>
+  </data>
+  <data name="Editor_RemoveBlockTooltip" xml:space="preserve">
+    <value>Bloğu Kaldır</value>
+  </data>
+  <data name="Editor_Block" xml:space="preserve">
+    <value>Blok</value>
+  </data>
+  <data name="Editor_MoveUpTooltip" xml:space="preserve">
+    <value>Yukarı Taşı</value>
+  </data>
+  <data name="Editor_MoveDownTooltip" xml:space="preserve">
+    <value>Aşağı Taşı</value>
+  </data>
+  <data name="Editor_DuplicateTooltip" xml:space="preserve">
+    <value>Çoğalt</value>
+  </data>
+  <data name="Editor_AddNewAction" xml:space="preserve">
+    <value>Yeni Eylem Ekle</value>
+  </data>
+  <data name="Editor_AddAction" xml:space="preserve">
+    <value>Eylem Ekle</value>
+  </data>
+  <data name="Editor_SelectedActionProperties" xml:space="preserve">
+    <value>Seçili Eylem Özellikleri</value>
+  </data>
+  <data name="Editor_Type" xml:space="preserve">
+    <value>Tür:</value>
+  </data>
+  <data name="Editor_InsertElseBlock" xml:space="preserve">
+    <value>Else Bloğu Ekle</value>
+  </data>
+  <data name="Editor_CurrentPositionHint" xml:space="preserve">
+    <value>Oynatma bu eylemi canlı imleç konumunda çözümler.</value>
+  </data>
+  <data name="Editor_Coordinates" xml:space="preserve">
+    <value>Koordinatlar:</value>
+  </data>
+  <data name="Editor_CapturePosition" xml:space="preserve">
+    <value>Konumu Yakala</value>
+  </data>
+  <data name="Editor_CancelCapture" xml:space="preserve">
+    <value>Yakalamayı İptal Et</value>
+  </data>
+  <data name="Editor_CoordinateMode" xml:space="preserve">
+    <value>Koordinat Modu:</value>
+  </data>
+  <data name="Editor_Absolute" xml:space="preserve">
+    <value>Mutlak</value>
+  </data>
+  <data name="Editor_Relative" xml:space="preserve">
+    <value>Göreli</value>
+  </data>
+  <data name="Editor_MouseButton" xml:space="preserve">
+    <value>Fare Düğmesi:</value>
+  </data>
+  <data name="Editor_Key" xml:space="preserve">
+    <value>Tuş:</value>
+  </data>
+  <data name="Editor_KeyPlaceholder" xml:space="preserve">
+    <value>Kod</value>
+  </data>
+  <data name="Editor_KeyFallback" xml:space="preserve">
+    <value>(kodu girin)</value>
+  </data>
+  <data name="Editor_CaptureKey" xml:space="preserve">
+    <value>Tuşu Yakala</value>
+  </data>
+  <data name="Editor_RandomizeDelay" xml:space="preserve">
+    <value>Gecikmeyi rastgeleleştir</value>
+  </data>
+  <data name="Editor_DelayMs" xml:space="preserve">
+    <value>Gecikme (ms):</value>
+  </data>
+  <data name="Editor_DelayPlaceholder" xml:space="preserve">
+    <value>ms</value>
+  </data>
+  <data name="Editor_RandomDelayRangeMs" xml:space="preserve">
+    <value>Rastgele Gecikme Aralığı (ms):</value>
+  </data>
+  <data name="Editor_Min" xml:space="preserve">
+    <value>Min</value>
+  </data>
+  <data name="Editor_Max" xml:space="preserve">
+    <value>Maks</value>
+  </data>
+  <data name="Editor_ScrollAmount" xml:space="preserve">
+    <value>Kaydırma Miktarı:</value>
+  </data>
+  <data name="Editor_Amount" xml:space="preserve">
+    <value>Miktar</value>
+  </data>
+  <data name="Editor_ScrollHint" xml:space="preserve">
+    <value>(+) yukarı/sağ, (-) aşağı/sol</value>
+  </data>
+  <data name="Editor_SetVariable" xml:space="preserve">
+    <value>Değişken Ata:</value>
+  </data>
+  <data name="Editor_VariableNamePlaceholder" xml:space="preserve">
+    <value>Değişken adı (örn. retryCount)</value>
+  </data>
+  <data name="Editor_Value" xml:space="preserve">
+    <value>Değer</value>
+  </data>
+  <data name="Editor_SetVariableHint" xml:space="preserve">
+    <value>Ad, tür ve değer ayrı ayrı saklanır. Derlenen çıktı: set &lt;name&gt; &lt;value&gt;</value>
+  </data>
+  <data name="Editor_VariableUpdate" xml:space="preserve">
+    <value>Değişken Güncelle:</value>
+  </data>
+  <data name="Editor_AmountOrVariable" xml:space="preserve">
+    <value>Miktar / değişken</value>
+  </data>
+  <data name="Editor_IncrementDecrementHint" xml:space="preserve">
+    <value>Artırma/Azaltma miktarı sayı veya değişken başvurusu olabilir.</value>
+  </data>
+  <data name="Editor_RepeatBlock" xml:space="preserve">
+    <value>Tekrar Bloğu:</value>
+  </data>
+  <data name="Editor_CountOrVariable" xml:space="preserve">
+    <value>Sayı / değişken</value>
+  </data>
+  <data name="Editor_Condition" xml:space="preserve">
+    <value>Koşul:</value>
+  </data>
+  <data name="Editor_LeftOperand" xml:space="preserve">
+    <value>Sol İşlenen</value>
+  </data>
+  <data name="Editor_LeftValue" xml:space="preserve">
+    <value>Sol değer</value>
+  </data>
+  <data name="Editor_RightOperand" xml:space="preserve">
+    <value>Sağ İşlenen</value>
+  </data>
+  <data name="Editor_RightValue" xml:space="preserve">
+    <value>Sağ değer</value>
+  </data>
+  <data name="Editor_ForBlock" xml:space="preserve">
+    <value>For Bloğu:</value>
+  </data>
+  <data name="Editor_LoopVariablePlaceholder" xml:space="preserve">
+    <value>Döngü değişkeni (örn. rowIndex)</value>
+  </data>
+  <data name="Editor_Start" xml:space="preserve">
+    <value>Başlangıç</value>
+  </data>
+  <data name="Editor_End" xml:space="preserve">
+    <value>Bitiş</value>
+  </data>
+  <data name="Editor_UseExplicitStep" xml:space="preserve">
+    <value>Açık adım kullan</value>
+  </data>
+  <data name="Editor_Step" xml:space="preserve">
+    <value>Adım</value>
+  </data>
+  <data name="Editor_SelectActionPrompt" xml:space="preserve">
+    <value>Özelliklerini düzenlemek için bir eylem seçin</value>
+  </data>
+  <data name="Editor_RestoreWarnings" xml:space="preserve">
+    <value>Geri Yükleme Uyarıları</value>
+  </data>
+  <data name="Editor_UndoTooltip" xml:space="preserve">
+    <value>Geri Al</value>
+  </data>
+  <data name="Editor_Undo" xml:space="preserve">
+    <value>Geri Al</value>
+  </data>
+  <data name="Editor_RedoTooltip" xml:space="preserve">
+    <value>Yinele</value>
+  </data>
+  <data name="Editor_Redo" xml:space="preserve">
+    <value>Yinele</value>
+  </data>
+  <data name="Editor_ClearAllTooltip" xml:space="preserve">
+    <value>Tümünü Temizle</value>
+  </data>
+  <data name="Editor_Clear" xml:space="preserve">
+    <value>Temizle</value>
+  </data>
+  <data name="Editor_Load" xml:space="preserve">
+    <value>Yükle</value>
+  </data>
+  <data name="Editor_Save" xml:space="preserve">
+    <value>Kaydet</value>
+  </data>
+  <data name="TextExpansion_ModeDirectTyping" xml:space="preserve">
+    <value>Doğrudan Yazma</value>
+  </data>
+  <data name="TextExpansion_ModePaste" xml:space="preserve">
+    <value>Yapıştır</value>
+  </data>
+  <data name="HotkeyCapture_PressAKey" xml:space="preserve">
+    <value>Bir tuşa basın...</value>
+  </data>
+  <data name="HotkeyCapture_ClickToSet" xml:space="preserve">
+    <value>Kısayol ayarlamak için tıklayın</value>
+  </data>
+  <data name="HotkeyCapture_ServiceError" xml:space="preserve">
+    <value>Hizmet Hatası</value>
+  </data>
+  <data name="Dialog_Yes" xml:space="preserve">
+    <value>Evet</value>
+  </data>
+  <data name="Dialog_No" xml:space="preserve">
+    <value>Hayır</value>
+  </data>
+  <data name="Dialog_Ok" xml:space="preserve">
+    <value>Tamam</value>
+  </data>
+  <data name="Tray_ShowHide" xml:space="preserve">
+    <value>Pencereyi Göster/Gizle</value>
+  </data>
+  <data name="Tray_StartRecording" xml:space="preserve">
+    <value>Kaydı Başlat ({0})</value>
+  </data>
+  <data name="Tray_StartPlayback" xml:space="preserve">
+    <value>Oynatmayı Başlat ({0})</value>
+  </data>
+  <data name="Tray_Stop" xml:space="preserve">
+    <value>Durdur ({0})</value>
+  </data>
+  <data name="Tray_Exit" xml:space="preserve">
+    <value>Çıkış</value>
+  </data>
+  <data name="Editor_CurrentPositionClick" xml:space="preserve">
+    <value>Geçerli imleç konumunda tıkla</value>
+  </data>
+  <data name="Editor_CurrentPositionHold" xml:space="preserve">
+    <value>Geçerli imleç konumunda basılı tut</value>
+  </data>
+  <data name="Editor_CurrentPositionRelease" xml:space="preserve">
+    <value>Geçerli imleç konumunda bırak</value>
+  </data>
+  <data name="Editor_CurrentPositionUse" xml:space="preserve">
+    <value>Geçerli imleç konumunu kullan</value>
+  </data>
+  <data name="Editor_RawScriptStep" xml:space="preserve">
+    <value>Ham Betik Adımı:</value>
+  </data>
+  <data name="Editor_TextToType" xml:space="preserve">
+    <value>Yazılacak Metin:</value>
+  </data>
+  <data name="Editor_OriginalScriptLine" xml:space="preserve">
+    <value>Özgün betik satırı</value>
+  </data>
+  <data name="Editor_EnterTextToType" xml:space="preserve">
+    <value>Yazılacak metni girin...</value>
+  </data>
+  <data name="Editor_RawScriptHint" xml:space="preserve">
+    <value>Bu adım yapısal alanlara eşlenemedi ve olduğu gibi kaydedilecektir.</value>
+  </data>
+  <data name="Editor_TextToTypeHint" xml:space="preserve">
+    <value>Her karakter ayrı bir tuş basımı olarak yazılır (en fazla {0} karakter)</value>
+  </data>
+  <data name="Editor_StatusAddedAction" xml:space="preserve">
+    <value>{0} eklendi</value>
+  </data>
+  <data name="Editor_BlockName_If" xml:space="preserve">
+    <value>If</value>
+  </data>
+  <data name="Editor_BlockName_Else" xml:space="preserve">
+    <value>Else</value>
+  </data>
+  <data name="Editor_BlockName_While" xml:space="preserve">
+    <value>While</value>
+  </data>
+  <data name="Editor_BlockName_For" xml:space="preserve">
+    <value>For</value>
+  </data>
+  <data name="Editor_BlockName_Repeat" xml:space="preserve">
+    <value>Repeat</value>
+  </data>
+  <data name="Editor_BlockName_Block" xml:space="preserve">
+    <value>Blok</value>
+  </data>
+  <data name="Editor_Action_MouseMoveAbsolute" xml:space="preserve">
+    <value>({0}, {1}) konumuna git</value>
+  </data>
+  <data name="Editor_Action_MouseMoveRelative" xml:space="preserve">
+    <value>({0:+#;-#;0}, {1:+#;-#;0}) kadar git</value>
+  </data>
+  <data name="Editor_Action_MouseClickCurrent" xml:space="preserve">
+    <value>Geçerli konumda {0} tıkla</value>
+  </data>
+  <data name="Editor_Action_MouseClick" xml:space="preserve">
+    <value>{0} tıkla</value>
+  </data>
+  <data name="Editor_Action_MouseDown" xml:space="preserve">
+    <value>{0} basılı tut</value>
+  </data>
+  <data name="Editor_Action_MouseUp" xml:space="preserve">
+    <value>{0} bırak</value>
+  </data>
+  <data name="Editor_Action_KeyPress" xml:space="preserve">
+    <value>&apos;{0}&apos; tuşuna bas</value>
+  </data>
+  <data name="Editor_Action_KeyDown" xml:space="preserve">
+    <value>&apos;{0}&apos; tuşunu basılı tut</value>
+  </data>
+  <data name="Editor_Action_KeyUp" xml:space="preserve">
+    <value>&apos;{0}&apos; tuşunu bırak</value>
+  </data>
+  <data name="Editor_Action_DelayRandom" xml:space="preserve">
+    <value>{0}-{1} ms bekle (rastgele)</value>
+  </data>
+  <data name="Editor_Action_Delay" xml:space="preserve">
+    <value>{0} ms bekle</value>
+  </data>
+  <data name="Editor_Action_ScrollUp" xml:space="preserve">
+    <value>{0} yukarı kaydır</value>
+  </data>
+  <data name="Editor_Action_ScrollDown" xml:space="preserve">
+    <value>{0} aşağı kaydır</value>
+  </data>
+  <data name="Editor_Action_ScrollRight" xml:space="preserve">
+    <value>{0} sağa kaydır</value>
+  </data>
+  <data name="Editor_Action_ScrollLeft" xml:space="preserve">
+    <value>{0} sola kaydır</value>
+  </data>
+  <data name="Editor_Action_TextInputEmpty" xml:space="preserve">
+    <value>Metin Girişi (boş)</value>
+  </data>
+  <data name="Editor_Action_TextInput" xml:space="preserve">
+    <value>&quot;{0}&quot; yaz</value>
+  </data>
+  <data name="Editor_Action_SetVariableShort" xml:space="preserve">
+    <value>Değişken Ata</value>
+  </data>
+  <data name="Editor_Action_IncrementVariableShort" xml:space="preserve">
+    <value>Değişken Artır</value>
+  </data>
+  <data name="Editor_Action_DecrementVariableShort" xml:space="preserve">
+    <value>Değişken Azalt</value>
+  </data>
+  <data name="Editor_Action_RepeatBlockShort" xml:space="preserve">
+    <value>Repeat</value>
+  </data>
+  <data name="Editor_Action_IfBlockShort" xml:space="preserve">
+    <value>If</value>
+  </data>
+  <data name="Editor_Action_ElseBlockShort" xml:space="preserve">
+    <value>Else Bloğu</value>
+  </data>
+  <data name="Editor_Action_WhileBlockShort" xml:space="preserve">
+    <value>While</value>
+  </data>
+  <data name="Editor_Action_ForBlockShort" xml:space="preserve">
+    <value>For</value>
+  </data>
+  <data name="Editor_Action_BreakShort" xml:space="preserve">
+    <value>Break</value>
+  </data>
+  <data name="Editor_Action_ContinueShort" xml:space="preserve">
+    <value>Continue</value>
+  </data>
+  <data name="Editor_Action_EndBlockShort" xml:space="preserve">
+    <value>Blok Sonu</value>
+  </data>
+  <data name="Editor_Action_RawScriptStepShort" xml:space="preserve">
+    <value>Ham Betik Adımı</value>
+  </data>
+  <data name="Editor_Action_RawScriptStep" xml:space="preserve">
+    <value>Ham Betik: {0}</value>
+  </data>
+  <data name="Editor_Action_UnknownShort" xml:space="preserve">
+    <value>Bilinmeyen Eylem</value>
+  </data>
+  <data name="Editor_ActionType_MouseMove" xml:space="preserve">
+    <value>Fare Hareketi</value>
+  </data>
+  <data name="Editor_ActionType_MouseClick" xml:space="preserve">
+    <value>Fare Tıklaması</value>
+  </data>
+  <data name="Editor_ActionType_MouseDown" xml:space="preserve">
+    <value>Fare Basma</value>
+  </data>
+  <data name="Editor_ActionType_MouseUp" xml:space="preserve">
+    <value>Fare Bırakma</value>
+  </data>
+  <data name="Editor_ActionType_KeyPress" xml:space="preserve">
+    <value>Tuş Basımı</value>
+  </data>
+  <data name="Editor_ActionType_KeyDown" xml:space="preserve">
+    <value>Tuşu Basılı Tut</value>
+  </data>
+  <data name="Editor_ActionType_KeyUp" xml:space="preserve">
+    <value>Tuş Bırakma</value>
+  </data>
+  <data name="Editor_ActionType_Delay" xml:space="preserve">
+    <value>Gecikme</value>
+  </data>
+  <data name="Editor_ActionType_ScrollVertical" xml:space="preserve">
+    <value>Dikey Kaydırma</value>
+  </data>
+  <data name="Editor_ActionType_ScrollHorizontal" xml:space="preserve">
+    <value>Yatay Kaydırma</value>
+  </data>
+  <data name="Editor_ActionType_TextInput" xml:space="preserve">
+    <value>Metin Girişi</value>
+  </data>
+  <data name="Editor_ActionType_SetVariable" xml:space="preserve">
+    <value>Değişken Ata</value>
+  </data>
+  <data name="Editor_ActionType_IncrementVariable" xml:space="preserve">
+    <value>Değişken Artır</value>
+  </data>
+  <data name="Editor_ActionType_DecrementVariable" xml:space="preserve">
+    <value>Değişken Azalt</value>
+  </data>
+  <data name="Editor_ActionType_RepeatBlockStart" xml:space="preserve">
+    <value>Repeat Blok Başlangıcı</value>
+  </data>
+  <data name="Editor_ActionType_IfBlockStart" xml:space="preserve">
+    <value>If Blok Başlangıcı</value>
+  </data>
+  <data name="Editor_ActionType_ElseBlockStart" xml:space="preserve">
+    <value>Else Blok Başlangıcı</value>
+  </data>
+  <data name="Editor_ActionType_WhileBlockStart" xml:space="preserve">
+    <value>While Blok Başlangıcı</value>
+  </data>
+  <data name="Editor_ActionType_ForBlockStart" xml:space="preserve">
+    <value>For Blok Başlangıcı</value>
+  </data>
+  <data name="Editor_ActionType_BlockEnd" xml:space="preserve">
+    <value>Blok Sonu</value>
+  </data>
+  <data name="Editor_ActionType_Break" xml:space="preserve">
+    <value>Break</value>
+  </data>
+  <data name="Editor_ActionType_Continue" xml:space="preserve">
+    <value>Continue</value>
+  </data>
+  <data name="Editor_ActionType_RawScriptStep" xml:space="preserve">
+    <value>Ham Betik Adımı</value>
+  </data>
+  <data name="MouseButton_Left" xml:space="preserve">
+    <value>Sol</value>
+  </data>
+  <data name="MouseButton_Right" xml:space="preserve">
+    <value>Sağ</value>
+  </data>
+  <data name="MouseButton_Middle" xml:space="preserve">
+    <value>Orta</value>
+  </data>
+  <data name="MouseButton_ScrollUp" xml:space="preserve">
+    <value>Yukarı Kaydır</value>
+  </data>
+  <data name="MouseButton_ScrollDown" xml:space="preserve">
+    <value>Aşağı Kaydır</value>
+  </data>
+  <data name="MouseButton_ScrollLeft" xml:space="preserve">
+    <value>Sola Kaydır</value>
+  </data>
+  <data name="MouseButton_ScrollRight" xml:space="preserve">
+    <value>Sağa Kaydır</value>
+  </data>
+  <data name="Language_Chinese" xml:space="preserve">
+    <value>Çince</value>
+  </data>
+  <data name="Language_Japanese" xml:space="preserve">
+    <value>Japonca</value>
+  </data>
+  <data name="Language_Spanish" xml:space="preserve">
+    <value>İspanyolca</value>
+  </data>
+  <data name="Language_Arabic" xml:space="preserve">
+    <value>Arapça</value>
+  </data>
+  <data name="Language_French" xml:space="preserve">
+    <value>Fransızca</value>
+  </data>
+  <data name="Language_Portuguese" xml:space="preserve">
+    <value>Portekizce</value>
+  </data>
+  <data name="Language_Russian" xml:space="preserve">
+    <value>Rusça</value>
+  </data>
+</root>

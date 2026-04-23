@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:models="using:CrossMacro.UI.Models"
+             xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="400"
@@ -17,7 +18,7 @@
         <ScrollViewer Padding="10,10,20,10">
             <StackPanel Spacing="20">
                 <StackPanel Spacing="8">
-                    <TextBlock Classes="label" Text="Loaded Macros"/>
+                    <TextBlock Classes="label" Text="{localization:Loc Files_LoadedMacros}"/>
                     <Border Background="{DynamicResource SurfaceColor}"
                             BorderBrush="{DynamicResource SurfaceHoverColor}"
                             BorderThickness="1"
@@ -63,7 +64,7 @@
                                                 Command="{Binding #FilesRoot.((vm:FilesViewModel)DataContext).RemoveLoadedMacroCommand}"
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
-                                                ToolTip.Tip="Remove loaded macro">
+                                                ToolTip.Tip="{localization:Loc Files_RemoveLoadedMacroTooltip}">
                                             <TextBlock Text="🗑"
                                                        FontSize="14"
                                                        Classes="emoji-icon"
@@ -83,7 +84,7 @@
                                 HorizontalContentAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="📂" Classes="emoji-icon"/>
-                                <TextBlock Text="Load Macro"/>
+                                <TextBlock Text="{localization:Loc Files_LoadMacro}"/>
                             </StackPanel>
                         </Button>
 
@@ -95,7 +96,7 @@
                                 HorizontalContentAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="💾" Classes="emoji-icon"/>
-                                <TextBlock Text="Save Macro"/>
+                                <TextBlock Text="{localization:Loc Files_SaveMacro}"/>
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -104,18 +105,18 @@
                 <StackPanel Spacing="8"
                             IsVisible="{Binding HasLoadedMacros}"
                             IsEnabled="{Binding CanManageLoadedMacrosExternal}">
-                    <TextBlock Classes="label" Text="Selected Macro"/>
+                    <TextBlock Classes="label" Text="{localization:Loc Files_SelectedMacro}"/>
                     <Grid ColumnDefinitions="*,12,Auto">
                         <StackPanel Grid.Column="0" Spacing="8">
-                            <TextBlock Classes="label" Text="Macro Name"/>
+                            <TextBlock Classes="label" Text="{localization:Loc Files_MacroName}"/>
                             <TextBox Text="{Binding MacroName}"
-                                     PlaceholderText="Nightly export macro"/>
+                                     PlaceholderText="{localization:Loc Files_MacroNamePlaceholder}"/>
                         </StackPanel>
 
                         <StackPanel Grid.Column="2"
                                     Spacing="8"
                                     IsVisible="{Binding ShowSequenceRepeatSettings}">
-                            <TextBlock Classes="label" Text="Sequence Repeat"/>
+                            <TextBlock Classes="label" Text="{localization:Loc Files_SequenceRepeat}"/>
                             <NumericUpDown Value="{Binding SelectedSequenceRepeatCount}"
                                            Width="136"
                                            Minimum="1"
@@ -123,34 +124,34 @@
                                            FormatString="0"/>
                         </StackPanel>
                     </Grid>
-                    <TextBlock Text="Sequence Repeat applies only while Sequential cycle playback runs through the loaded list."
+                    <TextBlock Text="{localization:Loc Files_SequenceRepeatDescription}"
                                Classes="caption"
                                TextWrapping="Wrap"
                                IsVisible="{Binding ShowSequenceRepeatSettings}"/>
                 </StackPanel>
 
                 <StackPanel Spacing="8">
-                    <TextBlock Classes="label" Text="Playback Mode"/>
+                    <TextBlock Classes="label" Text="{localization:Loc Files_PlaybackMode}"/>
                     <StackPanel Spacing="10" IsEnabled="{Binding CanManageLoadedMacrosExternal}">
                         <StackPanel Spacing="2">
                             <RadioButton GroupName="LoadedMacroPlaybackMode"
-                                         Content="Selected macro only"
+                                         Content="{localization:Loc Files_PlaybackModeSelectedOnly}"
                                          IsChecked="{Binding IsSelectedOnlyMode}"/>
-                            <TextBlock Text="Play only the selected macro. Global loop settings apply to that one macro."
+                            <TextBlock Text="{localization:Loc Files_PlaybackModeSelectedOnlyDescription}"
                                        Classes="caption playback-mode-description"/>
                         </StackPanel>
                         <StackPanel Spacing="2">
                             <RadioButton GroupName="LoadedMacroPlaybackMode"
-                                         Content="Play selected, then select next"
+                                         Content="{localization:Loc Files_PlaybackModeAdvanceSelection}"
                                          IsChecked="{Binding IsAdvanceSelectionMode}"/>
-                            <TextBlock Text="Run the selected macro with the current playback settings, then move selection to the next loaded macro. It does not auto-play the next item."
+                            <TextBlock Text="{localization:Loc Files_PlaybackModeAdvanceSelectionDescription}"
                                        Classes="caption playback-mode-description"/>
                         </StackPanel>
                         <StackPanel Spacing="2">
                             <RadioButton GroupName="LoadedMacroPlaybackMode"
-                                         Content="Sequential cycle playback"
+                                         Content="{localization:Loc Files_PlaybackModeSequentialCycle}"
                                          IsChecked="{Binding IsSequentialCycleMode}"/>
-                            <TextBlock Text="Run from the selected macro through the whole loaded list. Sequence Repeat is used only in this mode."
+                            <TextBlock Text="{localization:Loc Files_PlaybackModeSequentialCycleDescription}"
                                        Classes="caption playback-mode-description"/>
                         </StackPanel>
                     </StackPanel>

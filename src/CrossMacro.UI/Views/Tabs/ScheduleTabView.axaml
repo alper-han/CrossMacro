@@ -2,6 +2,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:core="using:CrossMacro.Core.Models"
+             xmlns:local="using:CrossMacro.UI.Views.Tabs"
+             xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="700"
@@ -21,13 +23,13 @@
                 <StackPanel Spacing="12">
                     <Grid ColumnDefinitions="*,Auto,Auto">
                         <TextBlock Grid.Column="0"
-                                  Text="SCHEDULED TASKS" 
+                                  Text="{localization:Loc Schedule_Title}" 
                                   FontWeight="SemiBold" 
                                   Foreground="{DynamicResource TextSecondaryBrush}" 
                                   FontSize="12"
                                   VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1"
-                                  Text="{Binding Tasks.Count, StringFormat='{}{0} items'}"
+                                  Text="{Binding TaskCountText}"
                                   VerticalAlignment="Center"
                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                   FontSize="12"
@@ -68,14 +70,8 @@
                                                           TextTrimming="CharacterEllipsis"/>
                                                 <TextBlock FontSize="11" 
                                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                                          TextTrimming="CharacterEllipsis">
-                                                    <TextBlock.Text>
-                                                        <MultiBinding StringFormat="{}{0} • {1}">
-                                                            <Binding Path="Type"/>
-                                                            <Binding Path="MacroFilePath" FallbackValue="No file" TargetNullValue="No file"/>
-                                                        </MultiBinding>
-                                                    </TextBlock.Text>
-                                                </TextBlock>
+                                                          TextTrimming="CharacterEllipsis"
+                                                          Text="{Binding Converter={x:Static local:ScheduleTaskConverters.SummaryText}}"/>
                                             </StackPanel>
                                         </Button>
                                         
@@ -95,7 +91,7 @@
                                                 Command="{Binding #TaskListBorder.((vm:ScheduleViewModel)DataContext).SelectTaskCommand}"
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
-                                                ToolTip.Tip="Edit task">
+                                                ToolTip.Tip="{localization:Loc Schedule_EditTask}">
                                             <TextBlock Text="✏️" FontSize="12" Classes="emoji-icon"/>
                                         </Button>
                                         
@@ -107,7 +103,7 @@
                                                 Command="{Binding #TaskListBorder.((vm:ScheduleViewModel)DataContext).RemoveTaskCommand}"
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
-                                                ToolTip.Tip="Delete task">
+                                                ToolTip.Tip="{localization:Loc Schedule_DeleteTask}">
                                             <TextBlock Text="🗑" FontSize="12" Classes="emoji-icon" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                         </Button>
                                     </Grid>
@@ -124,22 +120,22 @@
                     Padding="16"
                     IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Spacing="16">
-                    <TextBlock Text="TASK SETTINGS" 
+                    <TextBlock Text="{localization:Loc Schedule_TaskSettings}" 
                               FontWeight="SemiBold" 
                               Foreground="{DynamicResource TextSecondaryBrush}" 
                               FontSize="12"/>
                     
                     <!-- Task Name -->
                     <StackPanel Spacing="4">
-                        <TextBlock Text="Name" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{localization:Loc Schedule_Name}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <TextBox Text="{Binding SelectedTask.Name, Mode=TwoWay, FallbackValue=''}" 
-                                PlaceholderText="Nightly export task"/>
+                                PlaceholderText="{localization:Loc Schedule_NamePlaceholder}"/>
                     </StackPanel>
                     
                     <!-- Playback Speed -->
                     <StackPanel Spacing="8">
                         <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Grid.Column="0" Classes="label" Text="Playback Speed"/>
+                            <TextBlock Grid.Column="0" Classes="label" Text="{localization:Loc Schedule_PlaybackSpeed}"/>
                             <TextBlock Grid.Column="1" 
                                       Text="{Binding SelectedTask.PlaybackSpeed, StringFormat='{}{0:0.0}x', FallbackValue='1.0x'}" 
                                       FontWeight="Medium"
@@ -155,14 +151,14 @@
                     
                     <!-- Macro File -->
                     <StackPanel Spacing="4">
-                        <TextBlock Text="Macro File" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{localization:Loc Schedule_MacroFile}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <Grid ColumnDefinitions="*,Auto">
                             <Border Grid.Column="0" 
                                    Background="{DynamicResource BackgroundBrush}" 
                                    CornerRadius="6" 
                                    Padding="12,8"
                                    Margin="0,0,8,0">
-                                <TextBlock Text="{Binding SelectedMacroFileName, FallbackValue='No file selected'}" 
+                                <TextBlock Text="{Binding SelectedMacroFileName, FallbackValue={localization:Loc Schedule_NoFileSelected}}" 
                                           VerticalAlignment="Center"
                                           TextTrimming="CharacterEllipsis"
                                           ToolTip.Tip="{Binding SelectedMacroFilePath, FallbackValue=''}"/>
@@ -171,7 +167,7 @@
                                    Command="{Binding BrowseMacroCommand}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBlock Text="📂" Classes="emoji-icon"/>
-                                    <TextBlock Text="Browse"/>
+                                    <TextBlock Text="{localization:Loc Schedule_Browse}"/>
                                 </StackPanel>
                             </Button>
                         </Grid>
@@ -179,20 +175,20 @@
                     
                     <!-- Schedule Type -->
                     <StackPanel Spacing="8">
-                        <TextBlock Text="Schedule Type" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{localization:Loc Schedule_Type}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <StackPanel Orientation="Horizontal" Spacing="16">
                             <RadioButton IsChecked="{Binding IsIntervalSelected, Mode=TwoWay}"
                                         GroupName="ScheduleType">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBlock Text="⏱️" Classes="emoji-icon"/>
-                                    <TextBlock Text="Interval (repeat)"/>
+                                    <TextBlock Text="{localization:Loc Schedule_TypeInterval}"/>
                                 </StackPanel>
                             </RadioButton>
                             <RadioButton IsChecked="{Binding IsDateTimeSelected, Mode=TwoWay}"
                                         GroupName="ScheduleType">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBlock Text="📅" Classes="emoji-icon"/>
-                                    <TextBlock Text="Date/Time (once)"/>
+                                    <TextBlock Text="{localization:Loc Schedule_TypeDateTime}"/>
                                 </StackPanel>
                             </RadioButton>
                         </StackPanel>
@@ -211,20 +207,20 @@
                     </MultiBinding>
                 </Border.IsVisible>
                 <StackPanel Spacing="12">
-                    <TextBlock Text="INTERVAL SETTINGS" 
+                    <TextBlock Text="{localization:Loc Schedule_IntervalSettings}" 
                               FontWeight="SemiBold" 
                               Foreground="{DynamicResource TextSecondaryBrush}"
                               FontSize="12"/>
-                    <TextBlock Text="Run macro every:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <TextBlock Text="{localization:Loc Schedule_RunEvery}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <NumericUpDown Value="{Binding SelectedTask.IntervalValue, Mode=TwoWay, FallbackValue=1}"
                                       Minimum="1" Maximum="9999"
                                       Width="120"/>
                         <ComboBox SelectedIndex="{Binding SelectedTask.IntervalUnit, Mode=TwoWay, FallbackValue=0}"
                                  Width="120">
-                            <ComboBoxItem Content="Seconds"/>
-                            <ComboBoxItem Content="Minutes"/>
-                            <ComboBoxItem Content="Hours"/>
+                            <ComboBoxItem Content="{localization:Loc Schedule_Seconds}"/>
+                            <ComboBoxItem Content="{localization:Loc Schedule_Minutes}"/>
+                            <ComboBoxItem Content="{localization:Loc Schedule_Hours}"/>
                         </ComboBox>
                     </StackPanel>
                 </StackPanel>
@@ -241,11 +237,11 @@
                     </MultiBinding>
                 </Border.IsVisible>
                 <StackPanel Spacing="12">
-                    <TextBlock Text="DATE/TIME SETTINGS" 
+                    <TextBlock Text="{localization:Loc Schedule_DateTimeSettings}" 
                               FontWeight="SemiBold" 
                               Foreground="{DynamicResource TextSecondaryBrush}"
                               FontSize="12"/>
-                    <TextBlock Text="Run macro at:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <TextBlock Text="{localization:Loc Schedule_RunAt}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <StackPanel Orientation="Vertical" Spacing="12" HorizontalAlignment="Left">
                         <DatePicker SelectedDate="{Binding ScheduledDate, Mode=TwoWay, FallbackValue={x:Null}}"
                                    HorizontalAlignment="Stretch"/>
@@ -255,7 +251,7 @@
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="4">
                         <TextBlock Text="💡" FontSize="11" Classes="emoji-icon" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                        <TextBlock Text="The macro will run once at the selected date" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{localization:Loc Schedule_RunOnceTip}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -266,24 +262,24 @@
                    Padding="16"
                    IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Spacing="8">
-                    <TextBlock Text="STATUS" 
+                    <TextBlock Text="{localization:Loc Schedule_Status}" 
                               FontWeight="SemiBold" 
                               Foreground="{DynamicResource TextSecondaryBrush}"
                               FontSize="12"/>
                     <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Last Run:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Loc Schedule_LastRun}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <TextBlock Grid.Row="0" Grid.Column="1" 
-                                  Text="{Binding SelectedTask.LastRunTime, StringFormat='{}{0:G}', TargetNullValue='Never', FallbackValue='Never'}" 
+                                  Text="{Binding SelectedTask.LastRunTime, StringFormat='{}{0:G}', TargetNullValue={localization:Loc Schedule_Never}, FallbackValue={localization:Loc Schedule_Never}}" 
                                   FontSize="12"/>
                         
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Next Run:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="{localization:Loc Schedule_NextRun}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <TextBlock Grid.Row="1" Grid.Column="1" 
-                                  Text="{Binding SelectedTask.NextRunTime, StringFormat='{}{0:G}', TargetNullValue='Not scheduled', FallbackValue='Not scheduled'}" 
+                                  Text="{Binding SelectedTask.NextRunTime, StringFormat='{}{0:G}', TargetNullValue={localization:Loc Schedule_NotScheduled}, FallbackValue={localization:Loc Schedule_NotScheduled}}" 
                                   FontSize="12"/>
                         
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Status:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="{localization:Loc Schedule_StatusLabel}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <TextBlock Grid.Row="2" Grid.Column="1" 
-                                  Text="{Binding SelectedTask.LastStatus, TargetNullValue='—', FallbackValue='—'}" 
+                                  Text="{Binding SelectedTask.LastStatus, TargetNullValue={localization:Loc Schedule_StatusPlaceholder}, FallbackValue={localization:Loc Schedule_StatusPlaceholder}}" 
                                   FontSize="12"/>
                     </Grid>
                 </StackPanel>
@@ -296,7 +292,7 @@
                    IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <TextBlock Text="💾" Classes="emoji-icon"/>
-                    <TextBlock Text="Save All Tasks"/>
+                    <TextBlock Text="{localization:Loc Schedule_SaveAllTasks}"/>
                 </StackPanel>
             </Button>
             
@@ -307,11 +303,11 @@
                     IsVisible="{Binding !HasSelectedTask}">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
                     <TextBlock Text="🕐" FontSize="48" Classes="emoji-icon" HorizontalAlignment="Center"/>
-                    <TextBlock Text="No Task Selected" 
+                    <TextBlock Text="{localization:Loc Schedule_NoTaskSelected}" 
                               FontSize="16" 
                               FontWeight="Medium"
                               HorizontalAlignment="Center"/>
-                    <TextBlock Text="Select a task from the list above or add a new one" 
+                    <TextBlock Text="{localization:Loc Schedule_SelectTaskHint}" 
                               FontSize="12"
                               Foreground="{DynamicResource TextSecondaryBrush}"
                               HorizontalAlignment="Center"/>

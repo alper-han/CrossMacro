@@ -370,7 +370,7 @@ public partial class EditorViewModel
     {
         if (!IsUserAddableActionType(NewActionType))
         {
-            Status = "This action is managed automatically.";
+            Status = Localize("Editor_StatusAutoManagedAction");
             return;
         }
 
@@ -413,7 +413,7 @@ public partial class EditorViewModel
         }
 
         SelectedAction = action;
-        Status = $"Added {action.DisplayName}";
+        Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusAddedAction"), _actionDisplayFormatter.Format(action));
         OnPropertyChanged(nameof(HasActions));
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
@@ -444,7 +444,7 @@ public partial class EditorViewModel
         PropagateCoordinateMode(action);
         SkipInitialZeroZero = true;
         SelectedAction = action;
-        Status = $"Added {action.DisplayName}";
+        Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusAddedAction"), _actionDisplayFormatter.Format(action));
         OnPropertyChanged(nameof(HasActions));
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
@@ -454,21 +454,21 @@ public partial class EditorViewModel
     {
         if (SelectedAction?.Type != EditorActionType.IfBlockStart)
         {
-            Status = StatusSelectIfBlockFirst;
+            Status = Localize("Editor_StatusSelectIfBlockFirst");
             return;
         }
 
         var ifStartIndex = Actions.IndexOf(SelectedAction);
         if (ifStartIndex < 0 || !TryFindMatchingBlockEnd(ifStartIndex, out var ifBlockEndIndex))
         {
-            Status = StatusSelectIfBlockFirst;
+            Status = Localize("Editor_StatusSelectIfBlockFirst");
             return;
         }
 
         if (ifBlockEndIndex + 1 < Actions.Count
             && Actions[ifBlockEndIndex + 1].Type == EditorActionType.ElseBlockStart)
         {
-            Status = StatusElseAlreadyExists;
+            Status = Localize("Editor_StatusElseAlreadyExists");
             return;
         }
 
@@ -487,7 +487,7 @@ public partial class EditorViewModel
         Actions.Insert(ifBlockEndIndex + 2, elseEndAction);
         SelectedAction = elseStartAction;
 
-        Status = StatusInsertedElseBlock;
+        Status = Localize("Editor_StatusInsertedElseBlock");
         OnPropertyChanged(nameof(HasActions));
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
@@ -497,7 +497,7 @@ public partial class EditorViewModel
     {
         if (!TryGetSelectedBlockRange(out var startIndex, out var endIndex))
         {
-            Status = StatusSelectActionFirst;
+            Status = Localize("Editor_StatusSelectActionFirst");
             return;
         }
 
@@ -527,7 +527,7 @@ public partial class EditorViewModel
             SelectedAction = null;
         }
 
-        Status = StatusRemovedBlock;
+        Status = Localize("Editor_StatusRemovedBlock");
         OnPropertyChanged(nameof(HasActions));
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
@@ -563,7 +563,7 @@ public partial class EditorViewModel
             SelectedAction = null;
         }
 
-        Status = StatusRemovedAction;
+        Status = Localize("Editor_StatusRemovedAction");
         OnPropertyChanged(nameof(HasActions));
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
@@ -591,7 +591,7 @@ public partial class EditorViewModel
         var action = SelectedAction;
         Actions.Move(index, index - 1);
         SelectedAction = action;
-        Status = StatusMovedActionUp;
+        Status = Localize("Editor_StatusMovedActionUp");
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
     }
@@ -618,7 +618,7 @@ public partial class EditorViewModel
         var action = SelectedAction;
         Actions.Move(index, index + 1);
         SelectedAction = action;
-        Status = StatusMovedActionDown;
+        Status = Localize("Editor_StatusMovedActionDown");
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
     }
@@ -645,7 +645,7 @@ public partial class EditorViewModel
         var clone = SelectedAction.Clone();
         Actions.Insert(index + 1, clone);
         SelectedAction = clone;
-        Status = StatusDuplicatedAction;
+        Status = Localize("Editor_StatusDuplicatedAction");
         OnPropertyChanged(nameof(HasActions));
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
@@ -662,7 +662,7 @@ public partial class EditorViewModel
         Actions.Clear();
         SetLoadWarnings(Array.Empty<EditorActionRestoreWarning>());
         SelectedAction = null;
-        Status = StatusClearedAllActions;
+        Status = Localize("Editor_StatusClearedAllActions");
         OnPropertyChanged(nameof(HasActions));
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
@@ -690,7 +690,7 @@ public partial class EditorViewModel
             }
 
             SelectedAction = Actions.FirstOrDefault();
-            Status = StatusUndone;
+            Status = Localize("Editor_StatusUndone");
 
             OnPropertyChanged(nameof(CanUndo));
             OnPropertyChanged(nameof(CanRedo));
@@ -725,7 +725,7 @@ public partial class EditorViewModel
             }
 
             SelectedAction = Actions.FirstOrDefault();
-            Status = StatusRedone;
+            Status = Localize("Editor_StatusRedone");
 
             OnPropertyChanged(nameof(CanUndo));
             OnPropertyChanged(nameof(CanRedo));
@@ -891,7 +891,7 @@ public partial class EditorViewModel
             return true;
         }
 
-        Status = StatusOperationBlocked;
+        Status = Localize("Editor_StatusOperationBlocked");
         return false;
     }
 

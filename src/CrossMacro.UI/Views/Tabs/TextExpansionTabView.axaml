@@ -3,6 +3,7 @@
              xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:core="using:CrossMacro.Core.Models"
              xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
+             xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="450"
@@ -21,7 +22,7 @@
                 <!-- ADD NEW EXPANSION -->
                 <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="16">
                     <StackPanel Spacing="16">
-                        <TextBlock Text="ADD NEW EXPANSION"
+                        <TextBlock Text="{localization:Loc TextExpansion_AddNewExpansion}"
                                    FontSize="12"
                                    FontWeight="Bold"
                                    Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -29,9 +30,9 @@
                         <Grid ColumnDefinitions="*,Auto,*" RowDefinitions="Auto,Auto,Auto">
                             <!-- Trigger -->
                             <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6">
-                                <TextBlock Text="Trigger" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                <TextBox PlaceholderText=":sync-ok"
-                                         Text="{Binding TriggerInput, FallbackValue=''}"
+                                <TextBlock Text="{localization:Loc TextExpansion_Trigger}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox PlaceholderText="{localization:Loc TextExpansion_TriggerPlaceholder}"
+                                          Text="{Binding TriggerInput, FallbackValue=''}"
                                          CornerRadius="6"
                                          Padding="10"/>
                             </StackPanel>
@@ -46,15 +47,15 @@
 
                             <!-- Replacement -->
                             <StackPanel Grid.Row="0" Grid.Column="2" Spacing="6">
-                                <TextBlock Text="Replacement" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                <TextBox PlaceholderText="Inventory sync completed successfully"
-                                         Text="{Binding ReplacementInput, FallbackValue=''}"
+                                <TextBlock Text="{localization:Loc TextExpansion_Replacement}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox PlaceholderText="{localization:Loc TextExpansion_ReplacementPlaceholder}"
+                                          Text="{Binding ReplacementInput, FallbackValue=''}"
                                          CornerRadius="6"
                                          Padding="10"/>
                             </StackPanel>
                             <!-- Insertion Mode -->
                             <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Spacing="6" Margin="0,16,0,0">
-                                <TextBlock Text="Insertion Mode" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock Text="{localization:Loc TextExpansion_InsertionMode}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 <ComboBox ItemsSource="{Binding InsertionModes}"
                                           SelectedItem="{Binding SelectedInsertionMode}"
                                           HorizontalAlignment="Stretch"
@@ -70,7 +71,7 @@
                             <!-- Paste Method -->
                             <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Spacing="6" Margin="0,12,0,0"
                                         IsVisible="{Binding IsPasteMethodSelectorVisible}">
-                                <TextBlock Text="Paste Method" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock Text="{localization:Loc TextExpansion_PasteMethod}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 <ComboBox ItemsSource="{Binding PasteMethods}"
                                           SelectedItem="{Binding SelectedPasteMethod}"
                                           HorizontalAlignment="Stretch"
@@ -84,7 +85,7 @@
                             </StackPanel>
                         </Grid>
 
-                        <Button Content="+ Add"
+                        <Button Content="{localization:Loc TextExpansion_Add}"
                                 Classes="primary"
                                 Command="{Binding AddExpansionCommand}"
                                 HorizontalAlignment="Stretch"
@@ -98,14 +99,14 @@
                     <Grid RowDefinitions="Auto,*">
                         <!-- Header -->
                         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
-                            <TextBlock Text="SAVED EXPANSIONS"
+                            <TextBlock Text="{localization:Loc TextExpansion_SavedExpansions}"
                                        VerticalAlignment="Center"
                                        FontSize="12"
                                        FontWeight="Bold"
                                        Foreground="{DynamicResource TextSecondaryBrush}"/>
 
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{Binding Expansions.Count, StringFormat='{}{0} items', FallbackValue='0 items'}"
+                                <TextBlock Text="{Binding ExpansionCountText}"
                                            VerticalAlignment="Center"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"/>
@@ -115,7 +116,7 @@
 
                         <!-- Empty State -->
                         <TextBlock Grid.Row="1"
-                                   Text="No saved expansions"
+                                   Text="{localization:Loc TextExpansion_NoSavedExpansions}"
                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center"
@@ -200,7 +201,7 @@
                 <!-- Footer Info -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
                     <TextBlock Text="💡" FontSize="12" Classes="emoji-icon" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                    <TextBlock Text="Enable in Settings tab to start expanding" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <TextBlock Text="{localization:Loc TextExpansion_EnableInSettingsTip}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                 </StackPanel>
 
                 <!-- NEW: Bottom Spacer -->

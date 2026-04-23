@@ -3,6 +3,8 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Data.Converters;
 using CrossMacro.Core.Models;
+using CrossMacro.Core.Services;
+using CrossMacro.UI.Localization;
 
 namespace CrossMacro.UI.Views.Tabs;
 
@@ -11,6 +13,13 @@ namespace CrossMacro.UI.Views.Tabs;
 /// </summary>
 public static class ActionTypeConverters
 {
+    private static EditorActionDisplayFormatter? _formatter;
+
+    public static void Configure(EditorActionDisplayFormatter formatter)
+    {
+        _formatter = formatter;
+    }
+
     /// <summary>
     /// Returns true if the action type is a mouse-related action.
     /// </summary>
@@ -42,6 +51,49 @@ public static class ActionTypeConverters
     public static readonly IValueConverter IsScrollAction = new FuncValueConverter<EditorActionType, bool>(type =>
         type is EditorActionType.ScrollVertical 
             or EditorActionType.ScrollHorizontal);
+
+    public static readonly IValueConverter DisplayText = new FuncValueConverter<EditorActionType, string>(type =>
+    {
+        return _formatter?.FormatActionType(type) ?? type.ToString();
+    });
+}
+
+public static class ScheduleTaskConverters
+{
+    private static ILocalizationService? _localizationService;
+
+    public static void Configure(ILocalizationService localizationService)
+    {
+        _localizationService = localizationService;
+    }
+
+    public static readonly IValueConverter SummaryText = new FuncValueConverter<ScheduledTask?, string>(task =>
+    {
+        if (task is null)
+        {
+            return string.Empty;
+        }
+
+        var localizationService = _localizationService;
+        if (localizationService is null)
+        {
+            var fileName = string.IsNullOrEmpty(task.MacroFilePath) ? "No file" : System.IO.Path.GetFileName(task.MacroFilePath);
+            return $"{task.Type} • {fileName}";
+        }
+
+        var typeDisplay = task.Type switch
+        {
+            ScheduleType.Interval => localizationService["Schedule_TypeInterval"],
+            ScheduleType.SpecificTime => localizationService["Schedule_TypeDateTime"],
+            _ => task.Type.ToString()
+        };
+
+        var fileDisplay = string.IsNullOrEmpty(task.MacroFilePath)
+            ? localizationService["Schedule_NoFile"]
+            : System.IO.Path.GetFileName(task.MacroFilePath);
+
+        return string.Format(localizationService.CurrentCulture, localizationService["Schedule_ListSummary"], typeDisplay, fileDisplay);
+    });
 }
 
 /// <summary>

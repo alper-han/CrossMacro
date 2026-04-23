@@ -4,7 +4,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="200"
         x:Class="CrossMacro.UI.Views.Dialogs.ConfirmationDialog"
-        Title="Confirmation"
+        Title="Dialog"
         Width="400" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
@@ -17,28 +17,28 @@
         <StackPanel Spacing="20" Margin="24">
             <!-- Header -->
             <TextBlock Name="TitleText"
-                       Text="Confirm Action"
+                       Text="Dialog"
                        FontSize="18"
                        FontWeight="Bold"
                        Foreground="{DynamicResource TextPrimaryBrush}"/>
 
             <!-- Message -->
             <TextBlock Name="MessageText"
-                       Text="Are you sure you want to maintain this?"
+                       Text="Message"
                        TextWrapping="Wrap"
                        Foreground="{DynamicResource TextSecondaryBrush}"/>
 
             <!-- Buttons -->
             <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" Margin="0,12,0,0">
                 <Button Name="NoButton"
-                        Classes="secondary"
-                        Content="No"
+                         Classes="secondary"
+                         Content="Cancel"
                         Click="NoButton_Click"
                         Padding="16,8" />
                 
                 <Button Name="YesButton"
-                        Classes="danger"
-                        Content="Yes"
+                         Classes="danger"
+                         Content="OK"
                         Click="YesButton_Click"
                         Padding="16,8" />
             </StackPanel>

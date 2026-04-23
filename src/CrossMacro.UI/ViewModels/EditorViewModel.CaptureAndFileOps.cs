@@ -29,12 +29,12 @@ public partial class EditorViewModel
         var targetAction = SelectedAction;
         if (targetAction == null)
         {
-            Status = StatusSelectActionFirst;
+            Status = Localize("Editor_StatusSelectActionFirst");
             return;
         }
 
         IsCapturing = true;
-        Status = StatusCaptureMousePrompt;
+        Status = Localize("Editor_StatusCaptureMousePrompt");
 
         try
         {
@@ -45,24 +45,24 @@ public partial class EditorViewModel
             {
                 if (!result.HasValue)
                 {
-                    Status = StatusCaptureCancelled;
+                    Status = Localize("Editor_StatusCaptureCancelled");
                     return;
                 }
 
                 if (!ReferenceEquals(SelectedAction, targetAction))
                 {
-                    Status = StatusCaptureSelectionChanged;
+                    Status = Localize("Editor_StatusCaptureSelectionChanged");
                     return;
                 }
 
                 targetAction.X = result.Value.X;
                 targetAction.Y = result.Value.Y;
-                Status = $"Captured position: ({result.Value.X}, {result.Value.Y})";
+                Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCapturedPosition"), result.Value.X, result.Value.Y);
             });
         }
         catch (Exception ex)
         {
-            Status = $"Capture error: {ex.Message}";
+            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message);
         }
         finally
         {
@@ -75,12 +75,12 @@ public partial class EditorViewModel
         var targetAction = SelectedAction;
         if (targetAction == null)
         {
-            Status = StatusSelectActionFirst;
+            Status = Localize("Editor_StatusSelectActionFirst");
             return;
         }
 
         IsCapturing = true;
-        Status = StatusCaptureKeyPrompt;
+        Status = Localize("Editor_StatusCaptureKeyPrompt");
 
         try
         {
@@ -91,24 +91,24 @@ public partial class EditorViewModel
             {
                 if (!result.HasValue)
                 {
-                    Status = StatusCaptureCancelled;
+                    Status = Localize("Editor_StatusCaptureCancelled");
                     return;
                 }
 
                 if (!ReferenceEquals(SelectedAction, targetAction))
                 {
-                    Status = StatusCaptureSelectionChanged;
+                    Status = Localize("Editor_StatusCaptureSelectionChanged");
                     return;
                 }
 
                 targetAction.KeyCode = result.Value;
                 targetAction.KeyName = _keyCodeMapper.GetKeyName(result.Value);
-                Status = $"Captured: {targetAction.KeyName} (code: {result.Value})";
+                Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCapturedKey"), targetAction.KeyName, result.Value);
             });
         }
         catch (Exception ex)
         {
-            Status = $"Capture error: {ex.Message}";
+            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message);
         }
         finally
         {
@@ -120,23 +120,23 @@ public partial class EditorViewModel
     {
         _captureService.CancelCapture();
         IsCapturing = false;
-        Status = StatusCaptureCancelled;
+        Status = Localize("Editor_StatusCaptureCancelled");
     }
 
     public async Task SaveMacroAsync()
     {
         if (Actions.Count == 0)
         {
-            await _dialogService.ShowMessageAsync(DialogTitleNoActions, DialogMessageNoActions);
+            await _dialogService.ShowMessageAsync(Localize("Editor_DialogTitleNoActions"), Localize("Editor_DialogMessageNoActions"));
             return;
         }
 
         var (isValid, errors) = _validator.ValidateAll(Actions);
         if (!isValid)
         {
-            var errorMessage = $"{ValidationErrorHeader}\n\n{string.Join("\n", errors.Select(error => $"• {error}"))}";
-            await _dialogService.ShowMessageAsync(DialogTitleValidationErrors, errorMessage);
-            Status = $"Validation failed: {errors.Count} error(s)";
+            var errorMessage = $"{Localize("Editor_ValidationErrorHeader")}\n\n{string.Join("\n", errors.Select(error => $"• {error}"))}";
+            await _dialogService.ShowMessageAsync(Localize("Editor_DialogTitleValidationErrors"), errorMessage);
+            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusValidationFailed"), errors.Count);
             return;
         }
 
@@ -144,17 +144,17 @@ public partial class EditorViewModel
         {
             var filters = new[]
             {
-                new FileDialogFilter { Name = MacroFileDialogName, Extensions = new[] { MacroFileExtension.TrimStart('.') } }
+                new FileDialogFilter { Name = Localize("Editor_MacroFileDialogName"), Extensions = new[] { MacroFileExtension.TrimStart('.') } }
             };
 
             var baseName = MacroName.EndsWith(MacroFileExtension, StringComparison.OrdinalIgnoreCase)
                 ? MacroName[..^MacroFileExtension.Length]
                 : MacroName;
-            var filePath = await _dialogService.ShowSaveFileDialogAsync(SaveDialogTitle, $"{baseName}{MacroFileExtension}", filters);
+            var filePath = await _dialogService.ShowSaveFileDialogAsync(Localize("Editor_SaveDialogTitle"), $"{baseName}{MacroFileExtension}", filters);
 
             if (string.IsNullOrEmpty(filePath))
             {
-                Status = StatusSaveCancelled;
+                Status = Localize("Editor_StatusSaveCancelled");
                 return;
             }
 
@@ -171,12 +171,12 @@ public partial class EditorViewModel
             var sequence = _converter.ToMacroSequence(Actions, MacroName, isAbsolute, skipInitialZeroZero);
             await _fileManager.SaveAsync(sequence, filePath);
 
-            Status = $"Saved: {Path.GetFileName(filePath)}";
+            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusSaved"), Path.GetFileName(filePath));
             MacroCreated?.Invoke(this, new EditorMacroCreatedEventArgs(sequence, filePath));
         }
         catch (Exception ex)
         {
-            Status = $"Save error: {ex.Message}";
+            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusSaveError"), ex.Message);
         }
     }
 
@@ -186,14 +186,14 @@ public partial class EditorViewModel
         {
             var filters = new[]
             {
-                new FileDialogFilter { Name = MacroFileDialogName, Extensions = new[] { MacroFileExtension.TrimStart('.') } }
+                new FileDialogFilter { Name = Localize("Editor_MacroFileDialogName"), Extensions = new[] { MacroFileExtension.TrimStart('.') } }
             };
 
-            var filePath = await _dialogService.ShowOpenFileDialogAsync(LoadDialogTitle, filters);
+            var filePath = await _dialogService.ShowOpenFileDialogAsync(Localize("Editor_LoadDialogTitle"), filters);
 
             if (string.IsNullOrEmpty(filePath))
             {
-                Status = StatusLoadCancelled;
+                Status = Localize("Editor_StatusLoadCancelled");
                 return;
             }
 
@@ -201,19 +201,19 @@ public partial class EditorViewModel
             if (sequence == null)
             {
                 SetLoadWarnings(Array.Empty<EditorActionRestoreWarning>());
-                Status = StatusLoadFailed;
+                Status = Localize("Editor_StatusLoadFailed");
                 return;
             }
 
             LoadMacroSequence(sequence);
-            var baseStatus = $"Loaded: {Path.GetFileName(filePath)}";
+            var baseStatus = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusLoaded"), Path.GetFileName(filePath));
             Status = HasLoadWarnings
-                ? $"{baseStatus} ({LoadWarnings.Count} restore warning(s))"
+                ? string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusLoadedWithWarnings"), Path.GetFileName(filePath), LoadWarnings.Count)
                 : baseStatus;
         }
         catch (Exception ex)
         {
-            Status = $"Load error: {ex.Message}";
+            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusLoadError"), ex.Message);
         }
     }
 
@@ -233,7 +233,7 @@ public partial class EditorViewModel
         SetLoadWarnings(restoreResult.Warnings);
         if (sequence.ScriptSteps.Count > 0 && !restoreResult.RestoredFromScriptSteps)
         {
-            LoadWarnings.Add("Script steps could not be restored; loaded from event stream.");
+            LoadWarnings.Add(Localize("Editor_StatusRestoreWarningFallback"));
         }
 
         foreach (var action in editorActions)

@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:controls="using:CrossMacro.UI.Controls"
+             xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="400"
@@ -20,7 +21,7 @@
                 <!-- Hotkey Info -->
                 <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="12">
                     <StackPanel Spacing="12">
-                        <TextBlock Text="Global Hotkeys" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{localization:Loc Settings_GlobalHotkeys}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         
                         <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
                             <controls:HotkeyCapture Grid.Row="0" Grid.Column="0" 
@@ -28,21 +29,21 @@
                                                    Hotkey="{Binding RecordingHotkey, Mode=TwoWay}" 
                                                    Margin="0,0,12,8"
                                                    MinWidth="140"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" Text="Toggle Recording (Start/Stop)" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{localization:Loc Settings_ToggleRecording}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
                             
                             <controls:HotkeyCapture Grid.Row="1" Grid.Column="0" 
                                                    x:Name="PlaybackHotkeyCapture"
                                                    Hotkey="{Binding PlaybackHotkey, Mode=TwoWay}" 
                                                    Margin="0,0,12,8"
                                                    MinWidth="140"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" Text="Toggle Playback (Start/Stop)" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{localization:Loc Settings_TogglePlayback}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
                             
                             <controls:HotkeyCapture Grid.Row="2" Grid.Column="0" 
                                                    x:Name="PauseHotkeyCapture"
                                                    Hotkey="{Binding PauseHotkey, Mode=TwoWay}" 
                                                    Margin="0,0,12,0"
                                                    MinWidth="140"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" Text="Pause/Resume Playback" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{localization:Loc Settings_PauseResumePlayback}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         </Grid>
                     </StackPanel>
                 </Border>
@@ -51,12 +52,13 @@
                 <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="12">
                     <StackPanel Spacing="16">
                         <!-- Tray Icon (hidden in Flatpak - D-Bus StatusNotifierItem not supported) -->
-                        <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsTraySettingsVisible}">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsTraySettingsVisible}">
                             <TextBlock Grid.Column="0"
-                                      Text="Enable Tray Icon"
-                                      FontWeight="Medium"
-                                      Foreground="{DynamicResource TextPrimaryBrush}"
-                                      VerticalAlignment="Center"/>
+                                       Text="{localization:Loc Settings_EnableTrayIcon}"
+                                       FontWeight="Medium"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       TextWrapping="Wrap"
+                                       VerticalAlignment="Center"/>
 
                             <ToggleSwitch Grid.Column="1"
                                          IsChecked="{Binding EnableTrayIcon}"
@@ -65,14 +67,16 @@
                                          VerticalAlignment="Center"/>
                         </Grid>
 
-                        <Grid ColumnDefinitions="*,Auto">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Grid.Column="0" Spacing="2">
-                                <TextBlock Text="Start Minimized"
-                                          FontWeight="Medium"
-                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBlock Text="Launch hidden to tray when available; otherwise start minimized."
-                                          FontSize="12"
-                                          Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock Text="{localization:Loc Settings_StartMinimized}"
+                                           FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="{localization:Loc Settings_StartMinimizedDescription}"
+                                            FontSize="12"
+                                            Foreground="{DynamicResource TextSecondaryBrush}"
+                                            TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <ToggleSwitch Grid.Column="1"
@@ -83,12 +87,13 @@
                         </Grid>
                         
                         <!-- Text Expansion -->
-                        <Grid ColumnDefinitions="*,Auto">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <TextBlock Grid.Column="0" 
-                                      Text="Enable Text Expansion" 
-                                      FontWeight="Medium" 
-                                      Foreground="{DynamicResource TextPrimaryBrush}"
-                                      VerticalAlignment="Center"/>
+                                       Text="{localization:Loc Settings_EnableTextExpansion}" 
+                                       FontWeight="Medium" 
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       TextWrapping="Wrap"
+                                       VerticalAlignment="Center"/>
                                       
                             <ToggleSwitch Grid.Column="1" 
                                          IsChecked="{Binding EnableTextExpansion}"
@@ -98,12 +103,13 @@
                         </Grid>
                         
                         <!-- Update Check -->
-                        <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsUpdateSettingsVisible}">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsUpdateSettingsVisible}">
                             <TextBlock Grid.Column="0" 
-                                      Text="Check for Updates at Startup" 
-                                      FontWeight="Medium" 
-                                      Foreground="{DynamicResource TextPrimaryBrush}"
-                                      VerticalAlignment="Center"/>
+                                       Text="{localization:Loc Settings_CheckForUpdates}" 
+                                       FontWeight="Medium" 
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       TextWrapping="Wrap"
+                                       VerticalAlignment="Center"/>
                                       
                             <ToggleSwitch Grid.Column="1" 
                                          IsChecked="{Binding CheckForUpdates}"
@@ -113,14 +119,16 @@
                         </Grid>
                         
                         <!-- Log Level -->
-                        <Grid ColumnDefinitions="*,Auto">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Grid.Column="0" Spacing="2">
-                                <TextBlock Text="Log Level" 
-                                          FontWeight="Medium" 
-                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBlock Text="Controls amount of diagnostic information logged" 
-                                          FontSize="12"
-                                          Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock Text="{localization:Loc Settings_LogLevel}" 
+                                           FontWeight="Medium" 
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="{localization:Loc Settings_LogLevelDescription}" 
+                                            FontSize="12"
+                                            Foreground="{DynamicResource TextSecondaryBrush}"
+                                            TextWrapping="Wrap"/>
                             </StackPanel>
                             
                             <ComboBox Grid.Column="1"
@@ -131,21 +139,48 @@
                         </Grid>
 
                         <!-- Theme -->
-                        <Grid ColumnDefinitions="*,Auto">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Grid.Column="0" Spacing="2">
-                                <TextBlock Text="Theme" 
-                                          FontWeight="Medium" 
-                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBlock Text="Choose application visual theme" 
-                                          FontSize="12"
-                                          Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock Text="{localization:Loc Settings_Theme}" 
+                                           FontWeight="Medium" 
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="{localization:Loc Settings_ThemeDescription}" 
+                                            FontSize="12"
+                                            Foreground="{DynamicResource TextSecondaryBrush}"
+                                            TextWrapping="Wrap"/>
                             </StackPanel>
                             
                             <ComboBox Grid.Column="1"
                                       ItemsSource="{Binding AvailableThemes}"
                                       SelectedItem="{Binding SelectedTheme}"
-                                      MinWidth="130"
-                                      VerticalAlignment="Center"/>
+                                       MinWidth="130"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <StackPanel Grid.Column="0" Spacing="2">
+                                <TextBlock Text="{localization:Loc Settings_Language}"
+                                           FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="{localization:Loc Settings_LanguageDescription}"
+                                            FontSize="12"
+                                            Foreground="{DynamicResource TextSecondaryBrush}"
+                                            TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding AvailableLanguages}"
+                                      SelectedItem="{Binding SelectedLanguageOption}"
+                                      MinWidth="150"
+                                      VerticalAlignment="Center">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding DisplayName}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                         </Grid>
                     </StackPanel>
                 </Border>
@@ -155,10 +190,10 @@
                 <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="12">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,12,0">
-                            <TextBlock Text="Support CrossMacro" 
+                            <TextBlock Text="{localization:Loc Settings_SupportTitle}" 
                                       FontWeight="Bold" 
                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
-                            <TextBlock Text="If you like this project, please consider giving it a star on GitHub!" 
+                            <TextBlock Text="{localization:Loc Settings_SupportDescription}" 
                                       FontSize="12"
                                       TextWrapping="Wrap"
                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -173,7 +208,7 @@
                                 <PathIcon Data="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
                                           Foreground="{DynamicResource TextOnPrimaryBrush}"
                                           Width="16" Height="16"/>
-                                <TextBlock Text="Star on GitHub" VerticalAlignment="Center"/>
+                                <TextBlock Text="{localization:Loc Settings_StarOnGitHub}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -205,8 +240,8 @@
                            VerticalAlignment="Top"/>
                 <StackPanel Grid.Column="1" Spacing="4">
                     <TextBlock x:Name="ToastTitle"
-                               Text="Hotkey Already Assigned"
-                               Classes="notice-title"/>
+                                Text="{localization:Loc Settings_HotkeyAlreadyAssignedTitle}"
+                                Classes="notice-title"/>
                     <TextBlock x:Name="ToastMessage"
                                Text=""
                                Classes="notice-message"

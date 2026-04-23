@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="400"
@@ -15,9 +16,9 @@
         <StackPanel Spacing="20">
             <Grid ColumnDefinitions="2*,1.5*,*" RowDefinitions="Auto,Auto">
                 <!-- Labels Row -->
-                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Status" Margin="0,0,0,8"/>
-                <TextBlock Grid.Row="0" Grid.Column="1" Classes="label" Text="Events" Margin="8,0,0,8"/>
-                <TextBlock Grid.Row="0" Grid.Column="2" Classes="label" Text="State" Margin="8,0,0,8"/>
+                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{localization:Loc Recording_LabelStatus}" Margin="0,0,0,8"/>
+                <TextBlock Grid.Row="0" Grid.Column="1" Classes="label" Text="{localization:Loc Recording_LabelEvents}" Margin="8,0,0,8"/>
+                <TextBlock Grid.Row="0" Grid.Column="2" Classes="label" Text="{localization:Loc Recording_LabelState}" Margin="8,0,0,8"/>
 
                 <!-- Status Indicator -->
                 <Border Grid.Row="1" Grid.Column="0"
@@ -77,13 +78,13 @@
                                   FontSize="24"
                                   Classes="emoji-icon"
                                   IsVisible="{Binding IsRecording}"
-                                  ToolTip.Tip="Recording..."/>
+                                  ToolTip.Tip="{localization:Loc Recording_TooltipRecording}"/>
                         <!-- Ready indicator: 🟢 when not recording -->
                         <TextBlock Text="🟢" 
                                   FontSize="24"
                                   Classes="emoji-icon"
                                   IsVisible="{Binding !IsRecording}"
-                                  ToolTip.Tip="Ready"/>
+                                  ToolTip.Tip="{localization:Loc Recording_TooltipReady}"/>
                     </Panel>
                 </Border>
             </Grid>
@@ -91,7 +92,7 @@
             <!-- Recording Controls Panel -->
             <Border Background="{DynamicResource SurfaceColor}" CornerRadius="12" Padding="16">
                 <StackPanel Spacing="16">
-                    <TextBlock Text="CAPTURE SETTINGS" 
+                    <TextBlock Text="{localization:Loc Recording_CaptureSettings}" 
                               FontWeight="SemiBold" 
                               Foreground="{DynamicResource TextSecondaryBrush}" 
                               FontSize="12"/>
@@ -106,7 +107,7 @@
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                     <TextBlock Text="🖱️" FontSize="16" Classes="emoji-icon"/>
-                                    <TextBlock Text="Mouse" FontWeight="Medium" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{localization:Loc Recording_Mouse}" FontWeight="Medium" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="1" 
                                              IsChecked="{Binding IsMouseRecordingEnabled}"
@@ -123,7 +124,7 @@
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                     <TextBlock Text="⌨️" FontSize="16" Classes="emoji-icon"/>
-                                    <TextBlock Text="Keyboard" FontWeight="Medium" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{localization:Loc Recording_Keyboard}" FontWeight="Medium" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="1" 
                                              IsChecked="{Binding IsKeyboardRecordingEnabled}"
@@ -143,8 +144,8 @@
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                     <TextBlock Text="📍" FontSize="16" Classes="emoji-icon"/>
                                     <StackPanel Spacing="2">
-                                        <TextBlock Text="Force Relative Coordinates" FontWeight="Medium" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Use relative mouse position even if absolute is supported" 
+                                        <TextBlock Text="{localization:Loc Recording_ForceRelativeCoordinates}" FontWeight="Medium" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{localization:Loc Recording_ForceRelativeCoordinatesDescription}" 
                                                   FontSize="10"
                                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
                                     </StackPanel>
@@ -157,7 +158,7 @@
                                         CornerRadius="10" 
                                         Width="20" Height="20"
                                         VerticalAlignment="Center"
-                                        ToolTip.Tip="Required to use macros in-game.">
+                                        ToolTip.Tip="{localization:Loc Recording_ForceRelativeCoordinatesHelp}">
                                     <TextBlock Text="?" 
                                                HorizontalAlignment="Center" 
                                                VerticalAlignment="Center" 
@@ -183,8 +184,8 @@
                                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                     <TextBlock Text="↗️" FontSize="16" Classes="emoji-icon"/>
                                     <StackPanel Spacing="2">
-                                        <TextBlock Text="Skip Initial 0,0 Position" FontWeight="Medium" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Don't move cursor to origin when recording starts" 
+                                        <TextBlock Text="{localization:Loc Recording_SkipInitialZeroZero}" FontWeight="Medium" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{localization:Loc Recording_SkipInitialZeroZeroDescription}" 
                                                   FontSize="10"
                                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
                                     </StackPanel>
@@ -208,11 +209,11 @@
                         <Panel>
                             <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsRecording}">
                                 <TextBlock Text="▶️" Classes="emoji-icon"/>
-                                <TextBlock Text="Start Recording"/>
+                                <TextBlock Text="{localization:Loc Recording_StartRecording}"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsRecording}">
                                 <TextBlock Text="⏹️" Classes="emoji-icon"/>
-                                <TextBlock Text="Stop Recording"/>
+                                <TextBlock Text="{localization:Loc Recording_StopRecording}"/>
                             </StackPanel>
                         </Panel>
                     </Button>
@@ -221,7 +222,7 @@
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
                 <TextBlock Text="💡" FontSize="12" Classes="caption emoji-icon"/>
-                <TextBlock Text="Tip: Use global hotkeys to control recording while in other apps" Classes="caption"/>
+                <TextBlock Text="{localization:Loc Recording_Tip}" Classes="caption"/>
             </StackPanel>
         </StackPanel>
     </ScrollViewer>

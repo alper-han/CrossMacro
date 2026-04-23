@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:CrossMacro.UI.ViewModels"
         xmlns:models="using:CrossMacro.UI.Models"
+        xmlns:localization="using:CrossMacro.UI.Localization"
 
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -9,7 +10,7 @@
         x:Class="CrossMacro.UI.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/mouse-icon.png"
-        Title="CrossMacro"
+        Title="{localization:Loc App_Title}"
         Width="700" Height="600"
         MinWidth="700" MinHeight="600"
         Background="{DynamicResource BackgroundBrush}"
@@ -48,7 +49,7 @@
                     </ToggleButton>
                     
                     <!-- CrossMacro Title (visible when pane is open) -->
-                    <TextBlock Text="CrossMacro"
+                    <TextBlock Text="{localization:Loc App_Title}"
                                FontSize="16"
                                FontWeight="Bold"
                                Foreground="{DynamicResource TextPrimaryBrush}"
@@ -145,7 +146,7 @@
                                 Background="Transparent"
                                 Foreground="{DynamicResource TextSecondaryBrush}"
                                 Click="OnMinimizeWindow"
-                                ToolTip.Tip="Minimize">
+                                ToolTip.Tip="{localization:Loc MainWindow_MinimizeTooltip}">
                             <TextBlock Text="─" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Button>
                         
@@ -155,7 +156,7 @@
                                 Background="Transparent"
                                 Foreground="{DynamicResource TextSecondaryBrush}"
                                 Click="OnCloseApp"
-                                ToolTip.Tip="Close">
+                                ToolTip.Tip="{localization:Loc MainWindow_CloseTooltip}">
                             <TextBlock Text="✕" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Button>
                     </StackPanel>
@@ -172,7 +173,7 @@
                                    Classes="emoji-icon notice-icon warning"
                                    Margin="0,0,10,0"/>
                         <StackPanel Grid.Column="1" Spacing="2">
-                            <TextBlock Text="GNOME Extension"
+                            <TextBlock Text="{localization:Loc MainWindow_GnomeExtensionTitle}"
                                        Classes="notice-title"/>
                             <TextBlock Text="{Binding ExtensionWarning}"
                                        Classes="notice-message"
@@ -231,8 +232,8 @@
                     <StackPanel Spacing="8" Width="240">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2">
-                                <TextBlock Text="Update Available" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                                <TextBlock Text="{Binding LatestVersion, StringFormat='v0 is available'}" 
+                                <TextBlock Text="{localization:Loc MainWindow_UpdateAvailableTitle}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding UpdateAvailableVersionText}" 
                                           FontSize="12" 
                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
                             </StackPanel>
@@ -253,7 +254,7 @@
                                 Foreground="{DynamicResource TextOnPrimaryBrush}"
                                 CornerRadius="4"
                                 Padding="6">
-                            <TextBlock Text="View on GitHub" 
+                            <TextBlock Text="{localization:Loc MainWindow_ViewOnGitHub}" 
                                       HorizontalAlignment="Center" 
                                       FontSize="12"
                                       FontWeight="SemiBold"/>
@@ -293,7 +294,7 @@
                                 Padding="4"
                                 VerticalAlignment="Top"
                                 Click="OnDismissAppNotification"
-                                ToolTip.Tip="Dismiss">
+                                ToolTip.Tip="{localization:Loc MainWindow_DismissTooltip}">
                             <TextBlock Text="✕"
                                        FontSize="11"
                                        Foreground="{DynamicResource TextSecondaryBrush}"/>

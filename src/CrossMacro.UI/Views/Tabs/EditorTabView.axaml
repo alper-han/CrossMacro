@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:local="using:CrossMacro.UI.Views.Tabs"
+             xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="500"
@@ -25,7 +26,7 @@
             <!-- Left: Action List -->
             <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="12" Margin="0,0,8,0">
                 <Grid RowDefinitions="Auto,*,Auto">
-                    <TextBlock Grid.Row="0" Text="Actions" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                    <TextBlock Grid.Row="0" Text="{localization:Loc Editor_Actions}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8"/>
 
                         <ListBox Grid.Row="1"
                              ItemsSource="{Binding ActionListItems}"
@@ -62,34 +63,34 @@
                         <Button Command="{Binding RemoveAction}"
                                 Classes="danger compact"
                                 IsEnabled="{Binding HasSelectedAction}"
-                                ToolTip.Tip="Remove Action">
+                                ToolTip.Tip="{localization:Loc Editor_RemoveActionTooltip}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock Text="−"/>
-                                <TextBlock Text="Remove"/>
+                                <TextBlock Text="{localization:Loc Editor_Remove}"/>
                             </StackPanel>
                         </Button>
                         <Button Command="{Binding RemoveBlock}"
                                 Classes="danger compact"
                                 IsEnabled="{Binding CanRemoveBlock}"
-                                ToolTip.Tip="Remove Block">
-                            <TextBlock Text="Block"/>
+                                ToolTip.Tip="{localization:Loc Editor_RemoveBlockTooltip}">
+                            <TextBlock Text="{localization:Loc Editor_Block}"/>
                         </Button>
                         <Button Command="{Binding MoveUp}"
                                 Classes="secondary compact"
                                 IsEnabled="{Binding HasSelectedAction}"
-                                ToolTip.Tip="Move Up">
+                                ToolTip.Tip="{localization:Loc Editor_MoveUpTooltip}">
                             <TextBlock Text="↑"/>
                         </Button>
                         <Button Command="{Binding MoveDown}"
                                 Classes="secondary compact"
                                 IsEnabled="{Binding HasSelectedAction}"
-                                ToolTip.Tip="Move Down">
+                                ToolTip.Tip="{localization:Loc Editor_MoveDownTooltip}">
                             <TextBlock Text="↓"/>
                         </Button>
                         <Button Command="{Binding DuplicateAction}"
                                 Classes="secondary compact"
                                 IsEnabled="{Binding HasSelectedAction}"
-                                ToolTip.Tip="Duplicate">
+                                ToolTip.Tip="{localization:Loc Editor_DuplicateTooltip}">
                             <TextBlock Text="📋" Classes="emoji-icon"/>
                         </Button>
                     </StackPanel>
@@ -104,7 +105,7 @@
                         <!-- Add New Action Section -->
                         <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="6" Padding="12">
                             <StackPanel Spacing="8">
-                                <TextBlock Text="Add New Action" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Text="{localization:Loc Editor_AddNewAction}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 <ComboBox ItemsSource="{Binding AddableActionTypes}"
                                           SelectedItem="{Binding NewActionType}"
                                           Background="{DynamicResource SurfaceBrush}"
@@ -112,7 +113,7 @@
                                           HorizontalAlignment="Stretch">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding}"/>
+                                            <TextBlock Text="{Binding Converter={x:Static local:ActionTypeConverters.DisplayText}}"/>
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
@@ -122,7 +123,7 @@
                                     HorizontalContentAlignment="Center">
                                 <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
                                     <TextBlock Text="+"/>
-                                    <TextBlock Text="Add Action"/>
+                                    <TextBlock Text="{localization:Loc Editor_AddAction}"/>
                                 </StackPanel>
                             </Button>
                             </StackPanel>
@@ -130,13 +131,13 @@
 
                         <!-- Selected Action Properties -->
                         <StackPanel Spacing="12" IsVisible="{Binding HasSelectedAction}">
-                            <TextBlock Text="Selected Action Properties" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{localization:Loc Editor_SelectedActionProperties}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
 
                             <!-- Action Type (Read-only display) -->
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Type:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBlock Text="{localization:Loc Editor_Type}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="4" Padding="8,6">
-                                    <TextBlock Text="{Binding SelectedAction.Type}"
+                                    <TextBlock Text="{Binding SelectedAction.Type, Converter={x:Static local:ActionTypeConverters.DisplayText}}"
                                                Foreground="{DynamicResource TextPrimaryBrush}"
                                                FontWeight="SemiBold"/>
                                 </Border>
@@ -147,21 +148,21 @@
                                     IsVisible="{Binding CanInsertElseBlock}"
                                     HorizontalAlignment="Stretch"
                                     HorizontalContentAlignment="Center">
-                                <TextBlock Text="Insert Else Block"/>
+                                <TextBlock Text="{localization:Loc Editor_InsertElseBlock}"/>
                             </Button>
 
                             <StackPanel Spacing="4" IsVisible="{Binding ShowCurrentPositionToggle}">
                                 <CheckBox IsChecked="{Binding SelectedAction.UseCurrentPosition}"
                                           Content="{Binding CurrentPositionToggleLabel}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBlock Text="Playback resolves this action at the live cursor position."
+                                <TextBlock Text="{localization:Loc Editor_CurrentPositionHint}"
                                            Classes="caption"
                                            IsVisible="{Binding SelectedAction.UseCurrentPosition}"/>
                             </StackPanel>
 
                             <!-- Coordinates (MouseMove, MouseClick, MouseDown, MouseUp) -->
                             <StackPanel Spacing="4" IsVisible="{Binding ShowCoordinates}">
-                                <TextBlock Text="Coordinates:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBlock Text="{localization:Loc Editor_Coordinates}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <Grid ColumnDefinitions="*,8,*">
                                     <TextBox Text="{Binding SelectedAction.X, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                              PlaceholderText="X"
@@ -186,7 +187,7 @@
                                         HorizontalContentAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                                         <TextBlock Text="📍" Classes="emoji-icon"/>
-                                        <TextBlock Text="Capture Position"/>
+                                        <TextBlock Text="{localization:Loc Editor_CapturePosition}"/>
                                     </StackPanel>
                                 </Button>
                                 <Button Command="{Binding CancelCapture}"
@@ -196,31 +197,31 @@
                                         HorizontalContentAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                                         <TextBlock Text="❌" Classes="emoji-icon"/>
-                                        <TextBlock Text="Cancel Capture"/>
+                                        <TextBlock Text="{localization:Loc Editor_CancelCapture}"/>
                                     </StackPanel>
                                 </Button>
                             </StackPanel>
 
                             <!-- Absolute/Relative Toggle (all coordinate-bearing mouse actions) -->
                             <StackPanel Spacing="4" IsVisible="{Binding ShowCoordModeToggle}">
-                                <TextBlock Text="Coordinate Mode:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBlock Text="{localization:Loc Editor_CoordinateMode}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <StackPanel Orientation="Horizontal" Spacing="12">
                                     <RadioButton GroupName="CoordMode"
                                                  IsChecked="{Binding SelectedAction.IsAbsolute}"
                                                  Foreground="{DynamicResource TextPrimaryBrush}">
-                                        <TextBlock Text="Absolute" FontSize="12"/>
+                                        <TextBlock Text="{localization:Loc Editor_Absolute}" FontSize="12"/>
                                     </RadioButton>
                                     <RadioButton GroupName="CoordMode"
                                                  IsChecked="{Binding !SelectedAction.IsAbsolute}"
                                                  Foreground="{DynamicResource TextPrimaryBrush}">
-                                        <TextBlock Text="Relative" FontSize="12"/>
+                                        <TextBlock Text="{localization:Loc Editor_Relative}" FontSize="12"/>
                                     </RadioButton>
                                 </StackPanel>
                             </StackPanel>
 
                             <!-- Mouse Button (MouseClick, MouseDown, MouseUp) -->
                             <StackPanel Spacing="4" IsVisible="{Binding ShowMouseButton}">
-                                <TextBlock Text="Mouse Button:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBlock Text="{localization:Loc Editor_MouseButton}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <ComboBox ItemsSource="{Binding MouseButtons}"
                                           SelectedItem="{Binding SelectedAction.Button}"
                                           Background="{DynamicResource SurfaceHoverBrush}"
@@ -230,10 +231,10 @@
 
                             <!-- Key Code (KeyPress, KeyDown, KeyUp) -->
                             <StackPanel Spacing="4" IsVisible="{Binding ShowKeyCode}">
-                                <TextBlock Text="Key:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBlock Text="{localization:Loc Editor_Key}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <Grid ColumnDefinitions="80,8,*">
                                     <TextBox Text="{Binding SelectedAction.KeyCode, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
-                                             PlaceholderText="Code"
+                                             PlaceholderText="{localization:Loc Editor_KeyPlaceholder}"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
                                              BorderThickness="0"
@@ -244,7 +245,7 @@
                                             Background="{DynamicResource SurfaceBrush}"
                                             CornerRadius="4"
                                             Padding="12,6">
-                                        <TextBlock Text="{Binding SelectedAction.KeyName, FallbackValue='(enter code)'}"
+                                        <TextBlock Text="{Binding SelectedAction.KeyName, FallbackValue={localization:Loc Editor_KeyFallback}}"
                                                    Foreground="{DynamicResource TextPrimaryBrush}"
                                                    FontWeight="SemiBold"
                                                    HorizontalAlignment="Center"/>
@@ -257,7 +258,7 @@
                                         HorizontalContentAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                                         <TextBlock Text="⌨️" Classes="emoji-icon"/>
-                                        <TextBlock Text="Capture Key"/>
+                                        <TextBlock Text="{localization:Loc Editor_CaptureKey}"/>
                                     </StackPanel>
                                 </Button>
                             </StackPanel>
@@ -265,13 +266,13 @@
                             <!-- Delay (Delay action only) -->
                             <StackPanel Spacing="4" IsVisible="{Binding ShowDelay}">
                                 <CheckBox IsChecked="{Binding SelectedAction.UseRandomDelay}"
-                                          Content="Randomize delay"
+                                          Content="{localization:Loc Editor_RandomizeDelay}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
 
                                 <StackPanel Spacing="4" IsVisible="{Binding ShowFixedDelayInput}">
-                                    <TextBlock Text="Delay (ms):" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                    <TextBlock Text="{localization:Loc Editor_DelayMs}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                     <TextBox Text="{Binding SelectedAction.DelayMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
-                                             PlaceholderText="ms"
+                                             PlaceholderText="{localization:Loc Editor_DelayPlaceholder}"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
                                              BorderThickness="0"
@@ -280,10 +281,10 @@
                                 </StackPanel>
 
                                 <StackPanel Spacing="4" IsVisible="{Binding ShowRandomDelayOptions}">
-                                    <TextBlock Text="Random Delay Range (ms):" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                    <TextBlock Text="{localization:Loc Editor_RandomDelayRangeMs}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                     <Grid ColumnDefinitions="*,8,*">
                                         <TextBox Text="{Binding SelectedAction.RandomDelayMinMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
-                                                 PlaceholderText="Min"
+                                                 PlaceholderText="{localization:Loc Editor_Min}"
                                                  Background="{DynamicResource SurfaceHoverBrush}"
                                                  Foreground="{DynamicResource TextPrimaryBrush}"
                                                  BorderThickness="0"
@@ -291,7 +292,7 @@
                                                  Padding="8,6"/>
                                         <TextBox Grid.Column="2"
                                                  Text="{Binding SelectedAction.RandomDelayMaxMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
-                                                 PlaceholderText="Max"
+                                                 PlaceholderText="{localization:Loc Editor_Max}"
                                                  Background="{DynamicResource SurfaceHoverBrush}"
                                                  Foreground="{DynamicResource TextPrimaryBrush}"
                                                  BorderThickness="0"
@@ -303,15 +304,15 @@
 
                             <!-- Scroll Amount (ScrollVertical, ScrollHorizontal) -->
                             <StackPanel Spacing="4" IsVisible="{Binding ShowScrollAmount}">
-                                <TextBlock Text="Scroll Amount:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBlock Text="{localization:Loc Editor_ScrollAmount}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <TextBox Text="{Binding SelectedAction.ScrollAmount, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
-                                         PlaceholderText="Amount"
+                                         PlaceholderText="{localization:Loc Editor_Amount}"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"
                                          CornerRadius="4"
                                          Padding="8,6"/>
-                                <TextBlock Text="(+) up/right, (-) down/left" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+                                <TextBlock Text="{localization:Loc Editor_ScrollHint}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
                             </StackPanel>
 
                             <!-- Text input -->
@@ -335,9 +336,9 @@
 
                             <!-- Set variable -->
                             <StackPanel Spacing="6" IsVisible="{Binding ShowSetVariableFields}">
-                                <TextBlock Text="Set Variable:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBlock Text="{localization:Loc Editor_SetVariable}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptVariableName, UpdateSourceTrigger=PropertyChanged}"
-                                         PlaceholderText="Variable name (e.g. retryCount)"
+                                         PlaceholderText="{localization:Loc Editor_VariableNamePlaceholder}"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"
@@ -354,13 +355,13 @@
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptValue, UpdateSourceTrigger=PropertyChanged}"
-                                         PlaceholderText="Value"
+                                         PlaceholderText="{localization:Loc Editor_Value}"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"
                                          CornerRadius="4"
                                          Padding="8,6"/>
-                                <TextBlock Text="Name, type, and value are stored separately. Compiles to: set &lt;name&gt; &lt;value&gt;"
+                                <TextBlock Text="{localization:Loc Editor_SetVariableHint}"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="11"
                                            TextWrapping="Wrap"/>
@@ -368,9 +369,9 @@
 
                             <!-- Increment / Decrement -->
                             <StackPanel Spacing="6" IsVisible="{Binding ShowIncDecFields}">
-                                <TextBlock Text="Variable Update:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBlock Text="{localization:Loc Editor_VariableUpdate}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptVariableName, UpdateSourceTrigger=PropertyChanged}"
-                                         PlaceholderText="Variable name (e.g. retryCount)"
+                                         PlaceholderText="{localization:Loc Editor_VariableNamePlaceholder}"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"
@@ -387,13 +388,13 @@
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptNumericValue, UpdateSourceTrigger=PropertyChanged}"
-                                         PlaceholderText="Amount / variable"
+                                         PlaceholderText="{localization:Loc Editor_AmountOrVariable}"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"
                                          CornerRadius="4"
                                          Padding="8,6"/>
-                                <TextBlock Text="Increment/Decrement amount can be a number or a variable reference."
+                                <TextBlock Text="{localization:Loc Editor_IncrementDecrementHint}"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="11"
                                            TextWrapping="Wrap"/>
@@ -401,13 +402,13 @@
 
                             <!-- Repeat -->
                             <StackPanel Spacing="6" IsVisible="{Binding ShowRepeatFields}">
-                                <TextBlock Text="Repeat Block:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBlock Text="{localization:Loc Editor_RepeatBlock}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
                                           SelectedItem="{Binding SelectedAction.ScriptNumericSourceType}"
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptNumericValue, UpdateSourceTrigger=PropertyChanged}"
-                                         PlaceholderText="Count / variable"
+                                         PlaceholderText="{localization:Loc Editor_CountOrVariable}"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"
@@ -417,8 +418,8 @@
 
                             <!-- If / While condition -->
                             <StackPanel Spacing="6" IsVisible="{Binding ShowConditionFields}">
-                                <TextBlock Text="Condition:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
-                                <TextBlock Text="Left Operand" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+                                <TextBlock Text="{localization:Loc Editor_Condition}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBlock Text="{localization:Loc Editor_LeftOperand}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
                                 <Grid ColumnDefinitions="*,8,*">
                                     <ComboBox ItemsSource="{Binding ScriptOperandTypes}"
                                               SelectedItem="{Binding SelectedAction.ScriptLeftOperandType}"
@@ -426,7 +427,7 @@
                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
                                     <TextBox Grid.Column="2"
                                              Text="{Binding SelectedAction.ScriptLeftOperand, UpdateSourceTrigger=PropertyChanged}"
-                                             PlaceholderText="Left value"
+                                             PlaceholderText="{localization:Loc Editor_LeftValue}"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
                                              BorderThickness="0"
@@ -443,7 +444,7 @@
                                           SelectedItem="{Binding SelectedAction.ScriptConditionOperator}"
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBlock Text="Right Operand" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+                                <TextBlock Text="{localization:Loc Editor_RightOperand}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
                                 <Grid ColumnDefinitions="*,8,*">
                                     <ComboBox ItemsSource="{Binding ScriptOperandTypes}"
                                               SelectedItem="{Binding SelectedAction.ScriptRightOperandType}"
@@ -451,7 +452,7 @@
                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
                                     <TextBox Grid.Column="2"
                                              Text="{Binding SelectedAction.ScriptRightOperand, UpdateSourceTrigger=PropertyChanged}"
-                                             PlaceholderText="Right value"
+                                             PlaceholderText="{localization:Loc Editor_RightValue}"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
                                              BorderThickness="0"
@@ -468,9 +469,9 @@
 
                             <!-- For -->
                             <StackPanel Spacing="6" IsVisible="{Binding ShowForFields}">
-                                <TextBlock Text="For Block:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBlock Text="{localization:Loc Editor_ForBlock}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <TextBox Text="{Binding SelectedAction.ForVariableName, UpdateSourceTrigger=PropertyChanged}"
-                                         PlaceholderText="Loop variable (e.g. rowIndex)"
+                                         PlaceholderText="{localization:Loc Editor_LoopVariablePlaceholder}"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderThickness="0"
@@ -483,7 +484,7 @@
                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                           HorizontalAlignment="Stretch"/>
 
-                                <TextBlock Text="Start" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+                                <TextBlock Text="{localization:Loc Editor_Start}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
                                 <Grid ColumnDefinitions="*,8,*">
                                     <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
                                               SelectedItem="{Binding SelectedAction.ForStartType}"
@@ -491,7 +492,7 @@
                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
                                     <TextBox Grid.Column="2"
                                              Text="{Binding SelectedAction.ForStartValue, UpdateSourceTrigger=PropertyChanged}"
-                                             PlaceholderText="Start"
+                                             PlaceholderText="{localization:Loc Editor_Start}"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
                                              BorderThickness="0"
@@ -499,7 +500,7 @@
                                              Padding="8,6"/>
                                 </Grid>
 
-                                <TextBlock Text="End" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+                                <TextBlock Text="{localization:Loc Editor_End}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
                                 <Grid ColumnDefinitions="*,8,*">
                                     <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
                                               SelectedItem="{Binding SelectedAction.ForEndType}"
@@ -507,7 +508,7 @@
                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
                                     <TextBox Grid.Column="2"
                                              Text="{Binding SelectedAction.ForEndValue, UpdateSourceTrigger=PropertyChanged}"
-                                             PlaceholderText="End"
+                                             PlaceholderText="{localization:Loc Editor_End}"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
                                              BorderThickness="0"
@@ -516,7 +517,7 @@
                                 </Grid>
 
                                 <CheckBox IsChecked="{Binding SelectedAction.ForHasStep}"
-                                          Content="Use explicit step"
+                                           Content="{localization:Loc Editor_UseExplicitStep}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
 
                                 <StackPanel Spacing="4" IsVisible="{Binding ShowForStepFields}">
@@ -527,7 +528,7 @@
                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
                                         <TextBox Grid.Column="2"
                                                  Text="{Binding SelectedAction.ForStepValue, UpdateSourceTrigger=PropertyChanged}"
-                                                 PlaceholderText="Step"
+                                                 PlaceholderText="{localization:Loc Editor_Step}"
                                                  Background="{DynamicResource SurfaceHoverBrush}"
                                                  Foreground="{DynamicResource TextPrimaryBrush}"
                                                  BorderThickness="0"
@@ -539,7 +540,7 @@
                         </StackPanel>
 
                         <!-- No Selection Message -->
-                        <TextBlock Text="Select an action to edit its properties"
+                        <TextBlock Text="{localization:Loc Editor_SelectActionPrompt}"
                                    IsVisible="{Binding !HasSelectedAction}"
                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                    FontStyle="Italic"
@@ -559,7 +560,7 @@
                         CornerRadius="6"
                         Padding="10,8">
                     <StackPanel Spacing="4">
-                        <TextBlock Text="Restore Warnings"
+                        <TextBlock Text="{localization:Loc Editor_RestoreWarnings}"
                                    FontWeight="SemiBold"
                                    Foreground="{DynamicResource WarningBrush}"/>
                         <ItemsControl ItemsSource="{Binding LoadWarnings}">
@@ -580,28 +581,28 @@
                         <Button Command="{Binding Undo}"
                                 Classes="secondary compact"
                                 IsEnabled="{Binding CanUndo}"
-                                ToolTip.Tip="Undo">
+                                ToolTip.Tip="{localization:Loc Editor_UndoTooltip}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock Text="↩"/>
-                                <TextBlock Text="Undo"/>
+                                <TextBlock Text="{localization:Loc Editor_Undo}"/>
                             </StackPanel>
                         </Button>
                         <Button Command="{Binding Redo}"
                                 Classes="secondary compact"
                                 IsEnabled="{Binding CanRedo}"
-                                ToolTip.Tip="Redo">
+                                ToolTip.Tip="{localization:Loc Editor_RedoTooltip}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock Text="↪"/>
-                                <TextBlock Text="Redo"/>
+                                <TextBlock Text="{localization:Loc Editor_Redo}"/>
                             </StackPanel>
                         </Button>
                         <Button Command="{Binding ClearAll}"
                                 Classes="secondary compact"
                                 IsEnabled="{Binding HasActions}"
-                                ToolTip.Tip="Clear All">
+                                ToolTip.Tip="{localization:Loc Editor_ClearAllTooltip}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock Text="🗑️" Classes="emoji-icon"/>
-                                <TextBlock Text="Clear"/>
+                                <TextBlock Text="{localization:Loc Editor_Clear}"/>
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -612,7 +613,7 @@
                                 Classes="secondary compact">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock Text="📂" Classes="emoji-icon"/>
-                                <TextBlock Text="Load"/>
+                                <TextBlock Text="{localization:Loc Editor_Load}"/>
                             </StackPanel>
                         </Button>
                         <Button Command="{Binding SaveMacroAsync}"
@@ -620,7 +621,7 @@
                                 IsEnabled="{Binding HasActions}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock Text="💾" Classes="emoji-icon"/>
-                                <TextBlock Text="Save"/>
+                                <TextBlock Text="{localization:Loc Editor_Save}"/>
                             </StackPanel>
                         </Button>
                     </StackPanel>

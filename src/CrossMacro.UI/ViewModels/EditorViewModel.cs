@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.ViewModels;
@@ -19,36 +20,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 {
     private const int UndoStackLimit = 50;
     private static readonly TimeSpan PropertyEditUndoCoalesceWindow = TimeSpan.FromMilliseconds(400);
-    private const string DefaultMacroName = "Manual Macro";
-    private const string InitialStatusText = "Ready";
-    private const string StatusRemovedAction = "Removed action";
-    private const string StatusMovedActionUp = "Moved action up";
-    private const string StatusMovedActionDown = "Moved action down";
-    private const string StatusDuplicatedAction = "Duplicated action";
-    private const string StatusClearedAllActions = "Cleared all actions";
-    private const string StatusUndone = "Undone";
-    private const string StatusRedone = "Redone";
-    private const string StatusSelectActionFirst = "Select an action first";
-    private const string StatusCaptureMousePrompt = "Click anywhere to capture position (Esc to cancel)...";
-    private const string StatusCaptureKeyPrompt = "Press a key to capture...";
-    private const string StatusCaptureCancelled = "Capture cancelled";
-    private const string StatusCaptureSelectionChanged = "Capture ignored: selected action changed";
-    private const string StatusSaveCancelled = "Save cancelled";
-    private const string StatusLoadCancelled = "Load cancelled";
-    private const string StatusLoadFailed = "Failed to load macro";
-    private const string StatusInsertedElseBlock = "Inserted else block";
-    private const string StatusElseAlreadyExists = "Selected if block already has else";
-    private const string StatusSelectIfBlockFirst = "Select an if block first";
-    private const string StatusRemovedBlock = "Removed block";
-    private const string StatusOperationBlocked = "Operation blocked: would break block structure";
-    private const string SaveDialogTitle = "Save Macro";
-    private const string LoadDialogTitle = "Load Macro";
-    private const string MacroFileDialogName = "Macro Files";
     private const string MacroFileExtension = ".macro";
-    private const string DialogTitleNoActions = "No Actions";
-    private const string DialogMessageNoActions = "Please add at least one action before saving.";
-    private const string DialogTitleValidationErrors = "Validation Errors";
-    private const string ValidationErrorHeader = "Please fix the following errors:";
 
     private readonly IEditorActionConverter _converter;
     private readonly IEditorActionValidator _validator;
@@ -56,6 +28,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private readonly IMacroFileManager _fileManager;
     private readonly IDialogService _dialogService;
     private readonly IKeyCodeMapper _keyCodeMapper;
+    private readonly ILocalizationService _localizationService;
+    private readonly EditorActionDisplayFormatter _actionDisplayFormatter;
 
     private readonly Stack<List<EditorAction>> _undoStack = new(UndoStackLimit);
     private readonly Stack<List<EditorAction>> _redoStack = new(UndoStackLimit);
@@ -63,8 +37,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private EditorAction? _selectedAction;
     private EditorActionListItem? _selectedActionListItem;
     private EditorActionType _newActionType = EditorActionType.MouseClick;
-    private string _macroName = DefaultMacroName;
-    private string _status = InitialStatusText;
+    private string _macroName;
+    private string _status;
     private bool _isCapturing;
     private bool _skipInitialZeroZero;
     private bool _skipInitialZeroZeroForcedByCurrentPosition;
@@ -74,6 +48,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private bool _isApplyingVariableSuggestion;
     private bool _isSelectingFromActionList;
     private bool _disposed;
+    private bool _usesDefaultMacroName = true;
     private List<EditorAction> _lastKnownState = new();
     private IReadOnlyList<string> _availableVariableNames = Array.Empty<string>();
     private string? _selectedSetVariableSuggestion;
@@ -108,7 +83,9 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         ICoordinateCaptureService captureService,
         IMacroFileManager fileManager,
         IDialogService dialogService,
-        IKeyCodeMapper keyCodeMapper)
+        IKeyCodeMapper keyCodeMapper,
+        ILocalizationService? localizationService = null,
+        EditorActionDisplayFormatter? actionDisplayFormatter = null)
     {
         _converter = converter ?? throw new ArgumentNullException(nameof(converter));
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
@@ -116,12 +93,17 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         _fileManager = fileManager ?? throw new ArgumentNullException(nameof(fileManager));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
+        _localizationService = localizationService ?? new LocalizationService();
+        _actionDisplayFormatter = actionDisplayFormatter ?? new EditorActionDisplayFormatter(_localizationService);
+        _macroName = _localizationService["Editor_DefaultMacroName"];
+        _status = _localizationService["Editor_StatusReady"];
 
         Actions = new ObservableCollection<EditorAction>();
         ActionListItems = new ObservableCollection<EditorActionListItem>();
         LoadWarnings = new ObservableCollection<string>();
         Actions.CollectionChanged += OnActionsCollectionChanged;
         LoadWarnings.CollectionChanged += OnLoadWarningsCollectionChanged;
+        _localizationService.CultureChanged += OnCultureChanged;
         RefreshAvailableVariableNames();
         RememberCurrentState();
     }
@@ -225,6 +207,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             }
 
             _macroName = value;
+            _usesDefaultMacroName = false;
             OnPropertyChanged();
         }
     }
@@ -301,6 +284,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     public IEnumerable<EditorActionType> ActionTypes => Enum.GetValues<EditorActionType>();
     public IReadOnlyList<EditorActionType> AddableActionTypes => EditorAddableActionTypes;
+
+    public string FormatActionType(EditorActionType actionType) => _actionDisplayFormatter.FormatActionType(actionType);
     public IEnumerable<MouseButton> MouseButtons => Enum.GetValues<MouseButton>().Where(button => button != MouseButton.None);
     public IEnumerable<ScriptValueType> ScriptValueTypes => Enum.GetValues<ScriptValueType>();
     public IEnumerable<ScriptNumericSourceType> ScriptNumericSourceTypes => Enum.GetValues<ScriptNumericSourceType>();
@@ -336,10 +321,10 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         EditorActionType.MouseUp;
     public string CurrentPositionToggleLabel => SelectedAction?.Type switch
     {
-        EditorActionType.MouseClick => "Click at current cursor position",
-        EditorActionType.MouseDown => "Hold at current cursor position",
-        EditorActionType.MouseUp => "Release at current cursor position",
-        _ => "Use current cursor position"
+        EditorActionType.MouseClick => Localize("Editor_CurrentPositionClick"),
+        EditorActionType.MouseDown => Localize("Editor_CurrentPositionHold"),
+        EditorActionType.MouseUp => Localize("Editor_CurrentPositionRelease"),
+        _ => Localize("Editor_CurrentPositionUse")
     };
 
     /// <summary>
@@ -467,14 +452,17 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     }
 
     public string TextInputLabel => SelectedAction?.Type == EditorActionType.RawScriptStep
-        ? "Raw Script Step:"
-        : "Text to Type:";
+        ? Localize("Editor_RawScriptStep")
+        : Localize("Editor_TextToType");
     public string TextInputWatermark => SelectedAction?.Type == EditorActionType.RawScriptStep
-        ? "Original script line"
-        : "Enter text to type...";
+        ? Localize("Editor_OriginalScriptLine")
+        : Localize("Editor_EnterTextToType");
     public string TextInputHint => SelectedAction?.Type == EditorActionType.RawScriptStep
-        ? "This step could not be mapped to structured fields and will be saved as-is."
-        : $"Each character is typed as a separate key press (max {EditorActionValidationLimits.MaxTextInputLength} chars)";
+        ? Localize("Editor_RawScriptHint")
+        : string.Format(
+            _localizationService.CurrentCulture,
+            Localize("Editor_TextToTypeHint"),
+            EditorActionValidationLimits.MaxTextInputLength);
 
     public bool TextInputAcceptsReturn => SelectedAction?.Type == EditorActionType.RawScriptStep;
 
@@ -519,7 +507,34 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         _subscribedActions.Clear();
         Actions.CollectionChanged -= OnActionsCollectionChanged;
         LoadWarnings.CollectionChanged -= OnLoadWarningsCollectionChanged;
+        _localizationService.CultureChanged -= OnCultureChanged;
         _captureService.CancelCapture();
+    }
+
+    private void OnCultureChanged(object? sender, EventArgs e)
+    {
+        if (_usesDefaultMacroName)
+        {
+            _macroName = Localize("Editor_DefaultMacroName");
+            OnPropertyChanged(nameof(MacroName));
+        }
+
+        if (string.IsNullOrWhiteSpace(_status) || _status == Localize("Editor_StatusReady"))
+        {
+            Status = Localize("Editor_StatusReady");
+        }
+
+        UpdateActionListPresentation();
+        OnPropertyChanged(nameof(CurrentPositionToggleLabel));
+        OnPropertyChanged(nameof(TextInputLabel));
+        OnPropertyChanged(nameof(TextInputWatermark));
+        OnPropertyChanged(nameof(TextInputHint));
+        OnPropertyChanged(nameof(AddableActionTypes));
+        OnPropertyChanged(nameof(ActionTypes));
+        OnPropertyChanged(nameof(SelectedAction));
+        OnPropertyChanged(nameof(SelectedActionListItem));
+        OnPropertyChanged(nameof(CanInsertElseBlock));
+        OnPropertyChanged(nameof(CanRemoveBlock));
     }
 
     private static bool IsCurrentPositionMouseButtonAction(EditorAction? action)
@@ -649,6 +664,11 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private string Localize(string key)
+    {
+        return _localizationService[key];
+    }
+
     private void UpdateActionListPresentation()
     {
         var previousSelectionSyncFlag = _isSelectingFromActionList;
@@ -671,8 +691,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                     }
 
                     var displayName = blockStack.Count > 0
-                        ? $"End {ToBlockDisplayName(blockStack.Pop())}"
-                        : "End Block";
+                        ? $"End {_actionDisplayFormatter.FormatBlockName(blockStack.Pop())}"
+                        : Localize("Editor_Action_EndBlockShort");
 
                     ActionListItems.Add(new EditorActionListItem(
                         action,
@@ -682,9 +702,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                     continue;
                 }
 
-                var rowDisplayName = action.Type == EditorActionType.ElseBlockStart
-                    ? "Else"
-                    : action.DisplayName;
+                var rowDisplayName = _actionDisplayFormatter.Format(action);
 
                 ActionListItems.Add(new EditorActionListItem(
                     action,
@@ -719,19 +737,6 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
         _selectedActionListItem = selectedRow;
         OnPropertyChanged(nameof(SelectedActionListItem));
-    }
-
-    private static string ToBlockDisplayName(EditorActionType actionType)
-    {
-        return actionType switch
-        {
-            EditorActionType.IfBlockStart => "If",
-            EditorActionType.ElseBlockStart => "Else",
-            EditorActionType.WhileBlockStart => "While",
-            EditorActionType.ForBlockStart => "For",
-            EditorActionType.RepeatBlockStart => "Repeat",
-            _ => "Block"
-        };
     }
 
     private IReadOnlyList<string> BuildAvailableVariableNames()

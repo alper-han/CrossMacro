@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="400"
@@ -17,7 +18,7 @@
                 <!-- Speed Control -->
                 <StackPanel Spacing="8">
                     <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Grid.Column="0" Classes="label" Text="Playback Speed"/>
+                        <TextBlock Grid.Column="0" Classes="label" Text="{localization:Loc Playback_PlaybackSpeed}"/>
                         <TextBlock Grid.Column="1" Text="{Binding PlaybackSpeed, StringFormat='{}{0:0.0}x'}"
                                   FontWeight="Medium"
                                   FontSize="16"
@@ -33,14 +34,14 @@
                     <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
                         <CheckBox Grid.Row="0"
                                   Grid.Column="0"
-                                  Content="Loop Playback"
+                                  Content="{localization:Loc Playback_LoopPlayback}"
                                   IsChecked="{Binding IsLooping}"
                                   IsEnabled="{Binding !IsPlaying}"/>
 
                         <CheckBox Grid.Row="0"
                                   Grid.Column="1"
                                   Margin="8,0,0,0"
-                                  Content="Randomize loop delay"
+                                  Content="{localization:Loc Playback_RandomizeLoopDelay}"
                                   IsChecked="{Binding UseRandomLoopDelay}"
                                   IsEnabled="{Binding !IsPlaying}"
                                   IsVisible="{Binding IsLooping}"/>
@@ -50,7 +51,7 @@
                                     Margin="0,0,8,0"
                                     Spacing="4"
                                     IsVisible="{Binding IsLooping}">
-                            <TextBlock Classes="label" Text="Loop Count"/>
+                            <TextBlock Classes="label" Text="{localization:Loc Playback_LoopCount}"/>
                             <NumericUpDown Value="{Binding LoopCount}" Minimum="0" Maximum="1000" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
                         </StackPanel>
 
@@ -59,7 +60,7 @@
                                     Margin="8,0,0,0"
                                     Spacing="4"
                                     IsVisible="{Binding ShowFixedLoopDelayInput}">
-                            <TextBlock Classes="label" Text="Loop Delay (ms)"/>
+                            <TextBlock Classes="label" Text="{localization:Loc Playback_LoopDelayMs}"/>
                             <NumericUpDown Value="{Binding LoopDelayMs}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
                         </StackPanel>
 
@@ -68,7 +69,7 @@
                                     Margin="8,0,0,0"
                                     Spacing="4"
                                     IsVisible="{Binding ShowRandomLoopDelayInputs}">
-                            <TextBlock Classes="label" Text="Loop Delay Range (ms)"/>
+                            <TextBlock Classes="label" Text="{localization:Loc Playback_LoopDelayRangeMs}"/>
                             <Grid ColumnDefinitions="*,8,*">
                                 <NumericUpDown Value="{Binding LoopDelayMinMs}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
                                 <NumericUpDown Grid.Column="2" Value="{Binding LoopDelayMaxMs}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
@@ -80,7 +81,7 @@
                 <!-- Countdown -->
                 <StackPanel Spacing="8">
                      <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Grid.Column="0" Classes="label" Text="Countdown (sec)"/>
+                        <TextBlock Grid.Column="0" Classes="label" Text="{localization:Loc Playback_CountdownSec}"/>
                         <TextBlock Grid.Column="1" Text="{Binding CountdownSeconds}"
                                   FontWeight="Medium"
                                   FontSize="16"
@@ -101,7 +102,7 @@
                            HorizontalContentAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="▶️" Classes="emoji-icon"/>
-                            <TextBlock Text="Play Macro"/>
+                            <TextBlock Text="{localization:Loc Playback_PlayMacro}"/>
                         </StackPanel>
                     </Button>
 
@@ -115,14 +116,14 @@
                            FontSize="16">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="🛑" Classes="emoji-icon"/>
-                            <TextBlock Text="STOP PLAYBACK"/>
+                            <TextBlock Text="{localization:Loc Playback_StopPlayback}"/>
                         </StackPanel>
                      </Button>
                 </Grid>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
                     <TextBlock Text="💡" FontSize="12" Classes="caption emoji-icon"/>
-                    <TextBlock Text="Tip: Loop Count 0 means infinite loop" Classes="caption"/>
+                    <TextBlock Text="{localization:Loc Playback_LoopTip}" Classes="caption"/>
                 </StackPanel>
 
                 <!-- NEW: Bottom Spacer -->

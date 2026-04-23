@@ -451,6 +451,47 @@ public class FilesViewModelTests
     }
 
     [Fact]
+    public void CultureChanged_WhenReadyStatusDisplayed_RebuildsStatusInNewLanguage()
+    {
+        _localizationService["Files_StatusReady"].Returns("[Files_StatusReady:tr]");
+
+        _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
+
+        _viewModel.Status.Should().Be("[Files_StatusReady:tr]");
+    }
+
+    [Fact]
+    public async Task CultureChanged_WhenLoadCancelledStatusDisplayed_RebuildsStatusInNewLanguage()
+    {
+        _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .Returns(Task.FromResult<string?>(null));
+
+        await _viewModel.LoadMacroAsync();
+
+        _localizationService["Files_StatusLoadCancelled"].Returns("[Files_StatusLoadCancelled:tr]");
+
+        _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
+
+        _viewModel.Status.Should().Be("[Files_StatusLoadCancelled:tr]");
+    }
+
+    [Fact]
+    public async Task CultureChanged_WhenSaveCancelledStatusDisplayed_RebuildsStatusInNewLanguage()
+    {
+        _viewModel.SetMacro(CreateMacro());
+        _dialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .Returns(Task.FromResult<string?>(null));
+
+        await _viewModel.SaveMacroAsync();
+
+        _localizationService["Files_StatusSaveCancelled"].Returns("[Files_StatusSaveCancelled:tr]");
+
+        _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
+
+        _viewModel.Status.Should().Be("[Files_StatusSaveCancelled:tr]");
+    }
+
+    [Fact]
     public async Task SaveMacroAsync_WhenFileManagerThrows_UpdatesErrorStatus()
     {
         var macro = CreateMacro();

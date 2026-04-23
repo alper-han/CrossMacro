@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CrossMacro.Core.Models;
@@ -14,6 +15,14 @@ namespace CrossMacro.UI.ViewModels;
 /// </summary>
 public class RecordingViewModel : ViewModelBase, IDisposable
 {
+    private enum RecordingStatusKind
+    {
+        Ready,
+        Recording,
+        LoadedEvents,
+        RecordedEvents
+    }
+
     private readonly IMacroRecorder _recorder;
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ISettingsService _settingsService;
@@ -29,6 +38,9 @@ public class RecordingViewModel : ViewModelBase, IDisposable
     private bool _isKeyboardRecordingEnabled = true;
     private bool _forceRelativeCoordinates;
     private bool _skipInitialZeroZero;
+    private RecordingStatusKind _recordingStatusKind = RecordingStatusKind.Ready;
+    private long _activeCounterUpdateSessionId;
+    private long _nextCounterUpdateSessionId;
     
     /// <summary>
     /// Event fired when recording is completed with the recorded macro
@@ -51,7 +63,7 @@ public class RecordingViewModel : ViewModelBase, IDisposable
         _settingsService = settingsService;
         _localizationService = localizationService;
         _localizationService.CultureChanged += OnCultureChanged;
-        _recordingStatus = _localizationService["Recording_StatusReady"];
+        _recordingStatus = BuildRecordingStatus(RecordingStatusKind.Ready);
         
         _isKeyboardRecordingEnabled = _settingsService.Current.IsKeyboardRecordingEnabled;
         
@@ -73,7 +85,7 @@ public class RecordingViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanStartRecording));
                 OnPropertyChanged(nameof(CanToggleRecording));
-                RecordingStatus = value ? _localizationService["Recording_StatusRecording"] : _localizationService["Recording_StatusReady"];
+                SetRecordingStatusKind(value ? RecordingStatusKind.Recording : RecordingStatusKind.Ready);
                 RecordingStateChanged?.Invoke(this, value);
             }
         }
@@ -265,24 +277,15 @@ public class RecordingViewModel : ViewModelBase, IDisposable
     
     private void OnEventRecorded(object? sender, MacroEvent e)
     {
+        var sessionId = Volatile.Read(ref _activeCounterUpdateSessionId);
+        if (sessionId == 0)
+        {
+            return;
+        }
+
         Dispatcher.UIThread.Post(() =>
         {
-            EventCount++;
-            
-            // Track mouse and keyboard events separately
-            switch (e.Type)
-            {
-                case EventType.ButtonPress:
-                case EventType.ButtonRelease:
-                case EventType.MouseMove:
-                case EventType.Click:
-                    MouseEventCount++;
-                    break;
-                case EventType.KeyPress:
-                case EventType.KeyRelease:
-                    KeyboardEventCount++;
-                    break;
-            }
+            ApplyLiveCounterUpdate(sessionId, e);
         });
     }
     
@@ -293,6 +296,7 @@ public class RecordingViewModel : ViewModelBase, IDisposable
             
         try
         {
+            ActivateLiveCounterUpdates();
             IsRecording = true;
             ClearEventCounters();
             
@@ -315,6 +319,7 @@ public class RecordingViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
+            DeactivateLiveCounterUpdates();
             RecordingStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Recording_StatusError"], ex.Message);
             IsRecording = false;
             
@@ -331,6 +336,7 @@ public class RecordingViewModel : ViewModelBase, IDisposable
         MacroSequence? macro;
         try
         {
+            DeactivateLiveCounterUpdates();
             macro = _recorder.StopRecording();
         }
         catch (Exception ex)
@@ -366,7 +372,8 @@ public class RecordingViewModel : ViewModelBase, IDisposable
             return null;
         }
 
-        RecordingStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Recording_StatusRecordedEvents"], eventCount);
+        ApplyEventCounters(macro.Events!);
+        SetRecordingStatusKind(RecordingStatusKind.RecordedEvents);
 
         try
         {
@@ -390,19 +397,7 @@ public class RecordingViewModel : ViewModelBase, IDisposable
 
     private void OnCultureChanged(object? sender, EventArgs e)
     {
-        if (IsRecording)
-        {
-            RecordingStatus = _localizationService["Recording_StatusRecording"];
-            return;
-        }
-
-        if (EventCount > 0)
-        {
-            RecordingStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Recording_StatusLoadedEvents"], EventCount);
-            return;
-        }
-
-        RecordingStatus = _localizationService["Recording_StatusReady"];
+        RecordingStatus = BuildRecordingStatus(_recordingStatusKind);
     }
 
     private void ApplyEventCounters(IEnumerable<MacroEvent> events)
@@ -445,7 +440,7 @@ public class RecordingViewModel : ViewModelBase, IDisposable
             ClearEventCounters();
             if (updateStatus)
             {
-                RecordingStatus = _localizationService["Recording_StatusReady"];
+                SetRecordingStatusKind(RecordingStatusKind.Ready);
             }
 
             return;
@@ -458,7 +453,7 @@ public class RecordingViewModel : ViewModelBase, IDisposable
 
         if (updateStatus)
         {
-            RecordingStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Recording_StatusLoadedEvents"], EventCount);
+            SetRecordingStatusKind(RecordingStatusKind.LoadedEvents);
         }
     }
     
@@ -481,6 +476,66 @@ public class RecordingViewModel : ViewModelBase, IDisposable
         // Unsubscribe from events to prevent memory leaks
         _recorder.EventRecorded -= OnEventRecorded;
         _localizationService.CultureChanged -= OnCultureChanged;
+    }
+
+    private void SetRecordingStatusKind(RecordingStatusKind statusKind)
+    {
+        _recordingStatusKind = statusKind;
+        RecordingStatus = BuildRecordingStatus(statusKind);
+    }
+
+    private void ActivateLiveCounterUpdates()
+    {
+        var sessionId = Interlocked.Increment(ref _nextCounterUpdateSessionId);
+        Volatile.Write(ref _activeCounterUpdateSessionId, sessionId);
+    }
+
+    private void DeactivateLiveCounterUpdates()
+    {
+        Volatile.Write(ref _activeCounterUpdateSessionId, 0);
+    }
+
+    private void ApplyLiveCounterUpdate(long sessionId, MacroEvent macroEvent)
+    {
+        if (sessionId == 0 || sessionId != Volatile.Read(ref _activeCounterUpdateSessionId))
+        {
+            return;
+        }
+
+        EventCount++;
+
+        // Track mouse and keyboard events separately
+        switch (macroEvent.Type)
+        {
+            case EventType.ButtonPress:
+            case EventType.ButtonRelease:
+            case EventType.MouseMove:
+            case EventType.Click:
+                MouseEventCount++;
+                break;
+            case EventType.KeyPress:
+            case EventType.KeyRelease:
+                KeyboardEventCount++;
+                break;
+        }
+    }
+
+    private string BuildRecordingStatus(RecordingStatusKind statusKind)
+    {
+        return statusKind switch
+        {
+            RecordingStatusKind.Ready => _localizationService["Recording_StatusReady"],
+            RecordingStatusKind.Recording => _localizationService["Recording_StatusRecording"],
+            RecordingStatusKind.LoadedEvents => string.Format(
+                _localizationService.CurrentCulture,
+                _localizationService["Recording_StatusLoadedEvents"],
+                EventCount),
+            RecordingStatusKind.RecordedEvents => string.Format(
+                _localizationService.CurrentCulture,
+                _localizationService["Recording_StatusRecordedEvents"],
+                EventCount),
+            _ => _localizationService["Recording_StatusReady"]
+        };
     }
 
     private bool TryPersistSettingChange(Action rollback, params string[] propertyNames)

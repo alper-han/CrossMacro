@@ -657,6 +657,15 @@
   <data name="Playback_StatusSequencePlaying" xml:space="preserve">
     <value>Reproduciendo {0} ({1}/{2}){3} - Secuencia {4}</value>
   </data>
+  <data name="Playback_UnnamedMacro" xml:space="preserve">
+    <value>macro</value>
+  </data>
+  <data name="Playback_SequenceCycleInfinite" xml:space="preserve">
+    <value>{0} - Infinito</value>
+  </data>
+  <data name="Playback_SequenceRepeatProgress" xml:space="preserve">
+    <value> - Repetición {0}/{1}</value>
+  </data>
   <data name="Playback_StatusWaitingNextLoop" xml:space="preserve">
     <value>Esperando {0} antes del siguiente ciclo...</value>
   </data>

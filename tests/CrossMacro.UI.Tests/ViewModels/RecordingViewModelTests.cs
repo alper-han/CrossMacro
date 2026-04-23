@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
@@ -126,6 +127,58 @@ public class RecordingViewModelTests
         Assert.Equal(expectedMacro, result);
         Assert.Equal("[Recording_StatusRecordedEvents] 1", _viewModel.RecordingStatus);
         _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(true);
+    }
+
+    [Fact]
+    public void CultureChanged_AfterRecordedMacro_PreservesRecordedStatus()
+    {
+        var recordedMacro = new MacroSequence
+        {
+            Events =
+            {
+                new MacroEvent { Type = EventType.MouseMove },
+                new MacroEvent { Type = EventType.KeyPress }
+            }
+        };
+        _recorder.StopRecording().Returns(recordedMacro);
+        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, true);
+
+        _viewModel.StopRecording();
+
+        _localizationService["Recording_StatusRecordedEvents"].Returns("[Recording_StatusRecordedEvents:tr] {0}");
+        _localizationService["Recording_StatusLoadedEvents"].Returns("[Recording_StatusLoadedEvents:tr] {0}");
+
+        _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
+
+        Assert.Equal("[Recording_StatusRecordedEvents:tr] 2", _viewModel.RecordingStatus);
+    }
+
+    [Fact]
+    public async Task StopRecording_WhenQueuedLiveCounterUpdateArrivesLater_IgnoresStaleUpdate()
+    {
+        var recordedMacro = new MacroSequence
+        {
+            Events =
+            {
+                new MacroEvent { Type = EventType.MouseMove },
+                new MacroEvent { Type = EventType.KeyPress }
+            }
+        };
+        _recorder.StopRecording().Returns(recordedMacro);
+        _viewModel.CanStartRecordingExternal = true;
+
+        await _viewModel.StartRecordingAsync();
+
+        var sessionId = GetPrivateField<long>(_viewModel, "_activeCounterUpdateSessionId");
+        Assert.NotEqual(0, sessionId);
+
+        _viewModel.StopRecording();
+        InvokeNonPublicMethod(_viewModel, "ApplyLiveCounterUpdate", sessionId, new MacroEvent { Type = EventType.MouseMove });
+
+        Assert.Equal(2, _viewModel.EventCount);
+        Assert.Equal(1, _viewModel.MouseEventCount);
+        Assert.Equal(1, _viewModel.KeyboardEventCount);
+        Assert.Equal("[Recording_StatusRecordedEvents] 2", _viewModel.RecordingStatus);
     }
 
     [Fact]
@@ -304,5 +357,19 @@ public class RecordingViewModelTests
         Assert.Equal(0, _viewModel.MouseEventCount);
         Assert.Equal(0, _viewModel.KeyboardEventCount);
         Assert.Equal("[Recording_StatusReady]", _viewModel.RecordingStatus);
+    }
+
+    private static T GetPrivateField<T>(object target, string fieldName)
+    {
+        var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(field);
+        return (T)field!.GetValue(target)!;
+    }
+
+    private static void InvokeNonPublicMethod(object target, string methodName, params object?[]? args)
+    {
+        var method = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        method!.Invoke(target, args);
     }
 }

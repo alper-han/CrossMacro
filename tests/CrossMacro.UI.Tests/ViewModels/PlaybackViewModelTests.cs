@@ -40,6 +40,9 @@ public class PlaybackViewModelTests
             "Playback_StatusError" => "[Playback_StatusError] {0}",
             "Playback_StatusWaitingNextSequence" => "[Playback_StatusWaitingNextSequence] {0}",
             "Playback_StatusSequencePlaying" => "[Playback_StatusSequencePlaying] {0} | {1} | {2} | {3} | {4}",
+            "Playback_UnnamedMacro" => "[Playback_UnnamedMacro]",
+            "Playback_SequenceCycleInfinite" => "[Playback_SequenceCycleInfinite] {0}",
+            "Playback_SequenceRepeatProgress" => "[Playback_SequenceRepeatProgress] {0} | {1}",
             "Playback_StatusWaitingNextLoop" => "[Playback_StatusWaitingNextLoop] {0}",
             "Playback_StatusLoopInfinite" => "[Playback_StatusLoopInfinite] {0}",
             "Playback_StatusLoopProgress" => "[Playback_StatusLoopProgress] {0} | {1}",
@@ -261,6 +264,30 @@ public class PlaybackViewModelTests
     }
 
     [Fact]
+    public void CultureChanged_WhenSequencePlaying_UsesLocalizedSequenceFragments()
+    {
+        _player.CurrentLoop.Returns(2);
+        _player.TotalLoops.Returns(4);
+        _localizationService["Playback_UnnamedMacro"].Returns("[Playback_UnnamedMacro:updated]");
+        _localizationService["Playback_SequenceCycleInfinite"].Returns("[Playback_SequenceCycleInfinite:updated] {0}");
+        _localizationService["Playback_SequenceRepeatProgress"].Returns("[Playback_SequenceRepeatProgress:updated] {0} | {1}");
+
+        _viewModel.GetType().GetProperty("IsPlaying")?.SetValue(_viewModel, true);
+        SetNonPublicField(_viewModel, "_isSequencePlayback", true);
+        SetNonPublicField(_viewModel, "_sequenceMacroName", string.Empty);
+        SetNonPublicField(_viewModel, "_sequenceMacroIndex", 1);
+        SetNonPublicField(_viewModel, "_sequenceMacroCount", 2);
+        SetNonPublicField(_viewModel, "_sequenceCycle", 3);
+        SetNonPublicField(_viewModel, "_sequenceTotalCycles", 0);
+        SetNonPublicField(_viewModel, "_sequenceMacroRepeatCount", 4);
+
+        _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
+
+        _viewModel.PlaybackStatus.Should().Be(
+            "[Playback_StatusSequencePlaying] [Playback_UnnamedMacro:updated] | 1 | 2 | [Playback_SequenceRepeatProgress:updated] 2 | 4 | [Playback_SequenceCycleInfinite:updated] 3");
+    }
+
+    [Fact]
     public async Task PlayMacroAsync_WhenSequentialCycleModeHasSingleLoadedMacro_UsesSequenceRepeatCount()
     {
         var item = _loadedMacroSession.AddMacro(CreateMacro("Only"));
@@ -422,6 +449,13 @@ public class PlaybackViewModelTests
         var method = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
         method.Should().NotBeNull();
         method!.Invoke(target, args);
+    }
+
+    private static void SetNonPublicField(object target, string fieldName, object? value)
+    {
+        var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+        field.Should().NotBeNull();
+        field!.SetValue(target, value);
     }
 
     private static MacroSequence CreateMacro(string name = "Test Macro")

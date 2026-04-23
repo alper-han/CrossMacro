@@ -23,18 +23,14 @@ public sealed class LocalizationService : ILocalizationService
     public void SetCulture(string? cultureName)
     {
         var culture = ResolveCulture(cultureName);
-        if (Equals(CurrentCulture, culture))
-        {
-            return;
-        }
-
+        var cultureChanged = !Equals(CurrentCulture, culture);
         CurrentCulture = culture;
-        Resources.Culture = culture;
-        CultureInfo.CurrentCulture = culture;
-        CultureInfo.CurrentUICulture = culture;
-        CultureInfo.DefaultThreadCurrentCulture = culture;
-        CultureInfo.DefaultThreadCurrentUICulture = culture;
-        CultureChanged?.Invoke(this, EventArgs.Empty);
+        ApplyCulture(culture);
+
+        if (cultureChanged)
+        {
+            CultureChanged?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     public static CultureInfo ResolveCulture(string? cultureName)
@@ -97,5 +93,14 @@ public sealed class LocalizationService : ILocalizationService
         }
 
         return CultureInfo.GetCultureInfo("en");
+    }
+
+    private static void ApplyCulture(CultureInfo culture)
+    {
+        Resources.Culture = culture;
+        CultureInfo.CurrentCulture = culture;
+        CultureInfo.CurrentUICulture = culture;
+        CultureInfo.DefaultThreadCurrentCulture = culture;
+        CultureInfo.DefaultThreadCurrentUICulture = culture;
     }
 }

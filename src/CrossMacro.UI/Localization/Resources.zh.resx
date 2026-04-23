@@ -657,6 +657,15 @@
   <data name="Playback_StatusSequencePlaying" xml:space="preserve">
     <value>播放 {0} ({1}/{2}){3} - 序列 {4}</value>
   </data>
+  <data name="Playback_UnnamedMacro" xml:space="preserve">
+    <value>宏</value>
+  </data>
+  <data name="Playback_SequenceCycleInfinite" xml:space="preserve">
+    <value>{0} - 无限</value>
+  </data>
+  <data name="Playback_SequenceRepeatProgress" xml:space="preserve">
+    <value> - 重复 {0}/{1}</value>
+  </data>
   <data name="Playback_StatusWaitingNextLoop" xml:space="preserve">
     <value>在下一个循环之前等待 {0}...</value>
   </data>

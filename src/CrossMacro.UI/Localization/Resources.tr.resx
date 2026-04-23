@@ -657,6 +657,15 @@
   <data name="Playback_StatusSequencePlaying" xml:space="preserve">
     <value>{0} oynatılıyor ({1}/{2}){3} - Sıra {4}</value>
   </data>
+  <data name="Playback_UnnamedMacro" xml:space="preserve">
+    <value>makro</value>
+  </data>
+  <data name="Playback_SequenceCycleInfinite" xml:space="preserve">
+    <value>{0} - Sonsuz</value>
+  </data>
+  <data name="Playback_SequenceRepeatProgress" xml:space="preserve">
+    <value> - Tekrar {0}/{1}</value>
+  </data>
   <data name="Playback_StatusWaitingNextLoop" xml:space="preserve">
     <value>Sonraki döngü öncesi {0} bekleniyor...</value>
   </data>

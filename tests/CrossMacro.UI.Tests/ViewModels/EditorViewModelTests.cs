@@ -112,6 +112,16 @@ public class EditorViewModelTests
     }
 
     [Fact]
+    public void CultureChanged_WhenReadyStatusDisplayed_RebuildsReadyStatusInNewLanguage()
+    {
+        _localizationService["Editor_StatusReady"].Returns("[Editor_StatusReady:updated]");
+
+        _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
+
+        _viewModel.Status.Should().Be("[Editor_StatusReady:updated]");
+    }
+
+    [Fact]
     public void AddableActionTypes_HidesManagedBlockTokens()
     {
         _viewModel.AddableActionTypes.Should().NotContain(EditorActionType.BlockEnd);

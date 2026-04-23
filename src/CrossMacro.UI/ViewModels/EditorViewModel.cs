@@ -18,6 +18,12 @@ namespace CrossMacro.UI.ViewModels;
 /// </summary>
 public partial class EditorViewModel : ViewModelBase, IDisposable
 {
+    private enum EditorStatusKind
+    {
+        Ready,
+        Other
+    }
+
     private const int UndoStackLimit = 50;
     private static readonly TimeSpan PropertyEditUndoCoalesceWindow = TimeSpan.FromMilliseconds(400);
     private const string MacroFileExtension = ".macro";
@@ -49,6 +55,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private bool _isSelectingFromActionList;
     private bool _disposed;
     private bool _usesDefaultMacroName = true;
+    private bool _isApplyingStatusKind;
+    private EditorStatusKind _statusKind = EditorStatusKind.Ready;
     private List<EditorAction> _lastKnownState = new();
     private IReadOnlyList<string> _availableVariableNames = Array.Empty<string>();
     private string? _selectedSetVariableSuggestion;
@@ -96,7 +104,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         _localizationService = localizationService ?? new LocalizationService();
         _actionDisplayFormatter = actionDisplayFormatter ?? new EditorActionDisplayFormatter(_localizationService);
         _macroName = _localizationService["Editor_DefaultMacroName"];
-        _status = _localizationService["Editor_StatusReady"];
+        _status = BuildStatus(EditorStatusKind.Ready);
 
         Actions = new ObservableCollection<EditorAction>();
         ActionListItems = new ObservableCollection<EditorActionListItem>();
@@ -225,6 +233,10 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             }
 
             _status = value;
+            if (!_isApplyingStatusKind)
+            {
+                _statusKind = EditorStatusKind.Other;
+            }
             OnPropertyChanged();
             StatusChanged?.Invoke(this, value);
         }
@@ -519,9 +531,9 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(MacroName));
         }
 
-        if (string.IsNullOrWhiteSpace(_status) || _status == Localize("Editor_StatusReady"))
+        if (_statusKind == EditorStatusKind.Ready)
         {
-            Status = Localize("Editor_StatusReady");
+            SetStatusKind(EditorStatusKind.Ready);
         }
 
         UpdateActionListPresentation();
@@ -535,6 +547,29 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(SelectedActionListItem));
         OnPropertyChanged(nameof(CanInsertElseBlock));
         OnPropertyChanged(nameof(CanRemoveBlock));
+    }
+
+    private void SetStatusKind(EditorStatusKind statusKind)
+    {
+        _statusKind = statusKind;
+        _isApplyingStatusKind = true;
+        try
+        {
+            Status = BuildStatus(statusKind);
+        }
+        finally
+        {
+            _isApplyingStatusKind = false;
+        }
+    }
+
+    private string BuildStatus(EditorStatusKind statusKind)
+    {
+        return statusKind switch
+        {
+            EditorStatusKind.Ready => Localize("Editor_StatusReady"),
+            _ => _status
+        };
     }
 
     private static bool IsCurrentPositionMouseButtonAction(EditorAction? action)

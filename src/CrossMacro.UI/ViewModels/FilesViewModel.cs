@@ -16,6 +16,14 @@ namespace CrossMacro.UI.ViewModels;
 /// </summary>
 public partial class FilesViewModel : ViewModelBase
 {
+    private enum FilesStatusKind
+    {
+        Ready,
+        LoadCancelled,
+        SaveCancelled,
+        Other
+    }
+
     private const string DefaultMacroName = MacroNameDefaults.NewRecordedMacroName;
     private const int DefaultSequenceRepeatCount = 1;
 
@@ -28,6 +36,7 @@ public partial class FilesViewModel : ViewModelBase
     private bool _hasRecordedMacro;
     private string _status;
     private bool _canManageLoadedMacrosExternal = true;
+    private FilesStatusKind _statusKind = FilesStatusKind.Ready;
 
     /// <summary>
     /// Event fired when a macro is loaded from disk.
@@ -59,7 +68,7 @@ public partial class FilesViewModel : ViewModelBase
         _dialogService = dialogService;
         _loadedMacroSession = loadedMacroSession;
         _localizationService = localizationService;
-        _status = _localizationService["Files_StatusReady"];
+        _status = BuildStatus(FilesStatusKind.Ready);
         _localizationService.CultureChanged += OnCultureChanged;
 
         _loadedMacroSession.SelectedMacroChanged += OnSelectedMacroChanged;
@@ -315,7 +324,7 @@ public partial class FilesViewModel : ViewModelBase
 
             if (string.IsNullOrEmpty(filePath))
             {
-                Status = _localizationService["Files_StatusSaveCancelled"];
+                SetStatusKind(FilesStatusKind.SaveCancelled);
                 return;
             }
 
@@ -323,11 +332,11 @@ public partial class FilesViewModel : ViewModelBase
             await _fileManager.SaveAsync(currentMacro, filePath);
             currentItem.UpdateSourcePath(filePath);
 
-            Status = string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusSavedTo"], Path.GetFileName(filePath));
+            SetTransientStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusSavedTo"], Path.GetFileName(filePath)));
         }
         catch (Exception ex)
         {
-            Status = string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusSaveError"], ex.Message);
+            SetTransientStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusSaveError"], ex.Message));
         }
     }
 
@@ -350,24 +359,24 @@ public partial class FilesViewModel : ViewModelBase
 
             if (string.IsNullOrEmpty(filePath))
             {
-                Status = _localizationService["Files_StatusLoadCancelled"];
+                SetStatusKind(FilesStatusKind.LoadCancelled);
                 return;
             }
 
             var macro = await _fileManager.LoadAsync(filePath);
             if (macro == null)
             {
-                Status = _localizationService["Files_StatusLoadUnreadable"];
+                SetTransientStatus(_localizationService["Files_StatusLoadUnreadable"]);
                 return;
             }
 
             _loadedMacroSession.AddMacro(macro, filePath);
-            Status = string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusLoaded"], Path.GetFileName(filePath));
+            SetTransientStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusLoaded"], Path.GetFileName(filePath)));
             MacroLoaded?.Invoke(this, macro);
         }
         catch (Exception ex)
         {
-            Status = string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusLoadError"], ex.Message);
+            SetTransientStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusLoadError"], ex.Message));
         }
     }
 
@@ -395,7 +404,7 @@ public partial class FilesViewModel : ViewModelBase
 
         if (_loadedMacroSession.RemoveMacro(item))
         {
-            Status = string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusRemoved"], item.Name);
+            SetTransientStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusRemoved"], item.Name));
         }
     }
 
@@ -473,12 +482,9 @@ public partial class FilesViewModel : ViewModelBase
         OnPropertyChanged(nameof(SelectedMacroItem));
         OnPropertyChanged(nameof(MacroName));
 
-        if (string.IsNullOrEmpty(_status) ||
-            _status == _localizationService["Files_StatusReady"] ||
-            _status == _localizationService["Files_StatusLoadCancelled"] ||
-            _status == _localizationService["Files_StatusSaveCancelled"])
+        if (_statusKind is FilesStatusKind.Ready or FilesStatusKind.LoadCancelled or FilesStatusKind.SaveCancelled)
         {
-            Status = _localizationService["Files_StatusReady"];
+            Status = BuildStatus(_statusKind);
         }
     }
 
@@ -501,5 +507,28 @@ public partial class FilesViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasLoadedMacros));
         OnPropertyChanged(nameof(MacroName));
         OnPropertyChanged(nameof(ShowSequenceRepeatSettings));
+    }
+
+    private void SetStatusKind(FilesStatusKind statusKind)
+    {
+        _statusKind = statusKind;
+        Status = BuildStatus(statusKind);
+    }
+
+    private void SetTransientStatus(string status)
+    {
+        _statusKind = FilesStatusKind.Other;
+        Status = status;
+    }
+
+    private string BuildStatus(FilesStatusKind statusKind)
+    {
+        return statusKind switch
+        {
+            FilesStatusKind.Ready => _localizationService["Files_StatusReady"],
+            FilesStatusKind.LoadCancelled => _localizationService["Files_StatusLoadCancelled"],
+            FilesStatusKind.SaveCancelled => _localizationService["Files_StatusSaveCancelled"],
+            _ => _status
+        };
     }
 }

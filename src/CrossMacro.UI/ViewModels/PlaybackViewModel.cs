@@ -112,11 +112,16 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
                 return;
             }
 
-            var macroName = string.IsNullOrWhiteSpace(_sequenceMacroName) ? "macro" : _sequenceMacroName;
+            var macroName = string.IsNullOrWhiteSpace(_sequenceMacroName)
+                ? _localizationService["Playback_UnnamedMacro"]
+                : _sequenceMacroName;
             var macroIndex = Math.Max(1, _sequenceMacroIndex);
             var macroCount = Math.Max(1, _sequenceMacroCount);
             var cycleText = _sequenceTotalCycles == 0
-                ? $"{Math.Max(1, _sequenceCycle)} - Infinite"
+                ? string.Format(
+                    _localizationService.CurrentCulture,
+                    _localizationService["Playback_SequenceCycleInfinite"],
+                    Math.Max(1, _sequenceCycle))
                 : $"{Math.Max(1, _sequenceCycle)}/{Math.Max(1, _sequenceTotalCycles)}";
             var repeatCount = Math.Max(1, _sequenceMacroRepeatCount);
             var repeatText = string.Empty;
@@ -126,7 +131,11 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
                 var currentRepeat = _player.TotalLoops == repeatCount
                     ? Math.Clamp(Math.Max(1, _player.CurrentLoop), 1, repeatCount)
                     : 1;
-                repeatText = $" - Repeat {currentRepeat}/{repeatCount}";
+                repeatText = string.Format(
+                    _localizationService.CurrentCulture,
+                    _localizationService["Playback_SequenceRepeatProgress"],
+                    currentRepeat,
+                    repeatCount);
             }
 
             PlaybackStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Playback_StatusSequencePlaying"], macroName, macroIndex, macroCount, repeatText, cycleText);

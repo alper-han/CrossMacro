@@ -657,6 +657,15 @@
   <data name="Playback_StatusSequencePlaying" xml:space="preserve">
     <value>Lecture de {0} ({1}/{2}){3} – Séquence {4}</value>
   </data>
+  <data name="Playback_UnnamedMacro" xml:space="preserve">
+    <value>macro</value>
+  </data>
+  <data name="Playback_SequenceCycleInfinite" xml:space="preserve">
+    <value>{0} - Infini</value>
+  </data>
+  <data name="Playback_SequenceRepeatProgress" xml:space="preserve">
+    <value> - Répétition {0}/{1}</value>
+  </data>
   <data name="Playback_StatusWaitingNextLoop" xml:space="preserve">
     <value>J&apos;attends {0} avant la prochaine boucle...</value>
   </data>

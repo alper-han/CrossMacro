@@ -16,16 +16,37 @@ public class ShortcutViewModelTests
 {
     private readonly IShortcutService _shortcutService;
     private readonly IDialogService _dialogService;
+    private readonly ILocalizationService _localizationService;
     private readonly ShortcutViewModel _viewModel;
 
     public ShortcutViewModelTests()
     {
         _shortcutService = Substitute.For<IShortcutService>();
         _dialogService = Substitute.For<IDialogService>();
+        _localizationService = Substitute.For<ILocalizationService>();
+        _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
+        {
+            "Shortcut_ItemsText" => "[Shortcut_ItemsText] {0}",
+            "Shortcut_NoFileSelected" => "[Shortcut_NoFileSelected]",
+            "Shortcut_StatusInitFailed" => "[Shortcut_StatusInitFailed] {0}",
+            "Shortcut_DefaultTaskName" => "[Shortcut_DefaultTaskName] {0}",
+            "Shortcut_DeleteTitle" => "[Shortcut_DeleteTitle]",
+            "Shortcut_DeleteMessage" => "[Shortcut_DeleteMessage] {0}",
+            "Shortcut_StatusSaveFailed" => "[Shortcut_StatusSaveFailed] {0}",
+            "Shortcut_SaveFailedTitle" => "[Shortcut_SaveFailedTitle]",
+            "Shortcut_OpenMacroDialogFilter" => "[Shortcut_OpenMacroDialogFilter]",
+            "Shortcut_OpenMacroDialogTitle" => "[Shortcut_OpenMacroDialogTitle]",
+            "Shortcut_StatusRunning" => "[Shortcut_StatusRunning] {0}",
+            "Shortcut_StatusCompleted" => "[Shortcut_StatusCompleted] {0}",
+            "Shortcut_StatusFailed" => "[Shortcut_StatusFailed] {0} | {1}",
+            "Shortcut_StatusChangesSaved" => "[Shortcut_StatusChangesSaved]",
+            _ => call.Arg<string>()
+        });
         
         _shortcutService.Tasks.Returns(new ObservableCollection<ShortcutTask>());
 
-        _viewModel = new ShortcutViewModel(_shortcutService, _dialogService);
+        _viewModel = new ShortcutViewModel(_shortcutService, _dialogService, _localizationService);
     }
 
     [Fact]
@@ -62,15 +83,33 @@ public class ShortcutViewModelTests
         var statusTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         // Act
-        var vm = new ShortcutViewModel(failingShortcutService, _dialogService);
+        var vm = new ShortcutViewModel(failingShortcutService, _dialogService, _localizationService);
         vm.StatusChanged += (_, status) => statusTcs.TrySetResult(status);
         loadTcs.TrySetException(new InvalidOperationException("load failed"));
         var statusMessage = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         // Assert
-        statusMessage.Should().Contain("failed to initialize");
+        statusMessage.Should().Contain("[Shortcut_StatusInitFailed]");
         statusMessage.Should().Contain("load failed");
         failingShortcutService.DidNotReceive().Start();
+    }
+
+    [Fact]
+    public void CultureChanged_RaisesLocalizedComputedProperties()
+    {
+        var localizationService = Substitute.For<ILocalizationService>();
+        localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        localizationService["Shortcut_ItemsText"].Returns("{0} items");
+        localizationService["Shortcut_NoFileSelected"].Returns("No file selected");
+        var vm = new ShortcutViewModel(_shortcutService, _dialogService, localizationService);
+        var changedProperties = new List<string?>();
+        vm.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
+
+        localizationService.CultureChanged += Raise.Event<EventHandler>(localizationService, EventArgs.Empty);
+
+        changedProperties.Should().Contain(nameof(ShortcutViewModel.TaskCountText));
+        changedProperties.Should().Contain(nameof(ShortcutViewModel.SelectedMacroFileName));
+        changedProperties.Should().Contain(nameof(ShortcutViewModel.SelectedTask));
     }
 
     [Fact]
@@ -82,7 +121,7 @@ public class ShortcutViewModelTests
         // Assert
         _shortcutService.Received(1).AddTask(Arg.Any<ShortcutTask>());
         _viewModel.SelectedTask.Should().NotBeNull();
-        _viewModel.SelectedTask!.Name.Should().Contain("Shortcut");
+        _viewModel.SelectedTask!.Name.Should().Contain("[Shortcut_DefaultTaskName]");
     }
 
     [Fact]
@@ -115,7 +154,7 @@ public class ShortcutViewModelTests
         var statusTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         _viewModel.StatusChanged += (_, status) =>
         {
-            if (status.Contains("failed to save changes", StringComparison.OrdinalIgnoreCase))
+            if (status.Contains("disk full", StringComparison.OrdinalIgnoreCase))
             {
                 statusTcs.TrySetResult(status);
             }
@@ -126,10 +165,10 @@ public class ShortcutViewModelTests
         var status = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         // Assert
-        status.Should().Contain("failed to save changes");
+        status.Should().Contain("[Shortcut_StatusSaveFailed]");
         status.Should().Contain("disk full");
         await _dialogService.Received(1).ShowMessageAsync(
-            "Shortcut Save Failed",
+            "[Shortcut_SaveFailedTitle]",
             Arg.Is<string>(s => s.Contains("disk full")),
             Arg.Any<string>());
     }

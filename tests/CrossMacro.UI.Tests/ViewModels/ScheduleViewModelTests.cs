@@ -16,12 +16,33 @@ public class ScheduleViewModelTests
 {
     private readonly ISchedulerService _schedulerService;
     private readonly IDialogService _dialogService;
+    private readonly ILocalizationService _localizationService;
     private readonly ScheduleViewModel _viewModel;
 
     public ScheduleViewModelTests()
     {
         _schedulerService = Substitute.For<ISchedulerService>();
         _dialogService = Substitute.For<IDialogService>();
+        _localizationService = Substitute.For<ILocalizationService>();
+        _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
+        {
+            "Schedule_ItemsText" => "[Schedule_ItemsText] {0}",
+            "Schedule_NoFileSelected" => "[Schedule_NoFileSelected]",
+            "Schedule_StatusInitFailed" => "[Schedule_StatusInitFailed] {0}",
+            "Schedule_DefaultTaskName" => "[Schedule_DefaultTaskName] {0}",
+            "Schedule_DeleteTitle" => "[Schedule_DeleteTitle]",
+            "Schedule_DeleteMessage" => "[Schedule_DeleteMessage] {0}",
+            "Schedule_StatusSaveFailed" => "[Schedule_StatusSaveFailed] {0}",
+            "Schedule_SaveFailedTitle" => "[Schedule_SaveFailedTitle]",
+            "Schedule_OpenMacroDialogFilter" => "[Schedule_OpenMacroDialogFilter]",
+            "Schedule_OpenMacroDialogTitle" => "[Schedule_OpenMacroDialogTitle]",
+            "Schedule_StatusExtensionWarning" => "[Schedule_StatusExtensionWarning]",
+            "Schedule_StatusRunning" => "[Schedule_StatusRunning] {0}",
+            "Schedule_StatusCompleted" => "[Schedule_StatusCompleted] {0}",
+            "Schedule_StatusFailedExecution" => "[Schedule_StatusFailedExecution] {0} | {1}",
+            _ => call.Arg<string>()
+        });
         var timeProvider = Substitute.For<ITimeProvider>();
         timeProvider.Now.Returns(new DateTime(2026, 1, 1, 10, 0, 0));
         timeProvider.UtcNow.Returns(new DateTime(2026, 1, 1, 7, 0, 0));
@@ -31,7 +52,7 @@ public class ScheduleViewModelTests
         _schedulerService.LoadAsync().Returns(Task.CompletedTask);
         _schedulerService.SaveAsync().Returns(Task.CompletedTask);
 
-        _viewModel = new ScheduleViewModel(_schedulerService, _dialogService, timeProvider);
+        _viewModel = new ScheduleViewModel(_schedulerService, _dialogService, timeProvider, _localizationService);
     }
 
     [Fact]
@@ -63,9 +84,31 @@ public class ScheduleViewModelTests
         await _viewModel.InitializeAsync();
         var reportedStatus = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
-        reportedStatus.Should().Contain("failed to initialize");
+        reportedStatus.Should().Contain("[Schedule_StatusInitFailed]");
         reportedStatus.Should().Contain("load failed");
         _schedulerService.DidNotReceive().Start();
+    }
+
+    [Fact]
+    public void CultureChanged_RaisesLocalizedComputedProperties()
+    {
+        var localizationService = Substitute.For<ILocalizationService>();
+        localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        localizationService["Schedule_ItemsText"].Returns("{0} items");
+        localizationService["Schedule_NoFileSelected"].Returns("No file selected");
+        var timeProvider = Substitute.For<ITimeProvider>();
+        timeProvider.Now.Returns(new DateTime(2026, 1, 1, 10, 0, 0));
+        timeProvider.UtcNow.Returns(new DateTime(2026, 1, 1, 7, 0, 0));
+        var viewModel = new ScheduleViewModel(_schedulerService, _dialogService, timeProvider, localizationService);
+        var changedProperties = new List<string?>();
+        viewModel.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
+
+        localizationService.CultureChanged += Raise.Event<EventHandler>(localizationService, EventArgs.Empty);
+
+        changedProperties.Should().Contain(nameof(ScheduleViewModel.TaskCountText));
+        changedProperties.Should().Contain(nameof(ScheduleViewModel.SelectedMacroFileName));
+        changedProperties.Should().Contain(nameof(ScheduleViewModel.SelectedTask));
+        changedProperties.Should().Contain(nameof(ScheduleViewModel.Tasks));
     }
 
     [Fact]
@@ -77,7 +120,7 @@ public class ScheduleViewModelTests
         // Assert
         _schedulerService.Received(1).AddTask(Arg.Any<ScheduledTask>());
         _viewModel.SelectedTask.Should().NotBeNull();
-        _viewModel.SelectedTask!.Name.Should().Contain("Task");
+        _viewModel.SelectedTask!.Name.Should().Contain("[Schedule_DefaultTaskName]");
     }
 
     [Fact]
@@ -98,6 +141,22 @@ public class ScheduleViewModelTests
     }
 
     [Fact]
+    public async Task RemoveTask_WhenSelectedTaskIsRemoved_SelectsFirstRemainingTask()
+    {
+        var first = new ScheduledTask { Name = "First" };
+        var second = new ScheduledTask { Name = "Second" };
+        _schedulerService.Tasks.Add(first);
+        _schedulerService.Tasks.Add(second);
+        _viewModel.SelectedTask = second;
+        _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(Task.FromResult(true));
+
+        await _viewModel.RemoveTaskCommand.ExecuteAsync(second);
+
+        _viewModel.SelectedTask.Should().Be(first);
+    }
+
+    [Fact]
     public async Task RemoveTask_WhenSaveFails_ReportsStatusAndShowsMessage()
     {
         // Arrange
@@ -110,7 +169,7 @@ public class ScheduleViewModelTests
         var statusTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         _viewModel.StatusChanged += (_, status) =>
         {
-            if (status.Contains("failed to save changes", StringComparison.OrdinalIgnoreCase))
+            if (status.Contains("disk full", StringComparison.OrdinalIgnoreCase))
             {
                 statusTcs.TrySetResult(status);
             }
@@ -121,10 +180,10 @@ public class ScheduleViewModelTests
         var status = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         // Assert
-        status.Should().Contain("failed to save changes");
+        status.Should().Contain("[Schedule_StatusSaveFailed]");
         status.Should().Contain("disk full");
         await _dialogService.Received(1).ShowMessageAsync(
-            "Schedule Save Failed",
+            "[Schedule_SaveFailedTitle]",
             Arg.Is<string>(s => s.Contains("disk full")),
             Arg.Any<string>());
     }
@@ -200,7 +259,7 @@ public class ScheduleViewModelTests
     }
 
     [Fact]
-    public void SelectTask_WhenSameTaskSelected_TogglesToNull()
+    public void SelectTask_WhenSameTaskSelected_KeepsSelection()
     {
         // Arrange
         var task = new ScheduledTask();
@@ -210,7 +269,7 @@ public class ScheduleViewModelTests
         _viewModel.SelectTaskCommand.Execute(task);
 
         // Assert
-        _viewModel.SelectedTask.Should().BeNull();
+        _viewModel.SelectedTask.Should().Be(task);
     }
 
     [Fact]
@@ -229,7 +288,7 @@ public class ScheduleViewModelTests
         _viewModel.OnTaskEnabledChanged(task);
 
         // Assert
-        status.Should().Contain(".macro");
+        status.Should().Contain("[Schedule_StatusExtensionWarning]");
         _schedulerService.Received(1).SetTaskEnabled(task.Id, true);
     }
 
@@ -260,7 +319,7 @@ public class ScheduleViewModelTests
         // Arrange
         var timeProvider = Substitute.For<ITimeProvider>();
         timeProvider.Now.Returns(new DateTime(2032, 3, 4, 9, 10, 11));
-        var viewModel = new ScheduleViewModel(_schedulerService, _dialogService, timeProvider);
+        var viewModel = new ScheduleViewModel(_schedulerService, _dialogService, timeProvider, _localizationService);
         var task = new ScheduledTask();
         viewModel.SelectedTask = task;
 

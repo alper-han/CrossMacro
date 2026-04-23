@@ -1,6 +1,7 @@
 using System.Collections.Specialized;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
 using CrossMacro.UI.ViewModels;
 using FluentAssertions;
@@ -17,6 +18,7 @@ public class EditorViewModelTests
     private readonly IMacroFileManager _fileManager;
     private readonly IDialogService _dialogService;
     private readonly IKeyCodeMapper _keyCodeMapper;
+    private readonly ILocalizationService _localizationService;
     private readonly EditorViewModel _viewModel;
 
     public EditorViewModelTests()
@@ -27,7 +29,40 @@ public class EditorViewModelTests
         _fileManager = Substitute.For<IMacroFileManager>();
         _dialogService = Substitute.For<IDialogService>();
         _keyCodeMapper = Substitute.For<IKeyCodeMapper>();
+        _localizationService = Substitute.For<ILocalizationService>();
         _keyCodeMapper.GetKeyName(Arg.Any<int>()).Returns("A");
+        _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.InvariantCulture);
+        _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
+        {
+            "Editor_DefaultMacroName" => "[Editor_DefaultMacroName]",
+            "Editor_StatusReady" => "[Editor_StatusReady]",
+            "Editor_StatusAddedAction" => "[Editor_StatusAddedAction] {0}",
+            "Editor_StatusRemovedAction" => "[Editor_StatusRemovedAction]",
+            "Editor_StatusUndone" => "[Editor_StatusUndone]",
+            "Editor_StatusRedone" => "[Editor_StatusRedone]",
+            "Editor_StatusCaptureSelectionChanged" => "[Editor_StatusCaptureSelectionChanged]",
+            "Editor_StatusInsertedElseBlock" => "[Editor_StatusInsertedElseBlock]",
+            "Editor_StatusOperationBlocked" => "[Editor_StatusOperationBlocked]",
+            "Editor_StatusRemovedBlock" => "[Editor_StatusRemovedBlock]",
+            "Editor_StatusValidationFailed" => "[Editor_StatusValidationFailed]",
+            "Editor_DialogTitleNoActions" => "[Editor_DialogTitleNoActions]",
+            "Editor_DialogMessageNoActions" => "[Editor_DialogMessageNoActions]",
+            "Editor_DialogTitleValidationErrors" => "[Editor_DialogTitleValidationErrors]",
+            "Editor_ValidationErrorHeader" => "[Editor_ValidationErrorHeader]",
+            "Editor_DialogButtonOk" => "[Editor_DialogButtonOk]",
+            "Editor_CurrentPositionClick" => "[Editor_CurrentPositionClick]",
+            "Editor_CurrentPositionHold" => "[Editor_CurrentPositionHold]",
+            "Editor_CurrentPositionRelease" => "[Editor_CurrentPositionRelease]",
+            "Editor_CurrentPositionUse" => "[Editor_CurrentPositionUse]",
+            "Editor_BlockName_If" => "IfToken",
+            "Editor_BlockName_Repeat" => "RepeatToken",
+            "Editor_BlockName_Else" => "ElseToken",
+            "Editor_BlockName_While" => "WhileToken",
+            "Editor_BlockName_For" => "ForToken",
+            "Editor_BlockName_Block" => "BlockToken",
+            _ when call.Arg<string>().StartsWith("Editor_ActionType_") => call.Arg<string>()["Editor_ActionType_".Length..],
+            _ => call.Arg<string>()
+        });
 
         _validator.ValidateAll(Arg.Any<IEnumerable<EditorAction>>()).Returns((true, new List<string>()));
 
@@ -37,7 +72,9 @@ public class EditorViewModelTests
             _captureService,
             _fileManager,
             _dialogService,
-            _keyCodeMapper);
+            _keyCodeMapper,
+            _localizationService,
+            new EditorActionDisplayFormatter(_localizationService));
     }
 
     [Fact]
@@ -50,7 +87,28 @@ public class EditorViewModelTests
         _viewModel.Actions.Should().HaveCount(1);
         _viewModel.SelectedAction.Should().NotBeNull();
         _viewModel.HasActions.Should().BeTrue();
-        _viewModel.Status.Should().Contain("Added");
+        _viewModel.Status.Should().Contain("[Editor_StatusAddedAction]");
+    }
+
+    [Fact]
+    public void CultureChanged_RefreshesLocalizedComputedPropertiesAndActionListPresentation()
+    {
+        _viewModel.NewActionType = EditorActionType.IfBlockStart;
+        _viewModel.AddAction();
+
+        _localizationService["Editor_CurrentPositionUse"].Returns("[Editor_CurrentPositionUse:updated]");
+        _localizationService["Editor_TextToType"].Returns("[Editor_TextToType:updated]");
+        _localizationService["Editor_EnterTextToType"].Returns("[Editor_EnterTextToType:updated]");
+        _localizationService["Editor_TextToTypeHint"].Returns("[Editor_TextToTypeHint:updated] {0}");
+        _localizationService["Editor_BlockName_If"].Returns("IfTokenUpdated");
+
+        _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
+
+        _viewModel.CurrentPositionToggleLabel.Should().Be("[Editor_CurrentPositionUse:updated]");
+        _viewModel.TextInputLabel.Should().Be("[Editor_TextToType:updated]");
+        _viewModel.TextInputWatermark.Should().Be("[Editor_EnterTextToType:updated]");
+        _viewModel.TextInputHint.Should().Contain("[Editor_TextToTypeHint:updated]");
+        _viewModel.ActionListItems[1].DisplayName.Should().Be("End IfTokenUpdated");
     }
 
     [Fact]
@@ -81,7 +139,7 @@ public class EditorViewModelTests
         _viewModel.Actions.Should().HaveCount(2);
         _viewModel.Actions[0].Type.Should().Be(EditorActionType.IfBlockStart);
         _viewModel.Actions[1].Type.Should().Be(EditorActionType.BlockEnd);
-        _viewModel.ActionListItems[1].DisplayName.Should().Be("End If");
+        _viewModel.ActionListItems[1].DisplayName.Should().Be("End IfToken");
     }
 
     [Theory]
@@ -97,7 +155,7 @@ public class EditorViewModelTests
 
         // Assert
         _viewModel.Actions.Should().BeEmpty();
-        _viewModel.Status.Should().Be("Operation blocked: would break block structure");
+        _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
     }
 
     [Theory]
@@ -155,7 +213,7 @@ public class EditorViewModelTests
         _viewModel.Actions.Should().BeEmpty();
         _viewModel.SelectedAction.Should().BeNull();
         _viewModel.HasActions.Should().BeFalse();
-        _viewModel.Status.Should().Be("Removed action");
+        _viewModel.Status.Should().Be("[Editor_StatusRemovedAction]");
     }
 
     [Fact]
@@ -171,14 +229,14 @@ public class EditorViewModelTests
 
         // Assert
         _viewModel.Actions.Should().HaveCount(1);
-        _viewModel.Status.Should().Be("Undone");
+        _viewModel.Status.Should().Be("[Editor_StatusUndone]");
 
         // Act
         _viewModel.Redo();
 
         // Assert
         _viewModel.Actions.Should().HaveCount(2);
-        _viewModel.Status.Should().Be("Redone");
+        _viewModel.Status.Should().Be("[Editor_StatusRedone]");
     }
 
     [Fact]
@@ -257,7 +315,7 @@ public class EditorViewModelTests
         firstAction.Y.Should().Be(0);
         secondAction.X.Should().Be(0);
         secondAction.Y.Should().Be(0);
-        _viewModel.Status.Should().Be("Capture ignored: selected action changed");
+        _viewModel.Status.Should().Be("[Editor_StatusCaptureSelectionChanged]");
     }
 
     [Fact]
@@ -282,7 +340,7 @@ public class EditorViewModelTests
         // Assert
         firstAction.KeyCode.Should().Be(0);
         secondAction.KeyCode.Should().Be(0);
-        _viewModel.Status.Should().Be("Capture ignored: selected action changed");
+        _viewModel.Status.Should().Be("[Editor_StatusCaptureSelectionChanged]");
     }
 
     [Fact]
@@ -293,8 +351,8 @@ public class EditorViewModelTests
 
         // Assert
         await _dialogService.Received(1).ShowMessageAsync(
-            "No Actions",
-            Arg.Is<string>(m => m.Contains("Please add at least one action", StringComparison.Ordinal)),
+            Arg.Is<string>(m => m.Contains("NoActions", StringComparison.Ordinal)),
+            Arg.Is<string>(m => m.Contains("NoActions", StringComparison.Ordinal)),
             "OK");
     }
 
@@ -311,10 +369,10 @@ public class EditorViewModelTests
 
         // Assert
         await _dialogService.Received(1).ShowMessageAsync(
-            "Validation Errors",
+            Arg.Is<string>(m => m.Contains("ValidationErrors", StringComparison.Ordinal)),
             Arg.Is<string>(m => m.Contains("Error A", StringComparison.Ordinal)),
             "OK");
-        _viewModel.Status.Should().Contain("Validation failed");
+        _viewModel.Status.Should().Contain("[Editor_StatusValidationFailed]");
     }
 
     [Fact]
@@ -591,7 +649,7 @@ public class EditorViewModelTests
         _viewModel.Actions[2].Type.Should().Be(EditorActionType.BlockEnd);
         _viewModel.Actions[3].Type.Should().Be(EditorActionType.ElseBlockStart);
         _viewModel.Actions[4].Type.Should().Be(EditorActionType.BlockEnd);
-        _viewModel.Status.Should().Be("Inserted else block");
+        _viewModel.Status.Should().Be("[Editor_StatusInsertedElseBlock]");
     }
 
     [Fact]
@@ -607,7 +665,7 @@ public class EditorViewModelTests
 
         // Assert
         _viewModel.Actions.Should().HaveCount(2);
-        _viewModel.Status.Should().Be("Operation blocked: would break block structure");
+        _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
     }
 
     [Fact]
@@ -631,7 +689,7 @@ public class EditorViewModelTests
         // Assert
         _viewModel.Actions.Should().HaveCount(1);
         _viewModel.Actions[0].Type.Should().Be(EditorActionType.MouseClick);
-        _viewModel.Status.Should().Be("Removed block");
+        _viewModel.Status.Should().Be("[Editor_StatusRemovedBlock]");
     }
 
     [Fact]
@@ -655,7 +713,7 @@ public class EditorViewModelTests
 
         // Assert
         _viewModel.Actions.Should().BeEmpty();
-        _viewModel.Status.Should().Be("Removed block");
+        _viewModel.Status.Should().Be("[Editor_StatusRemovedBlock]");
     }
 
     [Fact]
@@ -671,9 +729,9 @@ public class EditorViewModelTests
         // Assert
         _viewModel.ActionListItems[0].IndentLevel.Should().Be(0);
         _viewModel.ActionListItems[1].IndentLevel.Should().Be(1);
-        _viewModel.ActionListItems[2].DisplayName.Should().Be("End If");
+        _viewModel.ActionListItems[2].DisplayName.Should().Be("End IfToken");
         _viewModel.ActionListItems[2].IndentLevel.Should().Be(1);
-        _viewModel.ActionListItems[3].DisplayName.Should().Be("End Repeat");
+        _viewModel.ActionListItems[3].DisplayName.Should().Be("End RepeatToken");
         _viewModel.ActionListItems[3].IndentLevel.Should().Be(0);
     }
 
@@ -765,7 +823,7 @@ public class EditorViewModelTests
 
         // Assert
         _viewModel.ShowCurrentPositionToggle.Should().BeTrue();
-        _viewModel.CurrentPositionToggleLabel.Should().Be("Hold at current cursor position");
+        _viewModel.CurrentPositionToggleLabel.Should().Be("[Editor_CurrentPositionHold]");
 
         // Act
         _viewModel.NewActionType = EditorActionType.MouseUp;
@@ -773,7 +831,7 @@ public class EditorViewModelTests
 
         // Assert
         _viewModel.ShowCurrentPositionToggle.Should().BeTrue();
-        _viewModel.CurrentPositionToggleLabel.Should().Be("Release at current cursor position");
+        _viewModel.CurrentPositionToggleLabel.Should().Be("[Editor_CurrentPositionRelease]");
     }
 
     [Fact]

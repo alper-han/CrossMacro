@@ -13,6 +13,7 @@ public class RecordingViewModelTests
     private readonly IMacroRecorder _recorder;
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ISettingsService _settingsService;
+    private readonly ILocalizationService _localizationService;
     private readonly RecordingViewModel _viewModel;
 
     public RecordingViewModelTests()
@@ -20,6 +21,13 @@ public class RecordingViewModelTests
         _recorder = Substitute.For<IMacroRecorder>();
         _hotkeyService = Substitute.For<IGlobalHotkeyService>();
         _settingsService = Substitute.For<ISettingsService>();
+        _localizationService = Substitute.For<ILocalizationService>();
+        _localizationService["Recording_StatusReady"].Returns("[Recording_StatusReady]");
+        _localizationService["Recording_StatusRecording"].Returns("[Recording_StatusRecording]");
+        _localizationService["Recording_StatusLoadedEvents"].Returns("[Recording_StatusLoadedEvents] {0}");
+        _localizationService["Recording_StatusRecordedEvents"].Returns("[Recording_StatusRecordedEvents] {0}");
+        _localizationService["Recording_StatusError"].Returns("[Recording_StatusError] {0}");
+        _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
 
         // Setup default settings
         _settingsService.Current.Returns(new AppSettings 
@@ -31,7 +39,8 @@ public class RecordingViewModelTests
         _viewModel = new RecordingViewModel(
             _recorder,
             _hotkeyService,
-            _settingsService);
+            _settingsService,
+            _localizationService);
     }
 
     [Fact]
@@ -41,7 +50,7 @@ public class RecordingViewModelTests
         Assert.True(_viewModel.IsMouseRecordingEnabled);
         Assert.True(_viewModel.IsKeyboardRecordingEnabled);
         Assert.False(_viewModel.IsRecording);
-        Assert.Equal("Ready", _viewModel.RecordingStatus);
+        Assert.Equal("[Recording_StatusReady]", _viewModel.RecordingStatus);
     }
 
     [Fact]
@@ -55,7 +64,7 @@ public class RecordingViewModelTests
 
         // Assert
         Assert.True(_viewModel.IsRecording);
-        Assert.Equal("Recording...", _viewModel.RecordingStatus);
+        Assert.Equal("[Recording_StatusRecording]", _viewModel.RecordingStatus);
         await _recorder.Received(1).StartRecordingAsync(
             Arg.Any<bool>(), 
             Arg.Any<bool>(), 
@@ -115,7 +124,7 @@ public class RecordingViewModelTests
 
         // Assert
         Assert.Equal(expectedMacro, result);
-        Assert.Equal("Recorded 1 events", _viewModel.RecordingStatus);
+        Assert.Equal("[Recording_StatusRecordedEvents] 1", _viewModel.RecordingStatus);
         _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(true);
     }
 
@@ -131,7 +140,7 @@ public class RecordingViewModelTests
 
         // Assert
         Assert.Null(result);
-        Assert.Equal("Ready", _viewModel.RecordingStatus);
+        Assert.Equal("[Recording_StatusReady]", _viewModel.RecordingStatus);
         _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(true);
     }
 
@@ -197,7 +206,7 @@ public class RecordingViewModelTests
 
         // Assert
         Assert.False(_viewModel.IsRecording);
-        Assert.Equal("Ready", _viewModel.RecordingStatus);
+        Assert.Equal("[Recording_StatusReady]", _viewModel.RecordingStatus);
         _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(false);
         _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(true);
     }
@@ -247,7 +256,7 @@ public class RecordingViewModelTests
         // Assert
         Assert.Null(result);
         Assert.False(_viewModel.IsRecording);
-        Assert.Equal("Ready", _viewModel.RecordingStatus);
+        Assert.Equal("[Recording_StatusReady]", _viewModel.RecordingStatus);
         _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(true);
     }
 
@@ -273,7 +282,7 @@ public class RecordingViewModelTests
         Assert.Equal(4, _viewModel.EventCount);
         Assert.Equal(2, _viewModel.MouseEventCount);
         Assert.Equal(2, _viewModel.KeyboardEventCount);
-        Assert.Equal("Loaded 4 events", _viewModel.RecordingStatus);
+        Assert.Equal("[Recording_StatusLoadedEvents] 4", _viewModel.RecordingStatus);
     }
 
     [Fact]
@@ -294,6 +303,6 @@ public class RecordingViewModelTests
         Assert.Equal(0, _viewModel.EventCount);
         Assert.Equal(0, _viewModel.MouseEventCount);
         Assert.Equal(0, _viewModel.KeyboardEventCount);
-        Assert.Equal("Ready", _viewModel.RecordingStatus);
+        Assert.Equal("[Recording_StatusReady]", _viewModel.RecordingStatus);
     }
 }

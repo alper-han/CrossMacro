@@ -1,7 +1,9 @@
 using System.Linq;
 using CrossMacro.Core.Models;
+using CrossMacro.Core.Services;
 using CrossMacro.UI.Services;
 using FluentAssertions;
+using NSubstitute;
 using Xunit;
 
 namespace CrossMacro.UI.Tests.Services;
@@ -11,7 +13,7 @@ public class LoadedMacroSessionTests
     [Fact]
     public void RenameSelected_WhenOnlyNameChanges_DoesNotRaiseSelectedMacroChanged()
     {
-        var session = new LoadedMacroSession();
+        var session = new LoadedMacroSession(Substitute.For<ILocalizationService>());
         var item = session.AddMacro(CreateMacro("Before"));
         var eventRaised = false;
         session.SelectedMacroChanged += (_, _) => eventRaised = true;
@@ -25,7 +27,7 @@ public class LoadedMacroSessionTests
     [Fact]
     public void CreateSequentialCycleSnapshot_ReturnsStableCopiesInSelectedOrder()
     {
-        var session = new LoadedMacroSession();
+        var session = new LoadedMacroSession(Substitute.For<ILocalizationService>());
         var first = session.AddMacro(CreateMacro("First"));
         var second = session.AddMacro(CreateMacro("Second"));
         second.SequenceRepeatCount = 3;
@@ -52,7 +54,7 @@ public class LoadedMacroSessionTests
     [Fact]
     public void UpdateSelectedMacro_WhenPayloadChanges_RaisesSelectedMacroUpdatedOnly()
     {
-        var session = new LoadedMacroSession();
+        var session = new LoadedMacroSession(Substitute.For<ILocalizationService>());
         session.AddMacro(CreateMacro("Original"));
         var selectionChanged = false;
         var selectedMacroUpdated = false;
@@ -69,7 +71,7 @@ public class LoadedMacroSessionTests
     [Fact]
     public void SelectedMacroItem_WhenSelectionChanges_RaisesSelectedMacroChangedOnly()
     {
-        var session = new LoadedMacroSession();
+        var session = new LoadedMacroSession(Substitute.For<ILocalizationService>());
         var first = session.AddMacro(CreateMacro("First"));
         session.AddMacro(CreateMacro("Second"));
         var selectionChangedCount = 0;

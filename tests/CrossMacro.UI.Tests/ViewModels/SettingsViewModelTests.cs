@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
@@ -67,6 +68,95 @@ public class SettingsViewModelTests
         _viewModel.EnableTrayIcon.Should().BeFalse();
         _viewModel.StartMinimized.Should().BeFalse();
         _viewModel.SelectedTheme.Should().Be("Classic");
+    }
+
+    [Fact]
+    public void Construction_ExposesAllSupportedLanguages()
+    {
+        var codes = _viewModel.AvailableLanguages.Select(option => option.Code).ToArray();
+
+        codes.Should().OnlyHaveUniqueItems();
+        codes.Should().Contain("en");
+        codes.Should().Contain("tr");
+        codes.Should().Contain("zh");
+        codes.Should().Contain("ja");
+        codes.Should().Contain("es");
+        codes.Should().Contain("ar");
+        codes.Should().Contain("fr");
+        codes.Should().Contain("pt");
+        codes.Should().Contain("ru");
+    }
+
+    [Fact]
+    public void SelectedLanguageOption_WhenChanged_UpdatesSettingsAndSaves()
+    {
+        var localizationService = Substitute.For<ILocalizationService>();
+        localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>());
+        var vm = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            _themeService,
+            localizationService);
+
+        vm.SelectedLanguageOption = vm.AvailableLanguages.Single(option => option.Code == "ja");
+
+        vm.SelectedLanguage.Should().Be("ja");
+        _settingsService.Current.Language.Should().Be("ja");
+        localizationService.Received(1).SetCulture("ja");
+        _settingsService.Received(1).Save();
+    }
+
+    [Fact]
+    public void SelectedLanguageOption_WhenLanguageLabelsRefresh_KeepsSelectedOptionInstance()
+    {
+        var localizationService = Substitute.For<ILocalizationService>();
+        localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>());
+        var vm = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            _themeService,
+            localizationService);
+
+        var selectedBefore = vm.AvailableLanguages.Single(option => option.Code == "zh");
+
+        vm.SelectedLanguageOption = selectedBefore;
+        localizationService["Language_Chinese"].Returns("中文");
+        localizationService["Language_English"].Returns("英语");
+
+        vm.SelectedLanguage = "en";
+
+        vm.AvailableLanguages.Single(option => option.Code == "zh").Should().BeSameAs(selectedBefore);
+        vm.SelectedLanguageOption.Should().BeSameAs(vm.AvailableLanguages.Single(option => option.Code == "en"));
+    }
+
+    [Fact]
+    public void Construction_WhenPersistedLanguageIsUnsupported_FallsBackToEnglish()
+    {
+        _settingsService.Current.Returns(new AppSettings
+        {
+            EnableTrayIcon = false,
+            StartMinimized = false,
+            EnableTextExpansion = false,
+            Theme = "Classic",
+            Language = "auto"
+        });
+
+        var vm = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            _themeService);
+
+        vm.SelectedLanguage.Should().Be("en");
+        vm.SelectedLanguageOption!.Code.Should().Be("en");
     }
 
     [Fact]

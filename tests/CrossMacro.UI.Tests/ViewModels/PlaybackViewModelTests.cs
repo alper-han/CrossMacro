@@ -21,12 +21,31 @@ public class PlaybackViewModelTests
     private readonly ISettingsService _settingsService;
     private readonly AppSettings _settings;
     private readonly LoadedMacroSession _loadedMacroSession;
+    private readonly ILocalizationService _localizationService;
     private readonly PlaybackViewModel _viewModel;
 
     public PlaybackViewModelTests()
     {
         _player = Substitute.For<IMacroPlayer>();
         _settingsService = Substitute.For<ISettingsService>();
+        _localizationService = Substitute.For<ILocalizationService>();
+        _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
+        {
+            "Playback_StatusReady" => "[Playback_StatusReady]",
+            "Playback_StatusPlaying" => "[Playback_StatusPlaying]",
+            "Playback_StatusComplete" => "[Playback_StatusComplete]",
+            "Playback_StatusStopped" => "[Playback_StatusStopped]",
+            "Playback_StatusPaused" => "[Playback_StatusPaused]",
+            "Playback_StatusError" => "[Playback_StatusError] {0}",
+            "Playback_StatusWaitingNextSequence" => "[Playback_StatusWaitingNextSequence] {0}",
+            "Playback_StatusSequencePlaying" => "[Playback_StatusSequencePlaying] {0} | {1} | {2} | {3} | {4}",
+            "Playback_StatusWaitingNextLoop" => "[Playback_StatusWaitingNextLoop] {0}",
+            "Playback_StatusLoopInfinite" => "[Playback_StatusLoopInfinite] {0}",
+            "Playback_StatusLoopProgress" => "[Playback_StatusLoopProgress] {0} | {1}",
+            "Playback_StatusStartingIn" => "[Playback_StatusStartingIn] {0}",
+            _ => call.Arg<string>()
+        });
         _settings = new AppSettings
         {
             PlaybackSpeed = 1.0,
@@ -38,7 +57,7 @@ public class PlaybackViewModelTests
             LoopDelayMaxMs = 0,
             CountdownSeconds = 0
         };
-        _loadedMacroSession = new LoadedMacroSession();
+        _loadedMacroSession = new LoadedMacroSession(_localizationService);
 
         _settingsService.Current.Returns(_settings);
         _player.CurrentLoop.Returns(1);
@@ -47,7 +66,7 @@ public class PlaybackViewModelTests
         _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        _viewModel = new PlaybackViewModel(_player, _settingsService, _loadedMacroSession);
+        _viewModel = new PlaybackViewModel(_player, _settingsService, _loadedMacroSession, _localizationService);
     }
 
     [Fact]
@@ -227,7 +246,18 @@ public class PlaybackViewModelTests
 
         await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
         _viewModel.IsPlaying.Should().BeFalse();
-        _viewModel.PlaybackStatus.Should().Be("Playback error: loaded macro 'Broken' has no events");
+        _viewModel.PlaybackStatus.Should().Contain("Broken");
+        _viewModel.PlaybackStatus.Should().Contain("has no events");
+    }
+
+    [Fact]
+    public void CultureChanged_WhenIdle_RefreshesReadyStatusImmediately()
+    {
+        _localizationService["Playback_StatusReady"].Returns("[Playback_StatusReady:updated]");
+
+        _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
+
+        _viewModel.PlaybackStatus.Should().Be("[Playback_StatusReady:updated]");
     }
 
     [Fact]
@@ -285,7 +315,7 @@ public class PlaybackViewModelTests
         await _viewModel.PlayMacroAsync();
 
         _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(second);
-        _viewModel.PlaybackStatus.Should().Be("Playback stopped");
+        _viewModel.PlaybackStatus.Should().Be("[Playback_StatusStopped]");
         _player.Received(1).Stop();
     }
 
@@ -310,7 +340,7 @@ public class PlaybackViewModelTests
         _viewModel.StopPlayback();
         InvokeNonPublicMethod(_viewModel, "OnStatusUpdateTimerTick", null, EventArgs.Empty);
 
-        _viewModel.PlaybackStatus.Should().Be("Playback stopped");
+        _viewModel.PlaybackStatus.Should().Be("[Playback_StatusStopped]");
 
         allowCompletion.TrySetResult(true);
         await playTask;
@@ -327,7 +357,7 @@ public class PlaybackViewModelTests
 
         _player.Received(1).Pause();
         _viewModel.IsPaused.Should().BeTrue();
-        _viewModel.PlaybackStatus.Should().Be("Paused");
+        _viewModel.PlaybackStatus.Should().Be("[Playback_StatusPaused]");
 
         _player.IsPaused.Returns(true);
 
@@ -346,7 +376,7 @@ public class PlaybackViewModelTests
 
         _player.Received(1).Stop();
         _viewModel.IsPlaying.Should().BeFalse();
-        _viewModel.PlaybackStatus.Should().Be("Playback stopped");
+        _viewModel.PlaybackStatus.Should().Be("[Playback_StatusStopped]");
     }
 
     [Fact]
@@ -361,7 +391,7 @@ public class PlaybackViewModelTests
         await _viewModel.PlayMacroAsync();
 
         _viewModel.IsPlaying.Should().BeFalse();
-        _viewModel.PlaybackStatus.Should().Contain("Playback error");
+        _viewModel.PlaybackStatus.Should().Contain("[Playback_StatusError]");
         _viewModel.PlaybackStatus.Should().Contain("simulator failed");
     }
 

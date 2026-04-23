@@ -17,6 +17,7 @@ public class TextExpansionViewModelTests
     private readonly ITextExpansionStorageService _storageService;
     private readonly IDialogService _dialogService;
     private readonly IEnvironmentInfoProvider _environmentInfoProvider;
+    private readonly ILocalizationService _localizationService;
     private readonly TextExpansionViewModel _viewModel;
 
     public TextExpansionViewModelTests()
@@ -24,11 +25,20 @@ public class TextExpansionViewModelTests
         _storageService = Substitute.For<ITextExpansionStorageService>();
         _dialogService = Substitute.For<IDialogService>();
         _environmentInfoProvider = Substitute.For<IEnvironmentInfoProvider>();
+        _localizationService = Substitute.For<ILocalizationService>();
+        _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
+        {
+            "TextExpansion_Items" => "{0} items",
+            "TextExpansion_DeleteTitle" => "Delete Expansion",
+            "TextExpansion_DeleteMessage" => "Are you sure you want to delete the expansion '{0}'?",
+            _ => call.Arg<string>()
+        });
         
         // Setup initial load
         _storageService.LoadAsync().Returns(new List<TextExpansion>());
 
-        _viewModel = new TextExpansionViewModel(_storageService, _dialogService, _environmentInfoProvider);
+        _viewModel = new TextExpansionViewModel(_storageService, _dialogService, _environmentInfoProvider, _localizationService);
     }
 
     [Fact]
@@ -39,7 +49,7 @@ public class TextExpansionViewModelTests
         _storageService.LoadAsync().Returns(list);
         
         // Re-create VM to trigger constructor load
-        var vm = new TextExpansionViewModel(_storageService, _dialogService, _environmentInfoProvider);
+        var vm = new TextExpansionViewModel(_storageService, _dialogService, _environmentInfoProvider, _localizationService);
         
         // Wait for async load deterministically
         await vm.InitializationTask; 
@@ -47,6 +57,24 @@ public class TextExpansionViewModelTests
         // Assert
         vm.Expansions.Should().HaveCount(1);
         vm.Expansions[0].Trigger.Should().Be(":test");
+    }
+
+    [Fact]
+    public async Task Construction_WhenSavedExpansionsExist_RefreshesComputedCountProperties()
+    {
+        var list = new List<TextExpansion>
+        {
+            new(":a", "first"),
+            new(":b", "second")
+        };
+        _storageService.LoadAsync().Returns(list);
+
+        var vm = new TextExpansionViewModel(_storageService, _dialogService, _environmentInfoProvider, _localizationService);
+
+        await vm.InitializationTask;
+
+        vm.HasExpansions.Should().BeTrue();
+        vm.ExpansionCountText.Should().Be("2 items");
     }
 
     [Fact]
@@ -150,7 +178,7 @@ public class TextExpansionViewModelTests
         // Arrange
         var envProvider = Substitute.For<IEnvironmentInfoProvider>();
         envProvider.CurrentEnvironment.Returns(environment);
-        var vm = new TextExpansionViewModel(_storageService, _dialogService, envProvider);
+        var vm = new TextExpansionViewModel(_storageService, _dialogService, envProvider, _localizationService);
 
         // Assert
         vm.IsPasteMethodVisible.Should().Be(expected);
@@ -168,7 +196,7 @@ public class TextExpansionViewModelTests
         // Arrange
         var envProvider = Substitute.For<IEnvironmentInfoProvider>();
         envProvider.CurrentEnvironment.Returns(DisplayEnvironment.LinuxX11);
-        var vm = new TextExpansionViewModel(_storageService, _dialogService, envProvider);
+        var vm = new TextExpansionViewModel(_storageService, _dialogService, envProvider, _localizationService);
 
         // Assert
         vm.IsPasteMethodSelectorVisible.Should().BeTrue();
@@ -220,5 +248,34 @@ public class TextExpansionViewModelTests
 
         // Assert
         await _storageService.DidNotReceive().SaveAsync(Arg.Any<IEnumerable<TextExpansion>>());
+    }
+
+    [Fact]
+    public void CultureChanged_RaisesLocalizedProperties()
+    {
+        var localizationService = Substitute.For<ILocalizationService>();
+        localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        localizationService["TextExpansion_Items"].Returns("{0} items");
+        var vm = new TextExpansionViewModel(_storageService, _dialogService, _environmentInfoProvider, localizationService);
+        var changedProperties = new List<string?>();
+        vm.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
+
+        localizationService.CultureChanged += Raise.Event<EventHandler>(localizationService, EventArgs.Empty);
+
+        changedProperties.Should().Contain(nameof(TextExpansionViewModel.ExpansionCountText));
+        changedProperties.Should().Contain(nameof(TextExpansionViewModel.InsertionModes));
+        changedProperties.Should().Contain(nameof(TextExpansionViewModel.PasteMethods));
+    }
+
+    [Fact]
+    public void CultureChanged_ReplacesEnumCollections_ToTriggerConverterReevaluation()
+    {
+        var originalInsertionModes = _viewModel.InsertionModes;
+        var originalPasteMethods = _viewModel.PasteMethods;
+
+        _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
+
+        _viewModel.InsertionModes.Should().NotBeSameAs(originalInsertionModes);
+        _viewModel.PasteMethods.Should().NotBeSameAs(originalPasteMethods);
     }
 }

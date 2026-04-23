@@ -25,6 +25,7 @@ public class MainWindowViewModelTests
     private readonly IExternalUrlOpener _externalUrlOpener;
     private readonly ISchedulerService _schedulerService;
     private readonly IShortcutService _shortcutService;
+    private readonly ILocalizationService _localizationService;
     private readonly LoadedMacroSession _loadedMacroSession;
 
     private readonly RecordingViewModel _recordingViewModel;
@@ -41,13 +42,42 @@ public class MainWindowViewModelTests
     {
         _settingsService = Substitute.For<ISettingsService>();
         _settingsService.Current.Returns(new AppSettings());
+        _localizationService = Substitute.For<ILocalizationService>();
+        _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
+        {
+            "Recording_StatusReady" => "[Recording_StatusReady]",
+            "Recording_StatusRecording" => "[Recording_StatusRecording]",
+            "Recording_StatusLoadedEvents" => "[Recording_StatusLoadedEvents] {0}",
+            "Recording_StatusRecordedEvents" => "[Recording_StatusRecordedEvents] {0}",
+            "Files_StatusReady" => "[Files_StatusReady]",
+            "Files_UnnamedMacro" => "[Files_UnnamedMacro]",
+            "Files_SourceSession" => "[Files_SourceSession]",
+            "Files_SequenceRepeatSummary" => "[Files_SequenceRepeatSummary] {0}",
+            "Files_LoadedMacroDescription" => "[Files_LoadedMacroDescription] {0} | {1}",
+            "Files_StatusLoaded" => "[Files_StatusLoaded] {0}",
+            "Status_Ready" => "[Status_Ready]",
+            "Status_LoadedMacro" => "[Status_LoadedMacro] {0}",
+            "Status_RecordedEvents" => "[Status_RecordedEvents] {0}",
+            "Status_CreatedMacro" => "[Status_CreatedMacro] {0} ({1})",
+            "MainWindow_UpdateAvailableVersion" => "v{0} is available",
+            "Navigation_Recording" => "[Navigation_Recording]",
+            "Navigation_Playback" => "[Navigation_Playback]",
+            "Navigation_Files" => "[Navigation_Files]",
+            "Navigation_TextExpansion" => "[Navigation_TextExpansion]",
+            "Navigation_Shortcuts" => "[Navigation_Shortcuts]",
+            "Navigation_Schedule" => "[Navigation_Schedule]",
+            "Navigation_Editor" => "[Navigation_Editor]",
+            "Navigation_Settings" => "[Navigation_Settings]",
+            _ => call.Arg<string>()
+        });
 
         _hotkeyService = Substitute.For<IGlobalHotkeyService>();
         _positionProvider = Substitute.For<IMousePositionProvider>();
-        _loadedMacroSession = new LoadedMacroSession();
+        _loadedMacroSession = new LoadedMacroSession(_localizationService);
 
         _recorder = Substitute.For<IMacroRecorder>();
-        _recordingViewModel = new RecordingViewModel(_recorder, _hotkeyService, _settingsService);
+        _recordingViewModel = new RecordingViewModel(_recorder, _hotkeyService, _settingsService, _localizationService);
 
         _player = Substitute.For<IMacroPlayer>();
         _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<System.Threading.CancellationToken>())
@@ -57,7 +87,7 @@ public class MainWindowViewModelTests
         _fileManager = Substitute.For<IMacroFileManager>();
         _filesDialogService = Substitute.For<IDialogService>();
         _externalUrlOpener = Substitute.For<IExternalUrlOpener>();
-        _filesViewModel = new FilesViewModel(_fileManager, _filesDialogService, _loadedMacroSession);
+        _filesViewModel = new FilesViewModel(_fileManager, _filesDialogService, _loadedMacroSession, _localizationService);
 
         var textExpansionStorage = Substitute.For<ITextExpansionStorageService>();
         var dialogService = Substitute.For<IDialogService>();
@@ -65,17 +95,17 @@ public class MainWindowViewModelTests
         environmentInfo.WindowManagerHandlesCloseButton.Returns(false);
         environmentInfo.CurrentEnvironment.Returns(DisplayEnvironment.Windows);
 
-        _textExpansionViewModel = new TextExpansionViewModel(textExpansionStorage, dialogService, environmentInfo);
+        _textExpansionViewModel = new TextExpansionViewModel(textExpansionStorage, dialogService, environmentInfo, _localizationService);
 
         _schedulerService = Substitute.For<ISchedulerService>();
         _schedulerService.LoadAsync().Returns(Task.CompletedTask);
         var timeProvider = Substitute.For<ITimeProvider>();
         timeProvider.Now.Returns(new DateTime(2026, 1, 1, 10, 0, 0));
         timeProvider.UtcNow.Returns(new DateTime(2026, 1, 1, 7, 0, 0));
-        _scheduleViewModel = new ScheduleViewModel(_schedulerService, dialogService, timeProvider);
+        _scheduleViewModel = new ScheduleViewModel(_schedulerService, dialogService, timeProvider, _localizationService);
 
         _shortcutService = Substitute.For<IShortcutService>();
-        _shortcutViewModel = new ShortcutViewModel(_shortcutService, dialogService);
+        _shortcutViewModel = new ShortcutViewModel(_shortcutService, dialogService, _localizationService);
 
         var hotkeySettings = new HotkeySettings();
         var textExpansionService = Substitute.For<ITextExpansionService>();
@@ -116,6 +146,7 @@ public class MainWindowViewModelTests
             _positionProvider,
             environmentInfo,
             _externalUrlOpener,
+            _localizationService,
             null);
     }
 
@@ -175,11 +206,11 @@ public class MainWindowViewModelTests
 
         await _filesViewModel.LoadMacroAsync();
 
-        _viewModel.GlobalStatus.Should().Be("Loaded: TestMacro");
+        _viewModel.GlobalStatus.Should().Be("[Status_LoadedMacro] TestMacro");
         _filesViewModel.GetCurrentMacro().Should().BeSameAs(macro);
         _playbackViewModel.HasMacro.Should().BeTrue();
         _recordingViewModel.EventCount.Should().Be(1);
-        _recordingViewModel.RecordingStatus.Should().Be("Loaded 1 events");
+        _recordingViewModel.RecordingStatus.Should().Be("[Recording_StatusLoadedEvents] 1");
     }
 
     [Fact]
@@ -195,13 +226,13 @@ public class MainWindowViewModelTests
         _recordingViewModel.EventCount.Should().Be(2);
         _recordingViewModel.MouseEventCount.Should().Be(1);
         _recordingViewModel.KeyboardEventCount.Should().Be(1);
-        _recordingViewModel.RecordingStatus.Should().Be("Loaded 2 events");
+        _recordingViewModel.RecordingStatus.Should().Be("[Recording_StatusLoadedEvents] 2");
 
         _filesViewModel.SelectedMacroItem = _filesViewModel.LoadedMacros[1];
         _recordingViewModel.EventCount.Should().Be(4);
         _recordingViewModel.MouseEventCount.Should().Be(3);
         _recordingViewModel.KeyboardEventCount.Should().Be(1);
-        _recordingViewModel.RecordingStatus.Should().Be("Loaded 4 events");
+        _recordingViewModel.RecordingStatus.Should().Be("[Recording_StatusLoadedEvents] 4");
     }
 
     [Fact]
@@ -234,7 +265,7 @@ public class MainWindowViewModelTests
     {
         var macro = CreateMacro("Original", EventType.MouseMove, EventType.KeyPress, EventType.KeyRelease);
         _filesViewModel.SetMacro(macro);
-        _recordingViewModel.RecordingStatus = "Recorded 99 events";
+        _recordingViewModel.RecordingStatus = "[Recording_StatusRecordedEvents] 99";
         SetPrivateProperty(_recordingViewModel, nameof(RecordingViewModel.EventCount), 99);
         SetPrivateProperty(_recordingViewModel, nameof(RecordingViewModel.MouseEventCount), 40);
         SetPrivateProperty(_recordingViewModel, nameof(RecordingViewModel.KeyboardEventCount), 59);
@@ -242,7 +273,7 @@ public class MainWindowViewModelTests
         _filesViewModel.MacroName = "Renamed Macro";
 
         _filesViewModel.SelectedMacroItem!.Name.Should().Be("Renamed Macro");
-        _recordingViewModel.RecordingStatus.Should().Be("Recorded 99 events");
+        _recordingViewModel.RecordingStatus.Should().Be("[Recording_StatusRecordedEvents] 99");
         _recordingViewModel.EventCount.Should().Be(99);
         _recordingViewModel.MouseEventCount.Should().Be(40);
         _recordingViewModel.KeyboardEventCount.Should().Be(59);
@@ -262,7 +293,7 @@ public class MainWindowViewModelTests
 
         result.Should().BeSameAs(recordedMacro);
         _filesViewModel.GetCurrentMacro().Should().BeSameAs(recordedMacro);
-        _recordingViewModel.RecordingStatus.Should().Be("Recorded 2 events");
+        _recordingViewModel.RecordingStatus.Should().Be("[Recording_StatusRecordedEvents] 2");
     }
 
     [Fact]
@@ -282,7 +313,7 @@ public class MainWindowViewModelTests
         _recordingViewModel.EventCount.Should().Be(0);
         _recordingViewModel.MouseEventCount.Should().Be(0);
         _recordingViewModel.KeyboardEventCount.Should().Be(0);
-        _recordingViewModel.RecordingStatus.Should().Be("Ready");
+        _recordingViewModel.RecordingStatus.Should().Be("[Recording_StatusReady]");
     }
 
     [Fact]
@@ -403,6 +434,44 @@ public class MainWindowViewModelTests
         _viewModel.OpenUpdateUrl();
 
         _viewModel.IsUpdateNotificationVisible.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CultureChanged_RefreshesNavigationLabels_ByLocalizationKey()
+    {
+        _viewModel.TopNavigationItems[0].LocalizationKey.Should().Be("Navigation_Recording");
+        _viewModel.BottomNavigationItems[0].LocalizationKey.Should().Be("Navigation_Settings");
+
+        _localizationService["Navigation_Recording"].Returns("[Navigation_Recording:updated]");
+        _localizationService["Navigation_Settings"].Returns("[Navigation_Settings:updated]");
+
+        _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
+
+        _viewModel.TopNavigationItems[0].Label.Should().Be("[Navigation_Recording:updated]");
+        _viewModel.BottomNavigationItems[0].Label.Should().Be("[Navigation_Settings:updated]");
+    }
+
+    [Fact]
+    public void CultureChanged_WhenIdleAndNoMacro_RefreshesGlobalReadyStatus()
+    {
+        _viewModel.GlobalStatus = "[Status_Ready]";
+        _localizationService["Status_Ready"].Returns("[Status_Ready:updated]");
+
+        _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
+
+        _viewModel.GlobalStatus.Should().Be("[Status_Ready:updated]");
+    }
+
+    [Fact]
+    public void CultureChanged_WhenIdleWithMacro_RefreshesGlobalStatusFromRecordingSummary()
+    {
+        var macro = CreateMacro("Macro", EventType.MouseMove, EventType.KeyPress);
+        _filesViewModel.SetMacro(macro);
+        _localizationService["Recording_StatusLoadedEvents"].Returns("[Recording_StatusLoadedEvents:updated] {0}");
+
+        _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
+
+        _viewModel.GlobalStatus.Should().Be("[Recording_StatusLoadedEvents:updated] 2");
     }
 
     [Theory]

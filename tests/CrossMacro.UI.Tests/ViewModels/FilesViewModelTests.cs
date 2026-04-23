@@ -16,6 +16,7 @@ public class FilesViewModelTests
 {
     private readonly IMacroFileManager _fileManager;
     private readonly IDialogService _dialogService;
+    private readonly ILocalizationService _localizationService;
     private readonly LoadedMacroSession _loadedMacroSession;
     private readonly FilesViewModel _viewModel;
 
@@ -23,14 +24,38 @@ public class FilesViewModelTests
     {
         _fileManager = Substitute.For<IMacroFileManager>();
         _dialogService = Substitute.For<IDialogService>();
-        _loadedMacroSession = new LoadedMacroSession();
-        _viewModel = new FilesViewModel(_fileManager, _dialogService, _loadedMacroSession);
+        _localizationService = Substitute.For<ILocalizationService>();
+        _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
+        {
+            "Files_StatusReady" => "[Files_StatusReady]",
+            "Files_UnnamedMacro" => "[Files_UnnamedMacro]",
+            "Files_SourceSession" => "[Files_SourceSession]",
+            "Files_SequenceRepeatSummary" => "[Files_SequenceRepeatSummary] {0}",
+            "Files_LoadedMacroDescription" => "[Files_LoadedMacroDescription] {0} | {1}",
+            "Files_StatusSaveCancelled" => "[Files_StatusSaveCancelled]",
+            "Files_StatusLoadCancelled" => "[Files_StatusLoadCancelled]",
+            "Files_StatusRemoved" => "[Files_StatusRemoved] {0}",
+            "Files_StatusSavedTo" => "[Files_StatusSavedTo] {0}",
+            "Files_StatusLoaded" => "[Files_StatusLoaded] {0}",
+            "Files_StatusSaveError" => "[Files_StatusSaveError] {0}",
+            "Files_StatusLoadError" => "[Files_StatusLoadError] {0}",
+            "Files_StatusLoadUnreadable" => "[Files_StatusLoadUnreadable]",
+            "Files_OpenMacroDialogFilter" => "[Files_OpenMacroDialogFilter]",
+            "Files_SaveDialogTitle" => "[Files_SaveDialogTitle]",
+            "Files_LoadDialogTitle" => "[Files_LoadDialogTitle]",
+            "Files_DeleteLoadedMacroTitle" => "[Files_DeleteLoadedMacroTitle]",
+            "Files_DeleteLoadedMacroMessage" => "[Files_DeleteLoadedMacroMessage] {0}",
+            _ => call.Arg<string>()
+        });
+        _loadedMacroSession = new LoadedMacroSession(_localizationService);
+        _viewModel = new FilesViewModel(_fileManager, _dialogService, _loadedMacroSession, _localizationService);
     }
 
     [Fact]
     public void Construction_InitializesProperties()
     {
-        _viewModel.Status.Should().Be("Ready");
+        _viewModel.Status.Should().Be("[Files_StatusReady]");
         _viewModel.MacroName.Should().Be("New Macro");
         _viewModel.SelectedSequenceRepeatCount.Should().Be(1);
         _viewModel.HasRecordedMacro.Should().BeFalse();
@@ -159,7 +184,7 @@ public class FilesViewModelTests
         _viewModel.LoadedMacros[0].Should().BeSameAs(secondItem);
         _viewModel.SelectedMacroItem.Should().BeSameAs(secondItem);
         _viewModel.GetCurrentMacro().Should().BeSameAs(secondItem.Macro);
-        _viewModel.Status.Should().Be("Removed First Macro");
+        _viewModel.Status.Should().Be("[Files_StatusRemoved] First Macro");
     }
 
     [Fact]
@@ -176,7 +201,7 @@ public class FilesViewModelTests
         _viewModel.LoadedMacros.Should().ContainSingle();
         _viewModel.SelectedMacroItem.Should().BeSameAs(item);
         _viewModel.GetCurrentMacro().Should().BeSameAs(item!.Macro);
-        _viewModel.Status.Should().Be("Ready");
+        _viewModel.Status.Should().Be("[Files_StatusReady]");
     }
 
     [Fact]
@@ -196,7 +221,7 @@ public class FilesViewModelTests
         _viewModel.GetCurrentMacro().Should().BeNull();
         _viewModel.MacroName.Should().Be("New Macro");
         _viewModel.HasRecordedMacro.Should().BeFalse();
-        _viewModel.Status.Should().Be("Removed Only Macro");
+        _viewModel.Status.Should().Be("[Files_StatusRemoved] Only Macro");
     }
 
     [Fact]
@@ -222,7 +247,8 @@ public class FilesViewModelTests
 
         _viewModel.SelectedMacroItem!.SequenceRepeatCount.Should().Be(5);
         _viewModel.SelectedSequenceRepeatCount.Should().Be(5);
-        _viewModel.SelectedMacroItem.SequenceRepeatSummary.Should().Be("Seq x5");
+        _viewModel.SelectedMacroItem.SequenceRepeatSummary.Should().Contain("[Files_SequenceRepeatSummary]");
+        _viewModel.SelectedMacroItem.SequenceRepeatSummary.Should().Contain("5");
 
         _viewModel.SelectedSequenceRepeatCount = 0;
 
@@ -333,7 +359,7 @@ public class FilesViewModelTests
 
         await _viewModel.SaveMacroAsync();
 
-        _viewModel.Status.Should().Be("Save cancelled");
+        _viewModel.Status.Should().Be("[Files_StatusSaveCancelled]");
         await _fileManager.DidNotReceive().SaveAsync(Arg.Any<MacroSequence>(), Arg.Any<string>());
     }
 
@@ -344,13 +370,14 @@ public class FilesViewModelTests
         _viewModel.SetMacro(macro);
         _viewModel.MacroName = "MyMacro";
 
-        _dialogService.ShowSaveFileDialogAsync("Save Macro", "MyMacro.macro", Arg.Any<FileDialogFilter[]>())
+        _dialogService.ShowSaveFileDialogAsync("[Files_SaveDialogTitle]", "MyMacro.macro", Arg.Any<FileDialogFilter[]>())
             .Returns(Task.FromResult<string?>("/path/to/MyMacro.macro"));
 
         await _viewModel.SaveMacroAsync();
 
         await _fileManager.Received(1).SaveAsync(macro, "/path/to/MyMacro.macro");
-        _viewModel.Status.Should().Contain("Saved to");
+        _viewModel.Status.Should().Contain("[Files_StatusSavedTo]");
+        _viewModel.Status.Should().Contain("MyMacro.macro");
         macro.Name.Should().Be("MyMacro");
         _viewModel.SelectedMacroItem!.SourcePath.Should().Be("/path/to/MyMacro.macro");
         _viewModel.SelectedMacroItem.Description.Should().Contain("MyMacro.macro");
@@ -364,7 +391,7 @@ public class FilesViewModelTests
 
         await _viewModel.LoadMacroAsync();
 
-        _viewModel.Status.Should().Be("Load cancelled");
+        _viewModel.Status.Should().Be("[Files_StatusLoadCancelled]");
         await _fileManager.DidNotReceive().LoadAsync(Arg.Any<string>());
     }
 
@@ -385,10 +412,42 @@ public class FilesViewModelTests
         _viewModel.MacroName.Should().Be("LoadedMacro");
         _viewModel.HasRecordedMacro.Should().BeTrue();
         _viewModel.SelectedSequenceRepeatCount.Should().Be(1);
-        _viewModel.Status.Should().Contain("Loaded");
+        _viewModel.Status.Should().Contain("[Files_StatusLoaded]");
+        _viewModel.Status.Should().Contain("file.macro");
         _viewModel.LoadedMacros.Should().ContainSingle();
         _viewModel.SelectedMacroItem!.SourcePath.Should().Be("/path/to/file.macro");
         loadedMacroFromEvent.Should().BeSameAs(macro);
+    }
+
+    [Fact]
+    public void CultureChanged_RefreshesLoadedMacroLocalizedProperties()
+    {
+        var localizationService = Substitute.For<ILocalizationService>();
+        localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        localizationService["Files_StatusReady"].Returns("[Files_StatusReady]");
+        localizationService["Files_UnnamedMacro"].Returns("[Files_UnnamedMacro]");
+        localizationService["Files_SourceSession"].Returns("[Files_SourceSession]");
+        localizationService["Files_SequenceRepeatSummary"].Returns("[Files_SequenceRepeatSummary] {0}");
+        localizationService["Files_LoadedMacroDescription"].Returns("[Files_LoadedMacroDescription] {0} | {1}");
+        localizationService["Files_StatusLoadCancelled"].Returns("[Files_StatusLoadCancelled]");
+        localizationService["Files_StatusSaveCancelled"].Returns("[Files_StatusSaveCancelled]");
+        var session = new LoadedMacroSession(localizationService);
+        var viewModel = new FilesViewModel(_fileManager, _dialogService, session, localizationService);
+        viewModel.SetMacro(CreateMacro(string.Empty));
+        var item = viewModel.SelectedMacroItem!;
+        var changedProperties = new List<string?>();
+        item.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
+
+        localizationService["Files_UnnamedMacro"].Returns("[Files_UnnamedMacro:tr]");
+        localizationService["Files_SourceSession"].Returns("[Files_SourceSession:tr]");
+        localizationService["Files_SequenceRepeatSummary"].Returns("[Files_SequenceRepeatSummary:tr] {0}");
+        localizationService["Files_LoadedMacroDescription"].Returns("[Files_LoadedMacroDescription:tr] {0} | {1}");
+
+        localizationService.CultureChanged += Raise.Event<EventHandler>(localizationService, EventArgs.Empty);
+
+        changedProperties.Should().Contain(nameof(LoadedMacroListItem.SourceDescription));
+        changedProperties.Should().Contain(nameof(LoadedMacroListItem.SequenceRepeatSummary));
+        changedProperties.Should().Contain(nameof(LoadedMacroListItem.Description));
     }
 
     [Fact]
@@ -404,7 +463,7 @@ public class FilesViewModelTests
 
         await _viewModel.SaveMacroAsync();
 
-        _viewModel.Status.Should().Contain("Save error");
+        _viewModel.Status.Should().Contain("[Files_StatusSaveError]");
         _viewModel.Status.Should().Contain("write failed");
     }
 
@@ -418,7 +477,7 @@ public class FilesViewModelTests
 
         await _viewModel.LoadMacroAsync();
 
-        _viewModel.Status.Should().Contain("Load error");
+        _viewModel.Status.Should().Contain("[Files_StatusLoadError]");
         _viewModel.Status.Should().Contain("read failed");
     }
 

@@ -3,7 +3,10 @@ namespace CrossMacro.UI.Tests.Views.Tabs;
 using System.Globalization;
 using Avalonia.Data;
 using CrossMacro.Core.Models;
+using CrossMacro.Core.Services;
+using CrossMacro.UI.Localization;
 using CrossMacro.UI.Views.Tabs;
+using NSubstitute;
 
 public class EditorTabConvertersTests
 {
@@ -50,5 +53,36 @@ public class EditorTabConvertersTests
         Assert.Equal(17, converter.ConvertBack("17", typeof(int), null, culture));
         Assert.Same(BindingOperations.DoNothing, converter.ConvertBack("abc", typeof(int), null, culture));
         Assert.Same(BindingOperations.DoNothing, converter.ConvertBack(99, typeof(int), null, culture));
+    }
+
+    [Fact]
+    public void ActionTypeConverters_DisplayText_UsesConfiguredFormatter()
+    {
+        var localizationService = Substitute.For<ILocalizationService>();
+        localizationService["Editor_ActionType_MouseClick"].Returns("[Editor_ActionType_MouseClick]");
+        var formatter = new EditorActionDisplayFormatter(localizationService);
+
+        ActionTypeConverters.Configure(formatter);
+
+        var result = ActionTypeConverters.DisplayText.Convert(EditorActionType.MouseClick, typeof(string), null, CultureInfo.InvariantCulture);
+
+        Assert.Equal("[Editor_ActionType_MouseClick]", result);
+    }
+
+    [Fact]
+    public void ScheduleTaskConverters_SummaryText_UsesConfiguredLocalizationService()
+    {
+        var localizationService = Substitute.For<ILocalizationService>();
+        localizationService.CurrentCulture.Returns(CultureInfo.InvariantCulture);
+        localizationService["Schedule_TypeInterval"].Returns("[Schedule_TypeInterval]");
+        localizationService["Schedule_NoFile"].Returns("[Schedule_NoFile]");
+        localizationService["Schedule_ListSummary"].Returns("[Schedule_ListSummary] {0} | {1}");
+        ScheduleTaskConverters.Configure(localizationService);
+
+        var task = new ScheduledTask { Type = ScheduleType.Interval, MacroFilePath = string.Empty };
+
+        var result = ScheduleTaskConverters.SummaryText.Convert(task, typeof(string), null, CultureInfo.InvariantCulture);
+
+        Assert.Equal("[Schedule_ListSummary] [Schedule_TypeInterval] | [Schedule_NoFile]", result);
     }
 }

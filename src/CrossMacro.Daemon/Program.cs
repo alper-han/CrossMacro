@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using CrossMacro.Daemon.Services;
-using CrossMacro.Platform.Linux.Native.Systemd;
+using CrossMacro.Infrastructure.Linux.Native.Systemd;
 using CrossMacro.Infrastructure.Logging;
 using Serilog;
 using Serilog.Events;
@@ -14,32 +14,15 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        // Use shared logger setup with environment variable support
         var logLevel = Environment.GetEnvironmentVariable("CROSSMACRO_LOG_LEVEL") ?? "Information";
-        LoggerSetup.Initialize(logLevel);
+        LoggerSetup.Initialize(logLevel, enableFileLogging: false);
 
         Log.Information("Starting CrossMacro.Daemon...");
 
         using var cts = new CancellationTokenSource();
-        
-        // Handle SIGTERM (Systemd stop) and SIGINT (Ctrl+C)
-        using var sigTermInfo = PosixSignalRegistration.Create(PosixSignal.SIGTERM, ctx => 
-        {
-            ctx.Cancel = true;
-            Log.Information("Received SIGTERM, stopping daemon...");
-            SystemdNotify.Stopping();
-            cts.Cancel();
-        });
-        
-        using var sigIntInfo = PosixSignalRegistration.Create(PosixSignal.SIGINT, ctx =>
-        {
-            ctx.Cancel = true;
-            Log.Information("Received SIGINT, stopping daemon...");
-            SystemdNotify.Stopping();
-            cts.Cancel();
-        });
+        using var sigTermInfo = CreateShutdownSignalRegistration(PosixSignal.SIGTERM, "SIGTERM", cts);
+        using var sigIntInfo = CreateShutdownSignalRegistration(PosixSignal.SIGINT, "SIGINT", cts);
 
-        // SIGUSR1 (10): Toggle debug logging at runtime - usage: sudo pkill -USR1 crossmacro
         using var sigUsr1Info = PosixSignalRegistration.Create((PosixSignal)10, ctx =>
         {
             ctx.Cancel = true;
@@ -59,23 +42,27 @@ class Program
             }
         });
 
-        AppDomain.CurrentDomain.ProcessExit += (s, e) =>
+        void OnProcessExit(object? sender, EventArgs e)
         {
             SystemdNotify.Stopping();
-        };
+        }
+
+        AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
 
         try
         {
-            // Service Composition Root (Manual DI)
             ISecurityService security = new SecurityService();
             IVirtualDeviceManager virtualDevice = new VirtualDeviceManager();
             IInputCaptureManager inputCapture = new InputCaptureManager();
+            ISessionHandlerFactory sessionHandlerFactory = new SessionHandlerFactory(security, virtualDevice, inputCapture);
             ILinuxPermissionService permissionService = new LinuxPermissionService();
-            
-            var service = new DaemonService(security, virtualDevice, inputCapture, permissionService);
-            
-            // Signal systemd that we're ready before starting the main loop
-            // This is done inside RunAsync after socket is bound
+            IDaemonSocketPathResolver socketPathResolver = new DaemonSocketPathResolver();
+            var service = CreateDaemonService(
+                security,
+                permissionService,
+                socketPathResolver,
+                sessionHandlerFactory);
+
             await service.RunAsync(cts.Token);
         }
         catch (OperationCanceledException)
@@ -88,8 +75,41 @@ class Program
         }
         finally
         {
+            AppDomain.CurrentDomain.ProcessExit -= OnProcessExit;
             SystemdNotify.Stopping();
             Log.CloseAndFlush();
         }
+    }
+
+    internal static DaemonService CreateDaemonService(
+        ISecurityService security,
+        ILinuxPermissionService permissionService,
+        IDaemonSocketPathResolver socketPathResolver,
+        ISessionHandlerFactory sessionHandlerFactory)
+    {
+        ArgumentNullException.ThrowIfNull(security);
+        ArgumentNullException.ThrowIfNull(permissionService);
+        ArgumentNullException.ThrowIfNull(socketPathResolver);
+        ArgumentNullException.ThrowIfNull(sessionHandlerFactory);
+
+        var socketPath = socketPathResolver.ResolveSocketPath();
+        return new DaemonService(
+            security,
+            permissionService,
+            sessionHandlerFactory,
+            socketPath);
+    }
+
+    private static PosixSignalRegistration CreateShutdownSignalRegistration(
+        PosixSignal signal,
+        string signalName,
+        CancellationTokenSource shutdown)
+    {
+        return PosixSignalRegistration.Create(signal, ctx =>
+        {
+            ctx.Cancel = true;
+            Log.Information("Received {SignalName}, stopping daemon...", signalName);
+            shutdown.Cancel();
+        });
     }
 }

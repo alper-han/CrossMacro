@@ -4,167 +4,240 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using CrossMacro.Core.Ipc;
+using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Daemon.Services;
-using CrossMacro.Platform.Linux.Native;
-using CrossMacro.Platform.Linux.Native.Systemd;
-using Serilog;
+using CrossMacro.Core.Logging;
+using CrossMacro.Infrastructure.Linux.Native;
+using CrossMacro.Infrastructure.Linux.Native.Systemd;
 
 namespace CrossMacro.Daemon;
 
 public class DaemonService
 {
-
+    private const int SingleClientListenBacklog = 1;
 
     private Socket? _socket;
+    private int _shutdownRequested;
     
     private readonly ISecurityService _security;
-    private readonly IVirtualDeviceManager _virtualDevice;
-    private readonly IInputCaptureManager _inputCapture;
     private readonly ILinuxPermissionService _permissionService;
+    private readonly ISessionHandlerFactory _sessionHandlerFactory;
+    private readonly string _socketPath;
 
     public DaemonService(
-        ISecurityService security, 
-        IVirtualDeviceManager virtualDevice, 
-        IInputCaptureManager inputCapture,
-        ILinuxPermissionService permissionService)
+        ISecurityService security,
+        ILinuxPermissionService permissionService,
+        ISessionHandlerFactory sessionHandlerFactory,
+        string socketPath)
     {
         _security = security;
-        _virtualDevice = virtualDevice;
-        _inputCapture = inputCapture;
         _permissionService = permissionService;
+        _sessionHandlerFactory = sessionHandlerFactory;
+        _socketPath = socketPath;
     }
 
     public async Task RunAsync(CancellationToken token)
     {
-        // Try primary systemd-managed path first
-        var socketPath = IpcProtocol.DefaultSocketPath;
-        var socketDir = Path.GetDirectoryName(socketPath);
-        
-        // Check if we can use the primary path
-        bool usePrimaryPath = false;
-        if (!string.IsNullOrEmpty(socketDir))
+        if (token.IsCancellationRequested)
         {
-            if (Directory.Exists(socketDir))
-            {
-                usePrimaryPath = true;
-            }
-            else
-            {
-                try
-                {
-                    Directory.CreateDirectory(socketDir);
-                    usePrimaryPath = true;
-                    Log.Information("Created socket directory: {Dir}", socketDir);
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    // Can't create /run/crossmacro - likely not running via systemd
-                    Log.Warning("Cannot create {Dir}, falling back to /tmp", socketDir);
-                }
-            }
+            return;
         }
 
-        // Fallback to /tmp for portable / AppImage deployments
-        if (!usePrimaryPath)
-        {
-            socketPath = IpcProtocol.FallbackSocketPath;
-            socketDir = Path.GetDirectoryName(socketPath);
-            Log.Information("Using fallback socket path: {Path}", socketPath);
-        }
+        var socketPath = _socketPath;
+        CleanupSocketFile(socketPath);
+        ResetRuntimeState();
 
-        if (File.Exists(socketPath))
+        using var shutdownRegistration = token.Register(static state => ((DaemonService)state!).RequestShutdown(), this);
+
+        try
+        {
+            var listeningSocket = CreateListeningSocket(socketPath);
+            _socket = listeningSocket;
+
+            _permissionService.ConfigureSocketPermissions(socketPath);
+
+            Log.Information("Listening on {SocketPath}", socketPath);
+            SystemdNotify.Ready();
+            SystemdNotify.Status("Listening for client connections");
+
+            await RunAcceptLoopAsync(listeningSocket, token);
+        }
+        finally
+        {
+            CloseListeningSocket();
+            CleanupSocketFile(socketPath, logOnSuccess: true);
+        }
+    }
+
+    private static Socket CreateListeningSocket(string socketPath)
+    {
+        var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+        socket.Bind(new UnixDomainSocketEndPoint(socketPath));
+        socket.Listen(SingleClientListenBacklog);
+        return socket;
+    }
+
+    private async Task RunAcceptLoopAsync(Socket listeningSocket, CancellationToken token)
+    {
+        while (!token.IsCancellationRequested)
         {
             try
             {
-                File.Delete(socketPath);
+                await AcceptAndRunSingleClientAsync(listeningSocket, token);
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (ObjectDisposedException) when (token.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (SocketException ex) when (token.IsCancellationRequested)
+            {
+                Log.Debug(ex, "Accept loop stopped during shutdown");
+                break;
             }
             catch (Exception ex)
             {
-                Log.Warning("Failed to cleanup existing socket: {Msg}", ex.Message);
+                Log.Error(ex, "Accept failed");
             }
+        }
+    }
+
+    private async Task AcceptAndRunSingleClientAsync(Socket listeningSocket, CancellationToken token)
+    {
+        var client = await AcceptClientAsync(listeningSocket, token);
+        try
+        {
+            await RunClientSessionAsync(client, token);
+        }
+        finally
+        {
+            DisposeSocket(client);
+        }
+    }
+
+    private static async Task<Socket> AcceptClientAsync(Socket listeningSocket, CancellationToken token)
+    {
+        return await listeningSocket.AcceptAsync(token);
+    }
+
+    private async Task RunClientSessionAsync(Socket client, CancellationToken token)
+    {
+        var session = ClientSessionAudit.CreatePending();
+
+        try
+        {
+            var validationResult = await _security.ValidateConnectionAsync(client);
+            if (validationResult is null)
+            {
+                return;
+            }
+
+            session = session.MarkValidated(validationResult.Value.Uid, validationResult.Value.Pid);
+
+            var sessionHandler = _sessionHandlerFactory.Create();
+            await sessionHandler.RunAsync(client, session.Uid, session.Pid, token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            Log.Debug("Client session canceled during shutdown");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Client session error");
+        }
+        finally
+        {
+            if (session.IsValidated)
+            {
+                _security.LogDisconnect(session.Uid, session.Pid, session.GetDuration());
+            }
+        }
+    }
+
+    private readonly record struct ClientSessionAudit(bool IsValidated, uint Uid, int Pid, DateTime SessionStart)
+    {
+        public static ClientSessionAudit CreatePending() =>
+            new(false, 0, 0, DateTime.UtcNow);
+
+        public ClientSessionAudit MarkValidated(uint uid, int pid) =>
+            this with
+            {
+                IsValidated = true,
+                Uid = uid,
+                Pid = pid,
+                SessionStart = DateTime.UtcNow
+            };
+
+        public TimeSpan GetDuration() => DateTime.UtcNow - SessionStart;
+    }
+
+    private static void CleanupSocketFile(string socketPath, bool logOnSuccess = false)
+    {
+        if (!File.Exists(socketPath))
+        {
+            return;
         }
 
         try
         {
-            _socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-            _socket.Bind(new UnixDomainSocketEndPoint(socketPath));
-            _socket.Listen(1);
-            
-            // Socket Permissions / Ownership Logic
-            // The permission service handles socket-specific permissions which is separate from general input permissions.
-            // Note: We might want to use _permissionService.CheckUInputAccess() here to fail early if we lack input rights,
-            // but the Daemon's main job is IPC, so we let it start.
-            _permissionService.ConfigureSocketPermissions(socketPath);
-
-            Log.Information("Listening on {SocketPath}", socketPath);
-            
-            // Signal systemd that we're ready to accept connections
-            SystemdNotify.Ready();
-            SystemdNotify.Status("Listening for client connections");
-
-            // Allow concurrent connections? No, strictly one controller.
-            while (!token.IsCancellationRequested)
+            File.Delete(socketPath);
+            if (logOnSuccess)
             {
-                try
-                {
-                    var client = await _socket.AcceptAsync(token);
-                    
-                    // Validate
-                    var validationResult = await _security.ValidateConnectionAsync(client);
-                    if (validationResult == null)
-                    {
-                        // Rejected in validation (logging done there)
-                        continue; // client disposed in security service
-                    }
-                    
-                    var (uid, pid) = validationResult.Value;
-                    var sessionStart = DateTime.UtcNow;
-
-                    try 
-                    {
-                        // Create Session Handler (Composition Root for Session)
-                        var handler = new SessionHandler(_security, _virtualDevice, _inputCapture);
-                        await handler.RunAsync(client, uid, pid, token);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error(ex, "Client session error");
-                    }
-                    finally
-                    {
-                        var duration = DateTime.UtcNow - sessionStart;
-                        _security.LogDisconnect(uid, pid, duration);
-                        client.Dispose();
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "Accept failed");
-                }
+                Log.Information("Socket cleaned up");
             }
-        } // End of top-level try
-        finally
+        }
+        catch (Exception ex)
         {
-            if (File.Exists(socketPath))
+            if (logOnSuccess)
             {
-                try
-                {
-                    File.Delete(socketPath);
-                    Log.Information("Socket cleaned up");
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "Failed to clean up socket on exit");
-                }
+                Log.Error(ex, "Failed to clean up socket on exit");
+                return;
             }
-            _socket?.Dispose();
+
+            Log.Warning("Failed to cleanup existing socket: {Msg}", ex.Message);
         }
     }
 
+    private void ResetRuntimeState()
+    {
+        _shutdownRequested = 0;
+        _socket = null;
+    }
 
+    private void RequestShutdown()
+    {
+        if (Interlocked.Exchange(ref _shutdownRequested, 1) != 0)
+        {
+            return;
+        }
+
+        Log.Information("Stopping daemon listener...");
+        SystemdNotify.Status("Stopping daemon");
+        CloseListeningSocket();
+    }
+
+    private void CloseListeningSocket()
+    {
+        var socket = Interlocked.Exchange(ref _socket, null);
+        DisposeSocket(socket);
+    }
+
+    private static void DisposeSocket(Socket? socket)
+    {
+        if (socket is null)
+        {
+            return;
+        }
+
+        try
+        {
+            socket.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
 }

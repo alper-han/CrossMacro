@@ -129,6 +129,15 @@ jobs:
         chmod +x scripts/sync-version.sh
         VERSION="${{ steps.version.outputs.version }}" ./scripts/sync-version.sh --check
     
+    - name: Verify version sync write idempotency
+      run: |
+        VERSION="${{ steps.version.outputs.version }}" ./scripts/sync-version.sh --write
+        git diff --exit-code -- scripts/packaging/arch/PKGBUILD scripts/msix/AppxManifest.xml flatpak/io.github.alper_han.crossmacro.flathub.yml
+
+    - name: Validate man page source
+      run: |
+        man -l docs/man/crossmacro.1 > /dev/null
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v5
       with:
@@ -279,6 +288,53 @@ jobs:
         set -euo pipefail
         deb_file="$(ls -1 scripts/*.deb | head -n 1)"
         dpkg-deb -c "$deb_file" | grep -E '/usr/share/man/man1/crossmacro\.1\.gz$'
+
+    - name: CLI Smoke (DEB x64)
+      if: ${{ matrix.arch_suffix == 'x64' }}
+      run: |
+        set -euo pipefail
+        deb_file="$(ls -1 scripts/*.deb | head -n 1)"
+        docker run --rm --platform linux/amd64 \
+          --tmpfs /run \
+          -v "$PWD/scripts":/artifacts:ro \
+          -e DEB_FILE_NAME="$(basename "$deb_file")" \
+          ubuntu:24.04 \
+          bash -lc '
+            set -euo pipefail
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update >/dev/null
+            apt-get install -y systemd dbus polkitd udev man-db libxtst6 libx11-6 libxcursor1 libxrandr2 fontconfig sudo >/dev/null
+            dpkg -i "/artifacts/${DEB_FILE_NAME}" >/dev/null || apt-get install -f -y >/dev/null
+            getent group crossmacro >/dev/null
+            getent passwd crossmacro >/dev/null
+
+            set +e
+            help_output="$(/usr/bin/crossmacro --help 2>&1)"
+            help_code=$?
+            set -e
+            echo "$help_output"
+            test "$help_code" -eq 0
+            echo "$help_output" | grep -F "Usage:"
+
+            set +e
+            settings_output="$(/usr/bin/crossmacro settings get --json 2>&1)"
+            settings_code=$?
+            set -e
+            echo "$settings_output"
+            test "$settings_code" -eq 0
+            echo "$settings_output" | grep -F "\"status\": \"ok\""
+            echo "$settings_output" | grep -F "\"code\": 0"
+
+            set +e
+            dry_run_output="$(/usr/bin/crossmacro run --step "move abs 10 10" --step "click left" --dry-run --json 2>&1)"
+            dry_run_code=$?
+            set -e
+            echo "$dry_run_output"
+            test "$dry_run_code" -eq 0
+            echo "$dry_run_output" | grep -F "\"status\": \"ok\""
+            echo "$dry_run_output" | grep -F "\"code\": 0"
+            echo "$dry_run_output" | grep -F "\"coordinateMode\": \"absolute\""
+          '
     
     - name: Upload DEB artifact
       uses: actions/upload-artifact@v7
@@ -577,13 +633,13 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y flatpak flatpak-builder
         flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-        flatpak install --user -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
+        flatpak install --user -y flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
     
     - name: Build Flatpak
       run: |
         cd scripts
         chmod +x build_flatpak.sh
-        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" FLATPAK_ARCH="${{ matrix.flatpak_arch }}" PUBLISH_DIR="../publish" ./build_flatpak.sh
+        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" FLATPAK_ARCH="${{ matrix.flatpak_arch }}" ./build_flatpak.sh
     
     - name: Upload Flatpak artifact
       uses: actions/upload-artifact@v7

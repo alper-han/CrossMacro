@@ -1,13 +1,18 @@
 using System;
 using System.Threading.Tasks;
-using Tmds.DBus;
+using Tmds.DBus.Protocol;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 
-public class KdeTrackerService : IMouseTrackerService
+internal sealed class KdeTrackerService
 {
+    public const string TrackerServiceName = LinuxDbusTransportBoundary.TrackerServiceName;
     public const string TrackerObjectPath = "/io/github/alper_han/crossmacro/Tracker";
-    public ObjectPath ObjectPath => new ObjectPath(TrackerObjectPath);
+    public const string TrackerInterface = "io.github.alper_han.crossmacro.Tracker";
+    public const string UpdatePositionMethod = "UpdatePosition";
+    public const string UpdateResolutionMethod = "UpdateResolution";
+
+    internal ObjectPath ObjectPath => new ObjectPath(TrackerObjectPath);
     private readonly Action<int, int> _onPositionUpdate;
     private readonly Action<int, int> _onResolutionUpdate;
 

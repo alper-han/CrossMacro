@@ -146,10 +146,12 @@
                     
                     <!-- Hotkey Capture -->
                     <StackPanel Spacing="4">
-                        <TextBlock Text="{localization:Loc Shortcut_Trigger}" Classes="caption"/>
-                        <controls:HotkeyCapture x:Name="HotkeyInput"
-                                               Hotkey="{Binding SelectedHotkeyString, Mode=TwoWay, FallbackValue=''}"
-                                               HotkeyChanged="OnHotkeyChanged"/>
+                         <TextBlock Text="{localization:Loc Shortcut_Trigger}" Classes="caption"/>
+                         <controls:HotkeyCapture x:Name="HotkeyInput"
+                                                Hotkey="{Binding SelectedHotkeyString, Mode=TwoWay, FallbackValue=''}"
+                                                LocalizationService="{Binding LocalizationService}"
+                                                GlobalHotkeyService="{Binding GlobalHotkeyService}"
+                                                HotkeyChanged="OnHotkeyChanged"/>
                     </StackPanel>
                     
                     <!-- Playback Speed -->

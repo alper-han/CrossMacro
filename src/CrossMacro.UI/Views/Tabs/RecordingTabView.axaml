@@ -202,7 +202,7 @@
                     <Button Name="RecordingToggleButton"
                            Classes="recording-toggle"
                            Classes.recording="{Binding IsRecording}"
-                           Click="OnToggleRecording"
+                           Command="{Binding ToggleRecordingCommand}"
                            IsEnabled="{Binding CanToggleRecording}"
                            HorizontalAlignment="Stretch"
                            HorizontalContentAlignment="Center">

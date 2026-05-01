@@ -5,11 +5,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
-using Serilog;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -20,11 +20,16 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
 {
     private readonly IShortcutService _shortcutService;
     private readonly IDialogService _dialogService;
+    private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ILocalizationService _localizationService;
     private ShortcutTask? _selectedTask;
     private bool _disposed;
     
     public ObservableCollection<ShortcutTask> Tasks => _shortcutService.Tasks;
+
+    public IGlobalHotkeyService GlobalHotkeyService => _hotkeyService;
+
+    public ILocalizationService LocalizationService => _localizationService;
 
     public string TaskCountText => string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_ItemsText"], Tasks.Count);
     
@@ -84,10 +89,15 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     // Events for global status
     public event EventHandler<string>? StatusChanged;
     
-    public ShortcutViewModel(IShortcutService shortcutService, IDialogService dialogService, ILocalizationService localizationService)
+    public ShortcutViewModel(
+        IShortcutService shortcutService,
+        IDialogService dialogService,
+        IGlobalHotkeyService hotkeyService,
+        ILocalizationService localizationService)
     {
         _shortcutService = shortcutService;
         _dialogService = dialogService;
+        _hotkeyService = hotkeyService;
         _localizationService = localizationService;
         _localizationService.CultureChanged += OnCultureChanged;
         

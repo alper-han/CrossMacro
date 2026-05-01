@@ -5,11 +5,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
-using Serilog;
 
 namespace CrossMacro.UI.ViewModels;
 

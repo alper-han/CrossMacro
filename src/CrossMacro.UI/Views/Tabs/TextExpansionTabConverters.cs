@@ -1,8 +1,6 @@
-using Avalonia;
 using Avalonia.Data.Converters;
 using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using Microsoft.Extensions.DependencyInjection;
+using CrossMacro.UI.Localization;
 
 namespace CrossMacro.UI.Views.Tabs;
 
@@ -11,14 +9,9 @@ namespace CrossMacro.UI.Views.Tabs;
 /// </summary>
 public static class TextExpansionConverters
 {
-    private static ILocalizationService? GetLocalizationService()
-    {
-        return (Application.Current as CrossMacro.UI.App)?.Services?.GetService<ILocalizationService>();
-    }
-
     private static string GetLocalizedText(string key, string fallback)
     {
-        return GetLocalizationService()?[key] ?? fallback;
+        return Resources.ResourceManager.GetString(key, Resources.Culture) ?? fallback;
     }
 
     /// <summary>

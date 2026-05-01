@@ -3,17 +3,19 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
+using CommunityToolkit.Mvvm.Input;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.UI.Localization;
-using Serilog;
 
 namespace CrossMacro.UI.ViewModels;
 
 /// <summary>
 /// ViewModel for the Recording tab - handles macro recording functionality
 /// </summary>
-public class RecordingViewModel : ViewModelBase, IDisposable
+public partial class RecordingViewModel : ViewModelBase, IDisposable
 {
     private enum RecordingStatusKind
     {
@@ -27,6 +29,7 @@ public class RecordingViewModel : ViewModelBase, IDisposable
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ISettingsService _settingsService;
     private readonly ILocalizationService _localizationService;
+    private readonly IRuntimeContext _runtimeContext;
     
     private bool _disposed;
     private bool _isRecording;
@@ -56,12 +59,14 @@ public class RecordingViewModel : ViewModelBase, IDisposable
         IMacroRecorder recorder,
         IGlobalHotkeyService hotkeyService,
         ISettingsService settingsService,
-        ILocalizationService localizationService)
+        ILocalizationService localizationService,
+        IRuntimeContext runtimeContext)
     {
         _recorder = recorder;
         _hotkeyService = hotkeyService;
         _settingsService = settingsService;
         _localizationService = localizationService;
+        _runtimeContext = runtimeContext;
         _localizationService.CultureChanged += OnCultureChanged;
         _recordingStatus = BuildRecordingStatus(RecordingStatusKind.Ready);
         
@@ -84,7 +89,7 @@ public class RecordingViewModel : ViewModelBase, IDisposable
                 _isRecording = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanStartRecording));
-                OnPropertyChanged(nameof(CanToggleRecording));
+                OnCanToggleRecordingChanged();
                 SetRecordingStatusKind(value ? RecordingStatusKind.Recording : RecordingStatusKind.Ready);
                 RecordingStateChanged?.Invoke(this, value);
             }
@@ -155,7 +160,7 @@ public class RecordingViewModel : ViewModelBase, IDisposable
                 _settingsService.Current.IsMouseRecordingEnabled = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanStartRecording));
-                OnPropertyChanged(nameof(CanToggleRecording));
+                OnCanToggleRecordingChanged();
                 TryPersistSettingChange(
                     () =>
                     {
@@ -181,7 +186,7 @@ public class RecordingViewModel : ViewModelBase, IDisposable
                 _settingsService.Current.IsKeyboardRecordingEnabled = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanStartRecording));
-                OnPropertyChanged(nameof(CanToggleRecording));
+                OnCanToggleRecordingChanged();
                 TryPersistSettingChange(
                     () =>
                     {
@@ -222,7 +227,7 @@ public class RecordingViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public bool IsForceRelativeSupported => OperatingSystem.IsLinux() || OperatingSystem.IsWindows();
+    public bool IsForceRelativeSupported => _runtimeContext.IsLinux || _runtimeContext.IsWindows;
     
     public bool SkipInitialZeroZero
     {
@@ -270,7 +275,7 @@ public class RecordingViewModel : ViewModelBase, IDisposable
                 _canStartRecordingExternal = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanStartRecording));
-                OnPropertyChanged(nameof(CanToggleRecording));
+                OnCanToggleRecordingChanged();
             }
         }
     }
@@ -460,6 +465,7 @@ public class RecordingViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Toggle recording state (for hotkey handling)
     /// </summary>
+    [RelayCommand(CanExecute = nameof(CanToggleRecording))]
     public void ToggleRecording()
     {
         if (IsRecording)
@@ -467,12 +473,18 @@ public class RecordingViewModel : ViewModelBase, IDisposable
         else if (CanStartRecording && CanStartRecordingExternal)
             _ = StartRecordingAsync();
     }
-    
+
+    private void OnCanToggleRecordingChanged()
+    {
+        OnPropertyChanged(nameof(CanToggleRecording));
+        ToggleRecordingCommand.NotifyCanExecuteChanged();
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
-        
+
         // Unsubscribe from events to prevent memory leaks
         _recorder.EventRecorded -= OnEventRecorded;
         _localizationService.CultureChanged -= OnCultureChanged;
@@ -551,6 +563,11 @@ public class RecordingViewModel : ViewModelBase, IDisposable
             foreach (var propertyName in propertyNames)
             {
                 OnPropertyChanged(propertyName);
+            }
+
+            if (Array.IndexOf(propertyNames, nameof(CanToggleRecording)) >= 0)
+            {
+                ToggleRecordingCommand.NotifyCanExecuteChanged();
             }
 
             Log.Error(ex, "[RecordingViewModel] Failed to persist recording settings");

@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
@@ -6,6 +8,7 @@ using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.UI.Services;
 using CrossMacro.UI.ViewModels;
+using CrossMacro.UI.Views.Tabs;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;
@@ -277,5 +280,48 @@ public class TextExpansionViewModelTests
 
         _viewModel.InsertionModes.Should().NotBeSameAs(originalInsertionModes);
         _viewModel.PasteMethods.Should().NotBeSameAs(originalPasteMethods);
+    }
+
+    [Theory]
+    [InlineData(TextInsertionMode.Paste, "Paste")]
+    [InlineData(TextInsertionMode.DirectTyping, "Direct Typing")]
+    public void InsertionModeDisplayText_ReturnsExpectedLabel(TextInsertionMode mode, string expected)
+    {
+        var result = TextExpansionConverters.InsertionModeDisplayText.Convert(
+            mode,
+            typeof(string),
+            null,
+            CultureInfo.InvariantCulture);
+
+        result.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(PasteMethod.CtrlV, "Ctrl+V")]
+    [InlineData(PasteMethod.CtrlShiftV, "Ctrl+Shift+V")]
+    [InlineData(PasteMethod.ShiftInsert, "Shift+Insert")]
+    public void PasteMethodDisplayText_ReturnsExpectedLabel(PasteMethod method, string expected)
+    {
+        var result = TextExpansionConverters.PasteMethodDisplayText.Convert(
+            method,
+            typeof(string),
+            null,
+            CultureInfo.InvariantCulture);
+
+        result.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(TextInsertionMode.Paste, true)]
+    [InlineData(TextInsertionMode.DirectTyping, false)]
+    public void IsPasteMode_ReturnsWhetherModeUsesClipboard(TextInsertionMode mode, bool expected)
+    {
+        var result = TextExpansionConverters.IsPasteMode.Convert(
+            mode,
+            typeof(bool),
+            null,
+            CultureInfo.InvariantCulture);
+
+        result.Should().Be(expected);
     }
 }

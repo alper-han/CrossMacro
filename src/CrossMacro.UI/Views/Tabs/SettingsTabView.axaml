@@ -22,27 +22,33 @@
                 <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="12">
                     <StackPanel Spacing="12">
                         <TextBlock Text="{localization:Loc Settings_GlobalHotkeys}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        
+
                         <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
-                            <controls:HotkeyCapture Grid.Row="0" Grid.Column="0" 
-                                                   x:Name="RecordingHotkeyCapture"
-                                                   Hotkey="{Binding RecordingHotkey, Mode=TwoWay}" 
-                                                   Margin="0,0,12,8"
-                                                   MinWidth="140"/>
+                             <controls:HotkeyCapture Grid.Row="0" Grid.Column="0"
+                                                     x:Name="RecordingHotkeyCapture"
+                                                     Hotkey="{Binding RecordingHotkey, Mode=TwoWay}"
+                                                    LocalizationService="{Binding LocalizationService}"
+                                                    GlobalHotkeyService="{Binding GlobalHotkeyService}"
+                                                    Margin="0,0,12,8"
+                                                    MinWidth="140"/>
                             <TextBlock Grid.Row="0" Grid.Column="1" Text="{localization:Loc Settings_ToggleRecording}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                            
-                            <controls:HotkeyCapture Grid.Row="1" Grid.Column="0" 
-                                                   x:Name="PlaybackHotkeyCapture"
-                                                   Hotkey="{Binding PlaybackHotkey, Mode=TwoWay}" 
-                                                   Margin="0,0,12,8"
-                                                   MinWidth="140"/>
+
+                             <controls:HotkeyCapture Grid.Row="1" Grid.Column="0"
+                                                     x:Name="PlaybackHotkeyCapture"
+                                                     Hotkey="{Binding PlaybackHotkey, Mode=TwoWay}"
+                                                    LocalizationService="{Binding LocalizationService}"
+                                                    GlobalHotkeyService="{Binding GlobalHotkeyService}"
+                                                    Margin="0,0,12,8"
+                                                    MinWidth="140"/>
                             <TextBlock Grid.Row="1" Grid.Column="1" Text="{localization:Loc Settings_TogglePlayback}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                            
-                            <controls:HotkeyCapture Grid.Row="2" Grid.Column="0" 
-                                                   x:Name="PauseHotkeyCapture"
-                                                   Hotkey="{Binding PauseHotkey, Mode=TwoWay}" 
-                                                   Margin="0,0,12,0"
-                                                   MinWidth="140"/>
+
+                             <controls:HotkeyCapture Grid.Row="2" Grid.Column="0"
+                                                     x:Name="PauseHotkeyCapture"
+                                                     Hotkey="{Binding PauseHotkey, Mode=TwoWay}"
+                                                    LocalizationService="{Binding LocalizationService}"
+                                                    GlobalHotkeyService="{Binding GlobalHotkeyService}"
+                                                    Margin="0,0,12,0"
+                                                    MinWidth="140"/>
                             <TextBlock Grid.Row="2" Grid.Column="1" Text="{localization:Loc Settings_PauseResumePlayback}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         </Grid>
                     </StackPanel>

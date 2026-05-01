@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.UI.ViewModels;
 using NSubstitute;
 using Xunit;
@@ -15,6 +16,7 @@ public class RecordingViewModelTests
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ISettingsService _settingsService;
     private readonly ILocalizationService _localizationService;
+    private readonly IRuntimeContext _runtimeContext;
     private readonly RecordingViewModel _viewModel;
 
     public RecordingViewModelTests()
@@ -23,6 +25,8 @@ public class RecordingViewModelTests
         _hotkeyService = Substitute.For<IGlobalHotkeyService>();
         _settingsService = Substitute.For<ISettingsService>();
         _localizationService = Substitute.For<ILocalizationService>();
+        _runtimeContext = Substitute.For<IRuntimeContext>();
+        _runtimeContext.IsLinux.Returns(true);
         _localizationService["Recording_StatusReady"].Returns("[Recording_StatusReady]");
         _localizationService["Recording_StatusRecording"].Returns("[Recording_StatusRecording]");
         _localizationService["Recording_StatusLoadedEvents"].Returns("[Recording_StatusLoadedEvents] {0}");
@@ -41,7 +45,8 @@ public class RecordingViewModelTests
             _recorder,
             _hotkeyService,
             _settingsService,
-            _localizationService);
+            _localizationService,
+            _runtimeContext);
     }
 
     [Fact]
@@ -241,6 +246,36 @@ public class RecordingViewModelTests
     }
 
     [Fact]
+    public void ToggleRecordingCommand_WhenCannotToggle_DoesNotStart()
+    {
+        // Arrange
+        _viewModel.IsMouseRecordingEnabled = false;
+        _viewModel.IsKeyboardRecordingEnabled = false;
+
+        // Act
+        var canExecute = _viewModel.ToggleRecordingCommand.CanExecute(null);
+        _viewModel.ToggleRecordingCommand.Execute(null);
+
+        // Assert
+        Assert.False(canExecute);
+        Assert.False(_viewModel.IsRecording);
+        _recorder.DidNotReceiveWithAnyArgs().StartRecordingAsync(default!, default!, default!);
+    }
+
+    [Fact]
+    public void ToggleRecordingCommand_WhenRecording_CanExecuteEvenIfStartingIsDisabled()
+    {
+        // Arrange
+        _viewModel.CanStartRecordingExternal = false;
+        _viewModel.IsMouseRecordingEnabled = false;
+        _viewModel.IsKeyboardRecordingEnabled = false;
+        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, true);
+
+        // Assert
+        Assert.True(_viewModel.ToggleRecordingCommand.CanExecute(null));
+    }
+
+    [Fact]
     public async Task StartRecordingAsync_WhenRecorderThrows_ReenablesHotkeysAndResetsState()
     {
         // Arrange
@@ -283,6 +318,30 @@ public class RecordingViewModelTests
             _viewModel.ForceRelativeCoordinates,
             _viewModel.SkipInitialZeroZero,
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void Constructor_WhenRuntimeDoesNotSupportForceRelative_DisablesSetting()
+    {
+        var settingsService = Substitute.For<ISettingsService>();
+        settingsService.Current.Returns(new AppSettings
+        {
+            ForceRelativeCoordinates = true
+        });
+
+        var runtimeContext = Substitute.For<IRuntimeContext>();
+        runtimeContext.IsLinux.Returns(false);
+        runtimeContext.IsWindows.Returns(false);
+
+        var viewModel = new RecordingViewModel(
+            _recorder,
+            _hotkeyService,
+            settingsService,
+            _localizationService,
+            runtimeContext);
+
+        Assert.False(viewModel.IsForceRelativeSupported);
+        Assert.False(viewModel.ForceRelativeCoordinates);
     }
 
     [Fact]

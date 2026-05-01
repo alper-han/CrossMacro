@@ -2,13 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CrossMacro.Core.Diagnostics;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Logging;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
-using Serilog;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -25,6 +25,7 @@ public class SettingsViewModel : ViewModelBase
     private readonly HotkeySettings _hotkeySettings;
     private readonly IExternalUrlOpener _externalUrlOpener;
     private readonly IRuntimeContext _runtimeContext;
+    private readonly IRuntimeLogLevelService _runtimeLogLevelService;
     private readonly IThemeService _themeService;
     private readonly ILocalizationService _localizationService;
     
@@ -48,10 +49,12 @@ public class SettingsViewModel : ViewModelBase
         ITextExpansionService textExpansionService,
         HotkeySettings hotkeySettings,
         IExternalUrlOpener externalUrlOpener,
+        IRuntimeLogLevelService runtimeLogLevelService,
         IThemeService themeService,
         ILocalizationService? localizationService = null,
         IRuntimeContext? runtimeContext = null)
     {
+        ArgumentNullException.ThrowIfNull(runtimeLogLevelService);
         ArgumentNullException.ThrowIfNull(themeService);
 
         _hotkeyService = hotkeyService;
@@ -60,6 +63,7 @@ public class SettingsViewModel : ViewModelBase
         _hotkeySettings = hotkeySettings;
         _externalUrlOpener = externalUrlOpener;
         _runtimeContext = runtimeContext ?? new RuntimeContext();
+        _runtimeLogLevelService = runtimeLogLevelService;
         _themeService = themeService;
         _localizationService = localizationService ?? new LocalizationService();
         
@@ -96,6 +100,7 @@ public class SettingsViewModel : ViewModelBase
         ITextExpansionService textExpansionService,
         HotkeySettings hotkeySettings,
         IExternalUrlOpener externalUrlOpener,
+        IRuntimeLogLevelService runtimeLogLevelService,
         IThemeService themeService,
         IRuntimeContext runtimeContext)
         : this(
@@ -104,6 +109,7 @@ public class SettingsViewModel : ViewModelBase
             textExpansionService,
             hotkeySettings,
             externalUrlOpener,
+            runtimeLogLevelService,
             themeService,
             null,
             runtimeContext)
@@ -111,6 +117,10 @@ public class SettingsViewModel : ViewModelBase
     }
 
     public bool IsUpdateSettingsVisible { get; }
+
+    public IGlobalHotkeyService GlobalHotkeyService => _hotkeyService;
+
+    public ILocalizationService LocalizationService => _localizationService;
 
     /// <summary>
     /// Tray icon settings are hidden in Flatpak where StatusNotifierItem is not supported
@@ -310,14 +320,14 @@ public class SettingsViewModel : ViewModelBase
                 _selectedLogLevel = value;
                 _settingsService.Current.LogLevel = value;
                 OnPropertyChanged();
-                LoggerSetup.SetLogLevel(value);
+                _runtimeLogLevelService.SetLogLevel(value);
 
                 TryPersistSettings(
                     () =>
                     {
                         _selectedLogLevel = previousValue;
                         _settingsService.Current.LogLevel = previousValue;
-                        LoggerSetup.SetLogLevel(previousValue);
+                        _runtimeLogLevelService.SetLogLevel(previousValue);
                     },
                     nameof(SelectedLogLevel));
             }

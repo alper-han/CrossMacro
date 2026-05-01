@@ -27,6 +27,7 @@ public class SettingsViewModelTests
     private readonly ISettingsService _settingsService;
     private readonly ITextExpansionService _textExpansionService;
     private readonly IExternalUrlOpener _externalUrlOpener;
+    private readonly IRuntimeLogLevelService _runtimeLogLevelService;
     private readonly IThemeService _themeService;
     private readonly HotkeySettings _hotkeySettings;
     private readonly SettingsViewModel _viewModel;
@@ -37,6 +38,7 @@ public class SettingsViewModelTests
         _settingsService = Substitute.For<ISettingsService>();
         _textExpansionService = Substitute.For<ITextExpansionService>();
         _externalUrlOpener = Substitute.For<IExternalUrlOpener>();
+        _runtimeLogLevelService = Substitute.For<IRuntimeLogLevelService>();
         _themeService = Substitute.For<IThemeService>();
         _hotkeySettings = new HotkeySettings();
         _themeService.AvailableThemes.Returns(new[] { "Classic", "Nord" });
@@ -58,6 +60,7 @@ public class SettingsViewModelTests
             _textExpansionService,
             _hotkeySettings,
             _externalUrlOpener,
+            _runtimeLogLevelService,
             _themeService);
     }
 
@@ -68,6 +71,26 @@ public class SettingsViewModelTests
         _viewModel.EnableTrayIcon.Should().BeFalse();
         _viewModel.StartMinimized.Should().BeFalse();
         _viewModel.SelectedTheme.Should().Be("Classic");
+    }
+
+    [Fact]
+    public void Construction_ExposesSuppliedHotkeyAndLocalizationServices()
+    {
+        var localizationService = Substitute.For<ILocalizationService>();
+        localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>());
+
+        var vm = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            _runtimeLogLevelService,
+            _themeService,
+            localizationService);
+
+        vm.GlobalHotkeyService.Should().BeSameAs(_hotkeyService);
+        vm.LocalizationService.Should().BeSameAs(localizationService);
     }
 
     [Fact]
@@ -98,6 +121,7 @@ public class SettingsViewModelTests
             _textExpansionService,
             _hotkeySettings,
             _externalUrlOpener,
+            _runtimeLogLevelService,
             _themeService,
             localizationService);
 
@@ -120,6 +144,7 @@ public class SettingsViewModelTests
             _textExpansionService,
             _hotkeySettings,
             _externalUrlOpener,
+            _runtimeLogLevelService,
             _themeService,
             localizationService);
 
@@ -153,6 +178,7 @@ public class SettingsViewModelTests
             _textExpansionService,
             _hotkeySettings,
             _externalUrlOpener,
+            _runtimeLogLevelService,
             _themeService);
 
         vm.SelectedLanguage.Should().Be("en");
@@ -168,6 +194,7 @@ public class SettingsViewModelTests
             _textExpansionService,
             _hotkeySettings,
             _externalUrlOpener,
+            _runtimeLogLevelService,
             null!);
 
         act.Should().Throw<ArgumentNullException>();
@@ -301,6 +328,7 @@ public class SettingsViewModelTests
             _textExpansionService,
             _hotkeySettings,
             _externalUrlOpener,
+            _runtimeLogLevelService,
             _themeService,
             new FakeRuntimeContext { IsFlatpak = true });
 
@@ -354,12 +382,33 @@ public class SettingsViewModelTests
     [Fact]
     public void SelectedLogLevel_WhenChanged_UpdatesSettingsAndSaves()
     {
-        // Act
         _viewModel.SelectedLogLevel = "Warning";
 
-        // Assert
         _settingsService.Current.LogLevel.Should().Be("Warning");
+        Received.InOrder(() =>
+        {
+            _runtimeLogLevelService.SetLogLevel("Warning");
+            _settingsService.Save();
+        });
         _settingsService.Received(1).Save();
+    }
+
+    [Fact]
+    public void SelectedLogLevel_WhenSaveFails_RollsBackAndRestoresRuntimeLevel()
+    {
+        _settingsService.Current.LogLevel = "Information";
+        _settingsService.When(x => x.Save()).Do(_ => throw new InvalidOperationException("disk full"));
+
+        _viewModel.SelectedLogLevel = "Warning";
+
+        _viewModel.SelectedLogLevel.Should().Be("Information");
+        _settingsService.Current.LogLevel.Should().Be("Information");
+        Received.InOrder(() =>
+        {
+            _runtimeLogLevelService.SetLogLevel("Warning");
+            _settingsService.Save();
+            _runtimeLogLevelService.SetLogLevel("Information");
+        });
     }
 
     [Fact]
@@ -439,6 +488,7 @@ public class SettingsViewModelTests
             _textExpansionService,
             _hotkeySettings,
             _externalUrlOpener,
+            _runtimeLogLevelService,
             _themeService,
             runtimeContext);
 
@@ -456,6 +506,7 @@ public class SettingsViewModelTests
             _textExpansionService,
             _hotkeySettings,
             _externalUrlOpener,
+            _runtimeLogLevelService,
             _themeService,
             runtimeContext);
 

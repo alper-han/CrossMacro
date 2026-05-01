@@ -1,7 +1,7 @@
 using Avalonia.Controls;
+using CrossMacro.Core.Logging;
 using CrossMacro.UI.Controls;
 using CrossMacro.UI.ViewModels;
-using Serilog;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -37,9 +37,9 @@ public partial class SettingsTabView : UserControl
         _toastNotification = this.FindControl<Border>("ToastNotification");
         _toastMessage = this.FindControl<TextBlock>("ToastMessage");
         ResetToastState();
-        
+
         var viewModel = DataContext as SettingsViewModel;
-        
+
         if (_recordingHotkeyCapture != null && viewModel != null)
         {
             _recordingHotkeyCapture.ValidationFunc = (newHotkey) =>

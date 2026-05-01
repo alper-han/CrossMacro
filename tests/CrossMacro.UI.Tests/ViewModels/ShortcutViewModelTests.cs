@@ -16,6 +16,7 @@ public class ShortcutViewModelTests
 {
     private readonly IShortcutService _shortcutService;
     private readonly IDialogService _dialogService;
+    private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ILocalizationService _localizationService;
     private readonly ShortcutViewModel _viewModel;
 
@@ -23,6 +24,7 @@ public class ShortcutViewModelTests
     {
         _shortcutService = Substitute.For<IShortcutService>();
         _dialogService = Substitute.For<IDialogService>();
+        _hotkeyService = Substitute.For<IGlobalHotkeyService>();
         _localizationService = Substitute.For<ILocalizationService>();
         _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
         _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
@@ -46,7 +48,14 @@ public class ShortcutViewModelTests
         
         _shortcutService.Tasks.Returns(new ObservableCollection<ShortcutTask>());
 
-        _viewModel = new ShortcutViewModel(_shortcutService, _dialogService, _localizationService);
+        _viewModel = new ShortcutViewModel(_shortcutService, _dialogService, _hotkeyService, _localizationService);
+    }
+
+    [Fact]
+    public void Construction_ExposesSuppliedHotkeyAndLocalizationServices()
+    {
+        _viewModel.GlobalHotkeyService.Should().BeSameAs(_hotkeyService);
+        _viewModel.LocalizationService.Should().BeSameAs(_localizationService);
     }
 
     [Fact]
@@ -83,7 +92,7 @@ public class ShortcutViewModelTests
         var statusTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         // Act
-        var vm = new ShortcutViewModel(failingShortcutService, _dialogService, _localizationService);
+        var vm = new ShortcutViewModel(failingShortcutService, _dialogService, _hotkeyService, _localizationService);
         vm.StatusChanged += (_, status) => statusTcs.TrySetResult(status);
         loadTcs.TrySetException(new InvalidOperationException("load failed"));
         var statusMessage = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
@@ -101,7 +110,7 @@ public class ShortcutViewModelTests
         localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
         localizationService["Shortcut_ItemsText"].Returns("{0} items");
         localizationService["Shortcut_NoFileSelected"].Returns("No file selected");
-        var vm = new ShortcutViewModel(_shortcutService, _dialogService, localizationService);
+        var vm = new ShortcutViewModel(_shortcutService, _dialogService, _hotkeyService, localizationService);
         var changedProperties = new List<string?>();
         vm.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
 

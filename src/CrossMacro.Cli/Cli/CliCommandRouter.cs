@@ -7,6 +7,13 @@ namespace CrossMacro.Cli;
 
 public sealed class CliCommandRouter
 {
+    private delegate CliParseResult ParseCommandDelegate(string[] args);
+
+    private sealed record RootCommandDescriptor(
+        string CanonicalToken,
+        ParseCommandDelegate Parse,
+        params string[] Aliases);
+
     private static readonly HashSet<string> StandaloneCliOptionTokens = new(StringComparer.OrdinalIgnoreCase)
     {
         "--json",
@@ -29,6 +36,46 @@ public sealed class CliCommandRouter
         "--step",
         "--file"
     };
+
+    private static readonly RootCommandDescriptor[] RootCommands =
+    [
+        new("macro", MacroCommandParser.Parse),
+        new("play", PlayCommandParser.Parse),
+        new("doctor", DoctorCommandParser.Parse),
+        new("settings", SettingsCommandParser.Parse),
+        new("schedule", ScheduleCommandParser.Parse),
+        new("shortcut", ShortcutCommandParser.Parse),
+        new("record", RecordCommandParser.Parse),
+        new("run", RunCommandParser.Parse),
+        new("headless", HeadlessCommandParser.Parse, "--headless")
+    ];
+
+    private static readonly Dictionary<string, RootCommandDescriptor> RootCommandLookup = BuildRootCommandLookup();
+
+    private static readonly string[] TopLevelUsageSections =
+    [
+        "  crossmacro [--start-minimized]",
+        "  crossmacro macro validate <macro-file> [--json] [--log-level <level>]",
+        "  crossmacro macro info <macro-file> [--json] [--log-level <level>]",
+        "  crossmacro play <macro-file> [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]",
+        "  crossmacro doctor [--verbose] [--json] [--log-level <level>]",
+        string.Empty,
+        "  crossmacro settings get [<key>] [--json] [--log-level <level>]",
+        "  crossmacro settings set <key> <value> [--json] [--log-level <level>]",
+        "  crossmacro schedule list [--json] [--log-level <level>]",
+        "  crossmacro schedule run <task-id> [--json] [--log-level <level>]",
+        "  crossmacro shortcut list [--json] [--log-level <level>]",
+        "  crossmacro shortcut run <task-id> [--json] [--log-level <level>]",
+        "  crossmacro record (--output|-o) <macro-file> [--mouse <true|false>] [--keyboard <true|false>] [--mode <auto|absolute|relative>] [--skip-initial-zero] [--duration <sec>] [--json] [--log-level <level>]",
+        string.Empty,
+        "  crossmacro run --step <step> [--step <step> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]",
+        "  crossmacro run <step-command> [<step-command> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]",
+        string.Empty,
+        "  crossmacro headless [--json] [--log-level <level>]",
+        "  crossmacro --headless [--json] [--log-level <level>]"
+    ];
+
+    private static readonly string TopLevelUsageText = BuildTopLevelUsageText();
 
     private static readonly HashSet<string> KnownGuiStartupOptionTokens = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -68,7 +115,11 @@ public sealed class CliCommandRouter
         {
             if (IsStandaloneCliOptionToken(first))
             {
-                return CliParseResult.Error($"Option '{first}' requires a command. See 'crossmacro --help'.");
+                return CliParseResult.Error(
+                    $"Option {first} requires a command.",
+                    ["See crossmacro --help for usage information."],
+                    prefersJsonOutput: string.Equals(first, "--json", StringComparison.OrdinalIgnoreCase),
+                    showTopLevelUsageInTextMode: true);
             }
 
             if (ShouldTreatAsGuiStartup(first))
@@ -78,59 +129,31 @@ public sealed class CliCommandRouter
 
             if (LooksLikeOptionToken(first))
             {
-                return CliParseResult.Error($"Unknown option: {first}");
+                return CliParseResult.Error(
+                    $"Unknown option: {first}",
+                    ["See crossmacro --help for usage information."],
+                    prefersJsonOutput: string.Equals(first, "--json", StringComparison.OrdinalIgnoreCase)
+                        || CliParseHelpers.HasJsonOption(args, 1),
+                    showTopLevelUsageInTextMode: true);
             }
 
-            return CliParseResult.Error($"Unknown command: {first}");
+            return CliParseResult.Error(
+                $"Unknown command: {first}",
+                ["See crossmacro --help for usage information."],
+                prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 1),
+                showTopLevelUsageInTextMode: true);
         }
 
-        if (string.Equals(first, "macro", StringComparison.OrdinalIgnoreCase))
+        if (TryGetRootCommand(first, out var command))
         {
-            return MacroCommandParser.Parse(args);
+            return command.Parse(args);
         }
 
-        if (string.Equals(first, "play", StringComparison.OrdinalIgnoreCase))
-        {
-            return PlayCommandParser.Parse(args);
-        }
-
-        if (string.Equals(first, "doctor", StringComparison.OrdinalIgnoreCase))
-        {
-            return DoctorCommandParser.Parse(args);
-        }
-
-        if (string.Equals(first, "settings", StringComparison.OrdinalIgnoreCase))
-        {
-            return SettingsCommandParser.Parse(args);
-        }
-
-        if (string.Equals(first, "schedule", StringComparison.OrdinalIgnoreCase))
-        {
-            return ScheduleCommandParser.Parse(args);
-        }
-
-        if (string.Equals(first, "shortcut", StringComparison.OrdinalIgnoreCase))
-        {
-            return ShortcutCommandParser.Parse(args);
-        }
-
-        if (string.Equals(first, "record", StringComparison.OrdinalIgnoreCase))
-        {
-            return RecordCommandParser.Parse(args);
-        }
-
-        if (string.Equals(first, "run", StringComparison.OrdinalIgnoreCase))
-        {
-            return RunCommandParser.Parse(args);
-        }
-
-        if (string.Equals(first, "headless", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(first, "--headless", StringComparison.OrdinalIgnoreCase))
-        {
-            return HeadlessCommandParser.Parse(args);
-        }
-
-        return CliParseResult.Error($"Unknown command: {first}");
+        return CliParseResult.Error(
+            $"Unknown command: {first}",
+            ["See crossmacro --help for usage information."],
+            prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 1),
+            showTopLevelUsageInTextMode: true);
     }
 
     public string GetUsage(string? topic = null)
@@ -140,33 +163,7 @@ public sealed class CliCommandRouter
             return GetTopicUsage(topic);
         }
 
-        return
-            "Usage:\n" +
-            "  crossmacro [--start-minimized]\n" +
-            "  crossmacro macro validate <macro-file> [--json] [--log-level <level>]\n" +
-            "  crossmacro macro info <macro-file> [--json] [--log-level <level>]\n" +
-            "  crossmacro play <macro-file> [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]\n" +
-            "  crossmacro doctor [--verbose] [--json] [--log-level <level>]\n\n" +
-            "  crossmacro settings get [<key>] [--json] [--log-level <level>]\n" +
-            "  crossmacro settings set <key> <value> [--json] [--log-level <level>]\n" +
-            "  crossmacro schedule list [--json] [--log-level <level>]\n" +
-            "  crossmacro schedule run <task-id> [--json] [--log-level <level>]\n" +
-            "  crossmacro shortcut list [--json] [--log-level <level>]\n" +
-            "  crossmacro shortcut run <task-id> [--json] [--log-level <level>]\n" +
-            "  crossmacro record (--output|-o) <macro-file> [--mouse <true|false>] [--keyboard <true|false>] [--mode <auto|absolute|relative>] [--skip-initial-zero] [--duration <sec>] [--json] [--log-level <level>]\n\n" +
-            "  crossmacro run --step <step> [--step <step> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]\n" +
-            "  crossmacro run <step-command> [<step-command> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]\n\n" +
-            "  crossmacro headless [--json] [--log-level <level>]\n" +
-            "  crossmacro --headless [--json] [--log-level <level>]\n\n" +
-            "Detailed Help:\n" +
-            "  crossmacro <command> --help\n" +
-            "  Example: crossmacro settings --help\n\n" +
-            "Options:\n" +
-            "  -h, --help       Show help\n" +
-            "  -v, --version    Show version\n" +
-            "  --start-minimized  Start GUI minimized and hide to tray when available\n" +
-            "  --json           Print result in JSON format\n" +
-            "  --log-level      Override logger level (Verbose, Debug, Information, Warning, Error, Fatal)\n";
+        return TopLevelUsageText;
     }
 
     private static string GetTopicUsage(string topic)
@@ -446,21 +443,18 @@ public sealed class CliCommandRouter
 
     private static bool IsCliCommandToken(string firstToken)
     {
-        if (string.IsNullOrWhiteSpace(firstToken))
+        return TryGetRootCommand(firstToken, out _);
+    }
+
+    private static bool TryGetRootCommand(string token, out RootCommandDescriptor command)
+    {
+        if (string.IsNullOrWhiteSpace(token))
         {
+            command = null!;
             return false;
         }
 
-        return string.Equals(firstToken, "--headless", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(firstToken, "macro", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(firstToken, "play", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(firstToken, "doctor", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(firstToken, "schedule", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(firstToken, "shortcut", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(firstToken, "settings", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(firstToken, "record", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(firstToken, "run", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(firstToken, "headless", StringComparison.OrdinalIgnoreCase);
+        return RootCommandLookup.TryGetValue(token, out command!);
     }
 
     private static bool ShouldTreatAsGuiStartup(string firstToken)
@@ -500,6 +494,39 @@ public sealed class CliCommandRouter
     private static bool IsStandaloneCliOptionToken(string token)
     {
         return StandaloneCliOptionTokens.Contains(token);
+    }
+
+    private static string BuildTopLevelUsageText()
+    {
+        return
+            "Usage:\n" +
+            string.Join("\n", TopLevelUsageSections) +
+            "\n\nDetailed Help:\n" +
+            "  crossmacro <command> --help\n" +
+            "  Example: crossmacro settings --help\n\n" +
+            "Options:\n" +
+            "  -h, --help       Show help\n" +
+            "  -v, --version    Show version\n" +
+            "  --start-minimized  Start GUI minimized and hide to tray when available\n" +
+            "  --json           Print result in JSON format\n" +
+            "  --log-level      Override logger level (Verbose, Debug, Information, Warning, Error, Fatal)\n";
+    }
+
+    private static Dictionary<string, RootCommandDescriptor> BuildRootCommandLookup()
+    {
+        var lookup = new Dictionary<string, RootCommandDescriptor>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var command in RootCommands)
+        {
+            lookup[command.CanonicalToken] = command;
+
+            foreach (var alias in command.Aliases)
+            {
+                lookup[alias] = command;
+            }
+        }
+
+        return lookup;
     }
 
     private static bool IsHelpToken(string token)

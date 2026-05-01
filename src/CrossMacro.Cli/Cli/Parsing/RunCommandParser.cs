@@ -32,7 +32,7 @@ internal static class RunCommandParser
             {
                 if (!CliParseHelpers.TryReadNonEmptyString(args, ref i, out var step, out var stepError))
                 {
-                    return CliParseResult.Error(stepError);
+                    return CliParseHelpers.Error(stepError, jsonOutput);
                 }
 
                 steps.Add(step);
@@ -43,7 +43,7 @@ internal static class RunCommandParser
             {
                 if (!CliParseHelpers.TryReadNonEmptyString(args, ref i, out stepFilePath, out var fileError))
                 {
-                    return CliParseResult.Error(fileError);
+                    return CliParseHelpers.Error(fileError, jsonOutput);
                 }
 
                 continue;
@@ -53,7 +53,7 @@ internal static class RunCommandParser
             {
                 if (!CliParseHelpers.TryReadDouble(args, ref i, out speed, out var speedError))
                 {
-                    return CliParseResult.Error(speedError);
+                    return CliParseHelpers.Error(speedError, jsonOutput);
                 }
 
                 continue;
@@ -63,7 +63,7 @@ internal static class RunCommandParser
             {
                 if (!CliParseHelpers.TryReadInt(args, ref i, out countdown, out var countdownError))
                 {
-                    return CliParseResult.Error(countdownError);
+                    return CliParseHelpers.Error(countdownError, jsonOutput);
                 }
 
                 continue;
@@ -73,7 +73,7 @@ internal static class RunCommandParser
             {
                 if (!CliParseHelpers.TryReadInt(args, ref i, out timeout, out var timeoutError))
                 {
-                    return CliParseResult.Error(timeoutError);
+                    return CliParseHelpers.Error(timeoutError, jsonOutput);
                 }
 
                 continue;
@@ -95,7 +95,7 @@ internal static class RunCommandParser
             {
                 if (!CliParseHelpers.TryReadLogLevel(args, ref i, out logLevel, out var logLevelError))
                 {
-                    return CliParseResult.Error(logLevelError);
+                    return CliParseHelpers.Error(logLevelError, jsonOutput);
                 }
 
                 continue;
@@ -105,34 +105,38 @@ internal static class RunCommandParser
             {
                 if (!TryParseInlineRunStep(args, ref i, out var inlineStep, out var inlineError))
                 {
-                    return CliParseResult.Error(inlineError);
+                    return CliParseHelpers.Error(inlineError, jsonOutput);
                 }
 
                 steps.Add(inlineStep);
                 continue;
             }
 
-            return CliParseResult.Error($"Unknown option for run: {token}");
+            return CliParseHelpers.Error($"Unknown option for run: {token}", jsonOutput);
         }
 
         if (steps.Count == 0 && string.IsNullOrWhiteSpace(stepFilePath))
         {
-            return CliParseResult.Error("Usage: run --step <step> [--step <step> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]");
+            return CliParseHelpers.MissingRequiredOperands(
+                "run requires at least one --step argument or --file.",
+                jsonOutput,
+                "crossmacro run --step <step> [--step <step> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]",
+                "crossmacro run <step-command> [<step-command> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]");
         }
 
         if (countdown < 0)
         {
-            return CliParseResult.Error("--countdown must be >= 0");
+            return CliParseHelpers.Error("--countdown must be >= 0", jsonOutput);
         }
 
         if (timeout < 0)
         {
-            return CliParseResult.Error("--timeout must be >= 0");
+            return CliParseHelpers.Error("--timeout must be >= 0", jsonOutput);
         }
 
         if (speed < PlaybackOptions.MinSpeedMultiplier || speed > PlaybackOptions.MaxSpeedMultiplier)
         {
-            return CliParseResult.Error("--speed must be between 0.1 and 10.");
+            return CliParseHelpers.Error("--speed must be between 0.1 and 10.", jsonOutput);
         }
 
         return CliParseResult.Success(new RunCliOptions(

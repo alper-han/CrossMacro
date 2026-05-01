@@ -20,7 +20,10 @@ internal static class MacroCommandParser
         if (!string.Equals(subcommand, "validate", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(subcommand, "info", StringComparison.OrdinalIgnoreCase))
         {
-            return CliParseResult.Error($"Unknown macro subcommand: {subcommand}");
+            return CliParseResult.Error(
+                $"Unknown macro subcommand: {subcommand}",
+                prefersJsonOutput: string.Equals(subcommand, "--json", StringComparison.OrdinalIgnoreCase)
+                    || CliParseHelpers.HasJsonOption(args, 2));
         }
 
         if (args.Length >= 3 && CliParseHelpers.IsHelpToken(args[2]))
@@ -30,13 +33,28 @@ internal static class MacroCommandParser
 
         if (args.Length < 3)
         {
-            return CliParseResult.Error($"Missing <macro-file> argument for macro {subcommand}");
+            return CliParseHelpers.MissingRequiredOperandsWithRemainingOptionsJson(
+                args,
+                2,
+                $"Missing <macro-file> argument for macro {subcommand}",
+                $"crossmacro macro {subcommand} <macro-file> [--json] [--log-level <level>]");
         }
 
         var macroFilePath = args[2];
-        if (string.IsNullOrWhiteSpace(macroFilePath))
+        if (CliParseHelpers.IsHelpToken(macroFilePath))
         {
-            return CliParseResult.Error("Macro file path cannot be empty");
+            return CliParseResult.Help($"macro.{subcommand.ToLowerInvariant()}");
+        }
+
+        if (string.IsNullOrWhiteSpace(macroFilePath)
+            || (CliParseHelpers.LooksLikeOptionToken(macroFilePath)
+                && string.Equals(macroFilePath, "--json", StringComparison.OrdinalIgnoreCase)))
+        {
+            return CliParseHelpers.MissingRequiredOperandsWithRemainingOptionsJson(
+                args,
+                2,
+                $"Missing <macro-file> argument for macro {subcommand}",
+                $"crossmacro macro {subcommand} <macro-file> [--json] [--log-level <level>]");
         }
 
         var jsonOutput = false;
@@ -44,27 +62,17 @@ internal static class MacroCommandParser
         for (var i = 3; i < args.Length; i++)
         {
             var token = args[i];
-            if (string.Equals(token, "--json", StringComparison.OrdinalIgnoreCase))
+            if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, $"macro.{subcommand.ToLowerInvariant()}", ref jsonOutput, ref logLevel, i + 1, out var commonResult))
             {
-                jsonOutput = true;
-                continue;
-            }
-
-            if (string.Equals(token, "--log-level", StringComparison.OrdinalIgnoreCase))
-            {
-                if (!CliParseHelpers.TryReadLogLevel(args, ref i, out logLevel, out var logLevelError))
+                if (commonResult != null)
                 {
-                    return CliParseResult.Error(logLevelError);
+                    return commonResult;
                 }
+
                 continue;
             }
 
-            if (CliParseHelpers.IsHelpToken(token))
-            {
-                return CliParseResult.Help($"macro.{subcommand.ToLowerInvariant()}");
-            }
-
-            return CliParseResult.Error($"Unknown option for macro {subcommand}: {token}");
+            return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for macro {subcommand}: {token}", jsonOutput);
         }
 
         return string.Equals(subcommand, "validate", StringComparison.OrdinalIgnoreCase)

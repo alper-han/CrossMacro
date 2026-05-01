@@ -19,9 +19,14 @@ internal static class RecordCommandParser
         {
             var token = args[i];
 
-            if (CliParseHelpers.IsHelpToken(token))
+            if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "record", ref jsonOutput, ref logLevel, i + 1, out var commonResult))
             {
-                return CliParseResult.Help("record");
+                if (commonResult != null)
+                {
+                    return commonResult;
+                }
+
+                continue;
             }
 
             if (string.Equals(token, "--output", StringComparison.OrdinalIgnoreCase)
@@ -29,7 +34,7 @@ internal static class RecordCommandParser
             {
                 if (!CliParseHelpers.TryReadNonEmptyString(args, ref i, out outputPath, out var outputError))
                 {
-                    return CliParseResult.Error(outputError);
+                    return CliParseHelpers.Error(outputError, jsonOutput);
                 }
                 continue;
             }
@@ -38,7 +43,7 @@ internal static class RecordCommandParser
             {
                 if (!CliParseHelpers.TryReadBool(args, ref i, out recordMouse, out var mouseError))
                 {
-                    return CliParseResult.Error(mouseError);
+                    return CliParseHelpers.Error(mouseError, jsonOutput);
                 }
                 continue;
             }
@@ -47,7 +52,7 @@ internal static class RecordCommandParser
             {
                 if (!CliParseHelpers.TryReadBool(args, ref i, out recordKeyboard, out var keyboardError))
                 {
-                    return CliParseResult.Error(keyboardError);
+                    return CliParseHelpers.Error(keyboardError, jsonOutput);
                 }
                 continue;
             }
@@ -56,7 +61,7 @@ internal static class RecordCommandParser
             {
                 if (!CliParseHelpers.TryReadRecordMode(args, ref i, out mode, out var modeError))
                 {
-                    return CliParseResult.Error(modeError);
+                    return CliParseHelpers.Error(modeError, jsonOutput);
                 }
                 continue;
             }
@@ -71,42 +76,30 @@ internal static class RecordCommandParser
             {
                 if (!CliParseHelpers.TryReadInt(args, ref i, out durationSeconds, out var durationError))
                 {
-                    return CliParseResult.Error(durationError);
+                    return CliParseHelpers.Error(durationError, jsonOutput);
                 }
                 continue;
             }
 
-            if (string.Equals(token, "--json", StringComparison.OrdinalIgnoreCase))
-            {
-                jsonOutput = true;
-                continue;
-            }
-
-            if (string.Equals(token, "--log-level", StringComparison.OrdinalIgnoreCase))
-            {
-                if (!CliParseHelpers.TryReadLogLevel(args, ref i, out logLevel, out var logLevelError))
-                {
-                    return CliParseResult.Error(logLevelError);
-                }
-                continue;
-            }
-
-            return CliParseResult.Error($"Unknown option for record: {token}");
+            return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for record: {token}", jsonOutput);
         }
 
         if (string.IsNullOrWhiteSpace(outputPath))
         {
-            return CliParseResult.Error("Usage: record --output <macro-file> [--mouse <true|false>] [--keyboard <true|false>] [--mode <auto|absolute|relative>] [--skip-initial-zero] [--duration <sec>] [--json] [--log-level <level>]");
+            return CliParseHelpers.MissingRequiredOperands(
+                "record requires --output <macro-file>.",
+                jsonOutput,
+                "crossmacro record (--output|-o) <macro-file> [--mouse <true|false>] [--keyboard <true|false>] [--mode <auto|absolute|relative>] [--skip-initial-zero] [--duration <sec>] [--json] [--log-level <level>]");
         }
 
         if (!recordMouse && !recordKeyboard)
         {
-            return CliParseResult.Error("At least one of --mouse or --keyboard must be true.");
+            return CliParseHelpers.Error("At least one of --mouse or --keyboard must be true.", jsonOutput);
         }
 
         if (durationSeconds < 0)
         {
-            return CliParseResult.Error("--duration must be >= 0");
+            return CliParseHelpers.Error("--duration must be >= 0", jsonOutput);
         }
 
         return CliParseResult.Success(new RecordCliOptions(

@@ -4,11 +4,17 @@ namespace CrossMacro.Cli;
 
 internal static class PlayCommandParser
 {
+    private const int OptionsStartIndex = 2;
+
     public static CliParseResult Parse(string[] args)
     {
         if (args.Length < 2)
         {
-            return CliParseResult.Error("Missing <macro-file> argument for play");
+            return CliParseHelpers.MissingRequiredOperandsWithRemainingOptionsJson(
+                args,
+                1,
+                "Missing <macro-file> argument for play",
+                "crossmacro play <macro-file> [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]");
         }
 
         if (CliParseHelpers.IsHelpToken(args[1]))
@@ -17,9 +23,20 @@ internal static class PlayCommandParser
         }
 
         var macroFilePath = args[1];
-        if (string.IsNullOrWhiteSpace(macroFilePath))
+        if (CliParseHelpers.IsHelpToken(macroFilePath))
         {
-            return CliParseResult.Error("Macro file path cannot be empty");
+            return CliParseResult.Help("play");
+        }
+
+        if (string.IsNullOrWhiteSpace(macroFilePath)
+            || (CliParseHelpers.LooksLikeOptionToken(macroFilePath)
+                && string.Equals(macroFilePath, "--json", StringComparison.OrdinalIgnoreCase)))
+        {
+            return CliParseHelpers.MissingRequiredOperandsWithRemainingOptionsJson(
+                args,
+                1,
+                "Missing <macro-file> argument for play",
+                "crossmacro play <macro-file> [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]");
         }
 
         var speed = 1.0;
@@ -37,18 +54,13 @@ internal static class PlayCommandParser
         {
             var token = args[i];
 
-            if (string.Equals(token, "--json", StringComparison.OrdinalIgnoreCase))
+            if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "play", ref jsonOutput, ref logLevel, i + 1, out var commonResult))
             {
-                jsonOutput = true;
-                continue;
-            }
-
-            if (string.Equals(token, "--log-level", StringComparison.OrdinalIgnoreCase))
-            {
-                if (!CliParseHelpers.TryReadLogLevel(args, ref i, out logLevel, out var logLevelError))
+                if (commonResult != null)
                 {
-                    return CliParseResult.Error(logLevelError);
+                    return commonResult;
                 }
+
                 continue;
             }
 
@@ -68,7 +80,7 @@ internal static class PlayCommandParser
             {
                 if (!CliParseHelpers.TryReadDouble(args, ref i, out speed, out var error))
                 {
-                    return CliParseResult.Error(error);
+                    return CliParseHelpers.Error(error, jsonOutput);
                 }
                 continue;
             }
@@ -77,7 +89,7 @@ internal static class PlayCommandParser
             {
                 if (!CliParseHelpers.TryReadInt(args, ref i, out repeat, out var error))
                 {
-                    return CliParseResult.Error(error);
+                    return CliParseHelpers.Error(error, jsonOutput);
                 }
                 repeatProvided = true;
                 continue;
@@ -87,7 +99,7 @@ internal static class PlayCommandParser
             {
                 if (!CliParseHelpers.TryReadInt(args, ref i, out repeatDelayMs, out var error))
                 {
-                    return CliParseResult.Error(error);
+                    return CliParseHelpers.Error(error, jsonOutput);
                 }
                 continue;
             }
@@ -96,7 +108,7 @@ internal static class PlayCommandParser
             {
                 if (!CliParseHelpers.TryReadInt(args, ref i, out countdown, out var error))
                 {
-                    return CliParseResult.Error(error);
+                    return CliParseHelpers.Error(error, jsonOutput);
                 }
                 continue;
             }
@@ -105,37 +117,32 @@ internal static class PlayCommandParser
             {
                 if (!CliParseHelpers.TryReadInt(args, ref i, out timeout, out var error))
                 {
-                    return CliParseResult.Error(error);
+                    return CliParseHelpers.Error(error, jsonOutput);
                 }
                 continue;
             }
 
-            if (CliParseHelpers.IsHelpToken(token))
-            {
-                return CliParseResult.Help("play");
-            }
-
-            return CliParseResult.Error($"Unknown option for play: {token}");
+            return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for play: {token}", jsonOutput);
         }
 
         if (repeat < 0)
         {
-            return CliParseResult.Error("--repeat must be >= 0");
+            return CliParseHelpers.Error("--repeat must be >= 0", jsonOutput);
         }
 
         if (repeatDelayMs < 0)
         {
-            return CliParseResult.Error("--repeat-delay-ms must be >= 0");
+            return CliParseHelpers.Error("--repeat-delay-ms must be >= 0", jsonOutput);
         }
 
         if (countdown < 0)
         {
-            return CliParseResult.Error("--countdown must be >= 0");
+            return CliParseHelpers.Error("--countdown must be >= 0", jsonOutput);
         }
 
         if (timeout < 0)
         {
-            return CliParseResult.Error("--timeout must be >= 0");
+            return CliParseHelpers.Error("--timeout must be >= 0", jsonOutput);
         }
 
         if (loop && !repeatProvided)
@@ -152,7 +159,7 @@ internal static class PlayCommandParser
 
         if (repeatProvided && repeat == 0 && !loop)
         {
-            return CliParseResult.Error("--repeat 0 requires --loop (infinite mode).");
+            return CliParseHelpers.Error("--repeat 0 requires --loop (infinite mode).", jsonOutput);
         }
 
         return CliParseResult.Success(new PlayCliOptions(

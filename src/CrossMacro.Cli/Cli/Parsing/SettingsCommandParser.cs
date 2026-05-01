@@ -27,7 +27,10 @@ internal static class SettingsCommandParser
             return ParseSet(args);
         }
 
-        return CliParseResult.Error($"Unknown settings subcommand: {subcommand}");
+        return CliParseResult.Error(
+            $"Unknown settings subcommand: {subcommand}",
+            prefersJsonOutput: string.Equals(subcommand, "--json", StringComparison.OrdinalIgnoreCase)
+                || CliParseHelpers.HasJsonOption(args, 2));
     }
 
     private static CliParseResult ParseGet(string[] args)
@@ -44,24 +47,14 @@ internal static class SettingsCommandParser
         for (var i = 2; i < args.Length; i++)
         {
             var token = args[i];
-            if (string.Equals(token, "--json", StringComparison.OrdinalIgnoreCase))
+            if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "settings.get", ref jsonOutput, ref logLevel, out var commonResult))
             {
-                jsonOutput = true;
-                continue;
-            }
-
-            if (string.Equals(token, "--log-level", StringComparison.OrdinalIgnoreCase))
-            {
-                if (!CliParseHelpers.TryReadLogLevel(args, ref i, out logLevel, out var logLevelError))
+                if (commonResult != null)
                 {
-                    return CliParseResult.Error(logLevelError);
+                    return commonResult;
                 }
-                continue;
-            }
 
-            if (CliParseHelpers.IsHelpToken(token))
-            {
-                return CliParseResult.Help("settings.get");
+                continue;
             }
 
             if (key == null)
@@ -70,7 +63,7 @@ internal static class SettingsCommandParser
                 continue;
             }
 
-            return CliParseResult.Error($"Unexpected argument for settings get: {token}");
+            return CliParseHelpers.Error($"Unexpected argument for settings get: {token}", jsonOutput);
         }
 
         return CliParseResult.Success(new SettingsGetCliOptions(key, jsonOutput, logLevel));
@@ -85,19 +78,31 @@ internal static class SettingsCommandParser
 
         if (args.Length < 4)
         {
-            return CliParseResult.Error("Usage: settings set <key> <value> [--json] [--log-level <level>]");
+            return CliParseHelpers.MissingRequiredOperandsWithRemainingOptionsJson(
+                args,
+                3,
+                "settings set requires <key> and <value>.",
+                "crossmacro settings set <key> <value> [--json] [--log-level <level>]");
         }
 
         var key = args[2];
         var value = args[3];
         if (string.IsNullOrWhiteSpace(key) || CliParseHelpers.LooksLikeOptionToken(key))
         {
-            return CliParseResult.Error("Usage: settings set <key> <value> [--json] [--log-level <level>]");
+            return CliParseHelpers.MissingRequiredOperandsWithRemainingOptionsJson(
+                args,
+                3,
+                "settings set requires <key> and <value>.",
+                "crossmacro settings set <key> <value> [--json] [--log-level <level>]");
         }
 
         if (string.IsNullOrWhiteSpace(value) || CliParseHelpers.LooksLikeLongOptionToken(value))
         {
-            return CliParseResult.Error("Usage: settings set <key> <value> [--json] [--log-level <level>]");
+            return CliParseHelpers.MissingRequiredOperandsWithRemainingOptionsJson(
+                args,
+                3,
+                "settings set requires <key> and <value>.",
+                "crossmacro settings set <key> <value> [--json] [--log-level <level>]");
         }
 
         var jsonOutput = false;
@@ -105,27 +110,17 @@ internal static class SettingsCommandParser
         for (var i = 4; i < args.Length; i++)
         {
             var token = args[i];
-            if (string.Equals(token, "--json", StringComparison.OrdinalIgnoreCase))
+            if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "settings.set", ref jsonOutput, ref logLevel, out var commonResult))
             {
-                jsonOutput = true;
-                continue;
-            }
-
-            if (string.Equals(token, "--log-level", StringComparison.OrdinalIgnoreCase))
-            {
-                if (!CliParseHelpers.TryReadLogLevel(args, ref i, out logLevel, out var logLevelError))
+                if (commonResult != null)
                 {
-                    return CliParseResult.Error(logLevelError);
+                    return commonResult;
                 }
+
                 continue;
             }
 
-            if (CliParseHelpers.IsHelpToken(token))
-            {
-                return CliParseResult.Help("settings.set");
-            }
-
-            return CliParseResult.Error($"Unknown option for settings set: {token}");
+            return CliParseHelpers.Error($"Unknown option for settings set: {token}", jsonOutput);
         }
 
         return CliParseResult.Success(new SettingsSetCliOptions(key, value, jsonOutput, logLevel));

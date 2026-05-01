@@ -12,27 +12,18 @@ internal static class HeadlessCommandParser
         for (var i = 1; i < args.Length; i++)
         {
             var token = args[i];
-            if (string.Equals(token, "--json", StringComparison.OrdinalIgnoreCase))
-            {
-                jsonOutput = true;
-                continue;
-            }
 
-            if (string.Equals(token, "--log-level", StringComparison.OrdinalIgnoreCase))
+            if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "headless", ref jsonOutput, ref logLevel, out var commonResult))
             {
-                if (!CliParseHelpers.TryReadLogLevel(args, ref i, out logLevel, out var error))
+                if (commonResult != null)
                 {
-                    return CliParseResult.Error(error);
+                    return commonResult;
                 }
+
                 continue;
             }
 
-            if (CliParseHelpers.IsHelpToken(token))
-            {
-                return CliParseResult.Help("headless");
-            }
-
-            return CliParseResult.Error($"Unknown option for headless: {token}");
+            return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for headless: {token}", jsonOutput);
         }
 
         return CliParseResult.Success(new HeadlessCliOptions(jsonOutput, logLevel));

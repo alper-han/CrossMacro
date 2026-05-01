@@ -5,6 +5,185 @@ namespace CrossMacro.Cli;
 
 internal static class CliParseHelpers
 {
+    public static CliParseResult MissingRequiredOperands(
+        string message,
+        bool jsonOutput,
+        params string[] usageLines)
+    {
+        return CliParseResult.Error(
+            message,
+            UsageDetails(usageLines),
+            prefersJsonOutput: jsonOutput);
+    }
+
+    public static CliParseResult MissingRequiredOperandsWithRemainingOptionsJson(
+        string[] args,
+        int startIndex,
+        string message,
+        params string[] usageLines)
+    {
+        return CliParseResult.Error(
+            message,
+            UsageDetails(usageLines),
+            prefersJsonOutput: HasJsonOption(args, startIndex));
+    }
+
+    public static CliParseResult Error(string message, bool jsonOutput)
+    {
+        return CliParseResult.Error(message, prefersJsonOutput: jsonOutput);
+    }
+
+    public static CliParseResult Error(string message, IReadOnlyList<string> errorDetails, bool jsonOutput)
+    {
+        return CliParseResult.Error(message, errorDetails, prefersJsonOutput: jsonOutput);
+    }
+
+    public static CliParseResult ErrorWithRemainingOptionsJson(
+        string[] args,
+        int currentIndex,
+        string message,
+        bool jsonOutput)
+    {
+        return CliParseResult.Error(
+            message,
+            prefersJsonOutput: jsonOutput || HasJsonOption(args, currentIndex + 1));
+    }
+
+    public static CliParseResult ErrorWithRemainingOptionsJson(
+        string[] args,
+        int currentIndex,
+        string message,
+        IReadOnlyList<string> errorDetails,
+        bool jsonOutput)
+    {
+        return CliParseResult.Error(
+            message,
+            errorDetails,
+            prefersJsonOutput: jsonOutput || HasJsonOption(args, currentIndex + 1));
+    }
+
+    public static bool HasJsonOption(string[] args, int startIndex)
+    {
+        ArgumentNullException.ThrowIfNull(args);
+
+        for (var i = Math.Max(startIndex, 0); i < args.Length; i++)
+        {
+            if (string.Equals(args[i], "--json", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static IReadOnlyList<string> UsageDetails(params string[] usageLines)
+    {
+        ArgumentNullException.ThrowIfNull(usageLines);
+
+        if (usageLines.Length == 0)
+        {
+            return [];
+        }
+
+        var details = new string[usageLines.Length];
+        for (var i = 0; i < usageLines.Length; i++)
+        {
+            details[i] = $"Usage: {usageLines[i]}";
+        }
+
+        return details;
+    }
+
+    public static bool TryHandleCommonCliOption(
+        string[] args,
+        ref int index,
+        string helpTopic,
+        ref bool jsonOutput,
+        ref string? logLevel,
+        out CliParseResult? result)
+    {
+        ArgumentNullException.ThrowIfNull(args);
+        ArgumentNullException.ThrowIfNull(helpTopic);
+
+        var token = args[index];
+
+        if (string.Equals(token, "--json", StringComparison.OrdinalIgnoreCase))
+        {
+            jsonOutput = true;
+            result = null;
+            return true;
+        }
+
+        if (string.Equals(token, "--log-level", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TryReadLogLevel(args, ref index, out logLevel, out var logLevelError))
+            {
+                result = CliParseResult.Error(
+                    logLevelError,
+                    prefersJsonOutput: jsonOutput || HasJsonOption(args, index + 1));
+                return true;
+            }
+
+            result = null;
+            return true;
+        }
+
+        if (IsHelpToken(token))
+        {
+            result = CliParseResult.Help(helpTopic);
+            return true;
+        }
+
+        result = null;
+        return false;
+    }
+
+    public static bool TryHandleCommonCliOption(
+        string[] args,
+        ref int index,
+        string helpTopic,
+        ref bool jsonOutput,
+        ref string? logLevel,
+        int errorLookaheadIndex,
+        out CliParseResult? result)
+    {
+        ArgumentNullException.ThrowIfNull(args);
+        ArgumentNullException.ThrowIfNull(helpTopic);
+
+        var token = args[index];
+
+        if (string.Equals(token, "--json", StringComparison.OrdinalIgnoreCase))
+        {
+            jsonOutput = true;
+            result = null;
+            return true;
+        }
+
+        if (string.Equals(token, "--log-level", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TryReadLogLevel(args, ref index, out logLevel, out var logLevelError))
+            {
+                result = CliParseResult.Error(
+                    logLevelError,
+                    prefersJsonOutput: jsonOutput || HasJsonOption(args, errorLookaheadIndex));
+                return true;
+            }
+
+            result = null;
+            return true;
+        }
+
+        if (IsHelpToken(token))
+        {
+            result = CliParseResult.Help(helpTopic);
+            return true;
+        }
+
+        result = null;
+        return false;
+    }
+
     public static bool TryReadInt(string[] args, ref int index, out int value, out string error)
     {
         if (index + 1 >= args.Length)

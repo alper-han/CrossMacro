@@ -2,42 +2,65 @@ namespace CrossMacro.Cli;
 
 public sealed class CliParseResult
 {
+    public enum ParseResultKind
+    {
+        Gui,
+        Help,
+        Version,
+        Success,
+        Error
+    }
+
+    private static readonly IReadOnlyList<string> EmptyErrorDetails = [];
+
     private CliParseResult()
     {
     }
 
-    public bool ShouldStartGui { get; private init; }
-    public bool IsSuccess { get; private init; }
-    public bool ShowHelp { get; private init; }
-    public bool ShowVersion { get; private init; }
+    public ParseResultKind Kind { get; private init; }
     public string? HelpTopic { get; private init; }
     public string? ErrorMessage { get; private init; }
+    public IReadOnlyList<string> ErrorDetails { get; private init; } = EmptyErrorDetails;
     public CliCommandOptions? Options { get; private init; }
+    public bool PrefersJsonOutput { get; private init; }
+    public bool ShowTopLevelUsageInTextMode { get; private init; }
 
-    public static CliParseResult Gui() => new() { ShouldStartGui = true, IsSuccess = true };
+    public bool ShouldStartGui => Kind == ParseResultKind.Gui;
+    public bool IsSuccess => Kind is ParseResultKind.Gui or ParseResultKind.Help or ParseResultKind.Version or ParseResultKind.Success;
+    public bool ShowHelp => Kind == ParseResultKind.Help;
+    public bool ShowVersion => Kind == ParseResultKind.Version;
+
+    public static CliParseResult Gui() => new() { Kind = ParseResultKind.Gui };
 
     public static CliParseResult Help(string? topic = null) => new()
     {
-        ShowHelp = true,
-        IsSuccess = true,
+        Kind = ParseResultKind.Help,
         HelpTopic = topic
     };
 
     public static CliParseResult Version() => new()
     {
-        ShowVersion = true,
-        IsSuccess = true
+        Kind = ParseResultKind.Version
     };
 
     public static CliParseResult Success(CliCommandOptions options) => new()
     {
-        IsSuccess = true,
-        Options = options
+        Kind = ParseResultKind.Success,
+        Options = options,
+        PrefersJsonOutput = options.JsonOutput
     };
 
-    public static CliParseResult Error(string message) => new()
+    public static CliParseResult Error(
+        string message,
+        IReadOnlyList<string>? errorDetails = null,
+        bool prefersJsonOutput = false,
+        bool showTopLevelUsageInTextMode = false) => new()
     {
-        IsSuccess = false,
-        ErrorMessage = message
+        Kind = ParseResultKind.Error,
+        ErrorMessage = message,
+        ErrorDetails = errorDetails ?? EmptyErrorDetails,
+        PrefersJsonOutput = prefersJsonOutput,
+        ShowTopLevelUsageInTextMode = showTopLevelUsageInTextMode
     };
+
 }

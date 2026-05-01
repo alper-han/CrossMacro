@@ -157,7 +157,20 @@ public class CliCommandRouterTests
 
         Assert.False(result.ShouldStartGui);
         Assert.False(result.IsSuccess);
-        Assert.Contains("requires a command", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.True(result.PrefersJsonOutput);
+        Assert.Equal("Option --json requires a command.", result.ErrorMessage);
+        Assert.Contains("See crossmacro --help for usage information.", result.ErrorDetails);
+    }
+
+    [Fact]
+    public void Parse_WhenCommandParseFailsAfterJsonFlag_PrefersJsonOutput()
+    {
+        var result = _router.Parse(["doctor", "--bad", "--json"]);
+
+        Assert.False(result.ShouldStartGui);
+        Assert.False(result.IsSuccess);
+        Assert.True(result.PrefersJsonOutput);
+        Assert.Contains("Unknown option for doctor", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -323,7 +336,8 @@ public class CliCommandRouterTests
         var result = _router.Parse(["record", "--mode", "auto"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("Usage: record --output", result.ErrorMessage);
+        Assert.Equal("record requires --output <macro-file>.", result.ErrorMessage);
+        Assert.Contains("Usage: crossmacro record (--output|-o) <macro-file>", result.ErrorDetails[0]);
     }
 
     [Fact]
@@ -524,7 +538,10 @@ public class CliCommandRouterTests
         var result = _router.Parse(["run", "--dry-run"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("Usage: run --step", result.ErrorMessage);
+        Assert.Equal("run requires at least one --step argument or --file.", result.ErrorMessage);
+        Assert.Equal(2, result.ErrorDetails.Count);
+        Assert.Contains("Usage: crossmacro run --step <step>", result.ErrorDetails[0]);
+        Assert.Contains("Usage: crossmacro run <step-command>", result.ErrorDetails[1]);
     }
 
     [Fact]
@@ -629,7 +646,8 @@ public class CliCommandRouterTests
         var result = _router.Parse(["settings", "set", "logging.level", "--json"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("Usage: settings set <key> <value> [--json] [--log-level <level>]", result.ErrorMessage);
+        Assert.Equal("settings set requires <key> and <value>.", result.ErrorMessage);
+        Assert.Equal(["Usage: crossmacro settings set <key> <value> [--json] [--log-level <level>]"], result.ErrorDetails);
     }
 
     [Fact]
@@ -662,7 +680,8 @@ public class CliCommandRouterTests
         var result = _router.Parse(["schedule", "run", "--json"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("Usage: schedule run <task-id> [--json] [--log-level <level>]", result.ErrorMessage);
+        Assert.Equal("schedule run requires <task-id>.", result.ErrorMessage);
+        Assert.Equal(["Usage: crossmacro schedule run <task-id> [--json] [--log-level <level>]"], result.ErrorDetails);
     }
 
     [Fact]
@@ -695,7 +714,8 @@ public class CliCommandRouterTests
         var result = _router.Parse(["shortcut", "run", "--json"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("Usage: shortcut run <task-id> [--json] [--log-level <level>]", result.ErrorMessage);
+        Assert.Equal("shortcut run requires <task-id>.", result.ErrorMessage);
+        Assert.Equal(["Usage: crossmacro shortcut run <task-id> [--json] [--log-level <level>]"], result.ErrorDetails);
     }
 
     [Fact]

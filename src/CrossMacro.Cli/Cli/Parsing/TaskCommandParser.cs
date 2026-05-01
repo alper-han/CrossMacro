@@ -30,7 +30,10 @@ internal static class TaskCommandParser
             return ParseRun(args, commandName, createRunOptions);
         }
 
-        return CliParseResult.Error($"Unknown {commandName} subcommand: {args[1]}");
+        return CliParseResult.Error(
+            $"Unknown {commandName} subcommand: {args[1]}",
+            prefersJsonOutput: string.Equals(args[1], "--json", StringComparison.OrdinalIgnoreCase)
+                || CliParseHelpers.HasJsonOption(args, 2));
     }
 
     private static CliParseResult ParseList(
@@ -43,27 +46,18 @@ internal static class TaskCommandParser
         for (var i = 2; i < args.Length; i++)
         {
             var token = args[i];
-            if (string.Equals(token, "--json", StringComparison.OrdinalIgnoreCase))
-            {
-                jsonOutput = true;
-                continue;
-            }
 
-            if (string.Equals(token, "--log-level", StringComparison.OrdinalIgnoreCase))
+            if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, $"{commandName}.list", ref jsonOutput, ref logLevel, out var commonResult))
             {
-                if (!CliParseHelpers.TryReadLogLevel(args, ref i, out logLevel, out var logLevelError))
+                if (commonResult != null)
                 {
-                    return CliParseResult.Error(logLevelError);
+                    return commonResult;
                 }
+
                 continue;
             }
 
-            if (CliParseHelpers.IsHelpToken(token))
-            {
-                return CliParseResult.Help($"{commandName}.list");
-            }
-
-            return CliParseResult.Error($"Unknown option for {commandName} list: {token}");
+            return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for {commandName} list: {token}", jsonOutput);
         }
 
         return CliParseResult.Success(createListOptions(jsonOutput, logLevel));
@@ -81,18 +75,24 @@ internal static class TaskCommandParser
 
         if (args.Length < 3)
         {
-            return CliParseResult.Error($"Usage: {commandName} run <task-id> [--json] [--log-level <level>]");
+            return CliParseHelpers.MissingRequiredOperands(
+                $"{commandName} run requires <task-id>.",
+                CliParseHelpers.HasJsonOption(args, 2),
+                $"crossmacro {commandName} run <task-id> [--json] [--log-level <level>]");
         }
 
         var taskId = args[2];
         if (string.IsNullOrWhiteSpace(taskId))
         {
-            return CliParseResult.Error("Task id cannot be empty");
+            return CliParseHelpers.Error("Task id cannot be empty", CliParseHelpers.HasJsonOption(args, 2));
         }
 
         if (CliParseHelpers.LooksLikeOptionToken(taskId))
         {
-            return CliParseResult.Error($"Usage: {commandName} run <task-id> [--json] [--log-level <level>]");
+            return CliParseHelpers.MissingRequiredOperands(
+                $"{commandName} run requires <task-id>.",
+                CliParseHelpers.HasJsonOption(args, 2),
+                $"crossmacro {commandName} run <task-id> [--json] [--log-level <level>]");
         }
 
         var jsonOutput = false;
@@ -100,27 +100,18 @@ internal static class TaskCommandParser
         for (var i = 3; i < args.Length; i++)
         {
             var token = args[i];
-            if (string.Equals(token, "--json", StringComparison.OrdinalIgnoreCase))
-            {
-                jsonOutput = true;
-                continue;
-            }
 
-            if (string.Equals(token, "--log-level", StringComparison.OrdinalIgnoreCase))
+            if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, $"{commandName}.run", ref jsonOutput, ref logLevel, out var commonResult))
             {
-                if (!CliParseHelpers.TryReadLogLevel(args, ref i, out logLevel, out var logLevelError))
+                if (commonResult != null)
                 {
-                    return CliParseResult.Error(logLevelError);
+                    return commonResult;
                 }
+
                 continue;
             }
 
-            if (CliParseHelpers.IsHelpToken(token))
-            {
-                return CliParseResult.Help($"{commandName}.run");
-            }
-
-            return CliParseResult.Error($"Unknown option for {commandName} run: {token}");
+            return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for {commandName} run: {token}", jsonOutput);
         }
 
         return CliParseResult.Success(createRunOptions(taskId, jsonOutput, logLevel));

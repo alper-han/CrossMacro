@@ -3,13 +3,16 @@ namespace CrossMacro.Infrastructure.Tests.Services;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Platform.Abstractions;
+using CrossMacro.TestInfrastructure;
 using FluentAssertions;
 using NSubstitute;
 
 public class CoordinateCaptureServiceTests
 {
+    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(2);
+
     [Fact]
     public async Task CaptureMousePositionAsync_WhenFactoryMissing_ReturnsCurrentPosition()
     {
@@ -32,7 +35,7 @@ public class CoordinateCaptureServiceTests
         var service = new CoordinateCaptureService(positionProvider, () => capture);
 
         var captureTask = service.CaptureMousePositionAsync();
-        await WaitForConditionAsync(() => capture.ConfigureCalls > 0);
+        await capture.ConfiguredSignal.WaitAsync(TestTimeout);
 
         capture.EmitInput(new InputCaptureEventArgs
         {
@@ -56,7 +59,7 @@ public class CoordinateCaptureServiceTests
         var service = new CoordinateCaptureService(positionProvider, () => capture);
 
         var captureTask = service.CaptureMousePositionAsync();
-        await WaitForConditionAsync(() => capture.ConfigureCalls > 0);
+        await capture.ConfiguredSignal.WaitAsync(TestTimeout);
 
         capture.EmitInput(new InputCaptureEventArgs
         {
@@ -78,7 +81,7 @@ public class CoordinateCaptureServiceTests
         var service = new CoordinateCaptureService(positionProvider, () => capture);
 
         var captureTask = service.CaptureKeyCodeAsync();
-        await WaitForConditionAsync(() => capture.ConfigureCalls > 0);
+        await capture.ConfiguredSignal.WaitAsync(TestTimeout);
 
         capture.EmitInput(new InputCaptureEventArgs
         {
@@ -102,7 +105,7 @@ public class CoordinateCaptureServiceTests
         var service = new CoordinateCaptureService(positionProvider, () => capture);
 
         var captureTask = service.CaptureMousePositionAsync();
-        await WaitForConditionAsync(() => service.IsCapturing);
+        await capture.ConfiguredSignal.WaitAsync(TestTimeout);
 
         service.CancelCapture();
         var result = await captureTask;
@@ -147,10 +150,10 @@ public class CoordinateCaptureServiceTests
         var service = new CoordinateCaptureService(positionProvider, () => ++factoryCalls == 1 ? firstCapture : secondCapture);
 
         var firstTask = service.CaptureMousePositionAsync();
-        await WaitForConditionAsync(() => firstCapture.ConfigureCalls > 0);
+        await firstCapture.ConfiguredSignal.WaitAsync(TestTimeout);
 
         var secondTask = service.CaptureMousePositionAsync();
-        await WaitForConditionAsync(() => secondCapture.ConfigureCalls > 0);
+        await secondCapture.ConfiguredSignal.WaitAsync(TestTimeout);
 
         var firstResult = await firstTask;
         firstResult.Should().BeNull();
@@ -168,27 +171,13 @@ public class CoordinateCaptureServiceTests
         service.IsCapturing.Should().BeFalse();
     }
 
-    private static async Task WaitForConditionAsync(Func<bool> condition, int maxAttempts = 50, int delayMs = 10)
-    {
-        for (var i = 0; i < maxAttempts; i++)
-        {
-            if (condition())
-            {
-                return;
-            }
-
-            await Task.Delay(delayMs);
-        }
-
-        throw new TimeoutException("Condition was not met in expected time.");
-    }
-
     private sealed class FakeInputCapture : IInputCapture
     {
         public string ProviderName => "FakeCapture";
         public bool IsSupported => true;
         public bool ThrowOnStart { get; init; }
         public bool ReturnFaultedStartTask { get; init; }
+        public AsyncSignal ConfiguredSignal { get; } = new();
         public int ConfigureCalls { get; private set; }
         public bool LastCaptureMouse { get; private set; }
         public bool LastCaptureKeyboard { get; private set; }
@@ -205,6 +194,7 @@ public class CoordinateCaptureServiceTests
             ConfigureCalls++;
             LastCaptureMouse = captureMouse;
             LastCaptureKeyboard = captureKeyboard;
+            ConfiguredSignal.Signal();
         }
 
         public Task StartAsync(CancellationToken ct)

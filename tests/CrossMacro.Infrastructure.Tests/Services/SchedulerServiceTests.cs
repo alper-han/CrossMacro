@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
@@ -246,5 +247,168 @@ public class SchedulerServiceTests
         // Assert
         _service.Tasks.Should().ContainSingle();
         _service.Tasks[0].Id.Should().Be(validTask.Id);
+    }
+
+    [Fact]
+    public async Task LoadAsync_WhenCalledOnCapturedSynchronizationContext_CompletesInlineAfterCollectionUpdate()
+    {
+        var previousContext = SynchronizationContext.Current;
+        var synchronizationContext = new DeferredSynchronizationContext();
+        SynchronizationContext.SetSynchronizationContext(synchronizationContext);
+
+        try
+        {
+            var task = new ScheduledTask
+            {
+                Name = "Queued task",
+                MacroFilePath = "task.macro",
+                Type = ScheduleType.Interval,
+                IntervalUnit = IntervalUnit.Seconds,
+                IntervalValue = 30,
+                IsEnabled = true
+            };
+
+            _repository.LoadAsync().Returns(Task.FromResult(new List<ScheduledTask> { task }));
+            var service = new SchedulerService(_repository, _executor, _timeProvider);
+
+            var loadTask = service.LoadAsync();
+
+            await loadTask;
+
+            loadTask.IsCompletedSuccessfully.Should().BeTrue();
+            service.Tasks.Should().ContainSingle();
+            synchronizationContext.PendingCallbacks.Should().Be(0);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previousContext);
+        }
+    }
+
+    [Fact]
+    public async Task LoadAsync_WhenCalledOffCapturedSynchronizationContext_PostsBackBeforeCompleting()
+    {
+        var previousContext = SynchronizationContext.Current;
+        var synchronizationContext = new DeferredSynchronizationContext();
+        SynchronizationContext.SetSynchronizationContext(synchronizationContext);
+
+        try
+        {
+            var task = new ScheduledTask
+            {
+                Name = "Queued task",
+                MacroFilePath = "task.macro",
+                Type = ScheduleType.Interval,
+                IntervalUnit = IntervalUnit.Seconds,
+                IntervalValue = 30,
+                IsEnabled = true
+            };
+
+            _repository.LoadAsync().Returns(Task.FromResult(new List<ScheduledTask> { task }));
+            var service = new SchedulerService(_repository, _executor, _timeProvider);
+
+            var loadTask = Task.Run(service.LoadAsync);
+
+            SpinWait.SpinUntil(
+                () => synchronizationContext.PendingCallbacks == 1 || loadTask.IsCompleted,
+                TimeSpan.FromSeconds(2)).Should().BeTrue();
+
+            loadTask.IsCompleted.Should().BeFalse();
+            synchronizationContext.PendingCallbacks.Should().Be(1);
+            service.Tasks.Should().BeEmpty();
+
+            synchronizationContext.RunAll();
+
+            SynchronizationContext.SetSynchronizationContext(previousContext);
+            await loadTask.WaitAsync(TimeSpan.FromSeconds(2));
+
+            service.Tasks.Should().ContainSingle();
+            synchronizationContext.PendingCallbacks.Should().Be(0);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previousContext);
+        }
+    }
+
+    [Fact]
+    public async Task Stop_WhenTimerLoopIsBusyWithExecution_ReturnsWithoutWaitingForHungExecution()
+    {
+        var now = _timeProvider.UtcNow;
+        var task = new ScheduledTask
+        {
+            Name = "Run now",
+            MacroFilePath = "task.macro",
+            Type = ScheduleType.Interval,
+            IntervalUnit = IntervalUnit.Seconds,
+            IntervalValue = 30,
+            IsEnabled = false
+        };
+
+        var executionStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _executor.ExecuteAsync(Arg.Any<ScheduledTask>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                executionStarted.TrySetResult();
+                return Task.Delay(Timeout.Infinite, CancellationToken.None);
+            });
+
+        _service.AddTask(task);
+        task.IsEnabled = true;
+        task.NextRunTime = now;
+        _service.Start();
+
+        await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(3));
+
+        var started = DateTime.UtcNow;
+        _service.Stop();
+        var elapsed = DateTime.UtcNow - started;
+
+        _service.IsRunning.Should().BeFalse();
+        elapsed.Should().BeLessThan(TimeSpan.FromSeconds(3));
+    }
+
+    private sealed class DeferredSynchronizationContext : SynchronizationContext
+    {
+        private readonly Queue<(SendOrPostCallback Callback, object? State)> _pendingCallbacks = new();
+
+        public int PendingCallbacks
+        {
+            get
+            {
+                lock (_pendingCallbacks)
+                {
+                    return _pendingCallbacks.Count;
+                }
+            }
+        }
+
+        public override void Post(SendOrPostCallback d, object? state)
+        {
+            lock (_pendingCallbacks)
+            {
+                _pendingCallbacks.Enqueue((d, state));
+            }
+        }
+
+        public void RunAll()
+        {
+            while (true)
+            {
+                (SendOrPostCallback Callback, object? State) workItem;
+
+                lock (_pendingCallbacks)
+                {
+                    if (_pendingCallbacks.Count == 0)
+                    {
+                        return;
+                    }
+
+                    workItem = _pendingCallbacks.Dequeue();
+                }
+
+                workItem.Callback(workItem.State);
+            }
+        }
     }
 }

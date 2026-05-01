@@ -2,8 +2,8 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Services;
-using Serilog;
 
 namespace CrossMacro.Infrastructure.Services;
 

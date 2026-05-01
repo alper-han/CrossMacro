@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Platform.Abstractions;
+using CrossMacro.TestInfrastructure;
 using NSubstitute;
 using Xunit;
 
@@ -12,6 +14,8 @@ namespace CrossMacro.Infrastructure.Tests.Services;
 
 public class GlobalHotkeyServiceTests
 {
+    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(2);
+
     private readonly IHotkeyConfigurationService _config;
     private readonly IHotkeyParser _parser;
     private readonly IHotkeyMatcher _matcher;
@@ -81,6 +85,30 @@ public class GlobalHotkeyServiceTests
         // Assert
         _inputCapture.Received(1).Configure(true, true);
         Assert.True(_service.IsRunning);
+    }
+
+    [Fact]
+    public void Start_WhenCalledTwice_DoesNotCreateOrStartSecondCapture()
+    {
+        _service.Start();
+
+        _service.Start();
+
+        _inputCapture.Received(1).Configure(true, true);
+        _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void Stop_WhenCalledTwice_IsIdempotent()
+    {
+        _service.Start();
+
+        _service.Stop();
+        _service.Stop();
+
+        _inputCapture.Received(1).Stop();
+        _inputCapture.Received(1).Dispose();
+        Assert.False(_service.IsRunning);
     }
 
     [Fact]
@@ -209,6 +237,14 @@ public class GlobalHotkeyServiceTests
         firstCapture.Received(1).Dispose();
         secondCapture.Received(1).Configure(true, true);
         await secondCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
+
+        Received.InOrder(() =>
+        {
+            firstCapture.Stop();
+            firstCapture.Dispose();
+            secondCapture.Configure(true, true);
+            secondCapture.StartAsync(Arg.Any<CancellationToken>());
+        });
     }
 
     [Fact]
@@ -254,9 +290,12 @@ public class GlobalHotkeyServiceTests
     public async Task Start_WhenCaptureStartTaskFaults_ShouldStopWithoutRestart()
     {
         var firstCapture = Substitute.For<IInputCapture>();
+        var startupFaultObserved = new AsyncSignal();
         firstCapture.ProviderName.Returns("first");
         firstCapture.StartAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new InvalidOperationException("startup failed")));
+
+        var factoryCallCount = 0;
 
         var restartingService = new GlobalHotkeyService(
             _config,
@@ -265,13 +304,26 @@ public class GlobalHotkeyServiceTests
             _modifierTracker,
             _stringBuilder,
             _mouseButtonMapper,
-            () => firstCapture);
+            () =>
+            {
+                factoryCallCount++;
+                return firstCapture;
+            });
+
+        restartingService.ErrorOccurred += (_, error) =>
+        {
+            if (error == "startup failed")
+            {
+                startupFaultObserved.Signal();
+            }
+        };
 
         restartingService.Start();
 
-        await WaitForConditionAsync(() => !restartingService.IsRunning);
+        await startupFaultObserved.WaitAsync(TestTimeout);
 
         Assert.False(restartingService.IsRunning);
+        Assert.Equal(1, factoryCallCount);
         Assert.Equal("startup failed", restartingService.LastError);
         firstCapture.Received(1).Stop();
         firstCapture.Received(1).Dispose();
@@ -283,6 +335,7 @@ public class GlobalHotkeyServiceTests
     {
         var firstCapture = Substitute.For<IInputCapture>();
         var secondCapture = Substitute.For<IInputCapture>();
+        var restartFailureObserved = new AsyncSignal();
         firstCapture.ProviderName.Returns("first");
         secondCapture.ProviderName.Returns("second");
         firstCapture.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
@@ -300,10 +353,18 @@ public class GlobalHotkeyServiceTests
             _mouseButtonMapper,
             () => ++factoryCall == 1 ? firstCapture : secondCapture);
 
+        restartingService.ErrorOccurred += (_, error) =>
+        {
+            if (error.Contains("Restart failed", StringComparison.OrdinalIgnoreCase))
+            {
+                restartFailureObserved.Signal();
+            }
+        };
+
         restartingService.Start();
 
         firstCapture.Error += Raise.Event<EventHandler<string>>(this, "simulated capture error");
-        await WaitForConditionAsync(() => !restartingService.IsRunning);
+        await restartFailureObserved.WaitAsync(TestTimeout);
 
         Assert.False(restartingService.IsRunning);
         Assert.Contains("Restart failed", restartingService.LastError, StringComparison.OrdinalIgnoreCase);
@@ -314,22 +375,16 @@ public class GlobalHotkeyServiceTests
         secondCapture.Received(1).Stop();
         secondCapture.Received(1).Dispose();
 
-        restartingService.Stop();
-        secondCapture.Received(1).Stop();
-    }
-
-    private static async Task WaitForConditionAsync(Func<bool> condition, int maxAttempts = 50, int delayMs = 10)
-    {
-        for (var i = 0; i < maxAttempts; i++)
+        Received.InOrder(() =>
         {
-            if (condition())
-            {
-                return;
-            }
+            firstCapture.Stop();
+            firstCapture.Dispose();
+            secondCapture.Configure(true, true);
+            secondCapture.StartAsync(Arg.Any<CancellationToken>());
+            secondCapture.Stop();
+            secondCapture.Dispose();
+        });
 
-            await Task.Delay(delayMs);
-        }
-
-        throw new TimeoutException("Condition was not met in expected time.");
+        restartingService.Stop();
     }
 }

@@ -1,4 +1,4 @@
-using CrossMacro.Core.Services;
+using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
 
@@ -215,4 +215,3 @@ public class KeyCodeMapper : IKeyCodeMapper
         };
     }
 }
-

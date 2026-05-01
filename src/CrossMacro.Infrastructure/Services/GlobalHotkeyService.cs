@@ -4,9 +4,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Diagnostics;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using Serilog;
+using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
 
@@ -16,14 +17,11 @@ namespace CrossMacro.Infrastructure.Services;
 /// </summary>
 public class GlobalHotkeyService : IGlobalHotkeyService
 {
-    private IInputCapture? _inputCapture;
     private bool _isRunning;
     private bool _disposed;
     private readonly Lock _lock = new();
-    private CancellationTokenSource? _captureCts;
-    private Task? _captureTask;
     private int _restartInProgress;
-    private bool _captureStartupCompleted;
+    private readonly InputCaptureLifecycle _captureLifecycle = new();
 
     // Injected services
     private readonly IHotkeyConfigurationService _configService;
@@ -111,7 +109,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     {
         using (_lock.EnterScope())
         {
-            if (!_isRunning && _inputCapture == null && _captureCts == null)
+            if (!_isRunning && !_captureLifecycle.HasActiveResources)
             {
                 return;
             }
@@ -346,16 +344,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
                 return;
             }
 
-            if (_captureStartupCompleted || (_captureTask?.IsCompletedSuccessfully ?? false))
-            {
-                _captureStartupCompleted = true;
-                shouldRestart = true;
-            }
-            else
-            {
-                _isRunning = false;
-                CleanupCapture_NoLock();
-            }
+            shouldRestart = true;
         }
 
         if (shouldNotify)
@@ -391,104 +380,53 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
     private void StartCapture_NoLock()
     {
-        _inputCapture = _inputCaptureFactory!();
-        _inputCapture.Configure(captureMouse: true, captureKeyboard: true);
-        _inputCapture.InputReceived += OnInputReceived;
-        _inputCapture.Error += OnInputCaptureError;
-        _captureStartupCompleted = false;
-
-        _captureCts = new CancellationTokenSource();
-        var capture = _inputCapture;
-        var captureToken = _captureCts.Token;
-        var captureTask = capture.StartAsync(captureToken) ?? Task.CompletedTask;
-        _captureTask = captureTask;
-        _captureStartupCompleted = captureTask.IsCompletedSuccessfully;
-        _ = ObserveCaptureTaskAsync(capture, captureTask, captureToken);
-    }
-
-    private void StopCapture_NoLock()
-    {
-        if (_inputCapture == null)
-        {
-            return;
-        }
-
-        _inputCapture.InputReceived -= OnInputReceived;
-        _inputCapture.Error -= OnInputCaptureError;
-        _inputCapture.Stop();
-        _inputCapture.Dispose();
-        _inputCapture = null;
+        _captureLifecycle.Start(
+            _inputCaptureFactory!,
+            captureMouse: true,
+            captureKeyboard: true,
+            OnInputReceived,
+            OnInputCaptureError,
+            OnCaptureStarted,
+            OnCaptureFaulted);
     }
 
     private void CleanupCapture_NoLock()
     {
-        _captureStartupCompleted = false;
-        var captureCts = _captureCts;
-        _captureCts = null;
-        _captureTask = null;
+        _captureLifecycle.Cleanup(
+            OnInputReceived,
+            OnInputCaptureError,
+            ex => Log.Error(ex, "[GlobalHotkeyService] Error stopping input capture"));
+    }
 
-        try
+    private void OnCaptureStarted(IInputCapture capture)
+    {
+        using (_lock.EnterScope())
         {
-            captureCts?.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
-            // Already disposed.
-        }
-
-        try
-        {
-            StopCapture_NoLock();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "[GlobalHotkeyService] Error stopping input capture");
-        }
-        finally
-        {
-            try
+            if (_isRunning && _captureLifecycle.IsCurrent(capture))
             {
-                captureCts?.Dispose();
-            }
-            catch (ObjectDisposedException)
-            {
-                // Already disposed.
+                Log.Information("[GlobalHotkeyService] Started via {ProviderName}", capture.ProviderName);
             }
         }
     }
 
-    private async Task ObserveCaptureTaskAsync(IInputCapture capture, Task captureTask, CancellationToken token)
+    private void OnCaptureFaulted(IInputCapture capture, Exception ex)
     {
-        try
+        bool shouldReport;
+        using (_lock.EnterScope())
         {
-            await captureTask.ConfigureAwait(false);
-
-            using (_lock.EnterScope())
+            shouldReport = _isRunning && _captureLifecycle.IsCurrent(capture);
+            if (!shouldReport)
             {
-                if (_isRunning && ReferenceEquals(_inputCapture, capture))
-                {
-                    _captureStartupCompleted = true;
-                    Log.Information("[GlobalHotkeyService] Started via {ProviderName}", capture.ProviderName);
-                }
-            }
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
-        {
-            // Normal shutdown path.
-        }
-        catch (Exception ex)
-        {
-            bool shouldReport;
-            using (_lock.EnterScope())
-            {
-                shouldReport = _isRunning && ReferenceEquals(_inputCapture, capture);
+                return;
             }
 
-            if (shouldReport)
-            {
-                OnInputCaptureError(capture, ex.Message);
-            }
+            LastError = ex.Message;
+            _isRunning = false;
+            CleanupCapture_NoLock();
         }
+
+        Log.Error(ex, "[GlobalHotkeyService] Input capture failed during startup");
+        ErrorOccurred?.Invoke(this, ex.Message);
     }
 
     private async Task TryRestartCaptureAsync(string cause)

@@ -1,10 +1,9 @@
 using System;
 using System.Threading.Tasks;
 using System.IO;
-using System.Text.Json;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using Serilog;
 using CrossMacro.Infrastructure.Serialization;
 using CrossMacro.Infrastructure.Helpers;
 
@@ -39,8 +38,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
         {
             if (File.Exists(_configPath))
             {
-                var json = File.ReadAllText(_configPath);
-                var settings = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.HotkeySettings);
+                var settings = FileBackedJsonStorage.Read(_configPath, CrossMacroJsonContext.Default.HotkeySettings);
                 if (settings != null)
                 {
                     Log.Information("Loaded hotkey configuration from {Path}", _configPath);
@@ -67,8 +65,8 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
                 return new HotkeySettings();
             }
 
-            var json = await File.ReadAllTextAsync(_configPath);
-            var settings = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.HotkeySettings);
+            var settings = await FileBackedJsonStorage.ReadAsync(_configPath, CrossMacroJsonContext.Default.HotkeySettings)
+                .ConfigureAwait(false);
             if (settings != null)
             {
                 Log.Information("Loaded hotkey configuration from {Path}", _configPath);
@@ -88,8 +86,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
     {
         try
         {
-            var json = JsonSerializer.Serialize(settings, CrossMacroJsonContext.Default.HotkeySettings);
-            File.WriteAllText(_configPath, json);
+            FileBackedJsonStorage.Write(_configPath, settings, CrossMacroJsonContext.Default.HotkeySettings);
             Log.Information("Saved hotkey configuration to {Path}", _configPath);
         }
         catch (Exception ex)

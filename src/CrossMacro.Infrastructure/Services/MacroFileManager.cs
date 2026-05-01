@@ -2,9 +2,9 @@ using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using Serilog;
 
 namespace CrossMacro.Infrastructure.Services;
 

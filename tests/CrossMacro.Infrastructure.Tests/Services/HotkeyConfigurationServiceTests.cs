@@ -127,4 +127,44 @@ public class HotkeyConfigurationServiceTests : IDisposable
         loaded.PlaybackHotkey.Should().Be("Super+P");
         loaded.PauseHotkey.Should().Be("Super+S");
     }
+
+    [Fact]
+    public void Load_WhenFileCorrupted_ReturnsDefaults()
+    {
+        // Arrange
+        var service = new HotkeyConfigurationService(_tempPath);
+        File.WriteAllText(Path.Combine(_tempPath, "hotkeys.json"), "{ invalid json }");
+
+        // Act
+        var loaded = service.Load();
+
+        // Assert
+        loaded.RecordingHotkey.Should().Be("F8");
+        loaded.PlaybackHotkey.Should().Be("F9");
+        loaded.PauseHotkey.Should().Be("F10");
+    }
+
+    [Fact]
+    public void Save_WhenWriteFails_SwallowsException()
+    {
+        // Arrange
+        var serviceRoot = Path.Combine(_tempPath, "config-root");
+        Directory.CreateDirectory(serviceRoot);
+        var service = new HotkeyConfigurationService(serviceRoot);
+        Directory.Delete(serviceRoot);
+        File.WriteAllText(serviceRoot, "blocking file");
+
+        var settings = new HotkeySettings
+        {
+            RecordingHotkey = "Ctrl+R",
+            PlaybackHotkey = "Ctrl+P",
+            PauseHotkey = "Ctrl+Space"
+        };
+
+        // Act
+        var act = () => service.Save(settings);
+
+        // Assert
+        act.Should().NotThrow();
+    }
 }

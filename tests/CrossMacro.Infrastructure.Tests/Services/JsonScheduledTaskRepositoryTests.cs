@@ -87,4 +87,32 @@ public class JsonScheduledTaskRepositoryTests : IDisposable
             if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
         }
     }
+
+    [Fact]
+    public async Task LoadAsync_WhenFileContainsMalformedJson_ReturnsEmptyList()
+    {
+        // Arrange
+        await File.WriteAllTextAsync(_tempFile, "{ invalid json }");
+
+        // Act
+        var result = await _repository.LoadAsync();
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenWriteFails_Throws()
+    {
+        // Arrange
+        var blockingPath = Path.Combine(_tempFile, "schedules.json");
+        var repository = new JsonScheduledTaskRepository(blockingPath);
+        var tasks = new[] { new ScheduledTask { Name = "Task 1" } };
+
+        // Act
+        var act = async () => await repository.SaveAsync(tasks);
+
+        // Assert
+        await act.Should().ThrowAsync<IOException>();
+    }
 }

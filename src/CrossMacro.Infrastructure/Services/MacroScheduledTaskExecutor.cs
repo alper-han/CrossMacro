@@ -5,14 +5,11 @@ using System.Threading.Tasks;
 using CrossMacro.Core;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using Serilog;
 
 namespace CrossMacro.Infrastructure.Services;
 
 public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
 {
-    private static readonly ILogger Logger = Log.ForContext<MacroScheduledTaskExecutor>();
-    
     private readonly IMacroFileManager _fileManager;
     private readonly Func<IMacroPlayer> _playerFactory;
     private readonly ITimeProvider _timeProvider;

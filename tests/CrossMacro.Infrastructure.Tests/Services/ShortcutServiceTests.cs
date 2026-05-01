@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Infrastructure.Serialization;
 using CrossMacro.Infrastructure.Services;
 using FluentAssertions;
 using NSubstitute;
@@ -281,5 +282,90 @@ public class ShortcutServiceTests : IDisposable
                 File.Delete(tempFile);
             }
         }
+    }
+
+    [Fact]
+    public async Task SaveAsync_AndLoadAsync_RoundTripPreservesPersistedContractAndComputedState()
+    {
+        var persistedTask = new ShortcutTask
+        {
+            Name = "Launch Macro",
+            MacroFilePath = "/tmp/sample.macro",
+            HotkeyString = "Ctrl+Shift+M",
+            PlaybackSpeed = 2.5,
+            IsEnabled = true,
+            LoopEnabled = true,
+            RepeatCount = 4,
+            RepeatDelayMs = 125,
+            LastStatus = "Success",
+            LastTriggeredTime = new DateTime(2026, 4, 27, 10, 30, 0, DateTimeKind.Utc)
+        };
+
+        _service.AddTask(persistedTask);
+
+        await _service.SaveAsync();
+
+        var savedJson = await File.ReadAllTextAsync(_shortcutsFilePath);
+        savedJson.Should().Contain("\"macroFilePath\"");
+        savedJson.Should().Contain("\"hotkeyString\"");
+        savedJson.Should().Contain("\"loopEnabled\": true");
+        savedJson.Should().NotContain("\"isLoopEnabled\"");
+
+        var reloadedService = new ShortcutService(_fileManager, _playerFactory, _hotkeyService, _shortcutsFilePath);
+
+        try
+        {
+            await reloadedService.LoadAsync();
+
+            reloadedService.Tasks.Should().ContainSingle();
+            var loadedTask = reloadedService.Tasks[0];
+            loadedTask.Name.Should().Be("Launch Macro");
+            loadedTask.MacroFilePath.Should().Be("/tmp/sample.macro");
+            loadedTask.HotkeyString.Should().Be("Ctrl+Shift+M");
+            loadedTask.PlaybackSpeed.Should().Be(2.5);
+            loadedTask.IsEnabled.Should().BeTrue();
+            loadedTask.LoopEnabled.Should().BeTrue();
+            loadedTask.RunWhileHeld.Should().BeFalse();
+            loadedTask.IsLoopEnabled.Should().BeTrue();
+            loadedTask.CanBeEnabled.Should().BeTrue();
+            loadedTask.RepeatCount.Should().Be(4);
+            loadedTask.RepeatDelayMs.Should().Be(125);
+            loadedTask.LastStatus.Should().Be("Success");
+            loadedTask.LastTriggeredTime.Should().Be(new DateTime(2026, 4, 27, 10, 30, 0, DateTimeKind.Utc));
+        }
+        finally
+        {
+            reloadedService.Dispose();
+        }
+    }
+
+    [Fact]
+    public async Task LoadAsync_UsesExplicitShortcutTaskContextContract()
+    {
+        var expectedTasks = new List<ShortcutTask>
+        {
+            new()
+            {
+                Name = "Typed Context Task",
+                MacroFilePath = "typed.macro",
+                HotkeyString = "F6",
+                RunWhileHeld = true,
+                RepeatDelayMs = 42
+            }
+        };
+
+        await File.WriteAllTextAsync(
+            _shortcutsFilePath,
+            System.Text.Json.JsonSerializer.Serialize(expectedTasks, CrossMacroJsonContext.Default.ListShortcutTask));
+
+        await _service.LoadAsync();
+
+        _service.Tasks.Should().ContainSingle();
+        var loadedTask = _service.Tasks[0];
+        loadedTask.Name.Should().Be("Typed Context Task");
+        loadedTask.RunWhileHeld.Should().BeTrue();
+        loadedTask.LoopEnabled.Should().BeFalse();
+        loadedTask.IsLoopEnabled.Should().BeTrue();
+        loadedTask.RepeatDelayMs.Should().Be(42);
     }
 }

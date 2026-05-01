@@ -3,9 +3,9 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using Serilog;
 
 namespace CrossMacro.Infrastructure.Services;
 
@@ -14,7 +14,7 @@ namespace CrossMacro.Infrastructure.Services;
 /// </summary>
 public class SchedulerService : ISchedulerService
 {
-    private static readonly ILogger Logger = Log.ForContext<SchedulerService>();
+    private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(2);
     
     private readonly IScheduledTaskRepository _repository;
     private readonly IScheduledTaskExecutor _executor;
@@ -144,44 +144,77 @@ public class SchedulerService : ISchedulerService
 
     public void Start()
     {
-        if (_isRunning) return;
-        _isRunning = true;
-        
-        _cts = new CancellationTokenSource();
-        _periodicTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-        _timerTask = RunTimerLoopAsync(_cts.Token);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        Task? timerTask = null;
+        CancellationTokenSource? cts = null;
+
+        lock (_lock)
+        {
+            if (_isRunning)
+            {
+                return;
+            }
+
+            _isRunning = true;
+            _cts = new CancellationTokenSource();
+            _periodicTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            _timerTask = RunTimerLoopAsync(_periodicTimer, _cts.Token);
+
+            timerTask = _timerTask;
+            cts = _cts;
+        }
+
+        _ = ObserveTimerLoopAsync(timerTask!, cts!);
     }
     
     public void Stop()
     {
-        if (!_isRunning) return;
-        _isRunning = false;
-        
-        _cts?.Cancel();
-        _periodicTimer?.Dispose();
-        _periodicTimer = null;
-        
-        // Wait for timer task to complete gracefully
+        Task? timerTask;
+        PeriodicTimer? periodicTimer;
+        CancellationTokenSource? cts;
+
+        lock (_lock)
+        {
+            if (!_isRunning && _periodicTimer == null && _cts == null && _timerTask == null)
+            {
+                return;
+            }
+
+            _isRunning = false;
+            timerTask = _timerTask;
+            periodicTimer = _periodicTimer;
+            cts = _cts;
+
+            _timerTask = null;
+            _periodicTimer = null;
+            _cts = null;
+        }
+
         try
         {
-            _timerTask?.Wait(TimeSpan.FromSeconds(2));
+            cts?.Cancel();
         }
-        catch (AggregateException)
+        catch (ObjectDisposedException)
         {
-            // Task was cancelled, expected behavior
         }
-        
-        _timerTask = null;
-        _cts?.Dispose();
-        _cts = null;
+
+        periodicTimer?.Dispose();
+
+        if (timerTask == null)
+        {
+            cts?.Dispose();
+            return;
+        }
+
+        _ = CompleteStopAsync(timerTask, cts);
     }
     
-    private async Task RunTimerLoopAsync(CancellationToken cancellationToken)
+    private async Task RunTimerLoopAsync(PeriodicTimer timer, CancellationToken cancellationToken)
     {
         try
         {
-            while (_periodicTimer != null && 
-                   await _periodicTimer.WaitForNextTickAsync(cancellationToken))
+            while (await timer.WaitForNextTickAsync(cancellationToken))
             {
                 await CheckTasksAsync();
             }
@@ -189,6 +222,72 @@ public class SchedulerService : ISchedulerService
         catch (OperationCanceledException)
         {
             // Expected when stopping the scheduler
+        }
+    }
+
+    private async Task ObserveTimerLoopAsync(Task timerTask, CancellationTokenSource cts)
+    {
+        try
+        {
+            await timerTask.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            bool shouldCleanup;
+            lock (_lock)
+            {
+                shouldCleanup = ReferenceEquals(_timerTask, timerTask);
+                if (shouldCleanup)
+                {
+                    _isRunning = false;
+                    _timerTask = null;
+                    _periodicTimer = null;
+                    _cts = null;
+                }
+            }
+
+            Log.Error(ex, "[SchedulerService] Timer loop faulted and scheduler was stopped");
+
+            if (shouldCleanup)
+            {
+                try
+                {
+                    cts.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+
+                cts.Dispose();
+            }
+        }
+    }
+
+    private static async Task CompleteStopAsync(Task timerTask, CancellationTokenSource? cts)
+    {
+        try
+        {
+            var completedTask = await Task.WhenAny(timerTask, Task.Delay(StopTimeout)).ConfigureAwait(false);
+            if (!ReferenceEquals(completedTask, timerTask))
+            {
+                Log.Warning("[SchedulerService] Timer loop did not stop within {TimeoutMs}ms; shutdown will continue in background", StopTimeout.TotalMilliseconds);
+            }
+
+            await timerTask.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cts?.IsCancellationRequested == true)
+        {
+        }
+        catch
+        {
+            // Faults are already handled by ObserveTimerLoopAsync.
+        }
+        finally
+        {
+            cts?.Dispose();
         }
     }
     
@@ -231,8 +330,8 @@ public class SchedulerService : ISchedulerService
     public async Task LoadAsync()
     {
         var tasks = await _repository.LoadAsync();
-        
-        void UpdateCollection(object? state)
+
+        await ExecuteOnCapturedContextAsync(() =>
         {
             lock (_lock)
             {
@@ -242,7 +341,7 @@ public class SchedulerService : ISchedulerService
                 {
                     if (task == null)
                     {
-                        Logger.Warning("[SchedulerService] Skipping null task entry during load");
+                        Log.Warning("[SchedulerService] Skipping null task entry during load");
                         continue;
                     }
 
@@ -262,7 +361,7 @@ public class SchedulerService : ISchedulerService
                             {
                                 task.IsEnabled = false;
                                 task.NextRunTime = null;
-                                Logger.Warning(
+                                Log.Warning(
                                     "[SchedulerService] Task {TaskId} disabled during load because SpecificTime schedule has no ScheduledDateTime",
                                     task.Id);
                                 Tasks.Add(task);
@@ -286,23 +385,40 @@ public class SchedulerService : ISchedulerService
                     {
                         task.IsEnabled = false;
                         task.NextRunTime = null;
-                        Logger.Warning(ex,
+                        Log.Warning(ex,
                             "[SchedulerService] Task {TaskId} disabled during load due to invalid schedule data",
                             task.Id);
                     }
+
                     Tasks.Add(task);
                 }
             }
+        }).ConfigureAwait(false);
+    }
+
+    private Task ExecuteOnCapturedContextAsync(Action action)
+    {
+        if (_syncContext == null || SynchronizationContext.Current == _syncContext)
+        {
+            action();
+            return Task.CompletedTask;
         }
 
-        if (_syncContext != null)
+        var completion = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _syncContext.Post(_ =>
         {
-            _syncContext.Post(UpdateCollection, null);
-        }
-        else
-        {
-            UpdateCollection(null);
-        }
+            try
+            {
+                action();
+                completion.TrySetResult(null);
+            }
+            catch (Exception ex)
+            {
+                completion.TrySetException(ex);
+            }
+        }, null);
+
+        return completion.Task;
     }
     
     public void Dispose()

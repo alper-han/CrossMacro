@@ -3,13 +3,12 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Serialization;
-using Serilog;
 using CrossMacro.Infrastructure.Helpers;
 
 namespace CrossMacro.Infrastructure.Services;
@@ -19,8 +18,6 @@ namespace CrossMacro.Infrastructure.Services;
 /// </summary>
 public class ShortcutService : IShortcutService
 {
-    private static readonly ILogger Logger = Log.ForContext<ShortcutService>();
-    
     private readonly IMacroFileManager _fileManager;
     private readonly Func<IMacroPlayer> _playerFactory;
     private readonly IGlobalHotkeyService _hotkeyService;
@@ -123,7 +120,7 @@ public class ShortcutService : IShortcutService
         _hotkeyService.RawKeyReleased += OnRawKeyReleased;
         _isListening = true;
         
-        Logger.Information("[ShortcutService] Started listening for shortcuts");
+        Log.Information("[ShortcutService] Started listening for shortcuts");
     }
     
     public void Stop()
@@ -134,7 +131,7 @@ public class ShortcutService : IShortcutService
         _hotkeyService.RawKeyReleased -= OnRawKeyReleased;
         _isListening = false;
         
-        Logger.Information("[ShortcutService] Stopped listening for shortcuts");
+        Log.Information("[ShortcutService] Stopped listening for shortcuts");
     }
     
     private void OnRawInputReceived(object? sender, RawHotkeyInputEventArgs e)
@@ -157,7 +154,7 @@ public class ShortcutService : IShortcutService
             
             if (!matchingTask.RunWhileHeld && _activePlayers.TryGetValue(matchingTask.Id, out playerToStop))
             {
-                Logger.Information("[ShortcutService] Stopping {TaskName} - toggle triggered", matchingTask.Name);
+                Log.Information("[ShortcutService] Stopping {TaskName} - toggle triggered", matchingTask.Name);
                 _activePlayers.Remove(matchingTask.Id);
             }
             else
@@ -323,7 +320,7 @@ public class ShortcutService : IShortcutService
                 task.LastTriggeredTime = DateTime.UtcNow;
             });
             ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, false, ex.Message));
-            Logger.Error(ex, "[ShortcutService] Error executing shortcut task {TaskName}", task.Name);
+            Log.Error(ex, "[ShortcutService] Error executing shortcut task {TaskName}", task.Name);
         }
         finally
         {
@@ -352,24 +349,21 @@ public class ShortcutService : IShortcutService
     {
         try
         {
-            var directory = Path.GetDirectoryName(_shortcutsFilePath);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
             List<ShortcutTask> taskSnapshot;
             lock (_lock)
             {
                 taskSnapshot = Tasks.ToList();
             }
 
-            var json = JsonSerializer.Serialize(taskSnapshot, CrossMacroJsonContext.Default.ListShortcutTask);
-            await File.WriteAllTextAsync(_shortcutsFilePath, json);
+            await FileBackedJsonStorage.WriteAsync(
+                    _shortcutsFilePath,
+                    taskSnapshot,
+                    CrossMacroJsonContext.Default.ListShortcutTask)
+                .ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            Logger.Warning(ex, "Failed to save shortcut tasks to {Path}", _shortcutsFilePath);
+            Log.Warning(ex, "Failed to save shortcut tasks to {Path}", _shortcutsFilePath);
         }
     }
 
@@ -397,10 +391,12 @@ public class ShortcutService : IShortcutService
         try
         {
             if (!File.Exists(_shortcutsFilePath)) return;
-            
-            var json = await File.ReadAllTextAsync(_shortcutsFilePath);
-            var tasks = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.ListShortcutTask);
-            
+
+            var tasks = await FileBackedJsonStorage.ReadAsync(
+                    _shortcutsFilePath,
+                    CrossMacroJsonContext.Default.ListShortcutTask)
+                .ConfigureAwait(false);
+
             if (tasks != null)
             {
                 void UpdateCollection(object? state)
@@ -427,7 +423,7 @@ public class ShortcutService : IShortcutService
         }
         catch (Exception ex)
         {
-            Logger.Warning(ex, "Failed to load shortcut tasks from {Path}", _shortcutsFilePath);
+            Log.Warning(ex, "Failed to load shortcut tasks from {Path}", _shortcutsFilePath);
         }
     }
     

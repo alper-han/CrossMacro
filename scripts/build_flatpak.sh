@@ -16,7 +16,6 @@ ELF_INTERPRETER="${ELF_INTERPRETER:-$(get_glibc_interpreter "$TARGET_ARCH_RESOLV
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 FLATPAK_DIR="$PROJECT_ROOT/flatpak"
 BUILD_DIR="$SCRIPT_DIR/flatpak-source"
-PUBLISH_DIR="${PUBLISH_DIR:-$PROJECT_ROOT/publish}"
 OUTPUT_BUNDLE="$APP_ID-$PACKAGE_VERSION-$FLATPAK_ARCH.flatpak"
 
 echo "=== CrossMacro Flatpak Builder ==="
@@ -24,49 +23,9 @@ echo "Version: $PACKAGE_VERSION"
 echo "App ID: $APP_ID"
 echo "Target architecture: $TARGET_ARCH_RESOLVED (Flatpak: $FLATPAK_ARCH)"
 
-# Verify publish directory
-if [ ! -d "$PUBLISH_DIR" ]; then
-    echo "Error: Publish directory not found: $PUBLISH_DIR"
-    echo "Build first with:"
-    echo "  dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj -c Release -r linux-x64 --self-contained -o publish"
-    exit 1
-fi
-
-echo "Using binaries from: $PUBLISH_DIR"
-
 # Clean previous build
 rm -rf "$BUILD_DIR" "$FLATPAK_DIR/crossmacro-flatpak-source.tar.gz"
 mkdir -p "$BUILD_DIR"
-
-# Copy binaries
-echo "Copying binaries..."
-cp -r "$PUBLISH_DIR"/* "$BUILD_DIR/"
-
-# Patch interpreter for non-NixOS systems (Flatpak uses standard glibc)
-echo "Patching ELF binaries..."
-if command -v patchelf &> /dev/null; then
-    if [ -n "$ELF_INTERPRETER" ]; then
-        for elf in "$BUILD_DIR"/CrossMacro.UI "$BUILD_DIR"/createdump $(find "$BUILD_DIR" -name "*.so" 2>/dev/null); do
-            if [ -f "$elf" ] && file "$elf" | grep -q "ELF"; then
-                patchelf --set-interpreter "$ELF_INTERPRETER" "$elf" 2>/dev/null || true
-            fi
-        done
-    else
-        echo "Warning: No known glibc interpreter for target '$TARGET_ARCH_RESOLVED'; skipping patchelf."
-    fi
-fi
-
-# Copy icons
-echo "Copying icons..."
-mkdir -p "$BUILD_DIR/icons"
-cp -r "$PROJECT_ROOT/src/CrossMacro.UI/Assets/icons/"* "$BUILD_DIR/icons/"
-
-# Copy desktop entry and metainfo
-echo "Copying desktop files..."
-cp "$FLATPAK_DIR/$APP_ID.desktop" "$BUILD_DIR/"
-cp "$FLATPAK_DIR/$APP_ID.metainfo.xml" "$BUILD_DIR/"
-cp "$FLATPAK_DIR/crossmacro.sh" "$BUILD_DIR/"
-cp "$PROJECT_ROOT/LICENSE" "$BUILD_DIR/"
 
 # Build Flatpak (dir source, no archive needed)
 

@@ -1,26 +1,15 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Services;
-using Serilog;
 using CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
-
-using Tmds.DBus;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
 {
-    [DBusInterface("io.github.alper_han.crossmacro.Tracker")]
-    public interface IGnomeTrackerService : IDBusObject
-    {
-        Task<(int x, int y)> GetPositionAsync();
-        Task<(int width, int height)> GetResolutionAsync();
-    }
-
     public class GnomePositionProvider : IMousePositionProvider, IExtensionStatusNotifier
     {
-        private const string TrackerServiceName = "io.github.alper_han.crossmacro.Tracker";
-        private const string TrackerObjectPath = "/io/github/alper_han/crossmacro/Tracker";
-
         // Embedded GNOME Shell Extension files - auto-installed/updated when needed
         private const string EXTENSION_JS = @"import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -95,8 +84,9 @@ export default class CursorSpyExtension extends Extension {
         private static readonly string ExtensionJsPath = Path.Combine(ExtensionPath, "extension.js");
         private static readonly string MetadataJsonPath = Path.Combine(ExtensionPath, "metadata.json");
 
-        private Connection? _connection;
-        private IGnomeTrackerService? _proxy;
+        private LinuxDbusSession? _dbusSession;
+        private GnomeTrackerClient? _trackerClient;
+        private GnomeShellExtensionsClient? _extensionsClient;
         private readonly TaskCompletionSource<bool> _initializationTcs = new();
         private bool _isInitialized;
         private (int Width, int Height)? _cachedResolution;
@@ -202,24 +192,12 @@ export default class CursorSpyExtension extends Extension {
         {
             try
             {
-                if (_connection == null) return false;
-                
-                var extensionsProxy = _connection.CreateProxy<IGnomeShellExtensions>("org.gnome.Shell", "/org/gnome/Shell");
-                var info = await extensionsProxy.GetExtensionInfoAsync(ExtensionUuid);
-                
-                if (info != null && info.TryGetValue("state", out var stateObj))
+                if (_extensionsClient == null)
                 {
-                    // State 1 = ENABLED/ACTIVE
-                    double stateValue = 0;
-                    if (stateObj is double stateDbl) stateValue = stateDbl;
-                    else if (stateObj is int stateInt) stateValue = stateInt;
-                    else if (stateObj is uint stateUInt) stateValue = stateUInt;
-                    else if (stateObj is long stateLong) stateValue = stateLong;
-                    
-                    return stateValue == 1;
+                    return false;
                 }
-                
-                return false;
+
+                return await IsExtensionEnabledAsync(() => _extensionsClient.GetExtensionInfoAsync(ExtensionUuid)).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -232,10 +210,12 @@ export default class CursorSpyExtension extends Extension {
         {
             try
             {
-                if (_connection == null) return false;
+                if (_extensionsClient == null)
+                {
+                    return false;
+                }
 
-                var extensionsProxy = _connection.CreateProxy<IGnomeShellExtensions>("org.gnome.Shell", "/org/gnome/Shell");
-                return await extensionsProxy.EnableExtensionAsync(ExtensionUuid);
+                return await _extensionsClient.EnableExtensionAsync(ExtensionUuid).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -300,28 +280,59 @@ export default class CursorSpyExtension extends Extension {
 
         private async Task InitializeAsync()
         {
+            LinuxDbusSession? dbusSession = null;
+
             try
             {
                 // Ensure extension is installed before connecting
                 // This runs on a background thread now, so it won't block startup
                 await EnsureExtensionInstalledAsync();
 
-                _connection = new Connection(Address.Session);
-                await _connection.ConnectAsync();
-                
+                if (_disposed)
+                {
+                    _initializationTcs.TrySetResult(false);
+                    return;
+                }
+
+                dbusSession = await LinuxDbusSession.ConnectAsync().ConfigureAwait(false);
+
+                if (_disposed)
+                {
+                    dbusSession.Dispose();
+                    _initializationTcs.TrySetResult(false);
+                    return;
+                }
+
+                _dbusSession = dbusSession;
+                _extensionsClient = dbusSession.CreateGnomeShellExtensionsClient();
+                _trackerClient = dbusSession.CreateGnomeTrackerClient();
+
                 // Now that we are connected, check status via DBus
                 await ValidateExtensionStatusAsync();
-                
-                _proxy = _connection.CreateProxy<IGnomeTrackerService>(TrackerServiceName, TrackerObjectPath);
+
+                if (_disposed)
+                {
+                    dbusSession.Dispose();
+                    _dbusSession = null;
+                    _extensionsClient = null;
+                    _trackerClient = null;
+                    _initializationTcs.TrySetResult(false);
+                    return;
+                }
+
                 _isInitialized = true;
-                _initializationTcs.SetResult(true);
+                _initializationTcs.TrySetResult(true);
                 Log.Information("[GnomePositionProvider] Connected to DBus service");
             }
             catch (Exception ex)
             {
+                dbusSession?.Dispose();
+                _dbusSession = null;
+                _extensionsClient = null;
+                _trackerClient = null;
                 Log.Error(ex, "[GnomePositionProvider] Failed to initialize DBus connection");
                 IsSupported = false;
-                _initializationTcs.SetResult(false);
+                _initializationTcs.TrySetResult(false);
             }
         }
 
@@ -340,12 +351,55 @@ export default class CursorSpyExtension extends Extension {
 
         public async Task<(int X, int Y)?> GetAbsolutePositionAsync()
         {
-            if (!IsSupported || !await EnsureInitializedAsync() || _proxy == null)
+            if (!IsSupported || !await EnsureInitializedAsync().ConfigureAwait(false) || _trackerClient == null)
                 return null;
 
+            return await TryGetAbsolutePositionAsync(_trackerClient.GetPositionAsync).ConfigureAwait(false);
+        }
+
+        public async Task<(int Width, int Height)?> GetScreenResolutionAsync()
+        {
+            if (!IsSupported || !await EnsureInitializedAsync().ConfigureAwait(false) || _trackerClient == null)
+                return null;
+
+            var queryResult = await TryGetScreenResolutionAsync(
+                _trackerClient.GetResolutionAsync,
+                _cachedResolution,
+                _resolutionUnavailableLogged).ConfigureAwait(false);
+
+            _cachedResolution = queryResult.CachedResolution;
+            _resolutionUnavailableLogged = queryResult.ResolutionUnavailableLogged;
+            return queryResult.Resolution;
+        }
+
+        internal static async Task<bool> IsExtensionEnabledAsync(Func<Task<IDictionary<string, object>>> getExtensionInfo)
+        {
+            var info = await getExtensionInfo().ConfigureAwait(false);
+            return TryReadEnabledState(info);
+        }
+
+        internal static bool TryReadEnabledState(IDictionary<string, object>? info)
+        {
+            if (info == null || !info.TryGetValue("state", out var stateObj))
+            {
+                return false;
+            }
+
+            return stateObj switch
+            {
+                double stateValue => stateValue == 1,
+                int stateValue => stateValue == 1,
+                uint stateValue => stateValue == 1,
+                long stateValue => stateValue == 1,
+                _ => false
+            };
+        }
+
+        internal static async Task<(int X, int Y)?> TryGetAbsolutePositionAsync(Func<Task<(int x, int y)>> getPosition)
+        {
             try
             {
-                var (x, y) = await _proxy.GetPositionAsync();
+                var (x, y) = await getPosition().ConfigureAwait(false);
                 return (x, y);
             }
             catch (Exception ex)
@@ -355,43 +409,49 @@ export default class CursorSpyExtension extends Extension {
             }
         }
 
-        public async Task<(int Width, int Height)?> GetScreenResolutionAsync()
+        internal static async Task<ResolutionQueryResult> TryGetScreenResolutionAsync(
+            Func<Task<(int width, int height)>> getResolution,
+            (int Width, int Height)? cachedResolution,
+            bool resolutionUnavailableLogged)
         {
-            // Return cached resolution if available
-            if (_cachedResolution.HasValue)
-                return _cachedResolution;
-
-            if (!IsSupported || !await EnsureInitializedAsync() || _proxy == null)
-                return null;
+            if (cachedResolution.HasValue)
+            {
+                return new ResolutionQueryResult(cachedResolution, cachedResolution, resolutionUnavailableLogged);
+            }
 
             try
             {
-                var (w, h) = await _proxy.GetResolutionAsync();
-                _cachedResolution = (w, h);
-                Log.Information("[GnomePositionProvider] Got resolution from DBus: {Width}x{Height}", w, h);
-                return _cachedResolution;
+                var (width, height) = await getResolution().ConfigureAwait(false);
+                var resolved = (width, height);
+                Log.Information("[GnomePositionProvider] Got resolution from DBus: {Width}x{Height}", width, height);
+                return new ResolutionQueryResult(resolved, resolved, resolutionUnavailableLogged);
             }
             catch (Exception ex)
             {
                 if (IsResolutionServiceUnavailable(ex))
                 {
-                    if (!_resolutionUnavailableLogged)
+                    if (!resolutionUnavailableLogged)
                     {
                         Log.Warning("[GnomePositionProvider] Resolution unavailable until extension is active: {Error}", ex.Message);
-                        _resolutionUnavailableLogged = true;
+                        resolutionUnavailableLogged = true;
                     }
                     else
                     {
                         Log.Debug("[GnomePositionProvider] Resolution service still unavailable: {Error}", ex.Message);
                     }
 
-                    return null;
+                    return new ResolutionQueryResult(null, null, resolutionUnavailableLogged);
                 }
 
                 Log.Error(ex, "[GnomePositionProvider] Failed to get resolution");
-                return null;
+                return new ResolutionQueryResult(null, null, resolutionUnavailableLogged);
             }
         }
+
+        internal readonly record struct ResolutionQueryResult(
+            (int Width, int Height)? Resolution,
+            (int Width, int Height)? CachedResolution,
+            bool ResolutionUnavailableLogged);
 
         private static bool IsResolutionServiceUnavailable(Exception ex)
         {
@@ -412,7 +472,11 @@ export default class CursorSpyExtension extends Extension {
                 return;
 
             _disposed = true;
-            _connection?.Dispose();
+            _extensionsClient = null;
+            _trackerClient = null;
+            _isInitialized = false;
+            _dbusSession?.Dispose();
+            _dbusSession = null;
         }
     }
 }

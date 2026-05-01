@@ -1,8 +1,8 @@
 using System;
 using System.Text;
 using System.Threading.Tasks;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Services;
-using Serilog;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
 {

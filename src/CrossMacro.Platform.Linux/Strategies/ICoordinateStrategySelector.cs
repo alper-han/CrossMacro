@@ -1,4 +1,4 @@
-using CrossMacro.Core.Services.Recording.Strategies;
+using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Platform.Linux.Strategies;
 

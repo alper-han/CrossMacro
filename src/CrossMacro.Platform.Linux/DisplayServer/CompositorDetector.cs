@@ -1,5 +1,6 @@
 using System;
-using Serilog;
+using CrossMacro.Core.Logging;
+using CrossMacro.Platform.Linux.Services;
 
 namespace CrossMacro.Platform.Linux.DisplayServer
 {
@@ -12,70 +13,66 @@ namespace CrossMacro.Platform.Linux.DisplayServer
         /// Detects the current compositor by checking environment variables
         /// </summary>
         private static readonly Lazy<CompositorType> _current = new(() =>
+            ClassifyFromEnvironment(
+                new LinuxEnvironmentVariables().CaptureSnapshot(),
+                OperatingSystem.IsLinux()));
+
+        /// <summary>
+        /// Detects the current compositor by checking environment variables
+        /// </summary>
+        public static CompositorType DetectCompositor() => _current.Value;
+
+        internal static CompositorType ClassifyFromEnvironment(LinuxEnvironmentSnapshot environment, bool isLinux = true)
         {
-            if (!OperatingSystem.IsLinux())
+            if (!isLinux)
             {
                 return CompositorType.Unknown;
             }
 
-            // Check session type (X11 vs Wayland)
-            var sessionType = Environment.GetEnvironmentVariable("XDG_SESSION_TYPE");
-            var waylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
-            var x11Display = Environment.GetEnvironmentVariable("DISPLAY");
+            Log.Information("[CompositorDetector] Environment Detection - SessionType: {SessionType}, WaylandDisplay: {WaylandDisplay}, Display: {Display}",
+                environment.SessionType ?? "null", environment.WaylandDisplay ?? "null", environment.Display ?? "null");
 
-            Log.Information("[CompositorDetector] Environment Detection - SessionType: {SessionType}, WaylandDisplay: {WaylandDisplay}, Display: {Display}", 
-                sessionType ?? "null", waylandDisplay ?? "null", x11Display ?? "null");
-            
-            var isWayland = !string.IsNullOrEmpty(waylandDisplay) || 
-                           string.Equals(sessionType, "wayland", StringComparison.OrdinalIgnoreCase);
-            
-            var isX11 = !string.IsNullOrEmpty(x11Display) ||
-                       string.Equals(sessionType, "x11", StringComparison.OrdinalIgnoreCase);
+            var isWayland = !string.IsNullOrEmpty(environment.WaylandDisplay) ||
+                            string.Equals(environment.SessionType, "wayland", StringComparison.OrdinalIgnoreCase);
+
+            var isX11 = !string.IsNullOrEmpty(environment.Display) ||
+                        string.Equals(environment.SessionType, "x11", StringComparison.OrdinalIgnoreCase);
 
             Log.Information("[CompositorDetector] Session Flags - IsWayland: {IsWayland}, IsX11: {IsX11}", isWayland, isX11);
 
-            // Prioritize X11 detection if both are present (XWayland scenario)
             if (isX11 && !isWayland)
             {
                 Log.Information("[CompositorDetector] X11 session detected");
                 return CompositorType.X11;
             }
-            
+
             if (!isWayland)
             {
                 Log.Warning("[CompositorDetector] No known display server detected");
                 return CompositorType.Unknown;
             }
 
-            // Detect specific compositor
-            var currentDesktop = Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "";
-            var wayfireSocket = Environment.GetEnvironmentVariable("WAYFIRE_SOCKET");
-
+            var currentDesktop = environment.CurrentDesktop ?? "";
             return currentDesktop.ToUpperInvariant() switch
             {
-                var desktop when desktop.Contains("HYPRLAND") => 
+                var desktop when desktop.Contains("HYPRLAND") =>
                     LogAndReturn(CompositorType.HYPRLAND, "Hyprland"),
 
-                var desktop when desktop.Contains("WAYFIRE") || !string.IsNullOrWhiteSpace(wayfireSocket) =>
+                var desktop when desktop.Contains("WAYFIRE") || !string.IsNullOrWhiteSpace(environment.WayfireSocket) =>
                     LogAndReturn(CompositorType.WAYFIRE, "Wayfire"),
-                
-                "KDE" => 
+
+                "KDE" =>
                     LogAndReturn(CompositorType.KDE, "KDE Plasma"),
-                
-                var desktop when desktop.Contains("GNOME") => 
+
+                var desktop when desktop.Contains("GNOME") =>
                     LogAndReturn(CompositorType.GNOME, "GNOME"),
-                
-                _ when isWayland => 
+
+                _ when isWayland =>
                     LogAndReturnUnknown(currentDesktop),
-                
+
                 _ => CompositorType.Unknown
             };
-        });
-
-        /// <summary>
-        /// Detects the current compositor by checking environment variables
-        /// </summary>
-        public static CompositorType DetectCompositor() => _current.Value;
+        }
 
         private static CompositorType LogAndReturn(CompositorType type, string name)
         {

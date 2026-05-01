@@ -3,7 +3,7 @@ using CrossMacro.Platform.Linux.DisplayServer;
 using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 using CrossMacro.Platform.Linux.DisplayServer.X11;
 using CrossMacro.Platform.Linux.Extensions;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services.Factories;
 

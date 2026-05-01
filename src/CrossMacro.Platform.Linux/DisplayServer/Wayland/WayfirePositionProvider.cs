@@ -1,6 +1,6 @@
 using System.Text.Json;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Services;
-using Serilog;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 

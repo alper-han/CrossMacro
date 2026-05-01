@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
+[Collection("EnvironmentVariableSensitive")]
 public class WayfireIpcClientTests
 {
     [Fact]
@@ -28,9 +29,11 @@ public class WayfireIpcClientTests
     public void Constructor_ShouldFallbackToRuntimeAndTmpCandidates()
     {
         const string runtimeDir = "/run/user/1000";
-        const string tmpSocket = "/tmp/wayfire-wayland-2.socket";
-        const string runtimeSocket = "/run/user/1000/wayfire-wayland-1.socket";
+        const string runtimeStaleSocket = "/run/user/1000/wayfire-wayland-1.socket";
+        var tempDir = Path.GetTempPath();
+        var tmpSocket = Path.Combine(tempDir, "wayfire-wayland-2.socket");
 
+        var callOrder = new List<string>();
         using var client = new WayfireIpcClient(
             key => key switch
             {
@@ -38,18 +41,65 @@ public class WayfireIpcClientTests
                 "XDG_RUNTIME_DIR" => runtimeDir,
                 _ => null
             },
-            path => path == runtimeSocket || path == tmpSocket,
-            directory => directory is runtimeDir or "/tmp",
-            (directory, _) => directory switch
+            (string path) => path == runtimeStaleSocket || path == tmpSocket,
+            (string directory) => directory == runtimeDir || directory == tempDir,
+            (string directory, string _) =>
             {
-                runtimeDir => ["/run/user/1000/wayfire-wayland-3.socket", runtimeSocket],
-                "/tmp" => [tmpSocket],
-                _ => []
+                if (directory == runtimeDir)
+                {
+                    return new[] { runtimeStaleSocket };
+                }
+
+                if (directory == tempDir)
+                {
+                    return new[] { tmpSocket };
+                }
+
+                return [];
             },
-            path => path == runtimeSocket || path == tmpSocket);
+            (string path) =>
+            {
+                callOrder.Add($"connect:{path}");
+                return path == tmpSocket;
+            });
 
         Assert.True(client.IsAvailable);
-        Assert.Equal(runtimeSocket, client.SocketPath);
+        Assert.Equal(tmpSocket, client.SocketPath);
+        Assert.Equal(
+            [
+                $"connect:{runtimeStaleSocket}",
+                $"connect:{tmpSocket}"
+            ],
+            callOrder);
+    }
+
+    [Fact]
+    public void Constructor_ShouldFallbackToTempCandidatesWhenRuntimeDirMissing()
+    {
+        var tempDir = Path.GetTempPath();
+        var tmpSocket = Path.Combine(tempDir, "wayfire-wayland-3.socket");
+
+        var checkedDirectories = new List<string>();
+
+        using var client = new WayfireIpcClient(
+            key => key switch
+            {
+                "WAYFIRE_SOCKET" => null,
+                "XDG_RUNTIME_DIR" => null,
+                _ => null
+            },
+            (string path) => path == tmpSocket,
+            (string directory) => directory == tempDir,
+            (string directory, string _) =>
+            {
+                checkedDirectories.Add(directory);
+                return directory == tempDir ? new[] { tmpSocket } : [];
+            },
+            (string path) => path == tmpSocket);
+
+        Assert.True(client.IsAvailable);
+        Assert.Equal(tmpSocket, client.SocketPath);
+        Assert.Equal([tempDir], checkedDirectories);
     }
 
     [Fact]
@@ -101,40 +151,49 @@ public class WayfireIpcClientTests
     [Fact]
     public async Task SendRequestAsync_ShouldUseLengthPrefixedJsonProtocol()
     {
-        using var tempDirectory = new TempDirectory();
-        var socketPath = Path.Combine(tempDirectory.Path, "wayfire-wayland-test.socket");
+        var socketPath = $"/tmp/cm-wf-{Guid.NewGuid():N}.sock";
 
         using var server = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-        server.Bind(new UnixDomainSocketEndPoint(socketPath));
-        server.Listen(1);
-
-        var serverTask = Task.Run(async () =>
+        try
         {
-            using var connection = await server.AcceptAsync();
-            var requestPayload = await ReadFramedMessageAsync(connection);
+            server.Bind(new UnixDomainSocketEndPoint(socketPath));
+            server.Listen(1);
 
-            var responsePayload = "{\"result\":\"ok\"}";
-            await WriteFramedMessageAsync(connection, responsePayload);
+            var serverTask = Task.Run(async () =>
+            {
+                using var connection = await server.AcceptAsync();
+                var requestPayload = await ReadFramedMessageAsync(connection);
 
-            return requestPayload;
-        });
+                var responsePayload = "{\"result\":\"ok\"}";
+                await WriteFramedMessageAsync(connection, responsePayload);
 
-        using var client = new WayfireIpcClient(
-            key => key == "WAYFIRE_SOCKET" ? socketPath : null,
-            path => path == socketPath,
-            _ => false,
-            (_, _) => [],
-            path => path == socketPath);
+                return requestPayload;
+            });
 
-        var response = await client.SendRequestAsync("window-rules/get_cursor_position");
-        var requestPayload = await serverTask;
+            using var client = new WayfireIpcClient(
+                key => key == "WAYFIRE_SOCKET" ? socketPath : null,
+                path => path == socketPath,
+                _ => false,
+                (_, _) => [],
+                path => path == socketPath);
 
-        Assert.Equal("{\"result\":\"ok\"}", response);
+            var response = await client.SendRequestAsync("window-rules/get_cursor_position");
+            var requestPayload = await serverTask;
 
-        using var requestDoc = JsonDocument.Parse(requestPayload);
-        Assert.Equal("window-rules/get_cursor_position", requestDoc.RootElement.GetProperty("method").GetString());
-        Assert.True(requestDoc.RootElement.TryGetProperty("data", out var dataElement));
-        Assert.Equal(JsonValueKind.Object, dataElement.ValueKind);
+            Assert.Equal("{\"result\":\"ok\"}", response);
+
+            using var requestDoc = JsonDocument.Parse(requestPayload);
+            Assert.Equal("window-rules/get_cursor_position", requestDoc.RootElement.GetProperty("method").GetString());
+            Assert.True(requestDoc.RootElement.TryGetProperty("data", out var dataElement));
+            Assert.Equal(JsonValueKind.Object, dataElement.ValueKind);
+        }
+        finally
+        {
+            if (File.Exists(socketPath))
+            {
+                File.Delete(socketPath);
+            }
+        }
     }
 
     private static async Task<string> ReadFramedMessageAsync(Socket socket)
@@ -185,24 +244,6 @@ public class WayfireIpcClientTests
             }
 
             written += chunk;
-        }
-    }
-
-    private sealed class TempDirectory : IDisposable
-    {
-        public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"crossmacro-tests-{Guid.NewGuid():N}");
-
-        public TempDirectory()
-        {
-            Directory.CreateDirectory(Path);
-        }
-
-        public void Dispose()
-        {
-            if (Directory.Exists(Path))
-            {
-                Directory.Delete(Path, recursive: true);
-            }
         }
     }
 }

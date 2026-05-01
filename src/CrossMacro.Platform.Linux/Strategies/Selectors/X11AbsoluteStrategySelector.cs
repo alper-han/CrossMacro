@@ -1,5 +1,5 @@
-using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Recording.Strategies;
+using CrossMacro.Infrastructure.Services.Recording.Strategies;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Linux.Strategies;
 
 namespace CrossMacro.Platform.Linux.Strategies.Selectors;

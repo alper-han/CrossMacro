@@ -1,7 +1,6 @@
-using System;
 using System.Collections.Generic;
-using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Recording.Strategies;
+using CrossMacro.Infrastructure.Services.Recording.Strategies;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Linux.DisplayServer;
 using CrossMacro.Platform.Linux.Services;
 using CrossMacro.Platform.Linux.Strategies;
@@ -85,6 +84,18 @@ public class LinuxCoordinateStrategyFactoryTests
     }
 
     [LinuxFact]
+    public void Wayland_DegradedAbsolutePath_ShouldUseRelativeStrategy()
+    {
+        _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.GNOME);
+        _mockEnvironmentDetector.IsWayland.Returns(true);
+        _mockPositionProvider.IsSupported.Returns(false);
+
+        var result = _factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: true);
+
+        Assert.IsType<RelativeCoordinateStrategy>(result);
+    }
+
+    [LinuxFact]
     public void Wayland_Relative_ShouldReturnRelativeStrategy()
     {
         // Arrange
@@ -127,18 +138,18 @@ public class LinuxCoordinateStrategyFactoryTests
     }
 
     [LinuxFact]
-    public void Create_WhenNoSelectorMatches_ShouldThrowInvalidOperationException()
+    public void Create_WhenNoSelectorMatches_ShouldReturnRelativeStrategy()
     {
         // Arrange
         _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.Unknown);
         _mockEnvironmentDetector.IsWayland.Returns(false);
         var factory = new LinuxCoordinateStrategyFactory(new List<ICoordinateStrategySelector>(), _mockEnvironmentDetector);
 
-        // Act & Assert
-        var ex = Assert.Throws<InvalidOperationException>(() =>
-            factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: false));
+        // Act
+        var result = factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: false);
 
-        Assert.Contains("No coordinate strategy found", ex.Message, StringComparison.Ordinal);
+        // Assert
+        Assert.IsType<RelativeCoordinateStrategy>(result);
     }
 
     [LinuxFact]

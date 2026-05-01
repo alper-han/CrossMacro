@@ -36,7 +36,7 @@ public sealed class LinuxQuickSetupExecutorTests
             (startInfo, _) =>
             {
                 capturedStartInfo = startInfo;
-                return Task.FromResult((0, string.Empty, string.Empty));
+                return Task.FromResult((0, "Applied session ACLs for 1000: uinput=1, input-events=4.\n", string.Empty));
             });
 
         var result = await executor.RunAsync(
@@ -46,6 +46,7 @@ public sealed class LinuxQuickSetupExecutorTests
             "unexpected");
 
         Assert.True(result.Success);
+        Assert.Contains("Applied session ACLs for 1000: uinput=1, input-events=4.", result.Message);
         Assert.NotNull(capturedStartInfo);
         Assert.Equal("fake-launcher", capturedStartInfo!.FileName);
         Assert.Equal("1000", capturedStartInfo.ArgumentList[^1]);

@@ -124,7 +124,7 @@ public sealed class AppImageQuickSetupServiceTests
             (startInfo, _) =>
             {
                 capturedStartInfo = startInfo;
-                return Task.FromResult((0, "ok", string.Empty));
+                return Task.FromResult((0, "Applied session ACLs for 1042: uinput=1, input-events=3.\n", string.Empty));
             });
 
         var service = new AppImageQuickSetupService(
@@ -136,10 +136,13 @@ public sealed class AppImageQuickSetupServiceTests
         var result = await service.RunAsync();
 
         Assert.True(result.Success);
+        Assert.Contains("Applied session ACLs for 1042: uinput=1, input-events=3.", result.Message);
         Assert.Equal(1, detector.InvalidateCallCount);
         Assert.NotNull(capturedStartInfo);
         Assert.Equal("pkexec", capturedStartInfo!.FileName);
         Assert.Equal("1042", capturedStartInfo.ArgumentList[^1]);
+        Assert.Contains("uinput_ok=0", capturedStartInfo.ArgumentList[2]);
+        Assert.Contains("event_ok=0", capturedStartInfo.ArgumentList[2]);
     }
 
     [Fact]
@@ -202,6 +205,15 @@ public sealed class AppImageQuickSetupServiceTests
         public bool CanUseDirectUInput => false;
         public bool CanReadInputEvents => _canReadInputEvents;
         public int InvalidateCallCount { get; private set; }
+
+        public LinuxInputCapabilitySnapshot GetSnapshot()
+            => new(
+                ResolvedSocketPath: null,
+                DaemonSocketExists: false,
+                DaemonHandshakeSucceeded: false,
+                DaemonHandshakeTimedOut: false,
+                CanUseDirectUInput: _mode == InputProviderMode.Legacy,
+                CanReadInputEvents: _canReadInputEvents);
 
         public InputProviderMode DetermineMode() => _mode;
 

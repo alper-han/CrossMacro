@@ -95,17 +95,20 @@ public sealed class FlatpakQuickSetupServiceTests
             (startInfo, _) =>
             {
                 capturedStartInfo = startInfo;
-                return Task.FromResult((0, "ok", string.Empty));
+                return Task.FromResult((0, "Applied session ACLs for 1042: uinput=1, input-events=5.\n", string.Empty));
             });
 
         var result = await service.RunAsync();
 
         Assert.True(result.Success);
+        Assert.Contains("Applied session ACLs for 1042: uinput=1, input-events=5.", result.Message);
         Assert.NotNull(capturedStartInfo);
         Assert.Equal("flatpak-spawn", capturedStartInfo!.FileName);
         Assert.Contains("--host", capturedStartInfo.ArgumentList);
         Assert.Contains("pkexec", capturedStartInfo.ArgumentList);
         Assert.Equal("1042", capturedStartInfo.ArgumentList[^1]);
+        Assert.Contains("uinput_ok=0", capturedStartInfo.ArgumentList[4]);
+        Assert.Contains("event_ok=0", capturedStartInfo.ArgumentList[4]);
     }
 
     [Fact]

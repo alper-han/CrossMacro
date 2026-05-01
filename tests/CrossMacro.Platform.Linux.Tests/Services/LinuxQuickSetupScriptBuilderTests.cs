@@ -14,8 +14,11 @@ public sealed class LinuxQuickSetupScriptBuilderTests
 
         Assert.DoesNotContain("uinput_ok=0", script);
         Assert.DoesNotContain("event_ok=0", script);
+        Assert.Contains("uinput_count=0", script);
+        Assert.Contains("event_count=0", script);
         Assert.Contains("setfacl -m \"u:${TARGET_IDENTITY}:rw\"", script);
         Assert.Contains("setfacl -m \"u:${TARGET_IDENTITY}:r\"", script);
+        Assert.Contains("Applied session ACLs for ${TARGET_IDENTITY}: uinput=${uinput_count}, input-events=${event_count}.", script);
     }
 
     [Fact]
@@ -29,5 +32,6 @@ public sealed class LinuxQuickSetupScriptBuilderTests
         Assert.Contains("event_ok=0", script);
         Assert.Contains("exit 24", script);
         Assert.Contains("exit 25", script);
+        Assert.Contains("exit 26", script);
     }
 }

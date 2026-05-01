@@ -1,7 +1,7 @@
 using System;
 using System.Globalization;
 using System.Runtime.InteropServices;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 

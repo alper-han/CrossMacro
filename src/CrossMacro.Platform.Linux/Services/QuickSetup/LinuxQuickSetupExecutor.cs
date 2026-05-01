@@ -2,8 +2,8 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using CrossMacro.Core.Services;
-using Serilog;
+using CrossMacro.Packaging.Abstractions;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 
@@ -64,10 +64,11 @@ internal sealed class LinuxQuickSetupExecutor
             var (exitCode, stdout, stderr) = await _runProcessAsync(startInfo, cancellationToken);
             if (exitCode == 0)
             {
+                var successText = BuildSuccessMessage(stdout);
                 Log.Information("[{LogContext}] Session helper completed successfully for {Identity}", logContext, identity.Value.LogDisplay);
                 return new QuickSetupResult(
                     Success: true,
-                    Message: "Quick setup completed.");
+                    Message: successText);
             }
 
             var errorText = FirstNonEmptyLine(stderr) ?? FirstNonEmptyLine(stdout) ?? "Unknown host setup error.";
@@ -101,6 +102,19 @@ internal sealed class LinuxQuickSetupExecutor
         }
 
         return null;
+    }
+
+    private static string BuildSuccessMessage(string stdout)
+    {
+        var detail = FirstNonEmptyLine(stdout);
+        if (string.IsNullOrWhiteSpace(detail))
+        {
+            return "Quick setup completed.";
+        }
+
+        return detail.StartsWith("Quick setup", StringComparison.Ordinal)
+            ? detail
+            : $"Quick setup completed. {detail}";
     }
 
     private static async Task<(int ExitCode, string StdOut, string StdErr)> RunProcessAsync(

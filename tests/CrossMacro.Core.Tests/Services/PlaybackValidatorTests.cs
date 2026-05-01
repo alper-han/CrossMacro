@@ -1,7 +1,7 @@
 namespace CrossMacro.Core.Tests.Services;
 
 using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
+using CrossMacro.Infrastructure.Services;
 using FluentAssertions;
 using NSubstitute;
 

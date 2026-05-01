@@ -1,6 +1,6 @@
 using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Playback;
+using CrossMacro.Infrastructure.Services.Playback;
+using CrossMacro.Platform.Abstractions;
 using FluentAssertions;
 using Xunit;
 

@@ -1,5 +1,5 @@
 using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Playback;
+using CrossMacro.Infrastructure.Services.Playback;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;

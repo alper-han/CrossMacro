@@ -1,7 +1,6 @@
 using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Recording.Processors;
-using CrossMacro.Core.Services.Recording.Strategies;
+using CrossMacro.Infrastructure.Services.Recording.Processors;
+using CrossMacro.Platform.Abstractions;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;

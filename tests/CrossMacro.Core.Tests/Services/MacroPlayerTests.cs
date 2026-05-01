@@ -3,6 +3,10 @@ namespace CrossMacro.Core.Tests.Services;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Core.Services.Playback;
+using CrossMacro.Infrastructure.Services;
+using CrossMacro.Infrastructure.Services.Playback;
+using CrossMacro.Platform.Abstractions;
+using CrossMacro.TestInfrastructure;
 using FluentAssertions;
 using NSubstitute;
 
@@ -11,6 +15,7 @@ using NSubstitute;
 /// </summary>
 public class MacroPlayerTests
 {
+    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(2);
     private readonly IMousePositionProvider _positionProvider;
     private readonly PlaybackValidator _validator;
 
@@ -20,6 +25,21 @@ public class MacroPlayerTests
         _positionProvider.IsSupported.Returns(true);
         _positionProvider.GetScreenResolutionAsync().Returns(Task.FromResult<(int Width, int Height)?>((1920, 1080)));
         _validator = new PlaybackValidator(_positionProvider);
+    }
+
+    private MacroPlayer CreatePlayer(
+        Func<IInputSimulator>? inputSimulatorFactory = null,
+        IPlaybackTimingService? timingService = null,
+        Func<TimeSpan, CancellationToken, Task>? playbackWaitAsync = null,
+        Func<Func<double>>? playbackElapsedMillisecondsFactory = null)
+    {
+        return new MacroPlayer(
+            _positionProvider,
+            _validator,
+            timingService: timingService,
+            playbackWaitAsync: playbackWaitAsync ?? ((_, _) => Task.CompletedTask),
+            playbackElapsedMillisecondsFactory: playbackElapsedMillisecondsFactory,
+            inputSimulatorFactory: inputSimulatorFactory);
     }
 
     [Fact]
@@ -454,17 +474,28 @@ public class MacroPlayerTests
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         simulator.ProviderName.Returns("MockSimulator");
-        var timing = new RecordingTimingService
+        var delayWaitEntered = new AsyncSignal();
+        var releaseDelayWait = new AsyncSignal();
+        var pauseObserved = new AsyncSignal();
+        var timing = new ControlledTimingService();
+
+        timing.OnWaitAsync = async (callIndex, _, pauseToken, cancellationToken) =>
         {
-            WaitEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
-            ContinueWait = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)
+            if (callIndex == 1)
+            {
+                delayWaitEntered.Signal();
+                await releaseDelayWait.WaitAsync(TestTimeout, cancellationToken);
+                if (pauseToken.IsPaused)
+                {
+                    pauseObserved.Signal();
+                    await pauseToken.WaitIfPausedAsync(cancellationToken);
+                }
+            }
         };
 
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            timingService: timing,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(
+            inputSimulatorFactory: () => simulator,
+            timingService: timing);
 
         var macro = new MacroSequence
         {
@@ -478,14 +509,14 @@ public class MacroPlayerTests
 
         // Act
         var playbackTask = player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
-        await timing.WaitEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await delayWaitEntered.WaitAsync(TestTimeout);
 
         player.Pause();
         player.IsPaused.Should().BeTrue();
 
         // Let the in-flight delay continue so pause is honored via pause token wait.
-        timing.ContinueWait.TrySetResult(true);
-        await Task.Delay(30);
+        releaseDelayWait.Signal();
+        await pauseObserved.WaitAsync(TestTimeout);
         playbackTask.IsCompleted.Should().BeFalse();
 
         player.Resume();
@@ -511,26 +542,32 @@ public class MacroPlayerTests
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         simulator.ProviderName.Returns("MockSimulator");
+        var secondEventStarted = new AsyncSignal();
+        var pauseObserved = new AsyncSignal();
+        var timing = new ControlledTimingService();
 
-        var secondEventStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var releaseSecondEvent = new ManualResetEventSlim(false);
-        int moveCallCount = 0;
+        timing.OnWaitAsync = async (_, _, pauseToken, cancellationToken) =>
+        {
+            if (pauseToken.IsPaused)
+            {
+                pauseObserved.Signal();
+                await pauseToken.WaitIfPausedAsync(cancellationToken);
+            }
+        };
 
+        MacroPlayer? player = null;
         simulator
-            .When(s => s.MoveRelative(Arg.Any<int>(), Arg.Any<int>()))
+            .When(s => s.MoveRelative(20, 20))
             .Do(_ =>
             {
-                if (Interlocked.Increment(ref moveCallCount) == 2)
-                {
-                    secondEventStarted.TrySetResult(true);
-                    releaseSecondEvent.Wait(TimeSpan.FromSeconds(2));
-                }
+                player!.Pause();
+                pauseObserved.Signal();
+                secondEventStarted.Signal();
             });
 
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            inputSimulatorFactory: () => simulator);
+        player = CreatePlayer(
+            inputSimulatorFactory: () => simulator,
+            timingService: timing);
 
         var macro = new MacroSequence
         {
@@ -545,13 +582,9 @@ public class MacroPlayerTests
 
         // Act
         var playbackTask = player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
-        await secondEventStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
-
-        player.Pause();
+        await pauseObserved.WaitAsync(TestTimeout);
         player.IsPaused.Should().BeTrue();
 
-        releaseSecondEvent.Set();
-        await Task.Delay(30);
         playbackTask.IsCompleted.Should().BeFalse();
 
         player.Resume();
@@ -615,12 +648,24 @@ public class MacroPlayerTests
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         simulator.ProviderName.Returns("MockSimulator");
-        var timing = new OverrunningTimingService(firstWaitActualDelayMs: 130);
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
+        var clock = new ManualPlaybackClock();
+        var timing = new ControlledTimingService
+        {
+            OnWaitAsync = (callIndex, _, _, _) =>
+            {
+                if (callIndex == 1)
+                {
+                    clock.AdvanceBy(130);
+                }
+
+                return Task.CompletedTask;
+            }
+        };
+
+        var player = CreatePlayer(
+            inputSimulatorFactory: () => simulator,
             timingService: timing,
-            inputSimulatorFactory: () => simulator);
+            playbackElapsedMillisecondsFactory: clock.CreateElapsedMillisecondsProviderFactory());
 
         var macro = new MacroSequence
         {
@@ -646,6 +691,7 @@ public class MacroPlayerTests
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         simulator.ProviderName.Returns("MockSimulator");
+        var clock = new ManualPlaybackClock();
         int moveCallCount = 0;
         simulator
             .When(s => s.MoveRelative(Arg.Any<int>(), Arg.Any<int>()))
@@ -653,16 +699,21 @@ public class MacroPlayerTests
             {
                 if (Interlocked.Increment(ref moveCallCount) == 1)
                 {
-                    System.Threading.Thread.Sleep(120);
+                    clock.AdvanceBy(120);
                 }
             });
 
-        var timing = new RecordingTimingService();
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
+        var timing = new ControlledTimingService();
+        timing.OnWaitAsync = (callIndex, delayMs, _, _) =>
+        {
+            clock.AdvanceBy(delayMs);
+            return Task.CompletedTask;
+        };
+
+        var player = CreatePlayer(
+            inputSimulatorFactory: () => simulator,
             timingService: timing,
-            inputSimulatorFactory: () => simulator);
+            playbackElapsedMillisecondsFactory: clock.CreateElapsedMillisecondsProviderFactory());
 
         var macro = new MacroSequence
         {
@@ -678,7 +729,7 @@ public class MacroPlayerTests
         await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
 
         // Assert
-        timing.WaitCalls.Should().Contain(delay => delay >= 30);
+        timing.WaitCalls.Should().ContainInOrder(40, 40);
     }
 
     [Fact]
@@ -687,20 +738,41 @@ public class MacroPlayerTests
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         simulator.ProviderName.Returns("MockSimulator");
-        var timing = new OverrunningTimingService(firstWaitActualDelayMs: 130);
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            timingService: timing,
-            inputSimulatorFactory: () => simulator);
+        var clock = new ManualPlaybackClock();
+        var secondWaitEntered = new AsyncSignal();
+        var timing = new ControlledTimingService();
 
-        var pausedAtSecondEvent = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        timing.OnWaitAsync = async (callIndex, _, pauseToken, cancellationToken) =>
+        {
+            if (callIndex == 1)
+            {
+                clock.AdvanceBy(130);
+                return;
+            }
+
+            if (callIndex == 2)
+            {
+                secondWaitEntered.Signal();
+            }
+
+            if (pauseToken.IsPaused)
+            {
+                await pauseToken.WaitIfPausedAsync(cancellationToken);
+            }
+        };
+
+        var player = CreatePlayer(
+            inputSimulatorFactory: () => simulator,
+            timingService: timing,
+            playbackElapsedMillisecondsFactory: clock.CreateElapsedMillisecondsProviderFactory());
+
+        var pausedAtSecondEvent = new AsyncSignal();
         simulator
             .When(s => s.MoveRelative(20, 20))
             .Do(_ =>
             {
                 player.Pause();
-                pausedAtSecondEvent.TrySetResult(true);
+                pausedAtSecondEvent.Signal();
             });
 
         var macro = new MacroSequence
@@ -716,11 +788,11 @@ public class MacroPlayerTests
 
         // Act
         var playbackTask = player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
-        await pausedAtSecondEvent.Task.WaitAsync(TimeSpan.FromSeconds(2));
-        await Task.Delay(30);
+        await pausedAtSecondEvent.WaitAsync(TestTimeout);
         playbackTask.IsCompleted.Should().BeFalse();
 
         player.Resume();
+        await secondWaitEntered.WaitAsync(TestTimeout);
         await playbackTask;
 
         // Assert
@@ -734,20 +806,24 @@ public class MacroPlayerTests
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         simulator.ProviderName.Returns("MockSimulator");
-        var timing = new HookedTimingService();
+        var clock = new ManualPlaybackClock();
+        var timing = new ControlledTimingService();
 
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
+        var player = CreatePlayer(
+            inputSimulatorFactory: () => simulator,
             timingService: timing,
-            inputSimulatorFactory: () => simulator);
+            playbackElapsedMillisecondsFactory: clock.CreateElapsedMillisecondsProviderFactory());
 
-        timing.OnFirstWaitAsync = async () =>
+        timing.OnWaitAsync = (callIndex, _, _, _) =>
         {
-            await Task.Delay(130);
-            player.Pause();
-            await Task.Delay(30);
-            player.Resume();
+            if (callIndex == 1)
+            {
+                clock.AdvanceBy(130);
+                player.Pause();
+                player.Resume();
+            }
+
+            return Task.CompletedTask;
         };
 
         var macro = new MacroSequence
@@ -775,20 +851,27 @@ public class MacroPlayerTests
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         simulator.ProviderName.Returns("MockSimulator");
-        var timing = new HookedTimingService();
-        var paused = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var waitEntered = new AsyncSignal();
+        var releaseWait = new AsyncSignal();
+        var paused = new AsyncSignal();
+        var timing = new ControlledTimingService();
 
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            timingService: timing,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(
+            inputSimulatorFactory: () => simulator,
+            timingService: timing);
 
-        timing.OnFirstWaitAsync = () =>
+        timing.OnWaitAsync = async (callIndex, _, pauseToken, cancellationToken) =>
         {
-            player.Pause();
-            paused.TrySetResult(true);
-            return Task.CompletedTask;
+            if (callIndex == 1)
+            {
+                waitEntered.Signal();
+                await releaseWait.WaitAsync(TestTimeout, cancellationToken);
+                if (pauseToken.IsPaused)
+                {
+                    paused.Signal();
+                    await pauseToken.WaitIfPausedAsync(cancellationToken);
+                }
+            }
         };
 
         var macro = new MacroSequence
@@ -804,8 +887,10 @@ public class MacroPlayerTests
 
         // Act
         var playbackTask = player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
-        await paused.Task.WaitAsync(TimeSpan.FromSeconds(2));
-        await Task.Delay(30);
+        await waitEntered.WaitAsync(TestTimeout);
+        player.Pause();
+        releaseWait.Signal();
+        await paused.WaitAsync(TestTimeout);
         player.Resume();
         await playbackTask;
 
@@ -819,20 +904,27 @@ public class MacroPlayerTests
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         simulator.ProviderName.Returns("MockSimulator");
-        var timing = new HookedTimingService();
-        var paused = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var waitEntered = new AsyncSignal();
+        var releaseWait = new AsyncSignal();
+        var paused = new AsyncSignal();
+        var timing = new ControlledTimingService();
 
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            timingService: timing,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(
+            inputSimulatorFactory: () => simulator,
+            timingService: timing);
 
-        timing.OnFirstWaitAsync = () =>
+        timing.OnWaitAsync = async (callIndex, _, pauseToken, cancellationToken) =>
         {
-            player.Pause();
-            paused.TrySetResult(true);
-            return Task.CompletedTask;
+            if (callIndex == 1)
+            {
+                waitEntered.Signal();
+                await releaseWait.WaitAsync(TestTimeout, cancellationToken);
+                if (pauseToken.IsPaused)
+                {
+                    paused.Signal();
+                    await pauseToken.WaitIfPausedAsync(cancellationToken);
+                }
+            }
         };
 
         var macro = new MacroSequence
@@ -846,8 +938,10 @@ public class MacroPlayerTests
 
         // Act
         var playbackTask = player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
-        await paused.Task.WaitAsync(TimeSpan.FromSeconds(2));
-        await Task.Delay(30);
+        await waitEntered.WaitAsync(TestTimeout);
+        player.Pause();
+        releaseWait.Signal();
+        await paused.WaitAsync(TestTimeout);
         player.Resume();
         await playbackTask;
 
@@ -979,26 +1073,19 @@ public class MacroPlayerTests
         }
     }
 
-    private sealed class OverrunningTimingService : IPlaybackTimingService
+    private sealed class ControlledTimingService : IPlaybackTimingService
     {
-        private readonly int _firstWaitActualDelayMs;
-        private int _waitCallCount;
-
-        public OverrunningTimingService(int firstWaitActualDelayMs)
-        {
-            _firstWaitActualDelayMs = firstWaitActualDelayMs;
-        }
-
         public List<int> WaitCalls { get; } = new();
+        public Func<int, int, IPlaybackPauseToken, CancellationToken, Task>? OnWaitAsync { get; set; }
+        private int _waitCallCount;
 
         public async Task WaitAsync(int delayMs, IPlaybackPauseToken pauseToken, CancellationToken cancellationToken)
         {
             WaitCalls.Add(delayMs);
-            _waitCallCount++;
-
-            if (_waitCallCount == 1)
+            int callIndex = ++_waitCallCount;
+            if (OnWaitAsync != null)
             {
-                await Task.Delay(_firstWaitActualDelayMs, cancellationToken);
+                await OnWaitAsync(callIndex, delayMs, pauseToken, cancellationToken);
             }
 
             if (pauseToken.IsPaused)
@@ -1008,26 +1095,18 @@ public class MacroPlayerTests
         }
     }
 
-    private sealed class HookedTimingService : IPlaybackTimingService
+    private sealed class ManualPlaybackClock
     {
-        private int _waitCallCount;
-        public List<int> WaitCalls { get; } = new();
-        public Func<Task>? OnFirstWaitAsync { get; set; }
+        private double _elapsedMilliseconds;
 
-        public async Task WaitAsync(int delayMs, IPlaybackPauseToken pauseToken, CancellationToken cancellationToken)
+        public void AdvanceBy(double milliseconds)
         {
-            WaitCalls.Add(delayMs);
-            _waitCallCount++;
+            _elapsedMilliseconds += milliseconds;
+        }
 
-            if (_waitCallCount == 1 && OnFirstWaitAsync != null)
-            {
-                await OnFirstWaitAsync();
-            }
-
-            if (pauseToken.IsPaused)
-            {
-                await pauseToken.WaitIfPausedAsync(cancellationToken);
-            }
+        public Func<Func<double>> CreateElapsedMillisecondsProviderFactory()
+        {
+            return () => () => _elapsedMilliseconds;
         }
     }
 

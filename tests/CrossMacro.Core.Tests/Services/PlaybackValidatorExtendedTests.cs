@@ -1,5 +1,5 @@
 using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
+using CrossMacro.Infrastructure.Services;
 using FluentAssertions;
 using Xunit;
 using System.Collections.Generic;

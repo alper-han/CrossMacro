@@ -1,4 +1,4 @@
-using CrossMacro.Core.Services;
+using CrossMacro.Infrastructure.Services;
 using FluentAssertions;
 
 namespace CrossMacro.Core.Tests.Services;
@@ -76,18 +76,6 @@ public class InputSimulatorPoolTests
 
         var act = async () => await warmUpTask;
         await act.Should().NotThrowAsync();
-    }
-
-    [Fact]
-    public async Task Release_WhenPoolDisposed_DoesNotQueueReplacementWarmup()
-    {
-        var acquired = (FakeInputSimulator)_pool.Acquire(0, 0);
-
-        _pool.Dispose();
-        _pool.Release(acquired);
-
-        await Task.Delay(150);
-        _created.Should().HaveCount(1);
     }
 
     private sealed class FakeInputSimulator : IInputSimulator

@@ -61,6 +61,19 @@ public class CliArchitectureGuardTests
             + string.Join(Environment.NewLine, violations));
     }
 
+    [Fact]
+    public void CliCommandExecutor_ShouldNotDependOnRootServiceProvider()
+    {
+        var constructorParameters = typeof(CliCommandExecutor)
+            .GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            .SelectMany(ctor => ctor.GetParameters())
+            .Select(parameter => parameter.ParameterType)
+            .ToArray();
+
+        Assert.DoesNotContain(typeof(IServiceProvider), constructorParameters);
+        Assert.Contains(typeof(ICliCommandHandlerResolver), constructorParameters);
+    }
+
     private static bool HasAvaloniaType(Type type)
     {
         if (type.Namespace?.StartsWith("Avalonia", StringComparison.Ordinal) == true)

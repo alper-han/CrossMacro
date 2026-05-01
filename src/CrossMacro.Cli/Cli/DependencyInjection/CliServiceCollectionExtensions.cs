@@ -40,6 +40,20 @@ public static class CliServiceCollectionExtensions
         services.AddSingleton<RunCommandHandler>();
         services.AddSingleton<HeadlessCommandHandler>();
 
+        services.AddSingleton<Func<MacroValidateCommandHandler>>(sp => sp.GetRequiredService<MacroValidateCommandHandler>);
+        services.AddSingleton<Func<MacroInfoCommandHandler>>(sp => sp.GetRequiredService<MacroInfoCommandHandler>);
+        services.AddSingleton<Func<PlayCommandHandler>>(sp => sp.GetRequiredService<PlayCommandHandler>);
+        services.AddSingleton<Func<DoctorCommandHandler>>(sp => sp.GetRequiredService<DoctorCommandHandler>);
+        services.AddSingleton<Func<SettingsGetCommandHandler>>(sp => sp.GetRequiredService<SettingsGetCommandHandler>);
+        services.AddSingleton<Func<SettingsSetCommandHandler>>(sp => sp.GetRequiredService<SettingsSetCommandHandler>);
+        services.AddSingleton<Func<ScheduleListCommandHandler>>(sp => sp.GetRequiredService<ScheduleListCommandHandler>);
+        services.AddSingleton<Func<ScheduleRunCommandHandler>>(sp => sp.GetRequiredService<ScheduleRunCommandHandler>);
+        services.AddSingleton<Func<ShortcutListCommandHandler>>(sp => sp.GetRequiredService<ShortcutListCommandHandler>);
+        services.AddSingleton<Func<ShortcutRunCommandHandler>>(sp => sp.GetRequiredService<ShortcutRunCommandHandler>);
+        services.AddSingleton<Func<RecordCommandHandler>>(sp => sp.GetRequiredService<RecordCommandHandler>);
+        services.AddSingleton<Func<RunCommandHandler>>(sp => sp.GetRequiredService<RunCommandHandler>);
+        services.AddSingleton<Func<HeadlessCommandHandler>>(sp => sp.GetRequiredService<HeadlessCommandHandler>);
+        services.AddSingleton<ICliCommandHandlerResolver, CliCommandHandlerResolver>();
         services.AddSingleton<CliCommandExecutor>();
         return services;
     }

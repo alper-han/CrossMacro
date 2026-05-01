@@ -16,8 +16,8 @@ This section guides you through submitting a bug report for CrossMacro.
 
   **Daemon logs (Linux):** Enable debug logging and capture the output:
   ```bash
-  sudo systemctl kill -s USR1 crossmacro
-  journalctl -u crossmacro -f
+  sudo systemctl kill -s USR1 crossmacro.service
+  journalctl -u crossmacro.service -f
   ```
   Send the signal again to switch back to normal logging.
 

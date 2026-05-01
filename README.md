@@ -87,8 +87,8 @@ Download page for all release binaries:
 | [![Fedora](https://img.shields.io/badge/Fedora-RHEL-51A2DA?logo=fedora&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | `.rpm` | `sudo dnf install ./crossmacro*.rpm` | Download from Releases |
 | [![Arch](https://img.shields.io/badge/Arch-AUR-1793D1?logo=arch-linux&logoColor=white)](https://aur.archlinux.org/packages/crossmacro) | AUR | `yay -S crossmacro`<br>`paru -S crossmacro` | Community package |
 | [![Linux](https://img.shields.io/badge/Linux-AppImage-1793D1?logo=appimage&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | AppImage | [Releases](https://github.com/alper-han/CrossMacro/releases) | One-time setup required |
-| [![NixOS](https://img.shields.io/badge/Nixpkgs-unstable-5277C3?logo=nixos&logoColor=white)](https://search.nixos.org/packages?channel=unstable&query=crossmacro) | nixpkgs | `nix profile install nixpkgs#crossmacro` | Unstable channel |
-| ![Nix](https://img.shields.io/badge/Nix-Flake-5277C3?logo=nixos&logoColor=white) | flake | `nix run github:alper-han/CrossMacro` | Run from repo |
+| [![NixOS](https://img.shields.io/badge/Nixpkgs-unstable-5277C3?logo=nixos&logoColor=white)](https://search.nixos.org/packages?channel=unstable&query=crossmacro) | nixpkgs | `nix profile install nixpkgs#crossmacro` | UI package only |
+| ![Nix](https://img.shields.io/badge/Nix-Flake-5277C3?logo=nixos&logoColor=white) | flake | `nix run github:alper-han/CrossMacro` | UI-only convenience run |
 | [![Windows](https://img.shields.io/badge/Windows-Store-0078D6?logo=windows&logoColor=white)](https://apps.microsoft.com/detail/9n1qp1d6js70) | Store | [Store](https://apps.microsoft.com/detail/9n1qp1d6js70) | Managed updates |
 | ![Windows](https://img.shields.io/badge/Windows-winget-0078D6?logo=windows&logoColor=white) | winget | `winget install AlperHan.CrossMacro` | CLI install |
 | [![Windows](https://img.shields.io/badge/Windows-Portable-0078D6?logo=windows&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | Portable EXE | [Releases](https://github.com/alper-han/CrossMacro/releases) | Self-contained |
@@ -98,6 +98,17 @@ Download page for all release binaries:
 > **Flatpak users (Wayland):** On first launch, CrossMacro may show a **Wayland Setup Required** dialog and run Quick Setup for device permissions.
 
 ### Linux Post-Install (Daemon Packages)
+
+CrossMacro supports two Linux runtime modes:
+
+- **Daemon-backed mode**: the preferred packaged mode. The app talks to `crossmacro.service`
+  over `/run/crossmacro/crossmacro.sock`, while the daemon service user keeps Linux device access.
+- **Direct device mode**: an intentional fallback for channels like AppImage, and for some
+  Wayland/sandbox scenarios when daemon-backed mode is unavailable. In this mode the app process
+  itself needs access to `/dev/uinput` and, for recording or hotkeys, readable `/dev/input/event*`.
+
+On X11, CrossMacro tries the native X11 capture and playback backends first. A supported native X11
+session doesn't require the daemon or direct device fallback.
 
 After installing daemon packages on Linux, run:
 
@@ -115,10 +126,13 @@ sudo systemctl enable --now crossmacro.service
 ```
 
 Note: `crossmacro` group membership allows the client to talk to the daemon socket.
-The daemon service user needs device access for `/dev/input/event*` and `/dev/uinput`
-(typically via `input` and, on some distros, `uinput` groups).
+The daemon service user keeps device access separately for `/dev/input/event*` and `/dev/uinput`
+(typically via `input` and, on some distros, `uinput` supplementary groups). Normal users should only need membership in `crossmacro` to talk to the daemon socket in daemon-backed mode.
 
 ### AppImage Setup (Portable Linux)
+
+AppImage currently uses **direct device mode**, not the packaged daemon-backed service path.
+That means the user session itself needs the Linux input permissions described below.
 
 If you use the AppImage build on Linux, complete this one-time setup before first launch:
 
@@ -144,13 +158,13 @@ Note: adding a user to `input` grants direct access to input devices.
 
 ### Flatpak Wayland Setup
 
-For Flatpak on Wayland, CrossMacro supports two modes:
+For Flatpak on Wayland, CrossMacro supports a hybrid startup path:
 
-- Daemon mode (socket at `/run/crossmacro/crossmacro.sock`)
-- Direct mode (device access in sandbox)
+- **Daemon-backed mode** when the host daemon socket is exposed at `/run/crossmacro/crossmacro.sock`
+- **Direct device mode** when the daemon path is unavailable and temporary device access is granted to the user session
 
 If required permissions are missing, app startup shows **Wayland Setup Required** and can run Quick Setup automatically.
-Quick Setup uses `flatpak-spawn --host pkexec` and applies session ACLs on host:
+Quick Setup enables the direct device mode fallback by using `flatpak-spawn --host pkexec` to apply session ACLs on the host:
 
 - `rw` access to `/dev/uinput` (or `/dev/input/uinput` if present)
 - `r` access to `/dev/input/event*`
@@ -164,6 +178,13 @@ for p in /dev/input/event*; do [ -e "$p" ] && sudo setfacl -m "u:$USER:r" "$p"; 
 ```
 
 If `setfacl` is missing, install your distro's `acl` package first.
+
+In other words: packaged daemon installs prefer daemon-backed mode, while AppImage and some Flatpak/Wayland scenarios intentionally rely on direct device mode when the daemon path is unavailable.
+
+### Nix and NixOS
+
+- `nix run github:alper-han/CrossMacro` and `nix profile install nixpkgs#crossmacro` provide the UI package only.
+- The daemon-backed Linux model on Nix is provided by the NixOS module in `flake.nix`, which provisions the `crossmacro.service`, daemon user, group membership, and runtime directory policy.
 
 ### Advanced Platform Notes
 
@@ -393,6 +414,7 @@ CrossMacro works on Wayland.
 - Absolute cursor position is available on:
   - Hyprland (IPC)
   - Wayfire (IPC, `ipc` + `ipc-rules` plugins, v0.10+)
+    - Wayfire IPC discovery checks `WAYFIRE_SOCKET`, then `XDG_RUNTIME_DIR`, then temp-directory socket candidates.
   - KDE Plasma (D-Bus)
   - GNOME (Shell Extension)
 - If an absolute cursor provider is unavailable, CrossMacro automatically falls back to relative-position mode.

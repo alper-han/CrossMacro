@@ -64,6 +64,20 @@ crossmacro \- keyboard and mouse macro automation CLI
 CrossMacro provides GUI and CLI workflows for macro playback, validation, recording,
 environment diagnostics, and background headless runtime.
 If no CLI command is provided, CrossMacro starts GUI mode.
+.PP
+On Linux, CrossMacro can run in two different input modes.
+The preferred packaged path is daemon-backed mode, where the app talks to
+\fBcrossmacro.service\fR over \fI/run/crossmacro/crossmacro.sock\fR and the daemon
+service user owns device access.
+Some channels and environments intentionally support direct device mode instead,
+where the app process itself needs access to \fI/dev/uinput\fR and, for recording or hotkeys,
+readable \fI/dev/input/event*\fR devices.
+On X11, CrossMacro tries native X11 capture and playback first; a supported native X11
+session does not require daemon-backed or direct device fallback.
+Flatpak Wayland is hybrid: it uses the exposed host daemon socket when available and
+falls back to direct device mode only when the needed device permissions are present.
+Wayfire IPC discovery checks \fBWAYFIRE_SOCKET\fR, then \fBXDG_RUNTIME_DIR\fR, then
+temp-directory socket candidates.
 .SH OPTIONS
 .TP
 .B \-h, \-\-help

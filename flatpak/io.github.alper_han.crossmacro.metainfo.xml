@@ -53,8 +53,8 @@
     </p>
     <p>
       If permissions are missing, the app offers Quick Setup on launch.
-      Quick Setup opens a standard system authorization prompt.
-      If setup cannot complete, you can use the native daemon setup instructions in the project README.
+      Quick Setup opens a standard system authorization prompt to enable the direct device mode fallback for the current user session.
+      If setup cannot complete, you can use the native daemon-backed setup instructions in the project README instead.
     </p>
   </description>
   <launchable type="desktop-id">io.github.alper_han.crossmacro.desktop</launchable>

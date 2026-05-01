@@ -4,12 +4,13 @@ using System;
 using System.Collections.Generic;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Recording.Processors;
-using CrossMacro.Core.Services.Recording.Strategies;
 using CrossMacro.Core.Services.TextExpansion;
 using CrossMacro.Infrastructure.DependencyInjection;
+using CrossMacro.Infrastructure.Logging;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Infrastructure.Services.Recording.Processors;
 using CrossMacro.Infrastructure.Services.TextExpansion;
+using CrossMacro.Platform.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
 public class RuntimeServiceCollectionExtensionsTests
@@ -31,6 +32,7 @@ public class RuntimeServiceCollectionExtensionsTests
         services.AddCrossMacroCommonRuntimeServices();
 
         AssertImplementationRegistration<IRuntimeContext, RuntimeContext>(services, ServiceLifetime.Singleton);
+        AssertImplementationRegistration<IRuntimeLogLevelService, RuntimeLogLevelService>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IHotkeyConfigurationService, HotkeyConfigurationService>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ISettingsService, SettingsService>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<HotkeySettings>(services, ServiceLifetime.Singleton);

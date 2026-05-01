@@ -18,28 +18,4 @@
     <PackageReference Include="Avalonia.X11" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(PublishTrimmed)' == 'true'">
-    <TrimmerRootAssembly Include="CrossMacro.UI.Core" />
-    <TrimmerRootAssembly Include="CrossMacro.Cli" />
-    <TrimmerRootAssembly Include="Avalonia" />
-    <TrimmerRootAssembly Include="Avalonia.Themes.Fluent" />
-    <TrimmerRootAssembly Include="Avalonia.Fonts.Inter" />
-    <TrimmerRootAssembly Include="Avalonia.X11" />
-    <TrimmerRootAssembly Include="Avalonia.FreeDesktop" />
-    <TrimmerRootAssembly Include="Serilog" />
-    <TrimmerRootAssembly Include="Serilog.Sinks.Console" />
-    <TrimmerRootAssembly Include="Serilog.Sinks.File" />
-    <TrimmerRootAssembly Include="Serilog.Sinks.Async" />
-  </ItemGroup>
-
-  <!-- DBus stack relies on dynamic access; keep critical Linux DBus assemblies untrimmed. -->
-  <Target Name="KeepDbusPathUntrimmed"
-          AfterTargets="_ComputeManagedAssemblyToLink"
-          Condition="'$(PublishTrimmed)' == 'true'">
-    <ItemGroup>
-      <ManagedAssemblyToLink Condition="'%(ManagedAssemblyToLink.Filename)' == 'Tmds.DBus' or '%(ManagedAssemblyToLink.Filename)' == 'Tmds.DBus.Protocol' or '%(ManagedAssemblyToLink.Filename)' == 'CrossMacro.Platform.Linux'">
-        <TrimMode>copy</TrimMode>
-      </ManagedAssemblyToLink>
-    </ItemGroup>
-  </Target>
 </Project>

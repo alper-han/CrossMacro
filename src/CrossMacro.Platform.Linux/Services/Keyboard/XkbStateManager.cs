@@ -1,5 +1,5 @@
 using CrossMacro.Platform.Linux.Native.Xkb;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services.Keyboard;
 

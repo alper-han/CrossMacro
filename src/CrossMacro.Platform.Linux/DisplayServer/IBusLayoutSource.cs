@@ -1,5 +1,5 @@
+using CrossMacro.Core.Logging;
 using CrossMacro.Platform.Linux.Helpers;
-using Serilog;
 
 namespace CrossMacro.Platform.Linux.DisplayServer;
 

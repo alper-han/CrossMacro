@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Helpers;
 

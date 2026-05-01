@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Extensions;
 

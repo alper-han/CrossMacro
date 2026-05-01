@@ -1,12 +1,9 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Linq;
+using CoreLogging = CrossMacro.Core.Logging;
 using CrossMacro.Platform.Linux.Extensions;
 using CrossMacro.TestInfrastructure;
-using Serilog;
-using Serilog.Core;
-using Serilog.Events;
 using Xunit;
 
 namespace CrossMacro.Platform.Linux.Tests.Extensions;
@@ -15,46 +12,68 @@ public class LoggingExtensionsTests
 {
     private static readonly object LoggerSync = new();
 
-    private class TestSink : ILogEventSink
+    private sealed class TestCoreLogger : CoreLogging.ICoreLogger
     {
-        public ConcurrentBag<LogEvent> Events { get; } = new();
+        public ConcurrentBag<TestCoreLogEntry> Entries { get; } = new();
 
-        public void Emit(LogEvent logEvent)
-        {
-            Events.Add(logEvent);
-        }
+        public bool IsEnabled(CoreLogging.CoreLogLevel level) => true;
+
+        public void Verbose(string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+
+        public void Verbose(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
+
+        public void Debug(string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+
+        public void Debug(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
+
+        public void Information(string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+
+        public void Information(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
+
+        public void Warning(string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+
+        public void Warning(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
+
+        public void Error(string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+
+        public void Error(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
+
+        public void Fatal(string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+
+        public void Fatal(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
     }
+
+    private sealed record TestCoreLogEntry(Exception? Exception, string MessageTemplate, object?[] PropertyValues);
 
     [LinuxFact]
     public void LogOnce_ShouldLogOnlyOnce_WhenCalledMultipleTimesWithSameKey()
     {
         lock (LoggerSync)
         {
-            // Arrange
-            var originalLogger = Log.Logger;
-            var sink = new TestSink();
-            try
-            {
-                Log.Logger = new LoggerConfiguration()
-                    .WriteTo.Sink(sink)
-                    .CreateLogger();
+            var logger = new TestCoreLogger();
+            using var _ = CoreLogging.Log.PushLogger(logger);
 
-                var key = Guid.NewGuid().ToString();
-                var message = $"Test message {Guid.NewGuid():N} {{0}}";
-                var arg = "Arg";
+            var key = Guid.NewGuid().ToString();
+            var message = $"Test message {Guid.NewGuid():N} {{0}}";
+            var arg = "Arg";
 
-                // Act
-                LoggingExtensions.LogOnce(key, message, arg);
-                LoggingExtensions.LogOnce(key, message, arg);
-                LoggingExtensions.LogOnce(key, message, arg);
+            LoggingExtensions.LogOnce(key, message, arg);
+            LoggingExtensions.LogOnce(key, message, arg);
+            LoggingExtensions.LogOnce(key, message, arg);
 
-                // Assert
-                Assert.Single(sink.Events, e => e.MessageTemplate.Text == message);
-            }
-            finally
-            {
-                Log.Logger = originalLogger;
-            }
+            Assert.Single(logger.Entries, e => e.MessageTemplate == message);
         }
     }
 
@@ -63,31 +82,18 @@ public class LoggingExtensionsTests
     {
         lock (LoggerSync)
         {
-            // Arrange
-            var originalLogger = Log.Logger;
-            var sink = new TestSink();
-            try
-            {
-                Log.Logger = new LoggerConfiguration()
-                    .WriteTo.Sink(sink)
-                    .CreateLogger();
+            var logger = new TestCoreLogger();
+            using var _ = CoreLogging.Log.PushLogger(logger);
 
-                var key1 = Guid.NewGuid().ToString();
-                var key2 = Guid.NewGuid().ToString();
-                var message = $"Test message {Guid.NewGuid():N} {{0}}";
-                var arg = "Arg";
+            var key1 = Guid.NewGuid().ToString();
+            var key2 = Guid.NewGuid().ToString();
+            var message = $"Test message {Guid.NewGuid():N} {{0}}";
+            var arg = "Arg";
 
-                // Act
-                LoggingExtensions.LogOnce(key1, message, arg);
-                LoggingExtensions.LogOnce(key2, message, arg);
+            LoggingExtensions.LogOnce(key1, message, arg);
+            LoggingExtensions.LogOnce(key2, message, arg);
 
-                // Assert
-                Assert.Equal(2, sink.Events.Count(e => e.MessageTemplate.Text == message));
-            }
-            finally
-            {
-                Log.Logger = originalLogger;
-            }
+            Assert.Equal(2, logger.Entries.Count(e => e.MessageTemplate == message));
         }
     }
 }

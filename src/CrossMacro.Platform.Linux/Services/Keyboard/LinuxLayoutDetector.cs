@@ -2,9 +2,9 @@ using System;
 using System.Text.Json;
 using CrossMacro.Platform.Linux.DisplayServer;
 using CrossMacro.Platform.Linux.DisplayServer.Wayland;
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 using CrossMacro.Platform.Linux.Helpers;
-using Serilog;
-using Tmds.DBus;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services.Keyboard;
 
@@ -88,14 +88,29 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
     {
         try
         {
-            using var connection = new Connection(Address.Session);
-            connection.ConnectAsync().GetAwaiter().GetResult();
+            using var session = LinuxDbusSession.ConnectAsync().GetAwaiter().GetResult();
+            var keyboard = session.CreateKdeKeyboardClient();
+            return TryResolveKdeLayout(
+                () => keyboard.GetLayoutAsync().GetAwaiter().GetResult(),
+                () => keyboard.GetLayoutsListAsync().GetAwaiter().GetResult());
+        }
+        catch (Exception ex)
+        {
+            Log.Debug("[LayoutDetector] KDE DBus failed: {Message}", ex.Message);
+        }
+        return null;
+    }
 
-            var keyboard = connection.CreateProxy<IKdeKeyboard>("org.kde.keyboard", "/Layouts");
-            var index = keyboard.getLayoutAsync().GetAwaiter().GetResult();
-            var layouts = keyboard.getLayoutsListAsync().GetAwaiter().GetResult();
-            
-            if (layouts != null && index < layouts.Length)
+    internal static string? TryResolveKdeLayout(
+        Func<uint> getLayout,
+        Func<(string shortName, string variant, string displayName)[]> getLayoutsList)
+    {
+        try
+        {
+            var index = getLayout();
+            var layouts = getLayoutsList();
+
+            if (index < layouts.Length)
             {
                 return layouts[index].shortName;
             }
@@ -104,6 +119,7 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
         {
             Log.Debug("[LayoutDetector] KDE DBus failed: {Message}", ex.Message);
         }
+
         return null;
     }
 

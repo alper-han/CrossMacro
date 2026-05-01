@@ -301,7 +301,7 @@
     <value>替换内容</value>
   </data>
   <data name="TextExpansion_ReplacementPlaceholder" xml:space="preserve">
-    <value>ming.li@example.com</value>
+    <value>email@example.com</value>
   </data>
   <data name="Files_UnnamedMacro" xml:space="preserve">
     <value>新宏</value>

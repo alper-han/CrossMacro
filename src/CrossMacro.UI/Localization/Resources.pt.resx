@@ -301,7 +301,7 @@
     <value>Substituição</value>
   </data>
   <data name="TextExpansion_ReplacementPlaceholder" xml:space="preserve">
-    <value>joao.silva@example.com</value>
+    <value>email@example.com</value>
   </data>
   <data name="Files_UnnamedMacro" xml:space="preserve">
     <value>Nova Macro</value>

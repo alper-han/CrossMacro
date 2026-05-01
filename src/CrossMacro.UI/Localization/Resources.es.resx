@@ -301,7 +301,7 @@
     <value>Reemplazo</value>
   </data>
   <data name="TextExpansion_ReplacementPlaceholder" xml:space="preserve">
-    <value>juan.perez@example.com</value>
+    <value>email@example.com</value>
   </data>
   <data name="Files_UnnamedMacro" xml:space="preserve">
     <value>Nueva macro</value>

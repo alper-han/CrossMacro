@@ -1,13 +1,9 @@
 using System;
 using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Ipc;
-using CrossMacro.Core.Services;
+using CrossMacro.Daemon.Contracts.Ipc;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Linux.DisplayServer;
-using CrossMacro.Platform.Linux.Ipc;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services
 {
@@ -16,31 +12,33 @@ namespace CrossMacro.Platform.Linux.Services
         private static readonly TimeSpan DaemonHandshakeProbeTimeout = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan DaemonHandshakeStartupBudget = TimeSpan.FromSeconds(5);
 
-        private readonly Func<string, bool> _fileExists;
-        private readonly Func<string, bool> _canOpenForWrite;
-        private readonly Func<string, bool> _canOpenForRead;
-        private readonly Func<string, bool> _daemonHandshakeProbe;
-        private readonly Func<string[]> _getInputEventCandidates;
+        private readonly ILinuxInputCapabilitySnapshotProvider _snapshotProvider;
+        private readonly ILinuxEnvironmentVariables _environmentVariables;
 
         public LinuxDisplaySessionService()
-            : this(
-                File.Exists,
-                CanOpenForWrite,
-                CanOpenForRead,
-                ProbeDaemonHandshake,
-                GetInputEventCandidates)
+            : this(new LinuxInputCapabilitySnapshotProvider(), new LinuxEnvironmentVariables())
         {
+        }
+
+        internal LinuxDisplaySessionService(
+            ILinuxInputCapabilitySnapshotProvider snapshotProvider,
+            ILinuxEnvironmentVariables environmentVariables)
+        {
+            _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
+            _environmentVariables = environmentVariables ?? throw new ArgumentNullException(nameof(environmentVariables));
         }
 
         public LinuxDisplaySessionService(
             Func<string, bool> fileExists,
             Func<string, bool> canOpenForWrite)
             : this(
-                fileExists,
-                canOpenForWrite,
-                CanOpenForRead,
-                ProbeDaemonHandshake,
-                GetInputEventCandidates)
+                new LinuxInputCapabilitySnapshotProvider(
+                    fileExists,
+                    canOpenForWrite,
+                    LinuxInputProbeUtilities.CanOpenForRead,
+                    LinuxInputCapabilityDetector.ProbeDaemonHandshakeWithinBudget,
+                    LinuxInputProbeUtilities.GetInputEventCandidates),
+                new LinuxEnvironmentVariables())
         {
         }
 
@@ -50,37 +48,97 @@ namespace CrossMacro.Platform.Linux.Services
             Func<string, bool> canOpenForRead,
             Func<string, bool> daemonHandshakeProbe,
             Func<string[]> getInputEventCandidates)
+            : this(
+                new LinuxInputCapabilitySnapshotProvider(
+                    fileExists,
+                    canOpenForWrite,
+                    canOpenForRead,
+                    (socketPath, _) => daemonHandshakeProbe(socketPath)
+                        ? LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success()
+                        : LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(),
+                    getInputEventCandidates),
+                new LinuxEnvironmentVariables())
         {
-            _fileExists = fileExists ?? throw new ArgumentNullException(nameof(fileExists));
-            _canOpenForWrite = canOpenForWrite ?? throw new ArgumentNullException(nameof(canOpenForWrite));
-            _canOpenForRead = canOpenForRead ?? throw new ArgumentNullException(nameof(canOpenForRead));
-            _daemonHandshakeProbe = daemonHandshakeProbe ?? throw new ArgumentNullException(nameof(daemonHandshakeProbe));
-            _getInputEventCandidates = getInputEventCandidates ?? throw new ArgumentNullException(nameof(getInputEventCandidates));
+        }
+
+        public LinuxDisplaySessionService(
+            Func<string, bool> fileExists,
+            Func<string, bool> canOpenForWrite,
+            Func<string, bool> canOpenForRead,
+            Func<string, TimeSpan, DaemonHandshakeProbeResult> daemonHandshakeProbe,
+            Func<string[]> getInputEventCandidates)
+            : this(
+                new LinuxInputCapabilitySnapshotProvider(
+                    fileExists,
+                    canOpenForWrite,
+                    canOpenForRead,
+                    (socketPath, timeout) => MapDisplayProbeResult(daemonHandshakeProbe(socketPath, timeout)),
+                    getInputEventCandidates),
+                new LinuxEnvironmentVariables())
+        {
+        }
+
+        public readonly record struct DaemonHandshakeProbeResult(bool Succeeded, bool TimedOut, Exception? Failure)
+        {
+            public static DaemonHandshakeProbeResult Success()
+            {
+                return new(true, false, null);
+            }
+
+            public static DaemonHandshakeProbeResult Failed(Exception? failure = null)
+            {
+                return new(false, false, failure);
+            }
+
+            public static DaemonHandshakeProbeResult Timeout(Exception? failure = null)
+            {
+                return new(false, true, failure);
+            }
+        }
+
+        internal static DaemonHandshakeProbeResult ProbeDaemonHandshakeWithinBudget(string socketPath, TimeSpan timeout)
+        {
+            return MapProbeResult(LinuxDaemonHandshakeTransport.ProbeWithinBudget(socketPath, timeout));
+        }
+
+        private static LinuxInputCapabilityDetector.DaemonHandshakeProbeResult MapDisplayProbeResult(DaemonHandshakeProbeResult result)
+        {
+            return result.TimedOut
+                ? LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Timeout(result.Failure)
+                : result.Succeeded
+                    ? LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success()
+                    : LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(result.Failure);
+        }
+
+        private static DaemonHandshakeProbeResult MapProbeResult(LinuxDaemonHandshakeTransport.ProbeResult result)
+        {
+            return result.TimedOut
+                ? DaemonHandshakeProbeResult.Timeout(result.Failure)
+                : result.Succeeded
+                    ? DaemonHandshakeProbeResult.Success()
+                    : DaemonHandshakeProbeResult.Failed(result.Failure);
         }
 
         public bool IsSessionSupported(out string reason)
         {
             reason = string.Empty;
 
-            // check if running in Flatpak
-            var flatpakId = Environment.GetEnvironmentVariable("FLATPAK_ID");
-            bool isFlatpak = !string.IsNullOrEmpty(flatpakId);
+            var environment = _environmentVariables.CaptureSnapshot();
+            bool isFlatpak = !string.IsNullOrEmpty(environment.FlatpakId);
 
             Log.Information("[LinuxDisplaySessionService] Checking Session Support. Flatpak: {IsFlatpak}, ID: {FlatpakId}",
-                isFlatpak, flatpakId ?? "null");
+                isFlatpak, environment.FlatpakId ?? "null");
 
             if (!isFlatpak)
             {
                 return true;
             }
 
-            var useDaemon = Environment.GetEnvironmentVariable("CROSSMACRO_USE_DAEMON");
-            bool hasDaemon = useDaemon == "1";
+            bool hasDaemon = environment.UseDaemon == "1";
 
-            var compositor = CompositorDetector.DetectCompositor();
-            var sessionType = Environment.GetEnvironmentVariable("XDG_SESSION_TYPE");
-            bool isWaylandSession = string.Equals(sessionType, "wayland", StringComparison.OrdinalIgnoreCase);
-            bool isX11Session = string.Equals(sessionType, "x11", StringComparison.OrdinalIgnoreCase);
+            var compositor = CompositorDetector.ClassifyFromEnvironment(environment, OperatingSystem.IsLinux());
+            bool isWaylandSession = string.Equals(environment.SessionType, "wayland", StringComparison.OrdinalIgnoreCase);
+            bool isX11Session = string.Equals(environment.SessionType, "x11", StringComparison.OrdinalIgnoreCase);
 
             // X11 session - always supported
             if (compositor == CompositorType.X11 || isX11Session)
@@ -93,20 +151,22 @@ namespace CrossMacro.Platform.Linux.Services
             {
                 reason = "Unsupported Flatpak session. CrossMacro requires an X11 or Wayland desktop session.";
                 Log.Warning("[LinuxDisplaySessionService] {Reason} SessionType={SessionType}, Compositor={Compositor}",
-                    reason, sessionType ?? "unknown", compositor);
+                    reason, environment.SessionType ?? "unknown", compositor);
                 return false;
             }
+
+            LinuxInputCapabilitySnapshot? startupSnapshot = null;
 
             // Wayland + daemon mode requires the daemon socket to be mounted into the sandbox.
             if (hasDaemon)
             {
-                if (HasDaemonHandshakeAccess())
+                if (HasDaemonHandshakeAccess(ref startupSnapshot))
                 {
                     Log.Information("[LinuxDisplaySessionService] Flatpak on Wayland with daemon handshake access. Supported (hybrid secure mode).");
                     return true;
                 }
 
-                if (HasDirectInputAccess())
+                if (HasDirectInputAccess(ref startupSnapshot))
                 {
                     Log.Warning("[LinuxDisplaySessionService] Daemon handshake failed, but direct input fallback is ready. Continuing in direct mode.");
                     return true;
@@ -118,7 +178,7 @@ namespace CrossMacro.Platform.Linux.Services
             }
 
             // Wayland direct mode fallback requires /dev/uinput write + readable /dev/input/event*.
-            if (HasDirectInputAccess())
+            if (HasDirectInputAccess(ref startupSnapshot))
             {
                 Log.Information("[LinuxDisplaySessionService] Flatpak on Wayland without daemon. Using direct device access.");
                 return true;
@@ -129,138 +189,38 @@ namespace CrossMacro.Platform.Linux.Services
             return false;
         }
 
-        private bool HasDaemonHandshakeAccess()
+        private bool HasDaemonHandshakeAccess(ref LinuxInputCapabilitySnapshot? snapshot)
         {
-            var socketPath = ResolveAvailableSocketPath();
-            if (socketPath == null)
-            {
-                return false;
-            }
-
             try
             {
-                var probeTask = Task.Run(() => _daemonHandshakeProbe(socketPath));
-                if (probeTask.Wait(DaemonHandshakeStartupBudget))
+                snapshot ??= _snapshotProvider.CaptureSnapshot(DaemonHandshakeStartupBudget);
+                if (snapshot.Value.DaemonHandshakeSucceeded)
                 {
-                    return probeTask.Result;
+                    return true;
                 }
 
-                Log.Warning(
-                    "[LinuxDisplaySessionService] Daemon handshake probe exceeded startup budget ({BudgetMs}ms). Continuing without blocking UI thread.",
-                    DaemonHandshakeStartupBudget.TotalMilliseconds);
-                return false;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private string? ResolveAvailableSocketPath()
-        {
-            if (_fileExists(IpcProtocol.DefaultSocketPath))
-            {
-                return IpcProtocol.DefaultSocketPath;
-            }
-
-            if (_fileExists(IpcProtocol.FallbackSocketPath))
-            {
-                return IpcProtocol.FallbackSocketPath;
-            }
-
-            return null;
-        }
-
-        private bool HasDirectInputAccess()
-        {
-            return HasUInputWriteAccess() && HasReadableInputEventAccess();
-        }
-
-        private bool HasUInputWriteAccess()
-        {
-            return _canOpenForWrite(LinuxConstants.UInputDevicePath) ||
-                   _canOpenForWrite(LinuxConstants.UInputAlternatePath);
-        }
-
-        private bool HasReadableInputEventAccess()
-        {
-            try
-            {
-                var eventDevices = _getInputEventCandidates();
-                if (eventDevices.Length == 0)
+                if (snapshot.Value.DaemonHandshakeTimedOut)
                 {
-                    return false;
+                    Log.Warning(
+                        "[LinuxDisplaySessionService] Daemon handshake probe exceeded startup budget ({BudgetMs}ms). Continuing without blocking UI thread.",
+                        DaemonHandshakeStartupBudget.TotalMilliseconds);
                 }
 
-                return eventDevices.Any(_canOpenForRead);
+                return false;
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Debug(ex, "[LinuxDisplaySessionService] Daemon handshake probe failed unexpectedly");
                 return false;
             }
         }
 
-        private static bool CanOpenForWrite(string path)
-        {
-            if (!File.Exists(path))
-            {
-                return false;
-            }
-
-            try
-            {
-                using var fs = File.OpenWrite(path);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private static bool CanOpenForRead(string path)
-        {
-            if (!File.Exists(path))
-            {
-                return false;
-            }
-
-            try
-            {
-                using var fs = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private static string[] GetInputEventCandidates()
+        private bool HasDirectInputAccess(ref LinuxInputCapabilitySnapshot? snapshot)
         {
             try
             {
-                if (!Directory.Exists("/dev/input"))
-                {
-                    return [];
-                }
-
-                return Directory.GetFiles("/dev/input", "event*");
-            }
-            catch
-            {
-                return [];
-            }
-        }
-
-        private static bool ProbeDaemonHandshake(string socketPath)
-        {
-            try
-            {
-                using var timeoutCts = new CancellationTokenSource(DaemonHandshakeProbeTimeout);
-                using var client = new IpcClient(() => socketPath, autoReconnect: false);
-                client.ConnectAsync(timeoutCts.Token).GetAwaiter().GetResult();
-                return true;
+                snapshot ??= _snapshotProvider.CaptureSnapshot(DaemonHandshakeProbeTimeout);
+                return snapshot.Value.HasDirectInputAccess;
             }
             catch
             {

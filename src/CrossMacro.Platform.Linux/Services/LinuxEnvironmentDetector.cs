@@ -11,8 +11,17 @@ public class LinuxEnvironmentDetector : ILinuxEnvironmentDetector
     private readonly Lazy<CompositorType> _compositor;
     
     public LinuxEnvironmentDetector()
+        : this(new LinuxEnvironmentVariables())
     {
-        _compositor = new Lazy<CompositorType>(CompositorDetector.DetectCompositor);
+    }
+
+    public LinuxEnvironmentDetector(ILinuxEnvironmentVariables environmentVariables)
+    {
+        ArgumentNullException.ThrowIfNull(environmentVariables);
+
+        _compositor = new Lazy<CompositorType>(() => CompositorDetector.ClassifyFromEnvironment(
+            environmentVariables.CaptureSnapshot(),
+            OperatingSystem.IsLinux()));
     }
     
     public CompositorType DetectedCompositor => _compositor.Value;

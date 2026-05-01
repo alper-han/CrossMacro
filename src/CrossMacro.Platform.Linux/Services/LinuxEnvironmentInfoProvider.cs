@@ -1,4 +1,4 @@
-using CrossMacro.Core.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Linux.DisplayServer;
 
 namespace CrossMacro.Platform.Linux.Services;
@@ -14,7 +14,16 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
     private readonly bool _windowManagerHandlesCloseButton;
     
     public LinuxEnvironmentInfoProvider()
-        : this(CompositorDetector.DetectCompositor(), Environment.GetEnvironmentVariable)
+        : this(CompositorDetector.DetectCompositor(), new LinuxEnvironmentVariables().CaptureSnapshot().WindowButtons)
+    {
+    }
+
+    public LinuxEnvironmentInfoProvider(
+        ILinuxEnvironmentDetector environmentDetector,
+        ILinuxEnvironmentVariables environmentVariables)
+        : this(
+            (environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector))).DetectedCompositor,
+            (environmentVariables ?? throw new ArgumentNullException(nameof(environmentVariables))).CaptureSnapshot().WindowButtons)
     {
     }
     
@@ -22,7 +31,7 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
     /// Constructor for testing with explicit compositor type.
     /// </summary>
     internal LinuxEnvironmentInfoProvider(CompositorType compositor)
-        : this(compositor, _ => null)
+        : this(compositor, (string?)null)
     {
     }
 
@@ -35,10 +44,24 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
     {
         ArgumentNullException.ThrowIfNull(getEnvironmentVariable);
 
-        _compositor = compositor;
-        _windowManagerHandlesCloseButton = ResolveWindowManagerHandlesCloseButton(
+        Initialize(compositor, getEnvironmentVariable(WindowButtonsEnvKey), out _compositor, out _windowManagerHandlesCloseButton);
+    }
+
+    private LinuxEnvironmentInfoProvider(CompositorType compositor, string? windowButtonsMode)
+    {
+        Initialize(compositor, windowButtonsMode, out _compositor, out _windowManagerHandlesCloseButton);
+    }
+
+    private static void Initialize(
+        CompositorType compositor,
+        string? windowButtonsMode,
+        out CompositorType resolvedCompositor,
+        out bool windowManagerHandlesCloseButton)
+    {
+        resolvedCompositor = compositor;
+        windowManagerHandlesCloseButton = ResolveWindowManagerHandlesCloseButton(
             compositor,
-            getEnvironmentVariable(WindowButtonsEnvKey));
+            windowButtonsMode);
     }
     
     public DisplayEnvironment CurrentEnvironment => _compositor switch

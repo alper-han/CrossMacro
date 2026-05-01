@@ -49,6 +49,11 @@ public interface ILinuxInputCapabilityDetector
     InputProviderMode DetermineMode();
 
     /// <summary>
+    /// Returns the currently resolved runtime capability snapshot used by backend selection.
+    /// </summary>
+    LinuxInputCapabilitySnapshot GetSnapshot();
+
+    /// <summary>
     /// Clears cached probe results after external setup changes device or daemon availability.
     /// </summary>
     void InvalidateCache();

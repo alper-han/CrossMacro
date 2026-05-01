@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Infrastructure.Logging;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
@@ -23,6 +24,7 @@ internal sealed class DesignPreviewContext
         EnvironmentInfoProvider = new DesignEnvironmentInfoProvider();
         RuntimeContext = new DesignRuntimeContext();
         ExternalUrlOpener = new DesignExternalUrlOpener();
+        RuntimeLogLevelService = new RuntimeLogLevelService();
         ThemeService = new DesignThemeService(SettingsService.Current.Theme);
         LocalizationService = new LocalizationService();
         DialogService = new DesignDialogService();
@@ -54,6 +56,8 @@ internal sealed class DesignPreviewContext
     public DesignRuntimeContext RuntimeContext { get; }
 
     public DesignExternalUrlOpener ExternalUrlOpener { get; }
+
+    public RuntimeLogLevelService RuntimeLogLevelService { get; }
 
     public DesignThemeService ThemeService { get; }
 

@@ -2,8 +2,11 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
+using CommunityToolkit.Mvvm.Input;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.UI.Localization;
 using CrossMacro.UI.Models;
 using CrossMacro.UI.Services;
@@ -15,12 +18,13 @@ namespace CrossMacro.UI.ViewModels;
 /// <summary>
 /// Coordinator ViewModel - manages child ViewModels and cross-cutting concerns
 /// </summary>
-public class MainWindowViewModel : ViewModelBase, IDisposable
+public partial class MainWindowViewModel : ViewModelBase, IDisposable
 {
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly IMousePositionProvider _positionProvider;
     private readonly IExternalUrlOpener _externalUrlOpener;
     private readonly ILocalizationService _localizationService;
+    private readonly MainWindowNavigationCatalog _navigationCatalog;
     private readonly IExtensionStatusNotifier? _extensionNotifier;
     private readonly IUpdateService? _updateService;
     private readonly DisplayEnvironment _currentEnvironment;
@@ -42,6 +46,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private bool _isAppNotificationWarning;
     private bool _suppressRecordingStatusForwarding;
     private bool _suppressSelectedMacroRecordingSync;
+
+    internal Task StartupInitializationTask { get; }
     
     public RecordingViewModel Recording { get; }
     public PlaybackViewModel Playback { get; }
@@ -190,6 +196,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _positionProvider = positionProvider;
         _externalUrlOpener = externalUrlOpener;
         _localizationService = localizationService ?? new LocalizationService();
+        _navigationCatalog = new MainWindowNavigationCatalog(_localizationService);
         _extensionNotifier = extensionNotifier;
         _updateService = updateService;
         _currentEnvironment = environmentInfo.CurrentEnvironment;
@@ -226,27 +233,26 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         Settings.StartHotkeyService();
 
         // Initialize Navigation
-        TopNavigationItems = new ObservableCollection<NavigationItem>
-        {
-            CreateNavigationItem("Navigation_Recording", "🔴", Recording),
-            CreateNavigationItem("Navigation_Playback", "▶️", Playback),
-            CreateNavigationItem("Navigation_Files", "💾", Files),
-            CreateNavigationItem("Navigation_TextExpansion", "📝", TextExpansion),
-            CreateNavigationItem("Navigation_Shortcuts", "⌨️", Shortcuts),
-            CreateNavigationItem("Navigation_Schedule", "🕐", Schedule),
-            CreateNavigationItem("Navigation_Editor", "🛠️", Editor)
-        };
-        
-
-
-        BottomNavigationItems = new ObservableCollection<NavigationItem>
-        {
-            CreateNavigationItem("Navigation_Settings", "⚙️", Settings)
-        };
+        TopNavigationItems = _navigationCatalog.CreateTopItems(
+            Recording,
+            Playback,
+            Files,
+            TextExpansion,
+            Shortcuts,
+            Schedule,
+            Editor);
+        BottomNavigationItems = _navigationCatalog.CreateBottomItems(Settings);
 
         SelectedTopItem = TopNavigationItems.First();
 
-        _ = InitializeBackgroundServicesAsync();
+        StartupInitializationTask = InitializeBackgroundServicesAsync();
+        StartupInitializationTask.ContinueWith(
+            static startupTask => Log.Error(
+                (Exception?)startupTask.Exception ?? new InvalidOperationException("Startup initialization task faulted without an exception."),
+                "[MainWindowViewModel] Shell startup initialization failed"),
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
 
     }
 
@@ -304,13 +310,22 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             var result = await _updateService.CheckForUpdatesAsync();
             if (result.HasUpdate)
             {
-                Dispatcher.UIThread.Post(() =>
+                void ApplyUpdateNotification()
                 {
                     LatestVersion = result.LatestVersion;
                     _updateReleaseUrl = result.ReleaseUrl;
                     IsUpdateNotificationVisible = true;
                     OnPropertyChanged(nameof(UpdateAvailableVersionText));
-                });
+                }
+
+                if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+                {
+                    ApplyUpdateNotification();
+                }
+                else
+                {
+                    Dispatcher.UIThread.Post(ApplyUpdateNotification);
+                }
             }
         }
         catch (Exception ex)
@@ -320,11 +335,13 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
+    [RelayCommand]
     public void DismissUpdateNotification()
     {
         IsUpdateNotificationVisible = false;
     }
 
+    [RelayCommand]
     public void OpenUpdateUrl()
     {
         try
@@ -353,7 +370,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             }
             catch (Exception ex)
             {
-                Serilog.Log.Error(ex, "[MainWindowViewModel] Failed to sync recorded macro to FilesViewModel");
+                Log.Error(ex, "[MainWindowViewModel] Failed to sync recorded macro to FilesViewModel");
             }
             finally
             {
@@ -479,7 +496,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void OnCultureChanged(object? sender, EventArgs e)
     {
-        RefreshNavigationLabels();
+        _navigationCatalog.RefreshLabels(TopNavigationItems, BottomNavigationItems);
 
         RefreshIdleGlobalStatus();
 
@@ -502,30 +519,6 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         SetGlobalStatusThreadSafe(_localizationService["Status_Ready"]);
     }
 
-    private NavigationItem CreateNavigationItem(string localizationKey, string icon, ViewModelBase viewModel)
-    {
-        return new NavigationItem
-        {
-            LocalizationKey = localizationKey,
-            Label = _localizationService[localizationKey],
-            Icon = icon,
-            ViewModel = viewModel
-        };
-    }
-
-    private void RefreshNavigationLabels()
-    {
-        foreach (var item in TopNavigationItems)
-        {
-            item.Label = _localizationService[item.LocalizationKey];
-        }
-
-        foreach (var item in BottomNavigationItems)
-        {
-            item.Label = _localizationService[item.LocalizationKey];
-        }
-    }
-    
     public string? ExtensionWarning
     {
         get => _extensionWarning;
@@ -754,7 +747,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
                 or DisplayEnvironment.LinuxHyprland
                 or DisplayEnvironment.LinuxKDE
                 or DisplayEnvironment.LinuxGnome
-                => "check daemon status with `systemctl status crossmacro`.",
+                => "if you are using daemon-backed mode, check `systemctl status crossmacro.service`; direct device mode may require Linux input permissions instead.",
             DisplayEnvironment.Windows
                 => "restart CrossMacro and verify the background service is running.",
             DisplayEnvironment.MacOS

@@ -233,22 +233,22 @@
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2">
                                 <TextBlock Text="{localization:Loc MainWindow_UpdateAvailableTitle}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                                <TextBlock Text="{Binding UpdateAvailableVersionText}" 
-                                          FontSize="12" 
+                                <TextBlock Text="{Binding UpdateAvailableVersionText}"
+                                          FontSize="12"
                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
                             </StackPanel>
-                            
-                            <Button Grid.Column="1" 
-                                    Command="{Binding DismissUpdateNotification}"
-                                    Background="Transparent"
-                                    Padding="4"
-                                    VerticalAlignment="Top"
-                                    Margin="8,-4,-4,0">
+
+                             <Button Grid.Column="1"
+                                     Command="{Binding DismissUpdateNotificationCommand}"
+                                     Background="Transparent"
+                                     Padding="4"
+                                     VerticalAlignment="Top"
+                                     Margin="8,-4,-4,0">
                                 <TextBlock Text="✕" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                             </Button>
                         </Grid>
                         
-                        <Button Command="{Binding OpenUpdateUrl}"
+                        <Button Command="{Binding OpenUpdateUrlCommand}"
                                 HorizontalAlignment="Stretch"
                                 Background="{DynamicResource PrimaryBrush}"
                                 Foreground="{DynamicResource TextOnPrimaryBrush}"

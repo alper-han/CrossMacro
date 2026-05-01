@@ -12,7 +12,7 @@ public sealed class DesignRecordingViewModel : RecordingViewModel
     }
 
     internal DesignRecordingViewModel(DesignPreviewContext context)
-        : base(context.MacroRecorder, context.HotkeyService, context.SettingsService, context.LocalizationService)
+        : base(context.MacroRecorder, context.HotkeyService, context.SettingsService, context.LocalizationService, context.RuntimeContext)
     {
         SetMacro(DesignPreviewSamples.CreateMacro("Invoice Form Fill"));
     }
@@ -91,6 +91,7 @@ public sealed class DesignSettingsViewModel : SettingsViewModel
             context.TextExpansionService,
             context.HotkeySettings,
             context.ExternalUrlOpener,
+            context.RuntimeLogLevelService,
             context.ThemeService,
             context.LocalizationService,
             context.RuntimeContext)
@@ -118,7 +119,7 @@ public sealed class DesignShortcutViewModel : ShortcutViewModel
     }
 
     internal DesignShortcutViewModel(DesignPreviewContext context)
-        : base(context.ShortcutService, context.DialogService, context.LocalizationService)
+        : base(context.ShortcutService, context.DialogService, context.HotkeyService, context.LocalizationService)
     {
         SelectedTask = Tasks.FirstOrDefault();
     }

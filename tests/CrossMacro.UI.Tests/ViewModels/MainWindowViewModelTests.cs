@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.UI.Services;
 using CrossMacro.UI.ViewModels;
 using FluentAssertions;
@@ -35,6 +38,7 @@ public class MainWindowViewModelTests
     private readonly ScheduleViewModel _scheduleViewModel;
     private readonly ShortcutViewModel _shortcutViewModel;
     private readonly SettingsViewModel _settingsViewModel;
+    private readonly EditorViewModel _editorViewModel;
 
     private readonly MainWindowViewModel _viewModel;
 
@@ -42,6 +46,8 @@ public class MainWindowViewModelTests
     {
         _settingsService = Substitute.For<ISettingsService>();
         _settingsService.Current.Returns(new AppSettings());
+        var runtimeContext = Substitute.For<IRuntimeContext>();
+        runtimeContext.IsLinux.Returns(true);
         _localizationService = Substitute.For<ILocalizationService>();
         _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
         _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
@@ -77,7 +83,7 @@ public class MainWindowViewModelTests
         _loadedMacroSession = new LoadedMacroSession(_localizationService);
 
         _recorder = Substitute.For<IMacroRecorder>();
-        _recordingViewModel = new RecordingViewModel(_recorder, _hotkeyService, _settingsService, _localizationService);
+        _recordingViewModel = new RecordingViewModel(_recorder, _hotkeyService, _settingsService, _localizationService, runtimeContext);
 
         _player = Substitute.For<IMacroPlayer>();
         _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<System.Threading.CancellationToken>())
@@ -105,10 +111,11 @@ public class MainWindowViewModelTests
         _scheduleViewModel = new ScheduleViewModel(_schedulerService, dialogService, timeProvider, _localizationService);
 
         _shortcutService = Substitute.For<IShortcutService>();
-        _shortcutViewModel = new ShortcutViewModel(_shortcutService, dialogService, _localizationService);
+        _shortcutViewModel = new ShortcutViewModel(_shortcutService, dialogService, _hotkeyService, _localizationService);
 
         var hotkeySettings = new HotkeySettings();
         var textExpansionService = Substitute.For<ITextExpansionService>();
+        var runtimeLogLevelService = Substitute.For<IRuntimeLogLevelService>();
         var themeService = Substitute.For<IThemeService>();
         themeService.AvailableThemes.Returns(new[] { "Classic" });
         themeService.CurrentTheme.Returns("Classic");
@@ -125,13 +132,14 @@ public class MainWindowViewModelTests
             textExpansionService,
             hotkeySettings,
             _externalUrlOpener,
+            runtimeLogLevelService,
             themeService);
 
         var editorConverter = Substitute.For<IEditorActionConverter>();
         var editorValidator = Substitute.For<IEditorActionValidator>();
         var captureService = Substitute.For<ICoordinateCaptureService>();
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
-        var editorViewModel = new EditorViewModel(editorConverter, editorValidator, captureService, _fileManager, dialogService, keyCodeMapper);
+        _editorViewModel = new EditorViewModel(editorConverter, editorValidator, captureService, _fileManager, dialogService, keyCodeMapper);
 
         _viewModel = new MainWindowViewModel(
             _recordingViewModel,
@@ -141,7 +149,7 @@ public class MainWindowViewModelTests
             _scheduleViewModel,
             _shortcutViewModel,
             _settingsViewModel,
-            editorViewModel,
+            _editorViewModel,
             _hotkeyService,
             _positionProvider,
             environmentInfo,
@@ -158,6 +166,134 @@ public class MainWindowViewModelTests
         _viewModel.Files.Should().NotBeNull();
         _viewModel.TextExpansion.Should().NotBeNull();
         _viewModel.Settings.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Construction_SelectsRecordingAsStartupPage()
+    {
+        _viewModel.SelectedTopItem.Should().BeSameAs(_viewModel.TopNavigationItems[0]);
+        _viewModel.SelectedBottomItem.Should().BeNull();
+        _viewModel.SelectedNavigationItem.Should().BeSameAs(_viewModel.TopNavigationItems[0]);
+        _viewModel.CurrentPage.Should().BeSameAs(_recordingViewModel);
+    }
+
+    [Fact]
+    public void NavigationCatalog_CreatesExpectedNavigationMetadataAndPages()
+    {
+        var catalog = new MainWindowNavigationCatalog(_localizationService);
+
+        var topItems = catalog.CreateTopItems(
+            _recordingViewModel,
+            _playbackViewModel,
+            _filesViewModel,
+            _textExpansionViewModel,
+            _shortcutViewModel,
+            _scheduleViewModel,
+            _editorViewModel);
+        var bottomItems = catalog.CreateBottomItems(_settingsViewModel);
+
+        topItems.Select(item => (item.LocalizationKey, item.Label, item.Icon, item.ViewModel)).Should().Equal(
+        [
+            ("Navigation_Recording", "[Navigation_Recording]", "🔴", _recordingViewModel),
+            ("Navigation_Playback", "[Navigation_Playback]", "▶️", _playbackViewModel),
+            ("Navigation_Files", "[Navigation_Files]", "💾", _filesViewModel),
+            ("Navigation_TextExpansion", "[Navigation_TextExpansion]", "📝", _textExpansionViewModel),
+            ("Navigation_Shortcuts", "[Navigation_Shortcuts]", "⌨️", _shortcutViewModel),
+            ("Navigation_Schedule", "[Navigation_Schedule]", "🕐", _scheduleViewModel),
+            ("Navigation_Editor", "[Navigation_Editor]", "🛠️", _editorViewModel)
+        ]);
+        bottomItems.Select(item => (item.LocalizationKey, item.Label, item.Icon, item.ViewModel)).Should().Equal(
+        [
+            ("Navigation_Settings", "[Navigation_Settings]", "⚙️", _settingsViewModel)
+        ]);
+    }
+
+    [Fact]
+    public void NavigationCatalog_RefreshLabels_UpdatesLabelsByLocalizationKey()
+    {
+        var catalog = new MainWindowNavigationCatalog(_localizationService);
+        var topItems = catalog.CreateTopItems(
+            _recordingViewModel,
+            _playbackViewModel,
+            _filesViewModel,
+            _textExpansionViewModel,
+            _shortcutViewModel,
+            _scheduleViewModel,
+            _editorViewModel);
+        var bottomItems = catalog.CreateBottomItems(_settingsViewModel);
+        _localizationService["Navigation_Recording"].Returns("[Navigation_Recording:updated]");
+        _localizationService["Navigation_Settings"].Returns("[Navigation_Settings:updated]");
+
+        catalog.RefreshLabels(topItems, bottomItems);
+
+        topItems[0].Label.Should().Be("[Navigation_Recording:updated]");
+        bottomItems[0].Label.Should().Be("[Navigation_Settings:updated]");
+    }
+
+    [Fact]
+    public async Task Construction_StartsOwnedShellInitializationTask()
+    {
+        var schedulerGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var updateGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var schedulerService = Substitute.For<ISchedulerService>();
+        schedulerService.LoadAsync().Returns(async _ => await schedulerGate.Task);
+
+        var updateService = Substitute.For<IUpdateService>();
+        updateService.CheckForUpdatesAsync().Returns(async _ =>
+        {
+            await updateGate.Task;
+            return new UpdateCheckResult
+            {
+                HasUpdate = true,
+                LatestVersion = "9.9.9",
+                ReleaseUrl = "https://example.invalid/releases/9.9.9"
+            };
+        });
+
+        var viewModel = CreateMainWindowViewModel(
+            schedulerService: schedulerService,
+            updateService: updateService,
+            checkForUpdates: true);
+
+        viewModel.StartupInitializationTask.IsCompleted.Should().BeFalse();
+
+        schedulerGate.SetResult(true);
+        updateGate.SetResult(true);
+
+        await viewModel.StartupInitializationTask;
+
+        await schedulerService.Received(1).LoadAsync();
+        await updateService.Received(1).CheckForUpdatesAsync();
+        viewModel.LatestVersion.Should().Be("9.9.9");
+        viewModel.IsUpdateNotificationVisible.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Construction_WhenScheduleInitializationHandlesFailure_StartupTaskStillCompletesAndContinuesUpdateCheck()
+    {
+        var schedulerService = Substitute.For<ISchedulerService>();
+        schedulerService.LoadAsync().Returns(Task.FromException(new InvalidOperationException("scheduler boom")));
+
+        var updateService = Substitute.For<IUpdateService>();
+        updateService.CheckForUpdatesAsync().Returns(Task.FromResult(new UpdateCheckResult
+        {
+            HasUpdate = true,
+            LatestVersion = "1.2.3",
+            ReleaseUrl = "https://example.invalid/releases/1.2.3"
+        }));
+
+        var viewModel = CreateMainWindowViewModel(
+            schedulerService: schedulerService,
+            updateService: updateService,
+            checkForUpdates: true);
+
+        await viewModel.StartupInitializationTask;
+
+        _ = schedulerService.Received(1).LoadAsync();
+        await updateService.Received(1).CheckForUpdatesAsync();
+        viewModel.LatestVersion.Should().Be("1.2.3");
+        viewModel.IsUpdateNotificationVisible.Should().BeTrue();
     }
 
     [Fact]
@@ -437,6 +573,28 @@ public class MainWindowViewModelTests
     }
 
     [Fact]
+    public void DismissUpdateNotificationCommand_ExecutesBoundDismissAction()
+    {
+        _viewModel.IsUpdateNotificationVisible = true;
+
+        _viewModel.DismissUpdateNotificationCommand.Execute(null);
+
+        _viewModel.IsUpdateNotificationVisible.Should().BeFalse();
+    }
+
+    [Fact]
+    public void OpenUpdateUrlCommand_ExecutesBoundOpenActionAndDismissesNotification()
+    {
+        SetPrivateField(_viewModel, "_updateReleaseUrl", "https://example.invalid/releases/latest");
+        _viewModel.IsUpdateNotificationVisible = true;
+
+        _viewModel.OpenUpdateUrlCommand.Execute(null);
+
+        _externalUrlOpener.Received(1).Open("https://example.invalid/releases/latest");
+        _viewModel.IsUpdateNotificationVisible.Should().BeFalse();
+    }
+
+    [Fact]
     public void CultureChanged_RefreshesNavigationLabels_ByLocalizationKey()
     {
         _viewModel.TopNavigationItems[0].LocalizationKey.Should().Be("Navigation_Recording");
@@ -485,7 +643,8 @@ public class MainWindowViewModelTests
         var hint = GetBackendTroubleshootingHint(environment);
 
         hint.Should().NotBeNull();
-        hint.Should().Contain("systemctl status crossmacro");
+        hint.Should().Contain("systemctl status crossmacro.service");
+        hint.Should().Contain("direct device mode");
     }
 
     [Theory]
@@ -496,7 +655,7 @@ public class MainWindowViewModelTests
         var hint = GetBackendTroubleshootingHint(environment);
 
         hint.Should().NotBeNull();
-        hint.Should().NotContain("systemctl status crossmacro");
+        hint.Should().NotContain("systemctl status crossmacro.service");
     }
 
     [Fact]
@@ -541,6 +700,133 @@ public class MainWindowViewModelTests
         handler!.Invoke(_viewModel.Editor, new EditorMacroCreatedEventArgs(macro, sourcePath));
     }
 
+    private MainWindowViewModel CreateMainWindowViewModel(
+        ISchedulerService? schedulerService = null,
+        IUpdateService? updateService = null,
+        bool? checkForUpdates = null)
+    {
+        var settingsService = Substitute.For<ISettingsService>();
+        settingsService.Current.Returns(new AppSettings
+        {
+            CheckForUpdates = checkForUpdates ?? false
+        });
+        var runtimeContext = Substitute.For<IRuntimeContext>();
+        runtimeContext.IsLinux.Returns(true);
+
+        var localizationService = Substitute.For<ILocalizationService>();
+        localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
+        {
+            "Recording_StatusReady" => "[Recording_StatusReady]",
+            "Recording_StatusRecording" => "[Recording_StatusRecording]",
+            "Recording_StatusLoadedEvents" => "[Recording_StatusLoadedEvents] {0}",
+            "Recording_StatusRecordedEvents" => "[Recording_StatusRecordedEvents] {0}",
+            "Files_StatusReady" => "[Files_StatusReady]",
+            "Files_UnnamedMacro" => "[Files_UnnamedMacro]",
+            "Files_SourceSession" => "[Files_SourceSession]",
+            "Files_SequenceRepeatSummary" => "[Files_SequenceRepeatSummary] {0}",
+            "Files_LoadedMacroDescription" => "[Files_LoadedMacroDescription] {0} | {1}",
+            "Files_StatusLoaded" => "[Files_StatusLoaded] {0}",
+            "Status_Ready" => "[Status_Ready]",
+            "Status_LoadedMacro" => "[Status_LoadedMacro] {0}",
+            "Status_RecordedEvents" => "[Status_RecordedEvents] {0}",
+            "Status_CreatedMacro" => "[Status_CreatedMacro] {0} ({1})",
+            "MainWindow_UpdateAvailableVersion" => "v{0} is available",
+            "Navigation_Recording" => "[Navigation_Recording]",
+            "Navigation_Playback" => "[Navigation_Playback]",
+            "Navigation_Files" => "[Navigation_Files]",
+            "Navigation_TextExpansion" => "[Navigation_TextExpansion]",
+            "Navigation_Shortcuts" => "[Navigation_Shortcuts]",
+            "Navigation_Schedule" => "[Navigation_Schedule]",
+            "Navigation_Editor" => "[Navigation_Editor]",
+            "Navigation_Settings" => "[Navigation_Settings]",
+            _ => call.Arg<string>()
+        });
+
+        var hotkeyService = Substitute.For<IGlobalHotkeyService>();
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        var loadedMacroSession = new LoadedMacroSession(localizationService);
+        var recorder = Substitute.For<IMacroRecorder>();
+        var recordingViewModel = new RecordingViewModel(recorder, hotkeyService, settingsService, localizationService, runtimeContext);
+
+        var player = Substitute.For<IMacroPlayer>();
+        player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+        var playbackViewModel = new PlaybackViewModel(player, settingsService, loadedMacroSession);
+
+        var fileManager = Substitute.For<IMacroFileManager>();
+        var filesDialogService = Substitute.For<IDialogService>();
+        var externalUrlOpener = Substitute.For<IExternalUrlOpener>();
+        var filesViewModel = new FilesViewModel(fileManager, filesDialogService, loadedMacroSession, localizationService);
+
+        var textExpansionStorage = Substitute.For<ITextExpansionStorageService>();
+        var dialogService = Substitute.For<IDialogService>();
+        var environmentInfo = Substitute.For<IEnvironmentInfoProvider>();
+        environmentInfo.WindowManagerHandlesCloseButton.Returns(false);
+        environmentInfo.CurrentEnvironment.Returns(DisplayEnvironment.Windows);
+        var textExpansionViewModel = new TextExpansionViewModel(textExpansionStorage, dialogService, environmentInfo, localizationService);
+
+        if (schedulerService is null)
+        {
+            schedulerService = Substitute.For<ISchedulerService>();
+            schedulerService.LoadAsync().Returns(Task.CompletedTask);
+        }
+
+        var timeProvider = Substitute.For<ITimeProvider>();
+        timeProvider.Now.Returns(new DateTime(2026, 1, 1, 10, 0, 0));
+        timeProvider.UtcNow.Returns(new DateTime(2026, 1, 1, 7, 0, 0));
+        var scheduleViewModel = new ScheduleViewModel(schedulerService, dialogService, timeProvider, localizationService);
+
+        var shortcutService = Substitute.For<IShortcutService>();
+        var shortcutViewModel = new ShortcutViewModel(shortcutService, dialogService, hotkeyService, localizationService);
+
+        var hotkeySettings = new HotkeySettings();
+        var textExpansionService = Substitute.For<ITextExpansionService>();
+        var runtimeLogLevelService = Substitute.For<IRuntimeLogLevelService>();
+        var themeService = Substitute.For<IThemeService>();
+        themeService.AvailableThemes.Returns(new[] { "Classic" });
+        themeService.CurrentTheme.Returns("Classic");
+        themeService
+            .TryApplyTheme(Arg.Any<string>(), out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = string.Empty;
+                return true;
+            });
+        var settingsViewModel = new SettingsViewModel(
+            hotkeyService,
+            settingsService,
+            textExpansionService,
+            hotkeySettings,
+            externalUrlOpener,
+            runtimeLogLevelService,
+            themeService,
+            localizationService);
+
+        var editorConverter = Substitute.For<IEditorActionConverter>();
+        var editorValidator = Substitute.For<IEditorActionValidator>();
+        var captureService = Substitute.For<ICoordinateCaptureService>();
+        var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
+        var editorViewModel = new EditorViewModel(editorConverter, editorValidator, captureService, fileManager, dialogService, keyCodeMapper);
+
+        return new MainWindowViewModel(
+            recordingViewModel,
+            playbackViewModel,
+            filesViewModel,
+            textExpansionViewModel,
+            scheduleViewModel,
+            shortcutViewModel,
+            settingsViewModel,
+            editorViewModel,
+            hotkeyService,
+            positionProvider,
+            environmentInfo,
+            externalUrlOpener,
+            localizationService,
+            null,
+            updateService);
+    }
+
     private static MacroSequence CreateMacro(string name, params EventType[] eventTypes)
     {
         var macro = new MacroSequence { Name = name };
@@ -560,5 +846,15 @@ public class MainWindowViewModelTests
 
         property.Should().NotBeNull();
         property!.SetValue(target, value);
+    }
+
+    private static void SetPrivateField<T>(object target, string fieldName, T value)
+    {
+        var field = target.GetType().GetField(
+            fieldName,
+            BindingFlags.Instance | BindingFlags.NonPublic);
+
+        field.Should().NotBeNull();
+        field!.SetValue(target, value);
     }
 }

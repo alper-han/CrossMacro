@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using CrossMacro.Core.Services;
 using CrossMacro.Platform.Linux.Native.X11;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services
 {

@@ -100,4 +100,113 @@ public class LinuxSimulatorFactoryTests
         Assert.False(result.IsSupported);
         Assert.IsType<UnavailableInputSimulator>(result);
     }
+
+    [LinuxFact]
+    public void Create_WhenX11NativeSimulatorSupported_ReturnsX11BeforeCapabilityFallback()
+    {
+        var env = Substitute.For<ILinuxEnvironmentDetector>();
+        env.IsWayland.Returns(false);
+
+        var capability = Substitute.For<ILinuxInputCapabilityDetector>();
+        capability.DetermineMode().Returns(InputProviderMode.Daemon);
+
+        var legacy = new LinuxInputSimulator();
+        using var ipc = new LinuxIpcInputSimulator(new IpcClient(() => "/tmp/non-existent.sock"));
+        using var x11 = new X11InputSimulator();
+
+        var factory = new LinuxSimulatorFactory(
+            env,
+            capability,
+            () => legacy,
+            () => ipc,
+            () => x11,
+            _ => true);
+
+        var result = factory.Create();
+
+        Assert.Same(x11, result);
+        capability.DidNotReceive().DetermineMode();
+    }
+
+    [LinuxFact]
+    public void Create_WhenX11NativeSimulatorUnsupportedAndFallbackIsDaemon_ReturnsIpcSimulator()
+    {
+        var env = Substitute.For<ILinuxEnvironmentDetector>();
+        env.IsWayland.Returns(false);
+
+        var capability = Substitute.For<ILinuxInputCapabilityDetector>();
+        capability.DetermineMode().Returns(InputProviderMode.Daemon);
+
+        var legacy = new LinuxInputSimulator();
+        using var ipc = new LinuxIpcInputSimulator(new IpcClient(() => "/tmp/non-existent.sock"));
+        using var x11 = new X11InputSimulator();
+
+        var factory = new LinuxSimulatorFactory(
+            env,
+            capability,
+            () => legacy,
+            () => ipc,
+            () => x11,
+            _ => false);
+
+        var result = factory.Create();
+
+        Assert.Same(ipc, result);
+        capability.Received(1).DetermineMode();
+    }
+
+    [LinuxFact]
+    public void Create_WhenX11NativeSimulatorUnsupportedAndFallbackIsDirect_ReturnsLegacySimulator()
+    {
+        var env = Substitute.For<ILinuxEnvironmentDetector>();
+        env.IsWayland.Returns(false);
+
+        var capability = Substitute.For<ILinuxInputCapabilityDetector>();
+        capability.DetermineMode().Returns(InputProviderMode.Legacy);
+
+        var legacy = new LinuxInputSimulator();
+        using var ipc = new LinuxIpcInputSimulator(new IpcClient(() => "/tmp/non-existent.sock"));
+        using var x11 = new X11InputSimulator();
+
+        var factory = new LinuxSimulatorFactory(
+            env,
+            capability,
+            () => legacy,
+            () => ipc,
+            () => x11,
+            _ => false);
+
+        var result = factory.Create();
+
+        Assert.Same(legacy, result);
+        capability.Received(1).DetermineMode();
+    }
+
+    [LinuxFact]
+    public void Create_WhenX11NativeSimulatorUnsupportedAndFallbackIsNone_ReturnsUnsupportedSimulator()
+    {
+        var env = Substitute.For<ILinuxEnvironmentDetector>();
+        env.IsWayland.Returns(false);
+
+        var capability = Substitute.For<ILinuxInputCapabilityDetector>();
+        capability.DetermineMode().Returns(InputProviderMode.None);
+
+        var legacy = new LinuxInputSimulator();
+        using var ipc = new LinuxIpcInputSimulator(new IpcClient(() => "/tmp/non-existent.sock"));
+        using var x11 = new X11InputSimulator();
+
+        var factory = new LinuxSimulatorFactory(
+            env,
+            capability,
+            () => legacy,
+            () => ipc,
+            () => x11,
+            _ => false);
+
+        var result = factory.Create();
+
+        Assert.False(result.IsSupported);
+        Assert.IsType<UnavailableInputSimulator>(result);
+        capability.Received(1).DetermineMode();
+    }
 }

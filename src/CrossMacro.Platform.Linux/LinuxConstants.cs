@@ -1,4 +1,4 @@
-using CrossMacro.Core;
+using CrossMacro.Infrastructure.Linux.Native;
 
 namespace CrossMacro.Platform.Linux;
 
@@ -11,12 +11,12 @@ public static class LinuxConstants
     /// <summary>
     /// Primary uinput device path.
     /// </summary>
-    public const string UInputDevicePath = "/dev/uinput";
+    public const string UInputDevicePath = LinuxSystemPaths.UInputDevicePath;
     
     /// <summary>
     /// Alternate uinput device path (some systems use this).
     /// </summary>
-    public const string UInputAlternatePath = "/dev/input/uinput";
+    public const string UInputAlternatePath = LinuxSystemPaths.UInputAlternatePath;
     
     /// <summary>
     /// X11 keycodes are offset from Linux keycodes by this value.

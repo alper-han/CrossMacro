@@ -2,12 +2,16 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Services;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Ipc;
 
 public class LinuxIpcInputCapture : IInputCapture
 {
+    private readonly record struct StartupFailurePolicy(
+        bool WaitForReconnect,
+        string UserMessage);
+
     private readonly record struct StartupAttempt(
         bool ShouldStart,
         Task? PendingStartTask,
@@ -109,7 +113,7 @@ public class LinuxIpcInputCapture : IInputCapture
 
         try
         {
-            await StartCaptureWithReconnectAsync(
+            await StartCaptureWithStartupPolicyAsync(
                 startupAttempt.CaptureMouse,
                 startupAttempt.CaptureKeyboard,
                 startLifetimeCts.Token);
@@ -122,7 +126,8 @@ public class LinuxIpcInputCapture : IInputCapture
         }
         catch (Exception ex)
         {
-            var startupException = new InvalidOperationException(GetStartupFailureMessage(ex), ex);
+            var startupException = ex as InvalidOperationException
+                ?? new InvalidOperationException(GetStartupFailureMessage(ex), ex);
             ClearPendingStartupState(startupException);
             _client.StopCapture(_consumerId);
             throw startupException;
@@ -224,11 +229,14 @@ public class LinuxIpcInputCapture : IInputCapture
         return ex.Message;
     }
 
-    private bool ShouldWaitForReconnect(Exception ex)
+    private StartupFailurePolicy ClassifyCaptureStartupFailure(Exception ex)
     {
-        return _client.AutoReconnectEnabled &&
+        var userMessage = GetStartupFailureMessage(ex);
+        var shouldWaitForReconnect = _client.AutoReconnectEnabled &&
             ex is IpcClientException ipcEx &&
             ipcEx.Reason == IpcClientFailureReason.ConnectFailed;
+
+        return new StartupFailurePolicy(shouldWaitForReconnect, userMessage);
     }
 
     private async Task WaitForDaemonReconnectAsync(CancellationToken token)
@@ -306,14 +314,25 @@ public class LinuxIpcInputCapture : IInputCapture
         }
     }
 
-    private async Task StartCaptureWithReconnectAsync(
+    private async Task StartCaptureWithStartupPolicyAsync(
         bool captureMouse,
         bool captureKeyboard,
         CancellationToken token)
     {
         if (!_client.IsConnected)
         {
-            await _client.ConnectAsync(token);
+            try
+            {
+                await _client.ConnectAsync(token);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(GetStartupFailureMessage(ex), ex);
+            }
         }
 
         while (true)
@@ -323,8 +342,18 @@ public class LinuxIpcInputCapture : IInputCapture
                 await _client.StartCaptureAsync(_consumerId, captureMouse, captureKeyboard, token);
                 return;
             }
-            catch (Exception ex) when (ShouldWaitForReconnect(ex))
+            catch (OperationCanceledException)
             {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                var startupFailure = ClassifyCaptureStartupFailure(ex);
+                if (!startupFailure.WaitForReconnect)
+                {
+                    throw new InvalidOperationException(startupFailure.UserMessage, ex);
+                }
+
                 Log.Warning(
                     ex,
                     "[LinuxIpcInputCapture] Lost daemon connection while waiting for capture start acknowledgement for {ConsumerId}; waiting for reconnect",

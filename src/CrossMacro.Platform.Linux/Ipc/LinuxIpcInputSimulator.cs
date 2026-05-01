@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 using CrossMacro.Core.Services;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Ipc;
 

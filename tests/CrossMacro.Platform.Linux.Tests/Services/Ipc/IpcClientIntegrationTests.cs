@@ -2,9 +2,10 @@ using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using CrossMacro.Core.Ipc;
+using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Platform.Linux.Ipc;
 using CrossMacro.TestInfrastructure;
 using Xunit;
@@ -60,6 +61,24 @@ public class IpcClientIntegrationTests
     }
 
     [LinuxFact]
+    public async Task ConnectAsync_WhenCallerCancellationFiresDuringHandshake_ShouldPropagateCancellationWithinCallerBudget()
+    {
+        var socketPath = GetUniqueSocketPath();
+        await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.NoResponse);
+        using var client = new IpcClient(() => socketPath);
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+
+        var started = DateTime.UtcNow;
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            client.ConnectAsync(cts.Token).WaitAsync(TimeSpan.FromSeconds(2)));
+
+        var elapsed = DateTime.UtcNow - started;
+        Assert.True(
+            elapsed < TimeSpan.FromSeconds(2),
+            $"ConnectAsync should honor caller cancellation during handshake. Elapsed: {elapsed}.");
+    }
+
+    [LinuxIntegrationFact]
     public async Task WhenConnectionDrops_ShouldAutoReconnectAndReplayActiveCapture()
     {
         var socketPath = GetUniqueSocketPath();
@@ -94,7 +113,7 @@ public class IpcClientIntegrationTests
         }
     }
 
-    [LinuxFact]
+    [LinuxIntegrationFact]
     public async Task WhenConnectionDrops_ShouldNotEmitReconnectSuccessViaErrorChannel()
     {
         var socketPath = GetUniqueSocketPath();
@@ -131,7 +150,7 @@ public class IpcClientIntegrationTests
         }
     }
 
-    [LinuxFact]
+    [LinuxIntegrationFact]
     public async Task WhenConnectionDrops_WithAutoReconnectDisabled_ShouldNotReplayActiveCapture()
     {
         var socketPath = GetUniqueSocketPath();
@@ -158,6 +177,62 @@ public class IpcClientIntegrationTests
             if (!daemon1Disposed)
             {
                 await daemon1.DisposeAsync();
+            }
+        }
+    }
+
+    [LinuxIntegrationFact]
+    public async Task DeferredCaptureReconcile_WhenTransportDropsBeforeGateReleases_ShouldCancelWithoutIssuingStaleCommand()
+    {
+        var socketPath = GetUniqueSocketPath();
+        var daemon = await TestIpcDaemon.StartAsync(
+            socketPath,
+            HandshakeBehavior.DelayAllCaptureStartAcks);
+        var daemonDisposed = false;
+        using var client = new IpcClient(() => socketPath, autoReconnect: false);
+
+        try
+        {
+            await client.ConnectAsync(CancellationToken.None);
+            await client.StartCaptureAsync("consumer-a", mouse: false, keyboard: true)
+                .WaitAsync(AsyncOperationTimeout);
+            await daemon.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
+
+            client.StartCapture("consumer-b", mouse: true, keyboard: true);
+            await daemon.WaitForCommandCountAsync(expected: 2, timeout: TimeSpan.FromSeconds(2));
+
+            var captureGateField = typeof(IpcClient).GetField(
+                "_captureCommandGate",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.NotNull(captureGateField);
+            var captureGate = Assert.IsType<SemaphoreSlim>(captureGateField!.GetValue(client));
+
+            captureGate.Wait();
+            var stopCaptureTask = Task.Run(() => client.StopCapture("consumer-b"));
+            try
+            {
+                await daemon.DisposeAsync();
+                daemonDisposed = true;
+                await Task.Delay(TimeSpan.FromMilliseconds(250));
+            }
+            finally
+            {
+                captureGate.Release();
+            }
+
+            await stopCaptureTask.WaitAsync(AsyncOperationTimeout);
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+
+            var commands = daemon.GetCommandsSnapshot();
+            Assert.Equal(2, commands.Length);
+            Assert.Equal(IpcOpCode.StartCapture, commands[0].OpCode);
+            Assert.Equal(IpcOpCode.StartCapture, commands[1].OpCode);
+        }
+        finally
+        {
+            if (!daemonDisposed)
+            {
+                await daemon.DisposeAsync();
             }
         }
     }
@@ -227,7 +302,8 @@ public class IpcClientIntegrationTests
             pendingStartTask.WaitAsync(AsyncOperationTimeout));
         Assert.Contains("Simulated delayed start failure", exception.Message, StringComparison.Ordinal);
 
-        await Task.Delay(TimeSpan.FromMilliseconds(350));
+        await Assert.ThrowsAsync<TimeoutException>(() =>
+            daemon.WaitForCommandCountAsync(expected: 3, timeout: TimeSpan.FromMilliseconds(500)));
 
         var commands = daemon.GetCommandsSnapshot();
         Assert.Equal(2, commands.Length);
@@ -446,6 +522,86 @@ public class IpcClientIntegrationTests
             capture.StartAsync(CancellationToken.None).WaitAsync(HandshakeTimeoutAssertionBudget));
 
         Assert.Contains("Timed out while waiting for daemon handshake", exception.Message, StringComparison.Ordinal);
+    }
+
+    [LinuxFact]
+    public async Task LinuxIpcInputCapture_StartAsync_WhenSocketIsMissing_ShouldRaiseFriendlySocketError()
+    {
+        var socketPath = GetUniqueSocketPath();
+        using var client = new IpcClient(() => socketPath, autoReconnect: false);
+        using var capture = new LinuxIpcInputCapture(client, "missing-socket-capture");
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            capture.StartAsync(CancellationToken.None).WaitAsync(AsyncOperationTimeout));
+
+        Assert.Contains("Failed to connect to daemon.", exception.Message, StringComparison.Ordinal);
+        Assert.IsType<IpcClientException>(exception.InnerException);
+        Assert.Equal(IpcClientFailureReason.ConnectFailed, ((IpcClientException)exception.InnerException!).Reason);
+    }
+
+    [LinuxFact]
+    public async Task LinuxIpcInputCapture_StartAsync_WhenProtocolVersionMismatches_ShouldRaiseFriendlyMismatchError()
+    {
+        var socketPath = GetUniqueSocketPath();
+        await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.ProtocolMismatch);
+        using var client = new IpcClient(() => socketPath, autoReconnect: false);
+        using var capture = new LinuxIpcInputCapture(client, "protocol-mismatch-capture");
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            capture.StartAsync(CancellationToken.None).WaitAsync(AsyncOperationTimeout));
+
+        Assert.Contains("Protocol version mismatch.", exception.Message, StringComparison.Ordinal);
+        Assert.IsType<IpcClientException>(exception.InnerException);
+        Assert.Equal(IpcClientFailureReason.ProtocolMismatch, ((IpcClientException)exception.InnerException!).Reason);
+    }
+
+    [LinuxFact]
+    public async Task LinuxIpcInputCapture_StartAsync_WhenInitialProtocolMismatchWithAutoReconnectEnabled_ShouldFailImmediately()
+    {
+        var socketPath = GetUniqueSocketPath();
+        await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.ProtocolMismatch);
+        using var client = new IpcClient(() => socketPath, autoReconnect: true);
+        using var capture = new LinuxIpcInputCapture(client, "protocol-mismatch-autoreconnect-capture");
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            capture.StartAsync(CancellationToken.None).WaitAsync(AsyncOperationTimeout));
+
+        Assert.Contains("Protocol version mismatch.", exception.Message, StringComparison.Ordinal);
+        Assert.IsType<IpcClientException>(exception.InnerException);
+        Assert.Equal(IpcClientFailureReason.ProtocolMismatch, ((IpcClientException)exception.InnerException!).Reason);
+    }
+
+    [LinuxIntegrationFact]
+    public async Task LinuxIpcInputCapture_StartAsync_WhenStartupTransportDrops_ShouldWaitForReconnectAndSucceed()
+    {
+        var socketPath = GetUniqueSocketPath();
+        var daemon1 = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.DelayAllCaptureStartAcks);
+        var daemon1Disposed = false;
+        using var client = new IpcClient(() => socketPath, autoReconnect: true);
+        await client.ConnectAsync(CancellationToken.None);
+        using var capture = new LinuxIpcInputCapture(client, "reconnect-startup-capture");
+        capture.Configure(captureMouse: true, captureKeyboard: false);
+
+        var startTask = capture.StartAsync(CancellationToken.None);
+        await daemon1.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
+
+        await daemon1.DisposeAsync();
+        daemon1Disposed = true;
+        await using var daemon2 = await TestIpcDaemon.StartAsync(socketPath);
+
+        await startTask.WaitAsync(TimeSpan.FromSeconds(8));
+        await daemon2.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
+
+        var commands = daemon2.GetCommandsSnapshot();
+        Assert.Single(commands);
+        Assert.Equal(IpcOpCode.StartCapture, commands[0].OpCode);
+        Assert.True(commands[0].CaptureMouse);
+        Assert.False(commands[0].CaptureKeyboard);
+
+        if (!daemon1Disposed)
+        {
+            await daemon1.DisposeAsync();
+        }
     }
 
     [LinuxFact]

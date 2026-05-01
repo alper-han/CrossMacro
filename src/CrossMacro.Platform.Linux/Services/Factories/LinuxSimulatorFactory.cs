@@ -2,7 +2,7 @@ using System;
 using CrossMacro.Core.Services;
 using CrossMacro.Platform.Linux.Ipc;
 using CrossMacro.Platform.Linux.Extensions;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services.Factories;
 
@@ -18,6 +18,7 @@ public class LinuxSimulatorFactory
     private readonly Func<LinuxInputSimulator> _legacyFactory;
     private readonly Func<LinuxIpcInputSimulator> _ipcFactory;
     private readonly Func<X11InputSimulator> _x11Factory;
+    private readonly Func<X11InputSimulator, bool> _x11IsSupported;
 
     public LinuxSimulatorFactory(
         ILinuxEnvironmentDetector environmentDetector,
@@ -25,12 +26,24 @@ public class LinuxSimulatorFactory
         Func<LinuxInputSimulator> legacyFactory,
         Func<LinuxIpcInputSimulator> ipcFactory,
         Func<X11InputSimulator> x11Factory)
+        : this(environmentDetector, capabilityDetector, legacyFactory, ipcFactory, x11Factory, static x11 => x11.IsSupported)
+    {
+    }
+
+    internal LinuxSimulatorFactory(
+        ILinuxEnvironmentDetector environmentDetector,
+        ILinuxInputCapabilityDetector capabilityDetector,
+        Func<LinuxInputSimulator> legacyFactory,
+        Func<LinuxIpcInputSimulator> ipcFactory,
+        Func<X11InputSimulator> x11Factory,
+        Func<X11InputSimulator, bool> x11IsSupported)
     {
         _environmentDetector = environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector));
         _capabilityDetector = capabilityDetector ?? throw new ArgumentNullException(nameof(capabilityDetector));
         _legacyFactory = legacyFactory ?? throw new ArgumentNullException(nameof(legacyFactory));
         _ipcFactory = ipcFactory ?? throw new ArgumentNullException(nameof(ipcFactory));
         _x11Factory = x11Factory ?? throw new ArgumentNullException(nameof(x11Factory));
+        _x11IsSupported = x11IsSupported ?? throw new ArgumentNullException(nameof(x11IsSupported));
     }
 
     /// <summary>
@@ -69,7 +82,7 @@ public class LinuxSimulatorFactory
 
         // 2. X11 -> Try Native X11
         var x11Sim = _x11Factory();
-        if (x11Sim.IsSupported)
+        if (_x11IsSupported(x11Sim))
         {
             LoggingExtensions.LogOnce("LinuxSimulatorFactory_X11", "[LinuxSimulatorFactory] X11 detected, using Native X11 Simulator");
             return x11Sim;

@@ -50,6 +50,7 @@ public class LinuxCaptureFactoryTests
         env.IsWayland.Returns(true);
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.Legacy);
+        capability.CanReadInputEvents.Returns(true);
 
         var legacy = new LinuxInputCapture();
         using var ipc = new LinuxIpcInputCapture(new IpcClient(() => "/tmp/non-existent.sock"), "test-capture");
@@ -100,4 +101,175 @@ public class LinuxCaptureFactoryTests
         Assert.False(result.IsSupported);
         Assert.IsType<UnavailableInputCapture>(result);
     }
+
+    [LinuxFact]
+    public void Create_WhenWaylandAndLegacyModeWithoutReadableEvents_ReturnsUnsupportedCapture()
+    {
+        var env = Substitute.For<ILinuxEnvironmentDetector>();
+        env.IsWayland.Returns(true);
+        var capability = Substitute.For<ILinuxInputCapabilityDetector>();
+        capability.DetermineMode().Returns(InputProviderMode.Legacy);
+        capability.CanReadInputEvents.Returns(false);
+
+        var legacyFactoryCalled = false;
+
+        using var ipc = new LinuxIpcInputCapture(new IpcClient(() => "/tmp/non-existent.sock"), "test-capture");
+        var factory = new LinuxCaptureFactory(
+            env,
+            capability,
+            () =>
+            {
+                legacyFactoryCalled = true;
+                return new LinuxInputCapture();
+            },
+            () => ipc,
+            () => throw new InvalidOperationException("X11 factory should not be used in wayland path"));
+
+        var result = factory.Create();
+
+        Assert.False(result.IsSupported);
+        Assert.IsType<UnavailableInputCapture>(result);
+        Assert.False(legacyFactoryCalled);
+    }
+
+    [LinuxFact]
+    public void Create_WhenWaylandAndLegacyModeWithReadableEvents_ReturnsLegacyCapture()
+    {
+        var env = Substitute.For<ILinuxEnvironmentDetector>();
+        env.IsWayland.Returns(true);
+        var capability = Substitute.For<ILinuxInputCapabilityDetector>();
+        capability.DetermineMode().Returns(InputProviderMode.Legacy);
+        capability.CanReadInputEvents.Returns(true);
+
+        var legacy = new LinuxInputCapture();
+        using var ipc = new LinuxIpcInputCapture(new IpcClient(() => "/tmp/non-existent.sock"), "test-capture");
+
+        var factory = new LinuxCaptureFactory(
+            env,
+            capability,
+            () => legacy,
+            () => ipc,
+            () => throw new InvalidOperationException("X11 factory should not be used in wayland path"));
+
+        var result = factory.Create();
+
+        Assert.Same(legacy, result);
+    }
+
+    [LinuxFact]
+    public void Create_WhenX11NativeCaptureSupported_ReturnsX11BeforeCapabilityFallback()
+    {
+        var env = Substitute.For<ILinuxEnvironmentDetector>();
+        env.IsWayland.Returns(false);
+
+        var capability = Substitute.For<ILinuxInputCapabilityDetector>();
+        capability.DetermineMode().Returns(InputProviderMode.Daemon);
+
+        var legacy = new LinuxInputCapture();
+        using var ipc = new LinuxIpcInputCapture(new IpcClient(() => "/tmp/non-existent.sock"), "test-capture");
+        var x11 = CreateX11Capture();
+
+        var factory = new LinuxCaptureFactory(
+            env,
+            capability,
+            () => legacy,
+            () => ipc,
+            () => x11,
+            _ => true);
+
+        var result = factory.Create();
+
+        Assert.Same(x11, result);
+        capability.DidNotReceive().DetermineMode();
+    }
+
+    [LinuxFact]
+    public void Create_WhenX11NativeCaptureUnsupportedAndFallbackIsDaemon_ReturnsIpcCapture()
+    {
+        var env = Substitute.For<ILinuxEnvironmentDetector>();
+        env.IsWayland.Returns(false);
+
+        var capability = Substitute.For<ILinuxInputCapabilityDetector>();
+        capability.DetermineMode().Returns(InputProviderMode.Daemon);
+
+        var legacy = new LinuxInputCapture();
+        using var ipc = new LinuxIpcInputCapture(new IpcClient(() => "/tmp/non-existent.sock"), "test-capture");
+        var x11 = CreateX11Capture();
+
+        var factory = new LinuxCaptureFactory(
+            env,
+            capability,
+            () => legacy,
+            () => ipc,
+            () => x11,
+            _ => false);
+
+        var result = factory.Create();
+
+        Assert.Same(ipc, result);
+        capability.Received(1).DetermineMode();
+    }
+
+    [LinuxFact]
+    public void Create_WhenX11NativeCaptureUnsupportedAndFallbackIsDirectWithReadableEvents_ReturnsLegacyCapture()
+    {
+        var env = Substitute.For<ILinuxEnvironmentDetector>();
+        env.IsWayland.Returns(false);
+
+        var capability = Substitute.For<ILinuxInputCapabilityDetector>();
+        capability.DetermineMode().Returns(InputProviderMode.Legacy);
+        capability.CanReadInputEvents.Returns(true);
+
+        var legacy = new LinuxInputCapture();
+        using var ipc = new LinuxIpcInputCapture(new IpcClient(() => "/tmp/non-existent.sock"), "test-capture");
+        var x11 = CreateX11Capture();
+
+        var factory = new LinuxCaptureFactory(
+            env,
+            capability,
+            () => legacy,
+            () => ipc,
+            () => x11,
+            _ => false);
+
+        var result = factory.Create();
+
+        Assert.Same(legacy, result);
+        capability.Received(1).DetermineMode();
+    }
+
+    [LinuxFact]
+    public void Create_WhenX11NativeCaptureUnsupportedAndFallbackIsNone_ReturnsUnsupportedCapture()
+    {
+        var env = Substitute.For<ILinuxEnvironmentDetector>();
+        env.IsWayland.Returns(false);
+
+        var capability = Substitute.For<ILinuxInputCapabilityDetector>();
+        capability.DetermineMode().Returns(InputProviderMode.None);
+
+        var legacy = new LinuxInputCapture();
+        using var ipc = new LinuxIpcInputCapture(new IpcClient(() => "/tmp/non-existent.sock"), "test-capture");
+        var x11 = CreateX11Capture();
+
+        var factory = new LinuxCaptureFactory(
+            env,
+            capability,
+            () => legacy,
+            () => ipc,
+            () => x11,
+            _ => false);
+
+        var result = factory.Create();
+
+        Assert.False(result.IsSupported);
+        Assert.IsType<UnavailableInputCapture>(result);
+        capability.Received(1).DetermineMode();
+    }
+
+    private static X11InputCapture CreateX11Capture()
+    {
+        var settings = Substitute.For<ISettingsService>();
+        return new X11InputCapture(new X11AbsoluteCapture(), new X11RelativeCapture(), settings);
+    }
+
 }

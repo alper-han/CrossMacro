@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Threading;
-using CrossMacro.Core.Ipc;
+using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Platform.Linux.Ipc;
 using CrossMacro.TestInfrastructure;
 using Xunit;

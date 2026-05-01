@@ -1,7 +1,7 @@
 using System;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Services;
-using CrossMacro.Platform.Linux.Native.UInput;
-using Serilog;
+using CrossMacro.Infrastructure.Linux.Native.UInput;
 
 namespace CrossMacro.Platform.Linux;
 
@@ -59,9 +59,9 @@ public class LinuxInputSimulator : IInputSimulator, IInputSimulatorCapabilities
     
     public void Scroll(int delta, bool isHorizontal = false)
     {
-        ushort axis = isHorizontal ? Native.UInput.UInputNative.REL_HWHEEL : Native.UInput.UInputNative.REL_WHEEL;
-        _device?.SendEvent(Native.UInput.UInputNative.EV_REL, axis, delta);
-        _device?.SendEvent(Native.UInput.UInputNative.EV_SYN, Native.UInput.UInputNative.SYN_REPORT, 0);
+        ushort axis = isHorizontal ? UInputNative.REL_HWHEEL : UInputNative.REL_WHEEL;
+        _device?.SendEvent(UInputNative.EV_REL, axis, delta);
+        _device?.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
     }
     
     public void KeyPress(int keyCode, bool pressed)
@@ -71,7 +71,7 @@ public class LinuxInputSimulator : IInputSimulator, IInputSimulatorCapabilities
     
     public void Sync()
     {
-        _device?.SendEvent(Native.UInput.UInputNative.EV_SYN, Native.UInput.UInputNative.SYN_REPORT, 0);
+        _device?.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
     }
     
     public void Dispose()

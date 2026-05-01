@@ -2,11 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using CrossMacro.Core.Ipc;
-using CrossMacro.Core.Services;
-using Serilog;
+using CrossMacro.Daemon.Contracts.Ipc;
+using CrossMacro.Core.Logging;
+using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Platform.Linux.Ipc;
 
@@ -79,17 +80,21 @@ public class IpcClient : IDisposable
                     _stream.Flush();
                 }
 
-                var opcode = (IpcOpCode)_reader.ReadByte();
+                using var handshakeCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                handshakeCts.CancelAfter(HandshakeTimeoutMs);
+                var handshakeToken = handshakeCts.Token;
+
+                var opcode = (IpcOpCode)await ReadHandshakeByteAsync(_stream, handshakeToken);
                 if (opcode == IpcOpCode.Error)
                 {
-                    var msg = _reader.ReadString();
+                    var msg = await ReadHandshakeStringAsync(_stream, handshakeToken);
                     throw new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Daemon handshake error: {msg}");
                 }
                 if (opcode != IpcOpCode.Handshake)
                 {
                     throw new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Unexpected handshake opcode: {opcode}");
                 }
-                var version = _reader.ReadInt32();
+                var version = await ReadHandshakeInt32Async(_stream, handshakeToken);
                 if (version != IpcProtocol.ProtocolVersion)
                 {
                     throw new IpcClientException(
@@ -160,6 +165,14 @@ public class IpcClient : IDisposable
                     _captureCommandGate.Release();
                 }
             }
+            catch (OperationCanceledException ex) when (!token.IsCancellationRequested)
+            {
+                Cleanup(clearSubscriptions: false, disableReconnect: false);
+                throw new IpcClientException(
+                    IpcClientFailureReason.Timeout,
+                    "Timed out while connecting to or handshaking with CrossMacro daemon.",
+                    ex);
+            }
             catch (OperationCanceledException)
             {
                 Cleanup(clearSubscriptions: false, disableReconnect: false);
@@ -200,17 +213,10 @@ public class IpcClient : IDisposable
             return IpcProtocol.DefaultSocketPath;
         }
 
-        if (File.Exists(IpcProtocol.FallbackSocketPath))
-        {
-            Log.Information("Using fallback socket path: {Path}", IpcProtocol.FallbackSocketPath);
-            return IpcProtocol.FallbackSocketPath;
-        }
-
         throw new IpcClientException(
             IpcClientFailureReason.SocketNotFound,
             $"Daemon socket not found. Checked:\n" +
             $"  - {IpcProtocol.DefaultSocketPath}\n" +
-            $"  - {IpcProtocol.FallbackSocketPath}\n" +
             $"Is the CrossMacro daemon service running?");
     }
 
@@ -235,6 +241,73 @@ public class IpcClient : IDisposable
         }
 
         return false;
+    }
+
+    private static async Task<byte> ReadHandshakeByteAsync(Stream stream, CancellationToken token)
+    {
+        var buffer = new byte[1];
+        await ReadHandshakeExactlyAsync(stream, buffer, token);
+        return buffer[0];
+    }
+
+    private static async Task<int> ReadHandshakeInt32Async(Stream stream, CancellationToken token)
+    {
+        var buffer = new byte[sizeof(int)];
+        await ReadHandshakeExactlyAsync(stream, buffer, token);
+        return BitConverter.ToInt32(buffer);
+    }
+
+    private static async Task<string> ReadHandshakeStringAsync(Stream stream, CancellationToken token)
+    {
+        var byteCount = await ReadHandshake7BitEncodedIntAsync(stream, token);
+        if (byteCount < 0)
+        {
+            throw new IOException("Invalid handshake string length.");
+        }
+
+        if (byteCount == 0)
+        {
+            return string.Empty;
+        }
+
+        var buffer = new byte[byteCount];
+        await ReadHandshakeExactlyAsync(stream, buffer, token);
+        return Encoding.UTF8.GetString(buffer);
+    }
+
+    private static async Task<int> ReadHandshake7BitEncodedIntAsync(Stream stream, CancellationToken token)
+    {
+        var result = 0;
+        var shift = 0;
+
+        for (var index = 0; index < 5; index++)
+        {
+            var currentByte = await ReadHandshakeByteAsync(stream, token);
+            result |= (currentByte & 0x7F) << shift;
+            if ((currentByte & 0x80) == 0)
+            {
+                return result;
+            }
+
+            shift += 7;
+        }
+
+        throw new FormatException("Invalid 7-bit encoded handshake string length.");
+    }
+
+    private static async Task ReadHandshakeExactlyAsync(Stream stream, byte[] buffer, CancellationToken token)
+    {
+        var offset = 0;
+        while (offset < buffer.Length)
+        {
+            var read = await stream.ReadAsync(buffer.AsMemory(offset, buffer.Length - offset), token);
+            if (read == 0)
+            {
+                throw new EndOfStreamException("Daemon closed the connection during handshake.");
+            }
+
+            offset += read;
+        }
     }
 
     private void ReadLoop(CancellationToken token)
@@ -308,6 +381,21 @@ public class IpcClient : IDisposable
 
     private readonly Lock _captureLock = new();
 
+    private void EnterCaptureCommandGate()
+    {
+        _captureCommandGate.Wait();
+    }
+
+    private async Task EnterCaptureCommandGateAsync(CancellationToken token)
+    {
+        await _captureCommandGate.WaitAsync(token);
+    }
+
+    private void ExitCaptureCommandGate()
+    {
+        _captureCommandGate.Release();
+    }
+
     public void StartCapture(bool mouse, bool keyboard)
     {
         StartCapture(DefaultConsumerId, mouse, keyboard);
@@ -324,7 +412,7 @@ public class IpcClient : IDisposable
         PendingCaptureStartRegistration? pendingStart = null;
         var shouldSend = false;
 
-        _captureCommandGate.Wait();
+        EnterCaptureCommandGate();
         try
         {
             lock (_captureLock)
@@ -389,7 +477,7 @@ public class IpcClient : IDisposable
         }
         finally
         {
-            _captureCommandGate.Release();
+            ExitCaptureCommandGate();
         }
     }
 
@@ -420,7 +508,7 @@ public class IpcClient : IDisposable
             CaptureCommand commandToSend = default;
             var joinedExistingPendingStart = false;
 
-            await _captureCommandGate.WaitAsync(token);
+            await EnterCaptureCommandGateAsync(token);
             try
             {
                 lock (_captureLock)
@@ -506,7 +594,7 @@ public class IpcClient : IDisposable
             }
             finally
             {
-                _captureCommandGate.Release();
+                ExitCaptureCommandGate();
             }
 
             if (waitTask == null)
@@ -545,7 +633,7 @@ public class IpcClient : IDisposable
         CaptureCommand commandToSend = default;
         PendingCaptureStartRegistration? pendingStart = null;
 
-        _captureCommandGate.Wait();
+        EnterCaptureCommandGate();
         try
         {
             lock (_captureLock)
@@ -615,7 +703,7 @@ public class IpcClient : IDisposable
         }
         finally
         {
-            _captureCommandGate.Release();
+            ExitCaptureCommandGate();
         }
     }
 
@@ -844,7 +932,7 @@ public class IpcClient : IDisposable
             {
                 // Ensure callbacks are dispatched only after any in-flight capture command
                 // exits its gate, avoiding re-entrant waits on the same gate.
-                await _captureCommandGate.WaitAsync();
+                await EnterCaptureCommandGateAsync(CancellationToken.None);
                 gateAcquired = true;
             }
             catch (ObjectDisposedException)
@@ -855,7 +943,7 @@ public class IpcClient : IDisposable
             {
                 if (gateAcquired)
                 {
-                    _captureCommandGate.Release();
+                    ExitCaptureCommandGate();
                 }
             }
 
@@ -1067,13 +1155,15 @@ public class IpcClient : IDisposable
         }
         finally
         {
-            _captureCommandGate.Release();
+            ExitCaptureCommandGate();
         }
     }
 
-    private void StartDeferredCaptureReconcile()
+    private Task StartDeferredCaptureReconcile()
     {
-        _ = Task.Run(async () =>
+        var transportToken = _cts?.Token ?? _reconnectCts.Token;
+
+        return Task.Run(async () =>
         {
             try
             {
@@ -1082,14 +1172,14 @@ public class IpcClient : IDisposable
                     return;
                 }
 
-                await _captureCommandGate.WaitAsync(_reconnectCts.Token);
+                await EnterCaptureCommandGateAsync(transportToken);
                 try
                 {
                     _ = TryDispatchReconcileCommandUnderGate();
                 }
                 finally
                 {
-                    _captureCommandGate.Release();
+                    ExitCaptureCommandGate();
                 }
             }
             catch (OperationCanceledException)
@@ -1100,7 +1190,7 @@ public class IpcClient : IDisposable
             }
             catch (Exception ex)
             {
-            Log.Warning(ex, "[IpcClient] Failed to reconcile capture state");
+                Log.Warning(ex, "[IpcClient] Failed to reconcile capture state");
             }
         });
     }

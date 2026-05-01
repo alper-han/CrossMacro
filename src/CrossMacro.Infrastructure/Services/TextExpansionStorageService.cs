@@ -2,10 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
-using Serilog;
+using CrossMacro.Core.Logging;
 using CrossMacro.Infrastructure.Serialization;
 using CrossMacro.Infrastructure.Helpers;
 
@@ -19,17 +18,16 @@ public class TextExpansionStorageService : ITextExpansionStorageService
 
 {
     private const string ExpansionsFileName = ConfigFileNames.TextExpansions;
-    private readonly string _configDirectory;
     private readonly string _filePath;
     private List<Core.Models.TextExpansion> _expansions = new();
     private readonly Lock _lock = new();
 
     public TextExpansionStorageService(string? configDirectory = null)
     {
-        _configDirectory = string.IsNullOrWhiteSpace(configDirectory)
+        configDirectory = string.IsNullOrWhiteSpace(configDirectory)
             ? PathHelper.GetConfigDirectory()
             : configDirectory;
-        _filePath = Path.Combine(_configDirectory, ExpansionsFileName);
+        _filePath = Path.Combine(configDirectory, ExpansionsFileName);
         
 
         
@@ -53,8 +51,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService
                     return new List<Core.Models.TextExpansion>(_expansions);
                 }
 
-                var json = File.ReadAllText(_filePath);
-                _expansions = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.ListTextExpansion) ?? [];
+                _expansions = FileBackedJsonStorage.Read(_filePath, CrossMacroJsonContext.Default.ListTextExpansion) ?? [];
                 
                 Log.Information("[TextExpansionStorageService] Loaded {Count} text expansions", _expansions.Count);
                 return new List<Core.Models.TextExpansion>(_expansions);
@@ -82,8 +79,9 @@ public class TextExpansionStorageService : ITextExpansionStorageService
                 return [];
             }
 
-            var json = await File.ReadAllTextAsync(_filePath);
-            var loaded = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.ListTextExpansion) ?? [];
+            var loaded = await FileBackedJsonStorage.ReadAsync(_filePath, CrossMacroJsonContext.Default.ListTextExpansion)
+                .ConfigureAwait(false)
+                ?? [];
             
             lock (_lock)
             {
@@ -108,13 +106,10 @@ public class TextExpansionStorageService : ITextExpansionStorageService
     {
         try
         {
-            // Ensure config directory exists
-            Directory.CreateDirectory(_configDirectory);
-            
             var expansionList = expansions.ToList();
-            
-            var json = JsonSerializer.Serialize(expansionList, CrossMacroJsonContext.Default.ListTextExpansion);
-            await File.WriteAllTextAsync(_filePath, json);
+
+            await FileBackedJsonStorage.WriteAsync(_filePath, expansionList, CrossMacroJsonContext.Default.ListTextExpansion)
+                .ConfigureAwait(false);
             
             lock (_lock)
             {

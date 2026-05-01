@@ -6,6 +6,8 @@ using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Core.Services.TextExpansion;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Infrastructure.Services.TextExpansion;
+using CrossMacro.TestInfrastructure;
 using NSubstitute;
 using Xunit;
 
@@ -13,6 +15,8 @@ namespace CrossMacro.Infrastructure.Tests.Services;
 
 public class TextExpansionServiceTests
 {
+    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(2);
+
     private readonly ISettingsService _settingsService;
     private readonly ITextExpansionStorageService _storageService;
     private readonly IInputCapture _inputCapture;
@@ -61,6 +65,19 @@ public class TextExpansionServiceTests
     }
 
     [Fact]
+    public async Task Start_WhenCalledTwice_DoesNotCreateOrStartSecondCapture()
+    {
+        _service.Start();
+
+        _service.Start();
+
+        _inputCapture.Received(1).Configure(false, true);
+        await _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
+        _inputProcessor.Received(1).Reset();
+        _bufferState.Received(1).Clear();
+    }
+
+    [Fact]
     public async Task Start_WhenDisabled_DoesNotStart()
     {
         // Arrange
@@ -86,6 +103,19 @@ public class TextExpansionServiceTests
         // Assert
         _inputCapture.Received(1).Stop();
         _inputCapture.Received(1).Dispose();
+    }
+
+    [Fact]
+    public void Stop_WhenCalledTwice_IsIdempotent()
+    {
+        _service.Start();
+
+        _service.Stop();
+        _service.Stop();
+
+        _inputCapture.Received(1).Stop();
+        _inputCapture.Received(1).Dispose();
+        Assert.False(_service.IsRunning);
     }
     
     [Fact]
@@ -118,10 +148,17 @@ public class TextExpansionServiceTests
             });
 
         var invocationCount = 0;
+        var secondExpansionStarted = new AsyncSignal();
         _executor.ExpandAsync(Arg.Any<TextExpansion>())
             .Returns(_ =>
             {
                 invocationCount++;
+
+                if (invocationCount == 2)
+                {
+                    secondExpansionStarted.Signal();
+                }
+
                 return invocationCount == 1
                     ? Task.FromException(new InvalidOperationException("boom"))
                     : Task.CompletedTask;
@@ -132,7 +169,7 @@ public class TextExpansionServiceTests
         _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
 
         // Assert
-        await Task.Delay(200);
+        await secondExpansionStarted.WaitAsync(TestTimeout);
         await _executor.Received(2).ExpandAsync(Arg.Any<TextExpansion>());
         Assert.True(_service.IsRunning);
     }
@@ -141,18 +178,26 @@ public class TextExpansionServiceTests
     public async Task Start_WhenCaptureStartFaultsAsynchronously_StopsService()
     {
         var startTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cleanupObserved = new AsyncSignal();
         _inputCapture.StartAsync(Arg.Any<CancellationToken>()).Returns(startTcs.Task);
+        _inputCapture.When(x => x.Dispose()).Do(_ => cleanupObserved.Signal());
 
         _service.Start();
         Assert.True(_service.IsRunning);
 
         startTcs.SetException(new InvalidOperationException("startup failed"));
 
-        await WaitForConditionAsync(() => !_service.IsRunning);
+        await cleanupObserved.WaitAsync(TestTimeout);
 
         Assert.False(_service.IsRunning);
         _inputCapture.Received(1).Stop();
         _inputCapture.Received(1).Dispose();
+
+        Received.InOrder(() =>
+        {
+            _inputCapture.Stop();
+            _inputCapture.Dispose();
+        });
     }
 
     [Fact]
@@ -168,18 +213,39 @@ public class TextExpansionServiceTests
         _inputCapture.Received(1).Dispose();
     }
 
-    private static async Task WaitForConditionAsync(Func<bool> condition, int maxAttempts = 50, int delayMs = 10)
+    [Fact]
+    public async Task OnInputCaptureError_AfterStartup_StopsServiceWithoutRestart()
     {
-        for (var i = 0; i < maxAttempts; i++)
-        {
-            if (condition())
+        var firstCapture = Substitute.For<IInputCapture>();
+        var cleanupObserved = new AsyncSignal();
+        firstCapture.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        firstCapture.When(x => x.Dispose()).Do(_ => cleanupObserved.Signal());
+
+        var factoryCallCount = 0;
+        var service = new TextExpansionService(
+            _settingsService,
+            _storageService,
+            () =>
             {
-                return;
-            }
+                factoryCallCount++;
+                return firstCapture;
+            },
+            _inputProcessor,
+            _bufferState,
+            _executor);
 
-            await Task.Delay(delayMs);
-        }
+        service.Start();
+        Assert.True(service.IsRunning);
 
-        throw new TimeoutException("Condition was not met in expected time.");
+        firstCapture.Error += Raise.Event<EventHandler<string>>(firstCapture, "runtime failed");
+
+        await cleanupObserved.WaitAsync(TestTimeout);
+
+        Assert.False(service.IsRunning);
+        Assert.Equal(1, factoryCallCount);
+        firstCapture.Received(1).Stop();
+        firstCapture.Received(1).Dispose();
+
+        service.Dispose();
     }
 }

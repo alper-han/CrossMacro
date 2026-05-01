@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
 
@@ -645,16 +646,8 @@ public class EditorActionConverter : IEditorActionConverter
             return $"set {action.Text}";
         }
 
-        var name = NormalizeVariableToken(action.ScriptVariableName);
-        var value = action.ScriptValueType switch
-        {
-            ScriptValueType.VariableReference => $"${NormalizeVariableToken(action.ScriptValue)}",
-            ScriptValueType.Boolean => bool.TryParse(action.ScriptValue, out var boolValue)
-                ? boolValue.ToString().ToLowerInvariant()
-                : action.ScriptValue.Trim(),
-            ScriptValueType.Text => EscapeLiteralDollar(action.ScriptValue.Trim()),
-            _ => action.ScriptValue.Trim()
-        };
+        var name = EditorActionScriptTokens.NormalizeVariableToken(action.ScriptVariableName);
+        var value = EditorActionScriptTokens.FormatSetValueToken(action.ScriptValueType, action.ScriptValue);
 
         if (action.ScriptValueType == ScriptValueType.Text
             && value.Contains('=', StringComparison.Ordinal))
@@ -672,7 +665,7 @@ public class EditorActionConverter : IEditorActionConverter
             return $"inc {action.Text}";
         }
 
-        var variableName = NormalizeVariableToken(action.ScriptVariableName);
+        var variableName = EditorActionScriptTokens.NormalizeVariableToken(action.ScriptVariableName);
         var amountToken = BuildNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue);
         return $"inc {variableName} {amountToken}";
     }
@@ -684,7 +677,7 @@ public class EditorActionConverter : IEditorActionConverter
             return $"dec {action.Text}";
         }
 
-        var variableName = NormalizeVariableToken(action.ScriptVariableName);
+        var variableName = EditorActionScriptTokens.NormalizeVariableToken(action.ScriptVariableName);
         var amountToken = BuildNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue);
         return $"dec {variableName} {amountToken}";
     }
@@ -708,16 +701,7 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         var left = BuildOperandToken(action.ScriptLeftOperandType, action.ScriptLeftOperand);
-        var op = action.ScriptConditionOperator switch
-        {
-            ScriptConditionOperator.Equals => "==",
-            ScriptConditionOperator.NotEquals => "!=",
-            ScriptConditionOperator.GreaterThan => ">",
-            ScriptConditionOperator.GreaterThanOrEqual => ">=",
-            ScriptConditionOperator.LessThan => "<",
-            ScriptConditionOperator.LessThanOrEqual => "<=",
-            _ => "=="
-        };
+        var op = EditorActionScriptTokens.ToOperatorToken(action.ScriptConditionOperator);
         var right = BuildOperandToken(action.ScriptRightOperandType, action.ScriptRightOperand);
         return $"{keyword} {left} {op} {right} {{";
     }
@@ -729,7 +713,7 @@ public class EditorActionConverter : IEditorActionConverter
             return $"for {action.Text} {{";
         }
 
-        var variableName = NormalizeVariableToken(action.ForVariableName);
+        var variableName = EditorActionScriptTokens.NormalizeVariableToken(action.ForVariableName);
         var start = BuildNumericToken(action.ForStartType, action.ForStartValue);
         var end = BuildNumericToken(action.ForEndType, action.ForEndValue);
         if (!action.ForHasStep)
@@ -743,37 +727,12 @@ public class EditorActionConverter : IEditorActionConverter
 
     private static string BuildNumericToken(ScriptNumericSourceType sourceType, string value)
     {
-        var token = value.Trim();
-        return sourceType == ScriptNumericSourceType.VariableReference
-            ? $"${NormalizeVariableToken(token)}"
-            : token;
+        return EditorActionScriptTokens.FormatNumericToken(sourceType, value, defaultValue: string.Empty);
     }
 
     private static string BuildOperandToken(ScriptOperandType operandType, string value)
     {
-        var token = value.Trim();
-        return operandType switch
-        {
-            ScriptOperandType.VariableReference => $"${NormalizeVariableToken(token)}",
-            ScriptOperandType.Text => EscapeLiteralDollar(token),
-            _ => token
-        };
-    }
-
-    private static string NormalizeVariableToken(string value)
-    {
-        var token = value.Trim();
-        return token.StartsWith('$') ? token[1..] : token;
-    }
-
-    private static string EscapeLiteralDollar(string value)
-    {
-        return value.Replace("$", "$$", StringComparison.Ordinal);
-    }
-
-    private static string UnescapeLiteralDollar(string value)
-    {
-        return value.Replace("$$", "$", StringComparison.Ordinal);
+        return EditorActionScriptTokens.FormatOperandToken(operandType, value);
     }
 
     private static bool ShouldSerializeLegacySetText(EditorAction action)
@@ -1843,7 +1802,7 @@ public class EditorActionConverter : IEditorActionConverter
         if (token.StartsWith("$$", StringComparison.Ordinal))
         {
             operandType = ScriptOperandType.Text;
-            tokenValue = UnescapeLiteralDollar(token);
+        tokenValue = EditorActionScriptTokens.UnescapeLiteralDollar(token);
             return true;
         }
 
@@ -1874,7 +1833,7 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         operandType = ScriptOperandType.Text;
-        tokenValue = UnescapeLiteralDollar(token);
+            tokenValue = EditorActionScriptTokens.UnescapeLiteralDollar(token);
         return true;
     }
 
@@ -1892,7 +1851,7 @@ public class EditorActionConverter : IEditorActionConverter
         if (token.StartsWith("$$", StringComparison.Ordinal))
         {
             valueType = ScriptValueType.Text;
-            value = UnescapeLiteralDollar(token);
+            value = EditorActionScriptTokens.UnescapeLiteralDollar(token);
             return true;
         }
 
@@ -1923,42 +1882,15 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         valueType = ScriptValueType.Text;
-        value = UnescapeLiteralDollar(token);
+        value = EditorActionScriptTokens.UnescapeLiteralDollar(token);
         return true;
     }
 
     private static bool TryNormalizeVariableName(string rawValue, out string variableName)
     {
-        variableName = rawValue.Trim();
-        if (variableName.StartsWith("$", StringComparison.Ordinal))
-        {
-            variableName = variableName[1..].Trim();
-        }
+        variableName = EditorActionScriptTokens.NormalizeVariableToken(rawValue);
 
-        return IsValidVariableName(variableName);
-    }
-
-    private static bool IsValidVariableName(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return false;
-        }
-
-        if (!(value[0] == '_' || char.IsLetter(value[0])))
-        {
-            return false;
-        }
-
-        for (var i = 1; i < value.Length; i++)
-        {
-            if (!(value[i] == '_' || char.IsLetterOrDigit(value[i])))
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return EditorActionScriptTokens.IsValidVariableName(variableName);
     }
     
     /// <summary>

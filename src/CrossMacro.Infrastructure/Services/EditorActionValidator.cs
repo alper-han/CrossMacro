@@ -258,7 +258,7 @@ public class EditorActionValidator : IEditorActionValidator
 
     private static (bool IsValid, string? Error) ValidateSetVariable(EditorAction action)
     {
-        if (!IsValidVariableName(action.ScriptVariableName))
+        if (!EditorActionScriptTokens.IsValidVariableName(action.ScriptVariableName))
         {
             return (false, "Variable name is invalid. Allowed: letters, digits, underscore; cannot start with digit.");
         }
@@ -274,7 +274,7 @@ public class EditorActionValidator : IEditorActionValidator
             ScriptValueType.Text => string.IsNullOrWhiteSpace(action.ScriptValue)
                 ? (false, "Set value cannot be empty.")
                 : (true, null),
-            ScriptValueType.VariableReference => IsValidVariableName(action.ScriptValue)
+            ScriptValueType.VariableReference => EditorActionScriptTokens.IsValidVariableName(action.ScriptValue)
                 ? (true, null)
                 : (false, "Referenced variable name is invalid."),
             _ => (false, ValidationMessages.ActionPayloadRequired)
@@ -283,12 +283,12 @@ public class EditorActionValidator : IEditorActionValidator
 
     private static (bool IsValid, string? Error) ValidateIncDec(EditorAction action)
     {
-        if (!IsValidVariableName(action.ScriptVariableName))
+        if (!EditorActionScriptTokens.IsValidVariableName(action.ScriptVariableName))
         {
             return (false, "Variable name is invalid. Allowed: letters, digits, underscore; cannot start with digit.");
         }
 
-        if (!ValidateNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue))
+        if (!EditorActionScriptTokens.ValidateNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue))
         {
             if (action.ScriptNumericSourceType == ScriptNumericSourceType.VariableReference)
             {
@@ -303,7 +303,7 @@ public class EditorActionValidator : IEditorActionValidator
 
     private static (bool IsValid, string? Error) ValidateRepeat(EditorAction action)
     {
-        if (!ValidateNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue))
+        if (!EditorActionScriptTokens.ValidateNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue))
         {
             if (action.ScriptNumericSourceType == ScriptNumericSourceType.VariableReference)
             {
@@ -325,12 +325,12 @@ public class EditorActionValidator : IEditorActionValidator
 
     private static (bool IsValid, string? Error) ValidateCondition(EditorAction action)
     {
-        if (!ValidateOperandToken(action.ScriptLeftOperandType, action.ScriptLeftOperand))
+        if (!EditorActionScriptTokens.ValidateOperandToken(action.ScriptLeftOperandType, action.ScriptLeftOperand))
         {
             return (false, "Left operand is invalid for selected type.");
         }
 
-        if (!ValidateOperandToken(action.ScriptRightOperandType, action.ScriptRightOperand))
+        if (!EditorActionScriptTokens.ValidateOperandToken(action.ScriptRightOperandType, action.ScriptRightOperand))
         {
             return (false, "Right operand is invalid for selected type.");
         }
@@ -340,12 +340,12 @@ public class EditorActionValidator : IEditorActionValidator
 
     private static (bool IsValid, string? Error) ValidateFor(EditorAction action)
     {
-        if (!IsValidVariableName(action.ForVariableName))
+        if (!EditorActionScriptTokens.IsValidVariableName(action.ForVariableName))
         {
             return (false, "For-loop variable name is invalid.");
         }
 
-        if (!ValidateNumericToken(action.ForStartType, action.ForStartValue))
+        if (!EditorActionScriptTokens.ValidateNumericToken(action.ForStartType, action.ForStartValue))
         {
             if (action.ForStartType == ScriptNumericSourceType.VariableReference)
             {
@@ -355,7 +355,7 @@ public class EditorActionValidator : IEditorActionValidator
             return (false, "For start must be an integer or a valid variable reference.");
         }
 
-        if (!ValidateNumericToken(action.ForEndType, action.ForEndValue))
+        if (!EditorActionScriptTokens.ValidateNumericToken(action.ForEndType, action.ForEndValue))
         {
             if (action.ForEndType == ScriptNumericSourceType.VariableReference)
             {
@@ -365,7 +365,7 @@ public class EditorActionValidator : IEditorActionValidator
             return (false, "For end must be an integer or a valid variable reference.");
         }
 
-        if (action.ForHasStep && !ValidateNumericToken(action.ForStepType, action.ForStepValue))
+        if (action.ForHasStep && !EditorActionScriptTokens.ValidateNumericToken(action.ForStepType, action.ForStepValue))
         {
             if (action.ForStepType == ScriptNumericSourceType.VariableReference)
             {
@@ -384,62 +384,6 @@ public class EditorActionValidator : IEditorActionValidator
         }
 
         return (true, null);
-    }
-
-    private static bool ValidateNumericToken(ScriptNumericSourceType type, string token)
-    {
-        if (type == ScriptNumericSourceType.VariableReference)
-        {
-            return IsValidVariableName(token);
-        }
-
-        return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
-    }
-
-    private static bool ValidateOperandToken(ScriptOperandType type, string token)
-    {
-        return type switch
-        {
-            ScriptOperandType.VariableReference => IsValidVariableName(token),
-            ScriptOperandType.Number => int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _),
-            ScriptOperandType.Boolean => bool.TryParse(token, out _),
-            ScriptOperandType.Text => !string.IsNullOrWhiteSpace(token),
-            _ => false
-        };
-    }
-
-    private static bool IsValidVariableName(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return false;
-        }
-
-        var token = value.Trim();
-        if (token.StartsWith('$'))
-        {
-            token = token[1..];
-        }
-
-        if (token.Length == 0)
-        {
-            return false;
-        }
-
-        if (!(token[0] == '_' || char.IsLetter(token[0])))
-        {
-            return false;
-        }
-
-        for (var i = 1; i < token.Length; i++)
-        {
-            if (!(token[i] == '_' || char.IsLetterOrDigit(token[i])))
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private void ValidateScriptCompilation(IReadOnlyList<EditorAction> actions, List<string> errors)

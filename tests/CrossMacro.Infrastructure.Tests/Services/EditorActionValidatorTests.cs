@@ -1,7 +1,7 @@
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Resources;
-using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Platform.Abstractions;
 using FluentAssertions;
 using NSubstitute;
 
@@ -381,6 +381,25 @@ public class EditorActionValidatorTests
         result.IsValid.Should().BeFalse();
         result.Error.Should().Contain("variable reference");
         result.Error.Should().Contain("not a number literal");
+    }
+
+    [Fact]
+    public void Validate_ConditionWithDollarVariableAndLiteralDollarText_ReturnsValid()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.VariableReference,
+            ScriptLeftOperand = "$name",
+            ScriptConditionOperator = ScriptConditionOperator.Equals,
+            ScriptRightOperandType = ScriptOperandType.Text,
+            ScriptRightOperand = "$foo"
+        };
+
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeTrue();
+        result.Error.Should().BeNull();
     }
 
     [Fact]

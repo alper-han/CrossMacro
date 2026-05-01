@@ -4,7 +4,8 @@ using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Core.Services.TextExpansion;
-using Serilog;
+using CrossMacro.Core.Logging;
+using CrossMacro.Platform.Abstractions;
 using TextExpansionModel = CrossMacro.Core.Models.TextExpansion;
 
 namespace CrossMacro.Infrastructure.Services.TextExpansion;

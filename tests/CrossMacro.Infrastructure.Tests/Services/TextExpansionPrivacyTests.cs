@@ -2,7 +2,9 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using CoreLogging = CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Core.Services.TextExpansion;
@@ -53,9 +55,18 @@ public class TextExpansionPrivacyTests
     {
         var clipboardService = Substitute.For<IClipboardService>();
         clipboardService.IsSupported.Returns(true);
+        var restoreCheckReached = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var getTextCalls = 0;
         clipboardService.GetTextAsync().Returns(
-            Task.FromResult<string?>("old-value"), // Backup
-            Task.FromResult<string?>("user-new-copy")); // Restore guard check
+            Task.FromResult<string?>("old-value"),
+            Task.FromResult<string?>("user-new-copy"))
+            .AndDoes(_ =>
+            {
+                if (Interlocked.Increment(ref getTextCalls) == 2)
+                {
+                    restoreCheckReached.TrySetResult(true);
+                }
+            }); // Restore guard check
         clipboardService.SetTextAsync(Arg.Any<string>()).Returns(Task.CompletedTask);
 
         var keyboardLayoutService = Substitute.For<IKeyboardLayoutService>();
@@ -67,7 +78,7 @@ public class TextExpansionPrivacyTests
         var expansion = new TextExpansion(":a", "replacement");
 
         await executor.ExpandAsync(expansion);
-        await Task.Delay(1500);
+        await restoreCheckReached.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         await clipboardService.Received(1).SetTextAsync("replacement");
         await clipboardService.DidNotReceive().SetTextAsync("old-value");
@@ -384,23 +395,12 @@ public class TextExpansionPrivacyTests
 
         var expansion = new TextExpansion(":emoji", "🙂", insertionMode: TextInsertionMode.DirectTyping);
 
-        var originalLogger = Log.Logger;
-        var sink = new TestSink();
-        try
-        {
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Verbose()
-                .WriteTo.Sink(sink)
-                .CreateLogger();
+        var logger = new TestCoreLogger();
+        using var _ = CoreLogging.Log.PushLogger(logger);
 
-            await executor.ExpandAsync(expansion);
-        }
-        finally
-        {
-            Log.Logger = originalLogger;
-        }
+        await executor.ExpandAsync(expansion);
 
-        Assert.Contains(sink.Events, static e =>
+        Assert.Contains(logger.Entries, static e =>
             e.Exception?.Message.Contains(
                 "Current keyboard layout cannot type Linux unicode hex digit 'f' or 'F' required for code point U+1F642.",
                 StringComparison.Ordinal) == true);
@@ -447,6 +447,51 @@ public class TextExpansionPrivacyTests
             Events.Add(logEvent);
         }
     }
+
+    private sealed class TestCoreLogger : CoreLogging.ICoreLogger
+    {
+        public ConcurrentBag<TestCoreLogEntry> Entries { get; } = new();
+
+        public bool IsEnabled(CoreLogging.CoreLogLevel level) => true;
+
+        public void Verbose(string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+
+        public void Verbose(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
+
+        public void Debug(string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+
+        public void Debug(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
+
+        public void Information(string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+
+        public void Information(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
+
+        public void Warning(string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+
+        public void Warning(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
+
+        public void Error(string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+
+        public void Error(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
+
+        public void Fatal(string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+
+        public void Fatal(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
+    }
+
+    private sealed record TestCoreLogEntry(Exception? Exception, string MessageTemplate, object?[] PropertyValues);
 
     private class TestInputSimulator : IInputSimulator
     {

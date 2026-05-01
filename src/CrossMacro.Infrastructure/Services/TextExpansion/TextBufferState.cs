@@ -3,7 +3,7 @@ using System.Linq;
 using System.Text;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services.TextExpansion;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Infrastructure.Services.TextExpansion
 {

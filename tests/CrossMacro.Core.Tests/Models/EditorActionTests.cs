@@ -163,4 +163,33 @@ public class EditorActionTests
         displayName.Should().Contain("$step");
         displayName.Should().NotContain("$$");
     }
+
+    [Fact]
+    public void DisplayName_WhenConditionTextOperandsUseDollarPrefix_EscapesLiteralDollarPreview()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.Text,
+            ScriptLeftOperand = "$foo",
+            ScriptConditionOperator = ScriptConditionOperator.Equals,
+            ScriptRightOperandType = ScriptOperandType.VariableReference,
+            ScriptRightOperand = "$bar"
+        };
+
+        action.DisplayName.Should().Contain("$$foo == $bar");
+    }
+
+    [Fact]
+    public void IsValid_WhenNumericVariableReferenceUsesDollarPrefix_ReturnsTrue()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.RepeatBlockStart,
+            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
+            ScriptNumericValue = "$count"
+        };
+
+        action.IsValid().Should().BeTrue();
+    }
 }

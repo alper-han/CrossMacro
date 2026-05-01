@@ -1,6 +1,6 @@
 using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Platform.Abstractions;
 using FluentAssertions;
 using NSubstitute;
 
@@ -713,6 +713,47 @@ public class EditorActionConverterTests
             "}");
         sequence.Events.Should().HaveCount(1);
         sequence.Events[0].Type.Should().Be(EventType.Click);
+    }
+
+    [Fact]
+    public void ToMacroSequence_WhenStructuredConditionUsesVariableReferenceWithDollarPrefix_NormalizesOnlyVariableSide()
+    {
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.SetVariable,
+                ScriptVariableName = "name",
+                ScriptValueType = ScriptValueType.Text,
+                ScriptValue = "$foo"
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.IfBlockStart,
+                ScriptLeftOperandType = ScriptOperandType.VariableReference,
+                ScriptLeftOperand = "$name",
+                ScriptConditionOperator = ScriptConditionOperator.Equals,
+                ScriptRightOperandType = ScriptOperandType.Text,
+                ScriptRightOperand = "$foo"
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.MouseClick,
+                Button = MouseButton.Left,
+                UseCurrentPosition = true,
+                IsAbsolute = false
+            },
+            new EditorAction { Type = EditorActionType.BlockEnd }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Condition Variable Prefix", isAbsolute: false);
+
+        sequence.ScriptSteps.Should().Equal(
+            "set name $$foo",
+            "if $name == $$foo {",
+            "click current left",
+            "}");
+        sequence.Events.Should().ContainSingle();
     }
 
     [Fact]

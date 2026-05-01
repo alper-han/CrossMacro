@@ -180,6 +180,22 @@ public class TextExpansionStorageServiceTests : IDisposable
     }
 
     [Fact]
+    public void Load_WhenFileContainsMalformedJson_ReturnsEmptyList_AndClearsCache()
+    {
+        // Arrange
+        var service = CreateService();
+        RunSync(service.SaveAsync(new List<TextExpansion> { new(":ok", "value") }));
+        File.WriteAllText(service.FilePath, "{ invalid json }");
+
+        // Act
+        var loaded = service.Load();
+
+        // Assert
+        loaded.Should().BeEmpty();
+        service.GetCurrent().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task GetCurrent_AfterSave_ReturnsSavedData()
     {
         // Arrange
@@ -222,5 +238,10 @@ public class TextExpansionStorageServiceTests : IDisposable
     {
         public IEnumerator<TextExpansion> GetEnumerator() => throw new InvalidOperationException("enumeration failed");
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    private static void RunSync(Task task)
+    {
+        task.GetAwaiter().GetResult();
     }
 }

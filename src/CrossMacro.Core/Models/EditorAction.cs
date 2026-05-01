@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Globalization;
 using System.Runtime.CompilerServices;
 
 namespace CrossMacro.Core.Models;
@@ -744,17 +743,17 @@ public class EditorAction : INotifyPropertyChanged
                 : $"Type \"{(Text.Length > 25 ? Text[..25] + "..." : Text)}\"",
             EditorActionType.SetVariable => UseLegacyScriptTextDisplay
                 ? $"Set {Text}"
-                : IsValidVariableName(ScriptVariableName)
+                : EditorActionScriptTokens.IsValidVariableName(ScriptVariableName)
                     ? $"Set {ScriptVariableName} = {BuildSetValueToken()}"
                     : "Set Variable",
             EditorActionType.IncrementVariable => UseLegacyScriptTextDisplay
                 ? $"Inc {Text}"
-                : IsValidVariableName(ScriptVariableName)
+                : EditorActionScriptTokens.IsValidVariableName(ScriptVariableName)
                     ? $"Inc {ScriptVariableName} by {BuildNumericToken(ScriptNumericSourceType, ScriptNumericValue)}"
                     : "Increment Variable",
             EditorActionType.DecrementVariable => UseLegacyScriptTextDisplay
                 ? $"Dec {Text}"
-                : IsValidVariableName(ScriptVariableName)
+                : EditorActionScriptTokens.IsValidVariableName(ScriptVariableName)
                     ? $"Dec {ScriptVariableName} by {BuildNumericToken(ScriptNumericSourceType, ScriptNumericValue)}"
                     : "Decrement Variable",
             EditorActionType.RepeatBlockStart => UseLegacyScriptTextDisplay
@@ -873,21 +872,14 @@ public class EditorAction : INotifyPropertyChanged
 
     private string BuildSetValueToken()
     {
-        return ScriptValueType switch
-        {
-            ScriptValueType.VariableReference => $"${NormalizeVariableToken(ScriptValue)}",
-            ScriptValueType.Boolean => bool.TryParse(ScriptValue, out var value)
-                ? value.ToString().ToLowerInvariant()
-                : ScriptValue,
-            _ => ScriptValue
-        };
+        return EditorActionScriptTokens.FormatSetValueToken(ScriptValueType, ScriptValue);
     }
 
     private string BuildConditionPreview()
     {
         var left = BuildOperandToken(ScriptLeftOperandType, ScriptLeftOperand);
         var right = BuildOperandToken(ScriptRightOperandType, ScriptRightOperand);
-        return $"{left} {ToOperatorToken(ScriptConditionOperator)} {right}";
+        return $"{left} {EditorActionScriptTokens.ToOperatorToken(ScriptConditionOperator)} {right}";
     }
 
     private string BuildForPreview()
@@ -907,142 +899,61 @@ public class EditorAction : INotifyPropertyChanged
     private static string BuildNumericToken(ScriptNumericSourceType sourceType, string value)
     {
         var token = string.IsNullOrWhiteSpace(value) ? "0" : value.Trim();
-        return sourceType == ScriptNumericSourceType.VariableReference
-            ? $"${NormalizeVariableToken(token)}"
-            : token;
+        return EditorActionScriptTokens.FormatNumericToken(sourceType, value);
     }
 
     private static string BuildOperandToken(ScriptOperandType operandType, string value)
     {
-        var token = value.Trim();
-        return operandType == ScriptOperandType.VariableReference
-            ? $"${NormalizeVariableToken(token)}"
-            : token;
-    }
-
-    private static string ToOperatorToken(ScriptConditionOperator op)
-    {
-        return op switch
-        {
-            ScriptConditionOperator.Equals => "==",
-            ScriptConditionOperator.NotEquals => "!=",
-            ScriptConditionOperator.GreaterThan => ">",
-            ScriptConditionOperator.GreaterThanOrEqual => ">=",
-            ScriptConditionOperator.LessThan => "<",
-            ScriptConditionOperator.LessThanOrEqual => "<=",
-            _ => "=="
-        };
+        return EditorActionScriptTokens.FormatOperandToken(operandType, value);
     }
 
     private bool ValidateSetVariableFields()
     {
-        if (!IsValidVariableName(ScriptVariableName))
+        if (!EditorActionScriptTokens.IsValidVariableName(ScriptVariableName))
         {
             return false;
         }
 
         return ScriptValueType switch
         {
-            ScriptValueType.Number => int.TryParse(ScriptValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out _),
+            ScriptValueType.Number => int.TryParse(ScriptValue, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _),
             ScriptValueType.Boolean => bool.TryParse(ScriptValue, out _),
             ScriptValueType.Text => !string.IsNullOrWhiteSpace(ScriptValue),
-            ScriptValueType.VariableReference => IsValidVariableName(ScriptValue),
+            ScriptValueType.VariableReference => EditorActionScriptTokens.IsValidVariableName(ScriptValue),
             _ => false
         };
     }
 
     private bool ValidateIncDecFields()
     {
-        return IsValidVariableName(ScriptVariableName)
-            && ValidateNumericToken(ScriptNumericSourceType, ScriptNumericValue);
+        return EditorActionScriptTokens.IsValidVariableName(ScriptVariableName)
+            && EditorActionScriptTokens.ValidateNumericToken(ScriptNumericSourceType, ScriptNumericValue);
     }
 
     private bool ValidateRepeatFields()
     {
-        return ValidateNumericToken(ScriptNumericSourceType, ScriptNumericValue);
+        return EditorActionScriptTokens.ValidateNumericToken(ScriptNumericSourceType, ScriptNumericValue);
     }
 
     private bool ValidateConditionFields()
     {
-        return ValidateOperandToken(ScriptLeftOperandType, ScriptLeftOperand)
-            && ValidateOperandToken(ScriptRightOperandType, ScriptRightOperand);
+        return EditorActionScriptTokens.ValidateOperandToken(ScriptLeftOperandType, ScriptLeftOperand)
+            && EditorActionScriptTokens.ValidateOperandToken(ScriptRightOperandType, ScriptRightOperand);
     }
 
     private bool ValidateForFields()
     {
-        if (!IsValidVariableName(ForVariableName))
+        if (!EditorActionScriptTokens.IsValidVariableName(ForVariableName))
         {
             return false;
         }
 
-        if (!ValidateNumericToken(ForStartType, ForStartValue)
-            || !ValidateNumericToken(ForEndType, ForEndValue))
+        if (!EditorActionScriptTokens.ValidateNumericToken(ForStartType, ForStartValue)
+            || !EditorActionScriptTokens.ValidateNumericToken(ForEndType, ForEndValue))
         {
             return false;
         }
 
-        return !ForHasStep || ValidateNumericToken(ForStepType, ForStepValue);
-    }
-
-    private static bool ValidateNumericToken(ScriptNumericSourceType sourceType, string token)
-    {
-        if (sourceType == ScriptNumericSourceType.VariableReference)
-        {
-            return IsValidVariableName(token);
-        }
-
-        return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
-    }
-
-    private static bool ValidateOperandToken(ScriptOperandType operandType, string token)
-    {
-        return operandType switch
-        {
-            ScriptOperandType.VariableReference => IsValidVariableName(token),
-            ScriptOperandType.Number => int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _),
-            ScriptOperandType.Boolean => bool.TryParse(token, out _),
-            ScriptOperandType.Text => !string.IsNullOrWhiteSpace(token),
-            _ => false
-        };
-    }
-
-    private static bool IsValidVariableName(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return false;
-        }
-
-        var name = value.Trim();
-        if (name.StartsWith("$", StringComparison.Ordinal))
-        {
-            name = name[1..];
-        }
-
-        if (name.Length == 0)
-        {
-            return false;
-        }
-
-        if (!(name[0] == '_' || char.IsLetter(name[0])))
-        {
-            return false;
-        }
-
-        for (var i = 1; i < name.Length; i++)
-        {
-            if (!(name[i] == '_' || char.IsLetterOrDigit(name[i])))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static string NormalizeVariableToken(string value)
-    {
-        var token = value.Trim();
-        return token.StartsWith("$", StringComparison.Ordinal) ? token[1..] : token;
+        return !ForHasStep || EditorActionScriptTokens.ValidateNumericToken(ForStepType, ForStepValue);
     }
 }

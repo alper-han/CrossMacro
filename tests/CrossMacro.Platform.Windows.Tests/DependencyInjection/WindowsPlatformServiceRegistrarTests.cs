@@ -1,7 +1,8 @@
 using System;
 using System.Linq;
 using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Recording.Strategies;
+using CrossMacro.Infrastructure.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Windows.DependencyInjection;
 using CrossMacro.Platform.Windows.Services;
 using CrossMacro.Platform.Windows.Strategies;

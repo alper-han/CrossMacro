@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using CrossMacro.Core.Services;
+using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Platform.Windows.Helpers;
 

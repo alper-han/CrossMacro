@@ -1,4 +1,4 @@
-using CrossMacro.Core.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Windows.Services;
 using CrossMacro.TestInfrastructure;
 using Xunit;

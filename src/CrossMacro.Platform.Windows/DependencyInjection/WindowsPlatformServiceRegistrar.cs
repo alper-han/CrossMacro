@@ -1,6 +1,7 @@
 using System;
 using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Recording.Strategies;
+using CrossMacro.Infrastructure.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Windows.Services;
 using CrossMacro.Platform.Windows.Strategies;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,8 @@ namespace CrossMacro.Platform.Windows.DependencyInjection;
 
 public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
 {
+    public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Windows;
+
     public void RegisterPlatformServices(IServiceCollection services)
     {
         services.AddSingleton<IKeyboardLayoutService, WindowsKeyboardLayoutService>();

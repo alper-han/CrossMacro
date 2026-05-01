@@ -1,7 +1,7 @@
 using System;
+using System.Reflection;
 using System.IO;
-using System.Net.Sockets;
-using CrossMacro.Core.Ipc;
+using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Core.Services;
 
 namespace CrossMacro.Cli.Services;
@@ -56,9 +56,7 @@ public sealed partial class DoctorService
                 ? new
                 {
                     defaultSocketPath = IpcProtocol.DefaultSocketPath,
-                    defaultSocketExists = state.DefaultSocketExists,
-                    fallbackSocketPath = IpcProtocol.FallbackSocketPath,
-                    fallbackSocketExists = state.FallbackSocketExists
+                    defaultSocketExists = state.DefaultSocketExists
                 }
                 : null
         };
@@ -213,14 +211,9 @@ public sealed partial class DoctorService
 
     private LinuxInputState BuildLinuxInputState()
     {
-        var defaultSocketExists = _fileExists(IpcProtocol.DefaultSocketPath);
-        var fallbackSocketExists = _fileExists(IpcProtocol.FallbackSocketPath);
-        var daemonSocketExists = defaultSocketExists || fallbackSocketExists;
-        var resolvedSocketPath = defaultSocketExists
-            ? IpcProtocol.DefaultSocketPath
-            : fallbackSocketExists
-                ? IpcProtocol.FallbackSocketPath
-                : null;
+        var resolvedSocketPath = ResolveAvailableSocketPath();
+        var defaultSocketExists = string.Equals(resolvedSocketPath, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal);
+        var daemonSocketExists = resolvedSocketPath is not null;
         var daemonHandshakeOk = daemonSocketExists
             && !string.IsNullOrWhiteSpace(resolvedSocketPath)
             && _daemonHandshakeProbe(resolvedSocketPath);
@@ -252,7 +245,6 @@ public sealed partial class DoctorService
             IsX11: isX11,
             IsFlatpak: isFlatpak,
             DefaultSocketExists: defaultSocketExists,
-            FallbackSocketExists: fallbackSocketExists,
             DaemonSocketExists: daemonSocketExists,
             ResolvedSocketPath: resolvedSocketPath,
             DaemonHandshakeOk: daemonHandshakeOk,
@@ -261,6 +253,13 @@ public sealed partial class DoctorService
             CanWritePrimary: canWritePrimary,
             CanWriteAlternate: canWriteAlternate,
             UInputWritable: uInputWritable);
+    }
+
+    private string? ResolveAvailableSocketPath()
+    {
+        return _fileExists(IpcProtocol.DefaultSocketPath)
+            ? IpcProtocol.DefaultSocketPath
+            : null;
     }
 
     private static bool ProbeDaemonHandshake(string socketPath)
@@ -272,24 +271,33 @@ public sealed partial class DoctorService
 
         try
         {
-            using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified)
+            var transportType = LoadLinuxDaemonHandshakeTransportType();
+            var probeMethod = transportType?.GetMethod(
+                "ProbeWithinBudget",
+                BindingFlags.Public | BindingFlags.Static,
+                binder: null,
+                types: [typeof(string), typeof(TimeSpan)],
+                modifiers: null);
+
+            if (probeMethod is null)
             {
-                SendTimeout = 2000,
-                ReceiveTimeout = 2000
-            };
+                return false;
+            }
 
-            socket.Connect(new UnixDomainSocketEndPoint(socketPath));
-            using var stream = new NetworkStream(socket, ownsSocket: true);
-            using var writer = new BinaryWriter(stream);
-            using var reader = new BinaryReader(stream);
+            var probeResult = probeMethod.Invoke(null, [socketPath, TimeSpan.FromSeconds(2)]);
+            if (probeResult is null)
+            {
+                return false;
+            }
 
-            writer.Write((byte)IpcOpCode.Handshake);
-            writer.Write(IpcProtocol.ProtocolVersion);
-            writer.Flush();
+            var resultType = probeResult.GetType();
+            var succeededProperty = resultType.GetProperty(nameof(LinuxProbeResultShape.Succeeded), BindingFlags.Public | BindingFlags.Instance);
+            var timedOutProperty = resultType.GetProperty(nameof(LinuxProbeResultShape.TimedOut), BindingFlags.Public | BindingFlags.Instance);
 
-            var opcode = (IpcOpCode)reader.ReadByte();
-            var version = reader.ReadInt32();
-            return opcode == IpcOpCode.Handshake && version == IpcProtocol.ProtocolVersion;
+            var succeeded = succeededProperty?.GetValue(probeResult) as bool?;
+            var timedOut = timedOutProperty?.GetValue(probeResult) as bool?;
+
+            return succeeded == true && timedOut != true;
         }
         catch
         {
@@ -297,13 +305,37 @@ public sealed partial class DoctorService
         }
     }
 
+    private static Type? LoadLinuxDaemonHandshakeTransportType()
+    {
+        const string assemblyName = "CrossMacro.Platform.Linux";
+        const string typeName = "CrossMacro.Platform.Linux.Services.LinuxDaemonHandshakeTransport";
+
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            if (string.Equals(assembly.GetName().Name, assemblyName, StringComparison.Ordinal))
+            {
+                return assembly.GetType(typeName, throwOnError: false);
+            }
+        }
+
+        try
+        {
+            return Assembly.Load(assemblyName).GetType(typeName, throwOnError: false);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private sealed record LinuxProbeResultShape(bool Succeeded, bool TimedOut);
+
     private sealed record LinuxInputState(
         string? SessionType,
         bool IsWayland,
         bool IsX11,
         bool IsFlatpak,
         bool DefaultSocketExists,
-        bool FallbackSocketExists,
         bool DaemonSocketExists,
         string? ResolvedSocketPath,
         bool DaemonHandshakeOk,

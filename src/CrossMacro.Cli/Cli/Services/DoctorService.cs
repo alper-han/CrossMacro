@@ -4,9 +4,10 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using CrossMacro.Core.Ipc;
+using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Helpers;
+using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Cli.Services;
 

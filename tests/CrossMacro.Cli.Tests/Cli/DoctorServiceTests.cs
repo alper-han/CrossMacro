@@ -1,6 +1,9 @@
 using CrossMacro.Core.Services;
+using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Cli.Services;
+using FluentAssertions;
 using NSubstitute;
+using System.Reflection;
 
 namespace CrossMacro.Cli.Tests;
 
@@ -288,5 +291,22 @@ public class DoctorServiceTests
         var simulatorCheck = Assert.Single(report.Checks, x => x.Name == "input-simulator");
         Assert.Equal(DoctorCheckStatus.Fail, simulatorCheck.Status);
         Assert.Contains("unavailable", simulatorCheck.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ProbeDaemonHandshake_WhenLinuxTransportAssemblyIsUnavailable_ReturnsFalse()
+    {
+        var method = typeof(DoctorService).GetMethod(
+            "ProbeDaemonHandshake",
+            BindingFlags.NonPublic | BindingFlags.Static,
+            binder: null,
+            types: [typeof(string)],
+            modifiers: null);
+
+        method.Should().NotBeNull();
+
+        var result = (bool)(method!.Invoke(null, ["/run/crossmacro/nonexistent.sock"]) ?? false);
+
+        result.Should().BeFalse();
     }
 }

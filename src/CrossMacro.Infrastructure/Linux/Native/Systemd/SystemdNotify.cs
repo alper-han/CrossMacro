@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace CrossMacro.Platform.Linux.Native.Systemd;
+namespace CrossMacro.Infrastructure.Linux.Native.Systemd;
 
 /// <summary>
 /// Provides integration with systemd's sd_notify protocol for service status notification.
@@ -13,10 +13,6 @@ public static partial class SystemdNotify
     [LibraryImport(LibSystemd, EntryPoint = "sd_notify", StringMarshalling = StringMarshalling.Utf8)]
     private static partial int SdNotify(int unsetEnvironment, string state);
 
-    /// <summary>
-    /// Signals to systemd that the service has started up and is ready to accept requests.
-    /// Should be called after the daemon socket is bound and ready.
-    /// </summary>
     public static void Ready()
     {
         try
@@ -25,14 +21,9 @@ public static partial class SystemdNotify
         }
         catch (DllNotFoundException)
         {
-            // Not running under systemd or libsystemd not available - ignore
         }
     }
 
-    /// <summary>
-    /// Signals to systemd that the service is beginning its shutdown sequence.
-    /// Should be called when the daemon receives a termination signal.
-    /// </summary>
     public static void Stopping()
     {
         try
@@ -41,14 +32,9 @@ public static partial class SystemdNotify
         }
         catch (DllNotFoundException)
         {
-            // Not running under systemd or libsystemd not available - ignore
         }
     }
 
-    /// <summary>
-    /// Signals to systemd that the service is still alive (watchdog ping).
-    /// Only useful if WatchdogSec is configured in the service file.
-    /// </summary>
     public static void Watchdog()
     {
         try
@@ -57,13 +43,9 @@ public static partial class SystemdNotify
         }
         catch (DllNotFoundException)
         {
-            // Not running under systemd or libsystemd not available - ignore
         }
     }
 
-    /// <summary>
-    /// Updates the status message displayed by systemctl status.
-    /// </summary>
     public static void Status(string status)
     {
         try
@@ -72,7 +54,6 @@ public static partial class SystemdNotify
         }
         catch (DllNotFoundException)
         {
-            // Not running under systemd or libsystemd not available - ignore
         }
     }
 }

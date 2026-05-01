@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../CrossMacro.Core/CrossMacro.Core.csproj" />
+    <ProjectReference Include="../CrossMacro.Infrastructure/CrossMacro.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

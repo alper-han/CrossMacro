@@ -3,11 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
-using CrossMacro.Platform.Linux.Native.UInput;
-using CrossMacro.Platform.Linux.Services;
-using Serilog;
+using CrossMacro.Core.Logging;
+using CrossMacro.Infrastructure.Linux.Native.UInput;
 
-namespace CrossMacro.Platform.Linux.Native.Evdev;
+namespace CrossMacro.Infrastructure.Linux.Native.Evdev;
 
 public class InputDeviceHelper
 {
@@ -96,7 +95,6 @@ public class InputDeviceHelper
             }
             catch (DeviceOpenException ex) when (ex.Errno == 13 || ex.Errno == 16)
             {
-                // Permission denied or busy: expected for some nodes (e.g. newly created virtual devices).
                 inaccessibleDevices.Add((CreateInaccessiblePlaceholder(file), ex.Errno));
             }
             catch (Exception ex)
@@ -106,7 +104,6 @@ public class InputDeviceHelper
             }
         }
 
-        // Log summary
         Log.Information("[InputDeviceHelper] ========== Device Summary ==========");
         Log.Information("[InputDeviceHelper] Total: {Total} | Usable: {Usable} | Inaccessible: {Inaccessible} | Skipped: {Skipped} | ReadErrors: {ReadErrors}",
             files.Length, devices.Count, inaccessibleDevices.Count, skippedDevices.Count, readErrors);
@@ -126,7 +123,7 @@ public class InputDeviceHelper
             Log.Warning("[InputDeviceHelper] --- Inaccessible Devices ---");
             foreach (var (dev, errno) in inaccessibleDevices)
             {
-                if (errno == 16) // EBUSY - device is grabbed
+                if (errno == 16)
                 {
                     Log.Warning("[InputDeviceHelper]   [{Type}] {Name} ({Path}) - Device is exclusively grabbed. Run: sudo fuser -v {Path}",
                         dev.DeviceType, dev.Name, dev.Path, dev.Path);
@@ -169,7 +166,6 @@ public class InputDeviceHelper
             EvdevNative.ioctl(fd, EvdevNative.EVIOCGNAME_256, nameBuf);
             string name = System.Text.Encoding.ASCII.GetString(nameBuf).TrimEnd('\0');
 
-            // Read device ID (VID/PID)
             var (busType, vendorId, productId, version) = ReadDeviceId(fd);
 
             if (IsVirtualDevice(devicePath, name))
@@ -226,7 +222,6 @@ public class InputDeviceHelper
                 Version = version
             };
 
-            // Log device analysis at debug level
             Log.Debug("[InputDeviceHelper] Analyzed: {Path} - {Name} | Type: {Type} | Bus: {Bus} | VID:0x{VID:X4} PID:0x{PID:X4}",
                 devicePath, device.Name, device.DeviceType, GetBusTypeName(busType), vendorId, productId);
 
@@ -240,8 +235,6 @@ public class InputDeviceHelper
 
     private static (ushort busType, ushort vendorId, ushort productId, ushort version) ReadDeviceId(int fd)
     {
-        // input_id structure: 4 x ushort = 8 bytes
-        // struct input_id { __u16 bustype, vendor, product, version; }
         byte[] idBuf = new byte[8];
         int result = EvdevNative.ioctl(fd, EvdevNative.EVIOCGID, idBuf);
 
@@ -342,18 +335,14 @@ public class InputDeviceHelper
 
     private static bool CheckIsMouse(int fd)
     {
-        // Must have REL and KEY event types
         if (!HasCapability(fd, EvdevNative.EVIOCGBIT_EV, UInputNative.EV_REL) ||
             !HasCapability(fd, EvdevNative.EVIOCGBIT_EV, UInputNative.EV_KEY))
             return false;
 
-        // Must have REL_X and REL_Y for movement
         if (!HasCapability(fd, EvdevNative.EVIOCGBIT_REL, UInputNative.REL_X) ||
             !HasCapability(fd, EvdevNative.EVIOCGBIT_REL, UInputNative.REL_Y))
             return false;
 
-        // Check for any mouse button (BTN_LEFT to BTN_TASK)
-        // Gaming mice may not report BTN_LEFT on main pointer interface
         for (int btn = UInputNative.BTN_LEFT; btn <= UInputNative.BTN_TASK; btn++)
         {
             if (HasCapability(fd, EvdevNative.EVIOCGBIT_KEY, btn))
@@ -401,9 +390,6 @@ public class InputDeviceHelper
 
     private static bool HasCapability(int fd, ulong type, int code)
     {
-        // Buffer size must accommodate KEY_MAX (0x2FF = 767)
-        // Required: (767 / 8) + 1 = 96 bytes minimum
-        // Using 96 bytes to cover all possible key codes including gaming mouse buttons
         byte[] mask = new byte[96];
         int len = EvdevNative.ioctl(fd, type, mask);
         if (len < 0) return false;
@@ -431,13 +417,13 @@ public class InputDeviceHelper
             int len = EvdevNative.ioctl(fd, EvdevNative.EVIOCGBIT_KEY, keyMask);
             if (len < 0) return result;
 
-            for (int keyCode = 0; keyCode <= LinuxKeyCodeRegistry.KEY_MAX; keyCode++)
+            for (int keyCode = 0; keyCode <= 767; keyCode++)
             {
                 int byteIndex = keyCode / 8;
                 int bitIndex = keyCode % 8;
 
                 if (byteIndex < keyMask.Length && (keyMask[byteIndex] & (1 << bitIndex)) != 0)
-                    result[keyCode] = LinuxKeyCodeRegistry.GetKeyName(keyCode);
+                    result[keyCode] = $"KEY_{keyCode}";
             }
         }
         finally

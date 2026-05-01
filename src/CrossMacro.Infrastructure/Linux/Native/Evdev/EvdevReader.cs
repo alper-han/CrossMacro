@@ -2,10 +2,10 @@ using System;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using CrossMacro.Platform.Linux.Native.UInput;
-using Serilog;
+using CrossMacro.Core.Logging;
+using CrossMacro.Infrastructure.Linux.Native.UInput;
 
-namespace CrossMacro.Platform.Linux.Native.Evdev;
+namespace CrossMacro.Infrastructure.Linux.Native.Evdev;
 
 public class EvdevReader : IDisposable
 {
@@ -13,9 +13,7 @@ public class EvdevReader : IDisposable
     private int _fd;
     private CancellationTokenSource? _cts;
     private Task? _readTask;
-
-    // SYN_DROPPED handling
-    private bool _syncing = false;
+    private bool _syncing;
     private byte[]? _lastKeyState;
 
     public string DeviceName { get; }
@@ -55,14 +53,15 @@ public class EvdevReader : IDisposable
         if (!IsListening) return;
 
         _cts?.Cancel();
-
         CloseDevice();
 
         try
         {
             _readTask?.Wait(200);
         }
-        catch (AggregateException) { }
+        catch (AggregateException)
+        {
+        }
 
         IsListening = false;
         Log.Debug("[EvdevReader] Stopped reading from {Device}", DeviceName);
@@ -92,7 +91,6 @@ public class EvdevReader : IDisposable
                 {
                     var ev = Marshal.PtrToStructure<UInputNative.input_event>(buffer);
 
-                    // SYN_DROPPED: Events were lost due to buffer overflow
                     if (ev.type == UInputNative.EV_SYN && ev.code == UInputNative.SYN_DROPPED)
                     {
                         _syncing = true;
@@ -100,7 +98,6 @@ public class EvdevReader : IDisposable
                         continue;
                     }
 
-                    // SYN_REPORT received - resync if needed
                     if (ev.type == UInputNative.EV_SYN && ev.code == UInputNative.SYN_REPORT)
                     {
                         if (_syncing)
@@ -112,7 +109,6 @@ public class EvdevReader : IDisposable
                         continue;
                     }
 
-                    // Skip all events while syncing (they are from corrupted stream)
                     if (_syncing)
                         continue;
 
@@ -136,7 +132,7 @@ public class EvdevReader : IDisposable
                 }
                 else if (bytesRead.ToInt64() == 0)
                 {
-                     break;
+                    break;
                 }
             }
         }
@@ -156,12 +152,8 @@ public class EvdevReader : IDisposable
         }
     }
 
-    /// <summary>
-    /// Resync key/button state after SYN_DROPPED by reading current state via EVIOCGKEY
-    /// </summary>
     private void ResyncKeyState()
     {
-        // KEY_MAX (0x2FF = 767) requires 96 bytes: (767 / 8) + 1 = 96
         byte[] currentKeyState = new byte[96];
         int result = EvdevNative.ioctl(_fd, EvdevNative.EVIOCGKEY, currentKeyState);
 
@@ -172,19 +164,15 @@ public class EvdevReader : IDisposable
             return;
         }
 
-        // Initialize last state on first resync
         if (_lastKeyState == null)
         {
             _lastKeyState = new byte[96];
-            // On first resync, emit current state for all pressed keys
             EmitCurrentKeyState(currentKeyState);
             Array.Copy(currentKeyState, _lastKeyState, 96);
             Log.Debug("[{Device}] Initial key state sync completed", DeviceName);
             return;
         }
 
-        // Compare and emit events for changed keys
-        // KEY_MAX = 0x2FF = 767, so we check 768 key codes (0-767)
         for (int keyCode = 0; keyCode < 768; keyCode++)
         {
             int byteIndex = keyCode / 8;
@@ -196,7 +184,6 @@ public class EvdevReader : IDisposable
             bool currentlyPressed = (currentKeyState[byteIndex] & (1 << bitIndex)) != 0;
             bool wasPressed = (_lastKeyState[byteIndex] & (1 << bitIndex)) != 0;
 
-            // Emit event only if state changed
             if (currentlyPressed != wasPressed)
             {
                 var ev = new UInputNative.input_event
@@ -209,14 +196,10 @@ public class EvdevReader : IDisposable
             }
         }
 
-        // Update last known state
         Array.Copy(currentKeyState, _lastKeyState, 96);
         Log.Debug("[{Device}] Resync completed after SYN_DROPPED", DeviceName);
     }
 
-    /// <summary>
-    /// Emit current state for all pressed keys (used on initial sync)
-    /// </summary>
     private void EmitCurrentKeyState(byte[] keyState)
     {
         for (int keyCode = 0; keyCode < 768; keyCode++)

@@ -1,6 +1,6 @@
 using System;
 
-namespace CrossMacro.Platform.Linux.Native;
+namespace CrossMacro.Infrastructure.Linux.Native;
 
 /// <summary>
 /// Centralized constants for Linux system paths.
@@ -22,4 +22,14 @@ public static class LinuxSystemPaths
     /// Typically managed by systemd.
     /// </summary>
     public const string RuntimeDirectory = "/run/crossmacro";
+
+    /// <summary>
+    /// Primary uinput device path.
+    /// </summary>
+    public const string UInputDevicePath = "/dev/uinput";
+
+    /// <summary>
+    /// Alternate uinput device path (some systems use this).
+    /// </summary>
+    public const string UInputAlternatePath = "/dev/input/uinput";
 }

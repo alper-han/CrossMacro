@@ -243,7 +243,7 @@
               echo "CrossMacro Development Environment"
               echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
               echo "Dotnet SDK: $(dotnet --version)"
-              ${pkgs.lib.optionalString pkgs.stdenv.isLinux "echo \"Systemd service required for Input Access.\""}
+              ${pkgs.lib.optionalString pkgs.stdenv.isLinux "echo \"Linux input can use either daemon-backed mode or direct device mode depending on how you launch CrossMacro.\""}
               echo ""
               echo "Commands:"
               echo "  dotnet run --project ${uiHostProject}"
@@ -341,9 +341,9 @@
                 // {
                   crossmacro = {
                     isSystemUser = true;
-                    group = "input";
+                    group = "crossmacro";
                     extraGroups = [
-                      "crossmacro"
+                      "input"
                       "uinput"
                     ];
                     description = "CrossMacro Input Daemon User";
@@ -366,12 +366,12 @@
                 serviceConfig = {
                   Type = "notify";
                   User = "crossmacro";
-                  Group = "input";
+                  Group = "crossmacro";
                   ExecStart = "${lib.getExe cfg.daemonPackage}";
                   Restart = "always";
                   RestartSec = 5;
                   RuntimeDirectory = "crossmacro";
-                  RuntimeDirectoryMode = "0755";
+                  RuntimeDirectoryMode = "0750";
                   CapabilityBoundingSet = [ "CAP_SYS_ADMIN" "CAP_SETUID" "CAP_SETGID" "CAP_CHOWN" "CAP_DAC_READ_SEARCH" ];
                   AmbientCapabilities = [ "CAP_SYS_ADMIN" "CAP_CHOWN" "CAP_DAC_READ_SEARCH" ];
                 };

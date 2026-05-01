@@ -95,14 +95,13 @@ if [ "\$1" = "configure" ]; then
 
     # Create user if not exists
     if ! getent passwd crossmacro >/dev/null; then
-        adduser --system --no-create-home --ingroup input --disabled-login crossmacro || true
-        adduser crossmacro crossmacro 2>/dev/null || true
+        adduser --system --no-create-home --ingroup crossmacro --disabled-login crossmacro || true
     fi
     
-    # Ensure user is in required groups
+    # Ensure daemon user keeps crossmacro as its primary identity while retaining device-access groups
+    usermod -g crossmacro crossmacro 2>/dev/null || true
     usermod -aG input crossmacro 2>/dev/null || true
     usermod -aG uinput crossmacro 2>/dev/null || true
-    usermod -aG crossmacro crossmacro 2>/dev/null || true
 
     # Reload rules before loading uinput so the device node is created with the
     # packaged permissions on first load.

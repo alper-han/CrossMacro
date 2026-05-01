@@ -86,11 +86,11 @@ getent group crossmacro >/dev/null || groupadd -r crossmacro
 getent group input >/dev/null || groupadd -r input
 getent group uinput >/dev/null || groupadd -r uinput
 getent passwd crossmacro >/dev/null || \
-    useradd -r -g input -G crossmacro,uinput -s /sbin/nologin \
+    useradd -r -g crossmacro -G input,uinput -s /sbin/nologin \
     -c "CrossMacro Input Daemon User" crossmacro
+usermod -g crossmacro crossmacro || :
 usermod -aG input crossmacro || :
 usermod -aG uinput crossmacro || :
-usermod -aG crossmacro crossmacro || :
 
 %post
 # Reload rules before loading uinput so the device node is created with the

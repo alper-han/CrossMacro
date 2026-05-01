@@ -60,13 +60,13 @@ fi
 
 if ! id "crossmacro" &>/dev/null; then
   echo "   Creating system user 'crossmacro'..."
-  useradd -r -s /bin/false -g input -G crossmacro crossmacro
+  useradd -r -s /bin/false -g crossmacro -G input,uinput crossmacro
 fi
 
-# Ensure daemon user is in both required groups
+# Ensure daemon user keeps daemon identity while retaining device-access groups
+usermod -g crossmacro crossmacro 2>/dev/null || echo "   Warning: Failed to set primary group to crossmacro"
 usermod -aG input crossmacro 2>/dev/null || echo "   Warning: Failed to add to input group"
 usermod -aG uinput crossmacro 2>/dev/null || echo "   Warning: Failed to add to uinput group"
-usermod -aG crossmacro crossmacro 2>/dev/null || echo "   Warning: Failed to add to crossmacro group"
 
 
 # Add the installing user to crossmacro group

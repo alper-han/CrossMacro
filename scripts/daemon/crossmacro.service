@@ -7,8 +7,8 @@ Wants=polkit.service
 [Service]
 Type=notify
 User=crossmacro
-Group=input
-SupplementaryGroups=uinput crossmacro
+Group=crossmacro
+SupplementaryGroups=input uinput
 ExecStart=/usr/lib/crossmacro/daemon/CrossMacro.Daemon
 Restart=on-failure
 RestartSec=5
@@ -42,7 +42,7 @@ ReadWritePaths=/dev/input /dev/uinput /run/crossmacro
 
 # Create runtime directory for socket
 RuntimeDirectory=crossmacro
-RuntimeDirectoryMode=0755
+RuntimeDirectoryMode=0750
 RuntimeDirectoryPreserve=yes
 
 # Resource limits

@@ -2,8 +2,12 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Recording.Strategies;
+using CrossMacro.Infrastructure.Services;
+using CrossMacro.Infrastructure.Services.Recording.Strategies;
 using CrossMacro.Cli;
+using CrossMacro.Cli.DependencyInjection;
+using CrossMacro.Infrastructure.Logging;
+using CrossMacro.Platform.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Cli.Tests;
@@ -11,129 +15,140 @@ namespace CrossMacro.Cli.Tests;
 public class CliHostTests
 {
     [Fact]
-    public void Run_WhenSettingsGetWithJson_ReturnsSuccess()
+    public async Task RunAsync_WhenSettingsGetWithJson_ReturnsSuccess()
     {
-        lock (ConsoleTestLock.Gate)
+        using var consoleLock = await ConsoleTestLock.AcquireAsync();
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        try
         {
-            var originalOut = Console.Out;
-            var originalError = Console.Error;
-            var stdout = new StringWriter();
-            var stderr = new StringWriter();
+            LoggerSetup.Initialize("Fatal");
+            Console.SetOut(stdout);
+            Console.SetError(stderr);
 
-            try
-            {
-                Console.SetOut(stdout);
-                Console.SetError(stderr);
+            var host = new CliHost(new MinimalPlatformServiceRegistrar());
+            var exitCode = await host.RunAsync(new SettingsGetCliOptions(JsonOutput: true));
 
-                var host = new CliHost(new MinimalPlatformServiceRegistrar());
-                var exitCode = host.Run(new SettingsGetCliOptions(JsonOutput: true));
-
-                Assert.True(exitCode == (int)CliExitCode.Success, $"Unexpected exit code: {exitCode}\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}");
-                Assert.Contains("\"status\": \"ok\"", stdout.ToString(), StringComparison.Ordinal);
-                Assert.Equal(string.Empty, stderr.ToString());
-            }
-            finally
-            {
-                Console.SetOut(originalOut);
-                Console.SetError(originalError);
-            }
+            Assert.True(exitCode == (int)CliExitCode.Success, $"Unexpected exit code: {exitCode}\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}");
+            Assert.Contains("\"status\": \"ok\"", stdout.ToString(), StringComparison.Ordinal);
+            Assert.Equal(string.Empty, stderr.ToString());
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
         }
     }
 
     [Fact]
-    public void Run_WhenSettingsGetWithJson_AndMinimalPlatformRegistrations_ReturnsSuccess()
+    public async Task RunAsync_WhenSettingsGetWithJson_AndMinimalPlatformRegistrations_ReturnsSuccess()
     {
-        lock (ConsoleTestLock.Gate)
+        using var consoleLock = await ConsoleTestLock.AcquireAsync();
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        try
         {
-            var originalOut = Console.Out;
-            var originalError = Console.Error;
-            var stdout = new StringWriter();
-            var stderr = new StringWriter();
+            LoggerSetup.Initialize("Fatal");
+            Console.SetOut(stdout);
+            Console.SetError(stderr);
 
-            try
-            {
-                Console.SetOut(stdout);
-                Console.SetError(stderr);
+            var host = new CliHost(new SettingsOnlyPlatformServiceRegistrar());
+            var exitCode = await host.RunAsync(new SettingsGetCliOptions(JsonOutput: true));
 
-                var host = new CliHost(new SettingsOnlyPlatformServiceRegistrar());
-                var exitCode = host.Run(new SettingsGetCliOptions(JsonOutput: true));
-
-                Assert.True(exitCode == (int)CliExitCode.Success, $"Unexpected exit code: {exitCode}\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}");
-                Assert.Contains("\"status\": \"ok\"", stdout.ToString(), StringComparison.Ordinal);
-                Assert.Equal(string.Empty, stderr.ToString());
-            }
-            finally
-            {
-                Console.SetOut(originalOut);
-                Console.SetError(originalError);
-            }
+            Assert.True(exitCode == (int)CliExitCode.Success, $"Unexpected exit code: {exitCode}\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}");
+            Assert.Contains("\"status\": \"ok\"", stdout.ToString(), StringComparison.Ordinal);
+            Assert.Equal(string.Empty, stderr.ToString());
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
         }
     }
 
     [Fact]
-    public void Run_WhenRuntimeExceptionOccurs_ReturnsRuntimeErrorAsJson()
+    public async Task RunAsync_WhenRuntimeExceptionOccurs_ReturnsRuntimeErrorAsJson()
     {
-        lock (ConsoleTestLock.Gate)
+        using var consoleLock = await ConsoleTestLock.AcquireAsync();
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        try
         {
-            var originalOut = Console.Out;
-            var originalError = Console.Error;
-            var stdout = new StringWriter();
-            var stderr = new StringWriter();
+            LoggerSetup.Initialize("Fatal");
+            Console.SetOut(stdout);
+            Console.SetError(stderr);
 
-            try
-            {
-                Console.SetOut(stdout);
-                Console.SetError(stderr);
+            var host = new CliHost(new ThrowingPlatformServiceRegistrar());
+            var exitCode = await host.RunAsync(new DoctorCliOptions(JsonOutput: true));
 
-                var host = new CliHost(new ThrowingPlatformServiceRegistrar());
-                var exitCode = host.Run(new DoctorCliOptions(JsonOutput: true));
-
-                Assert.Equal((int)CliExitCode.RuntimeError, exitCode);
-                Assert.Contains("\"status\": \"error\"", stdout.ToString(), StringComparison.Ordinal);
-                Assert.Contains("\"code\": 6", stdout.ToString(), StringComparison.Ordinal);
-                Assert.Equal(string.Empty, stderr.ToString());
-            }
-            finally
-            {
-                Console.SetOut(originalOut);
-                Console.SetError(originalError);
-            }
+            Assert.Equal((int)CliExitCode.RuntimeError, exitCode);
+            Assert.Contains("\"status\": \"error\"", stdout.ToString(), StringComparison.Ordinal);
+            Assert.Contains("\"code\": 6", stdout.ToString(), StringComparison.Ordinal);
+            Assert.Equal(string.Empty, stderr.ToString());
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
         }
     }
 
     [Fact]
-    public void Run_WhenCancelledDuringBootstrap_ReturnsCancelledAsJson()
+    public async Task RunAsync_WhenCancelledDuringBootstrap_ReturnsCancelledAsJson()
     {
-        lock (ConsoleTestLock.Gate)
+        using var consoleLock = await ConsoleTestLock.AcquireAsync();
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        try
         {
-            var originalOut = Console.Out;
-            var originalError = Console.Error;
-            var stdout = new StringWriter();
-            var stderr = new StringWriter();
+            LoggerSetup.Initialize("Fatal");
+            Console.SetOut(stdout);
+            Console.SetError(stderr);
 
-            try
-            {
-                Console.SetOut(stdout);
-                Console.SetError(stderr);
+            var host = new CliHost(new CancelledPlatformServiceRegistrar());
+            var exitCode = await host.RunAsync(new DoctorCliOptions(JsonOutput: true));
 
-                var host = new CliHost(new CancelledPlatformServiceRegistrar());
-                var exitCode = host.Run(new DoctorCliOptions(JsonOutput: true));
-
-                Assert.Equal((int)CliExitCode.Cancelled, exitCode);
-                Assert.Contains("\"status\": \"error\"", stdout.ToString(), StringComparison.Ordinal);
-                Assert.Contains("\"code\": 130", stdout.ToString(), StringComparison.Ordinal);
-                Assert.Equal(string.Empty, stderr.ToString());
-            }
-            finally
-            {
-                Console.SetOut(originalOut);
-                Console.SetError(originalError);
-            }
+            Assert.Equal((int)CliExitCode.Cancelled, exitCode);
+            Assert.Contains("\"status\": \"error\"", stdout.ToString(), StringComparison.Ordinal);
+            Assert.Contains("\"code\": 130", stdout.ToString(), StringComparison.Ordinal);
+            Assert.Equal(string.Empty, stderr.ToString());
         }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
+        }
+    }
+
+    [Fact]
+    public void AddCliServices_RegistersCommandHandlerResolverAndExecutor()
+    {
+        var services = new ServiceCollection();
+        services.AddCrossMacroCliRuntimeServices(new MinimalPlatformServiceRegistrar(), CliRuntimeProfile.OneShot);
+        services.AddCliServices();
+
+        using var provider = services.BuildServiceProvider();
+
+        Assert.IsType<CliCommandHandlerResolver>(provider.GetRequiredService<ICliCommandHandlerResolver>());
+        Assert.NotNull(provider.GetRequiredService<CliCommandExecutor>());
     }
 
     private sealed class ThrowingPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
+        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
+
         public void RegisterPlatformServices(IServiceCollection services)
         {
             throw new InvalidOperationException("simulated registration failure");
@@ -142,6 +157,8 @@ public class CliHostTests
 
     private sealed class SettingsOnlyPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
+        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
+
         public void RegisterPlatformServices(IServiceCollection services)
         {
             // Intentionally empty: settings commands should not force resolution of platform services.
@@ -150,6 +167,8 @@ public class CliHostTests
 
     private sealed class CancelledPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
+        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
+
         public void RegisterPlatformServices(IServiceCollection services)
         {
             throw new OperationCanceledException("simulated cancellation");
@@ -158,6 +177,8 @@ public class CliHostTests
 
     private sealed class MinimalPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
+        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
+
         public void RegisterPlatformServices(IServiceCollection services)
         {
             services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();

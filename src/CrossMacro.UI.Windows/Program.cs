@@ -1,6 +1,7 @@
 using Avalonia;
 using CrossMacro.Cli;
 using CrossMacro.Platform.Windows.DependencyInjection;
+using System.Threading.Tasks;
 
 namespace CrossMacro.UI.Windows;
 
@@ -13,11 +14,11 @@ internal static class Program
             .UseSkia();
 
     [System.STAThread]
-    public static int Main(string[] args)
+    public static Task<int> Main(string[] args)
     {
         var platformServiceRegistrar = new WindowsPlatformServiceRegistrar();
 
-        return CliGuiRuntime.Run(
+        return CliGuiRuntime.RunAsync(
             args,
             platformServiceRegistrar,
             startGui: () => CrossMacro.UI.Program.RunGui(

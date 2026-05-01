@@ -2,6 +2,7 @@ using Avalonia;
 using CrossMacro.Cli;
 using CrossMacro.Platform.MacOS.DependencyInjection;
 using System.Runtime.Versioning;
+using System.Threading.Tasks;
 
 namespace CrossMacro.UI.MacOS;
 
@@ -15,11 +16,11 @@ internal static class Program
             .UseSkia();
 
     [System.STAThread]
-    public static int Main(string[] args)
+    public static Task<int> Main(string[] args)
     {
         var platformServiceRegistrar = new MacOSPlatformServiceRegistrar();
 
-        return CliGuiRuntime.Run(
+        return CliGuiRuntime.RunAsync(
             args,
             platformServiceRegistrar,
             startGui: () => CrossMacro.UI.Program.RunGui(

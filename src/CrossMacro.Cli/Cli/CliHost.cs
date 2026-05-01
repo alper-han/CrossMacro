@@ -1,7 +1,8 @@
 using System;
 using System.Threading;
-using CrossMacro.Core.Services;
+using System.Threading.Tasks;
 using CrossMacro.Cli.DependencyInjection;
+using CrossMacro.Platform.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
@@ -16,7 +17,7 @@ public sealed class CliHost
         _platformServiceRegistrar = platformServiceRegistrar;
     }
 
-    public int Run(CliCommandOptions options)
+    public async Task<int> RunAsync(CliCommandOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
@@ -27,7 +28,7 @@ public sealed class CliHost
             services.AddCrossMacroCliRuntimeServices(_platformServiceRegistrar, runtimeProfile);
             services.AddCliServices();
 
-            using var provider = services.BuildServiceProvider();
+            await using var provider = services.BuildServiceProvider();
             var commandExecutor = provider.GetRequiredService<CliCommandExecutor>();
 
             using var cancellation = new CancellationTokenSource();
@@ -41,7 +42,7 @@ public sealed class CliHost
             Console.CancelKeyPress += cancelHandler;
             try
             {
-                return commandExecutor.ExecuteAsync(options, cancellation.Token).GetAwaiter().GetResult();
+                return await commandExecutor.ExecuteAsync(options, cancellation.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {

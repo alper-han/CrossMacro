@@ -3,11 +3,13 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform;
+using CrossMacro.Core.Logging;
 using CrossMacro.UI.Localization;
 using CrossMacro.UI.ViewModels;
-using Serilog;
 using CrossMacro.Core;
 using CrossMacro.Core.Services;
+using CrossMacro.Infrastructure.Services;
+using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.UI.Services;
 
@@ -17,6 +19,7 @@ namespace CrossMacro.UI.Services;
 public class TrayIconService : ITrayIconService
 {
     private TrayIcon? _trayIcon;
+    private readonly IDesktopLifetimeContext _desktopLifetimeContext;
     private readonly MainWindowViewModel _viewModel;
     private readonly IRuntimeContext _runtimeContext;
     private readonly ILocalizationService _localizationService;
@@ -30,8 +33,13 @@ public class TrayIconService : ITrayIconService
     private NativeMenuItem? _showHideItem;
     private NativeMenuItem? _exitItem;
 
-    public TrayIconService(MainWindowViewModel viewModel, ILocalizationService localizationService, IRuntimeContext? runtimeContext = null)
+    public TrayIconService(
+        IDesktopLifetimeContext desktopLifetimeContext,
+        MainWindowViewModel viewModel,
+        ILocalizationService localizationService,
+        IRuntimeContext? runtimeContext = null)
     {
+        _desktopLifetimeContext = desktopLifetimeContext;
         _viewModel = viewModel;
         _localizationService = localizationService;
         _runtimeContext = runtimeContext ?? new RuntimeContext();
@@ -55,9 +63,10 @@ public class TrayIconService : ITrayIconService
     {
         try
         {
-            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            var desktop = _desktopLifetimeContext.DesktopLifetime;
+            if (desktop != null)
             {
-                _mainWindow = desktop.MainWindow;
+                _mainWindow = _desktopLifetimeContext.MainWindow;
 
                 if (_mainWindow != null)
                 {
@@ -236,7 +245,7 @@ public class TrayIconService : ITrayIconService
         if (!_isExiting && _isEnabled)
         {
             e.Cancel = true;
-            SetShutdownMode(ShutdownMode.OnExplicitShutdown);
+            SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnExplicitShutdown);
             if (_mainWindow != null)
             {
                 _mainWindow.ShowInTaskbar = false;
@@ -266,14 +275,14 @@ public class TrayIconService : ITrayIconService
 
         if (_mainWindow.IsVisible)
         {
-            SetShutdownMode(ShutdownMode.OnExplicitShutdown);
+            SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnExplicitShutdown);
             _mainWindow.ShowInTaskbar = false;
             _mainWindow.Hide();
             Log.Debug("Window hidden via tray icon");
         }
         else
         {
-            SetShutdownMode(ShutdownMode.OnLastWindowClose);
+            SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnLastWindowClose);
             _mainWindow.ShowInTaskbar = true;
             _mainWindow.Show();
             _mainWindow.Activate();
@@ -333,8 +342,9 @@ public class TrayIconService : ITrayIconService
         try
         {
             _isExiting = true;
-            
-            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+
+            var desktop = _desktopLifetimeContext.DesktopLifetime;
+            if (desktop != null)
             {
                 desktop.Shutdown();
             }
@@ -381,16 +391,16 @@ public class TrayIconService : ITrayIconService
             _trayIcon.IsVisible = isEnabled;
         }
 
-        SetShutdownMode(isEnabled && _mainWindow?.IsVisible != true
+        SetShutdownMode(_desktopLifetimeContext, isEnabled && _mainWindow?.IsVisible != true
             ? ShutdownMode.OnExplicitShutdown
             : ShutdownMode.OnLastWindowClose);
 
         Log.Information("Tray icon {Status}", isEnabled ? "enabled" : "disabled");
     }
 
-    private static void SetShutdownMode(ShutdownMode mode)
+    private static void SetShutdownMode(IDesktopLifetimeContext desktopLifetimeContext, ShutdownMode mode)
     {
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        if (desktopLifetimeContext.DesktopLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.ShutdownMode = mode;
         }
@@ -403,7 +413,7 @@ public class TrayIconService : ITrayIconService
             _mainWindow.Closing -= OnWindowClosing;
         }
 
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        if (_desktopLifetimeContext.DesktopLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.ShutdownRequested -= OnShutdownRequested;
         }

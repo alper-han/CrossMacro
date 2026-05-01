@@ -5,10 +5,13 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.UI.Services;
+using NSubstitute;
 
 [Collection("EnvironmentVariableSensitive")]
 public class CompositeClipboardServiceTests
 {
+    private static readonly IDesktopLifetimeContext NoDesktopLifetime = Substitute.For<IDesktopLifetimeContext>();
+
     [Fact(Timeout = 5000)]
     public async Task GetTextAsync_WhenLinuxClipboardSupported_ShouldUseLinuxService_AndInitializeOnce()
     {
@@ -19,7 +22,7 @@ public class CompositeClipboardServiceTests
             ReadResult = "linux-value"
         };
         var linux = new LinuxShellClipboardService(runner);
-        var service = new CompositeClipboardService(linux, new AvaloniaClipboardService());
+        var service = new CompositeClipboardService(linux, new AvaloniaClipboardService(NoDesktopLifetime));
 
         var first = await service.GetTextAsync();
         var second = await service.GetTextAsync();
@@ -39,7 +42,7 @@ public class CompositeClipboardServiceTests
             CheckResults = { ["xclip"] = true }
         };
         var linux = new LinuxShellClipboardService(runner);
-        var service = new CompositeClipboardService(linux, new AvaloniaClipboardService());
+        var service = new CompositeClipboardService(linux, new AvaloniaClipboardService(NoDesktopLifetime));
 
         await service.SetTextAsync("abc");
 
@@ -53,7 +56,7 @@ public class CompositeClipboardServiceTests
         using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);
         var runner = new FakeProcessRunner();
         var linux = new LinuxShellClipboardService(runner);
-        var service = new CompositeClipboardService(linux, new AvaloniaClipboardService());
+        var service = new CompositeClipboardService(linux, new AvaloniaClipboardService(NoDesktopLifetime));
 
         var ex = await Record.ExceptionAsync(() => service.GetTextAsync());
 

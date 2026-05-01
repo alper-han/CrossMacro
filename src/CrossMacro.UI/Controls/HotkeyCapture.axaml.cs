@@ -6,11 +6,10 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Services;
 using CrossMacro.UI.Localization;
-using Microsoft.Extensions.DependencyInjection;
 using CrossMacro.Core;
-using Serilog;
 
 namespace CrossMacro.UI.Controls;
 
@@ -18,6 +17,12 @@ public partial class HotkeyCapture : UserControl
 {
     public static readonly StyledProperty<string> HotkeyProperty =
         AvaloniaProperty.Register<HotkeyCapture, string>(nameof(Hotkey), AppConstants.DefaultRecordingHotkey);
+
+    public static readonly StyledProperty<ILocalizationService?> LocalizationServiceProperty =
+        AvaloniaProperty.Register<HotkeyCapture, ILocalizationService?>(nameof(LocalizationService));
+
+    public static readonly StyledProperty<IGlobalHotkeyService?> GlobalHotkeyServiceProperty =
+        AvaloniaProperty.Register<HotkeyCapture, IGlobalHotkeyService?>(nameof(GlobalHotkeyService));
 
     public static readonly DirectProperty<HotkeyCapture, bool> IsCapturingProperty =
         AvaloniaProperty.RegisterDirect<HotkeyCapture, bool>(
@@ -45,6 +50,18 @@ public partial class HotkeyCapture : UserControl
     private CancellationTokenSource? _captureCts;
     private bool _isDetached = true;
     private ILocalizationService? _localizationService;
+
+    public ILocalizationService? LocalizationService
+    {
+        get => GetValue(LocalizationServiceProperty);
+        set => SetValue(LocalizationServiceProperty, value);
+    }
+
+    public IGlobalHotkeyService? GlobalHotkeyService
+    {
+        get => GetValue(GlobalHotkeyServiceProperty);
+        set => SetValue(GlobalHotkeyServiceProperty, value);
+    }
 
     public string Hotkey
     {
@@ -102,6 +119,10 @@ public partial class HotkeyCapture : UserControl
             UpdateDisplayString();
             UpdateVisualStateClasses();
         }
+        else if (change.Property == LocalizationServiceProperty)
+        {
+            AttachLocalizationService(GetValue(LocalizationServiceProperty));
+        }
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -120,14 +141,21 @@ public partial class HotkeyCapture : UserControl
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         _isDetached = false;
-        AttachLocalizationService();
         UpdateDisplayString();
         base.OnAttachedToVisualTree(e);
     }
 
-    private void AttachLocalizationService()
+    private void DetachLocalizationService()
     {
-        var localizationService = (Application.Current as App)?.Services?.GetService<ILocalizationService>();
+        if (_localizationService != null)
+        {
+            _localizationService.CultureChanged -= OnCultureChanged;
+            _localizationService = null;
+        }
+    }
+
+    private void AttachLocalizationService(ILocalizationService? localizationService)
+    {
         if (ReferenceEquals(_localizationService, localizationService))
         {
             return;
@@ -139,15 +167,9 @@ public partial class HotkeyCapture : UserControl
         {
             _localizationService.CultureChanged += OnCultureChanged;
         }
-    }
 
-    private void DetachLocalizationService()
-    {
-        if (_localizationService != null)
-        {
-            _localizationService.CultureChanged -= OnCultureChanged;
-            _localizationService = null;
-        }
+        UpdateDisplayString();
+        UpdateVisualStateClasses();
     }
 
     private void OnCultureChanged(object? sender, EventArgs e)
@@ -185,9 +207,7 @@ public partial class HotkeyCapture : UserControl
     {
         if (IsCapturing || _isDetached) return;
 
-        // Resolve service from the public app service provider.
-        var serviceProvider = (Application.Current as App)?.Services;
-        var hotkeyService = serviceProvider?.GetService<IGlobalHotkeyService>();
+        var hotkeyService = GlobalHotkeyService;
 
         if (hotkeyService == null)
         {

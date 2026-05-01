@@ -21,7 +21,9 @@ internal sealed class SingleInstanceGuard : IDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var (guard, unauthorized) = TryAcquireCore(name);
+        var preferredName = GetPreferredMutexName(name);
+
+        var (guard, unauthorized) = TryAcquireCore(preferredName);
         if (guard != null)
         {
             return guard;
@@ -33,9 +35,9 @@ internal sealed class SingleInstanceGuard : IDisposable
         // acquire a different (Local) mutex and allow a second instance to start.
         if (unauthorized &&
             OperatingSystem.IsWindows() &&
-            name.StartsWith(GlobalPrefix, StringComparison.Ordinal))
+            preferredName.StartsWith(GlobalPrefix, StringComparison.Ordinal))
         {
-            var localName = LocalPrefix + name[GlobalPrefix.Length..];
+            var localName = LocalPrefix + preferredName[GlobalPrefix.Length..];
             (guard, _) = TryAcquireCore(localName);
 
             if (guard != null)
@@ -45,6 +47,22 @@ internal sealed class SingleInstanceGuard : IDisposable
         }
 
         return null;
+    }
+
+    private static string GetPreferredMutexName(string name)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return name;
+        }
+
+        if (name.StartsWith(GlobalPrefix, StringComparison.Ordinal) ||
+            name.StartsWith(LocalPrefix, StringComparison.Ordinal))
+        {
+            return name;
+        }
+
+        return GlobalPrefix + name;
     }
 
     private static (SingleInstanceGuard? Guard, bool Unauthorized) TryAcquireCore(string name)

@@ -7,10 +7,12 @@ using NSubstitute;
 
 public class DialogServiceTests
 {
+    private static readonly IDesktopLifetimeContext NoDesktopLifetime = Substitute.For<IDesktopLifetimeContext>();
+
     [Fact(Timeout = 5000)]
     public async Task ShowConfirmationAsync_WhenNoDesktopLifetime_ReturnsFalse()
     {
-        var service = new DialogService(Substitute.For<ILocalizationService>());
+        var service = new DialogService(NoDesktopLifetime, Substitute.For<ILocalizationService>());
 
         var result = await service.ShowConfirmationAsync("Title", "Message");
 
@@ -20,7 +22,7 @@ public class DialogServiceTests
     [Fact(Timeout = 5000)]
     public async Task ShowMessageAsync_WhenNoDesktopLifetime_DoesNotThrow()
     {
-        var service = new DialogService(Substitute.For<ILocalizationService>());
+        var service = new DialogService(NoDesktopLifetime, Substitute.For<ILocalizationService>());
 
         var ex = await Record.ExceptionAsync(() => service.ShowMessageAsync("Title", "Message"));
 
@@ -30,7 +32,7 @@ public class DialogServiceTests
     [Fact(Timeout = 5000)]
     public async Task ShowSaveFileDialogAsync_WhenNoMainWindow_ReturnsNull()
     {
-        var service = new DialogService(Substitute.For<ILocalizationService>());
+        var service = new DialogService(NoDesktopLifetime, Substitute.For<ILocalizationService>());
 
         var result = await service.ShowSaveFileDialogAsync("Save", "macro.macro", []);
 
@@ -40,7 +42,7 @@ public class DialogServiceTests
     [Fact(Timeout = 5000)]
     public async Task ShowOpenFileDialogAsync_WhenNoMainWindow_ReturnsNull()
     {
-        var service = new DialogService(Substitute.For<ILocalizationService>());
+        var service = new DialogService(NoDesktopLifetime, Substitute.For<ILocalizationService>());
 
         var result = await service.ShowOpenFileDialogAsync("Open", []);
 

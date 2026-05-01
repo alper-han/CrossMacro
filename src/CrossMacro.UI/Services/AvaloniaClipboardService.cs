@@ -1,25 +1,29 @@
 using System;
 using System.Threading.Tasks;
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using Avalonia.Threading;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Services;
-using Serilog;
 
 namespace CrossMacro.UI.Services;
 
 public class AvaloniaClipboardService : IClipboardService
 {
+    private readonly IDesktopLifetimeContext _desktopLifetimeContext;
+
+    public AvaloniaClipboardService(IDesktopLifetimeContext desktopLifetimeContext)
+    {
+        _desktopLifetimeContext = desktopLifetimeContext;
+    }
+
     public bool IsSupported => true; // Avalonia clipboard is generally supported if UI is running
 
     public async Task SetTextAsync(string text)
     {
         Log.Debug("[AvaloniaClipboard] SetTextAsync called for length {Length}", text.Length);
 
-        var desktop = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-        if (desktop?.MainWindow == null)
+        if (_desktopLifetimeContext.MainWindow == null)
         {
             Log.Warning("[AvaloniaClipboard] SetTextAsync skipped because desktop main window is unavailable");
             return;
@@ -53,8 +57,7 @@ public class AvaloniaClipboardService : IClipboardService
     {
         Log.Debug("[AvaloniaClipboard] GetTextAsync called");
 
-        var desktop = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-        if (desktop?.MainWindow == null)
+        if (_desktopLifetimeContext.MainWindow == null)
         {
             Log.Warning("[AvaloniaClipboard] GetTextAsync skipped because desktop main window is unavailable");
             return null;
@@ -81,61 +84,20 @@ public class AvaloniaClipboardService : IClipboardService
 
     private IClipboard? GetClipboard()
     {
-        if (Application.Current == null)
+        var mainWindow = _desktopLifetimeContext.MainWindow;
+        if (mainWindow == null)
         {
-             Log.Error("[AvaloniaClipboard] Application.Current is null!");
-             return null;
+            Log.Warning("[AvaloniaClipboard] Main window is unavailable. Clipboard access skipped.");
+            return null;
         }
 
-        if (Application.Current.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        var clipboard = mainWindow.Clipboard;
+        if (clipboard != null)
         {
-            if (desktop.MainWindow != null)
-            {
-                 var clipboard = desktop.MainWindow.Clipboard;
-                 if (clipboard != null) return clipboard;
-                 Log.Warning("[AvaloniaClipboard] desktop.MainWindow.Clipboard is null.");
-            }
-            else
-            {
-                 Log.Warning("[AvaloniaClipboard] desktop.MainWindow is null (Window might be closed/hidden).");
-            }
-        }
-        else
-        {
-             Log.Warning("[AvaloniaClipboard] ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime.");
-        }
-        
-        try 
-        {
-             var topLevel = TopLevel.GetTopLevel(null); 
-             if (topLevel != null)
-             {
-                 if (topLevel.Clipboard != null) return topLevel.Clipboard;
-                 Log.Warning("[AvaloniaClipboard] TopLevel found but Clipboard is null.");
-             }
-             else
-             {
-                 Log.Warning("[AvaloniaClipboard] TopLevel.GetTopLevel(null) returned null. No active visual root?");
-             }
-        }
-        catch (Exception ex)
-        {
-             Log.Warning(ex, "[AvaloniaClipboard] Failed to look up TopLevel.");
-        }
-        
-        if (Application.Current.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktopLoop)
-        {
-             foreach (var window in desktopLoop.Windows)
-             {
-                 if (window.Clipboard != null)
-                 {
-                      Log.Information("[AvaloniaClipboard] Found clipboard via auxiliary window: {Title}", window.Title);
-                      return window.Clipboard;
-                 }
-             }
+            return clipboard;
         }
 
-        Log.Error("[AvaloniaClipboard] Could not resolve any Clipboard instance. Avalonia clipboard unavailable.");
+        Log.Warning("[AvaloniaClipboard] Main window clipboard is unavailable.");
         return null;
     }
 }

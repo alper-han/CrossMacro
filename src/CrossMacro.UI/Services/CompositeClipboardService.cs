@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
-using Serilog;
 
 namespace CrossMacro.UI.Services;
 

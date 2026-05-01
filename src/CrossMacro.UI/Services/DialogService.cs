@@ -2,7 +2,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
 using CrossMacro.Core.Services;
 using CrossMacro.UI.Localization;
 using CrossMacro.UI.Views.Dialogs;
@@ -11,17 +10,18 @@ namespace CrossMacro.UI.Services;
 
 public class DialogService : IDialogService
 {
+    private readonly IDesktopLifetimeContext _desktopLifetimeContext;
     private readonly ILocalizationService _localizationService;
 
-    public DialogService(ILocalizationService localizationService)
+    public DialogService(IDesktopLifetimeContext desktopLifetimeContext, ILocalizationService localizationService)
     {
+        _desktopLifetimeContext = desktopLifetimeContext;
         _localizationService = localizationService;
     }
 
     public async Task<bool> ShowConfirmationAsync(string title, string message, string yesText = "Yes", string noText = "No")
     {
-        var desktop = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-        var owner = desktop?.MainWindow;
+        var owner = _desktopLifetimeContext.MainWindow;
 
         if (owner == null)
         {
@@ -36,8 +36,7 @@ public class DialogService : IDialogService
 
     public async Task ShowMessageAsync(string title, string message, string buttonText = "OK")
     {
-        var desktop = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-        var owner = desktop?.MainWindow;
+        var owner = _desktopLifetimeContext.MainWindow;
 
         if (owner == null)
         {
@@ -51,8 +50,7 @@ public class DialogService : IDialogService
 
     public async Task<string?> ShowSaveFileDialogAsync(string title, string defaultFileName, FileDialogFilter[] filters)
     {
-        var desktop = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-        var mainWindow = desktop?.MainWindow;
+        var mainWindow = _desktopLifetimeContext.MainWindow;
 
         if (mainWindow == null) return null;
 
@@ -74,8 +72,7 @@ public class DialogService : IDialogService
 
     public async Task<string?> ShowOpenFileDialogAsync(string title, FileDialogFilter[] filters)
     {
-        var desktop = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-        var mainWindow = desktop?.MainWindow;
+        var mainWindow = _desktopLifetimeContext.MainWindow;
 
         if (mainWindow == null) return null;
 

@@ -1,0 +1,58 @@
+namespace CrossMacro.Daemon.Contracts.Ipc;
+
+public enum IpcOpCode : byte
+{
+    /// <summary>
+    /// Initial handshake to verify version.
+    /// Payload: int (Protocol Version)
+    /// </summary>
+    Handshake = 0x01,
+
+    /// <summary>
+    /// Request to start capturing input events.
+    /// Payload: int (Request Id), bool (Capture Mouse), bool (Capture Keyboard)
+    /// </summary>
+    StartCapture = 0x02,
+
+    /// <summary>
+    /// Request to stop capturing input events.
+    /// Payload: None
+    /// </summary>
+    StopCapture = 0x03,
+
+    /// <summary>
+    /// Input event sent from Daemon to Client.
+    /// Payload: InputEventType (byte), int (Code), int (Value), long (Timestamp)
+    /// </summary>
+    InputEvent = 0x04,
+
+    /// <summary>
+    /// Request to simulate an input event (Client to Daemon).
+    /// Payload: ushort (Type), ushort (Code), int (Value)
+    /// </summary>
+    SimulateEvent = 0x05,
+
+    /// <summary>
+    /// Capture startup acknowledgement sent from Daemon to Client.
+    /// Payload: int (Request Id)
+    /// </summary>
+    CaptureStarted = 0x07,
+
+    /// <summary>
+    /// Capture startup failure sent from Daemon to Client.
+    /// Payload: int (Request Id), string (Message)
+    /// </summary>
+    CaptureStartFailed = 0x08,
+
+    /// <summary>
+    /// Error report.
+    /// Payload: string (Message)
+    /// </summary>
+    Error = 0xFF,
+
+    /// <summary>
+    /// Configure virtual device resolution.
+    /// Payload: int (Width), int (Height)
+    /// </summary>
+    ConfigureResolution = 0x06
+}

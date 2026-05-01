@@ -3,11 +3,14 @@ using System.Threading.Tasks;
 using System.Reflection;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Infrastructure.Services.Recording.Strategies;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Cli.DependencyInjection;
 using CrossMacro.Cli.Services;
 using CrossMacro.Cli;
 using CrossMacro.UI.DependencyInjection;
 using CrossMacro.UI.Services;
+using CrossMacro.UI.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.UI.Tests.DependencyInjection;
@@ -41,13 +44,27 @@ public class ServiceCollectionExtensionsTests
         Assert.Contains(services, sd => sd.ServiceType == typeof(IExternalUrlOpener));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IThemeService));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IDesktopStartupCoordinator));
+        Assert.Contains(services, sd => sd.ServiceType == typeof(IRuntimeLogLevelService));
+    }
+
+    [Fact]
+    public void AddCrossMacroServices_ResolvesShortcutViewModelWithHotkeyDependency()
+    {
+        var services = new ServiceCollection();
+        services.AddCrossMacroServices(new PoolAwarePlatformServiceRegistrar());
+
+        using var provider = services.BuildServiceProvider();
+        var viewModel = provider.GetRequiredService<ShortcutViewModel>();
+
+        Assert.Same(provider.GetRequiredService<IGlobalHotkeyService>(), viewModel.GlobalHotkeyService);
+        Assert.Same(provider.GetRequiredService<ILocalizationService>(), viewModel.LocalizationService);
     }
 
     [Fact]
     public void AddCrossMacroCliRuntimeServices_UsesNonAvaloniaClipboardBinding()
     {
         var services = new ServiceCollection();
-        services.AddCrossMacroCliRuntimeServices(new NoOpPlatformServiceRegistrar());
+        services.AddCrossMacroCliRuntimeServices(new WindowsLikePlatformServiceRegistrar());
 
         using var provider = services.BuildServiceProvider();
         var clipboard = provider.GetRequiredService<IClipboardService>();
@@ -56,34 +73,44 @@ public class ServiceCollectionExtensionsTests
         Assert.IsNotType<AvaloniaClipboardService>(clipboard);
         Assert.IsNotType<CompositeClipboardService>(clipboard);
 
-        if (OperatingSystem.IsLinux())
-        {
-            Assert.IsType<LinuxShellClipboardService>(clipboard);
-        }
-        else
-        {
-            Assert.False(clipboard.IsSupported);
-        }
+        Assert.False(clipboard.IsSupported);
     }
 
     [Fact]
     public void AddCrossMacroGuiRuntimeServices_UsesGuiClipboardBinding()
     {
         var services = new ServiceCollection();
-        services.AddCrossMacroGuiRuntimeServices(new NoOpPlatformServiceRegistrar());
+        services.AddCrossMacroGuiRuntimeServices(new WindowsLikePlatformServiceRegistrar());
 
         using var provider = services.BuildServiceProvider();
         var clipboard = provider.GetRequiredService<IClipboardService>();
 
         Assert.NotNull(clipboard);
-        if (OperatingSystem.IsLinux())
-        {
-            Assert.IsType<CompositeClipboardService>(clipboard);
-        }
-        else
-        {
-            Assert.IsType<AvaloniaClipboardService>(clipboard);
-        }
+        Assert.IsType<AvaloniaClipboardService>(clipboard);
+    }
+
+    [Fact]
+    public void AddCrossMacroCliRuntimeServices_UsesLinuxClipboardBinding_WhenRegistrarRequestsLinuxMode()
+    {
+        var services = new ServiceCollection();
+        services.AddCrossMacroCliRuntimeServices(new LinuxLikePlatformServiceRegistrar());
+
+        using var provider = services.BuildServiceProvider();
+        var clipboard = provider.GetRequiredService<IClipboardService>();
+
+        Assert.IsType<LinuxShellClipboardService>(clipboard);
+    }
+
+    [Fact]
+    public void AddCrossMacroGuiRuntimeServices_UsesCompositeClipboardBinding_WhenRegistrarRequestsLinuxMode()
+    {
+        var services = new ServiceCollection();
+        services.AddCrossMacroGuiRuntimeServices(new LinuxLikePlatformServiceRegistrar());
+
+        using var provider = services.BuildServiceProvider();
+        var clipboard = provider.GetRequiredService<IClipboardService>();
+
+        Assert.IsType<CompositeClipboardService>(clipboard);
     }
 
     [Fact]
@@ -133,6 +160,26 @@ public class ServiceCollectionExtensionsTests
 
     private sealed class NoOpPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
+        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
+
+        public void RegisterPlatformServices(IServiceCollection services)
+        {
+        }
+    }
+
+    private sealed class WindowsLikePlatformServiceRegistrar : IPlatformServiceRegistrar
+    {
+        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Windows;
+
+        public void RegisterPlatformServices(IServiceCollection services)
+        {
+        }
+    }
+
+    private sealed class LinuxLikePlatformServiceRegistrar : IPlatformServiceRegistrar
+    {
+        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Linux;
+
         public void RegisterPlatformServices(IServiceCollection services)
         {
         }
@@ -140,6 +187,8 @@ public class ServiceCollectionExtensionsTests
 
     private sealed class FactoryInputPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
+        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
+
         public void RegisterPlatformServices(IServiceCollection services)
         {
             services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
@@ -150,8 +199,11 @@ public class ServiceCollectionExtensionsTests
 
     private sealed class PoolAwarePlatformServiceRegistrar : IPlatformServiceRegistrar
     {
+        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
+
         public void RegisterPlatformServices(IServiceCollection services)
         {
+            services.AddSingleton<IKeyboardLayoutService, DummyKeyboardLayoutService>();
             services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
             services.AddSingleton<IMousePositionProvider, DummyMousePositionProvider>();
             services.AddTransient<Func<IInputSimulator>>(_ => () => new DummyInputSimulator());
@@ -172,6 +224,30 @@ public class ServiceCollectionExtensionsTests
         public void KeyPress(int keyCode, bool pressed) { }
         public void Sync() { }
         public void Dispose() { }
+    }
+
+    private sealed class DummyKeyboardLayoutService : IKeyboardLayoutService
+    {
+        public string GetKeyName(int keyCode) => keyCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        public int GetKeyCode(string keyName) => int.TryParse(
+            keyName,
+            System.Globalization.NumberStyles.Integer,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var keyCode)
+                ? keyCode
+                : 0;
+
+        public char? GetCharFromKeyCode(
+            int keyCode,
+            bool leftShift,
+            bool rightShift,
+            bool rightAlt,
+            bool leftAlt,
+            bool leftCtrl,
+            bool capsLock) => null;
+
+        public (int KeyCode, bool Shift, bool AltGr)? GetInputForChar(char c) => null;
     }
 
     private sealed class DummyInputCapture : IInputCapture

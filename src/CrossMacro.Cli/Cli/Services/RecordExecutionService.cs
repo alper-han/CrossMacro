@@ -11,6 +11,7 @@ namespace CrossMacro.Cli.Services;
 public sealed class RecordExecutionService : IRecordExecutionService
 {
     private static readonly TimeSpan StartupOutcomeSettleWindow = TimeSpan.FromMilliseconds(300);
+    private static readonly Func<TimeSpan, CancellationToken, Task> DefaultDelayAsync = Task.Delay;
 
     private enum StartupOutcomeState
     {
@@ -29,15 +30,26 @@ public sealed class RecordExecutionService : IRecordExecutionService
     private readonly IMacroRecorder _macroRecorder;
     private readonly IMacroFileManager _macroFileManager;
     private readonly IMousePositionProvider _mousePositionProvider;
+    private readonly Func<TimeSpan, CancellationToken, Task> _delayAsync;
 
     public RecordExecutionService(
         IMacroRecorder macroRecorder,
         IMacroFileManager macroFileManager,
         IMousePositionProvider mousePositionProvider)
+        : this(macroRecorder, macroFileManager, mousePositionProvider, DefaultDelayAsync)
+    {
+    }
+
+    public RecordExecutionService(
+        IMacroRecorder macroRecorder,
+        IMacroFileManager macroFileManager,
+        IMousePositionProvider mousePositionProvider,
+        Func<TimeSpan, CancellationToken, Task> delayAsync)
     {
         _macroRecorder = macroRecorder;
         _macroFileManager = macroFileManager;
         _mousePositionProvider = mousePositionProvider;
+        _delayAsync = delayAsync;
     }
 
     public async Task<RecordExecutionResult> ExecuteAsync(RecordExecutionRequest request, CancellationToken cancellationToken)
@@ -114,11 +126,11 @@ public sealed class RecordExecutionService : IRecordExecutionService
                 startupCompletedSuccessfully = true;
                 if (request.DurationSeconds > 0)
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(request.DurationSeconds), cancellationToken);
+                    await _delayAsync(TimeSpan.FromSeconds(request.DurationSeconds), cancellationToken);
                 }
                 else
                 {
-                    await Task.Delay(Timeout.Infinite, cancellationToken);
+                    await _delayAsync(Timeout.InfiniteTimeSpan, cancellationToken);
                 }
             }
         }
@@ -246,7 +258,7 @@ public sealed class RecordExecutionService : IRecordExecutionService
         throw new InvalidOperationException("Unexpected recording result state.");
     }
 
-    private static async Task<StartupOutcome> WaitForStartupOutcomeAsync(
+    private async Task<StartupOutcome> WaitForStartupOutcomeAsync(
         Task<StartupOutcome> startupOutcomeTask,
         CancellationToken cancellationToken)
     {
@@ -255,7 +267,7 @@ public sealed class RecordExecutionService : IRecordExecutionService
             return await startupOutcomeTask;
         }
 
-        var completedTask = await Task.WhenAny(startupOutcomeTask, Task.Delay(Timeout.Infinite, cancellationToken));
+        var completedTask = await Task.WhenAny(startupOutcomeTask, _delayAsync(Timeout.InfiniteTimeSpan, cancellationToken));
 
         if (ReferenceEquals(completedTask, startupOutcomeTask))
         {
@@ -301,7 +313,7 @@ public sealed class RecordExecutionService : IRecordExecutionService
             TaskScheduler.Default);
     }
 
-    private static async Task<StartupOutcome?> TryGetStartupOutcomeAsync(
+    private async Task<StartupOutcome?> TryGetStartupOutcomeAsync(
         Task<StartupOutcome> startupOutcomeTask,
         TimeSpan timeout)
     {
@@ -310,10 +322,22 @@ public sealed class RecordExecutionService : IRecordExecutionService
             return await startupOutcomeTask;
         }
 
-        var completedTask = await Task.WhenAny(startupOutcomeTask, Task.Delay(timeout));
+        using var timeoutCancellation = new CancellationTokenSource();
+        var timeoutTask = _delayAsync(timeout, timeoutCancellation.Token);
+        var completedTask = await Task.WhenAny(startupOutcomeTask, timeoutTask);
         if (!ReferenceEquals(completedTask, startupOutcomeTask))
         {
             return null;
+        }
+
+        timeoutCancellation.Cancel();
+
+        try
+        {
+            await timeoutTask;
+        }
+        catch (OperationCanceledException)
+        {
         }
 
         return await startupOutcomeTask;

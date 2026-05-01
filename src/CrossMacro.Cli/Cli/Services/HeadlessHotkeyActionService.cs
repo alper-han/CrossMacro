@@ -1,41 +1,60 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using Serilog;
+using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Cli.Services;
 
 public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
 {
-    private static readonly ILogger Logger = Log.ForContext<HeadlessHotkeyActionService>();
+    private static readonly Func<TimeSpan, CancellationToken, Task> DefaultDelayAsync = Task.Delay;
 
     private readonly IGlobalHotkeyService _globalHotkeyService;
     private readonly IMacroRecorder _macroRecorder;
     private readonly Func<IMacroPlayer> _macroPlayerFactory;
     private readonly ISettingsService _settingsService;
+    private readonly IRuntimeContext _runtimeContext;
+    private readonly Func<TimeSpan, CancellationToken, Task> _delayAsync;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     private bool _isRunning;
     private bool _disposed;
+    private bool _gateDisposed;
     private bool _playbackPauseHotkeysDisabled;
 
     private MacroSequence? _lastRecordedMacro;
     private IMacroPlayer? _activePlayer;
     private CancellationTokenSource? _playbackCts;
     private Task? _playbackTask;
+    private Task? _stopTask;
 
     public HeadlessHotkeyActionService(
         IGlobalHotkeyService globalHotkeyService,
         IMacroRecorder macroRecorder,
         Func<IMacroPlayer> macroPlayerFactory,
-        ISettingsService settingsService)
+        ISettingsService settingsService,
+        IRuntimeContext runtimeContext)
+        : this(globalHotkeyService, macroRecorder, macroPlayerFactory, settingsService, runtimeContext, DefaultDelayAsync)
+    {
+    }
+
+    public HeadlessHotkeyActionService(
+        IGlobalHotkeyService globalHotkeyService,
+        IMacroRecorder macroRecorder,
+        Func<IMacroPlayer> macroPlayerFactory,
+        ISettingsService settingsService,
+        IRuntimeContext runtimeContext,
+        Func<TimeSpan, CancellationToken, Task> delayAsync)
     {
         _globalHotkeyService = globalHotkeyService;
         _macroRecorder = macroRecorder;
         _macroPlayerFactory = macroPlayerFactory;
         _settingsService = settingsService;
+        _runtimeContext = runtimeContext;
+        _delayAsync = delayAsync;
     }
 
     public bool IsRunning => _isRunning;
@@ -54,23 +73,18 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
         _globalHotkeyService.TogglePauseRequested += OnTogglePauseRequested;
         _isRunning = true;
 
-        Logger.Information("[HeadlessHotkeyActionService] Hotkey actions enabled");
+        Log.Information("[HeadlessHotkeyActionService] Hotkey actions enabled");
     }
 
     public void Stop()
     {
-        if (!_isRunning)
-        {
-            return;
-        }
+        var stopTask = EnsureStopTask(CancellationToken.None, logWhenStarted: true);
+        ObserveTask(stopTask, "stop-hotkey-actions");
+    }
 
-        _globalHotkeyService.ToggleRecordingRequested -= OnToggleRecordingRequested;
-        _globalHotkeyService.TogglePlaybackRequested -= OnTogglePlaybackRequested;
-        _globalHotkeyService.TogglePauseRequested -= OnTogglePauseRequested;
-        _isRunning = false;
-
-        HandleStopAsync().GetAwaiter().GetResult();
-        Logger.Information("[HeadlessHotkeyActionService] Hotkey actions disabled");
+    public async Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        await EnsureStopTask(cancellationToken, logWhenStarted: true).ConfigureAwait(false);
     }
 
     public void Dispose()
@@ -82,8 +96,64 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
 
         _disposed = true;
         Stop();
-        _playbackTask?.GetAwaiter().GetResult();
-        _gate.Dispose();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed)
+        {
+            if (_stopTask != null)
+            {
+                await _stopTask.ConfigureAwait(false);
+                DisposeGate();
+            }
+
+            return;
+        }
+
+        _disposed = true;
+        await EnsureStopTask(CancellationToken.None, logWhenStarted: false).ConfigureAwait(false);
+        DisposeGate();
+    }
+
+    private Task EnsureStopTask(CancellationToken cancellationToken, bool logWhenStarted)
+    {
+        if (_stopTask != null)
+        {
+            return _stopTask;
+        }
+
+        if (!UnsubscribeHotkeys())
+        {
+            return Task.CompletedTask;
+        }
+
+        _stopTask = StopCoreAsync(cancellationToken, logWhenStarted);
+        return _stopTask;
+    }
+
+    private async Task StopCoreAsync(CancellationToken cancellationToken, bool logWhenStarted)
+    {
+        await HandleStopAsync(cancellationToken).ConfigureAwait(false);
+
+        if (logWhenStarted)
+        {
+            Log.Information("[HeadlessHotkeyActionService] Hotkey actions disabled");
+        }
+    }
+
+    private bool UnsubscribeHotkeys()
+    {
+        if (!_isRunning)
+        {
+            return false;
+        }
+
+        _globalHotkeyService.ToggleRecordingRequested -= OnToggleRecordingRequested;
+        _globalHotkeyService.TogglePlaybackRequested -= OnTogglePlaybackRequested;
+        _globalHotkeyService.TogglePauseRequested -= OnTogglePauseRequested;
+        _isRunning = false;
+        return true;
     }
 
     private void OnToggleRecordingRequested(object? sender, EventArgs e)
@@ -113,7 +183,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
 
             if (_activePlayer != null)
             {
-                Logger.Debug("[HeadlessHotkeyActionService] Recording toggle ignored while playback is active");
+                Log.Debug("[HeadlessHotkeyActionService] Recording toggle ignored while playback is active");
                 return;
             }
 
@@ -143,20 +213,20 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
 
             if (_macroRecorder.IsRecording)
             {
-                Logger.Debug("[HeadlessHotkeyActionService] Playback toggle ignored while recording is active");
+                Log.Debug("[HeadlessHotkeyActionService] Playback toggle ignored while recording is active");
                 return;
             }
 
             if (_activePlayer != null)
             {
                 _ = StopPlaybackCore();
-                Logger.Information("[HeadlessHotkeyActionService] Playback stop requested via hotkey");
+                Log.Information("[HeadlessHotkeyActionService] Playback stop requested via hotkey");
                 return;
             }
 
             if (_lastRecordedMacro == null || _lastRecordedMacro.Events.Count == 0)
             {
-                Logger.Warning("[HeadlessHotkeyActionService] Playback requested but no recorded macro is available in this headless session");
+                Log.Warning("[HeadlessHotkeyActionService] Playback requested but no recorded macro is available in this headless session");
                 return;
             }
 
@@ -180,7 +250,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
             _playbackTask = RunPlaybackAsync(player, _lastRecordedMacro, options, countdownSeconds, cts.Token);
             ObserveTask(_playbackTask, "playback");
 
-            Logger.Information("[HeadlessHotkeyActionService] Playback started via hotkey (Events={EventCount})", _lastRecordedMacro.Events.Count);
+            Log.Information("[HeadlessHotkeyActionService] Playback started via hotkey (Events={EventCount})", _lastRecordedMacro.Events.Count);
         }
         finally
         {
@@ -201,12 +271,12 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
             if (_activePlayer.IsPaused)
             {
                 _activePlayer.Resume();
-                Logger.Information("[HeadlessHotkeyActionService] Playback resumed via hotkey");
+                Log.Information("[HeadlessHotkeyActionService] Playback resumed via hotkey");
             }
             else
             {
                 _activePlayer.Pause();
-                Logger.Information("[HeadlessHotkeyActionService] Playback paused via hotkey");
+                Log.Information("[HeadlessHotkeyActionService] Playback paused via hotkey");
             }
         }
         finally
@@ -215,11 +285,11 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
         }
     }
 
-    private async Task HandleStopAsync()
+    private async Task HandleStopAsync(CancellationToken cancellationToken)
     {
         Task? playbackTaskToAwait = null;
 
-        await _gate.WaitAsync().ConfigureAwait(false);
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             playbackTaskToAwait = StopPlaybackCore();
@@ -255,11 +325,11 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
         var settings = _settingsService.Current;
         if (!settings.IsMouseRecordingEnabled && !settings.IsKeyboardRecordingEnabled)
         {
-            Logger.Warning("[HeadlessHotkeyActionService] Recording toggle ignored because both mouse and keyboard recording are disabled");
+            Log.Warning("[HeadlessHotkeyActionService] Recording toggle ignored because both mouse and keyboard recording are disabled");
             return;
         }
 
-        var forceRelative = settings.ForceRelativeCoordinates && (OperatingSystem.IsLinux() || OperatingSystem.IsWindows());
+        var forceRelative = settings.ForceRelativeCoordinates && (_runtimeContext.IsLinux || _runtimeContext.IsWindows);
         var skipInitialZero = forceRelative && settings.SkipInitialZeroZero;
         var ignoredKeys = new[]
         {
@@ -285,13 +355,15 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
                 t =>
                 {
                     EnsurePlaybackPauseHotkeysEnabled();
-                    Logger.Error(t.Exception, "[HeadlessHotkeyActionService] Failed to start recording via hotkey");
+                    Log.Error(
+                        (Exception?)t.Exception ?? new InvalidOperationException("Recording start task faulted without an exception."),
+                        "[HeadlessHotkeyActionService] Failed to start recording via hotkey");
                 },
                 CancellationToken.None,
                 TaskContinuationOptions.OnlyOnFaulted,
                 TaskScheduler.Default);
 
-            Logger.Information(
+            Log.Information(
                 "[HeadlessHotkeyActionService] Recording start requested via hotkey (Mouse={MouseEnabled}, Keyboard={KeyboardEnabled}, ForceRelative={ForceRelative})",
                 settings.IsMouseRecordingEnabled,
                 settings.IsKeyboardRecordingEnabled,
@@ -311,16 +383,16 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
             var macro = _macroRecorder.StopRecording();
             if (macro == null || macro.Events.Count == 0)
             {
-                Logger.Warning("[HeadlessHotkeyActionService] Recording stopped but no events were captured");
+                Log.Warning("[HeadlessHotkeyActionService] Recording stopped but no events were captured");
                 return;
             }
 
             _lastRecordedMacro = macro;
-            Logger.Information("[HeadlessHotkeyActionService] Recording stopped via hotkey (Events={EventCount})", macro.Events.Count);
+            Log.Information("[HeadlessHotkeyActionService] Recording stopped via hotkey (Events={EventCount})", macro.Events.Count);
         }
         catch (Exception ex)
         {
-            Logger.Error(ex, "[HeadlessHotkeyActionService] Failed to stop recording");
+            Log.Error(ex, "[HeadlessHotkeyActionService] Failed to stop recording");
         }
         finally
         {
@@ -356,7 +428,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
         }
         catch (Exception ex)
         {
-            Logger.Debug(ex, "[HeadlessHotkeyActionService] Failed to stop active player");
+            Log.Debug(ex, "[HeadlessHotkeyActionService] Failed to stop active player");
         }
 
         return playbackTask;
@@ -373,19 +445,19 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
         {
             for (var remaining = countdownSeconds; remaining > 0; remaining--)
             {
-                await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
+                await _delayAsync(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
             }
 
             await player.PlayAsync(macro, options, cancellationToken).ConfigureAwait(false);
-            Logger.Information("[HeadlessHotkeyActionService] Playback completed via hotkey");
+            Log.Information("[HeadlessHotkeyActionService] Playback completed via hotkey");
         }
         catch (OperationCanceledException)
         {
-            Logger.Information("[HeadlessHotkeyActionService] Playback cancelled via hotkey");
+            Log.Information("[HeadlessHotkeyActionService] Playback cancelled via hotkey");
         }
         catch (Exception ex)
         {
-            Logger.Error(ex, "[HeadlessHotkeyActionService] Playback failed via hotkey");
+            Log.Error(ex, "[HeadlessHotkeyActionService] Playback failed via hotkey");
         }
         finally
         {
@@ -395,7 +467,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
             }
             catch (Exception ex)
             {
-                Logger.Debug(ex, "[HeadlessHotkeyActionService] Failed to dispose player");
+                Log.Debug(ex, "[HeadlessHotkeyActionService] Failed to dispose player");
             }
 
             await _gate.WaitAsync().ConfigureAwait(false);
@@ -429,7 +501,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
         }
         catch (Exception ex)
         {
-            Logger.Warning(ex, "[HeadlessHotkeyActionService] Failed to re-enable playback/pause hotkeys after recording");
+            Log.Warning(ex, "[HeadlessHotkeyActionService] Failed to re-enable playback/pause hotkeys after recording");
         }
         finally
         {
@@ -440,9 +512,23 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
     private static void ObserveTask(Task task, string operation)
     {
         _ = task.ContinueWith(
-            t => Log.Error(t.Exception, "[HeadlessHotkeyActionService] Unhandled error during {Operation}", operation),
+            t => Log.Error(
+                (Exception?)t.Exception ?? new InvalidOperationException($"Task '{operation}' faulted without an exception."),
+                "[HeadlessHotkeyActionService] Unhandled error during {Operation}",
+                operation),
             CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted,
             TaskScheduler.Default);
+    }
+
+    private void DisposeGate()
+    {
+        if (_gateDisposed)
+        {
+            return;
+        }
+
+        _gate.Dispose();
+        _gateDisposed = true;
     }
 }

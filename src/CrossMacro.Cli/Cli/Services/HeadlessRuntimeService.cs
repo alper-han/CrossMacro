@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Services;
+using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Cli.Services;
 
@@ -118,7 +119,7 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
         {
             if (hotkeyActionsStarted)
             {
-                TryStop(() => _headlessHotkeyActionService.Stop());
+                await TryStopAsync(() => _headlessHotkeyActionService.StopAsync(CancellationToken.None)).ConfigureAwait(false);
             }
 
             if (textExpansionStarted)
@@ -148,6 +149,17 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
         try
         {
             stopAction();
+        }
+        catch
+        {
+        }
+    }
+
+    private static async Task TryStopAsync(Func<Task> stopAction)
+    {
+        try
+        {
+            await stopAction().ConfigureAwait(false);
         }
         catch
         {

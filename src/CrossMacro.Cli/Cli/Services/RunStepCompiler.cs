@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
+using CrossMacro.Infrastructure.Services;
+using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Cli.Services;
 

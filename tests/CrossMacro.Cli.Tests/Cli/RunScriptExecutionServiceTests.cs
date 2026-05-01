@@ -2,6 +2,7 @@ using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Cli;
 using CrossMacro.Cli.Services;
+using CrossMacro.Platform.Abstractions;
 using NSubstitute;
 using System.IO;
 

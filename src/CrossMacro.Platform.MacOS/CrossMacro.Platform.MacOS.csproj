@@ -2,6 +2,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CrossMacro.Core\CrossMacro.Core.csproj" />
+    <ProjectReference Include="..\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
+    <ProjectReference Include="..\CrossMacro.Platform.Abstractions\CrossMacro.Platform.Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>

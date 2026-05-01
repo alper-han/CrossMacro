@@ -1,5 +1,5 @@
-using CrossMacro.Core.Services;
 using CrossMacro.Platform.MacOS.Helpers;
+using CrossMacro.Platform.Abstractions;
 using System.Runtime.Versioning;
 
 namespace CrossMacro.Platform.MacOS.Services;

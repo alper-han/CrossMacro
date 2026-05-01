@@ -1,6 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
-using CrossMacro.Core.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.MacOS.Native;
 
 namespace CrossMacro.Platform.MacOS.Services;

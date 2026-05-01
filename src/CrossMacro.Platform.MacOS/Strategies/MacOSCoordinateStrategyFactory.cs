@@ -1,6 +1,6 @@
 using System;
 using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Recording.Strategies;
+using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Platform.MacOS.Strategies;
 

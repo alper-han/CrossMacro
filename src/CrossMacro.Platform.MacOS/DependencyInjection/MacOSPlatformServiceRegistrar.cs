@@ -1,7 +1,8 @@
 using System;
 using System.Runtime.Versioning;
 using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Recording.Strategies;
+using CrossMacro.Infrastructure.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.MacOS.Services;
 using CrossMacro.Platform.MacOS.Strategies;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,6 +12,8 @@ namespace CrossMacro.Platform.MacOS.DependencyInjection;
 [SupportedOSPlatform("macos")]
 public sealed class MacOSPlatformServiceRegistrar : IPlatformServiceRegistrar
 {
+    public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.MacOS;
+
     public void RegisterPlatformServices(IServiceCollection services)
     {
         services.AddSingleton<IKeyboardLayoutService, MacKeyboardLayoutService>();

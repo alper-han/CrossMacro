@@ -1,5 +1,5 @@
-using CrossMacro.Core.Services;
 using CrossMacro.Platform.MacOS;
+using CrossMacro.Platform.Abstractions;
 using Xunit;
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;

@@ -158,16 +158,18 @@ jobs:
   build-linux-binaries:
     name: Build Linux Binaries (${{ matrix.arch_suffix }})
     needs: build-core
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - arch_suffix: x64
+            runner: ubuntu-latest
             target_arch: x86_64
             dotnet_rid: linux-x64
             daemon_publish_args: ""
           - arch_suffix: arm64
+            runner: ubuntu-24.04-arm
             target_arch: aarch64
             dotnet_rid: linux-arm64
             daemon_publish_args: "-p:PublishAot=false --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true"
@@ -179,6 +181,12 @@ jobs:
       uses: actions/setup-dotnet@v5
       with:
         dotnet-version: '10.0.x'
+
+    - name: Install native publish prerequisites
+      if: ${{ matrix.arch_suffix == 'x64' }}
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang build-essential
 
     - name: Build Linux UI binary
       run: |
@@ -202,6 +210,12 @@ jobs:
           ${{ matrix.daemon_publish_args }} \
           -p:Version="${{ needs.build-core.outputs.version }}" \
           -o "publish-daemon-${{ matrix.arch_suffix }}/"
+
+    - name: Smoke published Linux artifacts
+      run: |
+        chmod +x scripts/smoke-published-linux-artifacts.sh
+        ./scripts/smoke-published-linux-artifacts.sh \
+          --ui-binary "publish-linux-${{ matrix.arch_suffix }}/CrossMacro.UI"
 
     - name: Upload Linux UI artifacts
       uses: actions/upload-artifact@v7

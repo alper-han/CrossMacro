@@ -148,13 +148,19 @@ jobs:
         dotnet test tests/CrossMacro.Platform.Linux.Tests/CrossMacro.Platform.Linux.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj --configuration Debug --no-build --verbosity normal
 
-  smoke-publish-linux:
-    name: Smoke Publish (Linux ${{ matrix.rid }})
-    runs-on: ubuntu-latest
+  smoke-published-linux-artifacts:
+    name: Smoke Published Linux Artifacts (${{ matrix.arch_suffix }})
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        rid: [linux-x64, linux-arm64]
+        include:
+          - arch_suffix: x64
+            runner: ubuntu-latest
+            dotnet_rid: linux-x64
+          - arch_suffix: arm64
+            runner: ubuntu-24.04-arm
+            dotnet_rid: linux-arm64
 
     steps:
     - name: Checkout code
@@ -165,11 +171,30 @@ jobs:
       with:
         dotnet-version: '10.0.x'
 
-    - name: Restore dependencies
-      run: dotnet restore src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj -r ${{ matrix.rid }}
+    - name: Install native publish prerequisites
+      if: ${{ matrix.arch_suffix == 'x64' }}
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang build-essential
 
-    - name: Smoke Publish (${{ matrix.rid }})
-      run: dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj --configuration Debug --no-restore -r ${{ matrix.rid }} --self-contained false -o publish-smoke-${{ matrix.rid }}
+    - name: Publish Linux UI release artifact
+      run: |
+        dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj \
+          -c Release \
+          -r "${{ matrix.dotnet_rid }}" \
+          --self-contained true \
+          -p:PublishSingleFile=true \
+          -p:PublishTrimmed=true \
+          -p:PublishAot=false \
+          -p:DebugType=None \
+          -p:DebugSymbols=false \
+          -o "publish-linux-${{ matrix.arch_suffix }}/"
+
+    - name: Smoke published Linux artifacts
+      run: |
+        chmod +x scripts/smoke-published-linux-artifacts.sh
+        ./scripts/smoke-published-linux-artifacts.sh \
+          --ui-binary "publish-linux-${{ matrix.arch_suffix }}/CrossMacro.UI"
 
   build-windows:
     name: Build (Windows)

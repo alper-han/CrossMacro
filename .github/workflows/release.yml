@@ -927,7 +927,7 @@ jobs:
         retention-days: 30
     
     - name: Upload to Release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         name: ${{ steps.release_meta.outputs.release_name }}
         tag_name: ${{ steps.release_meta.outputs.tag }}

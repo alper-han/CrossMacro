@@ -19,6 +19,7 @@ public interface ISecurityAuditLogger
     void LogDisconnect(uint uid, int pid, TimeSpan duration);
     void LogCaptureStart(uint uid, int pid, bool mouse, bool keyboard);
     void LogCaptureStop(uint uid, int pid);
+    void LogSimulation(uint uid, int pid, ushort type, ushort code, int value);
 }
 
 public interface IPeerCredentialsProvider
@@ -72,6 +73,9 @@ public sealed class SecurityAuditLogger : ISecurityAuditLogger
 
     public void LogCaptureStop(uint uid, int pid) =>
         _inner.LogCaptureStop(uid, pid);
+
+    public void LogSimulation(uint uid, int pid, ushort type, ushort code, int value) =>
+        _inner.LogSimulation(uid, pid, type, code, value);
 }
 
 public sealed class PeerCredentialsProvider : IPeerCredentialsProvider

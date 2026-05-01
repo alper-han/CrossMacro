@@ -1,8 +1,8 @@
 using System;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
-using Serilog;
-using CrossMacro.Platform.Linux.Native;
+using CrossMacro.Core.Logging;
+using CrossMacro.Infrastructure.Linux.Native;
 
 namespace CrossMacro.Daemon.Security;
 

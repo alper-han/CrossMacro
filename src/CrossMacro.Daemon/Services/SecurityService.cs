@@ -4,7 +4,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Daemon.Security;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Daemon.Services;
 
@@ -41,88 +41,21 @@ public class SecurityService : ISecurityService
 
     public async Task<(uint Uid, int Pid)?> ValidateConnectionAsync(Socket client)
     {
-        // Get peer credentials
-        var creds = _peerCredentials.GetCredentials(client);
-        if (creds == null)
+        var decision = await AuthorizeConnectionAsync(client);
+        if (!decision.IsAuthorized)
         {
-            Log.Warning("[Security] Failed to get peer credentials, rejecting connection");
-            _auditLogger.LogSecurityViolation(0, 0, "PEER_CRED_FAILED");
-            client.Dispose();
-            return null;
-        }
-        
-        var (uid, gid, pid) = creds.Value;
-        var executable = _peerCredentials.GetProcessExecutable(pid);
-        
-        Log.Information("Client connected: UID={Uid}, GID={Gid}, PID={Pid}, Exe={Exe}", 
-            uid, gid, pid, executable ?? "unknown");
-        
-        // Reject root connections (unless configured otherwise, but default security policy says no)
-        if (uid == 0)
-        {
-            Log.Warning("[Security] Root connection rejected (UID=0)");
-            _auditLogger.LogConnectionAttempt(uid, pid, executable, false, "ROOT_REJECTED");
-            client.Dispose();
-            return null;
-        }
-        
-        // Rate limiting
-        if (_rateLimiter.IsRateLimited(uid))
-        {
-            Log.Warning("[Security] UID {Uid} is rate limited", uid);
-            _auditLogger.LogRateLimited(uid, pid);
-            client.Dispose();
-            return null;
-        }
-        
-        // Check group membership
-        if (!_peerCredentials.IsUserInGroup(uid, "crossmacro"))
-        {
-            Log.Warning("[Security] UID {Uid} is not in 'crossmacro' group", uid);
-            _auditLogger.LogConnectionAttempt(uid, pid, executable, false, "NOT_IN_GROUP");
-            client.Dispose();
-            return null;
-        }
-        
-        // Polkit authorization
-        bool polkitAuthorized;
-        if (IsUidAuthorizationCached(uid))
-        {
-            Log.Debug("[Security] Reusing cached polkit authorization for UID {Uid}", uid);
-            polkitAuthorized = true;
-        }
-        else
-        {
-            try
-            {
-                polkitAuthorized = await _polkitAuthorization.IsInputCaptureAuthorizedAsync(uid, pid);
-            }
-            catch (Exception ex)
-            {
-                Log.Warning(ex, "[Security] Polkit authorization check failed for UID {Uid}", uid);
-                RemoveCachedAuthorization(uid);
-                _auditLogger.LogConnectionAttempt(uid, pid, executable, false, "POLKIT_ERROR");
-                client.Dispose();
-                return null;
-            }
-        }
-        
-        if (!polkitAuthorized)
-        {
-            Log.Warning("[Security] Polkit authorization denied for UID {Uid}", uid);
-            RemoveCachedAuthorization(uid);
-            _auditLogger.LogConnectionAttempt(uid, pid, executable, false, "POLKIT_DENIED");
-            client.Dispose();
+            RejectConnection(client, decision);
             return null;
         }
 
-        CacheAuthorization(uid);
-        
-        // Success
-        _auditLogger.LogConnectionAttempt(uid, pid, executable, true);
-        _rateLimiter.RecordSuccess(uid);
+        _auditLogger.LogConnectionAttempt(
+            decision.Uid,
+            decision.Pid,
+            decision.Executable,
+            success: true);
+        _rateLimiter.RecordSuccess(decision.Uid);
 
-        return (uid, pid);
+        return (decision.Uid, decision.Pid);
     }
 
     public void LogDisconnect(uint uid, int pid, TimeSpan duration)
@@ -139,6 +72,11 @@ public class SecurityService : ISecurityService
     public void LogCaptureStop(uint uid, int pid)
     {
         _auditLogger.LogCaptureStop(uid, pid);
+    }
+
+    public void LogSimulation(uint uid, int pid, ushort type, ushort code, int value)
+    {
+        _auditLogger.LogSimulation(uid, pid, type, code, value);
     }
 
     private bool IsUidAuthorizationCached(uint uid)
@@ -194,5 +132,117 @@ public class SecurityService : ISecurityService
         {
             _authorizedUidCache.Remove(uid);
         }
+    }
+
+    private async Task<ConnectionAuthorizationDecision> AuthorizeConnectionAsync(Socket client)
+    {
+        var creds = _peerCredentials.GetCredentials(client);
+        if (creds == null)
+        {
+            Log.Warning("[Security] Failed to get peer credentials, rejecting connection");
+            _auditLogger.LogSecurityViolation(0, 0, "PEER_CRED_FAILED");
+            return ConnectionAuthorizationDecision.Reject("PEER_CRED_FAILED");
+        }
+
+        var (uid, gid, pid) = creds.Value;
+        var executable = _peerCredentials.GetProcessExecutable(pid);
+
+        Log.Information(
+            "Client connected: UID={Uid}, GID={Gid}, PID={Pid}, Exe={Exe}",
+            uid,
+            gid,
+            pid,
+            executable ?? "unknown");
+
+        if (uid == 0)
+        {
+            Log.Warning("[Security] Root connection rejected (UID=0)");
+            _auditLogger.LogConnectionAttempt(uid, pid, executable, false, "ROOT_REJECTED");
+            return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "ROOT_REJECTED");
+        }
+
+        if (_rateLimiter.IsRateLimited(uid))
+        {
+            Log.Warning("[Security] UID {Uid} is rate limited", uid);
+            _auditLogger.LogRateLimited(uid, pid);
+            return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "RATE_LIMITED");
+        }
+
+        if (!_peerCredentials.IsUserInGroup(uid, "crossmacro"))
+        {
+            Log.Warning("[Security] UID {Uid} is not in 'crossmacro' group", uid);
+            _auditLogger.LogConnectionAttempt(uid, pid, executable, false, "NOT_IN_GROUP");
+            return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "NOT_IN_GROUP");
+        }
+
+        var polkitDecision = await AuthorizeWithPolkitAsync(uid, pid, executable);
+        if (!polkitDecision.IsAuthorized)
+        {
+            return polkitDecision;
+        }
+
+        CacheAuthorization(uid);
+        return ConnectionAuthorizationDecision.Allow(uid, pid, executable);
+    }
+
+    private async Task<ConnectionAuthorizationDecision> AuthorizeWithPolkitAsync(uint uid, int pid, string? executable)
+    {
+        if (IsUidAuthorizationCached(uid))
+        {
+            Log.Debug("[Security] Reusing cached polkit authorization for UID {Uid}", uid);
+            return ConnectionAuthorizationDecision.Allow(uid, pid, executable);
+        }
+
+        bool polkitAuthorized;
+        try
+        {
+            polkitAuthorized = await _polkitAuthorization.IsInputCaptureAuthorizedAsync(uid, pid);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[Security] Polkit authorization check failed for UID {Uid}", uid);
+            RemoveCachedAuthorization(uid);
+            _auditLogger.LogConnectionAttempt(uid, pid, executable, false, "POLKIT_ERROR");
+            return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "POLKIT_ERROR");
+        }
+
+        if (!polkitAuthorized)
+        {
+            Log.Warning("[Security] Polkit authorization denied for UID {Uid}", uid);
+            RemoveCachedAuthorization(uid);
+            _auditLogger.LogConnectionAttempt(uid, pid, executable, false, "POLKIT_DENIED");
+            return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "POLKIT_DENIED");
+        }
+
+        return ConnectionAuthorizationDecision.Allow(uid, pid, executable);
+    }
+
+    private static void RejectConnection(Socket client, ConnectionAuthorizationDecision decision)
+    {
+        try
+        {
+            client.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "[Security] Failed to dispose rejected client socket for reason {Reason}", decision.Reason);
+        }
+    }
+
+    private readonly record struct ConnectionAuthorizationDecision(
+        bool IsAuthorized,
+        uint Uid,
+        int Pid,
+        string? Executable,
+        string? Reason)
+    {
+        public static ConnectionAuthorizationDecision Allow(uint uid, int pid, string? executable) =>
+            new(true, uid, pid, executable, null);
+
+        public static ConnectionAuthorizationDecision Reject(string reason) =>
+            new(false, 0, 0, null, reason);
+
+        public static ConnectionAuthorizationDecision Reject(uint uid, int pid, string? executable, string reason) =>
+            new(false, uid, pid, executable, reason);
     }
 }

@@ -1,7 +1,8 @@
 using System;
+using System.Text;
 using System.IO;
-using Serilog;
-using CrossMacro.Platform.Linux.Native;
+using CrossMacro.Core.Logging;
+using CrossMacro.Infrastructure.Linux.Native;
 
 namespace CrossMacro.Daemon.Security;
 
@@ -86,10 +87,10 @@ public class AuditLogger
     public void LogConnectionAttempt(uint uid, int pid, string? executable, bool success, string? reason = null)
     {
         var action = success ? "CONNECT_OK" : "CONNECT_DENIED";
-        var details = executable != null ? $"exe={executable}" : "";
+        var details = executable != null ? FormatField("exe", executable) : "";
         if (!success && reason != null)
         {
-            details += $" reason={reason}";
+            details += $" {FormatField("reason", reason)}";
         }
         WriteEntry(uid, pid, action, details);
     }
@@ -140,7 +141,36 @@ public class AuditLogger
     /// </summary>
     public void LogSecurityViolation(uint uid, int pid, string violation)
     {
-        WriteEntry(uid, pid, "SECURITY_VIOLATION", violation);
+        WriteEntry(uid, pid, "SECURITY_VIOLATION", FormatField("violation", violation));
+    }
+
+    private static string FormatField(string name, string? value)
+    {
+        return $"{name}={EscapeFieldValue(value)}";
+    }
+
+    private static string EscapeFieldValue(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder(value.Length);
+        foreach (var character in value)
+        {
+            builder.Append(character switch
+            {
+                '\r' => "\\r",
+                '\n' => "\\n",
+                '|' => "\\|",
+                '=' => "\\=",
+                _ when char.IsControl(character) => $"\\u{(int)character:X4}",
+                _ => character
+            });
+        }
+
+        return builder.ToString();
     }
 
     private void WriteEntry(uint uid, int pid, string action, string details)

@@ -31,4 +31,9 @@ public interface ISecurityService
     /// </summary>
     void LogCaptureStop(uint uid, int pid);
 
+    /// <summary>
+    /// Logs a simulated input event.
+    /// </summary>
+    void LogSimulation(uint uid, int pid, ushort type, ushort code, int value);
+
 }

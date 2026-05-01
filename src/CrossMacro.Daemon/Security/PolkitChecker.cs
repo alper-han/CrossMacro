@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Daemon.Security;
 

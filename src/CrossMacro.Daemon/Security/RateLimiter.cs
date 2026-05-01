@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Serilog;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Daemon.Security;
 

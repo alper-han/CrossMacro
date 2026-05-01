@@ -3,10 +3,10 @@ using System.IO;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Core;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using Serilog;
-using CrossMacro.Core;
 using CrossMacro.Infrastructure.Serialization;
 using CrossMacro.Infrastructure.Helpers;
 
@@ -18,7 +18,6 @@ namespace CrossMacro.Infrastructure.Services;
 public class SettingsService : ISettingsService
 {
     private const string SettingsFileName = ConfigFileNames.Settings;
-    private readonly string _configDirectory;
     private readonly string _settingsFilePath;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     private AppSettings _currentSettings;
@@ -33,14 +32,10 @@ public class SettingsService : ISettingsService
     {
         if (string.IsNullOrEmpty(configRootPath))
         {
-            _configDirectory = PathHelper.GetConfigDirectory();
-        }
-        else
-        {
-            _configDirectory = configRootPath;
+            configRootPath = PathHelper.GetConfigDirectory();
         }
 
-        _settingsFilePath = Path.Combine(_configDirectory, SettingsFileName);
+        _settingsFilePath = Path.Combine(configRootPath, SettingsFileName);
         
         _currentSettings = new AppSettings();
     }
@@ -84,8 +79,8 @@ public class SettingsService : ISettingsService
                 return _currentSettings;
             }
 
-            var json = await File.ReadAllTextAsync(_settingsFilePath);
-            _currentSettings = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.AppSettings) ?? new AppSettings();
+            _currentSettings = await FileBackedJsonStorage.ReadAsync(_settingsFilePath, CrossMacroJsonContext.Default.AppSettings).ConfigureAwait(false)
+                ?? new AppSettings();
             NormalizeSettings(_currentSettings);
             
             Log.Information("Settings loaded from {Path}", _settingsFilePath);
@@ -113,8 +108,8 @@ public class SettingsService : ISettingsService
                 return _currentSettings;
             }
 
-            var json = File.ReadAllText(_settingsFilePath);
-            _currentSettings = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.AppSettings) ?? new AppSettings();
+            _currentSettings = FileBackedJsonStorage.Read(_settingsFilePath, CrossMacroJsonContext.Default.AppSettings)
+                ?? new AppSettings();
             NormalizeSettings(_currentSettings);
             
             Log.Information("Settings loaded from {Path}", _settingsFilePath);
@@ -134,11 +129,8 @@ public class SettingsService : ISettingsService
         await _saveGate.WaitAsync().ConfigureAwait(false);
         try
         {
-            // Ensure config directory exists
-            Directory.CreateDirectory(_configDirectory);
-
-            var json = JsonSerializer.Serialize(_currentSettings, CrossMacroJsonContext.Default.AppSettings);
-            await File.WriteAllTextAsync(_settingsFilePath, json);
+            await FileBackedJsonStorage.WriteAsync(_settingsFilePath, _currentSettings, CrossMacroJsonContext.Default.AppSettings)
+                .ConfigureAwait(false);
             
             Log.Information("Settings saved to {Path}", _settingsFilePath);
         }
@@ -158,11 +150,7 @@ public class SettingsService : ISettingsService
         _saveGate.Wait();
         try
         {
-            // Ensure config directory exists
-            Directory.CreateDirectory(_configDirectory);
-
-            var json = JsonSerializer.Serialize(_currentSettings, CrossMacroJsonContext.Default.AppSettings);
-            File.WriteAllText(_settingsFilePath, json);
+            FileBackedJsonStorage.Write(_settingsFilePath, _currentSettings, CrossMacroJsonContext.Default.AppSettings);
             
             Log.Information("Settings saved to {Path}", _settingsFilePath);
         }

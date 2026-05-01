@@ -23,7 +23,7 @@ public static class LoggerSetup
     /// Initialize Serilog with cross-platform log directory support.
     /// </summary>
     /// <param name="logLevel">Initial log level (Debug, Information, Warning, Error).</param>
-    public static void Initialize(string logLevel = "Information")
+    public static void Initialize(string logLevel = "Information", bool enableFileLogging = true)
     {
         _levelSwitch = new LoggingLevelSwitch(ParseLogLevel(logLevel));
 
@@ -31,16 +31,19 @@ public static class LoggerSetup
             .MinimumLevel.ControlledBy(_levelSwitch)
             .WriteTo.Console();
 
-        try
+        if (enableFileLogging)
         {
-            var logDir = GetLogDirectory();
-            Directory.CreateDirectory(logDir);
-            var logPath = Path.Combine(logDir, "log-.txt");
-            config = config.WriteTo.Async(a => a.File(logPath, rollingInterval: RollingInterval.Day));
-        }
-        catch (Exception ex)
-        {
-            WriteDiagnosticToStderr($"[LoggerSetup] File logging disabled: {ex.Message}");
+            try
+            {
+                var logDir = GetLogDirectory();
+                Directory.CreateDirectory(logDir);
+                var logPath = Path.Combine(logDir, "log-.txt");
+                config = config.WriteTo.Async(a => a.File(logPath, rollingInterval: RollingInterval.Day));
+            }
+            catch (Exception ex)
+            {
+                WriteDiagnosticToStderr($"[LoggerSetup] File logging disabled: {ex.Message}");
+            }
         }
 
         Log.Logger = config.CreateLogger();

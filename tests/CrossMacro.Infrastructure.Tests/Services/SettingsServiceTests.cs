@@ -133,6 +133,46 @@ public class SettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public void Load_WhenSettingsValuesRequireNormalization_ReturnsNormalizedValues()
+    {
+        // Arrange
+        var service = new SettingsService(_tempPath);
+        var rawJson = """
+            {
+              "playbackSpeed": 999.0,
+              "loopDelayMs": -15,
+              "loopDelayMinMs": 120,
+              "loopDelayMaxMs": 10
+            }
+            """;
+        File.WriteAllText(Path.Combine(_tempPath, "settings.json"), rawJson);
+
+        // Act
+        var result = service.Load();
+
+        // Assert
+        result.PlaybackSpeed.Should().Be(10.0);
+        result.LoopDelayMs.Should().Be(0);
+        result.LoopDelayMinMs.Should().Be(120);
+        result.LoopDelayMaxMs.Should().Be(120);
+    }
+
+    [Fact]
+    public void Load_WhenFileMissing_PersistsDefaultSettingsFile()
+    {
+        // Arrange
+        var service = new SettingsService(_tempPath);
+        var settingsPath = Path.Combine(_tempPath, "settings.json");
+
+        // Act
+        var result = service.Load();
+
+        // Assert
+        result.Should().NotBeNull();
+        File.Exists(settingsPath).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task SaveAndLoadAsync_RoundTrip_PreservesSettings()
     {
         // Arrange
@@ -185,5 +225,20 @@ public class SettingsServiceTests : IDisposable
         // Assert
         result.Should().NotBeNull();
         result.PlaybackSpeed.Should().Be(1.0);
+    }
+
+    [Fact]
+    public void Save_WhenWriteFails_Throws()
+    {
+        // Arrange
+        var blockingPath = Path.Combine(_tempPath, "not-a-directory");
+        File.WriteAllText(blockingPath, "blocking file");
+        var service = new SettingsService(blockingPath);
+
+        // Act
+        var act = () => service.Save();
+
+        // Assert
+        act.Should().Throw<IOException>();
     }
 }

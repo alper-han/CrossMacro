@@ -10,6 +10,13 @@ public static class Log
     private static readonly ICoreLogger BootstrapLogger = new BootstrapCoreLogger();
     private static ICoreLogger _logger = BootstrapLogger;
 
+    public static IDisposable PushLogger(ICoreLogger logger)
+    {
+        var previousLogger = _logger;
+        Configure(logger);
+        return new LoggerRestoreScope(previousLogger);
+    }
+
     public static void Configure(ICoreLogger logger)
     {
         _logger = logger ?? BootstrapLogger;
@@ -197,6 +204,25 @@ public static class Log
             }
             catch (ObjectDisposedException)
             {
+            }
+        }
+    }
+
+    private sealed class LoggerRestoreScope : IDisposable
+    {
+        private ICoreLogger? _previousLogger;
+
+        public LoggerRestoreScope(ICoreLogger previousLogger)
+        {
+            _previousLogger = previousLogger;
+        }
+
+        public void Dispose()
+        {
+            var previousLogger = Interlocked.Exchange(ref _previousLogger, null);
+            if (previousLogger != null)
+            {
+                Configure(previousLogger);
             }
         }
     }

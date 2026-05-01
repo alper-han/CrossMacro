@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using CrossMacro.Platform.Linux.Native;
-using CrossMacro.Platform.Linux.Native.UInput;
-using CrossMacro.Platform.Linux.Native.Evdev;
-using Serilog;
+using CrossMacro.Infrastructure.Linux.Native;
+using CrossMacro.Infrastructure.Linux.Native.UInput;
+using CrossMacro.Infrastructure.Linux.Native.Evdev;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Daemon.Services;
 

@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
-using CrossMacro.Platform.Linux.Native.UInput;
-using Serilog;
+using CrossMacro.Infrastructure.Linux.Native.UInput;
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Daemon.Services;
 

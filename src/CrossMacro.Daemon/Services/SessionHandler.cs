@@ -1,13 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using CrossMacro.Core.Ipc;
-using CrossMacro.Core.Services; // For InputEventType
-using CrossMacro.Platform.Linux.Native.UInput; // For UInputNative
-using Serilog;
+using CrossMacro.Core.Logging;
+using CrossMacro.Daemon.Contracts.Ipc;
 
 namespace CrossMacro.Daemon.Services;
 
@@ -20,8 +17,8 @@ public class SessionHandler : ISessionHandler
     private readonly int _maxBufferedCaptureEvents;
 
     public SessionHandler(
-        ISecurityService security, 
-        IVirtualDeviceManager virtualDevice, 
+        ISecurityService security,
+        IVirtualDeviceManager virtualDevice,
         IInputCaptureManager inputCapture,
         int maxBufferedCaptureEvents = DefaultMaxBufferedCaptureEvents)
     {
@@ -62,102 +59,23 @@ public class SessionHandler : ISessionHandler
             }
         }, client);
 
-        // Handshake
-        try 
+        try
         {
-            var opcode = (IpcOpCode)reader.ReadByte();
-            if (opcode != IpcOpCode.Handshake)
+            var session = new DaemonProtocolSession(
+                reader,
+                writer,
+                stream,
+                _maxBufferedCaptureEvents,
+                new DaemonInputEventEncoder());
+            var lifecycle = new SessionLifecycle(session, _security, _virtualDevice, _inputCapture);
+
+            if (!lifecycle.TryInitialize())
             {
-                Log.Warning("Invalid handshake opcode: {Op}", opcode);
                 return;
             }
-            
-            var version = reader.ReadInt32();
-            if (version != IpcProtocol.ProtocolVersion)
-            {
-                Log.Warning("Protocol mismatch. Client: {C}, Server: {S}", version, IpcProtocol.ProtocolVersion);
-                writer.Write((byte)IpcOpCode.Error);
-                writer.Write("Protocol version mismatch");
-                return;
-            }
-
-            writer.Write((byte)IpcOpCode.Handshake);
-            writer.Write(IpcProtocol.ProtocolVersion);
-            writer.Flush();
-
-            // Default Device Init
-            try 
-            {
-
-               _virtualDevice.Configure(0, 0); // Default relative
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Failed to create UInput device");
-                writer.Write((byte)IpcOpCode.Error);
-                writer.Write($"Failed to init UInput: {ex.Message}");
-                return;
-            }
-
-            var writerGate = new OrderedWriteGate();
-            bool disconnected = false;
-            var captureState = new CaptureForwardingState();
-
-            Action<UInputNative.input_event> CreateCaptureEventForwarder(int generation) => (e) =>
-            {
-                if (disconnected) return;
-
-                try
-                {
-                    using (writerGate.Enter())
-                    {
-                        if (disconnected) return;
-
-                        if (generation == captureState.PendingGeneration)
-                        {
-                            if (captureState.BufferedCaptureEvents.Count >= _maxBufferedCaptureEvents)
-                            {
-                                captureState.BufferedCaptureEvents.Dequeue();
-                                captureState.DroppedPendingCaptureEvents++;
-                            }
-
-                            captureState.BufferedCaptureEvents.Enqueue(e);
-                            return;
-                        }
-
-                        if (!captureState.CaptureForwardingEnabled || generation != captureState.ActiveGeneration)
-                        {
-                            return;
-                        }
-
-                        WriteInputEvent(writer, e);
-                        stream.Flush();
-                    }
-                }
-                catch (IOException)
-                {
-                    disconnected = true;
-                    Log.Debug("[SessionHandler] Stream closed, stopping event forwarding");
-                }
-                catch (Exception ex)
-                {
-                    disconnected = true;
-                    Log.Debug(ex, "[SessionHandler] Failed to write input event");
-                }
-            };
 
             await Task.Run(
-                () => ReadLoop(
-                    reader,
-                    writer,
-                    stream,
-                    writerGate,
-                    captureState,
-                    uid,
-                    pid,
-                    CreateCaptureEventForwarder,
-                    () => disconnected = true,
-                    clientCts.Token),
+                () => lifecycle.Run(uid, pid, client, clientCts.Token),
                 clientCts.Token);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -166,244 +84,263 @@ public class SessionHandler : ISessionHandler
         }
         catch (Exception ex)
         {
-             Log.Error(ex, "Session error");
+            Log.Error(ex, "Session error");
         }
-        finally
-        {
-            // Cleanup is handled in ReadLoop's finally block
-        }
-
     }
 
-    private void ReadLoop(
-        BinaryReader reader,
-        BinaryWriter writer,
-        Stream stream,
-        OrderedWriteGate writerGate,
-        CaptureForwardingState captureState,
-        uint uid,
-        int pid,
-        Func<int, Action<UInputNative.input_event>> createCaptureEventForwarder,
-        Action onDisconnect,
-        CancellationToken token)
+    private sealed class SessionLifecycle
     {
-        try
-        {
-            while (!token.IsCancellationRequested)
-            {
-                var opcodeByte = reader.ReadByte(); // Block read
-                var opcode = (IpcOpCode)opcodeByte;
+        private readonly DaemonProtocolSession _session;
+        private readonly ISecurityService _security;
+        private readonly IVirtualDeviceManager _virtualDevice;
+        private readonly IInputCaptureManager _inputCapture;
 
-                switch (opcode)
+        public SessionLifecycle(
+            DaemonProtocolSession session,
+            ISecurityService security,
+            IVirtualDeviceManager virtualDevice,
+            IInputCaptureManager inputCapture)
+        {
+            _session = session;
+            _security = security;
+            _virtualDevice = virtualDevice;
+            _inputCapture = inputCapture;
+        }
+
+        public bool TryInitialize()
+        {
+            return TryCompleteHandshake() && TryInitializeVirtualDevice();
+        }
+
+        public void Run(uint uid, int pid, Socket client, CancellationToken token)
+        {
+            try
+            {
+                while (!token.IsCancellationRequested)
                 {
-                    case IpcOpCode.StartCapture:
-                        HandleStartCaptureCommand(
-                            reader,
-                            writer,
-                            stream,
-                            writerGate,
-                            captureState,
-                            uid,
-                            pid,
-                            createCaptureEventForwarder);
-                        break;
-                    case IpcOpCode.StopCapture:
-                        HandleStopCaptureCommand(writerGate, captureState, uid, pid);
-                        break;
-                    case IpcOpCode.ConfigureResolution:
-                        HandleConfigureResolutionCommand(reader);
-                        break;
-                    case IpcOpCode.SimulateEvent:
-                        HandleSimulateEventCommand(reader);
-                        break;
-                    default:
-                         Log.Warning("Unknown OpCode: {Op}", opcode);
-                         break;
+                    var opcode = ReadNextOpcode();
+                    ProcessRequest(opcode, uid, pid);
                 }
             }
+            catch (EndOfStreamException)
+            {
+                Log.Debug("[SessionHandler] Client disconnected (EndOfStream)");
+            }
+            catch (IOException ex)
+            {
+                Log.Debug(ex, "[SessionHandler] Client disconnected (IOException)");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error in ReadLoop");
+            }
+            finally
+            {
+                FinalizeSession(client);
+            }
         }
-        catch (EndOfStreamException)
+
+        private IpcOpCode ReadNextOpcode()
         {
-            Log.Debug("[SessionHandler] Client disconnected (EndOfStream)");
+            return (IpcOpCode)_session.Reader.ReadByte();
         }
-        catch (IOException ex)
+
+        private void ProcessRequest(IpcOpCode opcode, uint uid, int pid)
         {
-            Log.Debug(ex, "[SessionHandler] Client disconnected (IOException)");
+            try
+            {
+                DispatchCommand(opcode, uid, pid);
+            }
+            catch (EndOfStreamException)
+            {
+                throw;
+            }
+            catch (IOException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "[SessionHandler] Command processing failed for opcode {Op}", opcode);
+                throw;
+            }
         }
-        catch (Exception ex)
+
+        private void FinalizeSession(Socket client)
         {
-            Log.Error(ex, "Error in ReadLoop");
+            _session.MarkDisconnected();
+
+            try
+            {
+                _inputCapture.StopCapture();
+            }
+            finally
+            {
+                DisposeClientSocket(client);
+            }
         }
-        finally
+
+        private bool TryCompleteHandshake()
         {
-            onDisconnect();
+            var opcode = (IpcOpCode)_session.Reader.ReadByte();
+            if (opcode != IpcOpCode.Handshake)
+            {
+                Log.Warning("Invalid handshake opcode: {Op}", opcode);
+                return false;
+            }
+
+            var version = _session.Reader.ReadInt32();
+            if (version != IpcProtocol.ProtocolVersion)
+            {
+                Log.Warning("Protocol mismatch. Client: {C}, Server: {S}", version, IpcProtocol.ProtocolVersion);
+                _session.Writer.Write((byte)IpcOpCode.Error);
+                _session.Writer.Write("Protocol version mismatch");
+                return false;
+            }
+
+            _session.Writer.Write((byte)IpcOpCode.Handshake);
+            _session.Writer.Write(IpcProtocol.ProtocolVersion);
+            _session.Stream.Flush();
+            return true;
+        }
+
+        private bool TryInitializeVirtualDevice()
+        {
+            try
+            {
+                _virtualDevice.Configure(0, 0);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to create UInput device");
+                _session.Writer.Write((byte)IpcOpCode.Error);
+                _session.Writer.Write($"Failed to init UInput: {ex.Message}");
+                return false;
+            }
+        }
+
+        private void DispatchCommand(IpcOpCode opcode, uint uid, int pid)
+        {
+            switch (opcode)
+            {
+                case IpcOpCode.StartCapture:
+                    HandleStartCaptureCommand(uid, pid);
+                    break;
+                case IpcOpCode.StopCapture:
+                    HandleStopCaptureCommand(uid, pid);
+                    break;
+                case IpcOpCode.ConfigureResolution:
+                    HandleConfigureResolutionCommand();
+                    break;
+                case IpcOpCode.SimulateEvent:
+                    HandleSimulateEventCommand(uid, pid);
+                    break;
+                default:
+                    Log.Warning("Unknown OpCode: {Op}", opcode);
+                    break;
+            }
+        }
+
+        private void HandleStartCaptureCommand(uint uid, int pid)
+        {
+            var requestId = _session.Reader.ReadInt32();
+            var captureMouse = _session.Reader.ReadBoolean();
+            var captureKb = _session.Reader.ReadBoolean();
+            _security.LogCaptureStart(uid, pid, captureMouse, captureKb);
+
+            var requestGeneration = _session.CaptureForwarding.BeginPendingGeneration();
+
+            CaptureStartResult result;
+            try
+            {
+                result = _inputCapture.StartCapture(
+                    captureMouse,
+                    captureKb,
+                    _session.CaptureForwarding.CreateEventForwarder(requestGeneration, _session));
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "[SessionHandler] Capture manager threw during StartCapture");
+                result = CaptureStartResult.Failed(
+                    "Failed to start capture due to internal error: " + ex.Message);
+            }
+
+            using (_session.WriterGate.Enter())
+            {
+                if (result.Success)
+                {
+                    var activation = _session.CaptureForwarding.ActivateGeneration(requestGeneration);
+
+                    _session.Writer.Write((byte)IpcOpCode.CaptureStarted);
+                    _session.Writer.Write(requestId);
+
+                    if (activation.DroppedPendingCaptureEvents > 0)
+                    {
+                        Log.Warning(
+                            "[SessionHandler] Dropped {DroppedCount} pending capture event(s) while waiting for startup acknowledgement (Generation={Generation})",
+                            activation.DroppedPendingCaptureEvents,
+                            requestGeneration);
+                    }
+
+                    if (activation.HasBufferedEvents)
+                    {
+                        while (activation.BufferedEvents!.Count > 0)
+                        {
+                            var bufferedEvent = activation.BufferedEvents.Dequeue();
+                            _session.WriteInputEvent(bufferedEvent);
+                        }
+                    }
+                }
+                else
+                {
+                    _session.Writer.Write((byte)IpcOpCode.CaptureStartFailed);
+                    _session.Writer.Write(requestId);
+                    _session.Writer.Write(result.ErrorMessage ?? "Failed to start capture.");
+                    _session.CaptureForwarding.ResetAfterFailedStart(requestGeneration);
+                }
+
+                _session.Stream.Flush();
+            }
+        }
+
+        private void HandleStopCaptureCommand(uint uid, int pid)
+        {
+            _security.LogCaptureStop(uid, pid);
+            using (_session.WriterGate.Enter())
+            {
+                _session.CaptureForwarding.Stop();
+            }
+
             _inputCapture.StopCapture();
         }
-    }
 
-    private void HandleStartCaptureCommand(
-        BinaryReader reader,
-        BinaryWriter writer,
-        Stream stream,
-        OrderedWriteGate writerGate,
-        CaptureForwardingState captureState,
-        uint uid,
-        int pid,
-        Func<int, Action<UInputNative.input_event>> createCaptureEventForwarder)
-    {
-        var requestId = reader.ReadInt32();
-        var captureMouse = reader.ReadBoolean();
-        var captureKb = reader.ReadBoolean();
-        int requestGeneration;
-        _security.LogCaptureStart(uid, pid, captureMouse, captureKb);
-        using (writerGate.Enter())
+        private void HandleConfigureResolutionCommand()
         {
-            requestGeneration = ++captureState.NextGeneration;
-            captureState.PendingGeneration = requestGeneration;
-            ResetPendingBuffer(captureState);
+            var width = _session.Reader.ReadInt32();
+            var height = _session.Reader.ReadInt32();
+            _virtualDevice.Configure(width, height);
         }
 
-        CaptureStartResult result;
-        try
+        private void HandleSimulateEventCommand(uint uid, int pid)
         {
-            result = _inputCapture.StartCapture(
-                captureMouse,
-                captureKb,
-                createCaptureEventForwarder(requestGeneration));
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "[SessionHandler] Capture manager threw during StartCapture");
-            result = CaptureStartResult.Failed(
-                "Failed to start capture due to internal error: " + ex.Message);
+            var type = _session.Reader.ReadUInt16();
+            var code = _session.Reader.ReadUInt16();
+            var value = _session.Reader.ReadInt32();
+            _virtualDevice.SendEvent(type, code, value);
+            _security.LogSimulation(uid, pid, type, code, value);
         }
 
-        using (writerGate.Enter())
+        private static void DisposeClientSocket(Socket client)
         {
-            if (result.Success)
+            try
             {
-                writer.Write((byte)IpcOpCode.CaptureStarted);
-                writer.Write(requestId);
-                if (captureState.DroppedPendingCaptureEvents > 0)
-                {
-                    Log.Warning(
-                        "[SessionHandler] Dropped {DroppedCount} pending capture event(s) while waiting for startup acknowledgement (Generation={Generation})",
-                        captureState.DroppedPendingCaptureEvents,
-                        requestGeneration);
-                }
-                captureState.ActiveGeneration = requestGeneration;
-                captureState.PendingGeneration = 0;
-                captureState.CaptureForwardingEnabled = true;
-                while (captureState.BufferedCaptureEvents.Count > 0)
-                {
-                    var bufferedEvent = captureState.BufferedCaptureEvents.Dequeue();
-                    WriteInputEvent(writer, bufferedEvent);
-                }
-                captureState.DroppedPendingCaptureEvents = 0;
+                client.Dispose();
             }
-            else
+            catch
             {
-                writer.Write((byte)IpcOpCode.CaptureStartFailed);
-                writer.Write(requestId);
-                writer.Write(result.ErrorMessage ?? "Failed to start capture.");
-                if (captureState.PendingGeneration == requestGeneration)
-                {
-                    captureState.PendingGeneration = 0;
-                }
-                captureState.ActiveGeneration = 0;
-                captureState.CaptureForwardingEnabled = false;
-                ResetPendingBuffer(captureState);
+                // Best effort teardown; session is already fail-closed.
             }
-
-            stream.Flush();
         }
-    }
-
-    private void HandleStopCaptureCommand(
-        OrderedWriteGate writerGate,
-        CaptureForwardingState captureState,
-        uint uid,
-        int pid)
-    {
-        _security.LogCaptureStop(uid, pid);
-        using (writerGate.Enter())
-        {
-            captureState.PendingGeneration = 0;
-            captureState.ActiveGeneration = 0;
-            captureState.CaptureForwardingEnabled = false;
-            ResetPendingBuffer(captureState);
-        }
-        _inputCapture.StopCapture();
-    }
-
-    private void HandleConfigureResolutionCommand(BinaryReader reader)
-    {
-        var width = reader.ReadInt32();
-        var height = reader.ReadInt32();
-        _virtualDevice.Configure(width, height);
-    }
-
-    private void HandleSimulateEventCommand(BinaryReader reader)
-    {
-        var type = reader.ReadUInt16();
-        var code = reader.ReadUInt16();
-        var value = reader.ReadInt32();
-        _virtualDevice.SendEvent(type, code, value);
-    }
-
-    private byte GetEventType(ushort type, ushort code)
-    {
-        if (type == UInputNative.EV_KEY)
-        {
-            if (UInputNative.IsMouseButton(code))
-                return (byte)InputEventType.MouseButton;
-            return (byte)InputEventType.Key;
-        }
-        
-        if (type == UInputNative.EV_REL)
-        {
-            if (code == UInputNative.REL_WHEEL) 
-                return (byte)InputEventType.MouseScroll;
-            return (byte)InputEventType.MouseMove;
-        }
-
-        if (type == UInputNative.EV_ABS)
-        {
-            // Some devices (e.g. QEMU USB Tablet) report pointer motion as ABS_X/ABS_Y.
-            if (code == UInputNative.ABS_X || code == UInputNative.ABS_Y)
-                return (byte)InputEventType.MouseMove;
-        }
-        
-        if (type == UInputNative.EV_SYN) 
-            return (byte)InputEventType.Sync;
-        
-        return (byte)InputEventType.Unknown;
-    }
-
-    private byte WriteInputEvent(BinaryWriter writer, UInputNative.input_event inputEvent)
-    {
-        writer.Write((byte)IpcOpCode.InputEvent);
-        var eventType = GetEventType(inputEvent.type, inputEvent.code);
-        writer.Write(eventType);
-        writer.Write((int)inputEvent.code);
-        writer.Write(inputEvent.value);
-        writer.Write(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-        return eventType;
-    }
-
-    private static void ResetPendingBuffer(CaptureForwardingState captureState)
-    {
-        captureState.BufferedCaptureEvents.Clear();
-        captureState.DroppedPendingCaptureEvents = 0;
-    }
-
-    private sealed class CaptureForwardingState
-    {
-        public int NextGeneration { get; set; }
-        public int PendingGeneration { get; set; }
-        public int ActiveGeneration { get; set; }
-        public bool CaptureForwardingEnabled { get; set; }
-        public int DroppedPendingCaptureEvents { get; set; }
-        public Queue<UInputNative.input_event> BufferedCaptureEvents { get; } = new();
     }
 }

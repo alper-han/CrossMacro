@@ -3,8 +3,8 @@ namespace CrossMacro.Daemon.Tests.Services;
 using System;
 using System.Collections.Generic;
 using CrossMacro.Daemon.Services;
-using CrossMacro.Platform.Linux.Native.Evdev;
-using CrossMacro.Platform.Linux.Native.UInput;
+using CrossMacro.Infrastructure.Linux.Native.Evdev;
+using CrossMacro.Infrastructure.Linux.Native.UInput;
 
 public class InputCaptureManagerTests
 {

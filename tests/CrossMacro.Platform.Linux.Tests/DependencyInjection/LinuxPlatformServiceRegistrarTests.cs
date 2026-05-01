@@ -2,7 +2,9 @@ namespace CrossMacro.Platform.Linux.Tests.DependencyInjection;
 
 using System.Linq;
 using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Recording.Strategies;
+using CrossMacro.Infrastructure.Services;
+using CrossMacro.Packaging.Abstractions;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Linux.DependencyInjection;
 using CrossMacro.Platform.Linux.Services;
 using CrossMacro.Platform.Linux.Services.Factories;
@@ -19,11 +21,18 @@ public class LinuxPlatformServiceRegistrarTests
     {
         var services = new ServiceCollection();
 
-        new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services);
+        var registrar = new LinuxPlatformServiceRegistrar();
+
+        Assert.Equal(PlatformClipboardRegistration.Linux, registrar.ClipboardRegistration);
+
+        registrar.RegisterPlatformServices(services);
 
         Assert.Contains(services, d => d.ServiceType == typeof(ILinuxEnvironmentDetector) && d.ImplementationType == typeof(LinuxEnvironmentDetector));
+        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxEnvironmentVariables) && d.ImplementationType == typeof(LinuxEnvironmentVariables));
         Assert.Contains(services, d => d.ServiceType == typeof(ILinuxInputCapabilityDetector) && d.ImplementationType == typeof(LinuxInputCapabilityDetector));
+        Assert.DoesNotContain(services, d => d.ServiceType == typeof(LinuxInputProbeUtilities));
         Assert.Contains(services, d => d.ServiceType == typeof(IEnvironmentInfoProvider) && d.ImplementationType == typeof(LinuxEnvironmentInfoProvider));
+        Assert.Contains(services, d => d.ServiceType == typeof(IDisplaySessionService) && d.ImplementationType == typeof(LinuxDisplaySessionService));
         Assert.Contains(services, d => d.ServiceType == typeof(IPermissionChecker) && d.ImplementationType == typeof(LinuxPermissionChecker));
         Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategyFactory) && d.ImplementationType == typeof(LinuxCoordinateStrategyFactory));
         Assert.Contains(services, d => d.ServiceType == typeof(IPlaybackBehaviorPolicy));
@@ -53,13 +62,12 @@ public class LinuxPlatformServiceRegistrarTests
         Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategySelector) && d.ImplementationType == typeof(X11AbsoluteStrategySelector));
         Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategySelector) && d.ImplementationType == typeof(X11RelativeStrategySelector));
 
-        Assert.Equal(6, services.Count(d => d.ServiceType == typeof(IPositionProviderSelector)));
+        Assert.Equal(5, services.Count(d => d.ServiceType == typeof(IPositionProviderSelector)));
         Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(X11PositionProviderSelector));
         Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(GnomePositionProviderSelector));
         Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(KdePositionProviderSelector));
         Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(HyprlandPositionProviderSelector));
         Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(WayfirePositionProviderSelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(FallbackPositionProviderSelector));
     }
 
     [Fact]
@@ -69,9 +77,17 @@ public class LinuxPlatformServiceRegistrarTests
         new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services);
 
         using var provider = services.BuildServiceProvider();
+        Assert.IsType<LinuxEnvironmentVariables>(provider.GetRequiredService<ILinuxEnvironmentVariables>());
+        Assert.IsType<LinuxEnvironmentDetector>(provider.GetRequiredService<ILinuxEnvironmentDetector>());
+        Assert.IsType<LinuxDisplaySessionService>(provider.GetRequiredService<IDisplaySessionService>());
+        Assert.IsType<LinuxEnvironmentInfoProvider>(provider.GetRequiredService<IEnvironmentInfoProvider>());
         var policy = provider.GetRequiredService<IPlaybackBehaviorPolicy>();
+        var simulatorFactory = provider.GetRequiredService<Func<IInputSimulator>>();
+        var captureFactory = provider.GetRequiredService<Func<IInputCapture>>();
 
         Assert.True(policy.PreferRelativeForAbsoluteMoves);
         Assert.True(policy.UseHybridAbsoluteDragMovement);
+        Assert.NotNull(simulatorFactory);
+        Assert.NotNull(captureFactory);
     }
 }

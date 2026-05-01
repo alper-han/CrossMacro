@@ -23,6 +23,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\CrossMacro.Daemon.Contracts\CrossMacro.Daemon.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\CrossMacro.Packaging.Abstractions\CrossMacro.Packaging.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\CrossMacro.Platform.Abstractions\CrossMacro.Platform.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Platform.Linux\CrossMacro.Platform.Linux.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Core\CrossMacro.Core.csproj" />
   </ItemGroup>

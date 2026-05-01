@@ -9,13 +9,16 @@
 
   <ItemGroup>
     <ProjectReference Include="../CrossMacro.Core/CrossMacro.Core.csproj" />
+    <ProjectReference Include="../CrossMacro.Daemon.Contracts/CrossMacro.Daemon.Contracts.csproj" />
     <ProjectReference Include="../CrossMacro.Infrastructure/CrossMacro.Infrastructure.csproj" />
+    <ProjectReference Include="../CrossMacro.Packaging.Abstractions/CrossMacro.Packaging.Abstractions.csproj" />
+    <ProjectReference Include="../CrossMacro.Platform.Abstractions/CrossMacro.Platform.Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Serilog" />
-    <PackageReference Include="Tmds.DBus" />
+    <PackageReference Include="Tmds.DBus.Protocol" />
   </ItemGroup>
 
 </Project>

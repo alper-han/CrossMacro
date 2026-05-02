@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Daemon.Contracts.Ipc;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Linux.Ipc;
 using CrossMacro.TestInfrastructure;
 using Xunit;
@@ -511,6 +512,32 @@ public class IpcClientIntegrationTests
     }
 
     [LinuxFact]
+    public async Task ConnectAsync_WhenReplayFindsPendingCaptureStart_ShouldReissueAndCompleteOriginalWaiter()
+    {
+        var socketPath = GetUniqueSocketPath();
+        using var client = new IpcClient(() => socketPath, autoReconnect: false);
+
+        client.StartCapture("global-hotkeys", mouse: true, keyboard: false);
+        var stalePending = CreatePendingCaptureStart(
+            client,
+            new CaptureCommand(CaptureCommandType.Start, CaptureMouse: true, CaptureKeyboard: false));
+
+        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
+
+        await client.ConnectAsync(CancellationToken.None).WaitAsync(AsyncOperationTimeout);
+
+        await stalePending.Completion.Task.WaitAsync(AsyncOperationTimeout);
+        await daemon.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
+
+        var commands = daemon.GetCommandsSnapshot();
+        Assert.Single(commands);
+        Assert.Equal(IpcOpCode.StartCapture, commands[0].OpCode);
+        Assert.True(commands[0].CaptureMouse);
+        Assert.False(commands[0].CaptureKeyboard);
+        Assert.NotEqual(stalePending.RequestId, commands[0].RequestId);
+    }
+
+    [LinuxFact]
     public async Task LinuxIpcInputCapture_StartAsync_WhenHandshakeTimesOut_ShouldRaiseFriendlyError()
     {
         var socketPath = GetUniqueSocketPath();
@@ -707,6 +734,21 @@ public class IpcClientIntegrationTests
     }
 
     [LinuxFact]
+    public void SimulateEventBatch_WhenDisconnected_ShouldThrowConnectFailed()
+    {
+        var socketPath = GetUniqueSocketPath();
+        using var client = new IpcClient(() => socketPath, autoReconnect: false);
+
+        var exception = Assert.Throws<IpcClientException>(() =>
+        {
+            InputSimulationStep[] events = [new(1, 2, 3)];
+            client.SimulateEventBatch(events);
+        });
+
+        Assert.Equal(IpcClientFailureReason.ConnectFailed, exception.Reason);
+    }
+
+    [LinuxFact]
     public async Task LinuxIpcInputSimulator_WhenConnected_ShouldSendConfigureAndSimulateEvents()
     {
         var socketPath = GetUniqueSocketPath();
@@ -734,8 +776,100 @@ public class IpcClientIntegrationTests
         Assert.Contains(commands, c => c.OpCode == IpcOpCode.SimulateEvent && c.Type == 0x00 && c.Code == 0x00 && c.Value == 0);
     }
 
+    [LinuxFact]
+    public async Task LinuxIpcInputSimulator_WhenBatchSupported_ShouldSendBatchAndWaitForAck()
+    {
+        var socketPath = GetUniqueSocketPath();
+        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
+        using var client = new IpcClient(() => socketPath, autoReconnect: false);
+        await client.ConnectAsync(CancellationToken.None);
+        using var simulator = new LinuxIpcInputSimulator(client);
+
+        Assert.True(simulator.SupportsBatchedInput);
+
+        InputSimulationStep[] steps =
+        [
+            new(0x01, 30, 1, 1),
+            new(0x00, 0, 0, 2),
+            new(0x01, 30, 0, 3),
+            new(0x00, 0, 0, 4)
+        ];
+
+        simulator.SimulateBatch(steps);
+
+        await daemon.WaitForCommandCountAsync(expected: 4, timeout: TimeSpan.FromSeconds(2));
+        var commands = daemon.GetCommandsSnapshot();
+
+        Assert.All(commands, command => Assert.Equal(IpcOpCode.SimulateEventBatch, command.OpCode));
+        Assert.Equal((0x01, 30, 1, 1), (commands[0].Type, commands[0].Code, commands[0].Value, commands[0].DelayAfterMs));
+        Assert.Equal((0x00, 0, 0, 2), (commands[1].Type, commands[1].Code, commands[1].Value, commands[1].DelayAfterMs));
+        Assert.Equal((0x01, 30, 0, 3), (commands[2].Type, commands[2].Code, commands[2].Value, commands[2].DelayAfterMs));
+        Assert.Equal((0x00, 0, 0, 4), (commands[3].Type, commands[3].Code, commands[3].Value, commands[3].DelayAfterMs));
+    }
+
+    [LinuxFact]
+    public async Task SimulateEventBatch_WhenDaemonReturnsFailure_ShouldThrowConnectFailed()
+    {
+        var socketPath = GetUniqueSocketPath();
+        await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.FailSimulationBatch);
+        using var client = new IpcClient(() => socketPath, autoReconnect: false);
+        await client.ConnectAsync(CancellationToken.None);
+
+        InputSimulationStep[] steps = [new(0x01, 30, 1)];
+
+        var exception = Assert.Throws<IpcClientException>(() => client.SimulateEventBatch(steps));
+
+        Assert.Equal(IpcClientFailureReason.ConnectFailed, exception.Reason);
+        Assert.Contains("Simulation batch failed", exception.Message, StringComparison.Ordinal);
+    }
+
+    [LinuxFact]
+    public async Task SimulateEventBatch_WhenTransportDropsBeforeAck_ShouldFailPendingWaiter()
+    {
+        var socketPath = GetUniqueSocketPath();
+        await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.DropSimulationBatchBeforeAck);
+        using var client = new IpcClient(() => socketPath, autoReconnect: false);
+        await client.ConnectAsync(CancellationToken.None);
+
+        InputSimulationStep[] steps = [new(0x01, 30, 1)];
+
+        var batchTask = Task.Run(() => client.SimulateEventBatch(steps));
+        var exception = await Assert.ThrowsAsync<IpcClientException>(() => batchTask.WaitAsync(AsyncOperationTimeout));
+
+        Assert.Equal(IpcClientFailureReason.ConnectFailed, exception.Reason);
+    }
+
+    [LinuxFact]
+    public async Task SimulateEventBatch_WhenDaemonKeepsConnectionOpenWithoutAck_ShouldTimeout()
+    {
+        var socketPath = GetUniqueSocketPath();
+        await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.HoldSimulationBatchWithoutAck);
+        using var client = new IpcClient(() => socketPath, autoReconnect: false);
+        await client.ConnectAsync(CancellationToken.None);
+
+        InputSimulationStep[] steps = [new(0x01, 30, 1)];
+
+        var batchTask = Task.Run(() => client.SimulateEventBatch(steps));
+        var exception = await Assert.ThrowsAsync<IpcClientException>(() => batchTask.WaitAsync(TimeSpan.FromSeconds(8)));
+
+        Assert.Equal(IpcClientFailureReason.Timeout, exception.Reason);
+    }
+
     private static string GetUniqueSocketPath() =>
         Path.Combine(Path.GetTempPath(), $"crossmacro-ipc-test-{Guid.NewGuid():N}.sock");
+
+    private static PendingCaptureStartRegistration CreatePendingCaptureStart(
+        IpcClient client,
+        CaptureCommand command)
+    {
+        var pendingCaptureStartsField = typeof(IpcClient).GetField(
+            "_pendingCaptureStarts",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(pendingCaptureStartsField);
+        var pendingCaptureStarts = Assert.IsType<PendingCaptureStartRegistry>(pendingCaptureStartsField!.GetValue(client));
+
+        return pendingCaptureStarts.Begin(command, notifyOnFailure: true);
+    }
 
     private enum HandshakeBehavior
     {
@@ -745,7 +879,10 @@ public class IpcClientIntegrationTests
         NoResponse = 3,
         FailSecondStartAfterDelay = 4,
         DelayAllCaptureStartAcks = 5,
-        FailFirstStartAfterDelay = 6
+        FailFirstStartAfterDelay = 6,
+        FailSimulationBatch = 7,
+        DropSimulationBatchBeforeAck = 8,
+        HoldSimulationBatchWithoutAck = 9
     }
 
     private readonly record struct CapturedCommand(
@@ -756,6 +893,7 @@ public class IpcClientIntegrationTests
         ushort Type = 0,
         ushort Code = 0,
         int Value = 0,
+        int DelayAfterMs = 0,
         int Width = 0,
         int Height = 0);
 
@@ -942,6 +1080,49 @@ public class IpcClientIntegrationTests
                                 Value: reader.ReadInt32()));
                             _commandSignal.Release();
                             break;
+                        case IpcOpCode.SimulateEventBatch:
+                            var simulationRequestId = reader.ReadInt32();
+                            var eventCount = reader.ReadInt32();
+                            for (var i = 0; i < eventCount; i++)
+                            {
+                                _commands.Enqueue(new CapturedCommand(
+                                    OpCode: opCode,
+                                    RequestId: simulationRequestId,
+                                    Type: reader.ReadUInt16(),
+                                    Code: reader.ReadUInt16(),
+                                    Value: reader.ReadInt32(),
+                                    DelayAfterMs: reader.ReadInt32()));
+                                _commandSignal.Release();
+                            }
+
+                            if (_handshakeBehavior == HandshakeBehavior.DropSimulationBatchBeforeAck)
+                            {
+                                _clientSocket?.Dispose();
+                                return;
+                            }
+
+                            if (_handshakeBehavior == HandshakeBehavior.HoldSimulationBatchWithoutAck)
+                            {
+                                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                                return;
+                            }
+
+                            if (_handshakeBehavior == HandshakeBehavior.FailSimulationBatch)
+                            {
+                                if (!TryWriteSimulationBatchFailed(writer, stream, simulationRequestId, "Simulated batch failure"))
+                                {
+                                    return;
+                                }
+
+                                break;
+                            }
+
+                            if (!TryWriteSimulationBatchCompleted(writer, stream, simulationRequestId))
+                            {
+                                return;
+                            }
+
+                            break;
                         case IpcOpCode.ConfigureResolution:
                             _commands.Enqueue(new CapturedCommand(
                                 OpCode: opCode,
@@ -994,6 +1175,53 @@ public class IpcClientIntegrationTests
             try
             {
                 writer.Write((byte)IpcOpCode.CaptureStartFailed);
+                writer.Write(requestId);
+                writer.Write(message);
+                stream.Flush();
+                return true;
+            }
+            catch (IOException)
+            {
+                return false;
+            }
+            catch (ObjectDisposedException)
+            {
+                return false;
+            }
+            catch (SocketException)
+            {
+                return false;
+            }
+        }
+
+        private static bool TryWriteSimulationBatchCompleted(BinaryWriter writer, Stream stream, int requestId)
+        {
+            try
+            {
+                writer.Write((byte)IpcOpCode.SimulationBatchCompleted);
+                writer.Write(requestId);
+                stream.Flush();
+                return true;
+            }
+            catch (IOException)
+            {
+                return false;
+            }
+            catch (ObjectDisposedException)
+            {
+                return false;
+            }
+            catch (SocketException)
+            {
+                return false;
+            }
+        }
+
+        private static bool TryWriteSimulationBatchFailed(BinaryWriter writer, Stream stream, int requestId, string message)
+        {
+            try
+            {
+                writer.Write((byte)IpcOpCode.SimulationBatchFailed);
                 writer.Write(requestId);
                 writer.Write(message);
                 stream.Flush();

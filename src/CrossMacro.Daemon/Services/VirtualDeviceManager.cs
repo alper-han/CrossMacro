@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Infrastructure.Linux.Native.UInput;
 using CrossMacro.Core.Logging;
 
@@ -36,13 +37,31 @@ public class VirtualDeviceManager : IVirtualDeviceManager
 
     public void SendEvent(ushort type, ushort code, int value)
     {
+        lock (_lock)
+        {
+            UInputDevice? device = _uInputDevice;
+            if (device == null) return;
 
-        
-        // However, we should be careful if UInputDevice is null.
-        UInputDevice? device = _uInputDevice;
-        if (device == null) return;
-        
-        device.SendEvent(type, code, value);
+            device.SendEvent(type, code, value);
+        }
+    }
+
+    public void SendEvents(ReadOnlySpan<IpcSimulationRequest> events)
+    {
+        lock (_lock)
+        {
+            UInputDevice? device = _uInputDevice;
+            if (device == null) return;
+
+            foreach (var inputEvent in events)
+            {
+                device.SendEvent(inputEvent.Type, inputEvent.Code, inputEvent.Value);
+                if (inputEvent.DelayAfterMs > 0)
+                {
+                    Thread.Sleep(inputEvent.DelayAfterMs);
+                }
+            }
+        }
     }
 
     public void Reset()

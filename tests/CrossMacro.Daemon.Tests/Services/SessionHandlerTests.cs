@@ -205,6 +205,160 @@ public sealed class SessionHandlerTests
     }
 
     [LinuxFact]
+    public async Task RunAsync_WhenSimulationBatchIsValid_ShouldDispatchEventsAndAcknowledge()
+    {
+        var security = new FakeSecurityService();
+        var virtualDevice = new FakeVirtualDeviceManager();
+        var captureManager = new FakeInputCaptureManager();
+        var handler = new SessionHandler(security, virtualDevice, captureManager);
+
+        await using var socketPair = await UnixSocketPair.CreateAsync();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
+        using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
+        using var reader = new BinaryReader(stream);
+        using var writer = new BinaryWriter(stream);
+
+        CompleteHandshake(reader, writer);
+
+        writer.Write((byte)IpcOpCode.SimulateEventBatch);
+        writer.Write(3030);
+        writer.Write(2);
+        writer.Write((ushort)UInputNative.EV_KEY);
+        writer.Write((ushort)InputEventCode.KEY_A);
+        writer.Write(1);
+        writer.Write(0);
+        writer.Write((ushort)UInputNative.EV_SYN);
+        writer.Write((ushort)UInputNative.SYN_REPORT);
+        writer.Write(0);
+        writer.Write(0);
+        writer.Flush();
+
+        Assert.Equal(IpcOpCode.SimulationBatchCompleted, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(3030, reader.ReadInt32());
+
+        socketPair.Client.Dispose();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(
+            [(UInputNative.EV_KEY, (ushort)InputEventCode.KEY_A, 1), (UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0)],
+            virtualDevice.SentEvents);
+    }
+
+    [LinuxFact]
+    public async Task RunAsync_WhenSimulationBatchCountIsInvalid_ShouldReturnFailureAndKeepSessionAlive()
+    {
+        var security = new FakeSecurityService();
+        var virtualDevice = new FakeVirtualDeviceManager();
+        var captureManager = new FakeInputCaptureManager();
+        var handler = new SessionHandler(security, virtualDevice, captureManager);
+
+        await using var socketPair = await UnixSocketPair.CreateAsync();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
+        using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
+        using var reader = new BinaryReader(stream);
+        using var writer = new BinaryWriter(stream);
+
+        CompleteHandshake(reader, writer);
+
+        writer.Write((byte)IpcOpCode.SimulateEventBatch);
+        writer.Write(4040);
+        writer.Write(0);
+        writer.Flush();
+
+        Assert.Equal(IpcOpCode.SimulationBatchFailed, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(4040, reader.ReadInt32());
+        Assert.Contains("event count", reader.ReadString(), StringComparison.Ordinal);
+
+        StartCapture(reader, writer, requestId: 4041);
+
+        socketPair.Client.Dispose();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Empty(virtualDevice.SentEvents);
+    }
+
+    [LinuxFact]
+    public async Task RunAsync_WhenSimulationBatchDelayIsInvalid_ShouldReturnFailure()
+    {
+        var security = new FakeSecurityService();
+        var virtualDevice = new FakeVirtualDeviceManager();
+        var captureManager = new FakeInputCaptureManager();
+        var handler = new SessionHandler(security, virtualDevice, captureManager);
+
+        await using var socketPair = await UnixSocketPair.CreateAsync();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
+        using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
+        using var reader = new BinaryReader(stream);
+        using var writer = new BinaryWriter(stream);
+
+        CompleteHandshake(reader, writer);
+
+        writer.Write((byte)IpcOpCode.SimulateEventBatch);
+        writer.Write(5050);
+        writer.Write(1);
+        writer.Write((ushort)UInputNative.EV_KEY);
+        writer.Write((ushort)InputEventCode.KEY_A);
+        writer.Write(1);
+        writer.Write(-1);
+        writer.Flush();
+
+        Assert.Equal(IpcOpCode.SimulationBatchFailed, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(5050, reader.ReadInt32());
+        Assert.Contains("delay", reader.ReadString(), StringComparison.Ordinal);
+
+        socketPair.Client.Dispose();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Empty(virtualDevice.SentEvents);
+    }
+
+    [LinuxFact]
+    public async Task RunAsync_WhenSimulationBatchTotalDelayIsInvalid_ShouldReturnFailure()
+    {
+        var security = new FakeSecurityService();
+        var virtualDevice = new FakeVirtualDeviceManager();
+        var captureManager = new FakeInputCaptureManager();
+        var handler = new SessionHandler(security, virtualDevice, captureManager);
+
+        await using var socketPair = await UnixSocketPair.CreateAsync();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
+        using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
+        using var reader = new BinaryReader(stream);
+        using var writer = new BinaryWriter(stream);
+
+        CompleteHandshake(reader, writer);
+
+        writer.Write((byte)IpcOpCode.SimulateEventBatch);
+        writer.Write(6060);
+        writer.Write(6);
+        for (var i = 0; i < 6; i++)
+        {
+            writer.Write((ushort)UInputNative.EV_KEY);
+            writer.Write((ushort)InputEventCode.KEY_A);
+            writer.Write(i % 2);
+            writer.Write(1000);
+        }
+        writer.Flush();
+
+        Assert.Equal(IpcOpCode.SimulationBatchFailed, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(6060, reader.ReadInt32());
+        Assert.Contains("total delay", reader.ReadString(), StringComparison.Ordinal);
+
+        socketPair.Client.Dispose();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Empty(virtualDevice.SentEvents);
+    }
+
+    [LinuxFact]
     public async Task RunAsync_WhenSessionCommandPayloadIsMalformed_ShouldStopCaptureAndExit()
     {
         var security = new FakeSecurityService();
@@ -375,7 +529,7 @@ public sealed class SessionHandlerTests
     }
 
     [LinuxFact]
-    public async Task RunAsync_WhenUndefinedOpcodeNineIsReceived_ShouldHaveNoResponseSideEffectsAndKeepSessionAlive()
+    public async Task RunAsync_WhenUndefinedOpcodeIsReceived_ShouldHaveNoResponseSideEffectsAndKeepSessionAlive()
     {
         var security = new FakeSecurityService();
         var virtualDevice = new FakeVirtualDeviceManager();
@@ -393,7 +547,7 @@ public sealed class SessionHandlerTests
 
         CompleteHandshake(reader, writer);
 
-        writer.Write((byte)0x09);
+        writer.Write((byte)0x7F);
         writer.Flush();
 
         AssertNoMessageAvailable(stream, reader, TimeSpan.FromMilliseconds(200));
@@ -1099,6 +1253,14 @@ public sealed class SessionHandlerTests
             if (ThrowOnSendEvent != null)
             {
                 throw ThrowOnSendEvent;
+            }
+        }
+
+        public void SendEvents(ReadOnlySpan<IpcSimulationRequest> events)
+        {
+            foreach (var inputEvent in events)
+            {
+                SendEvent(inputEvent.Type, inputEvent.Code, inputEvent.Value);
             }
         }
 

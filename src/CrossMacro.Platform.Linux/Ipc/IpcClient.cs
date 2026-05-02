@@ -29,10 +29,14 @@ public class IpcClient : IDisposable
     private readonly CaptureSubscriptionCoordinator _captureCoordinator = new();
     private readonly SemaphoreSlim _captureCommandGate = new(1, 1);
     private readonly PendingCaptureStartRegistry _pendingCaptureStarts = new();
+    private readonly Lock _simulationBatchLock = new();
+    private readonly Dictionary<int, TaskCompletionSource<bool>> _pendingSimulationBatches = [];
+    private int _nextSimulationBatchRequestId;
     private bool _disposed;
     private bool _reconnectEnabled = true;
     private const string DefaultConsumerId = "default";
     private const int HandshakeTimeoutMs = 5000;
+    private static readonly TimeSpan SimulationBatchAckGracePeriod = TimeSpan.FromSeconds(2);
 
     public event EventHandler<InputCaptureEventArgs>? InputReceived;
     public event EventHandler<string>? ErrorOccurred;
@@ -127,11 +131,24 @@ public class IpcClient : IDisposable
                             if (command.Type == CaptureCommandType.Start)
                             {
                                 var previousTransportCommand = _captureCoordinator.GetTransportCommand();
-                                replayPendingStart = _pendingCaptureStarts.Begin(
-                                    command,
-                                    notifyOnFailure: true,
-                                    forceReconcileOnFailure: true,
-                                    previousTransportCommand: previousTransportCommand);
+                                if (_pendingCaptureStarts.TryReissueCurrent(
+                                        command,
+                                        notifyOnFailure: true,
+                                        forceReconcileOnFailure: true,
+                                        previousTransportCommand: previousTransportCommand,
+                                        out var reissuedPendingStart))
+                                {
+                                    replayPendingStart = reissuedPendingStart;
+                                    Log.Debug("[IpcClient] Reissued pending capture start for reconnect replay");
+                                }
+                                else
+                                {
+                                    replayPendingStart = _pendingCaptureStarts.Begin(
+                                        command,
+                                        notifyOnFailure: true,
+                                        forceReconcileOnFailure: true,
+                                        previousTransportCommand: previousTransportCommand);
+                                }
                             }
 
                             _captureCoordinator.MarkCommandIssued(command);
@@ -346,6 +363,14 @@ public class IpcClient : IDisposable
                         HandleCaptureStartFailedMessage(_reader.ReadInt32(), _reader.ReadString());
                         break;
 
+                    case IpcOpCode.SimulationBatchCompleted:
+                        HandleSimulationBatchCompletedMessage(_reader.ReadInt32());
+                        break;
+
+                    case IpcOpCode.SimulationBatchFailed:
+                        HandleSimulationBatchFailedMessage(_reader.ReadInt32(), _reader.ReadString());
+                        break;
+
                     case IpcOpCode.Error:
                         var msg = _reader.ReadString();
                         Log.Warning("[IpcClient] RX: Error from daemon: {Message}", msg);
@@ -373,6 +398,10 @@ public class IpcClient : IDisposable
                 {
                     RaiseErrorOccurredSafely("Connection lost: " + ex.Message);
                 }
+                FailPendingSimulationBatches(new IpcClientException(
+                    IpcClientFailureReason.ConnectFailed,
+                    "Daemon connection was lost while waiting for simulation batch acknowledgement.",
+                    ex));
                 Cleanup(clearSubscriptions: false, disableReconnect: false);
                 StartReconnectLoop();
             }
@@ -771,6 +800,79 @@ public class IpcClient : IDisposable
         }
     }
 
+    public void SimulateEventBatch(ReadOnlySpan<InputSimulationStep> steps)
+    {
+        if (steps.IsEmpty)
+        {
+            return;
+        }
+
+        if (steps.Length > IpcProtocol.MaxSimulationBatchEvents)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(steps),
+                $"Simulation batch contains {steps.Length} events, exceeding the maximum of {IpcProtocol.MaxSimulationBatchEvents}.");
+        }
+
+        if (!IsConnected)
+        {
+            throw new IpcClientException(
+                IpcClientFailureReason.ConnectFailed,
+                "Failed to send simulation batch because the daemon connection is not available.");
+        }
+
+        var requestId = Interlocked.Increment(ref _nextSimulationBatchRequestId);
+        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        lock (_simulationBatchLock)
+        {
+            _pendingSimulationBatches[requestId] = completion;
+        }
+
+        try
+        {
+            lock (_writeLock)
+            {
+                try
+                {
+                    _writer!.Write((byte)IpcOpCode.SimulateEventBatch);
+                    _writer.Write(requestId);
+                    _writer.Write(steps.Length);
+                    foreach (var step in steps)
+                    {
+                        _writer.Write(step.Type);
+                        _writer.Write(step.Code);
+                        _writer.Write(step.Value);
+                        _writer.Write(step.DelayAfterMs);
+                    }
+
+                    _stream!.Flush();
+                }
+                catch (Exception ex)
+                {
+                    RemovePendingSimulationBatch(requestId);
+                    HandleSendFailure(ex, IpcOpCode.SimulateEventBatch, throwOnFailure: true);
+                }
+            }
+
+            var acknowledgementTimeout = TimeSpan.FromMilliseconds(IpcProtocol.MaxSimulationBatchTotalDelayMs) +
+                SimulationBatchAckGracePeriod;
+            var timeoutTask = Task.Delay(acknowledgementTimeout);
+            if (Task.WhenAny(completion.Task, timeoutTask).GetAwaiter().GetResult() != completion.Task)
+            {
+                throw new IpcClientException(
+                    IpcClientFailureReason.Timeout,
+                    $"Timed out waiting for simulation batch acknowledgement after {acknowledgementTimeout.TotalMilliseconds:0}ms.");
+            }
+
+            completion.Task.GetAwaiter().GetResult();
+        }
+        finally
+        {
+            RemovePendingSimulationBatch(requestId);
+        }
+    }
+
     public void ConfigureResolution(int width, int height)
     {
         Send(IpcOpCode.ConfigureResolution, w =>
@@ -875,8 +977,59 @@ public class IpcClient : IDisposable
         }
     }
 
+    private void HandleSimulationBatchCompletedMessage(int requestId)
+    {
+        TaskCompletionSource<bool>? completion;
+        lock (_simulationBatchLock)
+        {
+            _pendingSimulationBatches.TryGetValue(requestId, out completion);
+        }
+
+        completion?.TrySetResult(true);
+    }
+
+    private void HandleSimulationBatchFailedMessage(int requestId, string message)
+    {
+        TaskCompletionSource<bool>? completion;
+        lock (_simulationBatchLock)
+        {
+            _pendingSimulationBatches.TryGetValue(requestId, out completion);
+        }
+
+        completion?.TrySetException(new IpcClientException(
+            IpcClientFailureReason.ConnectFailed,
+            $"Simulation batch failed: {message}"));
+    }
+
+    private void RemovePendingSimulationBatch(int requestId)
+    {
+        lock (_simulationBatchLock)
+        {
+            _pendingSimulationBatches.Remove(requestId);
+        }
+    }
+
+    private void FailPendingSimulationBatches(Exception exception)
+    {
+        List<TaskCompletionSource<bool>> pending;
+        lock (_simulationBatchLock)
+        {
+            pending = [.. _pendingSimulationBatches.Values];
+            _pendingSimulationBatches.Clear();
+        }
+
+        foreach (var completion in pending)
+        {
+            completion.TrySetException(exception);
+        }
+    }
+
     private void DropTransport(bool deferErrorNotifications = false)
     {
+        FailPendingSimulationBatches(new IpcClientException(
+            IpcClientFailureReason.ConnectFailed,
+            "Daemon connection was lost while waiting for simulation batch acknowledgement."));
+
         lock (_captureLock)
         {
             _captureCoordinator.MarkTransportStopped();

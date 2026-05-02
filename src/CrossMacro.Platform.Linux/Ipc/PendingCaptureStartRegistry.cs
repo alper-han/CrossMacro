@@ -159,6 +159,34 @@ internal sealed class PendingCaptureStartRegistry
         return pendingStart?.Completion.TrySetException(exception) ?? false;
     }
 
+    public bool TryReissueCurrent(
+        CaptureCommand command,
+        bool notifyOnFailure,
+        bool forceReconcileOnFailure,
+        CaptureCommand previousTransportCommand,
+        out PendingCaptureStartRegistration registration)
+    {
+        lock (_lock)
+        {
+            if (_pending is not { Completion: { Task: { IsCompleted: false } } } pendingStart)
+            {
+                registration = default;
+                return false;
+            }
+
+            pendingStart.Reissue(
+                Interlocked.Increment(ref _nextRequestId),
+                command,
+                notifyOnFailure,
+                forceReconcileOnFailure,
+                previousTransportCommand);
+            registration = new PendingCaptureStartRegistration(
+                pendingStart.RequestId,
+                pendingStart.Completion);
+            return true;
+        }
+    }
+
     public Task? TryGetPendingTask()
     {
         lock (_lock)
@@ -211,13 +239,27 @@ internal sealed class PendingCaptureStartRegistry
         private readonly Dictionary<string, PendingAsyncParticipantSnapshot> _asyncParticipants = new(StringComparer.Ordinal);
         private readonly HashSet<string> _removedConsumersSinceStart = new(StringComparer.Ordinal);
 
-        public int RequestId { get; } = requestId;
-        public CaptureCommand Command { get; } = command;
+        public int RequestId { get; private set; } = requestId;
+        public CaptureCommand Command { get; private set; } = command;
         public TaskCompletionSource<bool> Completion { get; } = completion;
         public bool NotifyOnFailure { get; set; } = notifyOnFailure;
-        public bool ForceReconcileOnFailure { get; } = forceReconcileOnFailure;
-        public CaptureCommand PreviousTransportCommand { get; } = previousTransportCommand;
+        public bool ForceReconcileOnFailure { get; private set; } = forceReconcileOnFailure;
+        public CaptureCommand PreviousTransportCommand { get; private set; } = previousTransportCommand;
         public bool SubscriptionRemovedSinceStart { get; private set; }
+
+        public void Reissue(
+            int requestId,
+            CaptureCommand command,
+            bool notifyOnFailure,
+            bool forceReconcileOnFailure,
+            CaptureCommand previousTransportCommand)
+        {
+            RequestId = requestId;
+            Command = command;
+            NotifyOnFailure |= notifyOnFailure;
+            ForceReconcileOnFailure |= forceReconcileOnFailure;
+            PreviousTransportCommand = previousTransportCommand;
+        }
 
         public void RegisterAsyncParticipant(
             string? consumerId,

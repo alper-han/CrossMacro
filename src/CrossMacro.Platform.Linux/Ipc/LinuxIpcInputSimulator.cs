@@ -5,7 +5,7 @@ using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Ipc;
 
-public class LinuxIpcInputSimulator : IInputSimulator, IInputSimulatorCapabilities
+public class LinuxIpcInputSimulator : IInputSimulator, IInputSimulatorCapabilities, IBatchedInputSimulator
 {
     private readonly IpcClient _client;
     private readonly Func<bool> _isSupportedProbe;
@@ -15,6 +15,7 @@ public class LinuxIpcInputSimulator : IInputSimulator, IInputSimulatorCapabiliti
     public string ProviderName => "Secure Daemon (UInput)";
     public bool IsSupported => !_disposed && (_client.IsConnected || IsProbeSupported());
     public bool SupportsAbsoluteCoordinates => _supportsAbsoluteCoordinates;
+    public bool SupportsBatchedInput => !_disposed && _client.IsConnected;
 
     public LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSupportedProbe = null)
     {
@@ -135,6 +136,11 @@ public class LinuxIpcInputSimulator : IInputSimulator, IInputSimulatorCapabiliti
     public void Sync()
     {
         _client.SimulateEvent(EV_SYN, SYN_REPORT, 0);
+    }
+
+    public void SimulateBatch(ReadOnlySpan<InputSimulationStep> steps)
+    {
+        _client.SimulateEventBatch(steps);
     }
     
     public void Dispose()

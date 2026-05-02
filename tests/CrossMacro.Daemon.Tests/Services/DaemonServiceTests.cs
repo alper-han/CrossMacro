@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Daemon;
+using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Daemon.Services;
 using CrossMacro.Infrastructure.Linux.Native.UInput;
 using CrossMacro.TestInfrastructure;
@@ -496,6 +497,10 @@ public class DaemonServiceTests
         }
 
         public void SendEvent(ushort type, ushort code, int value)
+        {
+        }
+
+        public void SendEvents(ReadOnlySpan<IpcSimulationRequest> events)
         {
         }
 

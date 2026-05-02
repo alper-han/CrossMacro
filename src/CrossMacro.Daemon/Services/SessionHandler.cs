@@ -236,6 +236,9 @@ public class SessionHandler : ISessionHandler
                 case IpcOpCode.SimulateEvent:
                     HandleSimulateEventCommand(uid, pid);
                     break;
+                case IpcOpCode.SimulateEventBatch:
+                    HandleSimulateEventBatchCommand(uid, pid);
+                    break;
                 default:
                     Log.Warning("Unknown OpCode: {Op}", opcode);
                     break;
@@ -329,6 +332,79 @@ public class SessionHandler : ISessionHandler
             var value = _session.Reader.ReadInt32();
             _virtualDevice.SendEvent(type, code, value);
             _security.LogSimulation(uid, pid, type, code, value);
+        }
+
+        private void HandleSimulateEventBatchCommand(uint uid, int pid)
+        {
+            var requestId = _session.Reader.ReadInt32();
+            try
+            {
+                var events = ReadSimulationBatchEvents();
+                _virtualDevice.SendEvents(events);
+
+                using (_session.WriterGate.Enter())
+                {
+                    _session.Writer.Write((byte)IpcOpCode.SimulationBatchCompleted);
+                    _session.Writer.Write(requestId);
+                    _session.Stream.Flush();
+                }
+
+                foreach (var inputEvent in events)
+                {
+                    _security.LogSimulation(uid, pid, inputEvent.Type, inputEvent.Code, inputEvent.Value);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "[SessionHandler] Simulation batch failed");
+                using (_session.WriterGate.Enter())
+                {
+                    _session.Writer.Write((byte)IpcOpCode.SimulationBatchFailed);
+                    _session.Writer.Write(requestId);
+                    _session.Writer.Write(ex.Message);
+                    _session.Stream.Flush();
+                }
+            }
+        }
+
+        private IpcSimulationRequest[] ReadSimulationBatchEvents()
+        {
+            var eventCount = _session.Reader.ReadInt32();
+            if (eventCount <= 0 || eventCount > IpcProtocol.MaxSimulationBatchEvents)
+            {
+                throw new InvalidDataException(
+                    $"Simulation batch event count {eventCount} is outside the allowed range 1-{IpcProtocol.MaxSimulationBatchEvents}.");
+            }
+
+            var events = new IpcSimulationRequest[eventCount];
+            var totalDelayMs = 0;
+            for (var i = 0; i < events.Length; i++)
+            {
+                var inputEvent = new IpcSimulationRequest
+                {
+                    Type = _session.Reader.ReadUInt16(),
+                    Code = _session.Reader.ReadUInt16(),
+                    Value = _session.Reader.ReadInt32(),
+                    DelayAfterMs = _session.Reader.ReadInt32()
+                };
+
+                if (inputEvent.DelayAfterMs < 0 || inputEvent.DelayAfterMs > IpcProtocol.MaxSimulationBatchDelayMs)
+                {
+                    throw new InvalidDataException(
+                        $"Simulation batch delay {inputEvent.DelayAfterMs}ms is outside the allowed range 0-{IpcProtocol.MaxSimulationBatchDelayMs}ms.");
+                }
+
+                totalDelayMs += inputEvent.DelayAfterMs;
+                if (totalDelayMs > IpcProtocol.MaxSimulationBatchTotalDelayMs)
+                {
+                    throw new InvalidDataException(
+                        $"Simulation batch total delay {totalDelayMs}ms exceeds the allowed maximum of {IpcProtocol.MaxSimulationBatchTotalDelayMs}ms.");
+                }
+
+                events[i] = inputEvent;
+            }
+
+            return events;
         }
 
         private static void DisposeClientSocket(Socket client)

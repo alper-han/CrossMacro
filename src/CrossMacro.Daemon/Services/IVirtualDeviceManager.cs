@@ -1,3 +1,5 @@
+using CrossMacro.Daemon.Contracts.Ipc;
+
 namespace CrossMacro.Daemon.Services;
 
 /// <summary>
@@ -15,6 +17,11 @@ public interface IVirtualDeviceManager : IDisposable
     /// Sends a low-level input event to the virtual device.
     /// </summary>
     void SendEvent(ushort type, ushort code, int value);
+
+    /// <summary>
+    /// Sends an ordered batch of low-level input events to the virtual device.
+    /// </summary>
+    void SendEvents(ReadOnlySpan<IpcSimulationRequest> events);
     
     /// <summary>
     /// Resets/Disposes the current uinput device.

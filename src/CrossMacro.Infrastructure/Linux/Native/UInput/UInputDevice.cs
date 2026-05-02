@@ -6,7 +6,7 @@ using CrossMacro.Infrastructure.Linux.Native.Evdev;
 
 namespace CrossMacro.Infrastructure.Linux.Native.UInput;
 
-public class UInputDevice : IDisposable
+public class UInputDevice : IUInputDevice
 {
     private const int ErrnoNoEntry = 2;
     private const int ErrnoOperationNotPermitted = 1;
@@ -132,7 +132,7 @@ public class UInputDevice : IDisposable
         var uidev = new UInputNative.uinput_user_dev
         {
             name = VirtualDeviceConstants.DeviceName,
-            id_bustype = UInputNative.BUS_USB,
+            id_bustype = UInputNative.BUS_VIRTUAL,
             id_vendor = VirtualDeviceConstants.VendorId,
             id_product = VirtualDeviceConstants.ProductId,
             id_version = VirtualDeviceConstants.Version,

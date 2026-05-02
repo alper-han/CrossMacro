@@ -26,13 +26,12 @@ public static class CliGuiRuntime
         ArgumentNullException.ThrowIfNull(getVersionString);
         ArgumentNullException.ThrowIfNull(tryAcquireSingleInstanceGuard);
 
-        var logLevel = SettingsService.TryLoadLogLevelEarly();
-        LoggerSetup.Initialize(logLevel);
-
         try
         {
             var commandRouter = new CliCommandRouter();
             var parseResult = commandRouter.Parse(args);
+            var logLevel = parseResult.PrefersJsonOutput ? "Fatal" : SettingsService.TryLoadLogLevelEarly();
+            LoggerSetup.Initialize(logLevel);
 
             switch (parseResult.Kind)
             {

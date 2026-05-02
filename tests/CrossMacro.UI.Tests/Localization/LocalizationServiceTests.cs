@@ -5,6 +5,7 @@ using Xunit;
 
 namespace CrossMacro.UI.Tests.Localization;
 
+[Collection(LocalizationGlobalStateCollection.Name)]
 public class LocalizationServiceTests
 {
     [Theory]
@@ -43,6 +44,7 @@ public class LocalizationServiceTests
     [Fact]
     public void SetCulture_WhenSupportedLanguageProvided_UpdatesCurrentCulture()
     {
+        using var _ = new LocalizationCultureScope();
         var service = new LocalizationService();
 
         service.SetCulture("fr-FR");
@@ -53,38 +55,20 @@ public class LocalizationServiceTests
     [Fact]
     public void SetCulture_WhenEnglishAlreadySelected_StillAppliesThreadAndResourceCultures()
     {
-        var originalCurrentCulture = CultureInfo.CurrentCulture;
-        var originalCurrentUICulture = CultureInfo.CurrentUICulture;
-        var originalDefaultThreadCurrentCulture = CultureInfo.DefaultThreadCurrentCulture;
-        var originalDefaultThreadCurrentUICulture = CultureInfo.DefaultThreadCurrentUICulture;
-        var originalResourceCulture = Resources.Culture;
+        using var _ = new LocalizationCultureScope("tr-TR");
+        CultureInfo.DefaultThreadCurrentCulture = null;
+        CultureInfo.DefaultThreadCurrentUICulture = null;
+        Resources.Culture = null;
 
-        try
-        {
-            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
-            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("tr-TR");
-            CultureInfo.DefaultThreadCurrentCulture = null;
-            CultureInfo.DefaultThreadCurrentUICulture = null;
-            Resources.Culture = null;
+        var service = new LocalizationService();
 
-            var service = new LocalizationService();
+        service.SetCulture("en");
 
-            service.SetCulture("en");
-
-            service.CurrentCulture.Name.Should().Be("en");
-            CultureInfo.CurrentCulture.Name.Should().Be("en");
-            CultureInfo.CurrentUICulture.Name.Should().Be("en");
-            CultureInfo.DefaultThreadCurrentCulture?.Name.Should().Be("en");
-            CultureInfo.DefaultThreadCurrentUICulture?.Name.Should().Be("en");
-            Resources.Culture?.Name.Should().Be("en");
-        }
-        finally
-        {
-            CultureInfo.CurrentCulture = originalCurrentCulture;
-            CultureInfo.CurrentUICulture = originalCurrentUICulture;
-            CultureInfo.DefaultThreadCurrentCulture = originalDefaultThreadCurrentCulture;
-            CultureInfo.DefaultThreadCurrentUICulture = originalDefaultThreadCurrentUICulture;
-            Resources.Culture = originalResourceCulture;
-        }
+        service.CurrentCulture.Name.Should().Be("en");
+        CultureInfo.CurrentCulture.Name.Should().Be("en");
+        CultureInfo.CurrentUICulture.Name.Should().Be("en");
+        CultureInfo.DefaultThreadCurrentCulture?.Name.Should().Be("en");
+        CultureInfo.DefaultThreadCurrentUICulture?.Name.Should().Be("en");
+        Resources.Culture?.Name.Should().Be("en");
     }
 }

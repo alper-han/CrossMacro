@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.UI.Localization;
+using CrossMacro.UI.Tests.Localization;
 using CrossMacro.UI.Services;
 using CrossMacro.UI.ViewModels;
 using CrossMacro.UI.Views.Tabs;
@@ -15,6 +17,7 @@ using Xunit;
 
 namespace CrossMacro.UI.Tests.ViewModels;
 
+[Collection(LocalizationGlobalStateCollection.Name)]
 public class TextExpansionViewModelTests
 {
     private readonly ITextExpansionStorageService _storageService;
@@ -284,10 +287,19 @@ public class TextExpansionViewModelTests
     }
 
     [Theory]
-    [InlineData(TextInsertionMode.Paste, "Paste")]
-    [InlineData(TextInsertionMode.DirectTyping, "Direct Typing")]
-    public void InsertionModeDisplayText_ReturnsExpectedLabel(TextInsertionMode mode, string expected)
+    [InlineData("en", TextInsertionMode.Paste, "Paste")]
+    [InlineData("en", TextInsertionMode.DirectTyping, "Direct Typing")]
+    [InlineData("tr", TextInsertionMode.Paste, "Yapıştır")]
+    [InlineData("tr", TextInsertionMode.DirectTyping, "Doğrudan Yazma")]
+    [InlineData("fr", TextInsertionMode.Paste, "Coller")]
+    [InlineData("fr", TextInsertionMode.DirectTyping, "Saisie directe")]
+    public void InsertionModeDisplayText_ReturnsExpectedLocalizedLabel(
+        string cultureName,
+        TextInsertionMode mode,
+        string expected)
     {
+        using var _ = new LocalizationCultureScope(cultureName);
+
         var result = TextExpansionConverters.InsertionModeDisplayText.Convert(
             mode,
             typeof(string),

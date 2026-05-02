@@ -5,11 +5,13 @@ using Xunit;
 
 namespace CrossMacro.UI.Tests.Localization;
 
+[Collection(LocalizationGlobalStateCollection.Name)]
 public class LocalizationBindingSourceTests
 {
     [Fact]
     public void Initialize_RaisesIndexerChangeNotifications()
     {
+        using var _ = new LocalizationCultureScope();
         var source = new LocalizationBindingSource();
         var service = new LocalizationService();
         var changedProperties = new List<string?>();
@@ -24,6 +26,7 @@ public class LocalizationBindingSourceTests
     [Fact]
     public void CultureChanged_RaisesIndexerChangeNotifications()
     {
+        using var _ = new LocalizationCultureScope();
         var source = new LocalizationBindingSource();
         var service = new LocalizationService();
         source.Initialize(service);

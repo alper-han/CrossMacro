@@ -5,11 +5,13 @@ using Xunit;
 
 namespace CrossMacro.UI.Tests.Localization;
 
+[Collection(LocalizationGlobalStateCollection.Name)]
 public class LocExtensionTests
 {
     [Fact]
     public void Observe_EmitsLocalizedValuesAndFallsBackToKey()
     {
+        using var _ = new LocalizationCultureScope();
         var source = new LocalizationBindingSource();
         var service = new LocalizationService();
         source.Initialize(service);

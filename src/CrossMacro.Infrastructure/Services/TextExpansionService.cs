@@ -30,6 +30,7 @@ public class TextExpansionService : ITextExpansionService
     private bool _isRunning;
     private readonly SemaphoreSlim _expansionLock; 
     private readonly InputCaptureLifecycle _captureLifecycle;
+    private int _lastCharacterKeyCode;
 
     public bool IsRunning => _isRunning;
 
@@ -182,6 +183,11 @@ public class TextExpansionService : ITextExpansionService
         lock (_lock)
         {
             if (!_isRunning) return;
+            if (e.Type == InputEventType.Key && e.Value == 1)
+            {
+                _lastCharacterKeyCode = e.Code;
+            }
+
             // Delegate to Processor
             _inputProcessor.ProcessEvent(e);
         }
@@ -205,8 +211,9 @@ public class TextExpansionService : ITextExpansionService
              _bufferState.Clear();
 
              // Run Execution
-             _ = Task.Run(() => RunExpansionSafelyAsync(match));
-        }
+             var triggerLastKeyCode = _lastCharacterKeyCode;
+             _ = Task.Run(() => RunExpansionSafelyAsync(match, triggerLastKeyCode));
+         }
     }
 
     private void OnSpecialKeyReceived(int keyCode)
@@ -223,7 +230,7 @@ public class TextExpansionService : ITextExpansionService
         }
     }
 
-    private async Task PerformExpansionAsync(Core.Models.TextExpansion expansion)
+    private async Task PerformExpansionAsync(Core.Models.TextExpansion expansion, int triggerLastKeyCode)
     {
         // Ensure serialization of expansions
         await _expansionLock.WaitAsync();
@@ -237,6 +244,8 @@ public class TextExpansionService : ITextExpansionService
                 await Task.Delay(TextExpansionExecutionTimings.ModifierReleasePollInterval);
                 elapsed += TextExpansionExecutionTimings.ModifierReleasePollInterval;
             }
+
+            await WaitForTriggerKeyReleaseAsync(triggerLastKeyCode).ConfigureAwait(false);
 
             Log.Debug(
                 "[TextExpansionService] Executing expansion (triggerLength={TriggerLength}, replacementLength={ReplacementLength})",
@@ -255,11 +264,35 @@ public class TextExpansionService : ITextExpansionService
         }
     }
 
-    private async Task RunExpansionSafelyAsync(Core.Models.TextExpansion expansion)
+    private async Task WaitForTriggerKeyReleaseAsync(int keyCode)
+    {
+        if (keyCode <= 0 || !_inputProcessor.IsKeyPressed(keyCode))
+        {
+            return;
+        }
+
+        var elapsed = TimeSpan.Zero;
+        while (_inputProcessor.IsKeyPressed(keyCode) &&
+               elapsed < TextExpansionExecutionTimings.TriggerKeyReleaseWaitTimeout)
+        {
+            await Task.Delay(TextExpansionExecutionTimings.DirectTypingInterElementDelay).ConfigureAwait(false);
+            elapsed += TextExpansionExecutionTimings.DirectTypingInterElementDelay;
+        }
+
+        if (_inputProcessor.IsKeyPressed(keyCode))
+        {
+            Log.Debug(
+                "[TextExpansionService] Trigger key release wait timed out (keyCode={KeyCode}, timeoutMs={TimeoutMs})",
+                keyCode,
+                TextExpansionExecutionTimings.TriggerKeyReleaseWaitTimeout.TotalMilliseconds);
+        }
+    }
+
+    private async Task RunExpansionSafelyAsync(Core.Models.TextExpansion expansion, int triggerLastKeyCode)
     {
         try
         {
-            await PerformExpansionAsync(expansion).ConfigureAwait(false);
+            await PerformExpansionAsync(expansion, triggerLastKeyCode).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

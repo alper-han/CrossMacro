@@ -407,6 +407,104 @@ public class TextExpansionPrivacyTests
         Assert.Empty(inputSimulator.PressedKeys);
     }
 
+    [Fact]
+    public async Task ExpandAsync_WhenDirectTypingSimulatorSupportsBatch_UsesSingleBatchedSequence()
+    {
+        var clipboardService = Substitute.For<IClipboardService>();
+        clipboardService.IsSupported.Returns(false);
+
+        var keyboardLayoutService = Substitute.For<IKeyboardLayoutService>();
+        keyboardLayoutService.GetInputForChar(Arg.Any<char>())
+            .Returns(callInfo => callInfo.Arg<char>() switch
+            {
+                'a' => (30, false, false),
+                'B' => (48, true, false),
+                _ => default((int KeyCode, bool Shift, bool AltGr)?)
+            });
+
+        var inputSimulator = new BatchedTestInputSimulator();
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            keyboardLayoutService,
+            () => inputSimulator);
+
+        var expansion = new TextExpansion(":abbr", "aB", insertionMode: TextInsertionMode.DirectTyping);
+
+        await executor.ExpandAsync(expansion);
+
+        Assert.DoesNotContain(30, inputSimulator.PressedKeys);
+        Assert.DoesNotContain(42, inputSimulator.PressedKeys);
+        Assert.DoesNotContain(48, inputSimulator.PressedKeys);
+        Assert.Single(inputSimulator.Batches);
+
+        var batch = inputSimulator.Batches[0];
+        InputSimulationStep[] expected =
+        [
+            new(0x01, 30, 1),
+            new(0x00, 0, 0, 1),
+            new(0x01, 30, 0),
+            new(0x00, 0, 0),
+            new(0x01, 42, 1),
+            new(0x00, 0, 0),
+            new(0x01, 48, 1),
+            new(0x00, 0, 0, 1),
+            new(0x01, 48, 0),
+            new(0x00, 0, 0),
+            new(0x01, 42, 0),
+            new(0x00, 0, 0)
+        ];
+        Assert.Equal(expected, batch);
+    }
+
+    [Fact]
+    public async Task ExpandAsync_WhenBatchWouldExceedIpcLimit_FallsBackToPerKeyTyping()
+    {
+        var clipboardService = Substitute.For<IClipboardService>();
+        clipboardService.IsSupported.Returns(false);
+
+        var keyboardLayoutService = Substitute.For<IKeyboardLayoutService>();
+        keyboardLayoutService.GetInputForChar(Arg.Any<char>())
+            .Returns((30, false, false));
+
+        var inputSimulator = new BatchedTestInputSimulator();
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            keyboardLayoutService,
+            () => inputSimulator);
+
+        var replacement = new string('a', 2049);
+        var expansion = new TextExpansion(":long", replacement, insertionMode: TextInsertionMode.DirectTyping);
+
+        await executor.ExpandAsync(expansion);
+
+        Assert.Empty(inputSimulator.Batches);
+        Assert.Equal(replacement.Length, inputSimulator.PressedKeys.Count(static key => key == 30));
+    }
+
+    [Fact]
+    public async Task ExpandAsync_WhenBatchCannotRepresentText_FallsBackToUnicodeInput()
+    {
+        var clipboardService = Substitute.For<IClipboardService>();
+        clipboardService.IsSupported.Returns(false);
+
+        var keyboardLayoutService = Substitute.For<IKeyboardLayoutService>();
+        keyboardLayoutService.GetInputForChar(Arg.Any<char>())
+            .Returns(default((int KeyCode, bool Shift, bool AltGr)?));
+
+        var inputSimulator = new BatchedUnicodeCapableTestInputSimulator();
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            keyboardLayoutService,
+            () => inputSimulator);
+
+        var expansion = new TextExpansion(":emoji", "🙂", insertionMode: TextInsertionMode.DirectTyping);
+
+        await executor.ExpandAsync(expansion);
+
+        Assert.Empty(inputSimulator.Batches);
+        Assert.Equal(["🙂"], inputSimulator.TypedText);
+    }
+
     [LinuxFact]
     public async Task ExpandAsync_WhenPasteFallbackCannotTypeRequiredHexDigit_DoesNotEraseTrigger()
     {
@@ -539,6 +637,30 @@ public class TextExpansionPrivacyTests
     }
 
     private sealed class UnicodeCapableTestInputSimulator : TestInputSimulator, IUnicodeTextInputSimulator
+    {
+        public bool SupportsUnicodeTextInput => true;
+
+        public List<string> TypedText { get; } = new();
+
+        public void TypeText(string text)
+        {
+            TypedText.Add(text);
+        }
+    }
+
+    private class BatchedTestInputSimulator : TestInputSimulator, IBatchedInputSimulator
+    {
+        public List<InputSimulationStep[]> Batches { get; } = new();
+
+        public bool SupportsBatchedInput => true;
+
+        public void SimulateBatch(ReadOnlySpan<InputSimulationStep> steps)
+        {
+            Batches.Add(steps.ToArray());
+        }
+    }
+
+    private sealed class BatchedUnicodeCapableTestInputSimulator : BatchedTestInputSimulator, IUnicodeTextInputSimulator
     {
         public bool SupportsUnicodeTextInput => true;
 

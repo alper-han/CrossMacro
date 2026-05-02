@@ -175,6 +175,43 @@ public class TextExpansionServiceTests
     }
 
     [Fact]
+    public async Task Expansion_WhenTriggerLastKeyIsStillPressed_WaitsForReleaseBeforeExecuting()
+    {
+        _service.Start();
+
+        var expansion = new TextExpansion { Trigger = ":test", Replacement = "done" };
+        _storageService.GetCurrent().Returns(new List<TextExpansion> { expansion });
+        _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansion>>(), out Arg.Any<TextExpansion?>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = expansion;
+                return true;
+            });
+
+        var expansionStarted = new AsyncSignal();
+        _executor.ExpandAsync(Arg.Any<TextExpansion>())
+            .Returns(_ =>
+            {
+                expansionStarted.Signal();
+                return Task.CompletedTask;
+            });
+        _inputProcessor.IsKeyPressed(20).Returns(true);
+
+        _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(
+            this,
+            new InputCaptureEventArgs { Type = InputEventType.Key, Code = 20, Value = 1 });
+        _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('t');
+
+        await Task.Delay(25);
+        await _executor.DidNotReceive().ExpandAsync(Arg.Any<TextExpansion>());
+
+        _inputProcessor.IsKeyPressed(20).Returns(false);
+
+        await expansionStarted.WaitAsync(TestTimeout);
+        await _executor.Received(1).ExpandAsync(expansion);
+    }
+
+    [Fact]
     public async Task Start_WhenCaptureStartFaultsAsynchronously_StopsService()
     {
         var startTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
 using CrossMacro.Core.Services;
@@ -9,6 +11,7 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion;
 
 internal sealed class TextExpansionDirectTypingInserter
 {
+    private const int MaxBatchedInputEvents = 4096;
     private readonly IKeyboardLayoutService _layoutService;
     private readonly TextExpansionKeyDispatcher _keyDispatcher;
 
@@ -58,6 +61,11 @@ internal sealed class TextExpansionDirectTypingInserter
         ArgumentNullException.ThrowIfNull(text);
 
         Log.Information("Typing replacement directly (length={Length})", text.Length);
+        if (TryInsertBatch(inputSimulator, text))
+        {
+            return;
+        }
+
         var unicodeTextInput = inputSimulator as IUnicodeTextInputSimulator;
         var preferNativeUnicodeInjection = SupportsNativeUnicodeTextInput(unicodeTextInput);
 
@@ -88,6 +96,123 @@ internal sealed class TextExpansionDirectTypingInserter
 
             await Task.Delay(TextExpansionExecutionTimings.DirectTypingInterElementDelay);
         }
+    }
+
+    private bool TryInsertBatch(IInputSimulator inputSimulator, string text)
+    {
+        if (inputSimulator is not IBatchedInputSimulator { SupportsBatchedInput: true } batchedInputSimulator)
+        {
+            return false;
+        }
+
+        if (!TryBuildBatchSteps(text, out var steps))
+        {
+            return false;
+        }
+
+        if (steps.Count > MaxBatchedInputEvents)
+        {
+            Log.Debug(
+                "Direct typing batch skipped because event count {EventCount} exceeds IPC batch limit {MaxEventCount}",
+                steps.Count,
+                MaxBatchedInputEvents);
+            return false;
+        }
+
+        Log.Debug("Typing replacement using batched input (events={EventCount})", steps.Count);
+        batchedInputSimulator.SimulateBatch(CollectionsMarshal.AsSpan(steps));
+        return true;
+    }
+
+    private bool TryBuildBatchSteps(string text, out List<InputSimulationStep> steps)
+    {
+        steps = [];
+        foreach (var element in TextExpansionTextElements.Enumerate(text))
+        {
+            if (element.IsNewLine)
+            {
+                AddKeyPressSteps(
+                    steps,
+                    InputEventCode.KEY_ENTER,
+                    keyPressReleaseDelay: TextExpansionExecutionTimings.BatchedKeyPressReleaseDelay,
+                    delayAfterKeyUp: TextExpansionExecutionTimings.BatchedDirectTypingInterElementDelay);
+                continue;
+            }
+
+            var keyboardLayoutCharacter = element.KeyboardLayoutCharacter;
+            if (!keyboardLayoutCharacter.HasValue || !TryResolveKeyboardLayoutInput(keyboardLayoutCharacter.Value, out var input))
+            {
+                return false;
+            }
+
+            AddKeyPressSteps(
+                steps,
+                input.KeyCode,
+                input.Shift,
+                input.AltGr,
+                keyPressReleaseDelay: TextExpansionExecutionTimings.BatchedKeyPressReleaseDelay,
+                delayAfterKeyUp: TextExpansionExecutionTimings.BatchedDirectTypingInterElementDelay);
+        }
+
+        return true;
+    }
+
+    private static void AddKeyPressSteps(
+        List<InputSimulationStep> steps,
+        int keyCode,
+        bool shift = false,
+        bool altGr = false,
+        bool ctrl = false,
+        TimeSpan keyPressReleaseDelay = default,
+        TimeSpan delayAfterKeyUp = default)
+    {
+        if (ctrl)
+        {
+            AddKeyStateSteps(steps, InputEventCode.KEY_LEFTCTRL, pressed: true);
+        }
+
+        if (shift)
+        {
+            AddKeyStateSteps(steps, InputEventCode.KEY_LEFTSHIFT, pressed: true);
+        }
+
+        if (altGr)
+        {
+            AddKeyStateSteps(steps, InputEventCode.KEY_RIGHTALT, pressed: true);
+        }
+
+        AddKeyStateSteps(steps, keyCode, pressed: true, delayAfter: keyPressReleaseDelay);
+        AddKeyStateSteps(steps, keyCode, pressed: false, delayAfter: delayAfterKeyUp);
+
+        if (altGr)
+        {
+            AddKeyStateSteps(steps, InputEventCode.KEY_RIGHTALT, pressed: false);
+        }
+
+        if (shift)
+        {
+            AddKeyStateSteps(steps, InputEventCode.KEY_LEFTSHIFT, pressed: false);
+        }
+
+        if (ctrl)
+        {
+            AddKeyStateSteps(steps, InputEventCode.KEY_LEFTCTRL, pressed: false);
+        }
+    }
+
+    private static void AddKeyStateSteps(
+        List<InputSimulationStep> steps,
+        int keyCode,
+        bool pressed,
+        TimeSpan delayAfter = default)
+    {
+        steps.Add(new InputSimulationStep(EV_KEY, (ushort)keyCode, pressed ? 1 : 0));
+        steps.Add(new InputSimulationStep(EV_SYN, SYN_REPORT, 0, ToDelayMilliseconds(delayAfter)));
+    }
+
+    private static int ToDelayMilliseconds(TimeSpan delay)
+    {
+        return delay <= TimeSpan.Zero ? 0 : (int)Math.Ceiling(delay.TotalMilliseconds);
     }
 
     private async Task<bool> TryTypeWithKeyboardLayoutAsync(IInputSimulator inputSimulator, char character)
@@ -262,4 +387,8 @@ internal sealed class TextExpansionDirectTypingInserter
     private readonly record struct LinuxUnicodeComposeSequence(
         KeyboardLayoutInput PrefixInput,
         KeyboardLayoutInput[] HexInputs);
+
+    private const ushort EV_KEY = 0x01;
+    private const ushort EV_SYN = 0x00;
+    private const ushort SYN_REPORT = 0x00;
 }

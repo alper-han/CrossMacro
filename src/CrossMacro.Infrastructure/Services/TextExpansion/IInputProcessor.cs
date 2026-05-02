@@ -7,6 +7,8 @@ public interface IInputProcessor
 {
     bool AreModifiersPressed { get; }
 
+    bool IsKeyPressed(int keyCode);
+
     event Action<char> CharacterReceived;
 
     event Action<int> SpecialKeyReceived;

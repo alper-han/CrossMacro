@@ -271,7 +271,12 @@ public class TrayIconService : ITrayIconService
 
     private void ToggleWindowVisibility()
     {
-        if (_mainWindow == null) return;
+        _mainWindow ??= _desktopLifetimeContext.MainWindow;
+        if (_mainWindow == null)
+        {
+            Log.Warning("Tray show/hide requested but main window is unavailable");
+            return;
+        }
 
         if (_mainWindow.IsVisible)
         {
@@ -283,12 +288,20 @@ public class TrayIconService : ITrayIconService
         else
         {
             SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnLastWindowClose);
-            _mainWindow.ShowInTaskbar = true;
+            PrepareWindowForRestore(_mainWindow);
             _mainWindow.Show();
             _mainWindow.Activate();
             _mainWindow.BringIntoView();
             Log.Debug("Window shown via tray icon");
         }
+    }
+
+    internal static void PrepareWindowForRestore(Window mainWindow)
+    {
+        ArgumentNullException.ThrowIfNull(mainWindow);
+
+        mainWindow.ShowInTaskbar = true;
+        mainWindow.WindowState = WindowState.Normal;
     }
 
     private void OnStartRecordingClicked(object? sender, EventArgs e)

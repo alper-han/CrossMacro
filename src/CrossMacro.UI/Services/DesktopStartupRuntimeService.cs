@@ -27,6 +27,7 @@ internal sealed class DesktopStartupRuntimeService
     private readonly Func<MainWindowViewModel> _getMainWindowViewModel;
     private readonly Func<InputSimulatorPool?> _getInputSimulatorPool;
     private readonly Func<IMousePositionProvider?> _getPositionProvider;
+    private readonly IDesktopLifetimeContext _desktopLifetimeContext;
     private readonly InputSimulatorWarmupService _inputSimulatorWarmupService;
 
     public DesktopStartupRuntimeService(
@@ -36,6 +37,7 @@ internal sealed class DesktopStartupRuntimeService
         Func<MainWindowViewModel> getMainWindowViewModel,
         Func<InputSimulatorPool?> getInputSimulatorPool,
         Func<IMousePositionProvider?> getPositionProvider,
+        IDesktopLifetimeContext desktopLifetimeContext,
         InputSimulatorWarmupService inputSimulatorWarmupService)
     {
         _getMainWindow = getMainWindow ?? throw new ArgumentNullException(nameof(getMainWindow));
@@ -44,6 +46,7 @@ internal sealed class DesktopStartupRuntimeService
         _getMainWindowViewModel = getMainWindowViewModel ?? throw new ArgumentNullException(nameof(getMainWindowViewModel));
         _getInputSimulatorPool = getInputSimulatorPool ?? throw new ArgumentNullException(nameof(getInputSimulatorPool));
         _getPositionProvider = getPositionProvider ?? throw new ArgumentNullException(nameof(getPositionProvider));
+        _desktopLifetimeContext = desktopLifetimeContext ?? throw new ArgumentNullException(nameof(desktopLifetimeContext));
         _inputSimulatorWarmupService = inputSimulatorWarmupService ?? throw new ArgumentNullException(nameof(inputSimulatorWarmupService));
     }
 
@@ -58,7 +61,7 @@ internal sealed class DesktopStartupRuntimeService
         mainWindow.DataContext = mainWindowViewModel;
 
         var trayIconService = _getTrayIconService();
-        desktop.MainWindow = mainWindow;
+        PublishMainWindow(desktop, mainWindow);
         trayIconService.Initialize();
 
         var inputSimulatorPool = _getInputSimulatorPool();
@@ -73,6 +76,19 @@ internal sealed class DesktopStartupRuntimeService
 
         var displayMode = ConfigureMainWindow(desktop, mainWindow, startupPreferences, trayIconService);
         ShowWindowForStartup(mainWindow, displayMode);
+    }
+
+    internal void PublishMainWindow(IClassicDesktopStyleApplicationLifetime desktop, Window mainWindow)
+    {
+        ArgumentNullException.ThrowIfNull(desktop);
+        ArgumentNullException.ThrowIfNull(mainWindow);
+
+        if (!ReferenceEquals(_desktopLifetimeContext.DesktopLifetime, desktop))
+        {
+            _desktopLifetimeContext.Attach(desktop);
+        }
+
+        _desktopLifetimeContext.SetMainWindow(mainWindow);
     }
 
     internal DesktopStartupDisplayMode ConfigureMainWindow(

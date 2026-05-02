@@ -1,5 +1,7 @@
 using System;
+using System.Runtime.CompilerServices;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using CrossMacro.Core.Services;
 using CrossMacro.UI.Services;
 using CrossMacro.UI.Startup;
@@ -83,7 +85,29 @@ public sealed class DesktopStartupRuntimeServiceTests
         Assert.False(plan.DisableStartupOnlyTrayAfterInitialRestore);
     }
 
-    private static DesktopStartupRuntimeService CreateService()
+    [Fact]
+    public void PublishMainWindow_WhenDesktopContextWasAttachedBeforeWindowExists_SynchronizesContextAndDesktop()
+    {
+        var context = new DesktopLifetimeContext();
+        var desktop = Substitute.For<IClassicDesktopStyleApplicationLifetime>();
+        var mainWindow = CreateWindowReferenceOnly();
+        var service = CreateService(context);
+
+        context.Attach(desktop);
+        service.PublishMainWindow(desktop, mainWindow);
+
+        Assert.Same(desktop, context.DesktopLifetime);
+        Assert.Same(mainWindow, context.MainWindow);
+        desktop.Received().MainWindow = mainWindow;
+    }
+
+    private static Window CreateWindowReferenceOnly()
+    {
+        // The test only verifies lifetime reference synchronization; constructing an Avalonia Window requires a windowing platform.
+        return (Window)RuntimeHelpers.GetUninitializedObject(typeof(Window));
+    }
+
+    private static DesktopStartupRuntimeService CreateService(IDesktopLifetimeContext? desktopLifetimeContext = null)
     {
         return new DesktopStartupRuntimeService(
             getMainWindow: () => throw new NotSupportedException(),
@@ -92,6 +116,7 @@ public sealed class DesktopStartupRuntimeServiceTests
             getMainWindowViewModel: () => throw new NotSupportedException(),
             getInputSimulatorPool: () => null,
             getPositionProvider: () => null,
+            desktopLifetimeContext: desktopLifetimeContext ?? Substitute.For<IDesktopLifetimeContext>(),
             inputSimulatorWarmupService: new InputSimulatorWarmupService());
     }
 

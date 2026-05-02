@@ -70,3 +70,16 @@ public interface IInputSimulatorCapabilities
 {
     bool SupportsAbsoluteCoordinates { get; }
 }
+
+public interface IBatchedInputSimulator
+{
+    bool SupportsBatchedInput { get; }
+
+    void SimulateBatch(ReadOnlySpan<InputSimulationStep> steps);
+}
+
+public readonly record struct InputSimulationStep(
+    ushort Type,
+    ushort Code,
+    int Value,
+    int DelayAfterMs = 0);

@@ -5,7 +5,13 @@ namespace CrossMacro.Daemon.Contracts.Ipc;
 
 public static class IpcProtocol
 {
-    public const int ProtocolVersion = 2;
+    public const int ProtocolVersion = 3;
+
+    public const int MaxSimulationBatchEvents = 4096;
+
+    public const int MaxSimulationBatchDelayMs = 1000;
+
+    public const int MaxSimulationBatchTotalDelayMs = 5000;
 
     /// <summary>
     /// Canonical daemon socket path managed by systemd RuntimeDirectory.
@@ -29,4 +35,5 @@ public struct IpcSimulationRequest
     public ushort Type;
     public ushort Code;
     public int Value;
+    public int DelayAfterMs;
 }

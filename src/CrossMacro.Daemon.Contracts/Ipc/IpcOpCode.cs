@@ -45,6 +45,24 @@ public enum IpcOpCode : byte
     CaptureStartFailed = 0x08,
 
     /// <summary>
+    /// Request to simulate an ordered batch of input events (Client to Daemon).
+    /// Payload: int (Request Id), int (Event Count), repeated ushort (Type), ushort (Code), int (Value), int (Delay After Ms)
+    /// </summary>
+    SimulateEventBatch = 0x09,
+
+    /// <summary>
+    /// Simulation batch acknowledgement sent from Daemon to Client.
+    /// Payload: int (Request Id)
+    /// </summary>
+    SimulationBatchCompleted = 0x0A,
+
+    /// <summary>
+    /// Simulation batch failure sent from Daemon to Client.
+    /// Payload: int (Request Id), string (Message)
+    /// </summary>
+    SimulationBatchFailed = 0x0B,
+
+    /// <summary>
     /// Error report.
     /// Payload: string (Message)
     /// </summary>

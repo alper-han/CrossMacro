@@ -745,6 +745,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             DisplayEnvironment.LinuxX11
                 or DisplayEnvironment.LinuxWayland
                 or DisplayEnvironment.LinuxHyprland
+                or DisplayEnvironment.LinuxWayfire
                 or DisplayEnvironment.LinuxKDE
                 or DisplayEnvironment.LinuxGnome
                 => "if you are using daemon-backed mode, check `systemctl status crossmacro.service`; direct device mode may require Linux input permissions instead.",

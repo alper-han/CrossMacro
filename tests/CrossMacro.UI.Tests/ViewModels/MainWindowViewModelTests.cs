@@ -636,6 +636,7 @@ public class MainWindowViewModelTests
     [InlineData(DisplayEnvironment.LinuxX11)]
     [InlineData(DisplayEnvironment.LinuxWayland)]
     [InlineData(DisplayEnvironment.LinuxHyprland)]
+    [InlineData(DisplayEnvironment.LinuxWayfire)]
     [InlineData(DisplayEnvironment.LinuxKDE)]
     [InlineData(DisplayEnvironment.LinuxGnome)]
     public void GetBackendTroubleshootingHint_WhenLinuxEnvironment_ReturnsSystemctlGuidance(DisplayEnvironment environment)

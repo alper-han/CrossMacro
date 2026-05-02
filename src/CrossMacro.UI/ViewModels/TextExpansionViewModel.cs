@@ -56,6 +56,7 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
         return env == DisplayEnvironment.LinuxX11 ||
                env == DisplayEnvironment.LinuxWayland ||
                env == DisplayEnvironment.LinuxHyprland ||
+               env == DisplayEnvironment.LinuxWayfire ||
                env == DisplayEnvironment.LinuxKDE ||
                env == DisplayEnvironment.LinuxGnome;
     }

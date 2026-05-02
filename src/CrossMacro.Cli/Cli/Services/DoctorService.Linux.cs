@@ -232,6 +232,7 @@ public sealed partial class DoctorService
         var isWayland = isWaylandSession
             || detectedEnvironment == DisplayEnvironment.LinuxWayland
             || detectedEnvironment == DisplayEnvironment.LinuxHyprland
+            || detectedEnvironment == DisplayEnvironment.LinuxWayfire
             || detectedEnvironment == DisplayEnvironment.LinuxKDE
             || detectedEnvironment == DisplayEnvironment.LinuxGnome;
 

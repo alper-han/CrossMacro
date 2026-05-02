@@ -37,6 +37,11 @@ public enum DisplayEnvironment
     LinuxHyprland,
 
     /// <summary>
+    /// Linux with Wayfire compositor.
+    /// </summary>
+    LinuxWayfire,
+
+    /// <summary>
     /// Linux with KDE Plasma desktop.
     /// </summary>
     LinuxKDE,

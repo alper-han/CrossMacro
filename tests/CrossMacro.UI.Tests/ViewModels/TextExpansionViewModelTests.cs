@@ -174,6 +174,7 @@ public class TextExpansionViewModelTests
     [Theory]
     [InlineData(DisplayEnvironment.LinuxX11, true)]
     [InlineData(DisplayEnvironment.LinuxWayland, true)]
+    [InlineData(DisplayEnvironment.LinuxWayfire, true)]
     [InlineData(DisplayEnvironment.Windows, false)]
     [InlineData(DisplayEnvironment.MacOS, false)]
     public void IsPasteMethodVisible_ReflectsEnvironment(DisplayEnvironment environment, bool expected)

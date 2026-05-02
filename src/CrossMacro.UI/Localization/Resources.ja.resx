@@ -301,7 +301,7 @@
     <value>置換テキスト</value>
   </data>
   <data name="TextExpansion_ReplacementPlaceholder" xml:space="preserve">
-    <value>taro.yamada@example.com</value>
+    <value>email@example.com</value>
   </data>
   <data name="Files_UnnamedMacro" xml:space="preserve">
     <value>新しいマクロ</value>

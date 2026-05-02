@@ -301,7 +301,7 @@
     <value>Замена</value>
   </data>
   <data name="TextExpansion_ReplacementPlaceholder" xml:space="preserve">
-    <value>ivan.ivanov@example.com</value>
+    <value>email@example.com</value>
   </data>
   <data name="Files_UnnamedMacro" xml:space="preserve">
     <value>Новый макрос</value>

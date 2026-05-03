@@ -9,7 +9,9 @@
     </Style>
 
     <Style Selector="ListBox.editor-action-list ListBoxItem:selected /template/ ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+        <Setter Property="BorderThickness" Value="2"/>
     </Style>
 
     <Style Selector="ListBox.editor-action-list ListBoxItem:pointerover /template/ ContentPresenter">
@@ -17,6 +19,51 @@
     </Style>
 
     <Style Selector="ListBox.editor-action-list ListBoxItem:selected:pointerover /template/ ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+        <Setter Property="BorderThickness" Value="2"/>
+    </Style>
+
+    <Style Selector="ListBox.editor-action-list Border.editor-action-index-badge">
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+
+    <Style Selector="ListBox.editor-action-list TextBlock.editor-action-index">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+    </Style>
+
+    <Style Selector="ListBox.editor-action-list StackPanel.important Border.editor-action-index-badge">
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+    </Style>
+
+    <Style Selector="ListBox.editor-action-list StackPanel.important TextBlock.editor-action-index">
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+    </Style>
+
+    <Style Selector="ListBox.editor-action-list StackPanel.important TextBlock.editor-action-name">
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+
+    <Style Selector="ListBox.editor-action-list ListBoxItem:selected TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+    </Style>
+
+    <Style Selector="ListBox.editor-action-list ListBoxItem:selected Border.editor-action-index-badge">
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+    </Style>
+
+    <Style Selector="ListBox.editor-action-list ListBoxItem:selected StackPanel.important TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+    </Style>
+
+    <Style Selector="ListBox.editor-action-list ListBoxItem:selected StackPanel.important Border.editor-action-index-badge">
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+    </Style>
+
+    <Style Selector="ListBox.editor-action-list StackPanel.noise TextBlock.editor-action-index">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
     </Style>
 </Styles>

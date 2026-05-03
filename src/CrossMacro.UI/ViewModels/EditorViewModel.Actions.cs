@@ -546,27 +546,38 @@ public partial class EditorViewModel
             return;
         }
 
-        if (!CanApplyScriptStructureMutation(candidate => candidate.RemoveAt(index)))
+        RemoveActionsAtIndices(new[] { index }, "Editor_StatusRemovedAction");
+    }
+
+    public void RemoveSelectedActions()
+    {
+        var indices = SelectedActionUnderlyingIndices
+            .Where(index => index >= 0 && index < Actions.Count)
+            .Distinct()
+            .OrderBy(index => index)
+            .ToArray();
+        if (indices.Length == 0)
         {
             return;
         }
 
-        SaveUndoState();
-        Actions.Remove(SelectedAction);
+        RemoveActionsAtIndices(indices, "Editor_StatusRemovedSelectedActions");
+    }
 
-        if (Actions.Count > 0)
+    public void DeleteHiddenEvents()
+    {
+        var indices = Actions
+            .Select((action, index) => new { action, index })
+            .Where(item => IsHiddenByActiveFilters(item.action, IsInsideMouseDrag(item.index)))
+            .Select(item => item.index)
+            .ToArray();
+        if (indices.Length == 0)
         {
-            SelectedAction = Actions[Math.Min(index, Actions.Count - 1)];
-        }
-        else
-        {
-            SelectedAction = null;
+            Status = Localize("Editor_StatusNoHiddenEventsToDelete");
+            return;
         }
 
-        Status = Localize("Editor_StatusRemovedAction");
-        OnPropertyChanged(nameof(HasActions));
-        ResetPropertyEditUndoCoalescing();
-        RememberCurrentState();
+        RemoveActionsAtIndices(indices, "Editor_StatusDeletedHiddenEvents");
     }
 
     public void MoveUp()
@@ -623,6 +634,74 @@ public partial class EditorViewModel
         RememberCurrentState();
     }
 
+    public void MoveSelectedActionsUp()
+    {
+        var indices = GetNormalizedSelectedActionIndices();
+        if (indices.Length == 0)
+        {
+            return;
+        }
+
+        if (indices[0] <= 0)
+        {
+            Status = Localize("Editor_StatusOperationBlocked");
+            return;
+        }
+
+        if (!CanApplyScriptStructureMutation(candidate => MoveIndicesUp(candidate, indices)))
+        {
+            return;
+        }
+
+        SaveUndoState();
+        var selectedActions = indices.Select(index => Actions[index]).ToArray();
+        foreach (var action in selectedActions)
+        {
+            var currentIndex = Actions.IndexOf(action);
+            Actions.Move(currentIndex, currentIndex - 1);
+        }
+
+        SetSelectedActionUnderlyingIndices(indices.Select(index => index - 1));
+        SelectPrimaryActionFromUnderlyingSelection();
+        Status = Localize("Editor_StatusMovedSelectedActionsUp");
+        ResetPropertyEditUndoCoalescing();
+        RememberCurrentState();
+    }
+
+    public void MoveSelectedActionsDown()
+    {
+        var indices = GetNormalizedSelectedActionIndices();
+        if (indices.Length == 0)
+        {
+            return;
+        }
+
+        if (indices[^1] >= Actions.Count - 1)
+        {
+            Status = Localize("Editor_StatusOperationBlocked");
+            return;
+        }
+
+        if (!CanApplyScriptStructureMutation(candidate => MoveIndicesDown(candidate, indices)))
+        {
+            return;
+        }
+
+        SaveUndoState();
+        var selectedActions = indices.Select(index => Actions[index]).Reverse().ToArray();
+        foreach (var action in selectedActions)
+        {
+            var currentIndex = Actions.IndexOf(action);
+            Actions.Move(currentIndex, currentIndex + 1);
+        }
+
+        SetSelectedActionUnderlyingIndices(indices.Select(index => index + 1));
+        SelectPrimaryActionFromUnderlyingSelection();
+        Status = Localize("Editor_StatusMovedSelectedActionsDown");
+        ResetPropertyEditUndoCoalescing();
+        RememberCurrentState();
+    }
+
     public void DuplicateAction()
     {
         if (SelectedAction == null)
@@ -651,6 +730,35 @@ public partial class EditorViewModel
         RememberCurrentState();
     }
 
+    public void DuplicateSelectedActions()
+    {
+        var indices = GetNormalizedSelectedActionIndices();
+        if (indices.Length == 0)
+        {
+            return;
+        }
+
+        var insertionIndex = indices[^1] + 1;
+        if (!CanApplyScriptStructureMutation(candidate => InsertClones(candidate, indices, insertionIndex)))
+        {
+            return;
+        }
+
+        SaveUndoState();
+        var clones = indices.Select(index => Actions[index].Clone()).ToArray();
+        for (var offset = 0; offset < clones.Length; offset++)
+        {
+            Actions.Insert(insertionIndex + offset, clones[offset]);
+        }
+
+        SetSelectedActionUnderlyingIndices(Enumerable.Range(insertionIndex, clones.Length));
+        SelectPrimaryActionFromUnderlyingSelection();
+        Status = Localize("Editor_StatusDuplicatedSelectedActions");
+        OnPropertyChanged(nameof(HasActions));
+        ResetPropertyEditUndoCoalescing();
+        RememberCurrentState();
+    }
+
     public void ClearAll()
     {
         if (Actions.Count == 0)
@@ -666,6 +774,76 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(HasActions));
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
+    }
+
+    private void RemoveActionsAtIndices(IReadOnlyCollection<int> indices, string statusKey)
+    {
+        var orderedIndices = NormalizeActionIndices(indices);
+        if (orderedIndices.Length == 0)
+        {
+            return;
+        }
+
+        if (!CanApplyScriptStructureMutation(candidate => RemoveIndicesDescending(candidate, orderedIndices)))
+        {
+            return;
+        }
+
+        SaveUndoState();
+        RemoveIndicesDescending(Actions, orderedIndices);
+        SelectAfterRemovingIndices(orderedIndices);
+        Status = Localize(statusKey);
+        OnPropertyChanged(nameof(HasActions));
+        ResetPropertyEditUndoCoalescing();
+        RememberCurrentState();
+    }
+
+    private int[] GetNormalizedSelectedActionIndices()
+    {
+        return NormalizeActionIndices(SelectedActionUnderlyingIndices);
+    }
+
+    private int[] NormalizeActionIndices(IEnumerable<int> indices)
+    {
+        return indices
+            .Where(index => index >= 0 && index < Actions.Count)
+            .Distinct()
+            .OrderBy(index => index)
+            .ToArray();
+    }
+
+    private void SetSelectedActionUnderlyingIndices(IEnumerable<int> indices)
+    {
+        _isSynchronizingSelectedUnderlyingIndices = true;
+        try
+        {
+            SelectedActionUnderlyingIndices.Clear();
+            foreach (var index in indices)
+            {
+                SelectedActionUnderlyingIndices.Add(index);
+            }
+        }
+        finally
+        {
+            _isSynchronizingSelectedUnderlyingIndices = false;
+        }
+
+        NotifySelectedActionsChanged();
+    }
+
+    private void SelectAfterRemovingIndices(IReadOnlyList<int> removedIndices)
+    {
+        if (Actions.Count == 0)
+        {
+            SelectedAction = null;
+            return;
+        }
+
+        var lowestRemovedIndex = removedIndices[0];
+        var targetIndex = lowestRemovedIndex < Actions.Count
+            ? lowestRemovedIndex
+            : Actions.Count - 1;
+        SelectedAction = Actions[targetIndex];
     }
 
     public void Undo()
@@ -900,6 +1078,41 @@ public partial class EditorViewModel
         var action = actions[sourceIndex];
         actions.RemoveAt(sourceIndex);
         actions.Insert(destinationIndex, action);
+    }
+
+    private static void MoveIndicesUp(List<EditorAction> actions, IEnumerable<int> indices)
+    {
+        foreach (var index in indices.OrderBy(index => index))
+        {
+            MoveAction(actions, index, index - 1);
+        }
+    }
+
+    private static void MoveIndicesDown(List<EditorAction> actions, IEnumerable<int> indices)
+    {
+        foreach (var index in indices.OrderByDescending(index => index))
+        {
+            MoveAction(actions, index, index + 1);
+        }
+    }
+
+    private static void InsertClones(IList<EditorAction> actions, IReadOnlyList<int> indices, int insertionIndex)
+    {
+        var clones = indices
+            .Select(index => actions[index].Clone())
+            .ToArray();
+        for (var offset = 0; offset < clones.Length; offset++)
+        {
+            actions.Insert(insertionIndex + offset, clones[offset]);
+        }
+    }
+
+    private static void RemoveIndicesDescending(IList<EditorAction> actions, IEnumerable<int> indices)
+    {
+        foreach (var index in indices.OrderByDescending(index => index))
+        {
+            actions.RemoveAt(index);
+        }
     }
 
     private static bool IsScriptBlockStartAction(EditorActionType actionType)

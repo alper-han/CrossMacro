@@ -53,8 +53,12 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private bool _isSynchronizingActionProperties;
     private bool _isApplyingVariableSuggestion;
     private bool _isSelectingFromActionList;
+    private bool _isSynchronizingSelectedUnderlyingIndices;
     private bool _disposed;
     private bool _usesDefaultMacroName = true;
+    private bool _hideMouseMoves;
+    private bool _hideShortWaits;
+    private bool _simplifyMovement;
     private bool _isApplyingStatusKind;
     private EditorStatusKind _statusKind = EditorStatusKind.Ready;
     private List<EditorAction> _lastKnownState = new();
@@ -108,8 +112,10 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
         Actions = new ObservableCollection<EditorAction>();
         ActionListItems = new ObservableCollection<EditorActionListItem>();
+        SelectedActionUnderlyingIndices = new ObservableCollection<int>();
         LoadWarnings = new ObservableCollection<string>();
         Actions.CollectionChanged += OnActionsCollectionChanged;
+        SelectedActionUnderlyingIndices.CollectionChanged += OnSelectedActionUnderlyingIndicesChanged;
         LoadWarnings.CollectionChanged += OnLoadWarningsCollectionChanged;
         _localizationService.CultureChanged += OnCultureChanged;
         RefreshAvailableVariableNames();
@@ -121,6 +127,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public ObservableCollection<EditorAction> Actions { get; }
 
     public ObservableCollection<EditorActionListItem> ActionListItems { get; }
+
+    public ObservableCollection<int> SelectedActionUnderlyingIndices { get; }
 
     public ObservableCollection<string> LoadWarnings { get; }
 
@@ -151,6 +159,10 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             NotifyVisibilityChanged();
             ResetPropertyEditUndoCoalescing();
             SyncSelectedActionListItem();
+            if (!_isSelectingFromActionList)
+            {
+                SyncSelectedUnderlyingIndicesToPrimarySelection();
+            }
         }
     }
 
@@ -188,6 +200,65 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     }
 
     public bool HasSelectedAction => _selectedAction != null;
+    public bool HasSelectedActions => SelectedActionUnderlyingIndices.Count > 0;
+    public int SelectedActionCount => SelectedActionUnderlyingIndices.Count;
+    public bool ShowSingleSelectedActionProperties => HasSelectedAction && SelectedActionCount <= 1;
+    public bool ShowBatchDelayProperties => SelectedActionCount > 1 && GetSelectedActions().All(action => action.Type == EditorActionType.Delay);
+    public bool ShowMultiSelectionPropertiesHint => SelectedActionCount > 1 && !ShowBatchDelayProperties;
+    public bool ShowBatchFixedDelayInput => ShowBatchDelayProperties && !BatchDelayUseRandomDelay;
+    public bool ShowBatchRandomDelayOptions => ShowBatchDelayProperties && BatchDelayUseRandomDelay;
+    public bool CanRemoveSelectedActions => HasSelectedActions;
+    public bool CanDeleteHiddenEvents => Actions
+        .Select((action, index) => new { action, index })
+        .Any(item => IsHiddenByActiveFilters(item.action, IsInsideMouseDrag(item.index)));
+    public bool ShowDeleteHiddenEvents => (HideMouseMoves || HideShortWaits) && CanDeleteHiddenEvents;
+    public bool CanHideMouseMoves => Actions.Any(action => action.Type == EditorActionType.MouseMove);
+    public bool ShowHideMouseMovesToggle => HideMouseMoves || CanHideMouseMoves;
+    public bool CanHideShortWaits => Actions.Any(IsShortWaitAction);
+    public bool ShowHideShortWaitsToggle => HideShortWaits || CanHideShortWaits;
+    public bool CanSimplifyMovement => Actions
+        .Select((_, index) => TryGetCondensibleRun(index))
+        .Any(run => run != null);
+    public bool ShowSimplifyMovementToggle => SimplifyMovement || CanSimplifyMovement;
+    public bool CanDuplicateSelectedActions => HasSelectedActions;
+    public bool CanMoveSelectedActionsUp => HasSelectedActions && SelectedActionUnderlyingIndices.Min() > 0;
+    public bool CanMoveSelectedActionsDown => HasSelectedActions && SelectedActionUnderlyingIndices.Max() < Actions.Count - 1;
+
+    public bool BatchDelayUseRandomDelay
+    {
+        get => GetSelectedDelayActions().FirstOrDefault()?.UseRandomDelay ?? false;
+        set => ApplyToSelectedDelayActions(
+            nameof(EditorAction.UseRandomDelay),
+            action => action.UseRandomDelay != value,
+            action => action.UseRandomDelay = value);
+    }
+
+    public int BatchDelayMs
+    {
+        get => GetSelectedDelayActions().FirstOrDefault()?.DelayMs ?? 0;
+        set => ApplyToSelectedDelayActions(
+            nameof(EditorAction.DelayMs),
+            action => action.DelayMs != value,
+            action => action.DelayMs = value);
+    }
+
+    public int BatchRandomDelayMinMs
+    {
+        get => GetSelectedDelayActions().FirstOrDefault()?.RandomDelayMinMs ?? 0;
+        set => ApplyToSelectedDelayActions(
+            nameof(EditorAction.RandomDelayMinMs),
+            action => action.RandomDelayMinMs != value,
+            action => action.RandomDelayMinMs = value);
+    }
+
+    public int BatchRandomDelayMaxMs
+    {
+        get => GetSelectedDelayActions().FirstOrDefault()?.RandomDelayMaxMs ?? 0;
+        set => ApplyToSelectedDelayActions(
+            nameof(EditorAction.RandomDelayMaxMs),
+            action => action.RandomDelayMaxMs != value,
+            action => action.RandomDelayMaxMs = value);
+    }
 
     public EditorActionType NewActionType
     {
@@ -271,6 +342,62 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public bool CanRedo => _redoStack.Count > 0;
     public bool HasActions => Actions.Count > 0;
     public bool HasLoadWarnings => LoadWarnings.Count > 0;
+    public int HiddenEventCount { get; private set; }
+    public bool HasHiddenEvents => HiddenEventCount > 0;
+
+    public bool HideMouseMoves
+    {
+        get => _hideMouseMoves;
+        set
+        {
+            if (_hideMouseMoves == value)
+            {
+                return;
+            }
+
+            _hideMouseMoves = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ShowHideMouseMovesToggle));
+            OnPropertyChanged(nameof(ShowDeleteHiddenEvents));
+            UpdateActionListPresentation();
+        }
+    }
+
+    public bool HideShortWaits
+    {
+        get => _hideShortWaits;
+        set
+        {
+            if (_hideShortWaits == value)
+            {
+                return;
+            }
+
+            _hideShortWaits = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ShowHideShortWaitsToggle));
+            OnPropertyChanged(nameof(ShowDeleteHiddenEvents));
+            UpdateActionListPresentation();
+        }
+    }
+
+    public bool SimplifyMovement
+    {
+        get => _simplifyMovement;
+        set
+        {
+            if (_simplifyMovement == value)
+            {
+                return;
+            }
+
+            _simplifyMovement = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ShowSimplifyMovementToggle));
+            UpdateActionListPresentation();
+        }
+    }
+
     public bool SkipInitialZeroZero
     {
         get => _skipInitialZeroZero;
@@ -518,6 +645,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
         _subscribedActions.Clear();
         Actions.CollectionChanged -= OnActionsCollectionChanged;
+        SelectedActionUnderlyingIndices.CollectionChanged -= OnSelectedActionUnderlyingIndicesChanged;
         LoadWarnings.CollectionChanged -= OnLoadWarningsCollectionChanged;
         _localizationService.CultureChanged -= OnCultureChanged;
         _captureService.CancelCapture();
@@ -649,6 +777,56 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         RefreshCurrentPositionConfiguration();
         RefreshAvailableVariableNames();
         OnPropertyChanged(nameof(CanRemoveBlock));
+        OnPropertyChanged(nameof(CanDeleteHiddenEvents));
+        OnPropertyChanged(nameof(ShowDeleteHiddenEvents));
+        NotifyFilterToggleAvailabilityChanged();
+        NormalizeSelectedUnderlyingIndices();
+        NotifySelectedActionsChanged();
+    }
+
+    private void OnSelectedActionUnderlyingIndicesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (_isSynchronizingSelectedUnderlyingIndices)
+        {
+            return;
+        }
+
+        NormalizeSelectedUnderlyingIndices();
+        SelectPrimaryActionFromUnderlyingSelection();
+        NotifySelectedActionsChanged();
+    }
+
+    public void ReplaceSelectedActionUnderlyingIndices(IEnumerable<int> underlyingIndices)
+    {
+        ArgumentNullException.ThrowIfNull(underlyingIndices);
+
+        var normalized = underlyingIndices
+            .Where(index => index >= 0 && index < Actions.Count)
+            .Distinct()
+            .OrderBy(index => index)
+            .ToArray();
+
+        if (SelectedActionUnderlyingIndices.SequenceEqual(normalized))
+        {
+            return;
+        }
+
+        _isSynchronizingSelectedUnderlyingIndices = true;
+        try
+        {
+            SelectedActionUnderlyingIndices.Clear();
+            foreach (var index in normalized)
+            {
+                SelectedActionUnderlyingIndices.Add(index);
+            }
+        }
+        finally
+        {
+            _isSynchronizingSelectedUnderlyingIndices = false;
+        }
+
+        SelectPrimaryActionFromUnderlyingSelection();
+        NotifySelectedActionsChanged();
     }
 
     private void OnAnyActionPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -661,6 +839,16 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         if (e.PropertyName == nameof(EditorAction.Type))
         {
             OnPropertyChanged(nameof(CanRemoveBlock));
+            OnPropertyChanged(nameof(CanDeleteHiddenEvents));
+            OnPropertyChanged(nameof(ShowDeleteHiddenEvents));
+            NotifyFilterToggleAvailabilityChanged();
+        }
+
+        if (e.PropertyName == nameof(EditorAction.DelayMs) || e.PropertyName == nameof(EditorAction.UseRandomDelay))
+        {
+            OnPropertyChanged(nameof(CanDeleteHiddenEvents));
+            OnPropertyChanged(nameof(ShowDeleteHiddenEvents));
+            NotifyFilterToggleAvailabilityChanged();
         }
 
         if (e.PropertyName is not (
@@ -715,9 +903,38 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             var depth = 0;
             var blockStack = new Stack<EditorActionType>();
 
+            var hiddenEventCount = 0;
             for (var index = 0; index < Actions.Count; index++)
             {
                 var action = Actions[index];
+                var isInsideDrag = IsInsideMouseDrag(index);
+                var isLowImportance = IsLowImportanceEditorEvent(action, isInsideDrag);
+                if (IsHiddenByActiveFilters(action, isInsideDrag))
+                {
+                    hiddenEventCount++;
+                    continue;
+                }
+
+                var condensedRun = SimplifyMovement
+                    ? TryGetCondensibleRun(index)
+                    : null;
+                if (condensedRun != null)
+                {
+                    var representativeAction = Actions[condensedRun.RepresentativeIndex];
+                    var representativeIsLowImportance = IsLowImportanceEditorEvent(representativeAction, isInsideDrag: false);
+                    var representativeDisplayName = _actionDisplayFormatter.Format(representativeAction);
+
+                    ActionListItems.Add(CreateActionListItem(
+                        representativeAction,
+                        condensedRun.RepresentativeIndex,
+                        depth,
+                        representativeDisplayName,
+                        representativeIsLowImportance,
+                        condensedRun.HiddenCount));
+                    index = condensedRun.EndIndex;
+                    continue;
+                }
+
                 if (action.Type == EditorActionType.BlockEnd)
                 {
                     if (depth > 0)
@@ -729,21 +946,13 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                         ? $"End {_actionDisplayFormatter.FormatBlockName(blockStack.Pop())}"
                         : Localize("Editor_Action_EndBlockShort");
 
-                    ActionListItems.Add(new EditorActionListItem(
-                        action,
-                        action.Index,
-                        depth,
-                        displayName));
+                    ActionListItems.Add(CreateActionListItem(action, index, depth, displayName, isLowImportance, condensedHiddenCount: 0));
                     continue;
                 }
 
                 var rowDisplayName = _actionDisplayFormatter.Format(action);
 
-                ActionListItems.Add(new EditorActionListItem(
-                    action,
-                    action.Index,
-                    depth,
-                    rowDisplayName));
+                ActionListItems.Add(CreateActionListItem(action, index, depth, rowDisplayName, isLowImportance, condensedHiddenCount: 0));
 
                 if (IsScriptBlockStartAction(action.Type))
                 {
@@ -752,12 +961,160 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                 }
             }
 
-            SyncSelectedActionListItem();
+            if (HiddenEventCount != hiddenEventCount)
+            {
+                HiddenEventCount = hiddenEventCount;
+                OnPropertyChanged(nameof(HiddenEventCount));
+                OnPropertyChanged(nameof(HasHiddenEvents));
+            }
+
+            NormalizeSelectedUnderlyingIndices();
+            if (SelectedActionUnderlyingIndices.Count > 0)
+            {
+                SelectPrimaryActionFromUnderlyingSelection();
+            }
+            else
+            {
+                SyncSelectedActionListItem();
+            }
+
+            NotifySelectedActionsChanged();
         }
         finally
         {
             _isSelectingFromActionList = previousSelectionSyncFlag;
         }
+    }
+
+    private sealed record CondensibleRun(int EndIndex, int RepresentativeIndex, int HiddenCount);
+
+    private CondensibleRun? TryGetCondensibleRun(int startIndex)
+    {
+        if (IsInsideMouseDrag(startIndex) || !IsMovementSimplificationCandidate(Actions[startIndex]))
+        {
+            return null;
+        }
+
+        var endIndex = startIndex;
+        var representativeIndex = startIndex;
+        var lastMouseMoveIndex = -1;
+
+        for (var index = startIndex; index < Actions.Count; index++)
+        {
+            var action = Actions[index];
+            if (IsInsideMouseDrag(index) || !IsMovementSimplificationCandidate(action))
+            {
+                break;
+            }
+
+            endIndex = index;
+            representativeIndex = index;
+            if (action.Type == EditorActionType.MouseMove)
+            {
+                lastMouseMoveIndex = index;
+            }
+        }
+
+        var runLength = endIndex - startIndex + 1;
+        if (runLength < 6)
+        {
+            return null;
+        }
+
+        if (lastMouseMoveIndex >= startIndex)
+        {
+            representativeIndex = lastMouseMoveIndex;
+        }
+
+        return new CondensibleRun(
+            endIndex,
+            representativeIndex,
+            runLength - 1);
+    }
+
+    private EditorActionListItem CreateActionListItem(
+        EditorAction action,
+        int underlyingIndex,
+        int indentLevel,
+        string displayName,
+        bool isNoise,
+        int condensedHiddenCount)
+    {
+        var visualKind = GetActionVisualKind(action, isNoise);
+
+        var condensedHint = condensedHiddenCount > 0
+            ? string.Format(
+                _localizationService.CurrentCulture,
+                Localize("Editor_SimplifiedMovementHint"),
+                condensedHiddenCount)
+            : string.Empty;
+
+        return new EditorActionListItem(
+            action,
+            action.Index,
+            underlyingIndex,
+            indentLevel,
+            displayName,
+            condensedHint,
+            visualKind,
+            IsImportantAction(action, isNoise),
+            IsCleanupEligibleAction(action, isNoise),
+            condensedHiddenCount,
+            representsSourceAction: true,
+            isNoise);
+    }
+
+    private static EditorActionVisualKind GetActionVisualKind(EditorAction action, bool isNoise)
+    {
+        return action.Type switch
+        {
+            EditorActionType.Delay when isNoise => EditorActionVisualKind.Noise,
+            EditorActionType.MouseMove => EditorActionVisualKind.Movement,
+            EditorActionType.MouseClick
+                or EditorActionType.MouseDown
+                or EditorActionType.MouseUp
+                or EditorActionType.ScrollVertical
+                or EditorActionType.ScrollHorizontal => EditorActionVisualKind.Pointer,
+            EditorActionType.KeyPress
+                or EditorActionType.KeyDown
+                or EditorActionType.KeyUp => EditorActionVisualKind.Keyboard,
+            EditorActionType.TextInput => EditorActionVisualKind.Text,
+            EditorActionType.Delay => EditorActionVisualKind.Timing,
+            EditorActionType.SetVariable
+                or EditorActionType.IncrementVariable
+                or EditorActionType.DecrementVariable => EditorActionVisualKind.Variable,
+            EditorActionType.RepeatBlockStart
+                or EditorActionType.IfBlockStart
+                or EditorActionType.ElseBlockStart
+                or EditorActionType.WhileBlockStart
+                or EditorActionType.ForBlockStart
+                or EditorActionType.BlockEnd
+                or EditorActionType.Break
+                or EditorActionType.Continue => EditorActionVisualKind.ControlFlow,
+            EditorActionType.RawScriptStep => EditorActionVisualKind.Raw,
+            _ => EditorActionVisualKind.Raw
+        };
+    }
+
+    private static bool IsImportantAction(EditorAction action, bool isNoise)
+    {
+        if (isNoise)
+        {
+            return false;
+        }
+
+        return action.Type switch
+        {
+            EditorActionType.MouseMove => false,
+            EditorActionType.Delay when !action.UseRandomDelay && action.DelayMs == 0 => false,
+            EditorActionType.Delay => true,
+            _ => true
+        };
+    }
+
+    private static bool IsCleanupEligibleAction(EditorAction action, bool isNoise)
+    {
+        return isNoise && (action.Type == EditorActionType.MouseMove || action.Type == EditorActionType.Delay);
     }
 
     private void SyncSelectedActionListItem()
@@ -772,6 +1129,214 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
         _selectedActionListItem = selectedRow;
         OnPropertyChanged(nameof(SelectedActionListItem));
+    }
+
+    private void SyncSelectedUnderlyingIndicesToPrimarySelection()
+    {
+        _isSynchronizingSelectedUnderlyingIndices = true;
+        try
+        {
+            SelectedActionUnderlyingIndices.Clear();
+
+            var selectedIndex = SelectedAction == null
+                ? -1
+                : Actions.IndexOf(SelectedAction);
+            if (selectedIndex >= 0)
+            {
+                SelectedActionUnderlyingIndices.Add(selectedIndex);
+            }
+        }
+        finally
+        {
+            _isSynchronizingSelectedUnderlyingIndices = false;
+        }
+
+        NotifySelectedActionsChanged();
+    }
+
+    private void NormalizeSelectedUnderlyingIndices()
+    {
+        if (_isSynchronizingSelectedUnderlyingIndices)
+        {
+            return;
+        }
+
+        var normalized = SelectedActionUnderlyingIndices
+            .Where(index => index >= 0 && index < Actions.Count)
+            .Distinct()
+            .OrderBy(index => index)
+            .ToArray();
+
+        if (SelectedActionUnderlyingIndices.SequenceEqual(normalized))
+        {
+            return;
+        }
+
+        _isSynchronizingSelectedUnderlyingIndices = true;
+        try
+        {
+            SelectedActionUnderlyingIndices.Clear();
+            foreach (var index in normalized)
+            {
+                SelectedActionUnderlyingIndices.Add(index);
+            }
+        }
+        finally
+        {
+            _isSynchronizingSelectedUnderlyingIndices = false;
+        }
+    }
+
+    private void SelectPrimaryActionFromUnderlyingSelection()
+    {
+        var selectedIndexSet = SelectedActionUnderlyingIndices.ToHashSet();
+        var selectedRow = ActionListItems
+            .Where(item => item.RepresentsSourceAction && selectedIndexSet.Contains(item.UnderlyingIndex))
+            .OrderBy(item => item.UnderlyingIndex)
+            .FirstOrDefault();
+
+        _isSelectingFromActionList = true;
+        try
+        {
+            SelectedActionListItem = selectedRow;
+            if (!ReferenceEquals(SelectedAction, selectedRow?.Action))
+            {
+                SelectedAction = selectedRow?.Action;
+            }
+        }
+        finally
+        {
+            _isSelectingFromActionList = false;
+        }
+    }
+
+    private void NotifySelectedActionsChanged()
+    {
+        OnPropertyChanged(nameof(HasSelectedActions));
+        OnPropertyChanged(nameof(SelectedActionCount));
+        OnPropertyChanged(nameof(ShowSingleSelectedActionProperties));
+        OnPropertyChanged(nameof(ShowBatchDelayProperties));
+        OnPropertyChanged(nameof(ShowMultiSelectionPropertiesHint));
+        OnPropertyChanged(nameof(ShowBatchFixedDelayInput));
+        OnPropertyChanged(nameof(ShowBatchRandomDelayOptions));
+        OnPropertyChanged(nameof(BatchDelayUseRandomDelay));
+        OnPropertyChanged(nameof(BatchDelayMs));
+        OnPropertyChanged(nameof(BatchRandomDelayMinMs));
+        OnPropertyChanged(nameof(BatchRandomDelayMaxMs));
+        OnPropertyChanged(nameof(CanRemoveSelectedActions));
+        OnPropertyChanged(nameof(CanDeleteHiddenEvents));
+        OnPropertyChanged(nameof(ShowDeleteHiddenEvents));
+        OnPropertyChanged(nameof(CanDuplicateSelectedActions));
+        OnPropertyChanged(nameof(CanMoveSelectedActionsUp));
+        OnPropertyChanged(nameof(CanMoveSelectedActionsDown));
+    }
+
+    private void NotifyFilterToggleAvailabilityChanged()
+    {
+        OnPropertyChanged(nameof(CanHideMouseMoves));
+        OnPropertyChanged(nameof(ShowHideMouseMovesToggle));
+        OnPropertyChanged(nameof(CanHideShortWaits));
+        OnPropertyChanged(nameof(ShowHideShortWaitsToggle));
+        OnPropertyChanged(nameof(CanSimplifyMovement));
+        OnPropertyChanged(nameof(ShowSimplifyMovementToggle));
+    }
+
+    private IReadOnlyList<EditorAction> GetSelectedActions()
+    {
+        return SelectedActionUnderlyingIndices
+            .Where(index => index >= 0 && index < Actions.Count)
+            .Distinct()
+            .OrderBy(index => index)
+            .Select(index => Actions[index])
+            .ToArray();
+    }
+
+    private IReadOnlyList<EditorAction> GetSelectedDelayActions()
+    {
+        return GetSelectedActions()
+            .Where(action => action.Type == EditorActionType.Delay)
+            .ToArray();
+    }
+
+    private void ApplyToSelectedDelayActions(string propertyName, Func<EditorAction, bool> shouldUpdate, Action<EditorAction> update)
+    {
+        var actions = GetSelectedDelayActions();
+        if (actions.Count == 0 || !actions.Any(shouldUpdate))
+        {
+            return;
+        }
+
+        SaveUndoState();
+        _isSynchronizingActionProperties = true;
+        try
+        {
+            foreach (var action in actions)
+            {
+                update(action);
+            }
+        }
+        finally
+        {
+            _isSynchronizingActionProperties = false;
+        }
+
+        UpdateActionListPresentation();
+        NotifyVisibilityChanged();
+        NotifySelectedActionsChanged();
+        ResetPropertyEditUndoCoalescing();
+        RememberCurrentState();
+
+        OnPropertyChanged(propertyName switch
+        {
+            nameof(EditorAction.UseRandomDelay) => nameof(BatchDelayUseRandomDelay),
+            nameof(EditorAction.DelayMs) => nameof(BatchDelayMs),
+            nameof(EditorAction.RandomDelayMinMs) => nameof(BatchRandomDelayMinMs),
+            nameof(EditorAction.RandomDelayMaxMs) => nameof(BatchRandomDelayMaxMs),
+            _ => string.Empty
+        });
+    }
+
+    private bool IsHiddenByActiveFilters(EditorAction action, bool isInsideDrag)
+    {
+        return (HideMouseMoves && action.Type == EditorActionType.MouseMove)
+            || (HideShortWaits && IsShortWaitAction(action));
+    }
+
+    private static bool IsLowImportanceEditorEvent(EditorAction action, bool isInsideDrag)
+    {
+        return (!isInsideDrag && action.Type == EditorActionType.MouseMove)
+            || IsShortWaitAction(action);
+    }
+
+    private static bool IsMovementSimplificationCandidate(EditorAction action)
+    {
+        return action.Type == EditorActionType.MouseMove
+            || IsShortWaitAction(action);
+    }
+
+    private static bool IsShortWaitAction(EditorAction action)
+    {
+        return action is { Type: EditorActionType.Delay, UseRandomDelay: false, DelayMs: > 0 and < 10 };
+    }
+
+    private bool IsInsideMouseDrag(int actionIndex)
+    {
+        var isDragging = false;
+        for (var index = 0; index < actionIndex && index < Actions.Count; index++)
+        {
+            switch (Actions[index].Type)
+            {
+                case EditorActionType.MouseDown:
+                    isDragging = true;
+                    break;
+                case EditorActionType.MouseUp:
+                case EditorActionType.MouseClick:
+                    isDragging = false;
+                    break;
+            }
+        }
+
+        return isDragging;
     }
 
     private IReadOnlyList<string> BuildAvailableVariableNames()

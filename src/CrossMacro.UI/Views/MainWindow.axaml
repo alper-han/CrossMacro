@@ -17,7 +17,7 @@
         TransparencyLevelHint="AcrylicBlur"
         ExtendClientAreaToDecorationsHint="True"
         WindowDecorations="None"
-        CanResize="False"
+        CanResize="True"
         FontFamily="{StaticResource StandardFont}">
 
     <Design.DataContext>

@@ -164,6 +164,29 @@
         <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
 
+    <Style Selector="Button.editor-toolbar-action.secondary">
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+    </Style>
+
+    <Style Selector="Button.editor-toolbar-action.secondary:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+    </Style>
+
+    <Style Selector="Button.editor-toolbar-action:disabled">
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SurfaceHoverBrush}"/>
+        <Setter Property="Opacity" Value="0.46"/>
+    </Style>
+
+    <Style Selector="Button.editor-toolbar-action:disabled TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+
     <!-- Flat utility button for row actions/selectors (no chrome). -->
     <Style Selector="Button.flat">
         <Setter Property="Background" Value="Transparent"/>

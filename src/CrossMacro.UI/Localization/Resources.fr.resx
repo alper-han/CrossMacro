@@ -823,10 +823,31 @@
     <value>Supprimer</value>
   </data>
   <data name="Editor_RemoveBlockTooltip" xml:space="preserve">
-    <value>Supprimer le bloc</value>
+    <value>Supprimer le bloc de script sélectionné et toutes les actions qu’il contient.</value>
   </data>
   <data name="Editor_Block" xml:space="preserve">
-    <value>Bloc</value>
+    <value>Supprimer le bloc</value>
+  </data>
+  <data name="Editor_HideMouseMoves" xml:space="preserve">
+    <value>Masquer les déplacements de souris</value>
+  </data>
+  <data name="Editor_HideMouseMovesTooltip" xml:space="preserve">
+    <value>Masque dans l’éditeur toutes les lignes de déplacement de souris sans modifier la macro, y compris les déplacements de glissement entre maintien et relâchement.</value>
+  </data>
+  <data name="Editor_HiddenEventsHint" xml:space="preserve">
+    <value>Certains déplacements de souris ou courtes attentes sont masqués. Désactivez les filtres de masquage pour modifier chaque événement enregistré.</value>
+  </data>
+  <data name="Editor_HideShortWaits" xml:space="preserve">
+    <value>Masquer les courtes attentes</value>
+  </data>
+  <data name="Editor_HideShortWaitsTooltip" xml:space="preserve">
+    <value>Masque dans l’éditeur les lignes d’attente fixes inférieures à 10 ms sans modifier la macro.</value>
+  </data>
+  <data name="Editor_SimplifyMovement" xml:space="preserve">
+    <value>Simplifier les déplacements</value>
+  </data>
+  <data name="Editor_SimplifyMovementTooltip" xml:space="preserve">
+    <value>Affiche les longues séquences de déplacement de souris inactif et de courtes attentes sous forme de lignes de résumé compactes sans modifier la macro. Les déplacements de glissement entre maintien et relâchement restent entièrement visibles.</value>
   </data>
   <data name="Editor_MoveUpTooltip" xml:space="preserve">
     <value>Monter</value>
@@ -1298,5 +1319,41 @@
   </data>
   <data name="Language_Russian" xml:space="preserve">
     <value>russe</value>
+  </data>
+  <data name="Editor_StatusRemovedSelectedActions" xml:space="preserve">
+    <value>Actions sélectionnées supprimées</value>
+  </data>
+  <data name="Editor_StatusDuplicatedSelectedActions" xml:space="preserve">
+    <value>Actions sélectionnées dupliquées</value>
+  </data>
+  <data name="Editor_StatusMovedSelectedActionsUp" xml:space="preserve">
+    <value>Actions sélectionnées déplacées vers le haut</value>
+  </data>
+  <data name="Editor_StatusMovedSelectedActionsDown" xml:space="preserve">
+    <value>Actions sélectionnées déplacées vers le bas</value>
+  </data>
+  <data name="Editor_RemoveSelectedActionsTooltip" xml:space="preserve">
+    <value>Supprimer toutes les actions sélectionnées</value>
+  </data>
+  <data name="Editor_RemoveSelected" xml:space="preserve">
+    <value>Sélectionnées</value>
+  </data>
+  <data name="Editor_SimplifiedMovementHint" xml:space="preserve">
+    <value>{0} événements de déplacement simplifiés dans cette ligne</value>
+  </data>
+  <data name="Editor_DeleteHiddenEvents" xml:space="preserve">
+    <value>Supprimer les événements masqués</value>
+  </data>
+  <data name="Editor_DeleteHiddenEventsTooltip" xml:space="preserve">
+    <value>Supprime de la macro les événements actuellement masqués par les filtres actifs. Lorsque les déplacements de souris sont masqués, les lignes de glissement sont également supprimées. Annuler peut les restaurer.</value>
+  </data>
+  <data name="Editor_StatusDeletedHiddenEvents" xml:space="preserve">
+    <value>Événements masqués supprimés</value>
+  </data>
+  <data name="Editor_StatusNoHiddenEventsToDelete" xml:space="preserve">
+    <value>Aucun événement masqué à supprimer</value>
+  </data>
+  <data name="Editor_SelectedActionsFormat" xml:space="preserve">
+    <value>{0} sélectionnées</value>
   </data>
 </root>

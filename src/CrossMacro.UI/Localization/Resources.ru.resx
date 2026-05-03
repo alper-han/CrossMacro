@@ -823,10 +823,31 @@
     <value>Удалить</value>
   </data>
   <data name="Editor_RemoveBlockTooltip" xml:space="preserve">
-    <value>Удалить блок</value>
+    <value>Удалить выбранный блок сценария и все действия внутри него.</value>
   </data>
   <data name="Editor_Block" xml:space="preserve">
-    <value>Блок</value>
+    <value>Удалить блок</value>
+  </data>
+  <data name="Editor_HideMouseMoves" xml:space="preserve">
+    <value>Скрыть движения мыши</value>
+  </data>
+  <data name="Editor_HideMouseMovesTooltip" xml:space="preserve">
+    <value>Скрывает в редакторе все строки движения мыши без изменения макроса, включая перемещение при перетаскивании между удержанием и отпусканием.</value>
+  </data>
+  <data name="Editor_HiddenEventsHint" xml:space="preserve">
+    <value>Некоторые события движения мыши или коротких пауз скрыты. Отключите фильтры скрытия, чтобы редактировать все записанные события.</value>
+  </data>
+  <data name="Editor_HideShortWaits" xml:space="preserve">
+    <value>Скрыть короткие паузы</value>
+  </data>
+  <data name="Editor_HideShortWaitsTooltip" xml:space="preserve">
+    <value>Скрывает в редакторе строки фиксированных пауз короче 10 мс без изменения макроса.</value>
+  </data>
+  <data name="Editor_SimplifyMovement" xml:space="preserve">
+    <value>Упростить движение</value>
+  </data>
+  <data name="Editor_SimplifyMovementTooltip" xml:space="preserve">
+    <value>Показывает длинные последовательности холостого движения мыши и коротких пауз как компактные строки сводки без изменения макроса. Перемещение при перетаскивании между удержанием и отпусканием остается полностью видимым.</value>
   </data>
   <data name="Editor_MoveUpTooltip" xml:space="preserve">
     <value>Переместить вверх</value>
@@ -1298,5 +1319,41 @@
   </data>
   <data name="Language_Russian" xml:space="preserve">
     <value>Русский</value>
+  </data>
+  <data name="Editor_StatusRemovedSelectedActions" xml:space="preserve">
+    <value>Выбранные действия удалены</value>
+  </data>
+  <data name="Editor_StatusDuplicatedSelectedActions" xml:space="preserve">
+    <value>Выбранные действия продублированы</value>
+  </data>
+  <data name="Editor_StatusMovedSelectedActionsUp" xml:space="preserve">
+    <value>Выбранные действия перемещены вверх</value>
+  </data>
+  <data name="Editor_StatusMovedSelectedActionsDown" xml:space="preserve">
+    <value>Выбранные действия перемещены вниз</value>
+  </data>
+  <data name="Editor_RemoveSelectedActionsTooltip" xml:space="preserve">
+    <value>Удалить все выбранные действия</value>
+  </data>
+  <data name="Editor_RemoveSelected" xml:space="preserve">
+    <value>Выбранные</value>
+  </data>
+  <data name="Editor_SimplifiedMovementHint" xml:space="preserve">
+    <value>{0} событий движения упрощены в этой строке</value>
+  </data>
+  <data name="Editor_DeleteHiddenEvents" xml:space="preserve">
+    <value>Удалить скрытые события</value>
+  </data>
+  <data name="Editor_DeleteHiddenEventsTooltip" xml:space="preserve">
+    <value>Удаляет из макроса события, которые сейчас скрыты активными фильтрами. Когда движения мыши скрыты, строки перетаскивания тоже удаляются. Отмена может восстановить их.</value>
+  </data>
+  <data name="Editor_StatusDeletedHiddenEvents" xml:space="preserve">
+    <value>Скрытые события удалены</value>
+  </data>
+  <data name="Editor_StatusNoHiddenEventsToDelete" xml:space="preserve">
+    <value>Нет скрытых событий для удаления</value>
+  </data>
+  <data name="Editor_SelectedActionsFormat" xml:space="preserve">
+    <value>Выбрано: {0}</value>
   </data>
 </root>

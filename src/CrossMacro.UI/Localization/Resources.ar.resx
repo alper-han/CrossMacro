@@ -823,10 +823,31 @@
     <value>إزالة</value>
   </data>
   <data name="Editor_RemoveBlockTooltip" xml:space="preserve">
-    <value>إزالة الكتلة</value>
+    <value>إزالة كتلة السكربت المحددة وكل الإجراءات الموجودة داخلها.</value>
   </data>
   <data name="Editor_Block" xml:space="preserve">
-    <value>كتلة</value>
+    <value>إزالة الكتلة</value>
+  </data>
+  <data name="Editor_HideMouseMoves" xml:space="preserve">
+    <value>إخفاء حركات الماوس</value>
+  </data>
+  <data name="Editor_HideMouseMovesTooltip" xml:space="preserve">
+    <value>يخفي كل صفوف حركة الماوس من المحرر دون تغيير الماكرو، بما في ذلك حركة السحب بين الضغط والإفلات.</value>
+  </data>
+  <data name="Editor_HiddenEventsHint" xml:space="preserve">
+    <value>بعض أحداث حركة الماوس أو الانتظار القصير مخفية. أوقف عوامل التصفية لإظهار كل حدث مسجل وتحريره.</value>
+  </data>
+  <data name="Editor_HideShortWaits" xml:space="preserve">
+    <value>إخفاء الانتظارات القصيرة</value>
+  </data>
+  <data name="Editor_HideShortWaitsTooltip" xml:space="preserve">
+    <value>يخفي صفوف الانتظار الثابتة الأقصر من 10 مللي ثانية من المحرر دون تغيير الماكرو.</value>
+  </data>
+  <data name="Editor_SimplifyMovement" xml:space="preserve">
+    <value>تبسيط الحركة</value>
+  </data>
+  <data name="Editor_SimplifyMovementTooltip" xml:space="preserve">
+    <value>يعرض تسلسلات حركة الماوس الخاملة الطويلة والانتظارات القصيرة كصفوف ملخصة مضغوطة دون تغيير الماكرو. تبقى حركة السحب بين الضغط والإفلات ظاهرة بالكامل.</value>
   </data>
   <data name="Editor_MoveUpTooltip" xml:space="preserve">
     <value>تحرك لأعلى</value>
@@ -1298,5 +1319,41 @@
   </data>
   <data name="Language_Russian" xml:space="preserve">
     <value>الروسية</value>
+  </data>
+  <data name="Editor_StatusRemovedSelectedActions" xml:space="preserve">
+    <value>تمت إزالة الإجراءات المحددة</value>
+  </data>
+  <data name="Editor_StatusDuplicatedSelectedActions" xml:space="preserve">
+    <value>تم تكرار الإجراءات المحددة</value>
+  </data>
+  <data name="Editor_StatusMovedSelectedActionsUp" xml:space="preserve">
+    <value>تم نقل الإجراءات المحددة إلى الأعلى</value>
+  </data>
+  <data name="Editor_StatusMovedSelectedActionsDown" xml:space="preserve">
+    <value>تم نقل الإجراءات المحددة إلى الأسفل</value>
+  </data>
+  <data name="Editor_RemoveSelectedActionsTooltip" xml:space="preserve">
+    <value>إزالة كل الإجراءات المحددة</value>
+  </data>
+  <data name="Editor_RemoveSelected" xml:space="preserve">
+    <value>المحددة</value>
+  </data>
+  <data name="Editor_SimplifiedMovementHint" xml:space="preserve">
+    <value>تم تبسيط {0} من أحداث الحركة في هذا الصف</value>
+  </data>
+  <data name="Editor_DeleteHiddenEvents" xml:space="preserve">
+    <value>حذف الأحداث المخفية</value>
+  </data>
+  <data name="Editor_DeleteHiddenEventsTooltip" xml:space="preserve">
+    <value>يحذف من الماكرو الأحداث المخفية حاليًا بواسطة عوامل التصفية النشطة. عند إخفاء حركات الماوس، تُحذف صفوف السحب أيضًا. يمكن للتراجع استعادتها.</value>
+  </data>
+  <data name="Editor_StatusDeletedHiddenEvents" xml:space="preserve">
+    <value>تم حذف الأحداث المخفية</value>
+  </data>
+  <data name="Editor_StatusNoHiddenEventsToDelete" xml:space="preserve">
+    <value>لا توجد أحداث مخفية لحذفها</value>
+  </data>
+  <data name="Editor_SelectedActionsFormat" xml:space="preserve">
+    <value>{0} محددة</value>
   </data>
 </root>

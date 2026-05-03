@@ -823,10 +823,31 @@
     <value>削除</value>
   </data>
   <data name="Editor_RemoveBlockTooltip" xml:space="preserve">
-    <value>ブロックの削除</value>
+    <value>選択したスクリプトブロックと、その中のすべてのアクションを削除します。</value>
   </data>
   <data name="Editor_Block" xml:space="preserve">
-    <value>ブロック</value>
+    <value>ブロックを削除</value>
+  </data>
+  <data name="Editor_HideMouseMoves" xml:space="preserve">
+    <value>マウス移動を非表示</value>
+  </data>
+  <data name="Editor_HideMouseMovesTooltip" xml:space="preserve">
+    <value>マクロを変更せずに、長押しからリリースまでのドラッグ移動を含むすべてのマウス移動行をエディターで非表示にします。</value>
+  </data>
+  <data name="Editor_HiddenEventsHint" xml:space="preserve">
+    <value>一部のマウス移動または短い待機イベントが非表示です。記録されたすべてのイベントを編集するには、非表示フィルターをオフにしてください。</value>
+  </data>
+  <data name="Editor_HideShortWaits" xml:space="preserve">
+    <value>短い待機を非表示</value>
+  </data>
+  <data name="Editor_HideShortWaitsTooltip" xml:space="preserve">
+    <value>マクロを変更せずに、10 ms 未満の固定待機行をエディターで非表示にします。</value>
+  </data>
+  <data name="Editor_SimplifyMovement" xml:space="preserve">
+    <value>移動を簡略化</value>
+  </data>
+  <data name="Editor_SimplifyMovementTooltip" xml:space="preserve">
+    <value>マクロを変更せずに、長いアイドル状態のマウス移動と短い待機の連続をコンパクトな概要行として表示します。長押しからリリースまでのドラッグ移動はすべて表示されたままです。</value>
   </data>
   <data name="Editor_MoveUpTooltip" xml:space="preserve">
     <value>上に移動</value>
@@ -1298,5 +1319,41 @@
   </data>
   <data name="Language_Russian" xml:space="preserve">
     <value>ロシア語</value>
+  </data>
+  <data name="Editor_StatusRemovedSelectedActions" xml:space="preserve">
+    <value>選択したアクションを削除しました</value>
+  </data>
+  <data name="Editor_StatusDuplicatedSelectedActions" xml:space="preserve">
+    <value>選択したアクションを複製しました</value>
+  </data>
+  <data name="Editor_StatusMovedSelectedActionsUp" xml:space="preserve">
+    <value>選択したアクションを上へ移動しました</value>
+  </data>
+  <data name="Editor_StatusMovedSelectedActionsDown" xml:space="preserve">
+    <value>選択したアクションを下へ移動しました</value>
+  </data>
+  <data name="Editor_RemoveSelectedActionsTooltip" xml:space="preserve">
+    <value>選択したすべてのアクションを削除</value>
+  </data>
+  <data name="Editor_RemoveSelected" xml:space="preserve">
+    <value>選択中</value>
+  </data>
+  <data name="Editor_SimplifiedMovementHint" xml:space="preserve">
+    <value>{0} 件の移動イベントをこの行に簡略化しました</value>
+  </data>
+  <data name="Editor_DeleteHiddenEvents" xml:space="preserve">
+    <value>非表示イベントを削除</value>
+  </data>
+  <data name="Editor_DeleteHiddenEventsTooltip" xml:space="preserve">
+    <value>有効なフィルターで現在非表示になっているイベントをマクロから削除します。マウス移動が非表示の場合、ドラッグ移動行も削除されます。元に戻すことで復元できます。</value>
+  </data>
+  <data name="Editor_StatusDeletedHiddenEvents" xml:space="preserve">
+    <value>非表示イベントを削除しました</value>
+  </data>
+  <data name="Editor_StatusNoHiddenEventsToDelete" xml:space="preserve">
+    <value>削除する非表示イベントはありません</value>
+  </data>
+  <data name="Editor_SelectedActionsFormat" xml:space="preserve">
+    <value>{0} 件選択中</value>
   </data>
 </root>

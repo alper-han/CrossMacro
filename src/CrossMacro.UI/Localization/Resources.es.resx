@@ -823,10 +823,31 @@
     <value>Eliminar</value>
   </data>
   <data name="Editor_RemoveBlockTooltip" xml:space="preserve">
-    <value>Quitar bloque</value>
+    <value>Elimina el bloque de script seleccionado y todas las acciones que contiene.</value>
   </data>
   <data name="Editor_Block" xml:space="preserve">
-    <value>Bloque</value>
+    <value>Eliminar bloque</value>
+  </data>
+  <data name="Editor_HideMouseMoves" xml:space="preserve">
+    <value>Ocultar movimientos del mouse</value>
+  </data>
+  <data name="Editor_HideMouseMovesTooltip" xml:space="preserve">
+    <value>Oculta en el editor todas las filas de movimiento del mouse sin cambiar la macro, incluidos los movimientos de arrastre entre mantener presionado y soltar.</value>
+  </data>
+  <data name="Editor_HiddenEventsHint" xml:space="preserve">
+    <value>Algunos movimientos del mouse o esperas cortas están ocultos. Desactiva los filtros de ocultación para editar todos los eventos grabados.</value>
+  </data>
+  <data name="Editor_HideShortWaits" xml:space="preserve">
+    <value>Ocultar esperas cortas</value>
+  </data>
+  <data name="Editor_HideShortWaitsTooltip" xml:space="preserve">
+    <value>Oculta en el editor las filas de espera fija inferiores a 10 ms sin cambiar la macro.</value>
+  </data>
+  <data name="Editor_SimplifyMovement" xml:space="preserve">
+    <value>Simplificar movimiento</value>
+  </data>
+  <data name="Editor_SimplifyMovementTooltip" xml:space="preserve">
+    <value>Muestra las secuencias largas de movimiento inactivo del mouse y esperas cortas como filas de resumen compactas sin cambiar la macro. Los movimientos de arrastre entre mantener presionado y soltar permanecen totalmente visibles.</value>
   </data>
   <data name="Editor_MoveUpTooltip" xml:space="preserve">
     <value>Subir</value>
@@ -1298,5 +1319,41 @@
   </data>
   <data name="Language_Russian" xml:space="preserve">
     <value>ruso</value>
+  </data>
+  <data name="Editor_StatusRemovedSelectedActions" xml:space="preserve">
+    <value>Acciones seleccionadas eliminadas</value>
+  </data>
+  <data name="Editor_StatusDuplicatedSelectedActions" xml:space="preserve">
+    <value>Acciones seleccionadas duplicadas</value>
+  </data>
+  <data name="Editor_StatusMovedSelectedActionsUp" xml:space="preserve">
+    <value>Acciones seleccionadas movidas hacia arriba</value>
+  </data>
+  <data name="Editor_StatusMovedSelectedActionsDown" xml:space="preserve">
+    <value>Acciones seleccionadas movidas hacia abajo</value>
+  </data>
+  <data name="Editor_RemoveSelectedActionsTooltip" xml:space="preserve">
+    <value>Eliminar todas las acciones seleccionadas</value>
+  </data>
+  <data name="Editor_RemoveSelected" xml:space="preserve">
+    <value>Seleccionadas</value>
+  </data>
+  <data name="Editor_SimplifiedMovementHint" xml:space="preserve">
+    <value>{0} eventos de movimiento simplificados en esta fila</value>
+  </data>
+  <data name="Editor_DeleteHiddenEvents" xml:space="preserve">
+    <value>Eliminar eventos ocultos</value>
+  </data>
+  <data name="Editor_DeleteHiddenEventsTooltip" xml:space="preserve">
+    <value>Elimina de la macro los eventos ocultos actualmente por los filtros activos. Cuando los movimientos del mouse están ocultos, también se eliminan las filas de arrastre. Deshacer puede restaurarlas.</value>
+  </data>
+  <data name="Editor_StatusDeletedHiddenEvents" xml:space="preserve">
+    <value>Eventos ocultos eliminados</value>
+  </data>
+  <data name="Editor_StatusNoHiddenEventsToDelete" xml:space="preserve">
+    <value>No hay eventos ocultos para eliminar</value>
+  </data>
+  <data name="Editor_SelectedActionsFormat" xml:space="preserve">
+    <value>{0} seleccionadas</value>
   </data>
 </root>

@@ -823,10 +823,31 @@
     <value>Kaldır</value>
   </data>
   <data name="Editor_RemoveBlockTooltip" xml:space="preserve">
-    <value>Bloğu Kaldır</value>
+    <value>Seçili betik bloğunu ve içindeki tüm eylemleri kaldır.</value>
   </data>
   <data name="Editor_Block" xml:space="preserve">
-    <value>Blok</value>
+    <value>Bloğu Kaldır</value>
+  </data>
+  <data name="Editor_HideMouseMoves" xml:space="preserve">
+    <value>Fare hareketlerini gizle</value>
+  </data>
+  <data name="Editor_HideMouseMovesTooltip" xml:space="preserve">
+    <value>Makroyu değiştirmeden, basılı tutma ile bırakma arasındaki sürükleme hareketleri dahil tüm fare hareketi satırlarını editörde gizler.</value>
+  </data>
+  <data name="Editor_HiddenEventsHint" xml:space="preserve">
+    <value>Bazı fare hareketi veya kısa bekleme olayları gizli. Kaydedilen her olayı düzenlemek için gizleme filtrelerini kapatın.</value>
+  </data>
+  <data name="Editor_HideShortWaits" xml:space="preserve">
+    <value>Kısa beklemeleri gizle</value>
+  </data>
+  <data name="Editor_HideShortWaitsTooltip" xml:space="preserve">
+    <value>Makroyu değiştirmeden, 10 ms’den kısa sabit bekleme satırlarını editörde gizler.</value>
+  </data>
+  <data name="Editor_SimplifyMovement" xml:space="preserve">
+    <value>Hareketi sadeleştir</value>
+  </data>
+  <data name="Editor_SimplifyMovementTooltip" xml:space="preserve">
+    <value>Makroyu değiştirmeden, uzun boşta fare hareketi ve kısa bekleme dizilerini kompakt özet satırları olarak gösterir. Basılı tutma ile bırakma arasındaki sürükleme hareketleri tamamen görünür kalır.</value>
   </data>
   <data name="Editor_MoveUpTooltip" xml:space="preserve">
     <value>Yukarı Taşı</value>
@@ -1298,5 +1319,41 @@
   </data>
   <data name="Language_Russian" xml:space="preserve">
     <value>Rusça</value>
+  </data>
+  <data name="Editor_StatusRemovedSelectedActions" xml:space="preserve">
+    <value>Seçili eylemler kaldırıldı</value>
+  </data>
+  <data name="Editor_StatusDuplicatedSelectedActions" xml:space="preserve">
+    <value>Seçili eylemler çoğaltıldı</value>
+  </data>
+  <data name="Editor_StatusMovedSelectedActionsUp" xml:space="preserve">
+    <value>Seçili eylemler yukarı taşındı</value>
+  </data>
+  <data name="Editor_StatusMovedSelectedActionsDown" xml:space="preserve">
+    <value>Seçili eylemler aşağı taşındı</value>
+  </data>
+  <data name="Editor_RemoveSelectedActionsTooltip" xml:space="preserve">
+    <value>Tüm seçili eylemleri kaldır</value>
+  </data>
+  <data name="Editor_RemoveSelected" xml:space="preserve">
+    <value>Seçili</value>
+  </data>
+  <data name="Editor_SimplifiedMovementHint" xml:space="preserve">
+    <value>{0} hareket olayı bu satırda sadeleştirildi</value>
+  </data>
+  <data name="Editor_DeleteHiddenEvents" xml:space="preserve">
+    <value>Gizli olayları sil</value>
+  </data>
+  <data name="Editor_DeleteHiddenEventsTooltip" xml:space="preserve">
+    <value>Etkin filtrelerle şu anda gizlenen olayları makrodan siler. Fare hareketleri gizliyse sürükleme hareketi satırları da silinir. Geri al ile geri getirilebilir.</value>
+  </data>
+  <data name="Editor_StatusDeletedHiddenEvents" xml:space="preserve">
+    <value>Gizli olaylar silindi</value>
+  </data>
+  <data name="Editor_StatusNoHiddenEventsToDelete" xml:space="preserve">
+    <value>Silinecek gizli olay yok</value>
+  </data>
+  <data name="Editor_SelectedActionsFormat" xml:space="preserve">
+    <value>{0} seçili</value>
   </data>
 </root>

@@ -823,10 +823,31 @@
     <value>移除</value>
   </data>
   <data name="Editor_RemoveBlockTooltip" xml:space="preserve">
-    <value>移除方块</value>
+    <value>移除选中的脚本块及其中的所有操作。</value>
   </data>
   <data name="Editor_Block" xml:space="preserve">
-    <value>块</value>
+    <value>移除块</value>
+  </data>
+  <data name="Editor_HideMouseMoves" xml:space="preserve">
+    <value>隐藏鼠标移动</value>
+  </data>
+  <data name="Editor_HideMouseMovesTooltip" xml:space="preserve">
+    <value>在不更改宏的情况下，在编辑器中隐藏所有鼠标移动行，包括按住到释放之间的拖动移动。</value>
+  </data>
+  <data name="Editor_HiddenEventsHint" xml:space="preserve">
+    <value>部分鼠标移动或短等待事件已隐藏。关闭隐藏筛选器即可编辑每个录制事件。</value>
+  </data>
+  <data name="Editor_HideShortWaits" xml:space="preserve">
+    <value>隐藏短等待</value>
+  </data>
+  <data name="Editor_HideShortWaitsTooltip" xml:space="preserve">
+    <value>在不更改宏的情况下，在编辑器中隐藏短于 10 ms 的固定等待行。</value>
+  </data>
+  <data name="Editor_SimplifyMovement" xml:space="preserve">
+    <value>简化移动</value>
+  </data>
+  <data name="Editor_SimplifyMovementTooltip" xml:space="preserve">
+    <value>在不更改宏的情况下，将较长的空闲鼠标移动和短等待序列显示为紧凑摘要行。按住到释放之间的拖动移动会保持完整可见。</value>
   </data>
   <data name="Editor_MoveUpTooltip" xml:space="preserve">
     <value>向上移动</value>
@@ -1298,5 +1319,41 @@
   </data>
   <data name="Language_Russian" xml:space="preserve">
     <value>俄语</value>
+  </data>
+  <data name="Editor_StatusRemovedSelectedActions" xml:space="preserve">
+    <value>已移除选中的操作</value>
+  </data>
+  <data name="Editor_StatusDuplicatedSelectedActions" xml:space="preserve">
+    <value>已复制选中的操作</value>
+  </data>
+  <data name="Editor_StatusMovedSelectedActionsUp" xml:space="preserve">
+    <value>已将选中的操作上移</value>
+  </data>
+  <data name="Editor_StatusMovedSelectedActionsDown" xml:space="preserve">
+    <value>已将选中的操作下移</value>
+  </data>
+  <data name="Editor_RemoveSelectedActionsTooltip" xml:space="preserve">
+    <value>移除所有选中的操作</value>
+  </data>
+  <data name="Editor_RemoveSelected" xml:space="preserve">
+    <value>已选择</value>
+  </data>
+  <data name="Editor_SimplifiedMovementHint" xml:space="preserve">
+    <value>已将 {0} 个移动事件简化到此行</value>
+  </data>
+  <data name="Editor_DeleteHiddenEvents" xml:space="preserve">
+    <value>删除隐藏事件</value>
+  </data>
+  <data name="Editor_DeleteHiddenEventsTooltip" xml:space="preserve">
+    <value>从宏中删除当前被活动筛选器隐藏的事件。隐藏鼠标移动时，拖动移动行也会被删除。可通过撤销恢复。</value>
+  </data>
+  <data name="Editor_StatusDeletedHiddenEvents" xml:space="preserve">
+    <value>已删除隐藏事件</value>
+  </data>
+  <data name="Editor_StatusNoHiddenEventsToDelete" xml:space="preserve">
+    <value>没有可删除的隐藏事件</value>
+  </data>
+  <data name="Editor_SelectedActionsFormat" xml:space="preserve">
+    <value>已选择 {0} 项</value>
   </data>
 </root>

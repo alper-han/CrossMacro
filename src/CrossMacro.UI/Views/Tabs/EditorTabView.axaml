@@ -26,31 +26,62 @@
             <!-- Left: Action List -->
             <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="12" Margin="0,0,8,0">
                 <Grid RowDefinitions="Auto,*,Auto">
-                    <TextBlock Grid.Row="0" Text="{localization:Loc Editor_Actions}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                    <StackPanel Grid.Row="0" Spacing="6" Margin="0,0,0,8">
+                        <Grid>
+                            <TextBlock Text="{localization:Loc Editor_Actions}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        </Grid>
+                        <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                            <CheckBox IsChecked="{Binding HideMouseMoves}"
+                                      IsVisible="{Binding ShowHideMouseMovesToggle}"
+                                      Content="{localization:Loc Editor_HideMouseMoves}"
+                                      ToolTip.Tip="{localization:Loc Editor_HideMouseMovesTooltip}"
+                                      VerticalAlignment="Center"/>
+                            <CheckBox IsChecked="{Binding HideShortWaits}"
+                                      IsVisible="{Binding ShowHideShortWaitsToggle}"
+                                      Content="{localization:Loc Editor_HideShortWaits}"
+                                      ToolTip.Tip="{localization:Loc Editor_HideShortWaitsTooltip}"
+                                      VerticalAlignment="Center"/>
+                            <CheckBox IsChecked="{Binding SimplifyMovement}"
+                                      IsVisible="{Binding ShowSimplifyMovementToggle}"
+                                      Content="{localization:Loc Editor_SimplifyMovement}"
+                                      ToolTip.Tip="{localization:Loc Editor_SimplifyMovementTooltip}"
+                                      VerticalAlignment="Center"/>
+                        </WrapPanel>
+                        <TextBlock Text="{localization:Loc Editor_HiddenEventsHint}"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap"
+                                   MaxLines="2"
+                                   IsVisible="{Binding HasHiddenEvents}"/>
+                    </StackPanel>
 
                         <ListBox Grid.Row="1"
-                             ItemsSource="{Binding ActionListItems}"
-                             SelectedItem="{Binding SelectedActionListItem}"
-                             Classes="editor-action-list"
-                             Background="Transparent"
-                             SelectionMode="Single">
+                              ItemsSource="{Binding ActionListItems}"
+                              local:ListBoxSelectedActionIndices.SelectedUnderlyingIndices="{Binding SelectedActionUnderlyingIndices}"
+                              Classes="editor-action-list"
+                              Background="Transparent"
+                              SelectionMode="Multiple">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:EditorActionListItem">
-                                <StackPanel Orientation="Horizontal"
-                                            Spacing="6"
-                                            Margin="{Binding IndentLevel, Converter={StaticResource IndentLevelToMarginConverter}}">
-                                    <Border Background="{DynamicResource SurfaceBrush}"
+                                 <StackPanel Orientation="Horizontal"
+                                             Spacing="6"
+                                             Classes.noise="{Binding IsNoise}"
+                                             Classes.important="{Binding IsImportant}"
+                                             ToolTip.Tip="{Binding DisplayTooltip}"
+                                             Margin="{Binding IndentLevel, Converter={StaticResource IndentLevelToMarginConverter}}">
+                                    <Border Classes="editor-action-index-badge"
                                             CornerRadius="3"
                                             Padding="6,2"
                                             VerticalAlignment="Center"
                                             MinWidth="24">
                                         <TextBlock Text="{Binding Index}"
+                                                   Classes="editor-action-index"
                                                    FontSize="10"
-                                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                                    FontWeight="SemiBold"
                                                    HorizontalAlignment="Center"/>
                                     </Border>
                                     <TextBlock Text="{Binding DisplayName}"
+                                               Classes="editor-action-name"
                                                TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center"/>
                                 </StackPanel>
@@ -59,41 +90,49 @@
                     </ListBox>
 
                     <!-- Action List Buttons -->
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4" Margin="0,8,0,0">
-                        <Button Command="{Binding RemoveAction}"
-                                Classes="danger compact"
-                                IsEnabled="{Binding HasSelectedAction}"
-                                ToolTip.Tip="{localization:Loc Editor_RemoveActionTooltip}">
+                    <WrapPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Command="{Binding RemoveSelectedActions}"
+                                Classes="danger compact editor-toolbar-action"
+                                IsEnabled="{Binding CanRemoveSelectedActions}"
+                                ToolTip.Tip="{localization:Loc Editor_RemoveSelectedActionsTooltip}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock Text="−"/>
                                 <TextBlock Text="{localization:Loc Editor_Remove}"/>
                             </StackPanel>
                         </Button>
+                        <Button Command="{Binding DeleteHiddenEvents}"
+                                Classes="danger compact editor-toolbar-action"
+                                IsEnabled="{Binding CanDeleteHiddenEvents}"
+                                IsVisible="{Binding ShowDeleteHiddenEvents}"
+                                ToolTip.Tip="{localization:Loc Editor_DeleteHiddenEventsTooltip}">
+                            <TextBlock Text="{localization:Loc Editor_DeleteHiddenEvents}"/>
+                        </Button>
                         <Button Command="{Binding RemoveBlock}"
-                                Classes="danger compact"
+                                Classes="danger compact editor-toolbar-action"
                                 IsEnabled="{Binding CanRemoveBlock}"
+                                IsVisible="{Binding CanRemoveBlock}"
                                 ToolTip.Tip="{localization:Loc Editor_RemoveBlockTooltip}">
                             <TextBlock Text="{localization:Loc Editor_Block}"/>
                         </Button>
-                        <Button Command="{Binding MoveUp}"
-                                Classes="secondary compact"
-                                IsEnabled="{Binding HasSelectedAction}"
+                        <Button Command="{Binding MoveSelectedActionsUp}"
+                                Classes="secondary compact editor-toolbar-action"
+                                IsEnabled="{Binding CanMoveSelectedActionsUp}"
                                 ToolTip.Tip="{localization:Loc Editor_MoveUpTooltip}">
                             <TextBlock Text="↑"/>
                         </Button>
-                        <Button Command="{Binding MoveDown}"
-                                Classes="secondary compact"
-                                IsEnabled="{Binding HasSelectedAction}"
+                        <Button Command="{Binding MoveSelectedActionsDown}"
+                                Classes="secondary compact editor-toolbar-action"
+                                IsEnabled="{Binding CanMoveSelectedActionsDown}"
                                 ToolTip.Tip="{localization:Loc Editor_MoveDownTooltip}">
                             <TextBlock Text="↓"/>
                         </Button>
-                        <Button Command="{Binding DuplicateAction}"
-                                Classes="secondary compact"
-                                IsEnabled="{Binding HasSelectedAction}"
+                        <Button Command="{Binding DuplicateSelectedActions}"
+                                Classes="secondary compact editor-toolbar-action"
+                                IsEnabled="{Binding CanDuplicateSelectedActions}"
                                 ToolTip.Tip="{localization:Loc Editor_DuplicateTooltip}">
                             <TextBlock Text="📋" Classes="emoji-icon"/>
                         </Button>
-                    </StackPanel>
+                    </WrapPanel>
                 </Grid>
             </Border>
 
@@ -130,7 +169,7 @@
                         </Border>
 
                         <!-- Selected Action Properties -->
-                        <StackPanel Spacing="12" IsVisible="{Binding HasSelectedAction}">
+                        <StackPanel Spacing="12" IsVisible="{Binding ShowSingleSelectedActionProperties}">
                             <TextBlock Text="{localization:Loc Editor_SelectedActionProperties}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
 
                             <!-- Action Type (Read-only display) -->
@@ -539,11 +578,66 @@
                             </StackPanel>
                         </StackPanel>
 
+                        <StackPanel Spacing="12" IsVisible="{Binding ShowBatchDelayProperties}">
+                            <TextBlock Text="{localization:Loc Editor_SelectedActionProperties}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="4" Padding="8,6">
+                                <TextBlock Text="{Binding SelectedActionCount, StringFormat='{}{0} wait actions selected'}"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           FontWeight="SemiBold"/>
+                            </Border>
+
+                            <StackPanel Spacing="4">
+                                <CheckBox IsChecked="{Binding BatchDelayUseRandomDelay}"
+                                          Content="{localization:Loc Editor_RandomizeDelay}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+                                <StackPanel Spacing="4" IsVisible="{Binding ShowBatchFixedDelayInput}">
+                                    <TextBlock Text="{localization:Loc Editor_DelayMs}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                    <TextBox Text="{Binding BatchDelayMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
+                                             PlaceholderText="{localization:Loc Editor_DelayPlaceholder}"
+                                             Background="{DynamicResource SurfaceHoverBrush}"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"
+                                             BorderThickness="0"
+                                             CornerRadius="4"
+                                             Padding="8,6"/>
+                                </StackPanel>
+
+                                <StackPanel Spacing="4" IsVisible="{Binding ShowBatchRandomDelayOptions}">
+                                    <TextBlock Text="{localization:Loc Editor_RandomDelayRangeMs}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                    <Grid ColumnDefinitions="*,8,*">
+                                        <TextBox Text="{Binding BatchRandomDelayMinMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
+                                                 PlaceholderText="{localization:Loc Editor_Min}"
+                                                 Background="{DynamicResource SurfaceHoverBrush}"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderThickness="0"
+                                                 CornerRadius="4"
+                                                 Padding="8,6"/>
+                                        <TextBox Grid.Column="2"
+                                                 Text="{Binding BatchRandomDelayMaxMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
+                                                 PlaceholderText="{localization:Loc Editor_Max}"
+                                                 Background="{DynamicResource SurfaceHoverBrush}"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderThickness="0"
+                                                 CornerRadius="4"
+                                                 Padding="8,6"/>
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+
                         <!-- No Selection Message -->
                         <TextBlock Text="{localization:Loc Editor_SelectActionPrompt}"
-                                   IsVisible="{Binding !HasSelectedAction}"
+                                   IsVisible="{Binding !HasSelectedActions}"
                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                    FontStyle="Italic"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,20"/>
+
+                        <TextBlock Text="{Binding SelectedActionCount, StringFormat='{}{0} actions selected. Properties are shown only for one action or multiple wait actions.'}"
+                                   IsVisible="{Binding ShowMultiSelectionPropertiesHint}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   FontStyle="Italic"
+                                   TextWrapping="Wrap"
                                    HorizontalAlignment="Center"
                                    Margin="0,20"/>
 

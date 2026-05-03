@@ -348,6 +348,8 @@ public class EditorActionConverter : IEditorActionConverter
         foreach (var action in actionList)
         {
             var events = ToMacroEvents(action);
+            var actionStartEventIndex = sequence.Events.Count;
+            var actionEventCount = 0;
             
             foreach (var ev in events)
             {
@@ -385,6 +387,15 @@ public class EditorActionConverter : IEditorActionConverter
                 pendingRandomDelayMaxMs = 0;
 
                 sequence.Events.Add(eventToAdd);
+                actionEventCount++;
+            }
+
+            if (action.Type == EditorActionType.TextInput && actionEventCount > 0)
+            {
+                sequence.TextInputBoundaries.Add(new TextInputBoundary(
+                    actionStartEventIndex,
+                    actionEventCount,
+                    action.Text));
             }
         }
 
@@ -822,11 +833,29 @@ public class EditorActionConverter : IEditorActionConverter
         var actions = new List<EditorAction>();
         var events = sequence.Events;
         var useLegacyCurrentPositionInterpretation = MacroPositionSemantics.IsLegacyCurrentPositionMacro(sequence);
+        var textInputBoundaries = CreateTextInputBoundaryLookup(sequence);
         
         for (int i = 0; i < events.Count; i++)
         {
             var ev = events[i];
             var nextEvent = i + 1 < events.Count ? events[i + 1] : (MacroEvent?)null;
+
+            if (textInputBoundaries.TryGetValue(i, out var textInputBoundary))
+            {
+                AppendDelayActions(
+                    actions,
+                    ev.DelayMs,
+                    ev.HasRandomDelay,
+                    ev.RandomDelayMinMs,
+                    ev.RandomDelayMaxMs);
+                actions.Add(new EditorAction
+                {
+                    Type = EditorActionType.TextInput,
+                    Text = textInputBoundary.Text
+                });
+                i += textInputBoundary.EventCount - 1;
+                continue;
+            }
             
             // Skip KeyRelease if it was merged with previous KeyPress or TextInput
             if (ev.Type == EventType.KeyRelease && i > 0)
@@ -917,6 +946,65 @@ public class EditorActionConverter : IEditorActionConverter
             sequence.TrailingDelayMaxMs);
 
         return actions;
+    }
+
+    private IReadOnlyDictionary<int, TextInputBoundary> CreateTextInputBoundaryLookup(MacroSequence sequence)
+    {
+        if (sequence.TextInputBoundaries.Count == 0 || sequence.Events.Count == 0)
+        {
+            return new Dictionary<int, TextInputBoundary>();
+        }
+
+        var boundaries = sequence.TextInputBoundaries
+            .OrderBy(boundary => boundary.StartEventIndex)
+            .ToList();
+        var lookup = new Dictionary<int, TextInputBoundary>();
+        var previousEndExclusive = 0;
+
+        foreach (var boundary in boundaries)
+        {
+            if (boundary.StartEventIndex < previousEndExclusive
+                || boundary.EventCount <= 0
+                || boundary.StartEventIndex < 0
+                || boundary.StartEventIndex + boundary.EventCount > sequence.Events.Count
+                || !BoundaryMatchesTextInputEvents(sequence.Events, boundary))
+            {
+                return new Dictionary<int, TextInputBoundary>();
+            }
+
+            lookup.Add(boundary.StartEventIndex, boundary);
+            previousEndExclusive = boundary.StartEventIndex + boundary.EventCount;
+        }
+
+        return lookup;
+    }
+
+    private bool BoundaryMatchesTextInputEvents(IReadOnlyList<MacroEvent> events, TextInputBoundary boundary)
+    {
+        var expectedEvents = ToMacroEvents(new EditorAction
+        {
+            Type = EditorActionType.TextInput,
+            Text = boundary.Text
+        });
+
+        if (expectedEvents.Count != boundary.EventCount)
+        {
+            return false;
+        }
+
+        for (var offset = 0; offset < boundary.EventCount; offset++)
+        {
+            var actual = events[boundary.StartEventIndex + offset];
+            var expected = expectedEvents[offset];
+            if (actual.Type is not (EventType.KeyPress or EventType.KeyRelease)
+                || actual.Type != expected.Type
+                || actual.KeyCode != expected.KeyCode)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private bool TryRestoreActionsFromScriptSteps(

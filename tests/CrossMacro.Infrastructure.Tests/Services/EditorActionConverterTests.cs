@@ -236,6 +236,186 @@ public class EditorActionConverterTests
     }
 
     [Fact]
+    public void ToAndFromMacroSequence_WhenAdjacentTextInputs_PreservesSeparateTextInputBoundaries()
+    {
+        ConfigureTextInputTyping();
+
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.TextInput, Text = "hello" },
+            new EditorAction { Type = EditorActionType.TextInput, Text = "world" }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Text boundary round trip", isAbsolute: true);
+        var restored = _converter.FromMacroSequence(sequence);
+
+        sequence.TextInputBoundaries.Should().HaveCount(2);
+        restored.Should().HaveCount(2);
+        restored.Select(action => action.Type).Should().Equal(EditorActionType.TextInput, EditorActionType.TextInput);
+        restored.Select(action => action.Text).Should().Equal("hello", "world");
+    }
+
+    [Fact]
+    public void ToAndFromMacroSequence_WhenTextInputHasSingleCharacter_PreservesTextInputAction()
+    {
+        ConfigureTextInputTyping();
+
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.TextInput, Text = "x" }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Single text boundary", isAbsolute: true);
+        var restored = _converter.FromMacroSequence(sequence);
+
+        sequence.TextInputBoundaries.Should().ContainSingle();
+        restored.Should().ContainSingle();
+        restored[0].Type.Should().Be(EditorActionType.TextInput);
+        restored[0].Text.Should().Be("x");
+    }
+
+    [Fact]
+    public void ToAndFromMacroSequence_WhenTextInputRequiresAltGr_PreservesTextInputAction()
+    {
+        ConfigureTextInputTyping();
+        _keyCodeMapper.GetKeyCodeForCharacter('@').Returns(2_000);
+        _keyCodeMapper.RequiresAltGr('@').Returns(true);
+
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.TextInput, Text = "@" }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "AltGr text boundary", isAbsolute: true);
+        var restored = _converter.FromMacroSequence(sequence);
+
+        sequence.TextInputBoundaries.Should().ContainSingle();
+        sequence.Events.Select(ev => ev.KeyCode).Should().Equal(
+            InputEventCode.KEY_RIGHTALT,
+            2_000,
+            2_000,
+            InputEventCode.KEY_RIGHTALT);
+        restored.Should().ContainSingle();
+        restored[0].Type.Should().Be(EditorActionType.TextInput);
+        restored[0].Text.Should().Be("@");
+    }
+
+    [Fact]
+    public void ToAndFromMacroSequence_WhenTextInputsSeparatedByDelay_PreservesDelayBoundary()
+    {
+        ConfigureTextInputTyping();
+
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.TextInput, Text = "one" },
+            new EditorAction { Type = EditorActionType.Delay, DelayMs = 250 },
+            new EditorAction { Type = EditorActionType.TextInput, Text = "two" }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Text delay boundary", isAbsolute: true);
+        var restored = _converter.FromMacroSequence(sequence);
+
+        restored.Select(action => action.Type).Should().Equal(
+            EditorActionType.TextInput,
+            EditorActionType.Delay,
+            EditorActionType.TextInput);
+        restored[0].Text.Should().Be("one");
+        restored[1].DelayMs.Should().Be(250);
+        restored[2].Text.Should().Be("two");
+    }
+
+    [Fact]
+    public void ToAndFromMacroSequence_WhenTextInputsMixedWithMouseActions_PreservesActionShapeAndTextBoundaries()
+    {
+        ConfigureTextInputTyping();
+
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.TextInput, Text = "one" },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, IsAbsolute = false, UseCurrentPosition = true },
+            new EditorAction { Type = EditorActionType.TextInput, Text = "two" }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Text mouse boundary", isAbsolute: false, skipInitialZeroZero: true);
+        var restored = _converter.FromMacroSequence(sequence);
+
+        restored.Select(action => action.Type).Should().Equal(
+            EditorActionType.TextInput,
+            EditorActionType.MouseClick,
+            EditorActionType.TextInput);
+        restored[0].Text.Should().Be("one");
+        restored[1].UseCurrentPosition.Should().BeTrue();
+        restored[1].Button.Should().Be(MouseButton.Left);
+        restored[2].Text.Should().Be("two");
+    }
+
+    [Fact]
+    public void ToAndFromMacroSequence_WhenTextInputContainsLiteralDollar_PreservesTextWithoutScriptExpansion()
+    {
+        ConfigureTextInputTyping();
+
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.TextInput, Text = "cost $5" },
+            new EditorAction { Type = EditorActionType.TextInput, Text = "$HOME" }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Text literal dollars", isAbsolute: true);
+        var restored = _converter.FromMacroSequence(sequence);
+
+        sequence.ScriptSteps.Should().BeEmpty();
+        restored.Select(action => action.Text).Should().Equal("cost $5", "$HOME");
+    }
+
+    [Fact]
+    public void FromMacroSequence_WhenTextInputBoundaryIsInvalid_FallsBackToRawKeyMerge()
+    {
+        _keyCodeMapper.GetCharacterForKeyCode(30, false).Returns('a');
+        _keyCodeMapper.GetCharacterForKeyCode(48, false).Returns('b');
+        var sequence = new MacroSequence
+        {
+            Events =
+            [
+                new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 },
+                new MacroEvent { Type = EventType.KeyRelease, KeyCode = 30 },
+                new MacroEvent { Type = EventType.KeyPress, KeyCode = 48 },
+                new MacroEvent { Type = EventType.KeyRelease, KeyCode = 48 }
+            ],
+            TextInputBoundaries = [new TextInputBoundary(0, 99, "invalid")]
+        };
+
+        var restored = _converter.FromMacroSequence(sequence);
+
+        restored.Should().ContainSingle();
+        restored[0].Type.Should().Be(EditorActionType.TextInput);
+        restored[0].Text.Should().Be("ab");
+    }
+
+    [Fact]
+    public void FromMacroSequence_WhenTextInputBoundaryTextDoesNotMatchEvents_FallsBackToRawKeyMerge()
+    {
+        _keyCodeMapper.GetCharacterForKeyCode(30, false).Returns('a');
+        _keyCodeMapper.GetCharacterForKeyCode(48, false).Returns('b');
+        var sequence = new MacroSequence
+        {
+            Events =
+            [
+                new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 },
+                new MacroEvent { Type = EventType.KeyRelease, KeyCode = 30 },
+                new MacroEvent { Type = EventType.KeyPress, KeyCode = 48 },
+                new MacroEvent { Type = EventType.KeyRelease, KeyCode = 48 }
+            ],
+            TextInputBoundaries = [new TextInputBoundary(0, 4, "stale")]
+        };
+
+        var restored = _converter.FromMacroSequence(sequence);
+
+        restored.Should().ContainSingle();
+        restored[0].Type.Should().Be(EditorActionType.TextInput);
+        restored[0].Text.Should().Be("ab");
+    }
+
+    [Fact]
     public void FromMacroSequence_WhenEventContainsRandomDelay_AddsRandomDelayActionBeforeEvent()
     {
         // Arrange
@@ -1654,5 +1834,13 @@ public class EditorActionConverterTests
         actions[0].ScriptLeftOperand.Should().Be("mode");
         actions[0].ScriptRightOperandType.Should().Be(ScriptOperandType.Text);
         actions[0].ScriptRightOperand.Should().Be("a>=b");
+    }
+
+    private void ConfigureTextInputTyping()
+    {
+        _keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(call => 1_000 + call.Arg<char>());
+        _keyCodeMapper.GetCharacterForKeyCode(Arg.Any<int>(), Arg.Any<bool>()).Returns(call => (char)(call.Arg<int>() - 1_000));
+        _keyCodeMapper.RequiresShift(Arg.Any<char>()).Returns(false);
+        _keyCodeMapper.RequiresAltGr(Arg.Any<char>()).Returns(false);
     }
 }

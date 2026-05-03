@@ -29,6 +29,11 @@ public class MacroSequence
     /// Used by the editor to restore structured script actions on reload.
     /// </summary>
     public List<string> ScriptSteps { get; set; } = new();
+
+    /// <summary>
+    /// Optional editor metadata that preserves separate TextInput actions after they are expanded to key events.
+    /// </summary>
+    public List<TextInputBoundary> TextInputBoundaries { get; set; } = new();
     
     /// <summary>
     /// When the macro was created
@@ -153,8 +158,9 @@ public class MacroSequence
         {
             Id = Id,
             Name = Name,
-            Events = Events is null ? null! : new List<MacroEvent>(Events),
-            ScriptSteps = ScriptSteps is null ? null! : new List<string>(ScriptSteps),
+            Events = Events is null ? new List<MacroEvent>() : new List<MacroEvent>(Events),
+            ScriptSteps = ScriptSteps is null ? new List<string>() : new List<string>(ScriptSteps),
+            TextInputBoundaries = TextInputBoundaries is null ? new List<TextInputBoundary>() : new List<TextInputBoundary>(TextInputBoundaries),
             CreatedAt = CreatedAt,
             TotalDurationMs = TotalDurationMs,
             RecordedAt = RecordedAt,

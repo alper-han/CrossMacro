@@ -570,4 +570,58 @@ M,100,100";
         loaded.Should().NotBeNull();
         loaded!.ScriptSteps.Should().Equal(macro.ScriptSteps);
     }
+
+    [Fact]
+    public async Task SaveAndLoad_RoundTrip_PreservesTextInputBoundaries()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Text Boundary Round Trip",
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.KeyPress, KeyCode = 65 },
+                new() { Type = EventType.KeyRelease, KeyCode = 65 },
+                new() { Type = EventType.KeyPress, KeyCode = 66 },
+                new() { Type = EventType.KeyRelease, KeyCode = 66 }
+            },
+            TextInputBoundaries =
+            [
+                new TextInputBoundary(0, 2, "a,b $1"),
+                new TextInputBoundary(2, 2, "çok satırlı\nmetin")
+            ]
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        await _manager.SaveAsync(macro, filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.TextInputBoundaries.Should().Equal(macro.TextInputBoundaries);
+    }
+
+    [Fact]
+    public async Task LoadAsync_WhenTextInputBoundaryMetadataIsMalformed_IgnoresBoundaryAndLoadsEvents()
+    {
+        // Arrange
+        var filePath = GetTempFilePath();
+        await File.WriteAllLinesAsync(filePath,
+        [
+            "# Name: Malformed Boundary",
+            "# TextInputBoundaryBase64: not-base64",
+            "# Format: Cmd,Args...",
+            "KP,65",
+            "KR,65"
+        ]);
+
+        // Act
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.TextInputBoundaries.Should().BeEmpty();
+        loaded.Events.Should().HaveCount(2);
+    }
 }

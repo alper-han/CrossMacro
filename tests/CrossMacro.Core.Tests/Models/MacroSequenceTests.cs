@@ -204,6 +204,10 @@ public class MacroSequenceTests
                 new() { Type = EventType.MouseMove, X = 10, Y = 20, Timestamp = 30, DelayMs = 40 }
             },
             ScriptSteps = new List<string> { "move 10 20" },
+            TextInputBoundaries = new List<TextInputBoundary>
+            {
+                new(0, 2, "hello")
+            },
             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             TotalDurationMs = 30,
             RecordedAt = new DateTime(2026, 1, 1, 0, 0, 10, DateTimeKind.Utc),
@@ -227,14 +231,17 @@ public class MacroSequenceTests
         clone.Should().BeEquivalentTo(original);
         clone.Events.Should().NotBeSameAs(original.Events);
         clone.ScriptSteps.Should().NotBeSameAs(original.ScriptSteps);
+        clone.TextInputBoundaries.Should().NotBeSameAs(original.TextInputBoundaries);
 
         clone.Name = "Updated";
         clone.Events.Add(new MacroEvent { Type = EventType.KeyPress });
         clone.ScriptSteps.Add("press a");
+        clone.TextInputBoundaries.Add(new TextInputBoundary(2, 2, "world"));
 
         original.Name.Should().Be("Original");
         original.Events.Should().HaveCount(1);
         original.ScriptSteps.Should().ContainSingle();
+        original.TextInputBoundaries.Should().ContainSingle();
     }
 
     [Fact]

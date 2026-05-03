@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
@@ -16,6 +17,7 @@ public class MacroFileManager : IMacroFileManager
     private const string TrailingDelayHeader = "# TrailingDelayMs: ";
     private const string TrailingRandomDelayHeader = "# TrailingRandomDelayMs: ";
     private const string ScriptStepHeader = "# ScriptStepBase64: ";
+    private const string TextInputBoundaryHeader = "# TextInputBoundaryBase64: ";
 
     public MacroFileManager()
     {
@@ -67,6 +69,17 @@ public class MacroFileManager : IMacroFileManager
 
             var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(scriptStep));
             await writer.WriteLineAsync($"{ScriptStepHeader}{encoded}");
+        }
+        foreach (var boundary in macro.TextInputBoundaries)
+        {
+            if (boundary.EventCount <= 0 || boundary.StartEventIndex < 0)
+            {
+                continue;
+            }
+
+            var json = JsonSerializer.Serialize(boundary);
+            var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
+            await writer.WriteLineAsync($"{TextInputBoundaryHeader}{encoded}");
         }
         await writer.WriteLineAsync("# Format: Cmd,Args...");
         
@@ -193,6 +206,27 @@ public class MacroFileManager : IMacroFileManager
                         catch (FormatException ex)
                         {
                             Log.Warning(ex, "Ignoring malformed script step metadata");
+                        }
+                    }
+                }
+                else if (line.StartsWith(TextInputBoundaryHeader, StringComparison.Ordinal))
+                {
+                    var encoded = line.Substring(TextInputBoundaryHeader.Length).Trim();
+                    if (encoded.Length > 0)
+                    {
+                        try
+                        {
+                            var boundaryBytes = Convert.FromBase64String(encoded);
+                            var boundaryJson = Encoding.UTF8.GetString(boundaryBytes);
+                            var boundary = JsonSerializer.Deserialize<TextInputBoundary>(boundaryJson);
+                            if (boundary is { StartEventIndex: >= 0, EventCount: > 0 })
+                            {
+                                macro.TextInputBoundaries.Add(boundary);
+                            }
+                        }
+                        catch (Exception ex) when (ex is FormatException or JsonException)
+                        {
+                            Log.Warning(ex, "Ignoring malformed text input boundary metadata");
                         }
                     }
                 }

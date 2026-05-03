@@ -823,10 +823,31 @@
     <value>Remove</value>
   </data>
   <data name="Editor_RemoveBlockTooltip" xml:space="preserve">
-    <value>Remove Block</value>
+    <value>Remove the selected script block and all actions inside it.</value>
   </data>
   <data name="Editor_Block" xml:space="preserve">
-    <value>Block</value>
+    <value>Remove Block</value>
+  </data>
+  <data name="Editor_HideMouseMoves" xml:space="preserve">
+    <value>Hide mouse moves</value>
+  </data>
+  <data name="Editor_HideMouseMovesTooltip" xml:space="preserve">
+    <value>Hide every mouse movement row from the editor without changing the macro, including drag movement between hold and release.</value>
+  </data>
+  <data name="Editor_HiddenEventsHint" xml:space="preserve">
+    <value>Some mouse movement or short wait events are hidden. Turn off the hide filters to edit every recorded event.</value>
+  </data>
+  <data name="Editor_HideShortWaits" xml:space="preserve">
+    <value>Hide short waits</value>
+  </data>
+  <data name="Editor_HideShortWaitsTooltip" xml:space="preserve">
+    <value>Hide fixed wait rows shorter than 10 ms from the editor without changing the macro.</value>
+  </data>
+  <data name="Editor_SimplifyMovement" xml:space="preserve">
+    <value>Simplify movement</value>
+  </data>
+  <data name="Editor_SimplifyMovementTooltip" xml:space="preserve">
+    <value>Show long idle mouse-movement and short-wait sequences as compact summary rows without changing the macro. Drag movement between hold and release stays fully visible.</value>
   </data>
   <data name="Editor_MoveUpTooltip" xml:space="preserve">
     <value>Move Up</value>
@@ -1298,5 +1319,41 @@
   </data>
   <data name="Language_Russian" xml:space="preserve">
     <value>Russian</value>
+  </data>
+  <data name="Editor_StatusRemovedSelectedActions" xml:space="preserve">
+    <value>Removed selected actions</value>
+  </data>
+  <data name="Editor_StatusDuplicatedSelectedActions" xml:space="preserve">
+    <value>Duplicated selected actions</value>
+  </data>
+  <data name="Editor_StatusMovedSelectedActionsUp" xml:space="preserve">
+    <value>Moved selected actions up</value>
+  </data>
+  <data name="Editor_StatusMovedSelectedActionsDown" xml:space="preserve">
+    <value>Moved selected actions down</value>
+  </data>
+  <data name="Editor_RemoveSelectedActionsTooltip" xml:space="preserve">
+    <value>Remove all selected actions</value>
+  </data>
+  <data name="Editor_RemoveSelected" xml:space="preserve">
+    <value>Selected</value>
+  </data>
+  <data name="Editor_SimplifiedMovementHint" xml:space="preserve">
+    <value>{0} movement events simplified into this row</value>
+  </data>
+  <data name="Editor_DeleteHiddenEvents" xml:space="preserve">
+    <value>Delete hidden events</value>
+  </data>
+  <data name="Editor_DeleteHiddenEventsTooltip" xml:space="preserve">
+    <value>Delete the events currently hidden by active filters from the macro. When mouse moves are hidden, drag movement rows are deleted too. Undo can restore them.</value>
+  </data>
+  <data name="Editor_StatusDeletedHiddenEvents" xml:space="preserve">
+    <value>Hidden events deleted</value>
+  </data>
+  <data name="Editor_StatusNoHiddenEventsToDelete" xml:space="preserve">
+    <value>No hidden events to delete</value>
+  </data>
+  <data name="Editor_SelectedActionsFormat" xml:space="preserve">
+    <value>{0} selected</value>
   </data>
 </root>

@@ -178,6 +178,53 @@ public class MainWindowViewModelTests
     }
 
     [Fact]
+    public void Construction_WhenExtensionWarningWasPublishedBeforeSubscription_ShowsWarningBannerAndNotification()
+    {
+        var notifier = new FakeExtensionStatusNotifier();
+        notifier.Publish(ExtensionStatusCode.Warning, "Please enable GNOME extension manually or restart your session");
+
+        using var viewModel = CreateMainWindowViewModel(extensionNotifier: notifier);
+
+        viewModel.HasExtensionWarning.Should().BeTrue();
+        viewModel.ExtensionWarning.Should().Be("Please enable GNOME extension manually or restart your session");
+        viewModel.IsAppNotificationVisible.Should().BeTrue();
+        viewModel.AppNotificationTitle.Should().Be("GNOME Extension");
+        viewModel.AppNotificationMessage.Should().Be("Please enable GNOME extension manually or restart your session");
+        viewModel.IsAppNotificationWarning.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ExtensionStatusUpdated_WhenWarningPublishedAfterSubscription_ShowsWarningBannerAndNotification()
+    {
+        var notifier = new FakeExtensionStatusNotifier();
+        using var viewModel = CreateMainWindowViewModel(extensionNotifier: notifier);
+
+        notifier.Publish(ExtensionStatusCode.Warning, "GNOME extension requires logout/login to activate");
+
+        viewModel.HasExtensionWarning.Should().BeTrue();
+        viewModel.ExtensionWarning.Should().Be("GNOME extension requires logout/login to activate");
+        viewModel.IsAppNotificationVisible.Should().BeTrue();
+        viewModel.AppNotificationMessage.Should().Be("GNOME extension requires logout/login to activate");
+        viewModel.IsAppNotificationWarning.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ExtensionStatusUpdated_WhenErrorPublishedAfterSubscription_ShowsErrorNotification()
+    {
+        var notifier = new FakeExtensionStatusNotifier();
+        using var viewModel = CreateMainWindowViewModel(extensionNotifier: notifier);
+
+        notifier.Publish(ExtensionStatusCode.Error, "Failed to install GNOME extension");
+
+        viewModel.HasExtensionWarning.Should().BeTrue();
+        viewModel.ExtensionWarning.Should().Be("Failed to install GNOME extension");
+        viewModel.IsAppNotificationVisible.Should().BeTrue();
+        viewModel.AppNotificationMessage.Should().Be("Failed to install GNOME extension");
+        viewModel.IsAppNotificationError.Should().BeTrue();
+        viewModel.IsAppNotificationWarning.Should().BeFalse();
+    }
+
+    [Fact]
     public void NavigationCatalog_CreatesExpectedNavigationMetadataAndPages()
     {
         var catalog = new MainWindowNavigationCatalog(_localizationService);
@@ -707,7 +754,8 @@ public class MainWindowViewModelTests
     private MainWindowViewModel CreateMainWindowViewModel(
         ISchedulerService? schedulerService = null,
         IUpdateService? updateService = null,
-        bool? checkForUpdates = null)
+        bool? checkForUpdates = null,
+        IExtensionStatusNotifier? extensionNotifier = null)
     {
         var settingsService = Substitute.For<ISettingsService>();
         settingsService.Current.Returns(new AppSettings
@@ -827,8 +875,24 @@ public class MainWindowViewModelTests
             environmentInfo,
             externalUrlOpener,
             localizationService,
-            null,
+            extensionNotifier,
             updateService);
+    }
+
+    private sealed class FakeExtensionStatusNotifier : IExtensionStatusNotifier
+    {
+        public event EventHandler<ExtensionStatusChangedEventArgs>? ExtensionStatusUpdated;
+        public event EventHandler<string>? ExtensionStatusChanged;
+
+        public ExtensionStatusChangedEventArgs? CurrentExtensionStatus { get; private set; }
+
+        public void Publish(ExtensionStatusCode code, string message)
+        {
+            var args = new ExtensionStatusChangedEventArgs(code, message);
+            CurrentExtensionStatus = args;
+            ExtensionStatusUpdated?.Invoke(this, args);
+            ExtensionStatusChanged?.Invoke(this, message);
+        }
     }
 
     private static MacroSequence CreateMacro(string name, params EventType[] eventTypes)
@@ -861,4 +925,5 @@ public class MainWindowViewModelTests
         field.Should().NotBeNull();
         field!.SetValue(target, value);
     }
+
 }

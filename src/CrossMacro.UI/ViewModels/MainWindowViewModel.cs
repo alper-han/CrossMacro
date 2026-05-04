@@ -493,6 +493,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (_extensionNotifier != null)
         {
             _extensionNotifier.ExtensionStatusUpdated += OnExtensionStatusUpdated;
+            if (_extensionNotifier.CurrentExtensionStatus is { } currentStatus)
+            {
+                OnExtensionStatusUpdated(_extensionNotifier, currentStatus);
+            }
         }
     }
 
@@ -653,7 +657,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     
     private void OnExtensionStatusUpdated(object? sender, ExtensionStatusChangedEventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
+        void ApplyStatusUpdate()
         {
             if (e.Code == ExtensionStatusCode.Enabled)
             {
@@ -674,7 +678,22 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             
             _gnomeWarning = e.Message;
             UpdateCombinedWarning();
-        });
+            ShowAppNotification(
+                title: "GNOME Extension",
+                message: e.Message,
+                severity: e.Code == ExtensionStatusCode.Error
+                    ? AppNotificationSeverity.Error
+                    : AppNotificationSeverity.Warning,
+                duration: TimeSpan.FromSeconds(10));
+        }
+
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            ApplyStatusUpdate();
+            return;
+        }
+
+        Dispatcher.UIThread.Post(ApplyStatusUpdate);
     }
 
 
@@ -798,8 +817,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
             ResetAppNotificationState();
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
+            // Expected when the notification is dismissed or replaced.
         }
         finally
         {

@@ -92,9 +92,12 @@ export default class CursorSpyExtension extends Extension {
         private (int Width, int Height)? _cachedResolution;
         private bool _resolutionUnavailableLogged;
         private bool _disposed;
+        private ExtensionStatusChangedEventArgs? _currentExtensionStatus;
         
         public event EventHandler<ExtensionStatusChangedEventArgs>? ExtensionStatusUpdated;
         public event EventHandler<string>? ExtensionStatusChanged;
+
+        public ExtensionStatusChangedEventArgs? CurrentExtensionStatus => _currentExtensionStatus;
 
         public string ProviderName => "GNOME Shell Extension (DBus)";
         public bool IsSupported { get; private set; }
@@ -274,6 +277,7 @@ export default class CursorSpyExtension extends Extension {
         private void PublishExtensionStatus(ExtensionStatusCode code, string message)
         {
             var args = new ExtensionStatusChangedEventArgs(code, message);
+            _currentExtensionStatus = args;
             ExtensionStatusUpdated?.Invoke(this, args);
             ExtensionStatusChanged?.Invoke(this, message);
         }
@@ -366,6 +370,11 @@ export default class CursorSpyExtension extends Extension {
                 _trackerClient.GetResolutionAsync,
                 _cachedResolution,
                 _resolutionUnavailableLogged).ConfigureAwait(false);
+
+            if (!_resolutionUnavailableLogged && queryResult.ResolutionUnavailableLogged)
+            {
+                NotifyExtensionIssue("GNOME extension is installed but not active. Enable the CrossMacro GNOME extension manually or restart your session.");
+            }
 
             _cachedResolution = queryResult.CachedResolution;
             _resolutionUnavailableLogged = queryResult.ResolutionUnavailableLogged;

@@ -21,4 +21,9 @@ public interface IExtensionStatusNotifier
     /// New consumers should use <see cref="ExtensionStatusUpdated"/>.
     /// </summary>
     event EventHandler<string>? ExtensionStatusChanged;
+
+    /// <summary>
+    /// Last known extension status, if one was published before a UI subscriber attached.
+    /// </summary>
+    ExtensionStatusChangedEventArgs? CurrentExtensionStatus { get; }
 }

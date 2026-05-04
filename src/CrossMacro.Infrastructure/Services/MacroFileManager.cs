@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Infrastructure.Serialization;
 
 namespace CrossMacro.Infrastructure.Services;
 
@@ -77,7 +78,7 @@ public class MacroFileManager : IMacroFileManager
                 continue;
             }
 
-            var json = JsonSerializer.Serialize(boundary);
+            var json = JsonSerializer.Serialize(boundary, MacroFileJsonContext.Default.TextInputBoundary);
             var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
             await writer.WriteLineAsync($"{TextInputBoundaryHeader}{encoded}");
         }
@@ -218,7 +219,7 @@ public class MacroFileManager : IMacroFileManager
                         {
                             var boundaryBytes = Convert.FromBase64String(encoded);
                             var boundaryJson = Encoding.UTF8.GetString(boundaryBytes);
-                            var boundary = JsonSerializer.Deserialize<TextInputBoundary>(boundaryJson);
+                            var boundary = JsonSerializer.Deserialize(boundaryJson, MacroFileJsonContext.Default.TextInputBoundary);
                             if (boundary is { StartEventIndex: >= 0, EventCount: > 0 })
                             {
                                 macro.TextInputBoundaries.Add(boundary);

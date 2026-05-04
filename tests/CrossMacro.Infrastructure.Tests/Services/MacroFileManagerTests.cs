@@ -624,4 +624,29 @@ M,100,100";
         loaded!.TextInputBoundaries.Should().BeEmpty();
         loaded.Events.Should().HaveCount(2);
     }
+
+    [Fact]
+    public async Task LoadAsync_WhenTextInputBoundaryMetadataUsesLegacyPascalCaseJson_LoadsBoundary()
+    {
+        // Arrange
+        var boundaryJson = "{\"StartEventIndex\":0,\"EventCount\":2,\"Text\":\"legacy text\"}";
+        var encodedBoundary = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(boundaryJson));
+        var filePath = GetTempFilePath();
+        await File.WriteAllLinesAsync(filePath,
+        [
+            "# Name: Legacy Boundary",
+            $"# TextInputBoundaryBase64: {encodedBoundary}",
+            "# Format: Cmd,Args...",
+            "KP,65",
+            "KR,65"
+        ]);
+
+        // Act
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.TextInputBoundaries.Should().Equal(new TextInputBoundary(0, 2, "legacy text"));
+        loaded.Events.Should().HaveCount(2);
+    }
 }

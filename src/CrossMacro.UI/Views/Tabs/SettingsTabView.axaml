@@ -74,7 +74,8 @@
                                          VerticalAlignment="Center"/>
                         </Grid>
 
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <!-- Start minimized depends on tray support because it starts hidden to tray when available -->
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsTraySettingsVisible}">
                             <StackPanel Grid.Column="0" Spacing="2">
                                 <TextBlock Text="{localization:Loc Settings_StartMinimized}"
                                            FontWeight="Medium"

@@ -1,6 +1,13 @@
 [
     {
         "type": "file",
+        "url": "https://api.nuget.org/v3-flatcontainer/acornima/1.4.0/acornima.1.4.0.nupkg",
+        "sha512": "3340348dd800b4f75ade1e5d935b3a6f9a55becc771b2db659e5f9fe18a34dd6163172209cfe88962a8378d25a08777cc564d8ed55e9fb5b4dad95bc77fc4cb3",
+        "dest": "nuget-sources",
+        "dest-filename": "acornima.1.4.0.nupkg"
+    },
+    {
+        "type": "file",
         "url": "https://api.nuget.org/v3-flatcontainer/avalonia/12.0.1/avalonia.12.0.1.nupkg",
         "sha512": "8e40a2414278bf56ae920f9a31549e311a6c0778d7a05c270f52ea95b5037abf2e19bec9e7ed723006729e7f0aa6b04a053c45513f215c7e97f75fee2cf6b448",
         "dest": "nuget-sources",
@@ -78,6 +85,13 @@
     },
     {
         "type": "file",
+        "url": "https://api.nuget.org/v3-flatcontainer/excss/4.3.1/excss.4.3.1.nupkg",
+        "sha512": "654361946ede919a16c18e9ae70bb4ecbc17c03143102bcf82b9396923074c58c139d3ebb875358658d59cdc2e94c7348ef739b00addcaff9049f51956f20723",
+        "dest": "nuget-sources",
+        "dest-filename": "excss.4.3.1.nupkg"
+    },
+    {
+        "type": "file",
         "url": "https://api.nuget.org/v3-flatcontainer/harfbuzzsharp/8.3.1.3/harfbuzzsharp.8.3.1.3.nupkg",
         "sha512": "8493b36e88beedfc80e12f13e3b986fb1e5560c4c8df86e672c1cad24a623fa36adc9a1a82f566fda3784f7a2d58975d10273ea65b7bcb119afc126b11a452c8",
         "dest": "nuget-sources",
@@ -110,6 +124,13 @@
         "sha512": "156ab246a79aeb509672b10c109a1fa29e59b3ad1eb9713ac331e2f11b6bac4b7a96bcb765a8e2da4d3f59bb54d5b648e870aeae4d22543baca28b17cb046fcf",
         "dest": "nuget-sources",
         "dest-filename": "harfbuzzsharp.nativeassets.win32.8.3.1.3.nupkg"
+    },
+    {
+        "type": "file",
+        "url": "https://api.nuget.org/v3-flatcontainer/jint/4.8.0/jint.4.8.0.nupkg",
+        "sha512": "9204dd7e80c2aef95e495196bdc71b7d314e2a3293379d66da672a140bac7dc6e76bbdf5fa68e4a2bf7ef389be7e65d59560f83dd59ccfe815807a74c7ffa1ac",
+        "dest": "nuget-sources",
+        "dest-filename": "jint.4.8.0.nupkg"
     },
     {
         "type": "file",
@@ -218,6 +239,13 @@
     },
     {
         "type": "file",
+        "url": "https://api.nuget.org/v3-flatcontainer/shimskiasharp/4.6.0/shimskiasharp.4.6.0.nupkg",
+        "sha512": "35d97ea644d3b95a8ebe93a2d6730a3ff8c51e95524a96cd4f2933c608811b930e13b06cbedfb4137e634c33c3b6cbaa74479466ab7137943bcfafa5a66adb0a",
+        "dest": "nuget-sources",
+        "dest-filename": "shimskiasharp.4.6.0.nupkg"
+    },
+    {
+        "type": "file",
         "url": "https://api.nuget.org/v3-flatcontainer/skiasharp/3.119.3-preview.1.1/skiasharp.3.119.3-preview.1.1.nupkg",
         "sha512": "873b773e2179b1f0a16ed50790a98c6e3b38ed5a63c468ef334ce46155d230e2a92fc8adde014efb7233dae967207595a62c03b342945a602039e56f5916c011",
         "dest": "nuget-sources",
@@ -250,6 +278,55 @@
         "sha512": "362ca4f0dbb8ee7714305f964ae572b7036e4da6bd8b871cebabc5768fd099e11881072bcce74a61ba20d7f26b758df0a7629498c75da1befb072e8e906c7b0e",
         "dest": "nuget-sources",
         "dest-filename": "skiasharp.nativeassets.win32.3.119.3-preview.1.1.nupkg"
+    },
+    {
+        "type": "file",
+        "url": "https://api.nuget.org/v3-flatcontainer/svg.animation/4.6.0/svg.animation.4.6.0.nupkg",
+        "sha512": "9f382d5fce9aed3bbd031c6c80408fbc4578f6ff6af64298a415203d4bfcd612d52251e88dfd23ca6150e21c8dbf9327b959c007fa408ae8ce61f14cf8aeeddc",
+        "dest": "nuget-sources",
+        "dest-filename": "svg.animation.4.6.0.nupkg"
+    },
+    {
+        "type": "file",
+        "url": "https://api.nuget.org/v3-flatcontainer/svg.controls.skia.avalonia/12.0.0.6/svg.controls.skia.avalonia.12.0.0.6.nupkg",
+        "sha512": "daccd53c0e59f5b74b3fb31e735a5c0656de0144330368d986819da0d3bad7e23e8fbfe6ccca876abce8d08a1fd8e2264796f25bb611a1c7bd1ae68f5a5ff3a9",
+        "dest": "nuget-sources",
+        "dest-filename": "svg.controls.skia.avalonia.12.0.0.6.nupkg"
+    },
+    {
+        "type": "file",
+        "url": "https://api.nuget.org/v3-flatcontainer/svg.custom/4.6.0/svg.custom.4.6.0.nupkg",
+        "sha512": "0dfe20edf588274410430219fcb043e556532555fdb4658f70d07664b70f2b4fd766915fdaca1a8f4eb10555bd4152a9be64635b9c072bca54495ee758a1da3d",
+        "dest": "nuget-sources",
+        "dest-filename": "svg.custom.4.6.0.nupkg"
+    },
+    {
+        "type": "file",
+        "url": "https://api.nuget.org/v3-flatcontainer/svg.javascript/4.6.0/svg.javascript.4.6.0.nupkg",
+        "sha512": "cf204925af76ccb6525888925a748ee227a17439a79f5162eb7d4e09b6abab0ce9c218d53974acd0dd17502f17b256b8cc6e82a4c4385b41064706ffb13698df",
+        "dest": "nuget-sources",
+        "dest-filename": "svg.javascript.4.6.0.nupkg"
+    },
+    {
+        "type": "file",
+        "url": "https://api.nuget.org/v3-flatcontainer/svg.model/4.6.0/svg.model.4.6.0.nupkg",
+        "sha512": "6fb27fa12a989b2fd6d9d5fd3035909b7bbfa8ce5a0f6343ea0e95990d5310c3ca15ad9fbc5f286776b89d5898215f70a6c71314e5360fae940e93cf93cd6024",
+        "dest": "nuget-sources",
+        "dest-filename": "svg.model.4.6.0.nupkg"
+    },
+    {
+        "type": "file",
+        "url": "https://api.nuget.org/v3-flatcontainer/svg.scenegraph/4.6.0/svg.scenegraph.4.6.0.nupkg",
+        "sha512": "19a85dd0dd60b88d2964d661a0516e34cca7f774367b3be40b22b1fc6aeac4f51e85506fd07d3918e0709a5ba7b91df745b872268c3fc2b135ab38b2ef4c785a",
+        "dest": "nuget-sources",
+        "dest-filename": "svg.scenegraph.4.6.0.nupkg"
+    },
+    {
+        "type": "file",
+        "url": "https://api.nuget.org/v3-flatcontainer/svg.skia/4.6.0/svg.skia.4.6.0.nupkg",
+        "sha512": "20726aa555ca38ddd992efadb7c8642428eef6308bae13acc89b9e576dc2bbafd692b429d90134591c23da51a0192294294f5d328308c3cada3a8d430cdbb47c",
+        "dest": "nuget-sources",
+        "dest-filename": "svg.skia.4.6.0.nupkg"
     },
     {
         "type": "file",

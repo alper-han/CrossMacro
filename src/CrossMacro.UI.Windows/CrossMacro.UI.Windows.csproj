@@ -29,6 +29,14 @@
     <TrimmerRootAssembly Include="Avalonia.Themes.Fluent" />
     <TrimmerRootAssembly Include="Avalonia.Fonts.Inter" />
     <TrimmerRootAssembly Include="Avalonia.Win32" />
+    <TrimmerRootAssembly Include="Svg.Controls.Skia.Avalonia" />
+    <TrimmerRootAssembly Include="Svg.Animation" />
+    <TrimmerRootAssembly Include="Svg.Custom" />
+    <TrimmerRootAssembly Include="Svg.JavaScript" />
+    <TrimmerRootAssembly Include="Svg.Skia" />
+    <TrimmerRootAssembly Include="Svg.SceneGraph" />
+    <TrimmerRootAssembly Include="Svg.Model" />
+    <TrimmerRootAssembly Include="ShimSkiaSharp" />
     <TrimmerRootAssembly Include="Serilog" />
     <TrimmerRootAssembly Include="Serilog.Sinks.Console" />
     <TrimmerRootAssembly Include="Serilog.Sinks.File" />

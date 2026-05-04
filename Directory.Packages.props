@@ -3,19 +3,19 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Avalonia" Version="12.0.1" />
-    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.0.1" />
-    <PackageVersion Include="Avalonia.HarfBuzz" Version="12.0.1" />
-    <PackageVersion Include="Avalonia.Native" Version="12.0.1" />
-    <PackageVersion Include="Avalonia.Skia" Version="12.0.1" />
-    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.0.1" />
-    <PackageVersion Include="Avalonia.Win32" Version="12.0.1" />
-    <PackageVersion Include="Avalonia.X11" Version="12.0.1" />
+    <PackageVersion Include="Avalonia" Version="12.0.2" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.0.2" />
+    <PackageVersion Include="Avalonia.HarfBuzz" Version="12.0.2" />
+    <PackageVersion Include="Avalonia.Native" Version="12.0.2" />
+    <PackageVersion Include="Avalonia.Skia" Version="12.0.2" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.0.2" />
+    <PackageVersion Include="Avalonia.Win32" Version="12.0.2" />
+    <PackageVersion Include="Avalonia.X11" Version="12.0.2" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageVersion Include="FluentAssertions" Version="8.9.0" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.6" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.6" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.4.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.7" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />
     <PackageVersion Include="NSubstitute" Version="5.3.0" />
     <PackageVersion Include="Serilog" Version="4.3.1" />
     <PackageVersion Include="Serilog.Sinks.Async" Version="2.1.0" />

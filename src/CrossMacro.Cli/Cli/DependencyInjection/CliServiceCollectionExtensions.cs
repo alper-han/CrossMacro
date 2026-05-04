@@ -16,7 +16,22 @@ public static class CliServiceCollectionExtensions
         services.AddTransient<IInputCapture>(sp => sp.GetRequiredService<Func<IInputCapture>>()());
 
         services.AddSingleton<IMacroExecutionService, MacroExecutionService>();
-        services.AddSingleton<IDoctorService, DoctorService>();
+        services.AddSingleton<IDoctorService>(sp =>
+        {
+            var linuxDaemonHandshakeProbe = sp.GetService<ILinuxDaemonHandshakeProbe>();
+            Func<string, bool>? daemonHandshakeProbe = linuxDaemonHandshakeProbe is null
+                ? null
+                : linuxDaemonHandshakeProbe.Probe;
+
+            return new DoctorService(
+                sp.GetRequiredService<IEnvironmentInfoProvider>(),
+                sp.GetRequiredService<IDisplaySessionService>(),
+                sp.GetRequiredService<Func<IInputSimulator>>(),
+                sp.GetRequiredService<Func<IInputCapture>>(),
+                sp.GetRequiredService<IMousePositionProvider>(),
+                sp.GetService<IPermissionChecker>(),
+                daemonHandshakeProbe);
+        });
         services.AddSingleton<ICliPreflightService, CliPreflightService>();
         services.AddSingleton<ISettingsCliService, SettingsCliService>();
         services.AddSingleton<IScheduleCliService, ScheduleCliService>();

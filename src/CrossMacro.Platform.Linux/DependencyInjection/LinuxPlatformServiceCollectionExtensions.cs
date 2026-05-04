@@ -28,6 +28,7 @@ internal static class LinuxPlatformServiceCollectionExtensions
 
         services.AddSingleton<ILinuxEnvironmentVariables, LinuxEnvironmentVariables>();
         services.AddSingleton<ILinuxEnvironmentDetector, LinuxEnvironmentDetector>();
+        services.AddSingleton<ILinuxDaemonHandshakeProbe, LinuxDaemonHandshakeProbe>();
         services.AddSingleton<ILinuxInputCapabilitySnapshotProvider, LinuxInputCapabilitySnapshotProvider>();
         services.AddSingleton<ILinuxInputCapabilityDetector, LinuxInputCapabilityDetector>();
         services.AddSingleton<LinuxQuickSetupIdentityResolver>();

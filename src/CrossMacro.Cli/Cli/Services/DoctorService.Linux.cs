@@ -1,5 +1,4 @@
 using System;
-using System.Reflection;
 using System.IO;
 using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Core.Services;
@@ -272,64 +271,13 @@ public sealed partial class DoctorService
 
         try
         {
-            var transportType = LoadLinuxDaemonHandshakeTransportType();
-            var probeMethod = transportType?.GetMethod(
-                "ProbeWithinBudget",
-                BindingFlags.Public | BindingFlags.Static,
-                binder: null,
-                types: [typeof(string), typeof(TimeSpan)],
-                modifiers: null);
-
-            if (probeMethod is null)
-            {
-                return false;
-            }
-
-            var probeResult = probeMethod.Invoke(null, [socketPath, TimeSpan.FromSeconds(2)]);
-            if (probeResult is null)
-            {
-                return false;
-            }
-
-            var resultType = probeResult.GetType();
-            var succeededProperty = resultType.GetProperty(nameof(LinuxProbeResultShape.Succeeded), BindingFlags.Public | BindingFlags.Instance);
-            var timedOutProperty = resultType.GetProperty(nameof(LinuxProbeResultShape.TimedOut), BindingFlags.Public | BindingFlags.Instance);
-
-            var succeeded = succeededProperty?.GetValue(probeResult) as bool?;
-            var timedOut = timedOutProperty?.GetValue(probeResult) as bool?;
-
-            return succeeded == true && timedOut != true;
+            return false;
         }
         catch
         {
             return false;
         }
     }
-
-    private static Type? LoadLinuxDaemonHandshakeTransportType()
-    {
-        const string assemblyName = "CrossMacro.Platform.Linux";
-        const string typeName = "CrossMacro.Platform.Linux.Services.LinuxDaemonHandshakeTransport";
-
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-        {
-            if (string.Equals(assembly.GetName().Name, assemblyName, StringComparison.Ordinal))
-            {
-                return assembly.GetType(typeName, throwOnError: false);
-            }
-        }
-
-        try
-        {
-            return Assembly.Load(assemblyName).GetType(typeName, throwOnError: false);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private sealed record LinuxProbeResultShape(bool Succeeded, bool TimedOut);
 
     private sealed record LinuxInputState(
         string? SessionType,

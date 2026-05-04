@@ -188,6 +188,38 @@ public class DoctorServiceTests
     }
 
     [Fact]
+    public async Task RunAsync_WhenDaemonSocketExistsAndInjectedHandshakeSucceeds_WaylandPasses()
+    {
+        _displaySessionService.IsSessionSupported(out Arg.Any<string>()).Returns(x =>
+        {
+            x[0] = string.Empty;
+            return true;
+        });
+        string? probedSocketPath = null;
+
+        var service = CreateService(
+            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
+            path => path == IpcProtocol.DefaultSocketPath,
+            _ => false,
+            () => true,
+            daemonHandshakeProbe: path =>
+            {
+                probedSocketPath = path;
+                return true;
+            });
+
+        var report = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        probedSocketPath.Should().Be(IpcProtocol.DefaultSocketPath);
+
+        var handshake = Assert.Single(report.Checks, x => x.Name == "linux-daemon-handshake");
+        Assert.Equal(DoctorCheckStatus.Pass, handshake.Status);
+
+        var readiness = Assert.Single(report.Checks, x => x.Name == "linux-input-readiness");
+        Assert.Equal(DoctorCheckStatus.Pass, readiness.Status);
+    }
+
+    [Fact]
     public async Task RunAsync_WhenDaemonHandshakeFailsButUInputWritable_ReportsWarnForHandshake()
     {
         _displaySessionService.IsSessionSupported(out Arg.Any<string>()).Returns(x =>

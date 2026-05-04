@@ -33,7 +33,8 @@ public sealed partial class DoctorService : IDoctorService
         Func<IInputSimulator> inputSimulatorFactory,
         Func<IInputCapture> inputCaptureFactory,
         IMousePositionProvider mousePositionProvider,
-        IPermissionChecker? permissionChecker = null)
+        IPermissionChecker? permissionChecker = null,
+        Func<string, bool>? daemonHandshakeProbe = null)
         : this(
             environmentInfoProvider,
             displaySessionService,
@@ -47,7 +48,7 @@ public sealed partial class DoctorService : IDoctorService
             OperatingSystem.IsLinux,
             OperatingSystem.IsWindows,
             OperatingSystem.IsMacOS,
-            ProbeDaemonHandshake)
+            daemonHandshakeProbe)
     {
     }
 

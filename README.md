@@ -420,6 +420,7 @@ CrossMacro works on Wayland.
 - If an absolute cursor provider is unavailable, CrossMacro automatically falls back to relative-position mode.
 - You can force relative mode with **Force Relative Coordinates**.
 - You can disable origin move at recording start with **Skip Initial 0,0 Position**.
+- For the smoothest relative-position playback, disable pointer acceleration and use a flat pointer profile in your desktop or compositor settings; accelerated profiles can distort replayed movement deltas.
 
 Both absolute and relative modes support macro recording and playback.
 

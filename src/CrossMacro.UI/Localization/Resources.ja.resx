@@ -384,6 +384,15 @@
   <data name="Schedule_TypeDateTime" xml:space="preserve">
     <value>日時（1回）</value>
   </data>
+  <data name="Schedule_RandomizeInterval" xml:space="preserve">
+    <value>間隔をランダム化</value>
+  </data>
+  <data name="Schedule_RunEveryRange" xml:space="preserve">
+    <value>間隔範囲</value>
+  </data>
+  <data name="Schedule_RangeTo" xml:space="preserve">
+    <value>まで</value>
+  </data>
   <data name="Schedule_IntervalSettings" xml:space="preserve">
     <value>インターバル設定</value>
   </data>

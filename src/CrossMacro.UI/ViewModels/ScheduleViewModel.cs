@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -31,7 +32,27 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<ScheduledTask> Tasks => _schedulerService.Tasks ?? new ObservableCollection<ScheduledTask>();
 
+    public IReadOnlyList<IntervalUnitOption> IntervalUnitOptions => new[]
+    {
+        new IntervalUnitOption(IntervalUnit.Seconds, _localizationService["Schedule_Seconds"]),
+        new IntervalUnitOption(IntervalUnit.Minutes, _localizationService["Schedule_Minutes"]),
+        new IntervalUnitOption(IntervalUnit.Hours, _localizationService["Schedule_Hours"])
+    };
+
     public string TaskCountText => string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_ItemsText"], Tasks.Count);
+
+    public IntervalUnitOption? SelectedIntervalUnit
+    {
+        get => IntervalUnitOptions.FirstOrDefault(option => option.Value == SelectedTask?.IntervalUnit);
+        set
+        {
+            if (SelectedTask != null && value != null && SelectedTask.IntervalUnit != value.Value)
+            {
+                SelectedTask.IntervalUnit = value.Value;
+                OnPropertyChanged();
+            }
+        }
+    }
     
     public ScheduledTask? SelectedTask
     {
@@ -40,13 +61,55 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         {
             if (_selectedTask != value)
             {
+                if (_selectedTask != null)
+                {
+                    _selectedTask.PropertyChanged -= OnSelectedTaskPropertyChanged;
+                }
+
                 _selectedTask = value;
+                if (_selectedTask != null)
+                {
+                    _selectedTask.PropertyChanged += OnSelectedTaskPropertyChanged;
+                }
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(HasSelectedTask));
                 OnPropertyChanged(nameof(SelectedMacroFilePath));
                 OnPropertyChanged(nameof(SelectedMacroFileName));
+                OnPropertyChanged(nameof(SelectedIntervalUnit));
                 UpdateScheduleTypeSelection();
+                OnSelectedTaskStatusChanged();
             }
+        }
+    }
+
+    private void OnSelectedTaskPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ScheduledTask.LastRunTime) or nameof(ScheduledTask.NextRunTime) or nameof(ScheduledTask.LastStatus))
+        {
+            RaiseOnUiThread(OnSelectedTaskStatusChanged);
+            return;
+        }
+
+        if (sender is ScheduledTask task
+            && task.IsEnabled
+            && e.PropertyName is nameof(ScheduledTask.IntervalValue)
+                or nameof(ScheduledTask.IntervalUnit)
+                or nameof(ScheduledTask.UseRandomIntervalDelay)
+                or nameof(ScheduledTask.IntervalMinValue)
+                or nameof(ScheduledTask.IntervalMaxValue)
+                or nameof(ScheduledTask.ScheduledDateTime)
+                or nameof(ScheduledTask.Type))
+        {
+            RaiseOnUiThread(() =>
+            {
+                if (e.PropertyName == nameof(ScheduledTask.IntervalUnit))
+                {
+                    OnPropertyChanged(nameof(SelectedIntervalUnit));
+                }
+
+                task.CalculateNextRunTime(_timeProvider.UtcNow);
+                OnSelectedTaskStatusChanged();
+            });
         }
     }
     
@@ -72,6 +135,16 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         string.IsNullOrEmpty(SelectedTask?.MacroFilePath) 
             ? _localizationService["Schedule_NoFileSelected"] 
             : Path.GetFileName(SelectedTask.MacroFilePath);
+
+    public string SelectedLastRunText => SelectedTask?.LastRunTime?.ToString("G", _localizationService.CurrentCulture)
+        ?? _localizationService["Schedule_Never"];
+
+    public string SelectedNextRunText => SelectedTask?.NextRunTime?.ToString("G", _localizationService.CurrentCulture)
+        ?? _localizationService["Schedule_NotScheduled"];
+
+    public string SelectedStatusText => string.IsNullOrWhiteSpace(SelectedTask?.LastStatus)
+        ? _localizationService["Schedule_StatusPlaceholder"]
+        : SelectedTask.LastStatus!;
 
     public bool IsIntervalSelected
     {
@@ -292,7 +365,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     {
         try
         {
-                await _schedulerService.SaveAsync();
+            await _schedulerService.SaveAsync();
             if (showSuccessStatus)
             {
                 RaiseStatus(_localizationService["Schedule_StatusChangesSaved"]);
@@ -336,6 +409,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             if (SelectedTask?.Id == task.Id)
             {
                 OnPropertyChanged(nameof(SelectedTask));
+                OnSelectedTaskStatusChanged();
             }
         });
     }
@@ -354,8 +428,27 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             if (SelectedTask?.Id == e.Task.Id)
             {
                 OnPropertyChanged(nameof(SelectedTask));
+                OnSelectedTaskStatusChanged();
             }
         });
+    }
+
+    private void OnSelectedTaskStatusChanged()
+    {
+        OnPropertyChanged(nameof(SelectedLastRunText));
+        OnPropertyChanged(nameof(SelectedNextRunText));
+        OnPropertyChanged(nameof(SelectedStatusText));
+    }
+
+    private static void RaiseOnUiThread(Action action)
+    {
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        Dispatcher.UIThread.Post(action);
     }
 
     private void RaiseStatus(string message)
@@ -374,7 +467,10 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(Tasks));
         OnPropertyChanged(nameof(TaskCountText));
         OnPropertyChanged(nameof(SelectedMacroFileName));
+        OnPropertyChanged(nameof(IntervalUnitOptions));
+        OnPropertyChanged(nameof(SelectedIntervalUnit));
         OnPropertyChanged(nameof(SelectedTask));
+        OnSelectedTaskStatusChanged();
     }
 
     private void OnTasksCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
@@ -391,8 +487,14 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         // Unsubscribe from events to prevent memory leaks
         _schedulerService.TaskStarting -= OnTaskStarting;
         _schedulerService.TaskExecuted -= OnTaskExecuted;
+        if (_selectedTask != null)
+        {
+            _selectedTask.PropertyChanged -= OnSelectedTaskPropertyChanged;
+        }
         _schedulerService.Tasks?.CollectionChanged -= OnTasksCollectionChanged;
         _localizationService.CultureChanged -= OnCultureChanged;
     }
 
 }
+
+public sealed record IntervalUnitOption(IntervalUnit Value, string DisplayName);

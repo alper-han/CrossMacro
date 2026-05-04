@@ -384,6 +384,15 @@
   <data name="Schedule_TypeDateTime" xml:space="preserve">
     <value>التاريخ/الوقت (مرة واحدة)</value>
   </data>
+  <data name="Schedule_RandomizeInterval" xml:space="preserve">
+    <value>توزيع الفاصل عشوائيًا</value>
+  </data>
+  <data name="Schedule_RunEveryRange" xml:space="preserve">
+    <value>نطاق الفاصل</value>
+  </data>
+  <data name="Schedule_RangeTo" xml:space="preserve">
+    <value>إلى</value>
+  </data>
   <data name="Schedule_IntervalSettings" xml:space="preserve">
     <value>إعدادات الفاصل الزمني</value>
   </data>

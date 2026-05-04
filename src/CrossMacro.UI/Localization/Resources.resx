@@ -384,6 +384,15 @@
   <data name="Schedule_TypeDateTime" xml:space="preserve">
     <value>Date/Time (once)</value>
   </data>
+  <data name="Schedule_RandomizeInterval" xml:space="preserve">
+    <value>Randomize interval</value>
+  </data>
+  <data name="Schedule_RunEveryRange" xml:space="preserve">
+    <value>Run every range</value>
+  </data>
+  <data name="Schedule_RangeTo" xml:space="preserve">
+    <value>to</value>
+  </data>
   <data name="Schedule_IntervalSettings" xml:space="preserve">
     <value>INTERVAL SETTINGS</value>
   </data>

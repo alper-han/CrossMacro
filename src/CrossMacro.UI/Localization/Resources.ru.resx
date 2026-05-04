@@ -384,6 +384,15 @@
   <data name="Schedule_TypeDateTime" xml:space="preserve">
     <value>Дата/время (один раз)</value>
   </data>
+  <data name="Schedule_RandomizeInterval" xml:space="preserve">
+    <value>Случайный интервал</value>
+  </data>
+  <data name="Schedule_RunEveryRange" xml:space="preserve">
+    <value>Диапазон интервала</value>
+  </data>
+  <data name="Schedule_RangeTo" xml:space="preserve">
+    <value>до</value>
+  </data>
   <data name="Schedule_IntervalSettings" xml:space="preserve">
     <value>НАСТРОЙКИ ИНТЕРВАЛА</value>
   </data>

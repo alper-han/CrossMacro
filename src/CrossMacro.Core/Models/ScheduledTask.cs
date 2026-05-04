@@ -49,7 +49,12 @@ public class ScheduledTask : INotifyPropertyChanged
     /// <summary>
     /// Display name for the task
     /// </summary>
-    public string Name { get; set; } = "New Task";
+    private string _name = "New Task";
+    public string Name
+    {
+        get => _name;
+        set { _name = value; OnPropertyChanged(); }
+    }
     
     /// <summary>
     /// Path to the macro file to execute
@@ -69,7 +74,12 @@ public class ScheduledTask : INotifyPropertyChanged
     /// <summary>
     /// Type of schedule (Interval or DateTime)
     /// </summary>
-    public ScheduleType Type { get; set; } = ScheduleType.Interval;
+    private ScheduleType _type = ScheduleType.Interval;
+    public ScheduleType Type
+    {
+        get => _type;
+        set { _type = value; OnPropertyChanged(); }
+    }
     
     /// <summary>
     /// Playback speed multiplier (0.1 = 10x slower, 1.0 = normal, 10.0 = 10x faster)
@@ -127,19 +137,69 @@ public class ScheduledTask : INotifyPropertyChanged
     /// <summary>
     /// Interval value (used with IntervalUnit)
     /// </summary>
-    public int IntervalValue { get; set; } = 30;
+    private int _intervalValue = 30;
+    public int IntervalValue
+    {
+        get => _intervalValue;
+        set { _intervalValue = value; OnPropertyChanged(); }
+    }
     
     /// <summary>
     /// Unit for the interval (Seconds, Minutes, Hours)
     /// </summary>
-    public IntervalUnit IntervalUnit { get; set; } = IntervalUnit.Seconds;
+    private IntervalUnit _intervalUnit = IntervalUnit.Seconds;
+    public IntervalUnit IntervalUnit
+    {
+        get => _intervalUnit;
+        set { _intervalUnit = value; OnPropertyChanged(); }
+    }
+
+    private bool _useRandomIntervalDelay;
+    public bool UseRandomIntervalDelay
+    {
+        get => _useRandomIntervalDelay;
+        set { _useRandomIntervalDelay = value; OnPropertyChanged(); }
+    }
+
+    private int _intervalMinValue = 1;
+    public int IntervalMinValue
+    {
+        get => _intervalMinValue;
+        set
+        {
+            var (min, max) = NormalizeIntervalRange(value, _intervalMaxValue);
+            _intervalMinValue = min;
+            _intervalMaxValue = max;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IntervalMaxValue));
+        }
+    }
+
+    private int _intervalMaxValue = 30;
+    public int IntervalMaxValue
+    {
+        get => _intervalMaxValue;
+        set
+        {
+            var (min, max) = NormalizeIntervalRange(_intervalMinValue, value);
+            _intervalMinValue = min;
+            _intervalMaxValue = max;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IntervalMinValue));
+        }
+    }
     
     // DateTime settings
     
     /// <summary>
     /// Scheduled date and time for DateTime type
     /// </summary>
-    public DateTime? ScheduledDateTime { get; set; }
+    private DateTime? _scheduledDateTime;
+    public DateTime? ScheduledDateTime
+    {
+        get => _scheduledDateTime;
+        set { _scheduledDateTime = value; OnPropertyChanged(); }
+    }
     
     // State
     
@@ -178,7 +238,12 @@ public class ScheduledTask : INotifyPropertyChanged
     /// </summary>
     public TimeSpan GetInterval()
     {
-        var normalizedIntervalValue = Math.Max(1, IntervalValue);
+        return GetIntervalForValue(IntervalValue);
+    }
+
+    private TimeSpan GetIntervalForValue(long intervalValue)
+    {
+        var normalizedIntervalValue = Math.Max(1, intervalValue);
         var ticksPerUnit = IntervalUnit switch
         {
             IntervalUnit.Seconds => TimeSpan.TicksPerSecond,
@@ -190,7 +255,7 @@ public class ScheduledTask : INotifyPropertyChanged
         long totalTicks;
         try
         {
-            totalTicks = checked((long)normalizedIntervalValue * ticksPerUnit);
+            totalTicks = checked(normalizedIntervalValue * ticksPerUnit);
         }
         catch (OverflowException)
         {
@@ -229,7 +294,7 @@ public class ScheduledTask : INotifyPropertyChanged
         var baseTime = now ?? DateTime.UtcNow;
         if (Type == ScheduleType.Interval)
         {
-            NextRunTime = AddIntervalClamped(baseTime, GetInterval());
+            NextRunTime = AddIntervalClamped(baseTime, GetNextIntervalDelay());
         }
         else if (Type == ScheduleType.SpecificTime && ScheduledDateTime.HasValue)
         {
@@ -240,6 +305,31 @@ public class ScheduledTask : INotifyPropertyChanged
 
             NextRunTime = scheduledUtc;
         }
+    }
+
+    private TimeSpan GetNextIntervalDelay()
+    {
+        if (!UseRandomIntervalDelay)
+        {
+            return GetInterval();
+        }
+
+        var (min, max) = NormalizeIntervalRange(IntervalMinValue, IntervalMaxValue);
+        var intervalValue = min == max ? min : Random.Shared.NextInt64(min, (long)max + 1);
+        return GetIntervalForValue(intervalValue);
+    }
+
+    private static (int Min, int Max) NormalizeIntervalRange(int min, int max)
+    {
+        min = Math.Max(1, min);
+        max = Math.Max(1, max);
+
+        if (max < min)
+        {
+            max = min;
+        }
+
+        return (min, max);
     }
 
     private static DateTime AddIntervalClamped(DateTime baseTime, TimeSpan interval)

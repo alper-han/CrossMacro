@@ -97,6 +97,9 @@ public class SchedulerService : ISchedulerService
                 existing.PlaybackSpeed = task.PlaybackSpeed;
                 existing.IntervalValue = task.IntervalValue;
                 existing.IntervalUnit = task.IntervalUnit;
+                existing.UseRandomIntervalDelay = task.UseRandomIntervalDelay;
+                existing.IntervalMinValue = task.IntervalMinValue;
+                existing.IntervalMaxValue = task.IntervalMaxValue;
                 existing.ScheduledDateTime = task.ScheduledDateTime;
                 
                 // Update IsEnabled last as it might trigger recalculations

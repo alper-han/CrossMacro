@@ -92,6 +92,69 @@ public class ScheduledTaskTests
         task.NextRunTime.Should().Be(now.AddHours(9999));
     }
 
+    [Theory]
+    [InlineData(IntervalUnit.Seconds, 2, 5)]
+    [InlineData(IntervalUnit.Minutes, 2, 5)]
+    [InlineData(IntervalUnit.Hours, 1, 3)]
+    public void CalculateNextRunTime_Interval_WhenRandomized_UsesSelectedIntervalUnit(IntervalUnit unit, int minValue, int maxValue)
+    {
+        var now = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var task = new ScheduledTask
+        {
+            Type = ScheduleType.Interval,
+            IntervalUnit = unit,
+            UseRandomIntervalDelay = true,
+            IntervalMinValue = minValue,
+            IntervalMaxValue = maxValue
+        };
+
+        task.CalculateNextRunTime(now);
+
+        task.NextRunTime.Should().NotBeNull();
+        task.NextRunTime!.Value.Should().BeOnOrAfter(now + ToInterval(unit, minValue));
+        task.NextRunTime.Value.Should().BeOnOrBefore(now + ToInterval(unit, maxValue));
+    }
+
+    [Fact]
+    public void CalculateNextRunTime_Interval_WhenRandomRangeIsInverted_UsesMinimumAsMaximum()
+    {
+        var now = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var task = new ScheduledTask
+        {
+            Type = ScheduleType.Interval,
+            IntervalUnit = IntervalUnit.Minutes,
+            UseRandomIntervalDelay = true,
+            IntervalMinValue = 10,
+            IntervalMaxValue = 5
+        };
+
+        task.CalculateNextRunTime(now);
+
+        task.IntervalMinValue.Should().Be(10);
+        task.IntervalMaxValue.Should().Be(10);
+        task.NextRunTime.Should().Be(now.AddMinutes(10));
+    }
+
+    [Fact]
+    public void CalculateNextRunTime_Interval_WhenRandomRangeIsNonPositive_UsesMinimumOneSelectedUnit()
+    {
+        var now = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var task = new ScheduledTask
+        {
+            Type = ScheduleType.Interval,
+            IntervalUnit = IntervalUnit.Hours,
+            UseRandomIntervalDelay = true,
+            IntervalMinValue = -5,
+            IntervalMaxValue = 0
+        };
+
+        task.CalculateNextRunTime(now);
+
+        task.IntervalMinValue.Should().Be(1);
+        task.IntervalMaxValue.Should().Be(1);
+        task.NextRunTime.Should().Be(now.AddHours(1));
+    }
+
     [Fact]
     public void CalculateNextRunTime_Interval_WhenDateTimeAdditionOverflows_ClampsToDateTimeMaxValue()
     {
@@ -160,5 +223,16 @@ public class ScheduledTaskTests
         task.CalculateNextRunTime();
         
         task.NextRunTime.Should().Be(expectedUtc);
+    }
+
+    private static TimeSpan ToInterval(IntervalUnit unit, int value)
+    {
+        return unit switch
+        {
+            IntervalUnit.Seconds => TimeSpan.FromSeconds(value),
+            IntervalUnit.Minutes => TimeSpan.FromMinutes(value),
+            IntervalUnit.Hours => TimeSpan.FromHours(value),
+            _ => TimeSpan.FromSeconds(value)
+        };
     }
 }

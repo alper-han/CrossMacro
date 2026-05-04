@@ -384,6 +384,15 @@
   <data name="Schedule_TypeDateTime" xml:space="preserve">
     <value>Tarih/Saat (bir kez)</value>
   </data>
+  <data name="Schedule_RandomizeInterval" xml:space="preserve">
+    <value>Aralığı rastgeleleştir</value>
+  </data>
+  <data name="Schedule_RunEveryRange" xml:space="preserve">
+    <value>Rastgele aralık</value>
+  </data>
+  <data name="Schedule_RangeTo" xml:space="preserve">
+    <value>ile</value>
+  </data>
   <data name="Schedule_IntervalSettings" xml:space="preserve">
     <value>ARALIK AYARLARI</value>
   </data>

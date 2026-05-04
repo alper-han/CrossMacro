@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="160" d:DesignHeight="36"
@@ -31,24 +32,21 @@
                        VerticalAlignment="Center"
                        Margin="0,0,10,0"/>
             
-            <!-- Edit Icon (SVG Path) -->
-            <Viewbox Grid.Column="1"
-                     Width="14" 
-                     Height="14"
-                     VerticalAlignment="Center">
-                <Canvas Width="24" Height="24">
-                    <Path x:Name="EditIcon"
-                          Data="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
-                          Fill="{DynamicResource TextSecondaryBrush}"
-                          Opacity="0.5">
-                        <Path.Transitions>
-                            <Transitions>
-                                <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
-                            </Transitions>
-                        </Path.Transitions>
-                    </Path>
-                </Canvas>
-            </Viewbox>
+            <!-- Edit Icon -->
+            <PathIcon x:Name="EditIcon"
+                      Grid.Column="1"
+                      Data="{icons:AppIcon Edit}"
+                      Foreground="{DynamicResource TextSecondaryBrush}"
+                      Width="14"
+                      Height="14"
+                      Opacity="0.5"
+                      VerticalAlignment="Center">
+                <PathIcon.Transitions>
+                    <Transitions>
+                        <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                    </Transitions>
+                </PathIcon.Transitions>
+            </PathIcon>
         </Grid>
     </Border>
     

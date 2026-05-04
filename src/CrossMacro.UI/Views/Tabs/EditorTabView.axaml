@@ -3,6 +3,7 @@
              xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:local="using:CrossMacro.UI.Views.Tabs"
              xmlns:localization="using:CrossMacro.UI.Localization"
+             xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="500"
@@ -60,7 +61,7 @@
                               local:ListBoxSelectedActionIndices.SelectedUnderlyingIndices="{Binding SelectedActionUnderlyingIndices}"
                               Classes="editor-action-list"
                               Background="Transparent"
-                              SelectionMode="Multiple">
+                               SelectionMode="Multiple">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:EditorActionListItem">
                                  <StackPanel Orientation="Horizontal"
@@ -96,7 +97,7 @@
                                 IsEnabled="{Binding CanRemoveSelectedActions}"
                                 ToolTip.Tip="{localization:Loc Editor_RemoveSelectedActionsTooltip}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="−"/>
+                                <PathIcon Data="{icons:AppIcon Minus}" Classes="app-icon"/>
                                 <TextBlock Text="{localization:Loc Editor_Remove}"/>
                             </StackPanel>
                         </Button>
@@ -118,19 +119,19 @@
                                 Classes="secondary compact editor-toolbar-action"
                                 IsEnabled="{Binding CanMoveSelectedActionsUp}"
                                 ToolTip.Tip="{localization:Loc Editor_MoveUpTooltip}">
-                            <TextBlock Text="↑"/>
+                            <PathIcon Data="{icons:AppIcon ArrowUp}" Classes="app-icon"/>
                         </Button>
                         <Button Command="{Binding MoveSelectedActionsDown}"
                                 Classes="secondary compact editor-toolbar-action"
                                 IsEnabled="{Binding CanMoveSelectedActionsDown}"
                                 ToolTip.Tip="{localization:Loc Editor_MoveDownTooltip}">
-                            <TextBlock Text="↓"/>
+                            <PathIcon Data="{icons:AppIcon ArrowDown}" Classes="app-icon"/>
                         </Button>
                         <Button Command="{Binding DuplicateSelectedActions}"
                                 Classes="secondary compact editor-toolbar-action"
                                 IsEnabled="{Binding CanDuplicateSelectedActions}"
                                 ToolTip.Tip="{localization:Loc Editor_DuplicateTooltip}">
-                            <TextBlock Text="📋" Classes="emoji-icon"/>
+                            <icons:EmojiAppIcon Icon="Clipboard" Width="16" Height="16"/>
                         </Button>
                     </WrapPanel>
                 </Grid>
@@ -161,7 +162,7 @@
                                     HorizontalAlignment="Stretch"
                                     HorizontalContentAlignment="Center">
                                 <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
-                                    <TextBlock Text="+"/>
+                                    <PathIcon Data="{icons:AppIcon Add}" Classes="app-icon"/>
                                     <TextBlock Text="{localization:Loc Editor_AddAction}"/>
                                 </StackPanel>
                             </Button>
@@ -225,7 +226,7 @@
                                         HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                        <TextBlock Text="📍" Classes="emoji-icon"/>
+                                        <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
                                         <TextBlock Text="{localization:Loc Editor_CapturePosition}"/>
                                     </StackPanel>
                                 </Button>
@@ -235,7 +236,7 @@
                                         HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                        <TextBlock Text="❌" Classes="emoji-icon"/>
+                                        <icons:EmojiAppIcon Icon="Cancel" Width="16" Height="16"/>
                                         <TextBlock Text="{localization:Loc Editor_CancelCapture}"/>
                                     </StackPanel>
                                 </Button>
@@ -284,7 +285,7 @@
                                             Background="{DynamicResource SurfaceBrush}"
                                             CornerRadius="4"
                                             Padding="12,6">
-                                        <TextBlock Text="{Binding SelectedAction.KeyName, FallbackValue={localization:Loc Editor_KeyFallback}}"
+                                        <TextBlock Text="{Binding SelectedAction.KeyName}"
                                                    Foreground="{DynamicResource TextPrimaryBrush}"
                                                    FontWeight="SemiBold"
                                                    HorizontalAlignment="Center"/>
@@ -296,7 +297,7 @@
                                         HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                        <TextBlock Text="⌨️" Classes="emoji-icon"/>
+                                        <icons:EmojiAppIcon Icon="Keyboard" Width="16" Height="16"/>
                                         <TextBlock Text="{localization:Loc Editor_CaptureKey}"/>
                                     </StackPanel>
                                 </Button>
@@ -673,29 +674,29 @@
                     <!-- Undo/Redo + Clear -->
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <Button Command="{Binding Undo}"
-                                Classes="secondary compact"
+                                Classes="secondary compact editor-toolbar-action"
                                 IsEnabled="{Binding CanUndo}"
                                 ToolTip.Tip="{localization:Loc Editor_UndoTooltip}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="↩"/>
+                                <PathIcon Data="{icons:AppIcon Undo}" Classes="app-icon"/>
                                 <TextBlock Text="{localization:Loc Editor_Undo}"/>
                             </StackPanel>
                         </Button>
                         <Button Command="{Binding Redo}"
-                                Classes="secondary compact"
+                                Classes="secondary compact editor-toolbar-action"
                                 IsEnabled="{Binding CanRedo}"
                                 ToolTip.Tip="{localization:Loc Editor_RedoTooltip}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="↪"/>
+                                <PathIcon Data="{icons:AppIcon Redo}" Classes="app-icon"/>
                                 <TextBlock Text="{localization:Loc Editor_Redo}"/>
                             </StackPanel>
                         </Button>
                         <Button Command="{Binding ClearAll}"
-                                Classes="secondary compact"
+                                Classes="danger compact editor-toolbar-action"
                                 IsEnabled="{Binding HasActions}"
                                 ToolTip.Tip="{localization:Loc Editor_ClearAllTooltip}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="🗑️" Classes="emoji-icon"/>
+                                <icons:EmojiAppIcon Icon="Delete" Width="16" Height="16"/>
                                 <TextBlock Text="{localization:Loc Editor_Clear}"/>
                             </StackPanel>
                         </Button>
@@ -706,7 +707,7 @@
                         <Button Command="{Binding LoadMacroAsync}"
                                 Classes="secondary compact">
                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="📂" Classes="emoji-icon"/>
+                                <icons:EmojiAppIcon Icon="FolderOpen" Width="16" Height="16"/>
                                 <TextBlock Text="{localization:Loc Editor_Load}"/>
                             </StackPanel>
                         </Button>
@@ -714,7 +715,7 @@
                                 Classes="primary compact"
                                 IsEnabled="{Binding HasActions}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="💾" Classes="emoji-icon"/>
+                                <icons:EmojiAppIcon Icon="Save" Width="16" Height="16"/>
                                 <TextBlock Text="{localization:Loc Editor_Save}"/>
                             </StackPanel>
                         </Button>

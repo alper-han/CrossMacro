@@ -1,4 +1,5 @@
 using System.Linq;
+using CrossMacro.UI.Icons;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -36,11 +37,11 @@ public sealed class DesignMainWindowViewModel : MainWindowViewModel
         IsUpdateNotificationVisible = true;
         AppNotificationTitle = "Preview";
         AppNotificationMessage = "Showing sample macro data for the selected page.";
-        AppNotificationIcon = "i";
+        AppNotificationIcon = AppIcon.Info;
         IsAppNotificationSuccess = true;
         IsAppNotificationVisible = true;
 
-        var previewItem = TopNavigationItems.FirstOrDefault(item => item.Label == "Text Expansion");
+        var previewItem = TopNavigationItems.FirstOrDefault(item => item.LocalizationKey == "Navigation_TextExpansion");
         if (previewItem != null)
         {
             SelectedTopItem = previewItem;

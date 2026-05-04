@@ -3,6 +3,7 @@
              xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:core="using:CrossMacro.Core.Models"
              xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
+             xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -38,12 +39,13 @@
                             </StackPanel>
 
                             <!-- Arrow -->
-                            <TextBlock Grid.Row="0" Grid.Column="1"
-                                       Text="→"
-                                       FontSize="20"
-                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                       VerticalAlignment="Center"
-                                       Margin="12,22,12,0"/>
+                            <PathIcon Grid.Row="0" Grid.Column="1"
+                                      Data="{icons:AppIcon ArrowRight}"
+                                      Width="20"
+                                      Height="20"
+                                      Foreground="{DynamicResource TextSecondaryBrush}"
+                                      VerticalAlignment="Center"
+                                      Margin="12,22,12,0"/>
 
                             <!-- Replacement -->
                             <StackPanel Grid.Row="0" Grid.Column="2" Spacing="6">
@@ -148,11 +150,12 @@
                                                            FontWeight="Bold"
                                                            FontSize="14"/>
 
-                                                <TextBlock Grid.Column="1"
-                                                           Text="→"
-                                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           FontSize="14"
-                                                           Margin="8,0"/>
+                                                <PathIcon Grid.Column="1"
+                                                          Data="{icons:AppIcon ArrowRight}"
+                                                          Width="14"
+                                                          Height="14"
+                                                          Foreground="{DynamicResource TextSecondaryBrush}"
+                                                          Margin="8,0"/>
 
                                                 <StackPanel Grid.Column="2" Spacing="4">
                                                     <TextBlock Text="{Binding Replacement, FallbackValue=''}"
@@ -188,7 +191,10 @@
                                                     Command="{Binding #Root.((vm:TextExpansionViewModel)DataContext).RemoveExpansionCommand}"
                                                     CommandParameter="{Binding}"
                                                     Cursor="Hand">
-                                                <TextBlock Text="🗑" FontSize="14" Classes="emoji-icon" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                <icons:EmojiAppIcon Icon="Delete"
+                                                                    Width="14"
+                                                                    Height="14"
+                                                                    Opacity="0.85"/>
                                             </Button>
                                         </Grid>
                                     </Border>
@@ -200,7 +206,7 @@
 
                 <!-- Footer Info -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
-                    <TextBlock Text="💡" FontSize="12" Classes="emoji-icon" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <icons:EmojiAppIcon Icon="Tip" Classes="caption-colored-icon"/>
                     <TextBlock Text="{localization:Loc TextExpansion_EnableInSettingsTip}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                 </StackPanel>
 

@@ -3,6 +3,7 @@
              xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:models="using:CrossMacro.UI.Models"
              xmlns:localization="using:CrossMacro.UI.Localization"
+             xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="400"
@@ -65,10 +66,10 @@
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
                                                 ToolTip.Tip="{localization:Loc Files_RemoveLoadedMacroTooltip}">
-                                            <TextBlock Text="🗑"
-                                                       FontSize="14"
-                                                       Classes="emoji-icon"
-                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <icons:EmojiAppIcon Icon="Delete"
+                                                                Width="14"
+                                                                Height="14"
+                                                                Opacity="0.85"/>
                                         </Button>
                                     </Grid>
                                 </DataTemplate>
@@ -83,7 +84,7 @@
                                 HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="📂" Classes="emoji-icon"/>
+                                <icons:EmojiAppIcon Icon="FolderOpen" Width="16" Height="16"/>
                                 <TextBlock Text="{localization:Loc Files_LoadMacro}"/>
                             </StackPanel>
                         </Button>
@@ -95,7 +96,7 @@
                                 HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="💾" Classes="emoji-icon"/>
+                                <icons:EmojiAppIcon Icon="Save" Width="16" Height="16"/>
                                 <TextBlock Text="{localization:Loc Files_SaveMacro}"/>
                             </StackPanel>
                         </Button>

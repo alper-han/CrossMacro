@@ -4,6 +4,7 @@
              xmlns:core="using:CrossMacro.Core.Models"
              xmlns:local="using:CrossMacro.UI.Views.Tabs"
              xmlns:localization="using:CrossMacro.UI.Localization"
+             xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="700"
@@ -40,7 +41,10 @@
                                CornerRadius="6"
                                Padding="8,4"
                                Cursor="Hand">
-                            <TextBlock Text="+" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrush}"/>
+                            <PathIcon Data="{icons:AppIcon Add}"
+                                      Width="18"
+                                      Height="18"
+                                      Foreground="{DynamicResource PrimaryBrush}"/>
                         </Button>
                     </Grid>
                     
@@ -92,7 +96,7 @@
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
                                                 ToolTip.Tip="{localization:Loc Schedule_EditTask}">
-                                            <TextBlock Text="✏️" FontSize="12" Classes="emoji-icon"/>
+                                            <icons:EmojiAppIcon Icon="Edit" Width="14" Height="14"/>
                                         </Button>
                                         
                                         <!-- Delete Button -->
@@ -104,7 +108,7 @@
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
                                                 ToolTip.Tip="{localization:Loc Schedule_DeleteTask}">
-                                            <TextBlock Text="🗑" FontSize="12" Classes="emoji-icon" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <icons:EmojiAppIcon Icon="Delete" Width="14" Height="14" Opacity="0.85"/>
                                         </Button>
                                     </Grid>
                                 </Border>
@@ -158,7 +162,7 @@
                                    CornerRadius="6" 
                                    Padding="12,8"
                                    Margin="0,0,8,0">
-                                <TextBlock Text="{Binding SelectedMacroFileName, FallbackValue={localization:Loc Schedule_NoFileSelected}}" 
+                                <TextBlock Text="{Binding SelectedMacroFileName}" 
                                           VerticalAlignment="Center"
                                           TextTrimming="CharacterEllipsis"
                                           ToolTip.Tip="{Binding SelectedMacroFilePath, FallbackValue=''}"/>
@@ -166,7 +170,7 @@
                             <Button Grid.Column="1" 
                                    Command="{Binding BrowseMacroCommand}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="📂" Classes="emoji-icon"/>
+                                    <icons:EmojiAppIcon Icon="FolderOpen" Width="16" Height="16"/>
                                     <TextBlock Text="{localization:Loc Schedule_Browse}"/>
                                 </StackPanel>
                             </Button>
@@ -180,14 +184,14 @@
                             <RadioButton IsChecked="{Binding IsIntervalSelected, Mode=TwoWay}"
                                         GroupName="ScheduleType">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="⏱️" Classes="emoji-icon"/>
+                                    <icons:EmojiAppIcon Icon="Timer" Width="16" Height="16"/>
                                     <TextBlock Text="{localization:Loc Schedule_TypeInterval}"/>
                                 </StackPanel>
                             </RadioButton>
                             <RadioButton IsChecked="{Binding IsDateTimeSelected, Mode=TwoWay}"
                                         GroupName="ScheduleType">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="📅" Classes="emoji-icon"/>
+                                    <icons:EmojiAppIcon Icon="Calendar" Width="16" Height="16"/>
                                     <TextBlock Text="{localization:Loc Schedule_TypeDateTime}"/>
                                 </StackPanel>
                             </RadioButton>
@@ -211,17 +215,43 @@
                               FontWeight="SemiBold" 
                               Foreground="{DynamicResource TextSecondaryBrush}"
                               FontSize="12"/>
-                    <TextBlock Text="{localization:Loc Schedule_RunEvery}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <NumericUpDown Value="{Binding SelectedTask.IntervalValue, Mode=TwoWay, FallbackValue=1}"
-                                      Minimum="1" Maximum="9999"
-                                      Width="120"/>
-                        <ComboBox SelectedIndex="{Binding SelectedTask.IntervalUnit, Mode=TwoWay, FallbackValue=0}"
-                                 Width="120">
-                            <ComboBoxItem Content="{localization:Loc Schedule_Seconds}"/>
-                            <ComboBoxItem Content="{localization:Loc Schedule_Minutes}"/>
-                            <ComboBoxItem Content="{localization:Loc Schedule_Hours}"/>
-                        </ComboBox>
+                    <CheckBox Content="{localization:Loc Schedule_RandomizeInterval}"
+                              IsChecked="{Binding SelectedTask.UseRandomIntervalDelay, Mode=TwoWay}"/>
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{localization:Loc Schedule_RunEvery}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   IsVisible="{Binding !SelectedTask.UseRandomIntervalDelay}"/>
+                        <TextBlock Text="{localization:Loc Schedule_RunEveryRange}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   IsVisible="{Binding SelectedTask.UseRandomIntervalDelay}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding !SelectedTask.UseRandomIntervalDelay}">
+                            <NumericUpDown Value="{Binding SelectedTask.IntervalValue, Mode=TwoWay, FallbackValue=1}"
+                                          Minimum="1" Maximum="9999"
+                                          Width="120"/>
+                            <ComboBox ItemsSource="{Binding IntervalUnitOptions}"
+                                      SelectedItem="{Binding SelectedIntervalUnit, Mode=TwoWay}"
+                                      Width="120">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate DataType="vm:IntervalUnitOption">
+                                        <TextBlock Text="{Binding DisplayName}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+                        <Grid ColumnDefinitions="120,Auto,120,12,120" ColumnSpacing="8" HorizontalAlignment="Left"
+                              IsVisible="{Binding SelectedTask.UseRandomIntervalDelay}">
+                            <NumericUpDown Value="{Binding SelectedTask.IntervalMinValue, Mode=TwoWay}" Minimum="1" Maximum="9999" FormatString="0"/>
+                            <TextBlock Grid.Column="1" Text="{localization:Loc Schedule_RangeTo}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <NumericUpDown Grid.Column="2" Value="{Binding SelectedTask.IntervalMaxValue, Mode=TwoWay}" Minimum="1" Maximum="9999" FormatString="0"/>
+                            <ComboBox Grid.Column="4"
+                                      ItemsSource="{Binding IntervalUnitOptions}"
+                                      SelectedItem="{Binding SelectedIntervalUnit, Mode=TwoWay}"
+                                      Width="120">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate DataType="vm:IntervalUnitOption">
+                                        <TextBlock Text="{Binding DisplayName}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -250,7 +280,7 @@
                                    HorizontalAlignment="Stretch"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="💡" FontSize="11" Classes="emoji-icon" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <icons:EmojiAppIcon Icon="Tip" Width="11" Height="11" Opacity="0.85"/>
                         <TextBlock Text="{localization:Loc Schedule_RunOnceTip}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </StackPanel>
                 </StackPanel>
@@ -269,17 +299,17 @@
                     <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Loc Schedule_LastRun}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <TextBlock Grid.Row="0" Grid.Column="1" 
-                                  Text="{Binding SelectedTask.LastRunTime, StringFormat='{}{0:G}', TargetNullValue={localization:Loc Schedule_Never}, FallbackValue={localization:Loc Schedule_Never}}" 
+                                  Text="{Binding SelectedLastRunText}" 
                                   FontSize="12"/>
                         
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="{localization:Loc Schedule_NextRun}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <TextBlock Grid.Row="1" Grid.Column="1" 
-                                  Text="{Binding SelectedTask.NextRunTime, StringFormat='{}{0:G}', TargetNullValue={localization:Loc Schedule_NotScheduled}, FallbackValue={localization:Loc Schedule_NotScheduled}}" 
+                                  Text="{Binding SelectedNextRunText}" 
                                   FontSize="12"/>
                         
                         <TextBlock Grid.Row="2" Grid.Column="0" Text="{localization:Loc Schedule_StatusLabel}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <TextBlock Grid.Row="2" Grid.Column="1" 
-                                  Text="{Binding SelectedTask.LastStatus, TargetNullValue={localization:Loc Schedule_StatusPlaceholder}, FallbackValue={localization:Loc Schedule_StatusPlaceholder}}" 
+                                  Text="{Binding SelectedStatusText}" 
                                   FontSize="12"/>
                     </Grid>
                 </StackPanel>
@@ -291,7 +321,7 @@
                    HorizontalAlignment="Right"
                    IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="💾" Classes="emoji-icon"/>
+                    <icons:EmojiAppIcon Icon="Save" Width="16" Height="16"/>
                     <TextBlock Text="{localization:Loc Schedule_SaveAllTasks}"/>
                 </StackPanel>
             </Button>
@@ -302,7 +332,7 @@
                     Padding="32"
                     IsVisible="{Binding !HasSelectedTask}">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
-                    <TextBlock Text="🕐" FontSize="48" Classes="emoji-icon" HorizontalAlignment="Center"/>
+                    <icons:EmojiAppIcon Icon="Clock" Width="48" Height="48" Opacity="0.8" HorizontalAlignment="Center"/>
                     <TextBlock Text="{localization:Loc Schedule_NoTaskSelected}" 
                               FontSize="16" 
                               FontWeight="Medium"

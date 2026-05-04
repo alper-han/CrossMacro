@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:localization="using:CrossMacro.UI.Localization"
+             xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="400"
@@ -47,7 +48,7 @@
                        VerticalAlignment="Stretch">
                     <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="🖱️" FontSize="14" Classes="emoji-icon" VerticalAlignment="Center"/>
+                            <icons:EmojiAppIcon Icon="Mouse" Width="14" Height="14"/>
                             <TextBlock Text="{Binding MouseEventCount}" 
                                       FontWeight="Medium"
                                       FontSize="16"
@@ -55,7 +56,7 @@
                                       VerticalAlignment="Center"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="⌨️" FontSize="14" Classes="emoji-icon" VerticalAlignment="Center"/>
+                            <icons:EmojiAppIcon Icon="Keyboard" Width="14" Height="14"/>
                             <TextBlock Text="{Binding KeyboardEventCount}" 
                                       FontWeight="Medium"
                                       FontSize="16"
@@ -73,18 +74,18 @@
                        Margin="8,0,0,0"
                        VerticalAlignment="Stretch">
                     <Panel HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <!-- Recording indicator: 🔴 when recording -->
-                        <TextBlock Text="🔴" 
-                                  FontSize="24"
-                                  Classes="emoji-icon"
-                                  IsVisible="{Binding IsRecording}"
-                                  ToolTip.Tip="{localization:Loc Recording_TooltipRecording}"/>
-                        <!-- Ready indicator: 🟢 when not recording -->
-                        <TextBlock Text="🟢" 
-                                  FontSize="24"
-                                  Classes="emoji-icon"
-                                  IsVisible="{Binding !IsRecording}"
-                                  ToolTip.Tip="{localization:Loc Recording_TooltipReady}"/>
+                        <!-- Recording indicator when recording -->
+                        <icons:EmojiAppIcon Icon="Record"
+                                            Width="24"
+                                            Height="24"
+                                            IsVisible="{Binding IsRecording}"
+                                            ToolTip.Tip="{localization:Loc Recording_TooltipRecording}"/>
+                        <!-- Ready indicator when not recording -->
+                        <icons:EmojiAppIcon Icon="Success"
+                                            Width="24"
+                                            Height="24"
+                                            IsVisible="{Binding !IsRecording}"
+                                            ToolTip.Tip="{localization:Loc Recording_TooltipReady}"/>
                     </Panel>
                 </Border>
             </Grid>
@@ -106,7 +107,7 @@
                                 Margin="0,0,6,0">
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="🖱️" FontSize="16" Classes="emoji-icon"/>
+                                    <icons:EmojiAppIcon Icon="Mouse" Width="16" Height="16"/>
                                     <TextBlock Text="{localization:Loc Recording_Mouse}" FontWeight="Medium" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="1" 
@@ -123,7 +124,7 @@
                                 Margin="6,0,0,0">
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="⌨️" FontSize="16" Classes="emoji-icon"/>
+                                    <icons:EmojiAppIcon Icon="Keyboard" Width="16" Height="16"/>
                                     <TextBlock Text="{localization:Loc Recording_Keyboard}" FontWeight="Medium" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="1" 
@@ -142,7 +143,7 @@
                                 IsVisible="{Binding IsForceRelativeSupported}">
                             <Grid ColumnDefinitions="*,Auto,Auto">
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="📍" FontSize="16" Classes="emoji-icon"/>
+                                    <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
                                     <StackPanel Spacing="2">
                                         <TextBlock Text="{localization:Loc Recording_ForceRelativeCoordinates}" FontWeight="Medium" VerticalAlignment="Center"/>
                                         <TextBlock Text="{localization:Loc Recording_ForceRelativeCoordinatesDescription}" 
@@ -182,7 +183,7 @@
                                 IsVisible="{Binding ShowSkipZeroZeroOption}">
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="↗️" FontSize="16" Classes="emoji-icon"/>
+                                    <icons:EmojiAppIcon Icon="ArrowNorthEast" Width="16" Height="16"/>
                                     <StackPanel Spacing="2">
                                         <TextBlock Text="{localization:Loc Recording_SkipInitialZeroZero}" FontWeight="Medium" VerticalAlignment="Center"/>
                                         <TextBlock Text="{localization:Loc Recording_SkipInitialZeroZeroDescription}" 
@@ -208,11 +209,11 @@
                            HorizontalContentAlignment="Center">
                         <Panel>
                             <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsRecording}">
-                                <TextBlock Text="▶️" Classes="emoji-icon"/>
+                                <icons:EmojiAppIcon Icon="Play" Width="16" Height="16"/>
                                 <TextBlock Text="{localization:Loc Recording_StartRecording}"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsRecording}">
-                                <TextBlock Text="⏹️" Classes="emoji-icon"/>
+                                <icons:EmojiAppIcon Icon="Stop" Width="16" Height="16"/>
                                 <TextBlock Text="{localization:Loc Recording_StopRecording}"/>
                             </StackPanel>
                         </Panel>
@@ -221,7 +222,7 @@
             </Border>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
-                <TextBlock Text="💡" FontSize="12" Classes="caption emoji-icon"/>
+                <icons:EmojiAppIcon Icon="Tip" Width="14" Height="14" Opacity="0.9"/>
                 <TextBlock Text="{localization:Loc Recording_Tip}" Classes="caption"/>
             </StackPanel>
         </StackPanel>

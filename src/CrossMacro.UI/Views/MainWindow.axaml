@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:CrossMacro.UI.ViewModels"
         xmlns:models="using:CrossMacro.UI.Models"
+        xmlns:icons="using:CrossMacro.UI.Icons"
         xmlns:localization="using:CrossMacro.UI.Localization"
 
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -43,9 +44,9 @@
                                   Padding="4"
                                   Margin="19,0,0,0"
                                   HorizontalAlignment="Left">
-                        <PathIcon Data="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"
-                                  Foreground="{DynamicResource TextPrimaryBrush}"
-                                  Width="16" Height="16"/>
+                        <PathIcon Data="{icons:AppIcon Menu}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   Width="16" Height="16"/>
                     </ToggleButton>
                     
                     <!-- CrossMacro Title (visible when pane is open) -->
@@ -73,13 +74,10 @@
                             <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center"
                                         ToolTip.Tip="{Binding Label}"
                                         ToolTip.ShowDelay="400">
-                                <Border Width="32" Height="32" Background="Transparent">
-                                     <TextBlock Text="{Binding Icon}" 
-                                               FontSize="20" 
-                                               Classes="emoji-icon"
-                                               HorizontalAlignment="Center" 
-                                               VerticalAlignment="Center"/>
-                                </Border>
+                                 <Border Width="32" Height="32" Background="Transparent">
+                                      <icons:EmojiAppIcon Icon="{Binding Icon}"
+                                                          Classes="nav-colored-icon"/>
+                                 </Border>
                                 <TextBlock Text="{Binding Label}" 
                                            VerticalAlignment="Center" 
                                            FontWeight="SemiBold"
@@ -106,13 +104,10 @@
                             <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center"
                                         ToolTip.Tip="{Binding Label}"
                                         ToolTip.ShowDelay="400">
-                                <Border Width="32" Height="32" Background="Transparent">
-                                     <TextBlock Text="{Binding Icon}" 
-                                               FontSize="20" 
-                                               Classes="emoji-icon"
-                                               HorizontalAlignment="Center" 
-                                               VerticalAlignment="Center"/>
-                                </Border>
+                                 <Border Width="32" Height="32" Background="Transparent">
+                                      <icons:EmojiAppIcon Icon="{Binding Icon}"
+                                                          Classes="nav-colored-icon"/>
+                                 </Border>
                                 <TextBlock Text="{Binding Label}" 
                                            VerticalAlignment="Center" 
                                            FontWeight="SemiBold"
@@ -147,7 +142,7 @@
                                 Foreground="{DynamicResource TextSecondaryBrush}"
                                 Click="OnMinimizeWindow"
                                 ToolTip.Tip="{localization:Loc MainWindow_MinimizeTooltip}">
-                            <TextBlock Text="─" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <PathIcon Data="{icons:AppIcon Minus}" Width="14" Height="14"/>
                         </Button>
                         
                         <!-- Close Button -->
@@ -157,7 +152,7 @@
                                 Foreground="{DynamicResource TextSecondaryBrush}"
                                 Click="OnCloseApp"
                                 ToolTip.Tip="{localization:Loc MainWindow_CloseTooltip}">
-                            <TextBlock Text="✕" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <PathIcon Data="{icons:AppIcon Close}" Width="14" Height="14"/>
                         </Button>
                     </StackPanel>
                 </Grid>
@@ -168,10 +163,11 @@
                         IsVisible="{Binding HasExtensionWarning}"
                         Margin="16,0,16,10">
                     <Grid ColumnDefinitions="Auto,*">
-                        <TextBlock Grid.Column="0"
-                                   Text="⚠️"
-                                   Classes="emoji-icon notice-icon warning"
-                                   Margin="0,0,10,0"/>
+                        <icons:EmojiAppIcon Grid.Column="0"
+                                            Icon="Warning"
+                                            Width="18"
+                                            Height="18"
+                                            Margin="0,0,10,0"/>
                         <StackPanel Grid.Column="1" Spacing="2">
                             <TextBlock Text="{localization:Loc MainWindow_GnomeExtensionTitle}"
                                        Classes="notice-title"/>
@@ -197,7 +193,9 @@
                 <!-- Footer (Version / Status) -->
                 <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" Margin="24,0,24,20" VerticalAlignment="Bottom">
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="🖱️ " FontSize="12" Classes="emoji-icon"/>
+                        <icons:EmojiAppIcon Icon="Mouse"
+                                            Classes="caption-colored-icon"
+                                            Margin="0,0,4,0"/>
                         <TextBlock FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}">
                             <Run Text="CrossMacro "/><Run Text="{Binding AppVersion}"/>
                         </TextBlock>
@@ -244,7 +242,10 @@
                                      Padding="4"
                                      VerticalAlignment="Top"
                                      Margin="8,-4,-4,0">
-                                <TextBlock Text="✕" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <PathIcon Data="{icons:AppIcon Close}"
+                                          Width="11"
+                                          Height="11"
+                                          Foreground="{DynamicResource TextSecondaryBrush}"/>
                             </Button>
                         </Grid>
                         
@@ -275,13 +276,11 @@
                         MaxWidth="360"
                         IsVisible="{Binding IsAppNotificationVisible}">
                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                        <TextBlock Grid.Column="0"
-                                   Text="{Binding AppNotificationIcon}"
-                                   Classes="emoji-icon notice-icon"
-                                   Classes.success="{Binding IsAppNotificationSuccess}"
-                                   Classes.warning="{Binding IsAppNotificationWarning}"
-                                   Classes.error="{Binding IsAppNotificationError}"
-                                   VerticalAlignment="Top"/>
+                        <icons:EmojiAppIcon Grid.Column="0"
+                                            Icon="{Binding AppNotificationIcon}"
+                                            Width="18"
+                                            Height="18"
+                                            VerticalAlignment="Top"/>
                         <StackPanel Grid.Column="1" Spacing="3">
                             <TextBlock Text="{Binding AppNotificationTitle}"
                                        Classes="notice-title"/>
@@ -295,9 +294,10 @@
                                 VerticalAlignment="Top"
                                 Click="OnDismissAppNotification"
                                 ToolTip.Tip="{localization:Loc MainWindow_DismissTooltip}">
-                            <TextBlock Text="✕"
-                                       FontSize="11"
-                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <PathIcon Data="{icons:AppIcon Close}"
+                                      Width="11"
+                                      Height="11"
+                                      Foreground="{DynamicResource TextSecondaryBrush}"/>
                         </Button>
                     </Grid>
                 </Border>

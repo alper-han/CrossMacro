@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:localization="using:CrossMacro.UI.Localization"
+             xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="400"
@@ -101,7 +102,7 @@
                            HorizontalAlignment="Stretch"
                            HorizontalContentAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="▶️" Classes="emoji-icon"/>
+                            <icons:EmojiAppIcon Icon="Play" Width="16" Height="16"/>
                             <TextBlock Text="{localization:Loc Playback_PlayMacro}"/>
                         </StackPanel>
                     </Button>
@@ -115,14 +116,14 @@
                            FontWeight="Bold"
                            FontSize="16">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="🛑" Classes="emoji-icon"/>
+                            <icons:EmojiAppIcon Icon="Stop" Width="16" Height="16"/>
                             <TextBlock Text="{localization:Loc Playback_StopPlayback}"/>
                         </StackPanel>
                      </Button>
                 </Grid>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
-                    <TextBlock Text="💡" FontSize="12" Classes="caption emoji-icon"/>
+                    <icons:EmojiAppIcon Icon="Tip" Classes="caption-colored-icon"/>
                     <TextBlock Text="{localization:Loc Playback_LoopTip}" Classes="caption"/>
                 </StackPanel>
 

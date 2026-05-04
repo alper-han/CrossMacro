@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using CrossMacro.Core.Services;
+using CrossMacro.UI.Icons;
 using CrossMacro.UI.Models;
 
 namespace CrossMacro.UI.ViewModels;
@@ -25,13 +26,13 @@ internal sealed class MainWindowNavigationCatalog
     {
         return new ObservableCollection<NavigationItem>
         {
-            CreateNavigationItem("Navigation_Recording", "🔴", recording),
-            CreateNavigationItem("Navigation_Playback", "▶️", playback),
-            CreateNavigationItem("Navigation_Files", "💾", files),
-            CreateNavigationItem("Navigation_TextExpansion", "📝", textExpansion),
-            CreateNavigationItem("Navigation_Shortcuts", "⌨️", shortcuts),
-            CreateNavigationItem("Navigation_Schedule", "🕐", schedule),
-            CreateNavigationItem("Navigation_Editor", "🛠️", editor)
+            CreateNavigationItem("Navigation_Recording", AppIcon.Record, recording),
+            CreateNavigationItem("Navigation_Playback", AppIcon.Play, playback),
+            CreateNavigationItem("Navigation_Files", AppIcon.Save, files),
+            CreateNavigationItem("Navigation_TextExpansion", AppIcon.EditNote, textExpansion),
+            CreateNavigationItem("Navigation_Shortcuts", AppIcon.Keyboard, shortcuts),
+            CreateNavigationItem("Navigation_Schedule", AppIcon.Clock, schedule),
+            CreateNavigationItem("Navigation_Editor", AppIcon.Tools, editor)
         };
     }
 
@@ -39,7 +40,7 @@ internal sealed class MainWindowNavigationCatalog
     {
         return new ObservableCollection<NavigationItem>
         {
-            CreateNavigationItem("Navigation_Settings", "⚙️", settings)
+            CreateNavigationItem("Navigation_Settings", AppIcon.Settings, settings)
         };
     }
 
@@ -51,7 +52,7 @@ internal sealed class MainWindowNavigationCatalog
         RefreshLabels(bottomNavigationItems);
     }
 
-    private NavigationItem CreateNavigationItem(string localizationKey, string icon, ViewModelBase viewModel)
+    private NavigationItem CreateNavigationItem(string localizationKey, AppIcon icon, ViewModelBase viewModel)
     {
         return new NavigationItem
         {

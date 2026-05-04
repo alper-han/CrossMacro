@@ -53,6 +53,9 @@ namespace CrossMacro.Platform.Linux.DisplayServer
             }
 
             var currentDesktop = environment.CurrentDesktop ?? "";
+            var gdmSession = environment.GdmSession ?? "";
+            var desktopIdentity = $"{currentDesktop}:{gdmSession}".ToUpperInvariant();
+
             return currentDesktop.ToUpperInvariant() switch
             {
                 var desktop when desktop.Contains("HYPRLAND") =>
@@ -60,6 +63,12 @@ namespace CrossMacro.Platform.Linux.DisplayServer
 
                 var desktop when desktop.Contains("WAYFIRE") || !string.IsNullOrWhiteSpace(environment.WayfireSocket) =>
                     LogAndReturn(CompositorType.WAYFIRE, "Wayfire"),
+
+                _ when desktopIdentity.Contains("NIRI") =>
+                    LogAndReturn(CompositorType.NIRI, "Niri"),
+
+                _ when desktopIdentity.Contains("COSMIC") =>
+                    LogAndReturn(CompositorType.COSMIC, "COSMIC"),
 
                 "KDE" =>
                     LogAndReturn(CompositorType.KDE, "KDE Plasma"),

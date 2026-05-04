@@ -30,6 +30,8 @@ public class LinuxEnvironmentDetector : ILinuxEnvironmentDetector
     {
         CompositorType.HYPRLAND => true,
         CompositorType.WAYFIRE => true,
+        CompositorType.NIRI => true,
+        CompositorType.COSMIC => true,
         CompositorType.GNOME => true,
         CompositorType.KDE => true,
         CompositorType.Other => true,

@@ -20,7 +20,7 @@ internal sealed class InputSimulatorWarmupService
             var width = 0;
             var height = 0;
 
-            if (positionProvider?.IsSupported == true)
+            if (positionProvider != null)
             {
                 var resolution = await positionProvider.GetScreenResolutionAsync();
                 if (resolution.HasValue)

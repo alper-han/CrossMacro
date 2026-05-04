@@ -9,6 +9,8 @@ namespace CrossMacro.Platform.Linux.DisplayServer
         X11,
         HYPRLAND,
         WAYFIRE,
+        NIRI,
+        COSMIC,
         KDE,
         GNOME,
         Other

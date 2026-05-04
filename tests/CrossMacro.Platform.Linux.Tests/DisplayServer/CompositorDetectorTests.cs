@@ -60,6 +60,10 @@ public sealed class CompositorDetectorTests
     [InlineData("KDE", CompositorType.KDE)]
     [InlineData("Hyprland", CompositorType.HYPRLAND)]
     [InlineData("Wayfire", CompositorType.WAYFIRE)]
+    [InlineData("niri", CompositorType.NIRI)]
+    [InlineData("niri:GNOME", CompositorType.NIRI)]
+    [InlineData("COSMIC", CompositorType.COSMIC)]
+    [InlineData("pop:COSMIC", CompositorType.COSMIC)]
     public void ClassifyFromEnvironment_WhenKnownWaylandDesktop_ReturnsCompositor(
         string currentDesktop,
         CompositorType expected)
@@ -79,11 +83,48 @@ public sealed class CompositorDetectorTests
         Assert.Equal(CompositorType.WAYFIRE, result);
     }
 
+    [Fact]
+    public void ClassifyFromEnvironment_WhenGdmSessionIsNiri_ReturnsNiri()
+    {
+        var result = CompositorDetector.ClassifyFromEnvironment(
+            Snapshot(sessionType: "wayland", gdmSession: "niri"));
+
+        Assert.Equal(CompositorType.NIRI, result);
+    }
+
+    [Fact]
+    public void ClassifyFromEnvironment_WhenGdmSessionIsCosmic_ReturnsCosmic()
+    {
+        var result = CompositorDetector.ClassifyFromEnvironment(
+            Snapshot(sessionType: "wayland", gdmSession: "cosmic"));
+
+        Assert.Equal(CompositorType.COSMIC, result);
+    }
+
+    [Fact]
+    public void ClassifyFromEnvironment_WhenX11SessionHasNiriHint_ReturnsX11()
+    {
+        var result = CompositorDetector.ClassifyFromEnvironment(
+            Snapshot(sessionType: "x11", display: ":0", currentDesktop: "niri", gdmSession: "niri"));
+
+        Assert.Equal(CompositorType.X11, result);
+    }
+
+    [Fact]
+    public void ClassifyFromEnvironment_WhenX11SessionHasCosmicHint_ReturnsX11()
+    {
+        var result = CompositorDetector.ClassifyFromEnvironment(
+            Snapshot(sessionType: "x11", display: ":0", currentDesktop: "COSMIC", gdmSession: "cosmic"));
+
+        Assert.Equal(CompositorType.X11, result);
+    }
+
     private static LinuxEnvironmentSnapshot Snapshot(
         string? sessionType = null,
         string? waylandDisplay = null,
         string? display = null,
         string? currentDesktop = null,
+        string? gdmSession = null,
         string? wayfireSocket = null)
     {
         return new LinuxEnvironmentSnapshot(
@@ -94,7 +135,7 @@ public sealed class CompositorDetectorTests
             WaylandDisplay: waylandDisplay,
             Display: display,
             CurrentDesktop: currentDesktop,
-            GdmSession: null,
+            GdmSession: gdmSession,
             HyprlandInstanceSignature: null,
             RuntimeDir: null,
             WayfireSocket: wayfireSocket,

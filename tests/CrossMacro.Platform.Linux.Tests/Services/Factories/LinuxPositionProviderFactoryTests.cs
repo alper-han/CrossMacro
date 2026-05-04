@@ -119,4 +119,32 @@ public class LinuxPositionProviderFactoryTests
         selectorA.DidNotReceive().Create();
         selectorB.DidNotReceive().Create();
     }
+
+    [LinuxFact]
+    public void NiriPositionProviderSelector_ShouldCreateResolutionOnlyProvider_ForNiri()
+    {
+        var selector = new NiriPositionProviderSelector();
+
+        Assert.True(selector.CanHandle(CompositorType.NIRI));
+        Assert.False(selector.CanHandle(CompositorType.Other));
+
+        using var provider = selector.Create();
+        Assert.IsType<NiriPositionProvider>(provider);
+        Assert.False(provider.IsSupported);
+        Assert.Equal("Niri IPC (Resolution Only)", provider.ProviderName);
+    }
+
+    [LinuxFact]
+    public void CosmicPositionProviderSelector_ShouldCreateResolutionOnlyProvider_ForCosmic()
+    {
+        var selector = new CosmicPositionProviderSelector();
+
+        Assert.True(selector.CanHandle(CompositorType.COSMIC));
+        Assert.False(selector.CanHandle(CompositorType.Other));
+
+        using var provider = selector.Create();
+        Assert.IsType<CosmicPositionProvider>(provider);
+        Assert.False(provider.IsSupported);
+        Assert.Equal("COSMIC RandR (Resolution Only)", provider.ProviderName);
+    }
 }

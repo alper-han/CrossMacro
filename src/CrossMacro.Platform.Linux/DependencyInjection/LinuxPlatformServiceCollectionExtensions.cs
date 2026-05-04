@@ -54,13 +54,11 @@ internal static class LinuxPlatformServiceCollectionExtensions
         services.AddSingleton<IMousePositionProvider>(sp =>
             sp.GetRequiredService<LinuxPositionProviderFactory>().Create());
 
-#pragma warning disable CS8634, CS8621 // Intentionally nullable for optional service
-        services.AddSingleton(sp =>
+        services.AddSingleton<IExtensionStatusNotifier>(sp =>
         {
             var provider = sp.GetRequiredService<IMousePositionProvider>();
-            return provider as IExtensionStatusNotifier;
+            return provider as IExtensionStatusNotifier ?? NullExtensionStatusNotifier.Instance;
         });
-#pragma warning restore CS8634, CS8621
 
         services.AddSingleton<IPermissionChecker, LinuxPermissionChecker>();
         services.AddSingleton<IDisplaySessionService, LinuxDisplaySessionService>();
@@ -158,6 +156,8 @@ internal static class LinuxPlatformServiceCollectionExtensions
         services.AddSingleton<IPositionProviderSelector, KdePositionProviderSelector>();
         services.AddSingleton<IPositionProviderSelector, HyprlandPositionProviderSelector>();
         services.AddSingleton<IPositionProviderSelector, WayfirePositionProviderSelector>();
+        services.AddSingleton<IPositionProviderSelector, NiriPositionProviderSelector>();
+        services.AddSingleton<IPositionProviderSelector, CosmicPositionProviderSelector>();
     }
 
     internal static void AddLinuxCoordinateStrategy(this IServiceCollection services)
@@ -172,5 +172,28 @@ internal static class LinuxPlatformServiceCollectionExtensions
             var factory = sp.GetRequiredService<Func<IInputSimulator>>();
             return new InputSimulatorPool(factory);
         });
+    }
+
+    private sealed class NullExtensionStatusNotifier : IExtensionStatusNotifier
+    {
+        public static NullExtensionStatusNotifier Instance { get; } = new();
+
+        public event EventHandler<ExtensionStatusChangedEventArgs>? ExtensionStatusUpdated
+        {
+            add { }
+            remove { }
+        }
+
+        public event EventHandler<string>? ExtensionStatusChanged
+        {
+            add { }
+            remove { }
+        }
+
+        public ExtensionStatusChangedEventArgs? CurrentExtensionStatus => null;
+
+        private NullExtensionStatusNotifier()
+        {
+        }
     }
 }

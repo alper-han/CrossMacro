@@ -32,6 +32,8 @@ public class LinuxEnvironmentDetectorTests
 
         var expected = compositor == CompositorType.HYPRLAND
             || compositor == CompositorType.WAYFIRE
+            || compositor == CompositorType.NIRI
+            || compositor == CompositorType.COSMIC
             || compositor == CompositorType.GNOME
             || compositor == CompositorType.KDE
             || compositor == CompositorType.Other;

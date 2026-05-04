@@ -69,6 +69,8 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
         CompositorType.X11 => DisplayEnvironment.LinuxX11,
         CompositorType.HYPRLAND => DisplayEnvironment.LinuxHyprland,
         CompositorType.WAYFIRE => DisplayEnvironment.LinuxWayfire,
+        CompositorType.NIRI => DisplayEnvironment.LinuxWayland,
+        CompositorType.COSMIC => DisplayEnvironment.LinuxWayland,
         CompositorType.KDE => DisplayEnvironment.LinuxKDE,
         CompositorType.GNOME => DisplayEnvironment.LinuxGnome,
         CompositorType.Other => DisplayEnvironment.LinuxWayland,

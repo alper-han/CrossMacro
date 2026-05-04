@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Media;
+using Avalonia.Svg.Skia;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.UI.Startup;
 using Serilog;
@@ -31,9 +32,14 @@ public static class Program
 
     // Avalonia configuration, don't remove; also used by visual designer.
     public static AppBuilder BuildAvaloniaApp(GuiBootstrapContext? bootstrapContext = null)
-        => bootstrapContext == null
+    {
+        GC.KeepAlive(typeof(SvgImageExtension).Assembly);
+
+        var builder = bootstrapContext == null
             ? AppBuilder.Configure<App>()
-            : AppBuilder.Configure(() => new App(bootstrapContext))
+            : AppBuilder.Configure(() => new App(bootstrapContext));
+
+        return builder
             .WithInterFont()
             .UseHarfBuzz()
             .LogToTrace()
@@ -45,6 +51,7 @@ public static class Program
                     new FontFallback { FontFamily = new FontFamily("avares://Avalonia.Fonts.Inter/Assets#Inter") }
                 ]
             });
+    }
 
     public static IDisposable? TryAcquireRuntimeSingleInstanceGuard()
     {

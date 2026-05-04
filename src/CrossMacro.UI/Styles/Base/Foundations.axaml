@@ -1,5 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="using:CrossMacro.UI.Icons">
     <Styles.Resources>
         <BoxShadows x:Key="ShadowGlassPanel">0 10 30 5 #00000040</BoxShadows>
         <BoxShadows x:Key="ShadowOverlayCard">0 4 12 4 #40000000</BoxShadows>
@@ -50,6 +51,22 @@
         <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}"/>
     </Style>
 
+    <Style Selector="ToolTip">
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SurfaceHoverBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Padding" Value="8,5"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="MaxWidth" Value="280"/>
+    </Style>
+
+    <Style Selector="ToolTip TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+
     <!-- TextBlock Styles -->
     <Style Selector="TextBlock.title">
         <Setter Property="FontSize" Value="24"/>
@@ -80,12 +97,64 @@
         <Setter Property="Opacity" Value="0.8"/>
     </Style>
 
-    <Style Selector="TextBlock.emoji-icon">
-        <Setter Property="FontFamily" Value="{StaticResource EmojiFont}"/>
-        <Setter Property="FontWeight" Value="Normal"/>
-        <Setter Property="FontStyle" Value="Normal"/>
-        <Setter Property="TextAlignment" Value="Center"/>
+    <Style Selector="PathIcon.app-icon">
+        <Setter Property="Width" Value="16"/>
+        <Setter Property="Height" Value="16"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="PathIcon.nav-icon">
+        <Setter Property="Width" Value="20"/>
+        <Setter Property="Height" Value="20"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="icons|EmojiAppIcon.nav-colored-icon">
+        <Setter Property="Width" Value="24"/>
+        <Setter Property="Height" Value="24"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="icons|EmojiAppIcon.caption-colored-icon">
+        <Setter Property="Width" Value="12"/>
+        <Setter Property="Height" Value="12"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Opacity" Value="0.9"/>
+    </Style>
+
+    <Style Selector="PathIcon.notice-icon">
+        <Setter Property="Width" Value="16"/>
+        <Setter Property="Height" Value="16"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+    </Style>
+
+    <Style Selector="PathIcon.notice-icon.warning">
+        <Setter Property="Foreground" Value="{DynamicResource WarningBrush}"/>
+    </Style>
+
+    <Style Selector="PathIcon.notice-icon.success">
+        <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}"/>
+    </Style>
+
+    <Style Selector="PathIcon.notice-icon.error">
+        <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+    </Style>
+
+    <Style Selector="PathIcon.caption-icon">
+        <Setter Property="Width" Value="12"/>
+        <Setter Property="Height" Value="12"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+        <Setter Property="Opacity" Value="0.8"/>
+    </Style>
+
+    <Style Selector="PathIcon.empty-state-icon">
+        <Setter Property="Width" Value="48"/>
+        <Setter Property="Height" Value="48"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+        <Setter Property="Opacity" Value="0.4"/>
     </Style>
 
     <Style Selector="TextBlock.notice-title">
@@ -97,23 +166,6 @@
     <Style Selector="TextBlock.notice-message">
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
-    </Style>
-
-    <Style Selector="TextBlock.notice-icon">
-        <Setter Property="FontSize" Value="16"/>
-        <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
-    </Style>
-
-    <Style Selector="TextBlock.notice-icon.warning">
-        <Setter Property="Foreground" Value="{DynamicResource WarningBrush}"/>
-    </Style>
-
-    <Style Selector="TextBlock.notice-icon.success">
-        <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}"/>
-    </Style>
-
-    <Style Selector="TextBlock.notice-icon.error">
-        <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
     </Style>
 
     <Style Selector="TextBlock.value">

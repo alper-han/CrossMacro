@@ -47,6 +47,10 @@
         <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
     </Style>
 
+    <Style Selector="Button.row-action.danger:pointerover PathIcon">
+        <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+    </Style>
+
     <Style Selector="ToggleButton.pane-toggle">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
@@ -77,6 +81,14 @@
     <Style Selector="ListBox.nav-list ListBoxItem:selected">
         <Setter Property="BorderThickness" Value="3,0,3,0"/>
         <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+    </Style>
+
+    <Style Selector="ListBox.nav-list ListBoxItem:pointerover PathIcon.nav-icon">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+    </Style>
+
+    <Style Selector="ListBox.nav-list ListBoxItem:selected PathIcon.nav-icon">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
     </Style>
 
     <Style Selector="ListBox.loaded-macro-list">
@@ -149,6 +161,10 @@
     </Style>
 
     <Style Selector="ListBox.loaded-macro-list Button.loaded-macro-remove TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+    </Style>
+
+    <Style Selector="ListBox.loaded-macro-list Button.loaded-macro-remove PathIcon">
         <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
     </Style>
 

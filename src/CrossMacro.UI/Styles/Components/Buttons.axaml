@@ -176,6 +176,41 @@
         <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
     </Style>
 
+    <Style Selector="Button.editor-toolbar-action.danger">
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+    </Style>
+
+    <Style Selector="Button.editor-toolbar-action.danger:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+    </Style>
+
+    <Style Selector="Button.editor-toolbar-action.danger:pressed">
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource DangerPressedBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource DangerPressedBrush}"/>
+    </Style>
+
+    <Style Selector="Button.editor-toolbar-action.danger TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+    </Style>
+
+    <Style Selector="Button.editor-toolbar-action.danger PathIcon">
+        <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+    </Style>
+
+    <Style Selector="Button.editor-toolbar-action.danger:pressed TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource DangerPressedBrush}"/>
+    </Style>
+
+    <Style Selector="Button.editor-toolbar-action.danger:pressed PathIcon">
+        <Setter Property="Foreground" Value="{DynamicResource DangerPressedBrush}"/>
+    </Style>
+
     <Style Selector="Button.editor-toolbar-action:disabled">
         <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource SurfaceHoverBrush}"/>

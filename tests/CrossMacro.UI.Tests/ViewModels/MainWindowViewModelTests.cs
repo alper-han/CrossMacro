@@ -192,20 +192,23 @@ public class MainWindowViewModelTests
             _editorViewModel);
         var bottomItems = catalog.CreateBottomItems(_settingsViewModel);
 
-        topItems.Select(item => (item.LocalizationKey, item.Label, item.Icon, item.ViewModel)).Should().Equal(
+        topItems.Select(item => (item.LocalizationKey, item.Label, item.ViewModel)).Should().Equal(
         [
-            ("Navigation_Recording", "[Navigation_Recording]", "🔴", _recordingViewModel),
-            ("Navigation_Playback", "[Navigation_Playback]", "▶️", _playbackViewModel),
-            ("Navigation_Files", "[Navigation_Files]", "💾", _filesViewModel),
-            ("Navigation_TextExpansion", "[Navigation_TextExpansion]", "📝", _textExpansionViewModel),
-            ("Navigation_Shortcuts", "[Navigation_Shortcuts]", "⌨️", _shortcutViewModel),
-            ("Navigation_Schedule", "[Navigation_Schedule]", "🕐", _scheduleViewModel),
-            ("Navigation_Editor", "[Navigation_Editor]", "🛠️", _editorViewModel)
+            ("Navigation_Recording", "[Navigation_Recording]", _recordingViewModel),
+            ("Navigation_Playback", "[Navigation_Playback]", _playbackViewModel),
+            ("Navigation_Files", "[Navigation_Files]", _filesViewModel),
+            ("Navigation_TextExpansion", "[Navigation_TextExpansion]", _textExpansionViewModel),
+            ("Navigation_Shortcuts", "[Navigation_Shortcuts]", _shortcutViewModel),
+            ("Navigation_Schedule", "[Navigation_Schedule]", _scheduleViewModel),
+            ("Navigation_Editor", "[Navigation_Editor]", _editorViewModel)
         ]);
-        bottomItems.Select(item => (item.LocalizationKey, item.Label, item.Icon, item.ViewModel)).Should().Equal(
+        topItems.Should().OnlyContain(item => Enum.IsDefined(item.Icon));
+
+        bottomItems.Select(item => (item.LocalizationKey, item.Label, item.ViewModel)).Should().Equal(
         [
-            ("Navigation_Settings", "[Navigation_Settings]", "⚙️", _settingsViewModel)
+            ("Navigation_Settings", "[Navigation_Settings]", _settingsViewModel)
         ]);
+        bottomItems.Should().OnlyContain(item => Enum.IsDefined(item.Icon));
     }
 
     [Fact]

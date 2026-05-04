@@ -8,6 +8,7 @@ using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.UI.Localization;
+using CrossMacro.UI.Icons;
 using CrossMacro.UI.Models;
 using CrossMacro.UI.Services;
 using System.Collections.ObjectModel;
@@ -40,7 +41,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private bool _isAppNotificationVisible;
     private string _appNotificationTitle = string.Empty;
     private string _appNotificationMessage = string.Empty;
-    private string _appNotificationIcon = "⚠️";
+    private AppIcon _appNotificationIcon = AppIcon.Warning;
     private bool _isAppNotificationSuccess;
     private bool _isAppNotificationError;
     private bool _isAppNotificationWarning;
@@ -453,6 +454,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         Playback.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
         Files.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
         Schedule.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
+        Shortcuts.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
         Editor.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
     }
 
@@ -597,7 +599,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public string AppNotificationIcon
+    public AppIcon AppNotificationIcon
     {
         get => _appNotificationIcon;
         set
@@ -768,9 +770,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         AppNotificationMessage = message;
         AppNotificationIcon = severity switch
         {
-            AppNotificationSeverity.Success => "✅",
-            AppNotificationSeverity.Error => "⚠️",
-            _ => "⚠️"
+            AppNotificationSeverity.Success => AppIcon.Success,
+            AppNotificationSeverity.Error => AppIcon.Warning,
+            _ => AppIcon.Warning
         };
         IsAppNotificationSuccess = severity == AppNotificationSeverity.Success;
         IsAppNotificationError = severity == AppNotificationSeverity.Error;
@@ -826,7 +828,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         IsAppNotificationVisible = false;
         AppNotificationTitle = string.Empty;
         AppNotificationMessage = string.Empty;
-        AppNotificationIcon = "⚠️";
+        AppNotificationIcon = AppIcon.Warning;
         IsAppNotificationSuccess = false;
         IsAppNotificationError = false;
         IsAppNotificationWarning = false;

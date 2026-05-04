@@ -129,7 +129,42 @@ public class ShortcutTask : INotifyPropertyChanged
     public int RepeatDelayMs
     {
         get => _repeatDelayMs;
-        set { _repeatDelayMs = value; OnPropertyChanged(); }
+        set { _repeatDelayMs = PlaybackOptions.NormalizeDelayMs(value); OnPropertyChanged(); }
+    }
+
+    private bool _useRandomRepeatDelay;
+    public bool UseRandomRepeatDelay
+    {
+        get => _useRandomRepeatDelay;
+        set { _useRandomRepeatDelay = value; OnPropertyChanged(); }
+    }
+
+    private int _repeatDelayMinMs = 0;
+    public int RepeatDelayMinMs
+    {
+        get => _repeatDelayMinMs;
+        set
+        {
+            var (min, max) = PlaybackOptions.NormalizeDelayRange(value, _repeatDelayMaxMs);
+            _repeatDelayMinMs = min;
+            _repeatDelayMaxMs = max;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(RepeatDelayMaxMs));
+        }
+    }
+
+    private int _repeatDelayMaxMs = 0;
+    public int RepeatDelayMaxMs
+    {
+        get => _repeatDelayMaxMs;
+        set
+        {
+            var (min, max) = PlaybackOptions.NormalizeDelayRange(_repeatDelayMinMs, value);
+            _repeatDelayMinMs = min;
+            _repeatDelayMaxMs = max;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(RepeatDelayMinMs));
+        }
     }
 
     private bool _runWhileHeld;

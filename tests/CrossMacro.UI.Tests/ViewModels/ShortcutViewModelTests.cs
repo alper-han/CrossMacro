@@ -61,19 +61,7 @@ public class ShortcutViewModelTests
     [Fact]
     public async Task Construction_LoadsAndStartsService()
     {
-        for (int i = 0; i < 20; i++)
-        {
-            try
-            {
-                await _shortcutService.Received(1).LoadAsync();
-                _shortcutService.Received(1).Start();
-                return;
-            }
-            catch
-            {
-                await Task.Delay(25);
-            }
-        }
+        await _viewModel.InitializationTask;
 
         await _shortcutService.Received(1).LoadAsync();
         _shortcutService.Received(1).Start();
@@ -95,6 +83,7 @@ public class ShortcutViewModelTests
         var vm = new ShortcutViewModel(failingShortcutService, _dialogService, _hotkeyService, _localizationService);
         vm.StatusChanged += (_, status) => statusTcs.TrySetResult(status);
         loadTcs.TrySetException(new InvalidOperationException("load failed"));
+        await vm.InitializationTask;
         var statusMessage = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         // Assert

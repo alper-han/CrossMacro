@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -31,6 +32,8 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
 
     public ILocalizationService LocalizationService => _localizationService;
 
+    public Task InitializationTask { get; }
+
     public string TaskCountText => string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_ItemsText"], Tasks.Count);
     
     public ShortcutTask? SelectedTask
@@ -40,13 +43,31 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         {
             if (_selectedTask != value)
             {
+                if (_selectedTask != null)
+                {
+                    _selectedTask.PropertyChanged -= OnSelectedTaskPropertyChanged;
+                }
+
                 _selectedTask = value;
+                if (_selectedTask != null)
+                {
+                    _selectedTask.PropertyChanged += OnSelectedTaskPropertyChanged;
+                }
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(HasSelectedTask));
                 OnPropertyChanged(nameof(SelectedMacroFilePath));
                 OnPropertyChanged(nameof(SelectedMacroFileName));
                 OnPropertyChanged(nameof(SelectedHotkeyString));
+                OnSelectedTaskStatusChanged();
             }
+        }
+    }
+
+    private void OnSelectedTaskPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ShortcutTask.LastTriggeredTime) or nameof(ShortcutTask.LastStatus))
+        {
+            RaiseOnUiThread(OnSelectedTaskStatusChanged);
         }
     }
     
@@ -85,6 +106,13 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
             }
         }
     }
+
+    public string SelectedLastTriggeredText => SelectedTask?.LastTriggeredTime?.ToString("G", _localizationService.CurrentCulture)
+        ?? _localizationService["Shortcut_Never"];
+
+    public string SelectedStatusText => string.IsNullOrWhiteSpace(SelectedTask?.LastStatus)
+        ? _localizationService["Shortcut_StatusPlaceholder"]
+        : SelectedTask.LastStatus!;
     
     // Events for global status
     public event EventHandler<string>? StatusChanged;
@@ -104,10 +132,10 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         // Subscribe to shortcut execution events
         _shortcutService.ShortcutStarting += OnShortcutStarting;
         _shortcutService.ShortcutExecuted += OnShortcutExecuted;
-        _shortcutService.Tasks?.CollectionChanged += (_, _) => OnPropertyChanged(nameof(TaskCountText));
+        _shortcutService.Tasks?.CollectionChanged += OnTasksCollectionChanged;
         
         // Load saved shortcuts and start listening
-        _ = InitializeAsyncSafe();
+        InitializationTask = InitializeAsyncSafe();
     }
     
     private async Task InitializeAsyncSafe()
@@ -230,6 +258,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
             if (SelectedTask?.Id == task.Id)
             {
                 OnPropertyChanged(nameof(SelectedTask));
+                OnSelectedTaskStatusChanged();
             }
         });
     }
@@ -246,8 +275,31 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
             if (SelectedTask?.Id == e.Task.Id)
             {
                 OnPropertyChanged(nameof(SelectedTask));
+                OnSelectedTaskStatusChanged();
             }
         });
+    }
+
+    private void OnSelectedTaskStatusChanged()
+    {
+        OnPropertyChanged(nameof(SelectedLastTriggeredText));
+        OnPropertyChanged(nameof(SelectedStatusText));
+    }
+
+    private void OnTasksCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(TaskCountText));
+    }
+
+    private static void RaiseOnUiThread(Action action)
+    {
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        Dispatcher.UIThread.Post(action);
     }
 
     private void RaiseStatus(string message)
@@ -266,6 +318,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(TaskCountText));
         OnPropertyChanged(nameof(SelectedMacroFileName));
         OnPropertyChanged(nameof(SelectedTask));
+        OnSelectedTaskStatusChanged();
     }
     
     public void Dispose()
@@ -275,6 +328,11 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         
         _shortcutService.ShortcutStarting -= OnShortcutStarting;
         _shortcutService.ShortcutExecuted -= OnShortcutExecuted;
+        _shortcutService.Tasks?.CollectionChanged -= OnTasksCollectionChanged;
+        if (_selectedTask != null)
+        {
+            _selectedTask.PropertyChanged -= OnSelectedTaskPropertyChanged;
+        }
         _localizationService.CultureChanged -= OnCultureChanged;
     }
 }

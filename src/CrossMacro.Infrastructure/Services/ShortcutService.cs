@@ -95,6 +95,9 @@ public class ShortcutService : IShortcutService
                 existing.LoopEnabled = task.LoopEnabled;
                 existing.RepeatCount = task.RepeatCount;
                 existing.RepeatDelayMs = task.RepeatDelayMs;
+                existing.UseRandomRepeatDelay = task.UseRandomRepeatDelay;
+                existing.RepeatDelayMinMs = task.RepeatDelayMinMs;
+                existing.RepeatDelayMaxMs = task.RepeatDelayMaxMs;
                 existing.RunWhileHeld = task.RunWhileHeld;
             }
         }
@@ -125,8 +128,29 @@ public class ShortcutService : IShortcutService
     
     public void Stop()
     {
+        List<IMacroPlayer> playersToStop;
+        lock (_lock)
+        {
+            playersToStop = _activePlayers.Values.ToList();
+            _activePlayers.Clear();
+            _activeHotkeyKeys.Clear();
+        }
+
+        foreach (var player in playersToStop)
+        {
+            try
+            {
+                player.Stop();
+                player.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to stop active shortcut playback");
+            }
+        }
+
         if (!_isListening) return;
-        
+
         _hotkeyService.RawInputReceived -= OnRawInputReceived;
         _hotkeyService.RawKeyReleased -= OnRawKeyReleased;
         _isListening = false;
@@ -282,7 +306,10 @@ public class ShortcutService : IShortcutService
                 SpeedMultiplier = PlaybackOptions.NormalizeSpeedMultiplier(task.PlaybackSpeed),
                 Loop = loop,
                 RepeatCount = repeatCount,
-                RepeatDelayMs = task.RepeatDelayMs
+                RepeatDelayMs = task.RepeatDelayMs,
+                UseRandomRepeatDelay = task.UseRandomRepeatDelay,
+                RepeatDelayMinMs = task.RepeatDelayMinMs,
+                RepeatDelayMaxMs = task.RepeatDelayMaxMs
             };
             
             await player.PlayAsync(macro, options, cancellationToken);
@@ -364,6 +391,7 @@ public class ShortcutService : IShortcutService
         catch (Exception ex)
         {
             Log.Warning(ex, "Failed to save shortcut tasks to {Path}", _shortcutsFilePath);
+            throw;
         }
     }
 

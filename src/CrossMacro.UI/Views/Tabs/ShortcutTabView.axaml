@@ -4,6 +4,7 @@
              xmlns:core="using:CrossMacro.Core.Models"
              xmlns:controls="using:CrossMacro.UI.Controls"
              xmlns:localization="using:CrossMacro.UI.Localization"
+             xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="700"
@@ -40,7 +41,10 @@
                                CornerRadius="6"
                                Padding="8,4"
                                Cursor="Hand">
-                            <TextBlock Text="+" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrush}"/>
+                            <PathIcon Data="{icons:AppIcon Add}"
+                                      Width="18"
+                                      Height="18"
+                                      Foreground="{DynamicResource PrimaryBrush}"/>
                         </Button>
                     </Grid>
                     
@@ -64,7 +68,7 @@
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand">
                                             <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
-                                                <TextBlock Text="{Binding Name, FallbackValue={localization:Loc Shortcut_NameFallback}}" 
+                                                <TextBlock Text="{Binding Name}" 
                                                           FontWeight="Medium"
                                                           FontSize="13"
                                                           TextTrimming="CharacterEllipsis"/>
@@ -78,7 +82,7 @@
                                                                    FontFamily="Consolas, monospace"
                                                                    Foreground="{DynamicResource PrimaryBrush}"/>
                                                     </Border>
-                                                    <TextBlock Text="{Binding MacroFilePath, TargetNullValue={localization:Loc Shortcut_NoFile}, FallbackValue={localization:Loc Shortcut_NoFile}}"
+                                                    <TextBlock Text="{Binding MacroFilePath}"
                                                                FontSize="11" 
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                TextTrimming="CharacterEllipsis"
@@ -104,7 +108,7 @@
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
                                                 ToolTip.Tip="{localization:Loc Shortcut_EditTooltip}">
-                                            <TextBlock Text="✏️" FontSize="12" Classes="emoji-icon"/>
+                                            <icons:EmojiAppIcon Icon="Edit" Width="14" Height="14"/>
                                         </Button>
                                         
                                         <!-- Delete Button -->
@@ -116,7 +120,7 @@
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
                                                 ToolTip.Tip="{localization:Loc Shortcut_DeleteTooltip}">
-                                            <TextBlock Text="🗑" FontSize="12" Classes="emoji-icon" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <icons:EmojiAppIcon Icon="Delete" Width="14" Height="14" Opacity="0.85"/>
                                         </Button>
                                     </Grid>
                                 </Border>
@@ -184,20 +188,39 @@
                                          Content="{localization:Loc Shortcut_RunWhenHeld}"
                                          IsChecked="{Binding SelectedTask.RunWhileHeld, Mode=TwoWay}"
                                          ToolTip.Tip="{localization:Loc Shortcut_RunWhenHeldTooltip}"/>
-                            <Grid ColumnDefinitions="*,*">
-                                <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0"
-                                            IsVisible="{Binding SelectedTask.LoopEnabled}">
+                            <CheckBox Content="{localization:Loc Playback_RandomizeLoopDelay}"
+                                      IsChecked="{Binding SelectedTask.UseRandomRepeatDelay, Mode=TwoWay}"/>
+                            <Grid ColumnDefinitions="*,*"
+                                  IsVisible="{Binding SelectedTask.LoopEnabled}">
+                                <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
                                     <TextBlock Classes="label" Text="{localization:Loc Shortcut_LoopCount}"/>
                                     <NumericUpDown Value="{Binding SelectedTask.RepeatCount, Mode=TwoWay}" Minimum="0" Maximum="10000" FormatString="0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Spacing="4" Margin="8,0,0,0">
                                     <TextBlock Classes="label" Text="{localization:Loc Shortcut_LoopDelayMs}"/>
-                                    <NumericUpDown Value="{Binding SelectedTask.RepeatDelayMs, Mode=TwoWay}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
+                                    <NumericUpDown Value="{Binding SelectedTask.RepeatDelayMs, Mode=TwoWay}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"
+                                                   IsVisible="{Binding !SelectedTask.UseRandomRepeatDelay}"/>
+                                    <Grid ColumnDefinitions="*,8,*"
+                                          IsVisible="{Binding SelectedTask.UseRandomRepeatDelay}">
+                                        <NumericUpDown Value="{Binding SelectedTask.RepeatDelayMinMs, Mode=TwoWay}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
+                                        <NumericUpDown Grid.Column="2" Value="{Binding SelectedTask.RepeatDelayMaxMs, Mode=TwoWay}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
+                                    </Grid>
                                 </StackPanel>
                             </Grid>
+                            <StackPanel Spacing="4"
+                                        IsVisible="{Binding SelectedTask.RunWhileHeld}">
+                                <TextBlock Classes="label" Text="{localization:Loc Shortcut_LoopDelayMs}"/>
+                                <NumericUpDown Value="{Binding SelectedTask.RepeatDelayMs, Mode=TwoWay}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"
+                                               IsVisible="{Binding !SelectedTask.UseRandomRepeatDelay}"/>
+                                <Grid ColumnDefinitions="*,8,*"
+                                      IsVisible="{Binding SelectedTask.UseRandomRepeatDelay}">
+                                    <NumericUpDown Value="{Binding SelectedTask.RepeatDelayMinMs, Mode=TwoWay}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
+                                    <NumericUpDown Grid.Column="2" Value="{Binding SelectedTask.RepeatDelayMaxMs, Mode=TwoWay}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
+                                </Grid>
+                            </StackPanel>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4" Margin="0,4,0,0"
                                         IsVisible="{Binding SelectedTask.LoopEnabled}">
-                                <TextBlock Text="💡" FontSize="12" Classes="caption emoji-icon"/>
+                                <icons:EmojiAppIcon Icon="Tip" Classes="caption-colored-icon"/>
                                 <TextBlock Text="{localization:Loc Shortcut_LoopTip}" Classes="caption"/>
                             </StackPanel>
                         </StackPanel>
@@ -212,7 +235,7 @@
                                    CornerRadius="6" 
                                    Padding="12,8"
                                    Margin="0,0,8,0">
-                                <TextBlock Text="{Binding SelectedMacroFileName, FallbackValue={localization:Loc Shortcut_NoFileSelected}}" 
+                                <TextBlock Text="{Binding SelectedMacroFileName}" 
                                           VerticalAlignment="Center"
                                           TextTrimming="CharacterEllipsis"
                                           ToolTip.Tip="{Binding SelectedMacroFilePath, FallbackValue=''}"/>
@@ -220,7 +243,7 @@
                             <Button Grid.Column="1" 
                                    Command="{Binding BrowseMacroCommand}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="📂" Classes="emoji-icon"/>
+                                    <icons:EmojiAppIcon Icon="FolderOpen" Width="16" Height="16"/>
                                     <TextBlock Text="{localization:Loc Shortcut_Browse}"/>
                                 </StackPanel>
                             </Button>
@@ -242,12 +265,12 @@
                     <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto" RowSpacing="4">
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Loc Shortcut_LastTriggered}" Classes="caption"/>
                         <TextBlock Grid.Row="0" Grid.Column="1" 
-                                  Text="{Binding SelectedTask.LastTriggeredTime, StringFormat='{}{0:G}', TargetNullValue={localization:Loc Shortcut_Never}, FallbackValue={localization:Loc Shortcut_Never}}" 
+                                  Text="{Binding SelectedLastTriggeredText}" 
                                   FontSize="12"/>
                         
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="{localization:Loc Shortcut_StatusLabel}" Classes="caption"/>
                         <TextBlock Grid.Row="1" Grid.Column="1" 
-                                  Text="{Binding SelectedTask.LastStatus, TargetNullValue={localization:Loc Shortcut_StatusPlaceholder}, FallbackValue={localization:Loc Shortcut_StatusPlaceholder}}" 
+                                  Text="{Binding SelectedStatusText}" 
                                   FontSize="12"/>
                     </Grid>
                 </StackPanel>
@@ -259,7 +282,7 @@
                    HorizontalAlignment="Right"
                    IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="💾" Classes="emoji-icon"/>
+                    <icons:EmojiAppIcon Icon="Save" Width="16" Height="16"/>
                     <TextBlock Text="{localization:Loc Shortcut_SaveAll}"/>
                 </StackPanel>
             </Button>
@@ -270,7 +293,7 @@
                     Padding="32"
                     IsVisible="{Binding !HasSelectedTask}">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
-                    <TextBlock Text="⌨️" FontSize="48" Classes="emoji-icon" HorizontalAlignment="Center"/>
+                    <icons:EmojiAppIcon Icon="Keyboard" Width="48" Height="48" Opacity="0.8" HorizontalAlignment="Center"/>
                     <TextBlock Text="{localization:Loc Shortcut_NoSelected}" 
                               FontSize="16" 
                               FontWeight="Medium"

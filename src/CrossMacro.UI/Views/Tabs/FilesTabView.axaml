@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:models="using:CrossMacro.UI.Models"
+             xmlns:converters="using:CrossMacro.UI.Converters"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -118,7 +119,7 @@
                                     Spacing="8"
                                     IsVisible="{Binding ShowSequenceRepeatSettings}">
                             <TextBlock Classes="label" Text="{localization:Loc Files_SequenceRepeat}"/>
-                            <NumericUpDown Value="{Binding SelectedSequenceRepeatCount}"
+                            <NumericUpDown Value="{Binding SelectedSequenceRepeatCount, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}"
                                            Width="136"
                                            Minimum="1"
                                            Maximum="1000"

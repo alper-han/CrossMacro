@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="using:CrossMacro.UI.Converters"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:core="using:CrossMacro.Core.Models"
              xmlns:local="using:CrossMacro.UI.Views.Tabs"
@@ -223,7 +224,7 @@
                         <TextBlock Text="{localization:Loc Schedule_RunEveryRange}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                                    IsVisible="{Binding SelectedTask.UseRandomIntervalDelay}"/>
                         <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding !SelectedTask.UseRandomIntervalDelay}">
-                            <NumericUpDown Value="{Binding SelectedTask.IntervalValue, Mode=TwoWay, FallbackValue=1}"
+                            <NumericUpDown Value="{Binding SelectedTask.IntervalValue, Mode=TwoWay, FallbackValue=1, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}"
                                           Minimum="1" Maximum="9999"
                                           Width="120"/>
                             <ComboBox ItemsSource="{Binding IntervalUnitOptions}"
@@ -238,9 +239,9 @@
                         </StackPanel>
                         <Grid ColumnDefinitions="120,Auto,120,12,120" ColumnSpacing="8" HorizontalAlignment="Left"
                               IsVisible="{Binding SelectedTask.UseRandomIntervalDelay}">
-                            <NumericUpDown Value="{Binding SelectedTask.IntervalMinValue, Mode=TwoWay}" Minimum="1" Maximum="9999" FormatString="0"/>
+                            <NumericUpDown Value="{Binding SelectedTask.IntervalMinValue, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="1" Maximum="9999" FormatString="0"/>
                             <TextBlock Grid.Column="1" Text="{localization:Loc Schedule_RangeTo}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                            <NumericUpDown Grid.Column="2" Value="{Binding SelectedTask.IntervalMaxValue, Mode=TwoWay}" Minimum="1" Maximum="9999" FormatString="0"/>
+                            <NumericUpDown Grid.Column="2" Value="{Binding SelectedTask.IntervalMaxValue, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="1" Maximum="9999" FormatString="0"/>
                             <ComboBox Grid.Column="4"
                                       ItemsSource="{Binding IntervalUnitOptions}"
                                       SelectedItem="{Binding SelectedIntervalUnit, Mode=TwoWay}"

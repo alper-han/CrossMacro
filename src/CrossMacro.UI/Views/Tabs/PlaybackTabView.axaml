@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="using:CrossMacro.UI.Converters"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
@@ -53,7 +54,7 @@
                                     Spacing="4"
                                     IsVisible="{Binding IsLooping}">
                             <TextBlock Classes="label" Text="{localization:Loc Playback_LoopCount}"/>
-                            <NumericUpDown Value="{Binding LoopCount}" Minimum="0" Maximum="1000" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
+                            <NumericUpDown Value="{Binding LoopCount, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="1000" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
                         </StackPanel>
 
                         <StackPanel Grid.Row="1"
@@ -62,7 +63,7 @@
                                     Spacing="4"
                                     IsVisible="{Binding ShowFixedLoopDelayInput}">
                             <TextBlock Classes="label" Text="{localization:Loc Playback_LoopDelayMs}"/>
-                            <NumericUpDown Value="{Binding LoopDelayMs}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
+                            <NumericUpDown Value="{Binding LoopDelayMs, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
                         </StackPanel>
 
                         <StackPanel Grid.Row="1"
@@ -72,8 +73,8 @@
                                     IsVisible="{Binding ShowRandomLoopDelayInputs}">
                             <TextBlock Classes="label" Text="{localization:Loc Playback_LoopDelayRangeMs}"/>
                             <Grid ColumnDefinitions="*,8,*">
-                                <NumericUpDown Value="{Binding LoopDelayMinMs}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
-                                <NumericUpDown Grid.Column="2" Value="{Binding LoopDelayMaxMs}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
+                                <NumericUpDown Value="{Binding LoopDelayMinMs, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
+                                <NumericUpDown Grid.Column="2" Value="{Binding LoopDelayMaxMs, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
                             </Grid>
                         </StackPanel>
                     </Grid>
@@ -88,7 +89,7 @@
                                   FontSize="16"
                                   Foreground="{DynamicResource PrimaryBrush}"/>
                     </Grid>
-                    <NumericUpDown Minimum="0" Maximum="2147483647" Value="{Binding CountdownSeconds}"
+                    <NumericUpDown Minimum="0" Maximum="2147483647" Value="{Binding CountdownSeconds, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}"
                             Increment="1" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
                 </StackPanel>
 

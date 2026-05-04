@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="using:CrossMacro.UI.Converters"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:core="using:CrossMacro.Core.Models"
              xmlns:controls="using:CrossMacro.UI.Controls"
@@ -194,28 +195,28 @@
                                   IsVisible="{Binding SelectedTask.LoopEnabled}">
                                 <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
                                     <TextBlock Classes="label" Text="{localization:Loc Shortcut_LoopCount}"/>
-                                    <NumericUpDown Value="{Binding SelectedTask.RepeatCount, Mode=TwoWay}" Minimum="0" Maximum="10000" FormatString="0"/>
+                                    <NumericUpDown Value="{Binding SelectedTask.RepeatCount, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="10000" FormatString="0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Spacing="4" Margin="8,0,0,0">
                                     <TextBlock Classes="label" Text="{localization:Loc Shortcut_LoopDelayMs}"/>
-                                    <NumericUpDown Value="{Binding SelectedTask.RepeatDelayMs, Mode=TwoWay}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"
+                                    <NumericUpDown Value="{Binding SelectedTask.RepeatDelayMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"
                                                    IsVisible="{Binding !SelectedTask.UseRandomRepeatDelay}"/>
                                     <Grid ColumnDefinitions="*,8,*"
                                           IsVisible="{Binding SelectedTask.UseRandomRepeatDelay}">
-                                        <NumericUpDown Value="{Binding SelectedTask.RepeatDelayMinMs, Mode=TwoWay}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
-                                        <NumericUpDown Grid.Column="2" Value="{Binding SelectedTask.RepeatDelayMaxMs, Mode=TwoWay}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
+                                        <NumericUpDown Value="{Binding SelectedTask.RepeatDelayMinMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
+                                        <NumericUpDown Grid.Column="2" Value="{Binding SelectedTask.RepeatDelayMaxMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
                                     </Grid>
                                 </StackPanel>
                             </Grid>
                             <StackPanel Spacing="4"
                                         IsVisible="{Binding SelectedTask.RunWhileHeld}">
                                 <TextBlock Classes="label" Text="{localization:Loc Shortcut_LoopDelayMs}"/>
-                                <NumericUpDown Value="{Binding SelectedTask.RepeatDelayMs, Mode=TwoWay}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"
+                                <NumericUpDown Value="{Binding SelectedTask.RepeatDelayMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"
                                                IsVisible="{Binding !SelectedTask.UseRandomRepeatDelay}"/>
                                 <Grid ColumnDefinitions="*,8,*"
                                       IsVisible="{Binding SelectedTask.UseRandomRepeatDelay}">
-                                    <NumericUpDown Value="{Binding SelectedTask.RepeatDelayMinMs, Mode=TwoWay}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
-                                    <NumericUpDown Grid.Column="2" Value="{Binding SelectedTask.RepeatDelayMaxMs, Mode=TwoWay}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
+                                    <NumericUpDown Value="{Binding SelectedTask.RepeatDelayMinMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
+                                    <NumericUpDown Grid.Column="2" Value="{Binding SelectedTask.RepeatDelayMaxMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
                                 </Grid>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4" Margin="0,4,0,0"

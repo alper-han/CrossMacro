@@ -5,12 +5,10 @@ using NSubstitute;
 
 public class AvaloniaClipboardServiceTests
 {
-    private static readonly IDesktopLifetimeContext NoDesktopLifetime = Substitute.For<IDesktopLifetimeContext>();
-
     [Fact(Timeout = 5000)]
     public async Task SetTextAsync_WhenNoApplicationCurrent_ShouldNotThrow()
     {
-        var service = new AvaloniaClipboardService(NoDesktopLifetime);
+        var service = new AvaloniaClipboardService(Substitute.For<IDesktopLifetimeContext>());
 
         var ex = await Record.ExceptionAsync(() => service.SetTextAsync("hello"));
 
@@ -20,7 +18,7 @@ public class AvaloniaClipboardServiceTests
     [Fact(Timeout = 5000)]
     public async Task GetTextAsync_WhenNoApplicationCurrent_ShouldReturnNull()
     {
-        var service = new AvaloniaClipboardService(NoDesktopLifetime);
+        var service = new AvaloniaClipboardService(Substitute.For<IDesktopLifetimeContext>());
 
         var result = await service.GetTextAsync();
 

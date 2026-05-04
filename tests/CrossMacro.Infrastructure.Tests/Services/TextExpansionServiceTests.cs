@@ -195,17 +195,23 @@ public class TextExpansionServiceTests
                 expansionStarted.Signal();
                 return Task.CompletedTask;
             });
-        _inputProcessor.IsKeyPressed(20).Returns(true);
+        var triggerKeyReleaseWaitObserved = new AsyncSignal();
+        var triggerKeyPressed = true;
+        _inputProcessor.IsKeyPressed(20).Returns(_ =>
+        {
+            triggerKeyReleaseWaitObserved.Signal();
+            return triggerKeyPressed;
+        });
 
         _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(
             this,
             new InputCaptureEventArgs { Type = InputEventType.Key, Code = 20, Value = 1 });
         _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('t');
 
-        await Task.Delay(25);
+        await triggerKeyReleaseWaitObserved.WaitAsync(TestTimeout);
         await _executor.DidNotReceive().ExpandAsync(Arg.Any<TextExpansion>());
 
-        _inputProcessor.IsKeyPressed(20).Returns(false);
+        triggerKeyPressed = false;
 
         await expansionStarted.WaitAsync(TestTimeout);
         await _executor.Received(1).ExpandAsync(expansion);

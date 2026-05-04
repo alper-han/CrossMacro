@@ -208,7 +208,7 @@ public class IpcClientIntegrationTests
             Assert.NotNull(captureGateField);
             var captureGate = Assert.IsType<SemaphoreSlim>(captureGateField!.GetValue(client));
 
-            captureGate.Wait();
+            Assert.True(captureGate.Wait(TimeSpan.FromSeconds(2)), "Timed out waiting to acquire the capture command gate.");
             var stopCaptureTask = Task.Run(() => client.StopCapture("consumer-b"));
             try
             {

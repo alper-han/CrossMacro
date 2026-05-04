@@ -272,6 +272,7 @@ public class SchedulerServiceTests
             var service = new SchedulerService(_repository, _executor, _timeProvider);
 
             var loadTask = service.LoadAsync();
+            SynchronizationContext.SetSynchronizationContext(previousContext);
 
             await loadTask;
 
@@ -306,20 +307,26 @@ public class SchedulerServiceTests
 
             _repository.LoadAsync().Returns(Task.FromResult(new List<ScheduledTask> { task }));
             var service = new SchedulerService(_repository, _executor, _timeProvider);
+            SynchronizationContext.SetSynchronizationContext(previousContext);
 
-            var loadTask = Task.Run(service.LoadAsync);
+            var workerStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var workerMayLoad = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var loadTask = Task.Run(async () =>
+            {
+                workerStarted.SetResult();
+                await workerMayLoad.Task;
+                await service.LoadAsync();
+            });
 
-            SpinWait.SpinUntil(
-                () => synchronizationContext.PendingCallbacks == 1 || loadTask.IsCompleted,
-                TimeSpan.FromSeconds(2)).Should().BeTrue();
+            await workerStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            workerMayLoad.SetResult();
+            await synchronizationContext.PostObserved.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
             loadTask.IsCompleted.Should().BeFalse();
             synchronizationContext.PendingCallbacks.Should().Be(1);
             service.Tasks.Should().BeEmpty();
 
             synchronizationContext.RunAll();
-
-            SynchronizationContext.SetSynchronizationContext(previousContext);
             await loadTask.WaitAsync(TimeSpan.FromSeconds(2));
 
             service.Tasks.Should().ContainSingle();
@@ -360,17 +367,17 @@ public class SchedulerServiceTests
 
         await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(3));
 
-        var started = DateTime.UtcNow;
-        _service.Stop();
-        var elapsed = DateTime.UtcNow - started;
+        var stopTask = Task.Run(_service.Stop);
+        await stopTask.WaitAsync(TimeSpan.FromSeconds(2));
 
         _service.IsRunning.Should().BeFalse();
-        elapsed.Should().BeLessThan(TimeSpan.FromSeconds(3));
     }
 
     private sealed class DeferredSynchronizationContext : SynchronizationContext
     {
         private readonly Queue<(SendOrPostCallback Callback, object? State)> _pendingCallbacks = new();
+
+        public TaskCompletionSource PostObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public int PendingCallbacks
         {
@@ -389,6 +396,8 @@ public class SchedulerServiceTests
             {
                 _pendingCallbacks.Enqueue((d, state));
             }
+
+            PostObserved.TrySetResult();
         }
 
         public void RunAll()

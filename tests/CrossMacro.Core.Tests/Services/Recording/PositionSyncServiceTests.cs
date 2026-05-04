@@ -79,11 +79,8 @@ public class PositionSyncServiceTests : IDisposable
         await _service.StartAsync((_, _, _) => { }, () => (0, 0), _cts.Token);
         await queryStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
-        var started = DateTime.UtcNow;
-        _service.Stop();
-        var elapsed = DateTime.UtcNow - started;
+        await Task.Run(_service.Stop).WaitAsync(TimeSpan.FromSeconds(2));
 
         _service.IsRunning.Should().BeFalse();
-        elapsed.Should().BeLessThan(TimeSpan.FromSeconds(2));
     }
 }

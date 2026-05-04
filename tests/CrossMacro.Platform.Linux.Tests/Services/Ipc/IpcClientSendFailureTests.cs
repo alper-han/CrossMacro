@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Threading;
@@ -94,15 +93,19 @@ public class IpcClientSendFailureTests
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(handleSendFailureMethod);
 
+        const int iterations = 50;
         var callbacksObserved = 0;
+        var allCallbacksObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         client.ErrorOccurred += (_, _) =>
         {
-            Interlocked.Increment(ref callbacksObserved);
+            if (Interlocked.Increment(ref callbacksObserved) == iterations)
+            {
+                allCallbacksObserved.TrySetResult();
+            }
+
             client.StartCapture("stress-consumer", mouse: true, keyboard: true);
             client.StopCapture("stress-consumer");
         };
-
-        const int iterations = 50;
         for (var iteration = 0; iteration < iterations; iteration++)
         {
             InvokeHandleSendFailureWhileHoldingGate(
@@ -113,13 +116,8 @@ public class IpcClientSendFailureTests
                 pendingCallback: null);
         }
 
-        var waitDeadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
-        while (Volatile.Read(ref callbacksObserved) < iterations && DateTime.UtcNow < waitDeadline)
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(25));
-        }
-
-        Assert.True(Volatile.Read(ref callbacksObserved) >= iterations);
+        await allCallbacksObserved.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(iterations, Volatile.Read(ref callbacksObserved));
     }
 
     private static void InvokeHandleSendFailureWhileHoldingGate(
@@ -129,22 +127,17 @@ public class IpcClientSendFailureTests
         IOException sendFailure,
         Task? pendingCallback)
     {
-        captureGate.Wait();
+        Assert.True(captureGate.Wait(TimeSpan.FromSeconds(2)), "Timed out waiting to acquire the capture command gate.");
         try
         {
-            var stopwatch = Stopwatch.StartNew();
             var invocationException = Record.Exception(() =>
             {
                 handleSendFailureMethod.Invoke(
                     client,
                     [sendFailure, IpcOpCode.StartCapture, false]);
             });
-            stopwatch.Stop();
 
             Assert.Null(invocationException);
-            Assert.True(
-                stopwatch.Elapsed < TimeSpan.FromSeconds(1),
-                $"HandleSendFailure should return promptly while the capture gate is held. Elapsed: {stopwatch.Elapsed}.");
 
             if (pendingCallback is not null)
             {

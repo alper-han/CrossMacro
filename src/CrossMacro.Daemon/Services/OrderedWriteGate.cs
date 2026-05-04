@@ -11,9 +11,12 @@ internal sealed class OrderedWriteGate
 
     internal long IssuedTicketCount => Volatile.Read(ref _nextTicket);
 
+    internal Action<long>? TicketIssued { get; set; }
+
     public Releaser Enter()
     {
         var ticket = Interlocked.Increment(ref _nextTicket) - 1;
+        TicketIssued?.Invoke(ticket);
 
         lock (_sync)
         {

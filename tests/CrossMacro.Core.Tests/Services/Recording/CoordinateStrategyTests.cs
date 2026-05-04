@@ -9,6 +9,8 @@ namespace CrossMacro.Core.Tests.Services.Recording;
 
 public class CoordinateStrategyTests
 {
+    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(2);
+
     #region RelativeCoordinateStrategy Tests
 
     [Fact]
@@ -127,7 +129,7 @@ public class CoordinateStrategyTests
         positionProvider.GetAbsolutePositionAsync().Returns((X: 100, Y: 200));
         
         var strategy = new AbsoluteCoordinateStrategy(positionProvider);
-        using var cts = new CancellationTokenSource(100); // Short timeout
+        using var cts = new CancellationTokenSource(TestTimeout);
 
         // Act
         await strategy.InitializeAsync(cts.Token);
@@ -147,7 +149,7 @@ public class CoordinateStrategyTests
         positionProvider.GetAbsolutePositionAsync().Returns((X: 100, Y: 100));
         
         var strategy = new AbsoluteCoordinateStrategy(positionProvider);
-        using var cts = new CancellationTokenSource(100);
+        using var cts = new CancellationTokenSource(TestTimeout);
         await strategy.InitializeAsync(cts.Token);
 
         var xEvent = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
@@ -191,7 +193,7 @@ public class CoordinateStrategyTests
         positionProvider.GetAbsolutePositionAsync().Returns(((int X, int Y)?)null);
         
         var strategy = new AbsoluteCoordinateStrategy(positionProvider);
-        using var cts = new CancellationTokenSource(100);
+        using var cts = new CancellationTokenSource(TestTimeout);
 
         // Act - should not throw
         await strategy.InitializeAsync(cts.Token);

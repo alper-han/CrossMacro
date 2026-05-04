@@ -26,9 +26,11 @@ public class HeadlessRuntimeServiceTests
         var shortcuts = Substitute.For<IShortcutService>();
         var textExpansion = Substitute.For<ITextExpansionService>();
         var hotkeyActions = Substitute.For<IHeadlessHotkeyActionService>();
+        var hotkeyActionsStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var hotkeyActionsStopped = false;
         textExpansion.IsRunning.Returns(true);
         hotkeyActions.IsRunning.Returns(true);
+        hotkeyActions.When(x => x.Start()).Do(_ => hotkeyActionsStarted.TrySetResult());
         hotkeyActions.StopAsync(Arg.Any<CancellationToken>()).Returns(_ =>
         {
             hotkeyActionsStopped = true;
@@ -37,8 +39,11 @@ public class HeadlessRuntimeServiceTests
 
         var service = new HeadlessRuntimeService(display, settings, hotkeys, scheduler, shortcuts, textExpansion, hotkeyActions);
 
-        using var cts = new CancellationTokenSource(10);
-        var result = await service.RunAsync(cts.Token);
+        using var cts = new CancellationTokenSource();
+        var runTask = service.RunAsync(cts.Token);
+        await hotkeyActionsStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await cts.CancelAsync();
+        var result = await runTask;
 
         Assert.False(result.Success);
         Assert.Equal(CliExitCode.Cancelled, result.ExitCode);
@@ -73,12 +78,14 @@ public class HeadlessRuntimeServiceTests
         var shortcuts = Substitute.For<IShortcutService>();
         var textExpansion = Substitute.For<ITextExpansionService>();
         var hotkeyActions = Substitute.For<IHeadlessHotkeyActionService>();
+        var hotkeyActionsStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var stopEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var allowStopToComplete = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var globalHotkeysStoppedBeforeHotkeyActions = false;
 
         textExpansion.IsRunning.Returns(true);
         hotkeyActions.IsRunning.Returns(true);
+        hotkeyActions.When(x => x.Start()).Do(_ => hotkeyActionsStarted.SetResult());
         hotkeyActions.StopAsync(Arg.Any<CancellationToken>()).Returns(async _ =>
         {
             stopEntered.SetResult();
@@ -96,7 +103,7 @@ public class HeadlessRuntimeServiceTests
 
         using var cts = new CancellationTokenSource();
         var runTask = service.RunAsync(cts.Token);
-        await Task.Delay(10);
+        await hotkeyActionsStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
         await cts.CancelAsync();
         await stopEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
 

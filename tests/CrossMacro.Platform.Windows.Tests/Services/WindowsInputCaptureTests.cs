@@ -55,9 +55,9 @@ public class WindowsInputCaptureTests
         await capture.HookInstallStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         cts.Cancel();
+        capture.ReleaseHookInstall();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => startTask);
-        capture.ReleaseHookInstall();
     }
 
     private sealed class FailingWindowsInputCapture : WindowsInputCapture
@@ -80,7 +80,7 @@ public class WindowsInputCaptureTests
 
     private sealed class BlockingWindowsInputCapture : WindowsInputCapture
     {
-        private readonly ManualResetEventSlim _releaseHookInstall = new(false);
+        private readonly TaskCompletionSource _releaseHookInstall = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public TaskCompletionSource HookInstallStarted { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -88,16 +88,19 @@ public class WindowsInputCaptureTests
         protected override IntPtr InstallMouseHook(IntPtr moduleHandle)
         {
             HookInstallStarted.TrySetResult();
-            _releaseHookInstall.Wait(TimeSpan.FromSeconds(2));
+            if (!_releaseHookInstall.Task.Wait(TimeSpan.FromSeconds(2)))
+            {
+                throw new TimeoutException("Timed out waiting for the blocking hook-install fake to be released.");
+            }
+
             return IntPtr.Zero;
         }
 
-        public void ReleaseHookInstall() => _releaseHookInstall.Set();
+        public void ReleaseHookInstall() => _releaseHookInstall.TrySetResult();
 
         public new void Dispose()
         {
-            _releaseHookInstall.Set();
-            _releaseHookInstall.Dispose();
+            ReleaseHookInstall();
             base.Dispose();
         }
     }

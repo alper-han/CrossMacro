@@ -15,6 +15,19 @@ public sealed class OrderedWriteGateTests
         var releaseSecond = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var secondEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var thirdEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondTicketIssued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var thirdTicketIssued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        gate.TicketIssued = ticket =>
+        {
+            if (ticket == 1)
+            {
+                secondTicketIssued.TrySetResult();
+            }
+            else if (ticket == 2)
+            {
+                thirdTicketIssued.TrySetResult();
+            }
+        };
 
         var first = gate.Enter();
         var firstReleased = false;
@@ -29,7 +42,7 @@ public sealed class OrderedWriteGateTests
                 await releaseSecond.Task;
             });
 
-            await WaitForConditionAsync(() => gate.IssuedTicketCount >= 2);
+            await secondTicketIssued.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
             var thirdTask = Task.Run(() =>
             {
@@ -38,7 +51,7 @@ public sealed class OrderedWriteGateTests
                 thirdEntered.TrySetResult();
             });
 
-            await WaitForConditionAsync(() => gate.IssuedTicketCount >= 3);
+            await thirdTicketIssued.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
             first.Dispose();
             firstReleased = true;
@@ -60,20 +73,5 @@ public sealed class OrderedWriteGateTests
         }
 
         Assert.Equal(["second", "third"], enteredOrder.ToArray());
-    }
-
-    private static async Task WaitForConditionAsync(Func<bool> condition, int maxAttempts = 50, int delayMs = 20)
-    {
-        for (var attempt = 0; attempt < maxAttempts; attempt++)
-        {
-            if (condition())
-            {
-                return;
-            }
-
-            await Task.Delay(delayMs);
-        }
-
-        throw new TimeoutException("Condition was not met in expected time.");
     }
 }

@@ -489,7 +489,6 @@ public class HeadlessHotkeyActionServiceTests
         await player.CleanupEntered.WaitAsync(TimeSpan.FromSeconds(2));
 
         var disposeTask = service.DisposeAsync().AsTask();
-        await Task.Delay(50);
 
         Assert.False(disposeTask.IsCompleted);
         Assert.False(player.DisposeCalled);

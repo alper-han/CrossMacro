@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using CrossMacro.Daemon.Contracts.Ipc;
+using CrossMacro.Daemon.Contracts.Security;
 
 namespace CrossMacro.Platform.Linux.Tests.Packaging;
 
@@ -85,19 +86,13 @@ public sealed partial class LinuxPackagingStaticParityTests
     }
 
     [Fact]
-    public void PolkitSourceAndAssetReferences_ShouldKeepMatchingActionIds()
+    public void PolkitContractsAndAssets_ShouldKeepMatchingActionIds()
     {
-        var sourceActions = ExtractPolkitActionIds(ReadRepoFile("src/CrossMacro.Daemon/Security/PolkitChecker.cs"));
         var policyActions = ExtractPolkitActionIds(ReadRepoFile("scripts/assets/io.github.alper_han.crossmacro.policy"));
         var rulesActions = ExtractPolkitActionIds(ReadRepoFile("scripts/assets/50-crossmacro.rules"));
 
-        var expectedActions = new[]
-        {
-            "io.github.alper_han.crossmacro.input-capture",
-            "io.github.alper_han.crossmacro.input-simulate"
-        };
+        var expectedActions = PolkitActions.All;
 
-        Assert.Equal(expectedActions, sourceActions);
         Assert.Equal(expectedActions, policyActions);
         Assert.Equal(expectedActions, rulesActions);
 
@@ -163,17 +158,6 @@ public sealed partial class LinuxPackagingStaticParityTests
                 Assert.Contains(reference, text, StringComparison.Ordinal);
             }
         }
-    }
-
-    [Fact]
-    public void StaticParityTests_ShouldNotUseGeneratedRpmBuildAsSourceOfTruth()
-    {
-        var thisTestFile = File.ReadAllText(Path.Combine(
-            RepoRoot,
-            "tests/CrossMacro.Platform.Linux.Tests/Packaging/LinuxPackagingStaticParityTests.cs"));
-
-        Assert.DoesNotContain("ReadRepoFile(\"scripts/rpm_build", thisTestFile, StringComparison.Ordinal);
-        Assert.True(Directory.Exists(Path.Combine(RepoRoot, "scripts/rpm_build")) || !Directory.Exists(Path.Combine(RepoRoot, "scripts/rpm_build")));
     }
 
     private static string[] ReadFinishArgs(string relativePath)

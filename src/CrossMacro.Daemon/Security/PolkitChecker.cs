@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 using CrossMacro.Core.Logging;
+using CrossMacro.Daemon.Contracts.Security;
 
 namespace CrossMacro.Daemon.Security;
 
@@ -22,8 +23,8 @@ public static class PolkitChecker
     /// </summary>
     public static class Actions
     {
-        public const string InputCapture = "io.github.alper_han.crossmacro.input-capture";
-        public const string InputSimulate = "io.github.alper_han.crossmacro.input-simulate";
+        public const string InputCapture = PolkitActions.InputCapture;
+        public const string InputSimulate = PolkitActions.InputSimulate;
     }
 
     private static bool _polkitAvailable = true;

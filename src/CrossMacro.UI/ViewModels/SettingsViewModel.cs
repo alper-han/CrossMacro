@@ -17,7 +17,22 @@ namespace CrossMacro.UI.ViewModels;
 /// </summary>
 public class SettingsViewModel : ViewModelBase
 {
-    private static readonly string[] SupportedLanguageCodes = ["en", "tr", "zh", "ja", "es", "ar", "fr", "pt", "ru"];
+    internal static readonly IReadOnlyList<SupportedLanguageDescriptor> SupportedLanguages =
+    [
+        new("en", "Language_English", "English", isDefault: true),
+        new("ar", "Language_Arabic", "Arabic"),
+        new("zh", "Language_Chinese", "Chinese"),
+        new("fr", "Language_French", "French"),
+        new("ja", "Language_Japanese", "Japanese"),
+        new("pt", "Language_Portuguese", "Portuguese"),
+        new("ru", "Language_Russian", "Russian"),
+        new("es", "Language_Spanish", "Spanish"),
+        new("tr", "Language_Turkish", "Turkish")
+    ];
+
+    internal static IReadOnlyList<string> SupportedLanguageCodes { get; } = SupportedLanguages
+        .Select(language => language.Code)
+        .ToArray();
 
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ISettingsService _settingsService;
@@ -404,30 +419,53 @@ public class SettingsViewModel : ViewModelBase
 
     private IReadOnlyList<LanguageOption> CreateLanguageOptions()
     {
-        return SupportedLanguageCodes
-            .Select(code => new LanguageOption
+        return SupportedLanguages
+            .OrderByDescending(language => language.IsDefault)
+            .ThenBy(language => language.EnglishName, StringComparer.Ordinal)
+            .Select(language => new LanguageOption
             {
-                Code = code,
-                DisplayName = GetLanguageDisplayName(code)
+                Code = language.Code,
+                DisplayName = GetLanguageDisplayName(language)
             })
             .ToArray();
     }
 
     private string GetLanguageDisplayName(string code)
     {
-        return code switch
+        var language = SupportedLanguages.FirstOrDefault(language =>
+            string.Equals(language.Code, code, StringComparison.OrdinalIgnoreCase));
+        return language is null
+            ? _localizationService[SupportedLanguages[0].ResourceKey]
+            : GetLanguageDisplayName(language);
+    }
+
+    private string GetLanguageDisplayName(SupportedLanguageDescriptor language)
+    {
+        return _localizationService[language.ResourceKey];
+    }
+
+    internal sealed record SupportedLanguageDescriptor
+    {
+        public SupportedLanguageDescriptor(
+            string code,
+            string resourceKey,
+            string englishName,
+            bool isDefault = false)
         {
-            "en" => _localizationService["Language_English"],
-            "tr" => _localizationService["Language_Turkish"],
-            "zh" => _localizationService["Language_Chinese"],
-            "ja" => _localizationService["Language_Japanese"],
-            "es" => _localizationService["Language_Spanish"],
-            "ar" => _localizationService["Language_Arabic"],
-            "fr" => _localizationService["Language_French"],
-            "pt" => _localizationService["Language_Portuguese"],
-            "ru" => _localizationService["Language_Russian"],
-            _ => _localizationService["Language_English"]
-        };
+            ArgumentException.ThrowIfNullOrWhiteSpace(code);
+            ArgumentException.ThrowIfNullOrWhiteSpace(resourceKey);
+            ArgumentException.ThrowIfNullOrWhiteSpace(englishName);
+
+            Code = code;
+            ResourceKey = resourceKey;
+            EnglishName = englishName;
+            IsDefault = isDefault;
+        }
+
+        public string Code { get; }
+        public string ResourceKey { get; }
+        public string EnglishName { get; }
+        public bool IsDefault { get; }
     }
 
     private static string NormalizeSupportedLanguage(string? language)

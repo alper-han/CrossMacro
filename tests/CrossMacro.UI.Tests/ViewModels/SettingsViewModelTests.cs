@@ -97,17 +97,19 @@ public class SettingsViewModelTests
     public void Construction_ExposesAllSupportedLanguages()
     {
         var codes = _viewModel.AvailableLanguages.Select(option => option.Code).ToArray();
+        var expectedCodes = SettingsViewModel.SupportedLanguages
+            .OrderByDescending(language => language.IsDefault)
+            .ThenBy(language => language.EnglishName, StringComparer.Ordinal)
+            .Select(language => language.Code)
+            .ToArray();
 
         codes.Should().OnlyHaveUniqueItems();
-        codes.Should().Contain("en");
-        codes.Should().Contain("tr");
-        codes.Should().Contain("zh");
-        codes.Should().Contain("ja");
-        codes.Should().Contain("es");
-        codes.Should().Contain("ar");
-        codes.Should().Contain("fr");
-        codes.Should().Contain("pt");
-        codes.Should().Contain("ru");
+        codes.Should().Equal(expectedCodes);
+        SettingsViewModel.SupportedLanguages.Should().ContainSingle(language => language.IsDefault)
+            .Which.Code.Should().Be("en");
+        SettingsViewModel.SupportedLanguages.Select(language => language.ResourceKey)
+            .Should().OnlyHaveUniqueItems()
+            .And.AllSatisfy(resourceKey => resourceKey.Should().StartWith("Language_"));
     }
 
     [Fact]

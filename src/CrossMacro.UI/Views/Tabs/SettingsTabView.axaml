@@ -141,7 +141,7 @@
                             <ComboBox Grid.Column="1"
                                       ItemsSource="{Binding LogLevels}"
                                       SelectedItem="{Binding SelectedLogLevel}"
-                                      MinWidth="130"
+                                      Width="150"
                                       VerticalAlignment="Center"/>
                         </Grid>
 
@@ -161,8 +161,8 @@
                             <ComboBox Grid.Column="1"
                                       ItemsSource="{Binding AvailableThemes}"
                                       SelectedItem="{Binding SelectedTheme}"
-                                       MinWidth="130"
-                                       VerticalAlignment="Center"/>
+                                      Width="150"
+                                      VerticalAlignment="Center"/>
                         </Grid>
 
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
@@ -180,7 +180,7 @@
                             <ComboBox Grid.Column="1"
                                       ItemsSource="{Binding AvailableLanguages}"
                                       SelectedItem="{Binding SelectedLanguageOption}"
-                                      MinWidth="150"
+                                      Width="150"
                                       VerticalAlignment="Center">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate>

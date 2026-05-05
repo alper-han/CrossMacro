@@ -18,13 +18,18 @@ public class ProcessRunner : IProcessRunner
                 FileName = fileName,
                 Arguments = command,
                 RedirectStandardOutput = true,
+                RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             });
             
             if (proc == null) return false;
             
+            var outputTask = proc.StandardOutput.ReadToEndAsync(cancellationToken);
+            var errorTask = proc.StandardError.ReadToEndAsync(cancellationToken);
             await proc.WaitForExitAsync(cancellationToken);
+            await outputTask;
+            await errorTask;
             return proc.ExitCode == 0;
         }
         catch (OperationCanceledException)

@@ -1113,12 +1113,49 @@ public class EditorViewModelTests
         // Assert
         _viewModel.Actions.Should().BeEmpty();
         _viewModel.SelectedAction.Should().BeNull();
+        _viewModel.SelectedActionListItem.Should().BeNull();
+        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _viewModel.HasSelectedAction.Should().BeFalse();
+        _viewModel.HasSelectedActions.Should().BeFalse();
         _viewModel.HasActions.Should().BeFalse();
+        _viewModel.CanRemoveSelectedActions.Should().BeFalse();
+        _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
+        _viewModel.ShowBatchDelayProperties.Should().BeFalse();
         _viewModel.Status.Should().Be("[Editor_StatusRemovedAction]");
     }
 
     [Fact]
-    public void RemoveSelectedActions_WhenMultipleSourceRowsSelected_RemovesDescendingWithOneUndoStateAndSelectsLowestRemainingIndex()
+    public void RemoveAction_WhenOtherActionsRemain_ClearsSelectionAndHidesProperties()
+    {
+        // Arrange
+        var first = new EditorAction { Type = EditorActionType.MouseClick, X = 1, Y = 1 };
+        var second = new EditorAction { Type = EditorActionType.Delay, DelayMs = 20 };
+        var third = new EditorAction { Type = EditorActionType.KeyPress, KeyCode = 65 };
+        _viewModel.Actions.Add(first);
+        _viewModel.Actions.Add(second);
+        _viewModel.Actions.Add(third);
+        _viewModel.SelectedAction = second;
+
+        // Act
+        _viewModel.RemoveAction();
+
+        // Assert
+        _viewModel.Actions.Should().Equal(first, third);
+        _viewModel.Actions.Should().NotContain(second);
+        _viewModel.SelectedAction.Should().BeNull();
+        _viewModel.SelectedActionListItem.Should().BeNull();
+        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _viewModel.HasSelectedAction.Should().BeFalse();
+        _viewModel.HasSelectedActions.Should().BeFalse();
+        _viewModel.CanRemoveSelectedActions.Should().BeFalse();
+        _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
+        _viewModel.ShowBatchDelayProperties.Should().BeFalse();
+        _viewModel.ShowMultiSelectionPropertiesHint.Should().BeFalse();
+        _viewModel.Status.Should().Be("[Editor_StatusRemovedAction]");
+    }
+
+    [Fact]
+    public void RemoveSelectedActions_WhenMultipleSourceRowsSelected_RemovesDescendingWithOneUndoStateAndClearsSelection()
     {
         // Arrange
         var first = new EditorAction { Type = EditorActionType.MouseClick, X = 1, Y = 1 };
@@ -1137,8 +1174,13 @@ public class EditorViewModelTests
 
         // Assert
         _viewModel.Actions.Should().Equal(second, fourth);
-        _viewModel.SelectedAction.Should().BeSameAs(second);
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0);
+        _viewModel.SelectedAction.Should().BeNull();
+        _viewModel.SelectedActionListItem.Should().BeNull();
+        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _viewModel.HasSelectedAction.Should().BeFalse();
+        _viewModel.HasSelectedActions.Should().BeFalse();
+        _viewModel.CanRemoveSelectedActions.Should().BeFalse();
+        _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
         _viewModel.Status.Should().Be("[Editor_StatusRemovedSelectedActions]");
 
         _viewModel.Undo();
@@ -1146,7 +1188,7 @@ public class EditorViewModelTests
     }
 
     [Fact]
-    public void RemoveSelectedActions_WhenSelectionRemovesTail_SelectsPreviousLastAction()
+    public void RemoveSelectedActions_WhenSelectionRemovesTail_ClearsSelection()
     {
         // Arrange
         var first = new EditorAction { Type = EditorActionType.MouseClick, X = 1, Y = 1 };
@@ -1163,8 +1205,42 @@ public class EditorViewModelTests
 
         // Assert
         _viewModel.Actions.Should().ContainSingle().Which.Should().BeSameAs(first);
-        _viewModel.SelectedAction.Should().BeSameAs(first);
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0);
+        _viewModel.SelectedAction.Should().BeNull();
+        _viewModel.SelectedActionListItem.Should().BeNull();
+        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _viewModel.HasSelectedAction.Should().BeFalse();
+        _viewModel.HasSelectedActions.Should().BeFalse();
+        _viewModel.CanRemoveSelectedActions.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RemoveSelectedActions_WhenSelectedRowsAreHiddenAndPrimarySelectionIsNull_ClearsUnderlyingSelection()
+    {
+        // Arrange
+        var firstHiddenMove = new EditorAction { Type = EditorActionType.MouseMove, X = 1, Y = 1 };
+        var secondHiddenMove = new EditorAction { Type = EditorActionType.MouseMove, X = 2, Y = 2 };
+        _viewModel.Actions.Add(firstHiddenMove);
+        _viewModel.Actions.Add(secondHiddenMove);
+        _viewModel.SelectedActionUnderlyingIndices.Add(0);
+        _viewModel.HideMouseMoves = true;
+
+        _viewModel.SelectedAction.Should().BeNull();
+        _viewModel.SelectedActionListItem.Should().BeNull();
+        _viewModel.HasSelectedActions.Should().BeTrue();
+
+        // Act
+        _viewModel.RemoveSelectedActions();
+
+        // Assert
+        _viewModel.Actions.Should().ContainSingle().Which.Should().BeSameAs(secondHiddenMove);
+        _viewModel.SelectedAction.Should().BeNull();
+        _viewModel.SelectedActionListItem.Should().BeNull();
+        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _viewModel.HasSelectedAction.Should().BeFalse();
+        _viewModel.HasSelectedActions.Should().BeFalse();
+        _viewModel.CanRemoveSelectedActions.Should().BeFalse();
+        _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
+        _viewModel.ShowBatchDelayProperties.Should().BeFalse();
     }
 
     [Fact]
@@ -1471,11 +1547,69 @@ public class EditorViewModelTests
 
         // Assert
         _viewModel.Actions.Should().Equal(zeroDelay, tenMsDelay, randomShortDelay, click);
-        _viewModel.SelectedAction.Should().BeSameAs(zeroDelay);
+        _viewModel.SelectedAction.Should().BeNull();
+        _viewModel.SelectedActionListItem.Should().BeNull();
+        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
         _viewModel.Status.Should().Be("[Editor_StatusDeletedHiddenEvents]");
 
         _viewModel.Undo();
         _viewModel.Actions.Should().HaveCount(6);
+    }
+
+    [Fact]
+    public void DeleteHiddenEvents_WhenSelectedVisibleActionSurvives_PreservesSelectionByActionIdentity()
+    {
+        // Arrange
+        var move = new EditorAction { Type = EditorActionType.MouseMove, X = 1, Y = 2 };
+        var selectedClick = new EditorAction { Type = EditorActionType.MouseClick, X = 3, Y = 4 };
+        var shortDelay = new EditorAction { Type = EditorActionType.Delay, DelayMs = 9 };
+        var finalClick = new EditorAction { Type = EditorActionType.MouseClick, X = 5, Y = 6 };
+        _viewModel.Actions.Add(move);
+        _viewModel.Actions.Add(selectedClick);
+        _viewModel.Actions.Add(shortDelay);
+        _viewModel.Actions.Add(finalClick);
+        _viewModel.HideMouseMoves = true;
+        _viewModel.HideShortWaits = true;
+        _viewModel.SelectedAction = selectedClick;
+
+        // Act
+        _viewModel.DeleteHiddenEvents();
+
+        // Assert
+        _viewModel.Actions.Should().Equal(selectedClick, finalClick);
+        _viewModel.SelectedAction.Should().BeSameAs(selectedClick);
+        _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[0]);
+        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0);
+        _viewModel.HasSelectedActions.Should().BeTrue();
+        _viewModel.CanRemoveSelectedActions.Should().BeTrue();
+        _viewModel.ShowSingleSelectedActionProperties.Should().BeTrue();
+        _viewModel.Status.Should().Be("[Editor_StatusDeletedHiddenEvents]");
+    }
+
+    [Fact]
+    public void DeleteHiddenEvents_WhenSelectedActionIsDeleted_ClearsSelection()
+    {
+        // Arrange
+        var selectedMove = new EditorAction { Type = EditorActionType.MouseMove, X = 1, Y = 2 };
+        var click = new EditorAction { Type = EditorActionType.MouseClick, X = 3, Y = 4 };
+        _viewModel.Actions.Add(selectedMove);
+        _viewModel.Actions.Add(click);
+        _viewModel.HideMouseMoves = true;
+        _viewModel.SelectedAction = selectedMove;
+
+        // Act
+        _viewModel.DeleteHiddenEvents();
+
+        // Assert
+        _viewModel.Actions.Should().ContainSingle().Which.Should().BeSameAs(click);
+        _viewModel.SelectedAction.Should().BeNull();
+        _viewModel.SelectedActionListItem.Should().BeNull();
+        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _viewModel.HasSelectedAction.Should().BeFalse();
+        _viewModel.HasSelectedActions.Should().BeFalse();
+        _viewModel.CanRemoveSelectedActions.Should().BeFalse();
+        _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
+        _viewModel.Status.Should().Be("[Editor_StatusDeletedHiddenEvents]");
     }
 
     [Fact]

@@ -8,6 +8,12 @@ namespace CrossMacro.UI.ViewModels;
 
 public partial class EditorViewModel
 {
+    private enum PostRemoveSelectionPolicy
+    {
+        ClearSelection,
+        PreserveSurvivingSelection
+    }
+
     private static readonly HashSet<string> UndoSkipProperties = new()
     {
         nameof(EditorAction.DisplayName),
@@ -546,7 +552,7 @@ public partial class EditorViewModel
             return;
         }
 
-        RemoveActionsAtIndices(new[] { index }, "Editor_StatusRemovedAction");
+        RemoveActionsAtIndices(new[] { index }, "Editor_StatusRemovedAction", PostRemoveSelectionPolicy.ClearSelection);
     }
 
     public void RemoveSelectedActions()
@@ -561,7 +567,7 @@ public partial class EditorViewModel
             return;
         }
 
-        RemoveActionsAtIndices(indices, "Editor_StatusRemovedSelectedActions");
+        RemoveActionsAtIndices(indices, "Editor_StatusRemovedSelectedActions", PostRemoveSelectionPolicy.ClearSelection);
     }
 
     public void DeleteHiddenEvents()
@@ -577,7 +583,7 @@ public partial class EditorViewModel
             return;
         }
 
-        RemoveActionsAtIndices(indices, "Editor_StatusDeletedHiddenEvents");
+        RemoveActionsAtIndices(indices, "Editor_StatusDeletedHiddenEvents", PostRemoveSelectionPolicy.PreserveSurvivingSelection);
     }
 
     public void MoveUp()
@@ -776,13 +782,20 @@ public partial class EditorViewModel
         RememberCurrentState();
     }
 
-    private void RemoveActionsAtIndices(IReadOnlyCollection<int> indices, string statusKey)
+    private void RemoveActionsAtIndices(
+        IReadOnlyCollection<int> indices,
+        string statusKey,
+        PostRemoveSelectionPolicy postRemoveSelectionPolicy)
     {
         var orderedIndices = NormalizeActionIndices(indices);
         if (orderedIndices.Length == 0)
         {
             return;
         }
+
+        var selectedActionsBeforeRemoval = postRemoveSelectionPolicy == PostRemoveSelectionPolicy.PreserveSurvivingSelection
+            ? GetSelectedActions()
+            : Array.Empty<EditorAction>();
 
         if (!CanApplyScriptStructureMutation(candidate => RemoveIndicesDescending(candidate, orderedIndices)))
         {
@@ -791,7 +804,7 @@ public partial class EditorViewModel
 
         SaveUndoState();
         RemoveIndicesDescending(Actions, orderedIndices);
-        SelectAfterRemovingIndices(orderedIndices);
+        ApplyPostRemoveSelection(selectedActionsBeforeRemoval, postRemoveSelectionPolicy);
         Status = Localize(statusKey);
         OnPropertyChanged(nameof(HasActions));
         ResetPropertyEditUndoCoalescing();
@@ -831,19 +844,51 @@ public partial class EditorViewModel
         NotifySelectedActionsChanged();
     }
 
-    private void SelectAfterRemovingIndices(IReadOnlyList<int> removedIndices)
+    private void ApplyPostRemoveSelection(
+        IReadOnlyCollection<EditorAction> selectedActionsBeforeRemoval,
+        PostRemoveSelectionPolicy postRemoveSelectionPolicy)
     {
-        if (Actions.Count == 0)
+        switch (postRemoveSelectionPolicy)
         {
-            SelectedAction = null;
+            case PostRemoveSelectionPolicy.ClearSelection:
+                ClearActionSelection();
+                return;
+            case PostRemoveSelectionPolicy.PreserveSurvivingSelection:
+                PreserveSurvivingSelection(selectedActionsBeforeRemoval);
+                return;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(postRemoveSelectionPolicy), postRemoveSelectionPolicy, null);
+        }
+    }
+
+    private void PreserveSurvivingSelection(IReadOnlyCollection<EditorAction> selectedActionsBeforeRemoval)
+    {
+        if (selectedActionsBeforeRemoval.Count == 0)
+        {
+            ClearActionSelection();
             return;
         }
 
-        var lowestRemovedIndex = removedIndices[0];
-        var targetIndex = lowestRemovedIndex < Actions.Count
-            ? lowestRemovedIndex
-            : Actions.Count - 1;
-        SelectedAction = Actions[targetIndex];
+        var survivingSelectedIndices = selectedActionsBeforeRemoval
+            .Select(action => Actions.IndexOf(action))
+            .Where(index => index >= 0)
+            .ToArray();
+
+        if (survivingSelectedIndices.Length == 0)
+        {
+            ClearActionSelection();
+            return;
+        }
+
+        SetSelectedActionUnderlyingIndices(survivingSelectedIndices);
+        SelectPrimaryActionFromUnderlyingSelection();
+    }
+
+    private void ClearActionSelection()
+    {
+        SelectedAction = null;
+        SetSelectedActionUnderlyingIndices(Array.Empty<int>());
+        SyncSelectedActionListItem();
     }
 
     public void Undo()

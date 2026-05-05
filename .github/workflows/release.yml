@@ -428,6 +428,24 @@ jobs:
         rpm_file="$(ls -1 scripts/*.rpm | head -n 1)"
         rpm -qpl "$rpm_file" | grep -E '^/usr/share/man/man1/crossmacro\.1(\.gz)?$'
 
+    - name: Verify RPM runtime dependencies
+      run: |
+        set -euo pipefail
+        rpm_file="$(find scripts -maxdepth 1 -type f -name '*.rpm' ! -name '*aarch64*.rpm' | head -n 1)"
+        if [ -z "$rpm_file" ]; then
+          echo "No x64 RPM artifact found in scripts/."
+          exit 1
+        fi
+
+        requires="$(rpm -qpR "$rpm_file")"
+        printf '%s\n' "$requires"
+        for dependency in libicu; do
+          if ! printf '%s\n' "$requires" | grep -Fx "$dependency" >/dev/null; then
+            echo "RPM is missing runtime dependency: $dependency"
+            exit 1
+          fi
+        done
+
     - name: CLI Smoke (RPM x64)
       run: |
         set -euo pipefail
@@ -536,6 +554,32 @@ jobs:
             set -euo pipefail
             dnf -y install rpm >/dev/null
             rpm -qpl "/artifacts/${RPM_FILE_NAME}" | grep -E "^/usr/share/man/man1/crossmacro\.1(\.gz)?$"
+          '
+
+    - name: Verify RPM runtime dependencies (arm64)
+      run: |
+        set -euo pipefail
+        rpm_file="$(find scripts -maxdepth 1 -type f -name '*aarch64*.rpm' | head -n 1)"
+        if [ -z "$rpm_file" ]; then
+          echo "No arm64 RPM artifact found in scripts/."
+          exit 1
+        fi
+        rpm_file_name="$(basename "$rpm_file")"
+        docker run --rm --platform linux/arm64 \
+          -v "$PWD/scripts":/artifacts:ro \
+          -e RPM_FILE_NAME="$rpm_file_name" \
+          "$FEDORA_ARM64_IMAGE" \
+          bash -lc '
+            set -euo pipefail
+            dnf -y install rpm >/dev/null
+            requires="$(rpm -qpR "/artifacts/${RPM_FILE_NAME}")"
+            printf "%s\n" "$requires"
+            for dependency in libicu; do
+              if ! printf "%s\n" "$requires" | grep -Fx "$dependency" >/dev/null; then
+                echo "RPM is missing runtime dependency: $dependency"
+                exit 1
+              fi
+            done
           '
 
     - name: CLI Smoke (RPM arm64)

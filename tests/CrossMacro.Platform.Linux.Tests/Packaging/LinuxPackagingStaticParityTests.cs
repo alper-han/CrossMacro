@@ -159,6 +159,64 @@ public sealed partial class LinuxPackagingStaticParityTests
         }
     }
 
+    [Fact]
+    public void LinuxPackages_ShouldDeclareIcuWhenUiUsesFullGlobalization()
+    {
+        var rpmSpec = ReadRepoFile("scripts/packaging/rpm/crossmacro.spec");
+        var debScript = ReadRepoFile("scripts/build_deb.sh");
+        var archPkgbuild = ReadRepoFile("scripts/packaging/arch/PKGBUILD");
+        var linuxUiProject = ReadRepoFile("src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj");
+        var sharedUiProject = ReadRepoFile("src/CrossMacro.UI/CrossMacro.UI.csproj");
+
+        Assert.Contains("<InvariantGlobalization>false</InvariantGlobalization>", linuxUiProject, StringComparison.Ordinal);
+        Assert.Contains("<InvariantGlobalization>false</InvariantGlobalization>", sharedUiProject, StringComparison.Ordinal);
+
+        Assert.Contains("libicu", ExtractRpmRequires(rpmSpec));
+        Assert.Contains("libicu74", ExtractDebControlFieldValues(debScript, "Depends"));
+        Assert.Contains("icu", ExtractArchDepends(archPkgbuild));
+    }
+
+    private static string[] ExtractRpmRequires(string spec)
+    {
+        var requiresLine = spec
+            .Split('\n')
+            .Select(line => line.Trim())
+            .Single(line => line.StartsWith("Requires:", StringComparison.Ordinal));
+
+        return requiresLine["Requires:".Length..]
+            .Split(',')
+            .Select(dependency => dependency.Trim())
+            .Where(dependency => dependency.Length > 0)
+            .ToArray();
+    }
+
+    private static string[] ExtractDebControlFieldValues(string script, string fieldName)
+    {
+        var fieldLine = script
+            .Split('\n')
+            .Select(line => line.Trim())
+            .Single(line => line.StartsWith($"{fieldName}:", StringComparison.Ordinal));
+
+        return fieldLine[(fieldName.Length + 1)..]
+            .Split(',')
+            .SelectMany(group => group.Split('|'))
+            .Select(dependency => dependency.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries)[0])
+            .Where(dependency => dependency.Length > 0)
+            .ToArray();
+    }
+
+    private static string[] ExtractArchDepends(string pkgbuild)
+    {
+        var dependsLine = pkgbuild
+            .Split('\n')
+            .Select(line => line.Trim())
+            .Single(line => line.StartsWith("depends=", StringComparison.Ordinal));
+
+        return Regex.Matches(dependsLine, "'([^']+)'")
+            .Select(match => match.Groups[1].Value)
+            .ToArray();
+    }
+
     private static string[] ReadFinishArgs(string relativePath)
     {
         var lines = ReadRepoFile(relativePath).Split('\n');

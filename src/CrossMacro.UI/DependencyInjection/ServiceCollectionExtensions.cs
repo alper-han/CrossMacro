@@ -143,6 +143,7 @@ public static class ServiceCollectionExtensions
                 return;
             case GuiClipboardRegistrationMode.LinuxShellWithAvaloniaFallback:
                 services.AddSingleton<IProcessRunner, ProcessRunner>();
+                services.AddSingleton<FlatpakHostClipboardService>();
                 services.AddSingleton<LinuxShellClipboardService>();
                 services.AddSingleton<IClipboardService, CompositeClipboardService>();
                 return;

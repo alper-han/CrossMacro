@@ -138,4 +138,5 @@ public class LinuxShellClipboardServiceTests
             Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", originalWaylandDisplay);
         }
     }
+
 }

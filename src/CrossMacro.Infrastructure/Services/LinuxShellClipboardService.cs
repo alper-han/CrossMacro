@@ -15,7 +15,7 @@ namespace CrossMacro.Infrastructure.Services;
 public class LinuxShellClipboardService : IClipboardService
 {
     private readonly IProcessRunner _processRunner;
-    private enum ClipboardTool { Unknown, WlClipboard, Xclip, Xsel, KdeKlipper }
+    private enum ClipboardTool { Unknown, WlClipboard, Xclip, Xsel }
     private ClipboardTool _tool = ClipboardTool.Unknown;
     private bool _initialized = false;
 
@@ -60,16 +60,7 @@ public class LinuxShellClipboardService : IClipboardService
             return;
         }
 
-        // Check for KDE Klipper (qdbus)
-        if (await _processRunner.CheckCommandAsync("qdbus", cancellationToken) && await CheckKlipperAsync(cancellationToken))
-        {
-            _tool = ClipboardTool.KdeKlipper;
-            Log.Information("[LinuxClipboard] Using KDE Klipper (qdbus)");
-            _initialized = true;
-            return;
-        }
-
-        Log.Warning("[LinuxClipboard] No supported clipboard tool found (wl-copy/wl-paste, xclip, xsel, qdbus+klipper missing)");
+        Log.Warning("[LinuxClipboard] No supported clipboard tool found (wl-copy/wl-paste, xclip, xsel missing)");
         _initialized = true;
     }
 
@@ -89,9 +80,6 @@ public class LinuxShellClipboardService : IClipboardService
                     break;
                 case ClipboardTool.Xsel:
                     await _processRunner.WriteInputAndCloseAsync("xsel", "--clipboard --input", text, cancellationToken);
-                    break;
-                case ClipboardTool.KdeKlipper:
-                    await RunQdbusSetAsync(text, cancellationToken);
                     break;
                 default:
                     Log.Warning("Cannot set clipboard: No tool available");
@@ -119,7 +107,6 @@ public class LinuxShellClipboardService : IClipboardService
                 ClipboardTool.WlClipboard => await _processRunner.ReadCommandAsync("wl-paste", "--no-newline", cancellationToken),
                 ClipboardTool.Xclip => await _processRunner.ReadCommandAsync("xclip", "-selection clipboard -o", cancellationToken),
                 ClipboardTool.Xsel => await _processRunner.ReadCommandAsync("xsel", "--clipboard --output", cancellationToken),
-                ClipboardTool.KdeKlipper => await _processRunner.ReadCommandAsync("qdbus", "org.kde.klipper /klipper getClipboardContents", cancellationToken),
                 _ => null
             };
         }
@@ -146,33 +133,4 @@ public class LinuxShellClipboardService : IClipboardService
                ex.Message.Contains("Nothing is copied", StringComparison.Ordinal);
     }
 
-    // Helper to verify if Klipper service is available via qdbus
-    private async Task<bool> CheckKlipperAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-
-             var output = await _processRunner.ReadCommandAsync("qdbus", "org.kde.klipper", cancellationToken);
-             return !string.IsNullOrEmpty(output);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private async Task RunQdbusSetAsync(string text, CancellationToken cancellationToken)
-    {
-        await _processRunner.ExecuteCommandAsync("qdbus", new[] 
-        { 
-            "org.kde.klipper", 
-            "/klipper", 
-            "setClipboardContents", 
-            text 
-        }, cancellationToken);
-    }
 }

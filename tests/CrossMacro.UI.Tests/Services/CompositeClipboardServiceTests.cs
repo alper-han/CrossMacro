@@ -67,6 +67,107 @@ public class CompositeClipboardServiceTests
     }
 
     [Fact(Timeout = 5000)]
+    public async Task SetTextAsync_WhenNativeX11AndAvaloniaSupported_ShouldUseAvaloniaBeforeShellTools()
+    {
+        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);
+        var runner = new FakeProcessRunner
+        {
+            CheckResults = { ["xclip"] = true, ["qdbus"] = true }
+        };
+        var runtimeContext = new TestRuntimeContext(isFlatpak: false, sessionType: "x11");
+        var flatpakHost = new FlatpakHostClipboardService(runner, runtimeContext);
+        var linux = new LinuxShellClipboardService(runner);
+        var avalonia = new FakeClipboardService { Supported = true };
+        var service = new CompositeClipboardService(
+            flatpakHost,
+            linux,
+            avalonia,
+            runtimeContext);
+
+        await service.SetTextAsync("abc");
+
+        Assert.Equal(["abc"], avalonia.Writes);
+        Assert.Empty(runner.CheckCalls);
+        Assert.Empty(runner.WriteCalls);
+        Assert.Empty(runner.RunCalls);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task GetTextAsync_WhenNativeX11AndAvaloniaSupported_ShouldUseAvaloniaBeforeShellTools()
+    {
+        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);
+        var runner = new FakeProcessRunner
+        {
+            CheckResults = { ["qdbus6"] = true, ["qdbus"] = true },
+            ReadResult = "qdbus-value"
+        };
+        var runtimeContext = new TestRuntimeContext(isFlatpak: false, sessionType: "x11");
+        var flatpakHost = new FlatpakHostClipboardService(runner, runtimeContext);
+        var linux = new LinuxShellClipboardService(runner);
+        var service = new CompositeClipboardService(
+            flatpakHost,
+            linux,
+            new FakeClipboardService { Supported = true, ReadResult = "avalonia-value" },
+            runtimeContext);
+
+        var result = await service.GetTextAsync();
+
+        Assert.Equal("avalonia-value", result);
+        Assert.Empty(runner.CheckCalls);
+        Assert.Empty(runner.ReadCalls);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task SetTextAsync_WhenNativeX11AvaloniaUnsupported_ShouldFallbackToShellTools()
+    {
+        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);
+        var runner = new FakeProcessRunner
+        {
+            CheckResults = { ["xclip"] = true }
+        };
+        var runtimeContext = new TestRuntimeContext(isFlatpak: false, sessionType: "x11");
+        var flatpakHost = new FlatpakHostClipboardService(runner, runtimeContext);
+        var linux = new LinuxShellClipboardService(runner);
+        var avalonia = new FakeClipboardService { Supported = false };
+        var service = new CompositeClipboardService(
+            flatpakHost,
+            linux,
+            avalonia,
+            runtimeContext);
+
+        await service.SetTextAsync("abc");
+
+        Assert.Empty(avalonia.Writes);
+        Assert.Single(runner.WriteCalls);
+        Assert.Equal(("xclip", "-selection clipboard", "abc"), runner.WriteCalls[0]);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task GetTextAsync_WhenNativeX11AvaloniaReadFails_ShouldFallbackToShellTools()
+    {
+        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);
+        var runner = new FakeProcessRunner
+        {
+            CheckResults = { ["xclip"] = true },
+            ReadResult = "shell-value"
+        };
+        var runtimeContext = new TestRuntimeContext(isFlatpak: false, sessionType: "x11");
+        var flatpakHost = new FlatpakHostClipboardService(runner, runtimeContext);
+        var linux = new LinuxShellClipboardService(runner);
+        var service = new CompositeClipboardService(
+            flatpakHost,
+            linux,
+            new FakeClipboardService { Supported = true, ThrowOnRead = true },
+            runtimeContext);
+
+        var result = await service.GetTextAsync();
+
+        Assert.Equal("shell-value", result);
+        Assert.Single(runner.ReadCalls);
+        Assert.Equal(("xclip", "-selection clipboard -o"), runner.ReadCalls[0]);
+    }
+
+    [Fact(Timeout = 5000)]
     public async Task SetTextAsync_WhenFlatpakHostClipboardSupported_ShouldUseHostBeforeSandboxTools()
     {
         using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);

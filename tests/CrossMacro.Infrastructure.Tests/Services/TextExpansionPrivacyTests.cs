@@ -28,6 +28,7 @@ public class TextExpansionPrivacyTests
         clipboardService.IsSupported.Returns(true);
         clipboardService.GetTextAsync(Arg.Any<CancellationToken>()).Returns(
             Task.FromResult<string?>(string.Empty), // Backup
+            Task.FromResult<string?>("replacement"), // Verification
             Task.FromResult<string?>("replacement")); // Restore guard check
         clipboardService.SetTextAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 

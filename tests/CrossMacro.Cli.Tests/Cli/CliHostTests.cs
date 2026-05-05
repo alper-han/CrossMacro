@@ -77,7 +77,7 @@ public class CliHostTests
     public async Task RunAsync_WhenSettingsGetWithJson_AndBootstrapLoggerWasActive_ReturnsCleanJsonOutput()
     {
         using var consoleLock = await ConsoleTestLock.AcquireAsync();
-        using var _ = CoreLogging.Log.PushLogger(new StderrCoreLogger());
+        using var loggerScope = CoreLogging.Log.PushLogger(new StderrCoreLogger());
         var originalOut = Console.Out;
         var originalError = Console.Error;
         var stdout = new StringWriter();

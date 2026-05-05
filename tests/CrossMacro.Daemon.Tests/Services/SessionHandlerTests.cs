@@ -180,6 +180,9 @@ public sealed class SessionHandlerTests
         writer.Write((byte)IpcOpCode.StopCapture);
         writer.Flush();
 
+        await captureManager.WaitForStopCaptureCountAsync(expectedCount: 1, TimeSpan.FromSeconds(2));
+
+        cts.Cancel();
         socketPair.Client.Dispose();
         await runTask.WaitAsync(TimeSpan.FromSeconds(2));
 
@@ -906,7 +909,7 @@ public sealed class SessionHandlerTests
         writer.Write((byte)IpcOpCode.StopCapture);
         writer.Flush();
 
-        await captureManager.WaitForStopCaptureAsync(TimeSpan.FromSeconds(2));
+        await captureManager.WaitForStopCaptureCountAsync(expectedCount: 1, TimeSpan.FromSeconds(2));
 
         captureManager.Emit(new UInputNative.input_event
         {
@@ -1020,7 +1023,7 @@ public sealed class SessionHandlerTests
         writer.Write((byte)IpcOpCode.StopCapture);
         writer.Flush();
 
-        await captureManager.WaitForStopCaptureAsync(TimeSpan.FromSeconds(2));
+        await captureManager.WaitForStopCaptureCountAsync(expectedCount: 1, TimeSpan.FromSeconds(2));
 
         Assert.Single(virtualDevice.ConfigureCalls);
         Assert.Equal((0, 0), virtualDevice.ConfigureCalls[0]);
@@ -1275,9 +1278,10 @@ public sealed class SessionHandlerTests
 
     private sealed class FakeInputCaptureManager : IInputCaptureManager
     {
+        private readonly object _sync = new();
         private Action<UInputNative.input_event>? _onEvent;
         private readonly TaskCompletionSource _captureStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private readonly TaskCompletionSource _captureStopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly List<StopCaptureWaiter> _stopCaptureWaiters = [];
         private bool _emitDuringStart;
         private UInputNative.input_event _emitDuringStartEvent;
         private UInputNative.input_event[]? _emitSequenceDuringStart;
@@ -1333,8 +1337,17 @@ public sealed class SessionHandlerTests
 
         public void StopCapture()
         {
-            StopCaptureCalls++;
-            _captureStopped.TrySetResult();
+            List<StopCaptureWaiter> completedWaiters;
+            lock (_sync)
+            {
+                StopCaptureCalls++;
+                completedWaiters = CompleteSatisfiedStopCaptureWaiters();
+            }
+
+            foreach (var waiter in completedWaiters)
+            {
+                waiter.Complete();
+            }
         }
 
         public void Emit(UInputNative.input_event inputEvent)
@@ -1345,8 +1358,84 @@ public sealed class SessionHandlerTests
         public Task WaitForStartCaptureAsync(TimeSpan timeout) =>
             _captureStarted.Task.WaitAsync(timeout);
 
-        public Task WaitForStopCaptureAsync(TimeSpan timeout) =>
-            _captureStopped.Task.WaitAsync(timeout);
+        public async Task WaitForStopCaptureCountAsync(int expectedCount, TimeSpan timeout)
+        {
+            StopCaptureWaiter? waiter = null;
+            lock (_sync)
+            {
+                if (StopCaptureCalls >= expectedCount)
+                {
+                    return;
+                }
+
+                waiter = new StopCaptureWaiter(expectedCount);
+                _stopCaptureWaiters.Add(waiter);
+            }
+
+            try
+            {
+                await waiter.Task.WaitAsync(timeout);
+            }
+            catch (TimeoutException ex)
+            {
+                lock (_sync)
+                {
+                    _stopCaptureWaiters.Remove(waiter);
+                }
+
+                throw new TimeoutException(
+                    $"Timed out waiting for StopCaptureCalls >= {expectedCount}. Current StopCaptureCalls={GetStopCaptureCalls()}.",
+                    ex);
+            }
+        }
+
+        public Task WaitForStopCaptureAsync(TimeSpan timeout)
+        {
+            var expectedCount = GetStopCaptureCalls() + 1;
+            return WaitForStopCaptureCountAsync(expectedCount, timeout);
+        }
+
+        private int GetStopCaptureCalls()
+        {
+            lock (_sync)
+            {
+                return StopCaptureCalls;
+            }
+        }
+
+        private List<StopCaptureWaiter> CompleteSatisfiedStopCaptureWaiters()
+        {
+            var completedWaiters = new List<StopCaptureWaiter>();
+            for (var index = _stopCaptureWaiters.Count - 1; index >= 0; index--)
+            {
+                var waiter = _stopCaptureWaiters[index];
+                if (StopCaptureCalls < waiter.ExpectedCount)
+                {
+                    continue;
+                }
+
+                _stopCaptureWaiters.RemoveAt(index);
+                completedWaiters.Add(waiter);
+            }
+
+            return completedWaiters;
+        }
+
+        private sealed class StopCaptureWaiter
+        {
+            private readonly TaskCompletionSource _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public StopCaptureWaiter(int expectedCount)
+            {
+                ExpectedCount = expectedCount;
+            }
+
+            public int ExpectedCount { get; }
+
+            public Task Task => _completion.Task;
+
+            public void Complete() => _completion.TrySetResult();
+        }
 
         public void ConfigureEmitDuringStart(UInputNative.input_event inputEvent)
         {

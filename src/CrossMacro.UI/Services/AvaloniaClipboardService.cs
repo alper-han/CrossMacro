@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input.Platform;
@@ -17,10 +18,11 @@ public class AvaloniaClipboardService : IClipboardService
         _desktopLifetimeContext = desktopLifetimeContext;
     }
 
-    public bool IsSupported => true; // Avalonia clipboard is generally supported if UI is running
+    public bool IsSupported => _desktopLifetimeContext.MainWindow?.Clipboard is not null;
 
-    public async Task SetTextAsync(string text)
+    public async Task SetTextAsync(string text, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         Log.Debug("[AvaloniaClipboard] SetTextAsync called for length {Length}", text.Length);
 
         if (_desktopLifetimeContext.MainWindow == null)
@@ -29,8 +31,9 @@ public class AvaloniaClipboardService : IClipboardService
             return;
         }
 
-        await Dispatcher.UIThread.InvokeAsync(async () =>
+        await await Dispatcher.UIThread.InvokeAsync(async () =>
         {
+            cancellationToken.ThrowIfCancellationRequested();
             Log.Debug("[AvaloniaClipboard] SetTextAsync running on UI thread");
             var clipboard = GetClipboard();
             if (clipboard != null)
@@ -39,22 +42,29 @@ public class AvaloniaClipboardService : IClipboardService
                 {
                     Log.Debug("[AvaloniaClipboard] Setting text to clipboard instance: {Type}", clipboard.GetType().Name);
                     await ClipboardExtensions.SetTextAsync(clipboard, text);
+                    cancellationToken.ThrowIfCancellationRequested();
                     Log.Debug("[AvaloniaClipboard] SetTextAsync completed successfully");
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {
                     Log.Error(ex, "[AvaloniaClipboard] Exception during SetTextAsync");
+                    throw;
                 }
             }
             else
             {
                 Log.Warning("[AvaloniaClipboard] SetTextAsync: Clipboard is null");
             }
-        });
+        }, DispatcherPriority.Normal, cancellationToken);
     }
 
-    public async Task<string?> GetTextAsync()
+    public async Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         Log.Debug("[AvaloniaClipboard] GetTextAsync called");
 
         if (_desktopLifetimeContext.MainWindow == null)
@@ -63,23 +73,30 @@ public class AvaloniaClipboardService : IClipboardService
             return null;
         }
 
-        return await Dispatcher.UIThread.InvokeAsync(async () =>
+        return await await Dispatcher.UIThread.InvokeAsync(async () =>
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var clipboard = GetClipboard();
                 if (clipboard != null)
                 {
-                    return await ClipboardExtensions.TryGetTextAsync(clipboard);
+                    var text = await ClipboardExtensions.TryGetTextAsync(clipboard);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return text;
                 }
                 return null;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to get clipboard text via Avalonia");
-                return null;
+                throw;
             }
-        });
+        }, DispatcherPriority.Normal, cancellationToken);
     }
 
     private IClipboard? GetClipboard()

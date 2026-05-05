@@ -51,30 +51,38 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable
                 directTypingValidated = true;
             }
 
-            await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length);
-
             if (expansion.InsertionMode == TextInsertionMode.DirectTyping)
             {
+                await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length);
                 Log.Debug("Inserting expansion using direct typing mode");
                 await _directTypingInserter.InsertAsync(inputSimulator, expansion.Replacement);
                 return;
             }
 
-            var clipboardSuccess = await _clipboardInserter.TryInsertAsync(
-                inputSimulator,
-                expansion.Replacement,
-                expansion.Method);
-
-            if (clipboardSuccess)
+            var preparedPaste = await _clipboardInserter.TryPrepareAsync(expansion.Replacement);
+            if (preparedPaste is not null)
             {
+                try
+                {
+                    await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length);
+                    await _clipboardInserter.CommitAsync(inputSimulator, preparedPaste, expansion.Method);
+                }
+                finally
+                {
+                    await _clipboardInserter.RestoreAsync(preparedPaste);
+                }
+
                 return;
             }
+
+            Log.Information("Clipboard paste-mode insertion failed; falling back to direct typing");
 
             if (!directTypingValidated)
             {
                 _directTypingInserter.ValidateSupport(inputSimulator, expansion.Replacement);
             }
 
+            await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length);
             await _directTypingInserter.InsertAsync(inputSimulator, expansion.Replacement);
         }
         catch (Exception ex)

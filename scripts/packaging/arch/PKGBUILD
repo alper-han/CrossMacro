@@ -43,7 +43,7 @@ build() {
         --self-contained true \
         -p:PublishSingleFile=true \
         -p:PublishTrimmed=true \
-        -p:PublishReadyToRun=true \
+        -p:PublishReadyToRun=false \
         -p:PublishAot=false \
         -p:DebugType=None \
         -p:DebugSymbols=false \

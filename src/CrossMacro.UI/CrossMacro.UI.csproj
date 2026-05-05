@@ -14,11 +14,11 @@
     <GenerateResourceDesignerFiles>true</GenerateResourceDesignerFiles>
   </PropertyGroup>
 
-  <!-- Self-contained deployment for Linux packages (DEB/RPM) -->
+  <!-- Self-contained deployment defaults for portable UI packages. -->
   <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' != ''">
     <SelfContained>true</SelfContained>
     <PublishTrimmed>true</PublishTrimmed>
-    <PublishReadyToRun>true</PublishReadyToRun>
+    <PublishReadyToRun>false</PublishReadyToRun>
     <TrimMode>partial</TrimMode>
   </PropertyGroup>
 

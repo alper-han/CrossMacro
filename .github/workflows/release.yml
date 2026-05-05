@@ -151,17 +151,56 @@ jobs:
           --self-contained true \
           -p:PublishSingleFile=true \
           -p:PublishTrimmed=true \
+          -p:TrimMode=partial \
           -p:IncludeNativeLibrariesForSelfExtract=true \
+          -p:EnableCompressionInSingleFile=true \
+          -p:PublishReadyToRun=false \
           -p:DebugType=None \
           -p:DebugSymbols=false \
+          -p:ErrorOnDuplicatePublishOutputFiles=true \
           -p:Version=${{ steps.version.outputs.version }} \
           -o publish-windows/
+
+    - name: Verify portable Windows publish is single executable
+      run: |
+        set -euo pipefail
+        test -f publish-windows/CrossMacro.UI.exe
+
+        unexpected_directories="$(find publish-windows -mindepth 1 -maxdepth 1 -type d -print | sort)"
+        if [ -n "$unexpected_directories" ]; then
+          echo "Windows portable publish emitted unexpected directories; expected a flat single-EXE output."
+          printf '%s\n' "$unexpected_directories"
+          exit 1
+        fi
+
+        unexpected_files="$(find publish-windows -maxdepth 1 -type f ! -name 'CrossMacro.UI.exe' ! -name '*.pdb' -print | sort)"
+        if [ -n "$unexpected_files" ]; then
+          echo "Windows portable publish emitted unexpected files; expected CrossMacro.UI.exe plus optional native PDB symbols only."
+          printf '%s\n' "$unexpected_files"
+          exit 1
+        fi
+
+        find publish-windows -maxdepth 1 -type f -name '*.pdb' -delete
+
+        file_count="$(find publish-windows -maxdepth 1 -type f | wc -l)"
+        if [ "$file_count" -ne 1 ]; then
+          echo "Windows portable publish must contain exactly one file after symbol cleanup."
+          find publish-windows -maxdepth 1 -type f -print | sort
+          exit 1
+        fi
+
+        exe_count="$(find publish-windows -maxdepth 1 -type f -name '*.exe' | wc -l)"
+        if [ "$exe_count" -ne 1 ]; then
+          echo "Windows portable publish must contain exactly one EXE."
+          find publish-windows -maxdepth 1 -type f -print | sort
+          exit 1
+        fi
     
     - name: Upload Windows artifacts
       uses: actions/upload-artifact@v7
       with:
         name: windows-binary
-        path: publish-windows/
+        path: publish-windows/CrossMacro.UI.exe
         retention-days: 1
 
   build-linux-binaries:
@@ -664,6 +703,26 @@ jobs:
       run: |
         mv publish-windows/CrossMacro.UI.exe publish-windows/CrossMacro-${{ needs.build-core.outputs.package_version_canonical }}-win-x64.exe
 
+    - name: Verify portable Windows package is single executable
+      run: |
+        set -euo pipefail
+        unexpected_directories="$(find publish-windows -mindepth 1 -maxdepth 1 -type d -print | sort)"
+        if [ -n "$unexpected_directories" ]; then
+          echo "Windows package artifact contains unexpected directories."
+          printf '%s\n' "$unexpected_directories"
+          exit 1
+        fi
+
+        exe_count="$(find publish-windows -maxdepth 1 -type f -name '*.exe' | wc -l)"
+        file_count="$(find publish-windows -maxdepth 1 -type f | wc -l)"
+        if [ "$exe_count" -ne 1 ] || [ "$file_count" -ne 1 ]; then
+          echo "Windows package artifact must contain exactly one EXE and no extra files."
+          find publish-windows -maxdepth 1 -type f -print | sort
+          exit 1
+        fi
+
+        test -f publish-windows/CrossMacro-${{ needs.build-core.outputs.package_version_canonical }}-win-x64.exe
+
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v7
       with:
@@ -694,7 +753,7 @@ jobs:
           --self-contained true `
           -p:PublishSingleFile=false `
           -p:PublishTrimmed=false `
-          -p:PublishReadyToRun=true `
+          -p:PublishReadyToRun=false `
           -p:DebugType=None `
           -p:DebugSymbols=false `
           -p:Version=${{ needs.build-core.outputs.version }} `

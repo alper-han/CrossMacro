@@ -2,6 +2,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Services;
+using CoreLogging = CrossMacro.Core.Logging;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Infrastructure.Services.Recording.Strategies;
 using CrossMacro.Cli;
@@ -69,6 +70,59 @@ public class CliHostTests
         {
             Console.SetOut(originalOut);
             Console.SetError(originalError);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenSettingsGetWithJson_AndBootstrapLoggerWasActive_ReturnsCleanJsonOutput()
+    {
+        using var consoleLock = await ConsoleTestLock.AcquireAsync();
+        using var _ = CoreLogging.Log.PushLogger(new StderrCoreLogger());
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        try
+        {
+            Console.SetOut(stdout);
+            Console.SetError(stderr);
+
+            var host = new CliHost(new SettingsOnlyPlatformServiceRegistrar());
+            var exitCode = await host.RunAsync(new SettingsGetCliOptions(JsonOutput: true));
+
+            Assert.True(exitCode == (int)CliExitCode.Success, $"Unexpected exit code: {exitCode}\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}");
+            Assert.Contains("\"status\": \"ok\"", stdout.ToString(), StringComparison.Ordinal);
+            Assert.DoesNotContain("preconfigured noisy logger", stderr.ToString(), StringComparison.Ordinal);
+            Assert.Equal(string.Empty, stderr.ToString());
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
+        }
+    }
+
+    private sealed class StderrCoreLogger : CoreLogging.ICoreLogger
+    {
+        public bool IsEnabled(CoreLogging.CoreLogLevel level) => true;
+
+        public void Verbose(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
+        public void Verbose(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
+        public void Debug(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
+        public void Debug(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
+        public void Information(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
+        public void Information(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
+        public void Warning(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
+        public void Warning(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
+        public void Error(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
+        public void Error(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
+        public void Fatal(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
+        public void Fatal(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
+
+        private static void Write(string messageTemplate)
+        {
+            Console.Error.WriteLine($"preconfigured noisy logger: {messageTemplate}");
         }
     }
 

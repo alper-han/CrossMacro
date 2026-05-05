@@ -31,7 +31,10 @@ public static class CliGuiRuntime
             var commandRouter = new CliCommandRouter();
             var parseResult = commandRouter.Parse(args);
             var logLevel = parseResult.PrefersJsonOutput ? "Fatal" : SettingsService.TryLoadLogLevelEarly();
-            LoggerSetup.Initialize(logLevel);
+            LoggerSetup.Initialize(
+                logLevel,
+                enableFileLogging: !parseResult.PrefersJsonOutput,
+                enableConsoleLogging: !parseResult.PrefersJsonOutput);
 
             switch (parseResult.Kind)
             {

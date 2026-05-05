@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Cli.DependencyInjection;
+using CrossMacro.Infrastructure.Logging;
 using CrossMacro.Platform.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
@@ -23,6 +24,8 @@ public sealed class CliHost
 
         try
         {
+            ConfigureDirectHostLogging(options);
+
             var services = new ServiceCollection();
             var runtimeProfile = GetRuntimeProfile(options);
             services.AddCrossMacroCliRuntimeServices(_platformServiceRegistrar, runtimeProfile);
@@ -86,5 +89,13 @@ public sealed class CliHost
         return options is HeadlessCliOptions
             ? CliRuntimeProfile.Persistent
             : CliRuntimeProfile.OneShot;
+    }
+
+    private static void ConfigureDirectHostLogging(CliCommandOptions options)
+    {
+        if (options.JsonOutput)
+        {
+            LoggerSetup.Initialize("Fatal", enableFileLogging: false, enableConsoleLogging: false);
+        }
     }
 }

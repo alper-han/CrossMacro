@@ -23,13 +23,20 @@ public static class LoggerSetup
     /// Initialize Serilog with cross-platform log directory support.
     /// </summary>
     /// <param name="logLevel">Initial log level (Debug, Information, Warning, Error).</param>
-    public static void Initialize(string logLevel = "Information", bool enableFileLogging = true)
+    public static void Initialize(
+        string logLevel = "Information",
+        bool enableFileLogging = true,
+        bool enableConsoleLogging = true)
     {
         _levelSwitch = new LoggingLevelSwitch(ParseLogLevel(logLevel));
 
         var config = new LoggerConfiguration()
-            .MinimumLevel.ControlledBy(_levelSwitch)
-            .WriteTo.Console();
+            .MinimumLevel.ControlledBy(_levelSwitch);
+
+        if (enableConsoleLogging)
+        {
+            config = config.WriteTo.Console();
+        }
 
         if (enableFileLogging)
         {

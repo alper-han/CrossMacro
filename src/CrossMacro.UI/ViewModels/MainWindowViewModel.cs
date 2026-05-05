@@ -823,24 +823,25 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         finally
         {
-            if (ReferenceEquals(_appNotificationCts, notificationCts))
+            if (ReferenceEquals(
+                    Interlocked.CompareExchange(ref _appNotificationCts, null, notificationCts),
+                    notificationCts))
             {
                 notificationCts.Dispose();
-                _appNotificationCts = null;
             }
         }
     }
 
     private void CancelAppNotificationTimer()
     {
-        if (_appNotificationCts == null)
+        var notificationCts = Interlocked.Exchange(ref _appNotificationCts, null);
+        if (notificationCts == null)
         {
             return;
         }
 
-        _appNotificationCts.Cancel();
-        _appNotificationCts.Dispose();
-        _appNotificationCts = null;
+        notificationCts.Cancel();
+        notificationCts.Dispose();
     }
 
     private void ResetAppNotificationState()

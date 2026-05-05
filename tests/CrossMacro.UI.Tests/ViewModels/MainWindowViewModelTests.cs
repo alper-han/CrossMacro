@@ -209,6 +209,18 @@ public class MainWindowViewModelTests
     }
 
     [Fact]
+    public void Dispose_WhenAppNotificationTimerIsActive_DoesNotThrow()
+    {
+        var notifier = new FakeExtensionStatusNotifier();
+        var viewModel = CreateMainWindowViewModel(extensionNotifier: notifier);
+        notifier.Publish(ExtensionStatusCode.Warning, "GNOME extension requires logout/login to activate");
+
+        var act = viewModel.Dispose;
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
     public void ExtensionStatusUpdated_WhenErrorPublishedAfterSubscription_ShowsErrorNotification()
     {
         var notifier = new FakeExtensionStatusNotifier();

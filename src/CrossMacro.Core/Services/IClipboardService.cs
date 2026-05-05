@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CrossMacro.Core.Services;
@@ -8,6 +9,6 @@ namespace CrossMacro.Core.Services;
 public interface IClipboardService
 {
     bool IsSupported { get; }
-    Task SetTextAsync(string text);
-    Task<string?> GetTextAsync();
+    Task SetTextAsync(string text, CancellationToken cancellationToken = default);
+    Task<string?> GetTextAsync(CancellationToken cancellationToken = default);
 }

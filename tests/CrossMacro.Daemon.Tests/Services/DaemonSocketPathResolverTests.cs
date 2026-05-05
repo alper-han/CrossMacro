@@ -4,10 +4,11 @@ using System;
 using System.IO;
 using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Daemon.Services;
+using CrossMacro.TestInfrastructure;
 
 public sealed class DaemonSocketPathResolverTests
 {
-    [Fact]
+    [LinuxFact]
     public void ResolveSocketPath_WhenPrimaryDirectoryAlreadyExists_ReturnsDefaultSocketPath()
     {
         var checkedDirectory = string.Empty;
@@ -27,7 +28,7 @@ public sealed class DaemonSocketPathResolverTests
         Assert.Equal(IpcProtocol.DefaultSocketPath, result);
     }
 
-    [Fact]
+    [LinuxFact]
     public void ResolveSocketPath_WhenPrimaryDirectoryCanBeCreated_ReturnsDefaultSocketPath()
     {
         var createdDirectory = string.Empty;
@@ -47,7 +48,7 @@ public sealed class DaemonSocketPathResolverTests
         Assert.Equal(IpcProtocol.DefaultSocketPath, result);
     }
 
-    [Fact]
+    [LinuxFact]
     public void ResolveSocketPath_WhenPrimaryDirectoryCannotBeCreated_Throws()
     {
         var resolver = new DaemonSocketPathResolver(
@@ -59,7 +60,7 @@ public sealed class DaemonSocketPathResolverTests
         Assert.Contains("/run/crossmacro", ex.Message, StringComparison.Ordinal);
     }
 
-    [Fact]
+    [LinuxFact]
     public void ResolveSocketPath_WhenPrimaryDirectoryAccessDenied_Throws()
     {
         var resolver = new DaemonSocketPathResolver(

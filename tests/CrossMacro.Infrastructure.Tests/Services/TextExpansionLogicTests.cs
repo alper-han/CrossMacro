@@ -14,6 +14,8 @@ namespace CrossMacro.Infrastructure.Tests.Services;
 
 public class TextExpansionLogicTests
 {
+    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(2);
+
     private readonly ISettingsService _settingsService;
     private readonly ITextExpansionStorageService _storageService;
     private readonly IKeyboardLayoutService _layoutService;
@@ -78,7 +80,7 @@ public class TextExpansionLogicTests
         RaiseKey(30);
         RaiseKey(48);
         RaiseKey(46);
-        await expansionTriggered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await expansionTriggered.Task.WaitAsync(TestTimeout);
 
         // Assert
         await _executor.Received(1).ExpandAsync(expansion);
@@ -118,7 +120,7 @@ public class TextExpansionLogicTests
         RaiseKey(30);
         RaiseKey(48);
         RaiseKey(46);
-        await secondExpansionTriggered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await secondExpansionTriggered.Task.WaitAsync(TestTimeout);
         
         // Assert - Should trigger again
         await _executor.Received(2).ExpandAsync(expansion);
@@ -135,10 +137,9 @@ public class TextExpansionLogicTests
         _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(
             this, 
             new InputCaptureEventArgs { Type = InputEventType.Key, Code = code, Value = 1 }); // Press
-            
-        // Simulate Release too for completeness? Not strictly needed for logic unless modifiers involved
-        // _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(
-        //     this, 
-        //     new InputCaptureEventArgs { Type = InputEventType.Key, Code = code, Value = 0 }); 
+
+        _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(
+            this,
+            new InputCaptureEventArgs { Type = InputEventType.Key, Code = code, Value = 0 }); // Release
     }
 }

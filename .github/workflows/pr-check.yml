@@ -36,7 +36,7 @@ jobs:
     - name: Setup Flatpak tooling
       run: |
         sudo apt-get update
-        sudo apt-get install -y flatpak
+        sudo apt-get install -y dbus flatpak
         flatpak --version
         flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
         flatpak --user install -y flathub org.flatpak.Builder
@@ -145,7 +145,7 @@ jobs:
         dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.Platform.Linux.Tests/CrossMacro.Platform.Linux.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dbus-run-session -- dotnet test tests/CrossMacro.Platform.Linux.Tests/CrossMacro.Platform.Linux.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj --configuration Debug --no-build --verbosity normal
 
   smoke-published-linux-artifacts:

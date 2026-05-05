@@ -244,6 +244,11 @@ public abstract class DbusIntegrationTestBase
 
     protected static DBusConnection CreateSessionConnection()
     {
-        return new DBusConnection(DBusAddress.Session!);
+        return new DBusConnection(
+            GetSessionBusAddress()
+            ?? throw new InvalidOperationException("D-Bus session bus address is unavailable after the test guard passed."));
     }
+
+    private static string? GetSessionBusAddress()
+        => DBusAddress.Session;
 }

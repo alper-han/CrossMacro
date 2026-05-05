@@ -12,14 +12,14 @@ namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus;
 [Collection(nameof(DbusIntegrationSerialCollection))]
 public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
 {
-    [LinuxFact]
+    [DbusSessionFact]
     public async Task DbusIntegration_TrackerServiceRegistrationAndClientRoundTrip_ShouldInvokeExportedHandlers()
     {
         var position = (X: 0, Y: 0);
         var resolution = (Width: 0, Height: 0);
 
-        using var serviceConnection = new DBusConnection(DBusAddress.Session!);
-        using var clientConnection = new DBusConnection(DBusAddress.Session!);
+        using var serviceConnection = CreateSessionConnection();
+        using var clientConnection = CreateSessionConnection();
 
         await serviceConnection.ConnectAsync();
         await clientConnection.ConnectAsync().AsTask().WaitAsync(SessionBusTimeout);
@@ -68,7 +68,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         Assert.Equal((1920, 1080), resolution);
     }
 
-    [LinuxFact]
+    [DbusSessionFact]
     public async Task DbusIntegration_TrackerService_ShouldRejectWrongInterfaceWithoutInvokingCallbacks()
     {
         var position = (X: 0, Y: 0);
@@ -106,7 +106,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         Assert.Equal((0, 0), position);
     }
 
-    [LinuxFact]
+    [DbusSessionFact]
     public async Task DbusIntegration_TrackerService_ShouldRejectInvalidSignatureWithoutInvokingCallbacks()
     {
         var position = (X: 0, Y: 0);
@@ -143,7 +143,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         Assert.Equal((0, 0), position);
     }
 
-    [LinuxFact]
+    [DbusSessionFact]
     public async Task DbusIntegration_GnomeExtensionsClient_ShouldSendUuidAndParseReply()
     {
         const string expectedUuid = "crossmacro@zynix.net";
@@ -182,7 +182,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         Assert.Equal((uint)1, info["state"]);
     }
 
-    [LinuxFact]
+    [DbusSessionFact]
     public async Task DbusIntegration_KWinScriptingClient_ShouldSendScriptNameForUnload()
     {
         const string expectedScriptName = "42";

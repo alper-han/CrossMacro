@@ -10,7 +10,7 @@ public class LinuxPermissionServiceTests
 {
     private const string SocketPath = "/run/crossmacro/crossmacro.sock";
 
-    [Fact]
+    [LinuxFact]
     public void ConfigureSocketPermissions_WhenSocketPathDoesNotExist_DoesNotThrow()
     {
         var service = new LinuxPermissionService();
@@ -21,7 +21,7 @@ public class LinuxPermissionServiceTests
         Assert.Null(ex);
     }
 
-    [Fact]
+    [LinuxFact]
     public void ConfigureSocketPermissions_WhenSocketPathExists_DoesNotThrow()
     {
         var service = new LinuxPermissionService();

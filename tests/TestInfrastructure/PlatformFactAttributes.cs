@@ -53,6 +53,17 @@ public sealed class LinuxIntegrationFactAttribute : ConditionalFactAttribute
     }
 }
 
+public sealed class DbusSessionFactAttribute : ConditionalFactAttribute
+{
+    public DbusSessionFactAttribute()
+        : base(
+            () => OperatingSystem.IsLinux() &&
+                  !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS")),
+            "Linux + D-Bus session bus")
+    {
+    }
+}
+
 public sealed class MacOSFactAttribute : ConditionalFactAttribute
 {
     public MacOSFactAttribute() : base(OperatingSystem.IsMacOS, "macOS")

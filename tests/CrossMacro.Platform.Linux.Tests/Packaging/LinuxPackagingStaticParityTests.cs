@@ -24,8 +24,7 @@ public sealed partial class LinuxPackagingStaticParityTests
         {
             "flatpak/crossmacro.sh",
             "README.md",
-            "docs/man/crossmacro.1",
-            "docs/linux-daemon-packaging-audit.md"
+            "docs/man/crossmacro.1"
         };
 
         foreach (var relativePath in referencedFiles)

@@ -49,6 +49,21 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.1.0" date="2026-05-05">
+      <description>
+        <p>Version 1.1.0 - Better editor workflows, smoother text expansion, randomized timing controls, stronger Linux integration, and more reliable packages.</p>
+        <ul>
+          <li>Added minimized startup, loaded macro playlists, editor filtering, multi-select controls, clearer toolbar actions, bundled icons, and more reliable editor selection behavior.</li>
+          <li>Added clipboard-free text expansion, faster direct typing, safer paste insertion, and improved clipboard behavior across native sessions, Flatpak, and X11.</li>
+          <li>Added randomized playback loop delays, schedule intervals, and shortcut repeat delays.</li>
+          <li>Improved localization coverage for tabs, editor text, runtime states, placeholders, and language settings.</li>
+          <li>Improved Linux support with Niri and COSMIC detection, batched input simulation, stronger permission handling, clearer setup guidance, and GNOME warning replay.</li>
+          <li>Improved existing Flatpak integration with better host clipboard handling and cleaner build inputs.</li>
+          <li>Improved CLI and headless automation with cleaner JSON output and more reliable daemon detection.</li>
+          <li>Improved release packaging with stricter validation, refreshed package metadata, Avalonia 12, and compact portable Windows packages.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.0.1" date="2026-03-28">
       <description>
         <p>Version 1.0.1 - Major Linux workflow improvements for scripting and Wayland environments.</p>

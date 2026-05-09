@@ -1,0 +1,224 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['*']
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-linux:
+    name: Source Validation (Linux)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Verify version sync
+      run: |
+        chmod +x scripts/sync-version.sh
+        ./scripts/sync-version.sh --check
+
+    - name: Verify version sync write idempotency
+      run: |
+        VERSION="$(tr -d '\r\n[:space:]' < VERSION)" ./scripts/sync-version.sh --write
+        git diff --exit-code -- scripts/packaging/arch/PKGBUILD scripts/msix/AppxManifest.xml flatpak/io.github.alper_han.crossmacro.flathub.yml
+
+    - name: Setup Flatpak tooling
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y dbus flatpak
+        flatpak --version
+        flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+        flatpak --user install -y flathub org.flatpak.Builder
+
+    - name: Validate Flatpak manifest and MetaInfo
+      run: |
+        set -euo pipefail
+
+        flatpak --user run --command=flatpak-builder-lint org.flatpak.Builder --exceptions manifest flatpak/io.github.alper_han.crossmacro.yml
+
+        set +e
+        flathub_lint_output="$(flatpak --user run --command=flatpak-builder-lint org.flatpak.Builder --exceptions manifest flatpak/io.github.alper_han.crossmacro.flathub.yml 2>&1)"
+        flathub_lint_rc=$?
+        set -e
+        if [ "$flathub_lint_rc" -ne 0 ]; then
+          if ! printf '%s\n' "$flathub_lint_output" | python3 -c 'import json,sys; obj=json.loads(sys.stdin.read().strip()); errs=obj.get("errors", []); sys.exit(0 if errs == ["appid-filename-mismatch"] else 1)'; then
+            printf '%s\n' "$flathub_lint_output"
+            exit "$flathub_lint_rc"
+          fi
+          echo "Ignoring appid-filename-mismatch for mirrored manifest filename."
+        fi
+
+        flatpak --user run --command=flatpak-builder-lint org.flatpak.Builder appstream flatpak/io.github.alper_han.crossmacro.metainfo.xml
+        flatpak --user run --command=appstreamcli org.flatpak.Builder validate --pedantic --explain flatpak/io.github.alper_han.crossmacro.metainfo.xml
+
+    - name: Validate man page source
+      run: man -l docs/man/crossmacro.1 > /dev/null
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration Debug --no-restore
+
+    - name: CLI Smoke (Linux)
+      run: |
+        bash scripts/smoke/cli-smoke.sh --command 'dotnet run --no-build --project src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj --'
+
+    - name: CLI Daemon Smoke (Linux, env-gated)
+      if: ${{ vars.CROSSMACRO_LINUX_DAEMON_SMOKE == '1' }}
+      run: |
+        set -euo pipefail
+        UI_PROJECT="src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj"
+        DAEMON_PROJECT="src/CrossMacro.Daemon/CrossMacro.Daemon.csproj"
+
+        dotnet run --no-build --project "$DAEMON_PROJECT" > daemon-smoke.log 2>&1 &
+        daemon_pid=$!
+
+        cleanup() {
+          kill "$daemon_pid" 2>/dev/null || true
+          wait "$daemon_pid" 2>/dev/null || true
+        }
+        trap cleanup EXIT
+
+        for i in $(seq 1 30); do
+          if [ -S "/run/crossmacro/crossmacro.sock" ] || [ -S "/tmp/crossmacro.sock" ]; then
+            break
+          fi
+          sleep 1
+        done
+
+        if ! [ -S "/run/crossmacro/crossmacro.sock" ] && ! [ -S "/tmp/crossmacro.sock" ]; then
+          echo "Daemon socket was not created."
+          cat daemon-smoke.log || true
+          exit 1
+        fi
+
+        set +e
+        doctor_output="$(dotnet run --no-build --project "$UI_PROJECT" -- doctor --json --verbose 2>&1)"
+        doctor_code=$?
+        set -e
+        echo "$doctor_output"
+        echo "doctor exit code: $doctor_code"
+        echo "$doctor_output" | grep -F '"name": "linux-daemon-handshake"'
+        echo "$doctor_output" | grep -F 'Daemon handshake probe succeeded.'
+
+    - name: Run Tests (Linux-compatible suites)
+      run: |
+        dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dbus-run-session -- dotnet test tests/CrossMacro.Platform.Linux.Tests/CrossMacro.Platform.Linux.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj --configuration Debug --no-build --verbosity normal
+
+  source-windows:
+    name: Source Validation (Windows)
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration Debug --no-restore
+
+    - name: Validate MSIX prepare script idempotency
+      shell: pwsh
+      run: |
+        $version = (Get-Content VERSION -Raw).Trim()
+        $outputDir = Join-Path $env:RUNNER_TEMP "msix-prepare-test"
+        Remove-Item -LiteralPath $outputDir -Recurse -Force -ErrorAction SilentlyContinue
+
+        ./scripts/msix/prepare-msix.ps1 -Version $version -OutputDir $outputDir
+        ./scripts/msix/prepare-msix.ps1 -Version $version -OutputDir $outputDir
+
+        [xml]$manifest = Get-Content -LiteralPath (Join-Path $outputDir "AppxManifest.xml") -Raw
+        $namespaceManager = New-Object System.Xml.XmlNamespaceManager($manifest.NameTable)
+        $namespaceManager.AddNamespace("appx", "http://schemas.microsoft.com/appx/manifest/foundation/windows10")
+        $identity = $manifest.SelectSingleNode("/appx:Package/appx:Identity", $namespaceManager)
+        if ($null -eq $identity) {
+          throw "Prepared manifest does not contain Identity node."
+        }
+        if ($identity.Version -ne "$version.0") {
+          throw "Prepared manifest version '$($identity.Version)' does not match expected '$version.0'."
+        }
+
+    - name: CLI Smoke (Windows)
+      shell: pwsh
+      run: ./scripts/smoke/cli-smoke.ps1 -Project src/CrossMacro.UI.Windows/CrossMacro.UI.Windows.csproj
+
+    - name: Run Tests (Windows-compatible suites)
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $projects = @(
+          "tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj",
+          "tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj",
+          "tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj",
+          "tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj",
+          "tests/CrossMacro.Platform.Windows.Tests/CrossMacro.Platform.Windows.Tests.csproj",
+          "tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj"
+        )
+
+        foreach ($project in $projects) {
+          dotnet test $project --configuration Debug --no-build --verbosity normal
+          if ($LASTEXITCODE -ne 0) {
+            throw "dotnet test failed for $project with exit code $LASTEXITCODE."
+          }
+        }
+
+  source-macos:
+    name: Source Validation (macOS)
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration Debug --no-restore
+
+    - name: CLI Smoke (macOS)
+      run: |
+        bash scripts/smoke/cli-smoke.sh --command 'dotnet run --no-build --project src/CrossMacro.UI.MacOS/CrossMacro.UI.MacOS.csproj --'
+
+    - name: Run Tests (macOS-compatible suites)
+      run: |
+        dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Platform.MacOS.Tests/CrossMacro.Platform.MacOS.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj --configuration Debug --no-build --verbosity normal

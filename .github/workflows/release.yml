@@ -299,10 +299,12 @@ jobs:
           RELEASE_NAME="CrossMacro v${VERSION}"
         fi
 
-        echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-        echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
-        echo "make_latest=${MAKE_LATEST}" >> "$GITHUB_OUTPUT"
-        echo "release_name=${RELEASE_NAME}" >> "$GITHUB_OUTPUT"
+        {
+          echo "tag=${TAG}"
+          echo "prerelease=${PRERELEASE}"
+          echo "make_latest=${MAKE_LATEST}"
+          echo "release_name=${RELEASE_NAME}"
+        } >> "$GITHUB_OUTPUT"
 
     - name: Download staged release candidate
       uses: actions/download-artifact@v8
@@ -415,7 +417,7 @@ jobs:
         SSH_OUTPUT=$(ssh -i ~/.ssh/id_aur \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
-            -o UserKnownHostsFile=$HOME/.ssh/known_hosts \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
             -o HostKeyAlgorithms=ssh-ed25519 \
             -T aur@aur.archlinux.org 2>&1)
         SSH_STATUS=$?

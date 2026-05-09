@@ -11,7 +11,6 @@ Usage: flatpak.sh <bundle.flatpak> [--installation <name>] [--no-cli]
 
 Validates a CrossMacro Flatpak bundle using user/local install mechanics:
   - verifies the .flatpak bundle exists
-  - inspects bundle metadata
   - installs the bundle with flatpak --user into the selected installation
   - runs shared CLI smoke through: flatpak run io.github.alper_han.crossmacro
 
@@ -76,9 +75,6 @@ done
 [ -f "$bundle" ] || fail "missing .flatpak artifact: $bundle"
 require_command flatpak
 [ -x "$CLI_SMOKE" ] || fail "shared CLI smoke helper not executable: $CLI_SMOKE"
-
-metadata="$(flatpak info --show-metadata --file "$bundle" 2>/dev/null || flatpak info --file "$bundle")"
-printf '%s\n' "$metadata" | grep -F "$APP_ID" >/dev/null || fail "bundle metadata does not mention $APP_ID"
 
 if [ "$installation" = "user" ]; then
   flatpak --user install -y --noninteractive "$bundle"

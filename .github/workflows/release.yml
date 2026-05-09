@@ -1,33 +1,64 @@
 name: Build and Release
-run-name: CrossMacro ${{ github.ref_name }}
+run-name: CrossMacro ${{ inputs.source_tag }}
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Optional override, must match VERSION file (X.Y.Z)'
-        required: false
-        default: ''
-      publish_prerelease:
-        description: 'Create a GitHub pre-release from this commit'
+      source_tag:
+        description: 'Required source tag to build, for example v1.2.3 or v1.2.3-pre.1'
+        required: true
+        type: string
+      publish_release:
+        description: 'Create or update the GitHub Release and allow external publishing'
         type: boolean
         required: false
         default: false
+      publish_existing_release:
+        description: 'Retry selected external publishing against an existing GitHub Release without uploading release assets'
+        type: boolean
+        required: false
+        default: false
+      draft:
+        description: 'Create or update the GitHub Release as a draft'
+        type: boolean
+        required: false
+        default: true
+      prerelease:
+        description: 'GitHub Release prerelease flag: auto derives from source_tag'
+        type: choice
+        required: false
+        default: auto
+        options:
+          - auto
+          - 'true'
+          - 'false'
+      attach_flatpak:
+        description: 'Build, validate, and attach Flatpak bundles'
+        type: boolean
+        required: false
+        default: true
+      attach_msix:
+        description: 'Build, validate, and attach MSIX package'
+        type: boolean
+        required: false
+        default: true
       publish_aur:
-        description: 'Manually update AUR (disabled by default)'
+        description: 'Publish AUR package after GitHub Release publishing succeeds'
         type: boolean
         required: false
         default: false
-      prerelease_tag:
-        description: 'Optional pre-release tag (default: vX.Y.Z-pre.<run_number>)'
+      publish_winget:
+        description: 'Publish WinGet package after GitHub Release publishing succeeds'
+        type: boolean
         required: false
-        default: ''
+        default: false
 
 permissions:
   contents: read
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   # ============================================
@@ -42,87 +73,39 @@ jobs:
       source_tag: ${{ steps.version.outputs.source_tag }}
       package_version_canonical: ${{ steps.version.outputs.package_version_canonical }}
       prerelease_label: ${{ steps.version.outputs.prerelease_label }}
+      source_tag_sha: ${{ steps.tag_sha.outputs.source_tag_sha }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
     
     - name: Extract version
       id: version
+      env:
+        INPUT_SOURCE_TAG: ${{ github.event.inputs.source_tag }}
       run: |
-        REPO_VERSION="$(tr -d '\r\n[:space:]' < VERSION)"
-        IS_PRERELEASE_RELEASE="false"
-        SOURCE_TAG=""
-        ALLOW_PRERELEASE_VERSION_DRIFT="false"
-        if ! [[ "$REPO_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          echo "Invalid VERSION file value: '$REPO_VERSION'"
+        set -euo pipefail
+        bash scripts/ci/resolve-release-metadata.sh \
+          --mode release \
+          --source-tag "$INPUT_SOURCE_TAG" \
+          --enforce-version-file-match
+
+    - name: Resolve source tag commit SHA
+      id: tag_sha
+      env:
+        INPUT_SOURCE_TAG: ${{ github.event.inputs.source_tag }}
+      run: |
+        set -euo pipefail
+        # Dereference annotated tags to the commit they point to (^{} suffix).
+        # Lightweight tags do not produce a ^{} line, so fall back to the plain ref.
+        SHA="$(git ls-remote origin "refs/tags/$INPUT_SOURCE_TAG^{}" 2>/dev/null | cut -f1)"
+        if [ -z "$SHA" ]; then
+          SHA="$(git ls-remote origin "refs/tags/$INPUT_SOURCE_TAG" 2>/dev/null | cut -f1)"
+        fi
+        if [ -z "$SHA" ]; then
+          echo "ERROR: could not resolve commit SHA for tag $INPUT_SOURCE_TAG" >&2
           exit 1
         fi
-
-        if [ "${{ github.event_name }}" == "push" ]; then
-          SOURCE_TAG="${GITHUB_REF#refs/tags/}"
-          if [[ "$SOURCE_TAG" != v* ]]; then
-            echo "Tag '$SOURCE_TAG' must start with 'v'"
-            exit 1
-          fi
-          TAG_VERSION="${SOURCE_TAG#v}"
-          BASE_TAG_VERSION="${TAG_VERSION%%[-+]*}"
-          if [ "$BASE_TAG_VERSION" != "$REPO_VERSION" ]; then
-            echo "Tag version '$TAG_VERSION' does not match VERSION file '$REPO_VERSION' (or X.Y.Z-suffix form)"
-            exit 1
-          fi
-          if [[ "$TAG_VERSION" == *-* ]]; then
-            IS_PRERELEASE_RELEASE="true"
-          fi
-        else
-          INPUT_VERSION="${{ github.event.inputs.version }}"
-          if [ -n "$INPUT_VERSION" ] && [ "$INPUT_VERSION" != "$REPO_VERSION" ]; then
-            echo "workflow_dispatch version '$INPUT_VERSION' does not match VERSION file '$REPO_VERSION'"
-            exit 1
-          fi
-          if [ "${{ github.event.inputs.publish_prerelease }}" = "true" ]; then
-            IS_PRERELEASE_RELEASE="true"
-            INPUT_TAG="${{ github.event.inputs.prerelease_tag }}"
-            if [ -n "$INPUT_TAG" ]; then
-              SOURCE_TAG="$INPUT_TAG"
-              ALLOW_PRERELEASE_VERSION_DRIFT="true"
-              if [[ "$SOURCE_TAG" != v* ]]; then
-                SOURCE_TAG="v$SOURCE_TAG"
-              fi
-            else
-              SOURCE_TAG="v${REPO_VERSION}-pre.${{ github.run_number }}"
-            fi
-          else
-            SOURCE_TAG="v$REPO_VERSION"
-          fi
-        fi
-
-        PACKAGE_VERSION_CANONICAL="${SOURCE_TAG#v}"
-        BASE_VERSION="${PACKAGE_VERSION_CANONICAL%%[-+]*}"
-        if [ "$BASE_VERSION" != "$REPO_VERSION" ]; then
-          if [ "$ALLOW_PRERELEASE_VERSION_DRIFT" = "true" ]; then
-            echo "Warning: prerelease tag base '$BASE_VERSION' differs from VERSION '$REPO_VERSION' (allowed for manual prerelease)."
-          else
-            echo "Resolved source tag '$SOURCE_TAG' does not match VERSION '$REPO_VERSION'"
-            exit 1
-          fi
-        fi
-
-        PRERELEASE_LABEL=""
-        if [ "$PACKAGE_VERSION_CANONICAL" != "$BASE_VERSION" ] && [[ "$PACKAGE_VERSION_CANONICAL" == *-* ]]; then
-          PRERELEASE_LABEL="${PACKAGE_VERSION_CANONICAL#*-}"
-          PRERELEASE_LABEL="${PRERELEASE_LABEL%%+*}"
-        fi
-        if [ "$IS_PRERELEASE_RELEASE" = "false" ] && [ -n "$PRERELEASE_LABEL" ]; then
-          IS_PRERELEASE_RELEASE="true"
-        fi
-
-        VERSION="$REPO_VERSION"
-        echo "Using version: $VERSION (source_tag=$SOURCE_TAG prerelease=$IS_PRERELEASE_RELEASE)"
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo "is_prerelease_release=$IS_PRERELEASE_RELEASE" >> $GITHUB_OUTPUT
-        echo "source_tag=$SOURCE_TAG" >> $GITHUB_OUTPUT
-        echo "package_version_canonical=$PACKAGE_VERSION_CANONICAL" >> $GITHUB_OUTPUT
-        echo "prerelease_label=$PRERELEASE_LABEL" >> $GITHUB_OUTPUT
+        echo "source_tag_sha=${SHA}" >> "$GITHUB_OUTPUT"
 
     - name: Sync versioned manifests
       run: |
@@ -138,765 +121,261 @@ jobs:
       run: |
         man -l docs/man/crossmacro.1 > /dev/null
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v5
-      with:
-        dotnet-version: '10.0.x'
-    
-    - name: Build Windows UI binary
-      run: |
-        dotnet publish src/CrossMacro.UI.Windows/CrossMacro.UI.Windows.csproj \
-          -c Release \
-          -r win-x64 \
-          --self-contained true \
-          -p:PublishSingleFile=true \
-          -p:PublishTrimmed=true \
-          -p:TrimMode=partial \
-          -p:IncludeNativeLibrariesForSelfExtract=true \
-          -p:EnableCompressionInSingleFile=true \
-          -p:PublishReadyToRun=false \
-          -p:DebugType=None \
-          -p:DebugSymbols=false \
-          -p:ErrorOnDuplicatePublishOutputFiles=true \
-          -p:Version=${{ steps.version.outputs.version }} \
-          -o publish-windows/
-
-    - name: Verify portable Windows publish is single executable
-      run: |
-        set -euo pipefail
-        test -f publish-windows/CrossMacro.UI.exe
-
-        unexpected_directories="$(find publish-windows -mindepth 1 -maxdepth 1 -type d -print | sort)"
-        if [ -n "$unexpected_directories" ]; then
-          echo "Windows portable publish emitted unexpected directories; expected a flat single-EXE output."
-          printf '%s\n' "$unexpected_directories"
-          exit 1
-        fi
-
-        unexpected_files="$(find publish-windows -maxdepth 1 -type f ! -name 'CrossMacro.UI.exe' ! -name '*.pdb' -print | sort)"
-        if [ -n "$unexpected_files" ]; then
-          echo "Windows portable publish emitted unexpected files; expected CrossMacro.UI.exe plus optional native PDB symbols only."
-          printf '%s\n' "$unexpected_files"
-          exit 1
-        fi
-
-        find publish-windows -maxdepth 1 -type f -name '*.pdb' -delete
-
-        file_count="$(find publish-windows -maxdepth 1 -type f | wc -l)"
-        if [ "$file_count" -ne 1 ]; then
-          echo "Windows portable publish must contain exactly one file after symbol cleanup."
-          find publish-windows -maxdepth 1 -type f -print | sort
-          exit 1
-        fi
-
-        exe_count="$(find publish-windows -maxdepth 1 -type f -name '*.exe' | wc -l)"
-        if [ "$exe_count" -ne 1 ]; then
-          echo "Windows portable publish must contain exactly one EXE."
-          find publish-windows -maxdepth 1 -type f -print | sort
-          exit 1
-        fi
-    
-    - name: Upload Windows artifacts
-      uses: actions/upload-artifact@v7
-      with:
-        name: windows-binary
-        path: publish-windows/CrossMacro.UI.exe
-        retention-days: 1
-
   build-linux-binaries:
-    name: Build Linux Binaries (${{ matrix.arch_suffix }})
+    name: Build Linux Binaries
     needs: build-core
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch_suffix: x64
-            runner: ubuntu-latest
-            target_arch: x86_64
-            dotnet_rid: linux-x64
-            daemon_publish_args: ""
-          - arch_suffix: arm64
-            runner: ubuntu-24.04-arm
-            target_arch: aarch64
-            dotnet_rid: linux-arm64
-            daemon_publish_args: "-p:PublishAot=false --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true"
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
+    if: github.event.inputs.publish_existing_release != 'true'
+    uses: ./.github/workflows/_build-linux-binaries.yml
+    with:
+      version: ${{ needs.build-core.outputs.version }}
+      source_tag: ${{ needs.build-core.outputs.source_tag }}
+      canonical_version: ${{ needs.build-core.outputs.package_version_canonical }}
+      artifact_prefix: linux-packages
+      smoke_enabled: true
+      release_mode: true
+      upload_enabled: true
+      retention_days: 1
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v5
-      with:
-        dotnet-version: '10.0.x'
-
-    - name: Install native publish prerequisites
-      if: ${{ matrix.arch_suffix == 'x64' }}
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y clang build-essential
-
-    - name: Build Linux UI binary
-      run: |
-        dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj \
-          -c Release \
-          -r "${{ matrix.dotnet_rid }}" \
-          --self-contained true \
-          -p:PublishSingleFile=true \
-          -p:PublishTrimmed=true \
-          -p:PublishAot=false \
-          -p:DebugType=None \
-          -p:DebugSymbols=false \
-          -p:Version="${{ needs.build-core.outputs.version }}" \
-          -o "publish-linux-${{ matrix.arch_suffix }}/"
-
-    - name: Build Linux Daemon
-      run: |
-        dotnet publish src/CrossMacro.Daemon/CrossMacro.Daemon.csproj \
-          -c Release \
-          -r "${{ matrix.dotnet_rid }}" \
-          ${{ matrix.daemon_publish_args }} \
-          -p:Version="${{ needs.build-core.outputs.version }}" \
-          -o "publish-daemon-${{ matrix.arch_suffix }}/"
-
-    - name: Smoke published Linux artifacts
-      run: |
-        chmod +x scripts/smoke-published-linux-artifacts.sh
-        ./scripts/smoke-published-linux-artifacts.sh \
-          --ui-binary "publish-linux-${{ matrix.arch_suffix }}/CrossMacro.UI"
-
-    - name: Upload Linux UI artifacts
-      uses: actions/upload-artifact@v7
-      with:
-        name: linux-binary-${{ matrix.arch_suffix }}
-        path: publish-linux-${{ matrix.arch_suffix }}/
-        retention-days: 1
-
-    - name: Upload Linux Daemon artifacts
-      uses: actions/upload-artifact@v7
-      with:
-        name: linux-daemon-${{ matrix.arch_suffix }}
-        path: publish-daemon-${{ matrix.arch_suffix }}/
-        retention-days: 1
-
-  # ============================================
-  # Stage 2: Parallel Packaging (all run simultaneously)
-  # ============================================
-  
-  package-deb:
-    name: Package DEB (${{ matrix.arch_suffix }})
+  package-linux:
+    name: Package Linux
     needs: [build-core, build-linux-binaries]
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch_suffix: x64
-            target_arch: x86_64
-          - arch_suffix: arm64
-            target_arch: aarch64
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-    
-    - name: Download Linux UI binary
-      uses: actions/download-artifact@v8
-      with:
-        name: linux-binary-${{ matrix.arch_suffix }}
-        path: publish/
-    
-    - name: Download Linux Daemon binary
-      uses: actions/download-artifact@v8
-      with:
-        name: linux-daemon-${{ matrix.arch_suffix }}
-        path: publish-daemon/
-    
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y dpkg-dev fakeroot patchelf
-    
-    - name: Build DEB package
-      run: |
-        cd scripts
-        chmod +x build_deb.sh
-        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" PUBLISH_DIR="../publish" DAEMON_DIR="../publish-daemon" ./build_deb.sh
-
-    - name: Verify DEB man page
-      run: |
-        set -euo pipefail
-        deb_file="$(ls -1 scripts/*.deb | head -n 1)"
-        dpkg-deb -c "$deb_file" | grep -E '/usr/share/man/man1/crossmacro\.1\.gz$'
-
-    - name: CLI Smoke (DEB x64)
-      if: ${{ matrix.arch_suffix == 'x64' }}
-      run: |
-        set -euo pipefail
-        deb_file="$(ls -1 scripts/*.deb | head -n 1)"
-        docker run --rm --platform linux/amd64 \
-          --tmpfs /run \
-          -v "$PWD/scripts":/artifacts:ro \
-          -e DEB_FILE_NAME="$(basename "$deb_file")" \
-          ubuntu:24.04 \
-          bash -lc '
-            set -euo pipefail
-            export DEBIAN_FRONTEND=noninteractive
-            apt-get update >/dev/null
-            apt-get install -y systemd dbus polkitd udev man-db libxtst6 libx11-6 libxcursor1 libxrandr2 fontconfig sudo >/dev/null
-            dpkg -i "/artifacts/${DEB_FILE_NAME}" >/dev/null || apt-get install -f -y >/dev/null
-            getent group crossmacro >/dev/null
-            getent passwd crossmacro >/dev/null
-
-            set +e
-            help_output="$(/usr/bin/crossmacro --help 2>&1)"
-            help_code=$?
-            set -e
-            echo "$help_output"
-            test "$help_code" -eq 0
-            echo "$help_output" | grep -F "Usage:"
-
-            set +e
-            settings_output="$(/usr/bin/crossmacro settings get --json 2>&1)"
-            settings_code=$?
-            set -e
-            echo "$settings_output"
-            test "$settings_code" -eq 0
-            echo "$settings_output" | grep -F "\"status\": \"ok\""
-            echo "$settings_output" | grep -F "\"code\": 0"
-
-            set +e
-            dry_run_output="$(/usr/bin/crossmacro run --step "move abs 10 10" --step "click left" --dry-run --json 2>&1)"
-            dry_run_code=$?
-            set -e
-            echo "$dry_run_output"
-            test "$dry_run_code" -eq 0
-            echo "$dry_run_output" | grep -F "\"status\": \"ok\""
-            echo "$dry_run_output" | grep -F "\"code\": 0"
-            echo "$dry_run_output" | grep -F "\"coordinateMode\": \"absolute\""
-          '
-    
-    - name: Upload DEB artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: deb-package-${{ matrix.arch_suffix }}
-        path: |
-          scripts/*.deb
-        retention-days: 1
-
-  package-rpm:
-    name: Package RPM (${{ matrix.arch_suffix }})
-    needs: [build-core, build-linux-binaries]
-    runs-on: ubuntu-latest
-    env:
-      FEDORA_X64_IMAGE: fedora:41
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch_suffix: x64
-            target_arch: x86_64
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-    
-    - name: Download Linux UI binary
-      uses: actions/download-artifact@v8
-      with:
-        name: linux-binary-${{ matrix.arch_suffix }}
-        path: publish/
-    
-    - name: Download Linux Daemon binary
-      uses: actions/download-artifact@v8
-      with:
-        name: linux-daemon-${{ matrix.arch_suffix }}
-        path: publish-daemon/
-    
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y rpm checkpolicy semodule-utils patchelf
-
-    - name: Build RPM package
-      run: |
-        cd scripts
-        chmod +x build_rpm.sh
-        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" RPM_ARCH="${{ matrix.target_arch }}" PUBLISH_DIR="../publish" DAEMON_DIR="../publish-daemon" ./build_rpm.sh
-
-    - name: Verify RPM man page
-      run: |
-        set -euo pipefail
-        rpm_file="$(ls -1 scripts/*.rpm | head -n 1)"
-        rpm -qpl "$rpm_file" | grep -E '^/usr/share/man/man1/crossmacro\.1(\.gz)?$'
-
-    - name: Verify RPM runtime dependencies
-      run: |
-        set -euo pipefail
-        rpm_file="$(find scripts -maxdepth 1 -type f -name '*.rpm' ! -name '*aarch64*.rpm' | head -n 1)"
-        if [ -z "$rpm_file" ]; then
-          echo "No x64 RPM artifact found in scripts/."
-          exit 1
-        fi
-
-        requires="$(rpm -qpR "$rpm_file")"
-        printf '%s\n' "$requires"
-        for dependency in libicu; do
-          if ! printf '%s\n' "$requires" | grep -Fx "$dependency" >/dev/null; then
-            echo "RPM is missing runtime dependency: $dependency"
-            exit 1
-          fi
-        done
-
-    - name: CLI Smoke (RPM x64)
-      run: |
-        set -euo pipefail
-        rpm_file="$(find scripts -maxdepth 1 -type f -name '*.rpm' ! -name '*aarch64*.rpm' | head -n 1)"
-        if [ -z "$rpm_file" ]; then
-          echo "No x64 RPM artifact found in scripts/."
-          exit 1
-        fi
-        rpm_file_name="$(basename "$rpm_file")"
-        docker run --rm --platform linux/amd64 \
-          -v "$PWD/scripts":/artifacts:ro \
-          -e RPM_FILE_NAME="$rpm_file_name" \
-          "$FEDORA_X64_IMAGE" \
-          bash -lc '
-            set -euo pipefail
-            dnf -y install polkit libXtst libX11 libXcursor libXrandr fontconfig >/dev/null
-            dnf -y install "/artifacts/${RPM_FILE_NAME}" >/dev/null
-
-            set +e
-            help_output="$(/usr/bin/crossmacro --help 2>&1)"
-            help_code=$?
-            set -e
-            echo "$help_output"
-            test "$help_code" -eq 0
-            echo "$help_output" | grep -F "Usage:"
-
-            set +e
-            settings_output="$(/usr/bin/crossmacro settings get --json 2>&1)"
-            settings_code=$?
-            set -e
-            echo "$settings_output"
-            test "$settings_code" -eq 0
-            echo "$settings_output" | grep -F "\"status\": \"ok\""
-            echo "$settings_output" | grep -F "\"code\": 0"
-
-            set +e
-            dry_run_output="$(/usr/bin/crossmacro run --step "move abs 10 10" --step "click left" --dry-run --json 2>&1)"
-            dry_run_code=$?
-            set -e
-            echo "$dry_run_output"
-            test "$dry_run_code" -eq 0
-            echo "$dry_run_output" | grep -F "\"status\": \"ok\""
-            echo "$dry_run_output" | grep -F "\"code\": 0"
-            echo "$dry_run_output" | grep -F "\"coordinateMode\": \"absolute\""
-          '
-    
-    - name: Upload RPM artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: rpm-package-${{ matrix.arch_suffix }}
-        path: |
-          scripts/*.rpm
-        retention-days: 1
-
-  package-rpm-arm64:
-    name: Package RPM (arm64)
-    needs: [build-core, build-linux-binaries]
-    runs-on: ubuntu-24.04-arm
-    env:
-      FEDORA_ARM64_IMAGE: fedora:41
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-
-    - name: Download Linux UI binary (arm64)
-      uses: actions/download-artifact@v8
-      with:
-        name: linux-binary-arm64
-        path: publish/
-
-    - name: Download Linux Daemon binary (arm64)
-      uses: actions/download-artifact@v8
-      with:
-        name: linux-daemon-arm64
-        path: publish-daemon/
-
-    - name: Build RPM package (arm64 in container)
-      run: |
-        docker run --rm --platform linux/arm64 \
-          -v "$PWD":/work \
-          -w /work/scripts \
-          "$FEDORA_ARM64_IMAGE" \
-          bash -lc '
-            set -euo pipefail
-            dnf -y install rpm-build checkpolicy policycoreutils patchelf file >/dev/null
-            VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" TARGET_ARCH=aarch64 RPM_ARCH=aarch64 \
-              PUBLISH_DIR=/work/publish \
-              DAEMON_DIR=/work/publish-daemon \
-              ./build_rpm.sh
-          '
-
-    - name: Verify RPM man page (arm64)
-      run: |
-        set -euo pipefail
-        rpm_file="$(find scripts -maxdepth 1 -type f -name '*aarch64*.rpm' | head -n 1)"
-        if [ -z "$rpm_file" ]; then
-          echo "No arm64 RPM artifact found in scripts/."
-          exit 1
-        fi
-        rpm_file_name="$(basename "$rpm_file")"
-        docker run --rm --platform linux/arm64 \
-          -v "$PWD/scripts":/artifacts:ro \
-          -e RPM_FILE_NAME="$rpm_file_name" \
-          "$FEDORA_ARM64_IMAGE" \
-          bash -lc '
-            set -euo pipefail
-            dnf -y install rpm >/dev/null
-            rpm -qpl "/artifacts/${RPM_FILE_NAME}" | grep -E "^/usr/share/man/man1/crossmacro\.1(\.gz)?$"
-          '
-
-    - name: Verify RPM runtime dependencies (arm64)
-      run: |
-        set -euo pipefail
-        rpm_file="$(find scripts -maxdepth 1 -type f -name '*aarch64*.rpm' | head -n 1)"
-        if [ -z "$rpm_file" ]; then
-          echo "No arm64 RPM artifact found in scripts/."
-          exit 1
-        fi
-        rpm_file_name="$(basename "$rpm_file")"
-        docker run --rm --platform linux/arm64 \
-          -v "$PWD/scripts":/artifacts:ro \
-          -e RPM_FILE_NAME="$rpm_file_name" \
-          "$FEDORA_ARM64_IMAGE" \
-          bash -lc '
-            set -euo pipefail
-            dnf -y install rpm >/dev/null
-            requires="$(rpm -qpR "/artifacts/${RPM_FILE_NAME}")"
-            printf "%s\n" "$requires"
-            for dependency in libicu; do
-              if ! printf "%s\n" "$requires" | grep -Fx "$dependency" >/dev/null; then
-                echo "RPM is missing runtime dependency: $dependency"
-                exit 1
-              fi
-            done
-          '
-
-    - name: CLI Smoke (RPM arm64)
-      run: |
-        set -euo pipefail
-        rpm_file="$(find scripts -maxdepth 1 -type f -name '*aarch64*.rpm' | head -n 1)"
-        if [ -z "$rpm_file" ]; then
-          echo "No arm64 RPM artifact found in scripts/."
-          exit 1
-        fi
-        rpm_file_name="$(basename "$rpm_file")"
-        docker run --rm --platform linux/arm64 \
-          -v "$PWD/scripts":/artifacts:ro \
-          -e RPM_FILE_NAME="$rpm_file_name" \
-          "$FEDORA_ARM64_IMAGE" \
-          bash -lc '
-            set -euo pipefail
-            dnf -y install polkit libXtst libX11 libXcursor libXrandr fontconfig >/dev/null
-            dnf -y install "/artifacts/${RPM_FILE_NAME}" >/dev/null
-
-            set +e
-            help_output="$(/usr/bin/crossmacro --help 2>&1)"
-            help_code=$?
-            set -e
-            echo "$help_output"
-            test "$help_code" -eq 0
-            echo "$help_output" | grep -F "Usage:"
-
-            set +e
-            settings_output="$(/usr/bin/crossmacro settings get --json 2>&1)"
-            settings_code=$?
-            set -e
-            echo "$settings_output"
-            test "$settings_code" -eq 0
-            echo "$settings_output" | grep -F "\"status\": \"ok\""
-            echo "$settings_output" | grep -F "\"code\": 0"
-
-            set +e
-            dry_run_output="$(/usr/bin/crossmacro run --step "move abs 10 10" --step "click left" --dry-run --json 2>&1)"
-            dry_run_code=$?
-            set -e
-            echo "$dry_run_output"
-            test "$dry_run_code" -eq 0
-            echo "$dry_run_output" | grep -F "\"status\": \"ok\""
-            echo "$dry_run_output" | grep -F "\"code\": 0"
-            echo "$dry_run_output" | grep -F "\"coordinateMode\": \"absolute\""
-          '
-
-    - name: Upload RPM artifact (arm64)
-      uses: actions/upload-artifact@v7
-      with:
-        name: rpm-package-arm64
-        path: |
-          scripts/*aarch64*.rpm
-        retention-days: 1
-
-  package-appimage:
-    name: Package AppImage (${{ matrix.arch_suffix }})
-    needs: [build-core, build-linux-binaries]
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch_suffix: x64
-            target_arch: x86_64
-            appimage_arch: x86_64
-            appimagetool_host_arch: x86_64
-            appimagetool_sha256: ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
-            runner: ubuntu-latest
-          - arch_suffix: arm64
-            target_arch: aarch64
-            appimage_arch: aarch64
-            appimagetool_host_arch: aarch64
-            appimagetool_sha256: f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158
-            runner: ubuntu-24.04-arm
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-    
-    - name: Download Linux binary
-      uses: actions/download-artifact@v8
-      with:
-        name: linux-binary-${{ matrix.arch_suffix }}
-        path: publish/
-    
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y file desktop-file-utils patchelf jq pkg-config libxtst6
-    
-    - name: Build AppImage
-      run: |
-        cd scripts
-        chmod +x build_appimage.sh
-        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" APPIMAGE_ARCH="${{ matrix.appimage_arch }}" APPIMAGETOOL_HOST_ARCH="${{ matrix.appimagetool_host_arch }}" APPIMAGETOOL_SHA256="${{ matrix.appimagetool_sha256 }}" PUBLISH_DIR="../publish" APPIMAGE_EXTRACT_AND_RUN=1 ./build_appimage.sh
-    
-    - name: Upload AppImage artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: appimage-package-${{ matrix.arch_suffix }}
-        path: |
-          scripts/*-${{ matrix.appimage_arch }}.AppImage
-        retention-days: 1
-
-  package-flatpak:
-    name: Package Flatpak (${{ matrix.arch_suffix }})
-    needs: [build-core, build-linux-binaries]
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch_suffix: x64
-            target_arch: x86_64
-            flatpak_arch: x86_64
-            runner: ubuntu-latest
-          - arch_suffix: arm64
-            target_arch: aarch64
-            flatpak_arch: aarch64
-            runner: ubuntu-24.04-arm
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-    
-    - name: Download Linux binary
-      uses: actions/download-artifact@v8
-      with:
-        name: linux-binary-${{ matrix.arch_suffix }}
-        path: publish/
-    
-    - name: Install Flatpak tools
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y flatpak flatpak-builder
-        flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-        flatpak install --user -y flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
-    
-    - name: Build Flatpak
-      run: |
-        cd scripts
-        chmod +x build_flatpak.sh
-        VERSION="${{ needs.build-core.outputs.version }}" SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.build-core.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" FLATPAK_ARCH="${{ matrix.flatpak_arch }}" ./build_flatpak.sh
-    
-    - name: Upload Flatpak artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: flatpak-package-${{ matrix.arch_suffix }}
-        path: |
-          flatpak/*-${{ matrix.flatpak_arch }}.flatpak
-        retention-days: 1
+    if: github.event.inputs.publish_existing_release != 'true'
+    uses: ./.github/workflows/_package-linux.yml
+    with:
+      version: ${{ needs.build-core.outputs.version }}
+      source_tag: ${{ needs.build-core.outputs.source_tag }}
+      canonical_version: ${{ needs.build-core.outputs.package_version_canonical }}
+      artifact_prefix: linux-packages
+      smoke_enabled: true
+      release_mode: true
+      upload_enabled: true
+      retention_days: 1
+      build_run_id: ${{ github.run_id }}
+      attach_flatpak: ${{ github.event.inputs.attach_flatpak == 'true' }}
 
   package-windows:
     name: Package Windows
     needs: build-core
+    if: github.event.inputs.publish_existing_release != 'true'
+    uses: ./.github/workflows/_package-windows.yml
+    with:
+      version: ${{ needs.build-core.outputs.version }}
+      canonical_version: ${{ needs.build-core.outputs.package_version_canonical }}
+      source_tag: ${{ needs.build-core.outputs.source_tag }}
+      artifact_prefix: windows-packages
+      smoke_enabled: true
+      attach_msix: ${{ github.event.inputs.attach_msix == 'true' }}
+      release_mode: true
+      upload_enabled: true
+      retention_days: 1
+
+  package-macos:
+    name: Package macOS
+    needs: build-core
+    if: github.event.inputs.publish_existing_release != 'true'
+    uses: ./.github/workflows/_package-macos.yml
+    with:
+      version: ${{ needs.build-core.outputs.version }}
+      source_tag: ${{ needs.build-core.outputs.source_tag }}
+      canonical_version: ${{ needs.build-core.outputs.package_version_canonical }}
+      artifact_prefix: macos-packages
+      smoke_enabled: true
+      release_mode: true
+      upload_enabled: true
+      retention_days: 1
+
+  # ============================================
+  # Stage 3: Stage and Validate Release Assets
+  # ============================================
+  stage-release-assets:
+    name: Stage Release Assets
+    needs: [build-core, package-linux, package-windows, package-macos]
+    if: |
+      always() &&
+      !cancelled() &&
+      github.event.inputs.publish_existing_release != 'true' &&
+      needs.build-core.result == 'success' &&
+      needs.package-linux.result == 'success' &&
+      needs.package-windows.result == 'success' &&
+      needs.package-macos.result == 'success'
     runs-on: ubuntu-latest
     steps:
-    - name: Download Windows binary
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        ref: ${{ needs.build-core.outputs.source_tag }}
+
+    - name: Download all artifacts
       uses: actions/download-artifact@v8
       with:
-        name: windows-binary
-        path: publish-windows/
+        path: artifacts/
 
-    - name: Rename executable
-      run: |
-        mv publish-windows/CrossMacro.UI.exe publish-windows/CrossMacro-${{ needs.build-core.outputs.package_version_canonical }}-win-x64.exe
-
-    - name: Verify portable Windows package is single executable
+    - name: Stage release files
       run: |
         set -euo pipefail
-        unexpected_directories="$(find publish-windows -mindepth 1 -maxdepth 1 -type d -print | sort)"
-        if [ -n "$unexpected_directories" ]; then
-          echo "Windows package artifact contains unexpected directories."
-          printf '%s\n' "$unexpected_directories"
-          exit 1
+        mkdir -p release-staging
+        shopt -s nullglob
+
+        files=(
+          artifacts/linux-packages-deb-*/*.deb
+          artifacts/linux-packages-rpm-*/*.rpm
+          artifacts/linux-packages-appimage-*/*.AppImage
+          artifacts/windows-package/*.zip
+          artifacts/macos-arm64-package/*.dmg
+          artifacts/macos-x64-package/*.dmg
+        )
+
+        if [ "${{ github.event.inputs.attach_flatpak }}" = "true" ]; then
+          files+=(
+            artifacts/linux-packages-flatpak-x64-*/*-x86_64.flatpak
+            artifacts/linux-packages-flatpak-arm64-*/*-aarch64.flatpak
+          )
+        fi
+        if [ "${{ github.event.inputs.attach_msix }}" = "true" ]; then
+          files+=(artifacts/msix-package/CrossMacro-${{ needs.build-core.outputs.package_version_canonical }}-x64.msix)
         fi
 
-        exe_count="$(find publish-windows -maxdepth 1 -type f -name '*.exe' | wc -l)"
-        file_count="$(find publish-windows -maxdepth 1 -type f | wc -l)"
-        if [ "$exe_count" -ne 1 ] || [ "$file_count" -ne 1 ]; then
-          echo "Windows package artifact must contain exactly one EXE and no extra files."
-          find publish-windows -maxdepth 1 -type f -print | sort
-          exit 1
+        for file in "${files[@]}"; do
+          cp "$file" "release-staging/$(basename "$file")"
+        done
+
+        find release-staging -maxdepth 1 -type f -print | sort
+
+    - name: Generate and verify SHA256SUMS
+      run: |
+        bash scripts/ci/generate-checksums.sh \
+          --directory release-staging \
+          --version "${{ needs.build-core.outputs.package_version_canonical }}" \
+          --attach-flatpak "${{ github.event.inputs.attach_flatpak }}" \
+          --attach-msix "${{ github.event.inputs.attach_msix }}"
+
+    - name: Verify release artifact manifest
+      run: |
+        python3 scripts/ci/verify_artifacts.py \
+          --directory release-staging \
+          --version "${{ needs.build-core.outputs.package_version_canonical }}" \
+          --attach-flatpak "${{ github.event.inputs.attach_flatpak }}" \
+          --attach-msix "${{ github.event.inputs.attach_msix }}"
+
+    - name: Upload staged release candidate
+      uses: actions/upload-artifact@v7
+      with:
+        name: release-candidate-assets
+        path: release-staging/
+        retention-days: 30
+
+  # ============================================
+  # Stage 4: Publish Release (manual opt-in)
+  # ============================================
+  create-release:
+    name: Create Release
+    needs: [build-core, stage-release-assets]
+    if: github.event.inputs.publish_release == 'true' && github.event.inputs.publish_existing_release != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Resolve release metadata
+      id: release_meta
+      run: |
+        set -euo pipefail
+        VERSION="${{ needs.build-core.outputs.version }}"
+        PACKAGE_VERSION="${{ needs.build-core.outputs.package_version_canonical }}"
+        TAG="${{ needs.build-core.outputs.source_tag }}"
+        DERIVED_PRERELEASE="${{ needs.build-core.outputs.is_prerelease_release }}"
+        INPUT_PRERELEASE="${{ github.event.inputs.prerelease }}"
+
+        if [ "$INPUT_PRERELEASE" = "auto" ]; then
+          PRERELEASE="$DERIVED_PRERELEASE"
+        else
+          PRERELEASE="$INPUT_PRERELEASE"
         fi
 
-        test -f publish-windows/CrossMacro-${{ needs.build-core.outputs.package_version_canonical }}-win-x64.exe
+        if [ "$PRERELEASE" = "true" ]; then
+          MAKE_LATEST="false"
+          RELEASE_NAME="CrossMacro v${PACKAGE_VERSION} (Pre-release)"
+        else
+          MAKE_LATEST="true"
+          RELEASE_NAME="CrossMacro v${VERSION}"
+        fi
 
-    - name: Upload Windows artifact
-      uses: actions/upload-artifact@v7
+        echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+        echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
+        echo "make_latest=${MAKE_LATEST}" >> "$GITHUB_OUTPUT"
+        echo "release_name=${RELEASE_NAME}" >> "$GITHUB_OUTPUT"
+
+    - name: Download staged release candidate
+      uses: actions/download-artifact@v8
       with:
-        name: windows-package
-        path: |
-          publish-windows/*.exe
-        retention-days: 1
+        name: release-candidate-assets
+        path: release-staging/
 
-  package-msix:
-    name: Package MSIX (Store)
-    needs: build-core
-    runs-on: windows-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+    - name: Upload to Release
+      # Pinned from softprops/action-gh-release@v3 on 2026-05-09.
+      # Update by checking the current v3 tag, reviewing upstream changes, then replacing this SHA.
+      uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda
       with:
-        dotnet-version: '10.0.x'
-
-    - name: Build Windows binary for MSIX
-      shell: pwsh
-      run: |
-        dotnet publish src/CrossMacro.UI.Windows/CrossMacro.UI.Windows.csproj `
-          -c Release `
-          -r win-x64 `
-          --self-contained true `
-          -p:PublishSingleFile=false `
-          -p:PublishTrimmed=false `
-          -p:PublishReadyToRun=false `
-          -p:DebugType=None `
-          -p:DebugSymbols=false `
-          -p:Version=${{ needs.build-core.outputs.version }} `
-          -o msix-content/
-
-    - name: Prepare MSIX content
-      shell: pwsh
-      run: |
-        ./scripts/msix/prepare-msix.ps1 -Version "${{ needs.build-core.outputs.version }}" -OutputDir "msix-content"
-
-    - name: Create MSIX package
-      shell: pwsh
-      run: |
-        $sdkPath = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\10.*\x64\makeappx.exe" |
-                   Sort-Object -Descending | Select-Object -First 1
-        & $sdkPath pack /d msix-content /p CrossMacro-${{ needs.build-core.outputs.package_version_canonical }}.msix /nv
-
-    - name: Upload MSIX artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: msix-package
-        path: "*.msix"
-        retention-days: 1
-
-  # macOS builds run on macOS runner (can't cross-compile from Linux)
-  build-macos-arm64:
-    name: Build macOS (ARM64)
-    needs: build-core
-    runs-on: macos-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-    
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v5
-      with:
-        dotnet-version: '10.0.x'
-    
-    - name: Install create-dmg
-      run: |
-        brew install create-dmg
-    
-    - name: Build and Package DMG
-      run: |
-        chmod +x scripts/build_macos.sh
-        ./scripts/build_macos.sh
+        name: ${{ steps.release_meta.outputs.release_name }}
+        tag_name: ${{ steps.release_meta.outputs.tag }}
+        target_commitish: ${{ needs.build-core.outputs.source_tag_sha }}
+        draft: ${{ github.event.inputs.draft }}
+        prerelease: ${{ steps.release_meta.outputs.prerelease }}
+        make_latest: ${{ steps.release_meta.outputs.make_latest }}
+        files: release-staging/*
+        overwrite_files: true
       env:
-        RID: osx-arm64
-        VERSION: ${{ needs.build-core.outputs.version }}
-        SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
-        PACKAGE_VERSION_CANONICAL: ${{ needs.build-core.outputs.package_version_canonical }}
-    
-    - name: Upload macOS ARM64 DMG
-      uses: actions/upload-artifact@v7
-      with:
-        name: macos-arm64-package
-        path: scripts/macos_output/*.dmg
-        retention-days: 1
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-macos-x64:
-    name: Build macOS (x64)
+  verify-existing-release:
+    name: Verify Existing Release
     needs: build-core
-    runs-on: macos-latest
+    if: github.event.inputs.publish_existing_release == 'true'
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
-    
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v5
       with:
-        dotnet-version: '10.0.x'
-    
-    - name: Install create-dmg
-      run: |
-        brew install create-dmg
-    
-    - name: Build and Package DMG
-      run: |
-        chmod +x scripts/build_macos.sh
-        ./scripts/build_macos.sh
+        ref: ${{ needs.build-core.outputs.source_tag }}
+
+    - name: Verify release exists
       env:
-        RID: osx-x64
-        VERSION: ${{ needs.build-core.outputs.version }}
+        GH_TOKEN: ${{ github.token }}
         SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
-        PACKAGE_VERSION_CANONICAL: ${{ needs.build-core.outputs.package_version_canonical }}
-    
-    - name: Upload macOS x64 DMG
-      uses: actions/upload-artifact@v7
-      with:
-        name: macos-x64-package
-        path: scripts/macos_output/*.dmg
-        retention-days: 1
+      run: |
+        set -euo pipefail
+        gh release view "$SOURCE_TAG" --repo "$GITHUB_REPOSITORY" > /dev/null
+
+    - name: Download existing release assets
+      env:
+        GH_TOKEN: ${{ github.token }}
+        SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
+      run: |
+        set -euo pipefail
+        mkdir -p release-existing
+        gh release download "$SOURCE_TAG" \
+          --repo "$GITHUB_REPOSITORY" \
+          --dir release-existing \
+          --pattern '*'
+
+    - name: Verify existing release asset manifest
+      run: |
+        python3 scripts/ci/verify_artifacts.py \
+          --directory release-existing \
+          --version "${{ needs.build-core.outputs.package_version_canonical }}" \
+          --attach-flatpak "${{ github.event.inputs.attach_flatpak }}" \
+          --attach-msix "${{ github.event.inputs.attach_msix }}"
 
   update-aur:
     name: Update AUR
-    needs: [create-release, build-core]
+    needs: [build-core, create-release, verify-existing-release]
     if: |
-      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && needs.build-core.outputs.is_prerelease_release != 'true') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_prerelease == 'true' && github.event.inputs.publish_aur == 'true')
+      always() &&
+      !cancelled() &&
+      needs.build-core.result == 'success' &&
+      (needs.create-release.result == 'success' || needs.verify-existing-release.result == 'success') &&
+      (github.event.inputs.publish_release == 'true' || github.event.inputs.publish_existing_release == 'true') &&
+      github.event.inputs.publish_aur == 'true' &&
+      needs.build-core.outputs.is_prerelease_release != 'true'
     runs-on: ubuntu-latest
     container: archlinux:base-devel
     steps:
@@ -919,8 +398,13 @@ jobs:
     - name: Add AUR host key
       run: |
         mkdir -p ~/.ssh
-        ssh-keyscan -H -t ed25519 aur.archlinux.org > ~/.ssh/known_hosts
-        grep -q "ssh-ed25519" ~/.ssh/known_hosts
+        EXPECTED_AUR_ED25519_FINGERPRINT="SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4"
+        ssh-keyscan -t ed25519 aur.archlinux.org > ~/.ssh/known_hosts.raw
+        ACTUAL_AUR_ED25519_FINGERPRINT="$(ssh-keygen -lf ~/.ssh/known_hosts.raw | awk '{print $2}')"
+        test "$ACTUAL_AUR_ED25519_FINGERPRINT" = "$EXPECTED_AUR_ED25519_FINGERPRINT"
+        ssh-keygen -H -f ~/.ssh/known_hosts.raw
+        mv ~/.ssh/known_hosts.raw ~/.ssh/known_hosts
+        rm -f ~/.ssh/known_hosts.raw.old
         chmod 600 ~/.ssh/known_hosts
         
 
@@ -979,12 +463,26 @@ jobs:
         sed -i -E "s#(https://github.com/alper-han/CrossMacro/archive/)[^\" ]+(\\.tar\\.gz)#\\1${SOURCE_TAG}\\2#" PKGBUILD
         # GitHub tag archives extract into CrossMacro-<tag-without-v>, which differs from normalized AUR pkgver on prereleases.
         AUR_SRC_DIR="${SOURCE_TAG#v}"
-        sed -i "s#cd \\\"CrossMacro-\\\${pkgver}\\\"#cd \\\"CrossMacro-${AUR_SRC_DIR}\\\"#g" PKGBUILD
+        sed -i "s#cd \"CrossMacro-\\${pkgver}\"#cd \"CrossMacro-${AUR_SRC_DIR}\"#g" PKGBUILD
         
         # Calculate and update checksum for source tarball only
         wget "https://github.com/alper-han/CrossMacro/archive/$SOURCE_TAG.tar.gz" -O source.tar.gz
         SHA256=$(sha256sum source.tar.gz | cut -d' ' -f1)
-        sed -i "/^sha256sums=/,/)$/c\\sha256sums=('$SHA256'\n            'SKIP'\n            'SKIP')  # sysusers and modules config checksums (local files)" PKGBUILD
+        awk -v sha="$SHA256" '
+          /^sha256sums=\(/ {
+            print "sha256sums=(\047" sha "\047"
+            print "            \047SKIP\047"
+            print "            \047SKIP\047)"
+            skipping=1
+            next
+          }
+          skipping && /^\)/ {
+            skipping=0
+            next
+          }
+          !skipping { print }
+        ' PKGBUILD > PKGBUILD.tmp
+        mv PKGBUILD.tmp PKGBUILD
         rm source.tar.gz
         
         # Update .SRCINFO
@@ -1024,115 +522,23 @@ jobs:
         rm -f ~/.ssh/known_hosts
         rm -rf aur-repo
 
-  # ============================================
-  # Stage 3: Create Release (after all packages ready)
-  # ============================================
-  create-release:
-    name: Create Release
-    needs: [build-core, package-deb, package-rpm, package-rpm-arm64, package-appimage, package-windows, build-macos-arm64, build-macos-x64]
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_prerelease == 'true')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-    - name: Resolve release metadata
-      id: release_meta
-      run: |
-        VERSION="${{ needs.build-core.outputs.version }}"
-        PACKAGE_VERSION="${{ needs.build-core.outputs.package_version_canonical }}"
-        TAG="${{ needs.build-core.outputs.source_tag }}"
-        IS_PRERELEASE="${{ needs.build-core.outputs.is_prerelease_release }}"
-
-        if [ "$IS_PRERELEASE" = "true" ]; then
-          PRERELEASE="true"
-          MAKE_LATEST="false"
-          RELEASE_NAME="CrossMacro v${PACKAGE_VERSION} (Pre-release)"
-        else
-          PRERELEASE="false"
-          MAKE_LATEST="true"
-          RELEASE_NAME="CrossMacro v${VERSION}"
-        fi
-
-        echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-        echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
-        echo "make_latest=${MAKE_LATEST}" >> "$GITHUB_OUTPUT"
-        echo "release_name=${RELEASE_NAME}" >> "$GITHUB_OUTPUT"
-
-    - name: Download all artifacts
-      uses: actions/download-artifact@v8
-      with:
-        path: artifacts/
-    
-    - name: Generate checksums
-      run: |
-        cd artifacts
-        sha256sum deb-package-*/*.deb > crossmacro-deb.sha256
-        sha256sum rpm-package-*/*.rpm > crossmacro-rpm.sha256
-        sha256sum appimage-package-*/*.AppImage > crossmacro-appimage.sha256
-        sha256sum windows-package/*.exe > crossmacro-windows.sha256
-        sha256sum macos-arm64-package/*.dmg > crossmacro-macos-arm64.sha256
-        sha256sum macos-x64-package/*.dmg > crossmacro-macos-x64.sha256
-
-    - name: Generate per-file checksums
-      run: |
-        set -euo pipefail
-        cd artifacts
-        mkdir -p checksums
-        shopt -s nullglob
-        files=(
-          deb-package-*/*.deb
-          rpm-package-*/*.rpm
-          appimage-package-*/*.AppImage
-          windows-package/*.exe
-          macos-arm64-package/*.dmg
-          macos-x64-package/*.dmg
-        )
-        for f in "${files[@]}"; do
-          base="$(basename "$f")"
-          sha256sum "$f" | sed -E "s#  .*#  ${base}#" > "checksums/${base}.sha256"
-        done
-
-    - name: Upload per-file checksums (artifact only)
-      uses: actions/upload-artifact@v7
-      with:
-        name: checksums-per-file
-        path: artifacts/checksums/*.sha256
-        retention-days: 30
-    
-    - name: Upload to Release
-      uses: softprops/action-gh-release@v3
-      with:
-        name: ${{ steps.release_meta.outputs.release_name }}
-        tag_name: ${{ steps.release_meta.outputs.tag }}
-        target_commitish: ${{ github.sha }}
-        draft: false
-        prerelease: ${{ steps.release_meta.outputs.prerelease }}
-        make_latest: ${{ steps.release_meta.outputs.make_latest }}
-        files: |
-          artifacts/deb-package-*/*.deb
-          artifacts/crossmacro-deb.sha256
-          artifacts/rpm-package-*/*.rpm
-          artifacts/crossmacro-rpm.sha256
-          artifacts/appimage-package-*/*.AppImage
-          artifacts/crossmacro-appimage.sha256
-          artifacts/windows-package/*.exe
-          artifacts/crossmacro-windows.sha256
-          artifacts/macos-arm64-package/*.dmg
-          artifacts/crossmacro-macos-arm64.sha256
-          artifacts/macos-x64-package/*.dmg
-          artifacts/crossmacro-macos-x64.sha256
-        overwrite_files: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   publish-winget:
     name: Publish to Winget
-    needs: [create-release, build-core]
+    needs: [build-core, create-release, verify-existing-release]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && needs.build-core.outputs.is_prerelease_release != 'true'
+    if: |
+      always() &&
+      !cancelled() &&
+      needs.build-core.result == 'success' &&
+      (needs.create-release.result == 'success' || needs.verify-existing-release.result == 'success') &&
+      (github.event.inputs.publish_release == 'true' || github.event.inputs.publish_existing_release == 'true') &&
+      github.event.inputs.publish_winget == 'true' &&
+      needs.build-core.outputs.is_prerelease_release != 'true'
     steps:
       - name: Publish to Winget
-        uses: alper-han/winget-releaser@main
+        # Pinned from alper-han/winget-releaser@main on 2026-05-09.
+        # Update by checking the current main branch, reviewing upstream changes, then replacing this SHA.
+        uses: alper-han/winget-releaser@19e706d4c9121098010096f9c495a70a7518b30f
         with:
           identifier: AlperHan.CrossMacro
           token: ${{ secrets.WINGET_TOKEN }}

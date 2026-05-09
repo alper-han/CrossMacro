@@ -76,17 +76,23 @@ jobs:
         if: ${{ inputs.smoke_enabled }}
         shell: pwsh
         run: |
-          ./scripts/smoke/windows-portable.ps1 -Path publish-windows/CrossMacro.UI.exe
+          ./scripts/smoke/windows-portable.ps1 -Path publish-windows
 
       - name: Stage Windows portable release ZIP
         if: ${{ inputs.release_mode }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $exePath = 'publish-windows/CrossMacro.UI.exe'
+          $files = @(Get-ChildItem -LiteralPath publish-windows -File)
+          $exeFiles = @($files | Where-Object { $_.Extension -ieq '.exe' })
+          if ($files.Count -ne 1 -or $exeFiles.Count -ne 1) {
+              Write-Error "Windows portable publish must contain exactly one EXE before release staging: $($files.Name -join ', ')"
+              exit 1
+          }
+
           $renamedExe = 'publish-windows/CrossMacro-${{ inputs.canonical_version }}-win-x64.exe'
           $archive = 'publish-windows/CrossMacro-${{ inputs.canonical_version }}-win-x64.zip'
-          Move-Item -LiteralPath $exePath -Destination $renamedExe
+          Move-Item -LiteralPath $exeFiles[0].FullName -Destination $renamedExe
           Compress-Archive -LiteralPath $renamedExe -DestinationPath $archive -Force
           Remove-Item -LiteralPath $renamedExe -Force
 
@@ -121,7 +127,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs.release_mode && 'windows-package' || format('{0}-portable-x64-{1}', inputs.artifact_prefix, github.run_id) }}
-          path: ${{ inputs.release_mode && 'publish-windows/*.zip' || 'publish-windows/CrossMacro.UI.exe' }}
+          path: ${{ inputs.release_mode && 'publish-windows/*.zip' || 'publish-windows/*.exe' }}
           retention-days: ${{ inputs.retention_days }}
 
   package-msix:

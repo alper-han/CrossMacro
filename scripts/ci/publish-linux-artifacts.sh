@@ -80,8 +80,10 @@ while [ "$#" -gt 0 ]; do
             shift 2
             ;;
         --daemon-publish-args)
-            require_value "$@"
-            DAEMON_PUBLISH_ARGS="$2"
+            if [ "$#" -lt 2 ]; then
+                fail "missing value for $1"
+            fi
+            DAEMON_PUBLISH_ARGS="${2:-}"
             shift 2
             ;;
         --smoke-helper)

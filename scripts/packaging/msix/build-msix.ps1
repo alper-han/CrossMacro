@@ -172,17 +172,28 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
+$expectedExecutable = Join-Path $resolvedOutputDir 'CrossMacro.UI.exe'
+if (-not (Test-Path -LiteralPath $expectedExecutable -PathType Leaf)) {
+    $publishedExecutables = @(Get-ChildItem -LiteralPath $resolvedOutputDir -Filter '*.exe' -File)
+    if ($publishedExecutables.Count -ne 1) {
+        Fail-MsixBuild "MSIX publish output must contain CrossMacro.UI.exe or exactly one EXE; found $($publishedExecutables.Count): $($publishedExecutables.Name -join ', ')"
+    }
+
+    Move-Item -LiteralPath $publishedExecutables[0].FullName -Destination $expectedExecutable
+}
+
 & $prepareScript -Version $Version -ManifestPath $manifestPath -AssetsPath $assetsPath -OutputDir $resolvedOutputDir
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
 $expectedMsixVersion = "$Version.0"
-$stagedSmokeArgs = @('-Path', $resolvedOutputDir, '-Staged', '-ExpectedVersion', $expectedMsixVersion)
 if ($NoCli) {
-    $stagedSmokeArgs += '-NoCli'
+    & $smokeScript -Path $resolvedOutputDir -Staged -ExpectedVersion $expectedMsixVersion -NoCli
 }
-& $smokeScript @stagedSmokeArgs
+else {
+    & $smokeScript -Path $resolvedOutputDir -Staged -ExpectedVersion $expectedMsixVersion
+}
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
@@ -211,11 +222,12 @@ finally {
     }
 }
 
-$packageSmokeArgs = @('-Path', $resolvedPackagePath, '-ExpectedVersion', $expectedMsixVersion)
 if ($NoCli) {
-    $packageSmokeArgs += '-NoCli'
+    & $smokeScript -Path $resolvedPackagePath -ExpectedVersion $expectedMsixVersion -NoCli
 }
-& $smokeScript @packageSmokeArgs
+else {
+    & $smokeScript -Path $resolvedPackagePath -ExpectedVersion $expectedMsixVersion
+}
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }

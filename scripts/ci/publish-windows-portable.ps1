@@ -127,19 +127,16 @@ if ($executables.Count -ne 1) {
     Fail-PortablePublish "publish output must contain exactly one EXE; found $($executables.Count): $($files.Name -join ', ')"
 }
 
-$expectedExecutable = Join-Path $resolvedOutputDir 'CrossMacro.UI.exe'
-if (-not (Test-Path -LiteralPath $expectedExecutable -PathType Leaf)) {
-    Fail-PortablePublish "expected CrossMacro.UI.exe in portable publish output"
-}
+$publishedExecutable = $executables[0].FullName
 
-$smokeArgs = @('-Path', $expectedExecutable)
 if ($NoCli) {
-    $smokeArgs += '-NoCli'
+    & $smokeScript -Path $publishedExecutable -NoCli
 }
-
-& $smokeScript @smokeArgs
+else {
+    & $smokeScript -Path $publishedExecutable
+}
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-Write-Output "Windows portable publish: OK ($expectedExecutable)"
+Write-Output "Windows portable publish: OK ($publishedExecutable)"

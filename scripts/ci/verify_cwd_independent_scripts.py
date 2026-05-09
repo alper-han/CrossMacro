@@ -232,7 +232,8 @@ def verify_powershell_wrappers(repo: Path) -> list[CheckResult]:
         expected = [
             "$ScriptDir = if ($PSScriptRoot)",
             f"$TargetScript = Join-Path $ScriptDir '{target}'",
-            "& $TargetScript @args",
+            "$forwardArgs = @",
+            "& $TargetScript @forwardArgs",
             "exit $LASTEXITCODE",
         ]
         details = ["missing wrapper delegation: " + item for item in expected if item not in text]

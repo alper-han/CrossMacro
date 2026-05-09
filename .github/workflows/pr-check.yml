@@ -244,14 +244,22 @@ jobs:
         sudo apt-get install -y clang build-essential
 
     - name: Publish and smoke Linux artifacts
+      env:
+        DAEMON_PUBLISH_ARGS: ${{ matrix.daemon_publish_args }}
       run: |
-        bash scripts/ci/publish-linux-artifacts.sh \
+        args=(
           --rid "${{ matrix.dotnet_rid }}" \
           --arch "${{ matrix.target_arch }}" \
           --version "${{ needs.pr-release-metadata.outputs.version }}" \
           --ui-output "publish-linux-${{ matrix.arch_suffix }}" \
-          --daemon-output "publish-daemon-${{ matrix.arch_suffix }}" \
-          --daemon-publish-args "${{ matrix.daemon_publish_args }}"
+          --daemon-output "publish-daemon-${{ matrix.arch_suffix }}"
+        )
+
+        if [ -n "$DAEMON_PUBLISH_ARGS" ]; then
+          args+=(--daemon-publish-args "$DAEMON_PUBLISH_ARGS")
+        fi
+
+        bash scripts/ci/publish-linux-artifacts.sh "${args[@]}"
 
     - name: Upload Linux UI artifact
       uses: actions/upload-artifact@v7
@@ -314,13 +322,13 @@ jobs:
     - name: Verify DEB contents
       run: |
         set -euo pipefail
-        deb_file="$(ls -1 scripts/*.deb | head -n 1)"
+        deb_file="$(find scripts -maxdepth 1 -type f -name '*.deb' -print | sort | head -n 1)"
         dpkg-deb -c "$deb_file" | grep -E '/usr/share/man/man1/crossmacro\.1\.gz$'
 
     - name: Smoke DEB install and CLI
       run: |
         set -euo pipefail
-        deb_file="$(ls -1 scripts/*.deb | head -n 1)"
+        deb_file="$(find scripts -maxdepth 1 -type f -name '*.deb' -print | sort | head -n 1)"
         docker run --rm --platform "${{ matrix.docker_platform }}" \
           --tmpfs /run \
           -v "$PWD/scripts":/artifacts:ro \
@@ -468,7 +476,7 @@ jobs:
     - name: Smoke AppImage CLI
       run: |
         set -euo pipefail
-        appimage="$(ls -1 scripts/*-${{ matrix.appimage_arch }}.AppImage | head -n 1)"
+        appimage="$(find scripts -maxdepth 1 -type f -name '*-${{ matrix.appimage_arch }}.AppImage' -print | sort | head -n 1)"
         chmod +x "$appimage"
         APPIMAGE_EXTRACT_AND_RUN=1 "$appimage" --help | grep -F "Usage:"
         APPIMAGE_EXTRACT_AND_RUN=1 "$appimage" settings get --json | grep -F '"status": "ok"'
@@ -840,7 +848,7 @@ jobs:
     - name: Verify DMG package contents
       run: |
         set -euo pipefail
-        dmg="$(ls -1 scripts/macos_output/*.dmg | head -n 1)"
+        dmg="$(find scripts/macos_output -maxdepth 1 -type f -name '*.dmg' -print | sort | head -n 1)"
         mount_dir="$(mktemp -d)"
         hdiutil attach "$dmg" -mountpoint "$mount_dir" -nobrowse -quiet
         trap 'hdiutil detach "$mount_dir" -quiet || true; rmdir "$mount_dir" || true' EXIT

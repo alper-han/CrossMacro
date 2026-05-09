@@ -80,14 +80,22 @@ jobs:
           sudo apt-get install -y clang build-essential
 
       - name: Publish and smoke Linux artifacts
+        env:
+          DAEMON_PUBLISH_ARGS: ${{ matrix.daemon_publish_args }}
         run: |
-          bash scripts/ci/publish-linux-artifacts.sh \
+          args=(
             --rid "${{ matrix.dotnet_rid }}" \
             --arch "${{ matrix.target_arch }}" \
             --version "${{ inputs.version }}" \
             --ui-output "publish-linux-${{ matrix.arch_suffix }}" \
-            --daemon-output "publish-daemon-${{ matrix.arch_suffix }}" \
-            --daemon-publish-args "${{ matrix.daemon_publish_args }}"
+            --daemon-output "publish-daemon-${{ matrix.arch_suffix }}"
+          )
+
+          if [ -n "$DAEMON_PUBLISH_ARGS" ]; then
+            args+=(--daemon-publish-args "$DAEMON_PUBLISH_ARGS")
+          fi
+
+          bash scripts/ci/publish-linux-artifacts.sh "${args[@]}"
 
       - name: Upload Linux UI artifact
         if: ${{ inputs.upload_enabled }}

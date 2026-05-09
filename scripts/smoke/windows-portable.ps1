@@ -73,7 +73,7 @@ if (-not $Path) {
 
 $executable = Resolve-ExecutablePath $Path
 $exeName = Split-Path -Leaf $executable
-if ($exeName -ne 'CrossMacro.UI.exe' -and $exeName -notmatch '^CrossMacro-.+-win-x64\.exe$') {
+if ($exeName -notmatch '\.exe$') {
     Fail-Smoke "unexpected portable executable name: $exeName"
 }
 

@@ -96,7 +96,7 @@ function Get-ManifestNamespaceManager {
     $namespaceManager.AddNamespace('appx', 'http://schemas.microsoft.com/appx/manifest/foundation/windows10')
     $namespaceManager.AddNamespace('uap', 'http://schemas.microsoft.com/appx/manifest/uap/windows10')
     $namespaceManager.AddNamespace('rescap', 'http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities')
-    return $namespaceManager
+    return ,$namespaceManager
 }
 
 if ($Help) {

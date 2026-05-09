@@ -106,7 +106,7 @@ public sealed partial class LinuxPackagingStaticParityTests
     {
         var requiredReferencesBySource = new Dictionary<string, string[]>
         {
-            ["scripts/build_deb.sh"] =
+            ["scripts/packaging/deb/build.sh"] =
             [
                 "daemon/crossmacro.service",
                 "assets/io.github.alper_han.crossmacro.policy",
@@ -114,7 +114,7 @@ public sealed partial class LinuxPackagingStaticParityTests
                 "assets/99-crossmacro.rules",
                 "assets/crossmacro-modules.conf"
             ],
-            ["scripts/build_rpm.sh"] =
+            ["scripts/packaging/rpm/build.sh"] =
             [
                 "daemon/crossmacro.service",
                 "assets/io.github.alper_han.crossmacro.policy",
@@ -163,8 +163,9 @@ public sealed partial class LinuxPackagingStaticParityTests
     public void LinuxPackages_ShouldDeclareIcuWhenUiUsesFullGlobalization()
     {
         var rpmSpec = ReadRepoFile("scripts/packaging/rpm/crossmacro.spec");
-        var debScript = ReadRepoFile("scripts/build_deb.sh");
+        var debScript = ReadRepoFile("scripts/packaging/deb/build.sh");
         var archPkgbuild = ReadRepoFile("scripts/packaging/arch/PKGBUILD");
+        var appImageScript = ReadRepoFile("scripts/packaging/appimage/build.sh");
         var linuxUiProject = ReadRepoFile("src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj");
         var sharedUiProject = ReadRepoFile("src/CrossMacro.UI/CrossMacro.UI.csproj");
 
@@ -174,6 +175,10 @@ public sealed partial class LinuxPackagingStaticParityTests
         Assert.Contains("libicu", ExtractRpmRequires(rpmSpec));
         Assert.Contains("libicu74", ExtractDebControlFieldValues(debScript, "Depends"));
         Assert.Contains("icu", ExtractArchDepends(archPkgbuild));
+        Assert.Contains("libicudata.so.*", appImageScript, StringComparison.Ordinal);
+        Assert.Contains("libicui18n.so.*", appImageScript, StringComparison.Ordinal);
+        Assert.Contains("libicuuc.so.*", appImageScript, StringComparison.Ordinal);
+        Assert.Contains("LD_LIBRARY_PATH=\"$HERE/usr/lib", appImageScript, StringComparison.Ordinal);
     }
 
     private static string[] ExtractRpmRequires(string spec)

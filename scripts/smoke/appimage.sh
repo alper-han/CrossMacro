@@ -89,7 +89,7 @@ for family in icudata icui18n icuuc; do
   [ -e "$lib_dir/lib${family}.so.$icu_version" ] || fail "bundled lib${family}.so.$icu_version is missing"
 done
 
-grep -R "DOTNET_SYSTEM_GLOBALIZATION_APPLOCALICU=$icu_version" "$appdir/AppRun" >/dev/null 2>&1 || fail "AppRun does not pin bundled ICU version $icu_version"
+grep -E "DOTNET_SYSTEM_GLOBALIZATION_APPLOCALICU=\"?$icu_version\"?" "$appdir/AppRun" >/dev/null 2>&1 || fail "AppRun does not pin bundled ICU version $icu_version"
 if ! find "$lib_dir" -maxdepth 1 -name 'libXtst.so*' -print -quit | grep . >/dev/null; then
   echo "AppImage smoke: libXtst.so not bundled; continuing because build may rely on host library for this architecture." >&2
 fi

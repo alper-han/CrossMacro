@@ -77,7 +77,7 @@ done
 require_command flatpak
 [ -x "$CLI_SMOKE" ] || fail "shared CLI smoke helper not executable: $CLI_SMOKE"
 
-metadata="$(flatpak info --show-metadata "$bundle" 2>/dev/null || flatpak info "$bundle")"
+metadata="$(flatpak info --show-metadata --file "$bundle" 2>/dev/null || flatpak info --file "$bundle")"
 printf '%s\n' "$metadata" | grep -F "$APP_ID" >/dev/null || fail "bundle metadata does not mention $APP_ID"
 
 if [ "$installation" = "user" ]; then

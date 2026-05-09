@@ -178,7 +178,7 @@ jobs:
         }
         trap cleanup EXIT
 
-        for i in $(seq 1 30); do
+        for _ in $(seq 1 30); do
           if [ -S "/run/crossmacro/crossmacro.sock" ] || [ -S "/tmp/crossmacro.sock" ]; then
             break
           fi

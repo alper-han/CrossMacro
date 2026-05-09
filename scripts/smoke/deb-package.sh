@@ -137,7 +137,7 @@ assert_contains "Package dependency" "$metadata" "libsystemd0"
 
 assert_payload_regex "UI binary" "$payload" '(^| )\.\/usr\/lib\/crossmacro\/CrossMacro\.UI$'
 assert_payload_regex "daemon binary" "$payload" '(^| )\.\/usr\/lib\/crossmacro\/daemon\/CrossMacro\.Daemon$'
-assert_payload_regex "CLI symlink" "$payload" '(^| )\.\/usr\/bin\/crossmacro$'
+assert_payload_regex "CLI symlink" "$payload" '(^| )\.\/usr\/bin\/crossmacro($| -> )'
 assert_payload_regex "systemd service" "$payload" '(^| )\.\/usr\/lib\/systemd\/system\/crossmacro\.service$'
 assert_payload_regex "udev rules" "$payload" '(^| )\.\/usr\/lib\/udev\/rules\.d\/99-crossmacro\.rules$'
 assert_payload_regex "polkit policy" "$payload" '(^| )\.\/usr\/share\/polkit-1\/actions\/io\.github\.alper_han\.crossmacro\.policy$'

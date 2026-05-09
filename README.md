@@ -6,7 +6,7 @@
 [![Flathub](https://img.shields.io/badge/Flathub-Install-0E5AFC?logo=flatpak&logoColor=white)](https://flathub.org/en/apps/io.github.alper_han.crossmacro)
 [![Downloads](https://img.shields.io/github/downloads/alper-han/CrossMacro/total?label=Downloads)](https://github.com/alper-han/CrossMacro/releases)
 [![Discord](https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white)](https://discord.gg/QUBuND5TvM)
-[![Build Status](https://github.com/alper-han/CrossMacro/actions/workflows/pr-check.yml/badge.svg?branch=main&event=push)](https://github.com/alper-han/CrossMacro/actions/workflows/pr-check.yml)
+[![CI](https://github.com/alper-han/CrossMacro/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/alper-han/CrossMacro/actions/workflows/ci.yml)
 
 <p align="center">
   <img src="screenshots/recording-tab.png" alt="CrossMacro recording interface preview" />

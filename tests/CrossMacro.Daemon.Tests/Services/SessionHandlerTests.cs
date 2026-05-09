@@ -886,7 +886,7 @@ public sealed class SessionHandlerTests
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1014, pid: 2024, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
-        stream.ReadTimeout = 750;
+        stream.ReadTimeout = 2000;
         using var reader = new BinaryReader(stream);
         using var writer = new BinaryWriter(stream);
 

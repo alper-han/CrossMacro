@@ -126,6 +126,14 @@ internal sealed class CaptureForwardingCoordinator
                     return;
                 }
 
+                lock (_sync)
+                {
+                    if (!_state.CaptureForwardingEnabled || generation != _state.ActiveGeneration)
+                    {
+                        return;
+                    }
+                }
+
                 session.WriteInputEvent(inputEvent);
                 session.Stream.Flush();
             }

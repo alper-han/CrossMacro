@@ -74,7 +74,22 @@ grep -R "^Exec=AppRun" "$appdir/CrossMacro.desktop" "$appdir/usr/share/applicati
 
 lib_dir="$appdir/usr/lib"
 [ -d "$lib_dir" ] || fail "extracted usr/lib directory is missing"
-find "$lib_dir" -maxdepth 1 -name 'libicu*.so*' -print -quit | grep . >/dev/null || fail "bundled ICU libraries not found in usr/lib"
+for family in icudata icui18n icuuc; do
+  find "$lib_dir" -maxdepth 1 -name "lib${family}.so.*" -print -quit | grep . >/dev/null || fail "bundled lib${family} library not found in usr/lib"
+done
+
+icu_versions="$(find "$lib_dir" -maxdepth 1 -type f -name 'libicuuc.so.[0-9]*' -printf '%f\n' \
+  | sed -n 's/^libicuuc\.so\.\([0-9][0-9.]*\)$/\1/p' \
+  | sort -Vu)"
+icu_version_count="$(printf '%s\n' "$icu_versions" | sed '/^$/d' | wc -l | tr -d ' ')"
+[ "$icu_version_count" -eq 1 ] || fail "expected exactly one bundled ICU version, found: ${icu_versions:-none}"
+
+icu_version="$icu_versions"
+for family in icudata icui18n icuuc; do
+  [ -e "$lib_dir/lib${family}.so.$icu_version" ] || fail "bundled lib${family}.so.$icu_version is missing"
+done
+
+grep -R "DOTNET_SYSTEM_GLOBALIZATION_APPLOCALICU=$icu_version" "$appdir/AppRun" >/dev/null 2>&1 || fail "AppRun does not pin bundled ICU version $icu_version"
 if ! find "$lib_dir" -maxdepth 1 -name 'libXtst.so*' -print -quit | grep . >/dev/null; then
   echo "AppImage smoke: libXtst.so not bundled; continuing because build may rely on host library for this architecture." >&2
 fi

@@ -210,6 +210,45 @@ resolve_libxtst_path() {
     return 1
 }
 
+resolve_latest_icu_version() {
+    local libicu_dir="$1"
+    local candidate
+    local version
+
+    while IFS= read -r candidate; do
+        version="${candidate##*/libicuuc.so.}"
+
+        [ "$version" != "$candidate" ] || continue
+        [[ "$version" =~ ^[0-9]+(\.[0-9]+)*$ ]] || continue
+
+        if [ -f "$libicu_dir/libicudata.so.$version" ] \
+            && [ -f "$libicu_dir/libicui18n.so.$version" ] \
+            && matches_target_lib_arch "$libicu_dir/libicudata.so.$version" \
+            && matches_target_lib_arch "$libicu_dir/libicui18n.so.$version" \
+            && matches_target_lib_arch "$libicu_dir/libicuuc.so.$version"; then
+            echo "$version"
+            return 0
+        fi
+    done < <(find "$libicu_dir" -maxdepth 1 -name 'libicuuc.so.[0-9]*' -print | sort -Vr)
+
+    return 1
+}
+
+copy_icu_library_family() {
+    local libicu_dir="$1"
+    local family="$2"
+    local version="$3"
+    local versioned_path="$libicu_dir/lib${family}.so.$version"
+    local soname_version="${version%%.*}"
+    local soname_path="$libicu_dir/lib${family}.so.$soname_version"
+
+    cp -P "$versioned_path" "$APP_DIR/usr/lib/"
+
+    if [ "$soname_path" != "$versioned_path" ] && [ -e "$soname_path" ]; then
+        cp -P "$soname_path" "$APP_DIR/usr/lib/"
+    fi
+}
+
 LIBXTST_PATH=""
 if LIBXTST_PATH="$(resolve_libxtst_path)"; then
     :
@@ -222,11 +261,21 @@ else
     echo "WARNING: target-compatible libXtst.so.6 not found for '$APPIMAGE_ARCH'. XTest support may be missing."
 fi
 
-cp -P \
-    ${LIBICU_DIR:-/usr/lib/$APPIMAGE_ARCH-linux-gnu}/libicudata.so.* \
-    ${LIBICU_DIR:-/usr/lib/$APPIMAGE_ARCH-linux-gnu}/libicui18n.so.* \
-    ${LIBICU_DIR:-/usr/lib/$APPIMAGE_ARCH-linux-gnu}/libicuuc.so.* \
-    "$APP_DIR/usr/lib/"
+LIBICU_DIR_RESOLVED="${LIBICU_DIR:-/usr/lib/$APPIMAGE_ARCH-linux-gnu}"
+if [ ! -d "$LIBICU_DIR_RESOLVED" ]; then
+    echo "Error: ICU library directory not found: $LIBICU_DIR_RESOLVED"
+    exit 1
+fi
+
+if ! ICU_VERSION="$(resolve_latest_icu_version "$LIBICU_DIR_RESOLVED")"; then
+    echo "Error: Could not find a complete target-compatible ICU runtime set in $LIBICU_DIR_RESOLVED"
+    exit 1
+fi
+
+echo "Bundling ICU $ICU_VERSION from: $LIBICU_DIR_RESOLVED"
+copy_icu_library_family "$LIBICU_DIR_RESOLVED" "icudata" "$ICU_VERSION"
+copy_icu_library_family "$LIBICU_DIR_RESOLVED" "icui18n" "$ICU_VERSION"
+copy_icu_library_family "$LIBICU_DIR_RESOLVED" "icuuc" "$ICU_VERSION"
 
 if command -v patchelf >/dev/null; then
     if [ -n "$ELF_INTERPRETER" ]; then
@@ -245,15 +294,16 @@ cp "$SCRIPTS_DIR/assets/io.github.alper-han.CrossMacro.metainfo.xml" "$APP_DIR/u
 
 chmod +x "$APP_DIR/usr/bin/CrossMacro.UI"
 ln -sf "CrossMacro.UI" "$APP_DIR/usr/bin/crossmacro"
-cat > "$APP_DIR/AppRun" <<'EOF'
+cat > "$APP_DIR/AppRun" <<EOF
 #!/usr/bin/env sh
 set -eu
 
-HERE="$(dirname "$(readlink -f "$0")")"
+HERE="\$(dirname "\$(readlink -f "\$0")")"
 
-export LD_LIBRARY_PATH="$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH="\$HERE/usr/lib\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}"
+export DOTNET_SYSTEM_GLOBALIZATION_APPLOCALICU="$ICU_VERSION"
 
-exec "$HERE/usr/bin/CrossMacro.UI" "$@"
+exec "\$HERE/usr/bin/CrossMacro.UI" "\$@"
 EOF
 chmod +x "$APP_DIR/AppRun"
 

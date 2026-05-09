@@ -473,14 +473,12 @@ jobs:
         chmod +x build_appimage.sh
         VERSION="${{ needs.pr-release-metadata.outputs.version }}" SOURCE_TAG="${{ needs.pr-release-metadata.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.pr-release-metadata.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" APPIMAGE_ARCH="${{ matrix.appimage_arch }}" APPIMAGETOOL_HOST_ARCH="${{ matrix.appimagetool_host_arch }}" APPIMAGETOOL_SHA256="${{ matrix.appimagetool_sha256 }}" PUBLISH_DIR="../publish" APPIMAGE_EXTRACT_AND_RUN=1 ./build_appimage.sh
 
-    - name: Smoke AppImage CLI
+    - name: Smoke AppImage
       run: |
         set -euo pipefail
         appimage="$(find scripts -maxdepth 1 -type f -name '*-${{ matrix.appimage_arch }}.AppImage' -print | sort | head -n 1)"
         chmod +x "$appimage"
-        APPIMAGE_EXTRACT_AND_RUN=1 "$appimage" --help | grep -F "Usage:"
-        APPIMAGE_EXTRACT_AND_RUN=1 "$appimage" settings get --json | grep -F '"status": "ok"'
-        APPIMAGE_EXTRACT_AND_RUN=1 "$appimage" run --step "move abs 10 10" --step "click left" --dry-run --json | grep -F '"coordinateMode": "absolute"'
+        APPIMAGE_EXTRACT_AND_RUN=1 scripts/smoke/appimage.sh "$appimage"
 
   package-flatpak-pr:
     name: Package Flatpak (${{ matrix.arch_suffix }})

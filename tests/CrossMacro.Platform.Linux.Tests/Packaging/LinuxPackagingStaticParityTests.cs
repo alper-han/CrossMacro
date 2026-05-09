@@ -175,10 +175,13 @@ public sealed partial class LinuxPackagingStaticParityTests
         Assert.Contains("libicu", ExtractRpmRequires(rpmSpec));
         Assert.Contains("libicu74", ExtractDebControlFieldValues(debScript, "Depends"));
         Assert.Contains("icu", ExtractArchDepends(archPkgbuild));
-        Assert.Contains("libicudata.so.*", appImageScript, StringComparison.Ordinal);
-        Assert.Contains("libicui18n.so.*", appImageScript, StringComparison.Ordinal);
-        Assert.Contains("libicuuc.so.*", appImageScript, StringComparison.Ordinal);
-        Assert.Contains("LD_LIBRARY_PATH=\"$HERE/usr/lib", appImageScript, StringComparison.Ordinal);
+        Assert.Contains("resolve_latest_icu_version", appImageScript, StringComparison.Ordinal);
+        Assert.Contains("copy_icu_library_family", appImageScript, StringComparison.Ordinal);
+        Assert.Contains("libicudata.so.$version", appImageScript, StringComparison.Ordinal);
+        Assert.Contains("libicui18n.so.$version", appImageScript, StringComparison.Ordinal);
+        Assert.Contains("libicuuc.so.$version", appImageScript, StringComparison.Ordinal);
+        Assert.Contains("DOTNET_SYSTEM_GLOBALIZATION_APPLOCALICU=\"$ICU_VERSION\"", appImageScript, StringComparison.Ordinal);
+        Assert.Contains("LD_LIBRARY_PATH=\"\\$HERE/usr/lib", appImageScript, StringComparison.Ordinal);
     }
 
     private static string[] ExtractRpmRequires(string spec)

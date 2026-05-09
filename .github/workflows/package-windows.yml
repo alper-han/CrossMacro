@@ -1,0 +1,47 @@
+name: Windows Packages
+
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['*']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-package-metadata:
+    name: Resolve Windows Package Metadata
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      package_version_canonical: ${{ steps.version.outputs.package_version_canonical }}
+      source_tag: ${{ steps.version.outputs.source_tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Resolve package metadata
+        id: version
+        run: |
+          bash scripts/ci/resolve-release-metadata.sh --mode ci
+
+  package-windows:
+    name: Build and Smoke Windows Packages
+    needs: windows-package-metadata
+    uses: ./.github/workflows/_package-windows.yml
+    with:
+      version: ${{ needs.windows-package-metadata.outputs.version }}
+      canonical_version: ${{ needs.windows-package-metadata.outputs.package_version_canonical }}
+      source_tag: ${{ needs.windows-package-metadata.outputs.source_tag }}
+      artifact_prefix: windows-packages
+      smoke_enabled: true
+      attach_msix: true
+      release_mode: false
+      upload_enabled: true
+      retention_days: 7

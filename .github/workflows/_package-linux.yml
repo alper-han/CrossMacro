@@ -1,0 +1,315 @@
+name: Reusable Linux Packaging
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Package/application version to embed in Linux packages.'
+        required: true
+        type: string
+      source_tag:
+        description: 'Source tag associated with the package build.'
+        required: true
+        type: string
+      canonical_version:
+        description: 'Canonical package version used in package filenames.'
+        required: true
+        type: string
+      artifact_prefix:
+        description: 'Prefix for downloaded binary artifacts and uploaded package artifacts.'
+        required: true
+        type: string
+      smoke_enabled:
+        description: 'Run package smoke checks.'
+        required: false
+        default: true
+        type: boolean
+      release_mode:
+        description: 'Whether this package build is running for release orchestration.'
+        required: false
+        default: false
+        type: boolean
+      upload_enabled:
+        description: 'Upload Linux package artifacts.'
+        required: false
+        default: true
+        type: boolean
+      retention_days:
+        description: 'Retention period for uploaded Linux package artifacts.'
+        required: false
+        default: 7
+        type: number
+      build_run_id:
+        description: 'Workflow run ID suffix used by upstream Linux binary artifacts.'
+        required: true
+        type: string
+      attach_flatpak:
+        description: 'Build, validate, and upload Flatpak bundles.'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  package-deb:
+    name: Build and Smoke DEB (${{ matrix.arch_suffix }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_suffix: x64
+            runner: ubuntu-latest
+            target_arch: x86_64
+          - arch_suffix: arm64
+            runner: ubuntu-24.04-arm
+            target_arch: aarch64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
+
+      - name: Download Linux UI artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.artifact_prefix }}-ui-${{ matrix.arch_suffix }}-${{ inputs.build_run_id }}
+          path: publish/
+
+      - name: Download Linux daemon artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.artifact_prefix }}-daemon-${{ matrix.arch_suffix }}-${{ inputs.build_run_id }}
+          path: publish-daemon/
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev fakeroot patchelf
+
+      - name: Build DEB package
+        run: |
+          VERSION="${{ inputs.version }}" \
+          SOURCE_TAG="${{ inputs.source_tag }}" \
+          PACKAGE_VERSION_CANONICAL="${{ inputs.canonical_version }}" \
+          TARGET_ARCH="${{ matrix.target_arch }}" \
+          PUBLISH_DIR="$PWD/publish" \
+          DAEMON_DIR="$PWD/publish-daemon" \
+          bash scripts/build_deb.sh
+
+      - name: Smoke DEB package
+        if: ${{ inputs.smoke_enabled }}
+        run: |
+          set -euo pipefail
+          deb_file="$(find scripts -maxdepth 1 -type f -name '*.deb' -print -quit)"
+          test -n "$deb_file"
+          bash scripts/smoke/deb-package.sh "$deb_file" --image ubuntu:24.04
+
+      - name: Upload DEB package
+        if: ${{ inputs.upload_enabled }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact_prefix }}-deb-${{ matrix.arch_suffix }}-${{ github.run_id }}
+          path: scripts/*.deb
+          retention-days: ${{ inputs.retention_days }}
+
+  package-rpm:
+    name: Build and Smoke RPM (${{ matrix.arch_suffix }})
+    runs-on: ${{ matrix.runner }}
+    env:
+      FEDORA_IMAGE: fedora:41
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_suffix: x64
+            runner: ubuntu-latest
+            target_arch: x86_64
+            rpm_arch: x86_64
+            docker_platform: linux/amd64
+          - arch_suffix: arm64
+            runner: ubuntu-24.04-arm
+            target_arch: aarch64
+            rpm_arch: aarch64
+            docker_platform: linux/arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
+
+      - name: Download Linux UI artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.artifact_prefix }}-ui-${{ matrix.arch_suffix }}-${{ inputs.build_run_id }}
+          path: publish/
+
+      - name: Download Linux daemon artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.artifact_prefix }}-daemon-${{ matrix.arch_suffix }}-${{ inputs.build_run_id }}
+          path: publish-daemon/
+
+      - name: Build RPM package in Fedora
+        run: |
+          docker run --rm --platform "${{ matrix.docker_platform }}" \
+            -v "$PWD":/work \
+            -w /work \
+            "$FEDORA_IMAGE" \
+            bash -lc '
+              set -euo pipefail
+              dnf -y install rpm-build checkpolicy policycoreutils patchelf file >/dev/null
+              VERSION="${{ inputs.version }}" \
+              SOURCE_TAG="${{ inputs.source_tag }}" \
+              PACKAGE_VERSION_CANONICAL="${{ inputs.canonical_version }}" \
+              TARGET_ARCH="${{ matrix.target_arch }}" \
+              RPM_ARCH="${{ matrix.rpm_arch }}" \
+              PUBLISH_DIR=/work/publish \
+              DAEMON_DIR=/work/publish-daemon \
+              bash scripts/build_rpm.sh
+            '
+
+      - name: Smoke RPM package
+        if: ${{ inputs.smoke_enabled }}
+        env:
+          CONTAINER_ENGINE: docker
+        run: |
+          set -euo pipefail
+          rpm_file="$(find scripts -maxdepth 1 -type f -name '*.rpm' -print -quit)"
+          test -n "$rpm_file"
+          bash scripts/smoke/rpm-package.sh "$rpm_file" --image "$FEDORA_IMAGE"
+
+      - name: Upload RPM package
+        if: ${{ inputs.upload_enabled }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact_prefix }}-rpm-${{ matrix.arch_suffix }}-${{ github.run_id }}
+          path: scripts/*.rpm
+          retention-days: ${{ inputs.retention_days }}
+
+  package-appimage:
+    name: Build and Smoke AppImage (${{ matrix.arch_suffix }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_suffix: x64
+            runner: ubuntu-24.04
+            target_arch: x86_64
+            appimage_arch: x86_64
+            appimagetool_host_arch: x86_64
+            appimagetool_sha256: ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
+          - arch_suffix: arm64
+            runner: ubuntu-24.04-arm
+            target_arch: aarch64
+            appimage_arch: aarch64
+            appimagetool_host_arch: aarch64
+            appimagetool_sha256: f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
+
+      - name: Download Linux UI artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.artifact_prefix }}-ui-${{ matrix.arch_suffix }}-${{ inputs.build_run_id }}
+          path: publish/
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y file desktop-file-utils patchelf jq pkg-config libxtst6 libicu74
+
+      - name: Build AppImage
+        run: |
+          VERSION="${{ inputs.version }}" \
+          SOURCE_TAG="${{ inputs.source_tag }}" \
+          PACKAGE_VERSION_CANONICAL="${{ inputs.canonical_version }}" \
+          TARGET_ARCH="${{ matrix.target_arch }}" \
+          APPIMAGE_ARCH="${{ matrix.appimage_arch }}" \
+          APPIMAGETOOL_HOST_ARCH="${{ matrix.appimagetool_host_arch }}" \
+          APPIMAGETOOL_SHA256="${{ matrix.appimagetool_sha256 }}" \
+          PUBLISH_DIR="$PWD/publish" \
+          APPIMAGE_EXTRACT_AND_RUN=1 \
+          bash scripts/build_appimage.sh
+
+      - name: Smoke AppImage
+        if: ${{ inputs.smoke_enabled }}
+        run: |
+          set -euo pipefail
+          appimage="$(find scripts -maxdepth 1 -type f -name '*-${{ matrix.appimage_arch }}.AppImage' -print -quit)"
+          test -n "$appimage"
+          chmod +x "$appimage"
+          APPIMAGE_EXTRACT_AND_RUN=1 bash scripts/smoke/appimage.sh "$appimage"
+
+      - name: Upload AppImage package
+        if: ${{ inputs.upload_enabled }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact_prefix }}-appimage-${{ matrix.arch_suffix }}-${{ github.run_id }}
+          path: scripts/*-${{ matrix.appimage_arch }}.AppImage
+          retention-days: ${{ inputs.retention_days }}
+
+  package-flatpak:
+    name: Build and Smoke Flatpak (${{ matrix.arch_suffix }})
+    if: ${{ inputs.attach_flatpak }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_suffix: x64
+            runner: ubuntu-latest
+            target_arch: x86_64
+            flatpak_arch: x86_64
+          - arch_suffix: arm64
+            runner: ubuntu-24.04-arm
+            target_arch: aarch64
+            flatpak_arch: aarch64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
+
+      - name: Install Flatpak tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
+
+      - name: Build Flatpak bundle
+        run: |
+          VERSION="${{ inputs.version }}" \
+          SOURCE_TAG="${{ inputs.source_tag }}" \
+          PACKAGE_VERSION_CANONICAL="${{ inputs.canonical_version }}" \
+          TARGET_ARCH="${{ matrix.target_arch }}" \
+          FLATPAK_ARCH="${{ matrix.flatpak_arch }}" \
+          bash scripts/build_flatpak.sh
+
+      - name: Smoke Flatpak bundle
+        if: ${{ inputs.smoke_enabled }}
+        run: |
+          set -euo pipefail
+          bundle="flatpak/io.github.alper_han.crossmacro-${{ inputs.canonical_version }}-${{ matrix.flatpak_arch }}.flatpak"
+          test -f "$bundle"
+          bash scripts/smoke/flatpak.sh "$bundle"
+          flatpak run io.github.alper_han.crossmacro --help | grep -F "Usage:"
+
+      - name: Upload Flatpak package
+        if: ${{ inputs.upload_enabled }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact_prefix }}-flatpak-${{ matrix.arch_suffix }}-${{ github.run_id }}
+          path: flatpak/*-${{ matrix.flatpak_arch }}.flatpak
+          retention-days: ${{ inputs.retention_days }}

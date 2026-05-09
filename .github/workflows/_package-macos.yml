@@ -1,0 +1,103 @@
+name: Reusable macOS Packaging
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Package/application version to embed in macOS packages.'
+        required: true
+        type: string
+      source_tag:
+        description: 'Source tag associated with release package builds.'
+        required: false
+        default: ''
+        type: string
+      canonical_version:
+        description: 'Canonical package version used in macOS package filenames.'
+        required: true
+        type: string
+      artifact_prefix:
+        description: 'Prefix for uploaded macOS package artifacts.'
+        required: true
+        type: string
+      smoke_enabled:
+        description: 'Run macOS DMG smoke checks.'
+        required: false
+        default: true
+        type: boolean
+      release_mode:
+        description: 'Whether this package build is running for release orchestration.'
+        required: false
+        default: false
+        type: boolean
+      upload_enabled:
+        description: 'Upload macOS DMG artifacts.'
+        required: false
+        default: true
+        type: boolean
+      retention_days:
+        description: 'Retention period for uploaded macOS DMG artifacts.'
+        required: false
+        default: 7
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  package-macos-dmg:
+    name: Build and Smoke macOS DMG (${{ matrix.rid }})
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: osx-arm64
+            target_arch: aarch64
+            artifact_suffix: arm64
+          - rid: osx-x64
+            target_arch: x86_64
+            artifact_suffix: x64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install create-dmg
+        run: |
+          brew install create-dmg
+
+      - name: Build DMG package
+        run: |
+          chmod +x scripts/build_macos.sh
+          bash scripts/build_macos.sh
+        env:
+          RID: ${{ matrix.rid }}
+          VERSION: ${{ inputs.version }}
+          SOURCE_TAG: ${{ inputs.source_tag }}
+          PACKAGE_VERSION_CANONICAL: ${{ inputs.canonical_version }}
+          TARGET_ARCH: ${{ matrix.target_arch }}
+
+      - name: Smoke DMG package
+        if: ${{ inputs.smoke_enabled }}
+        run: |
+          set -euo pipefail
+          chmod +x scripts/smoke/macos-dmg.sh
+          dmg_file="$(find scripts/macos_output -maxdepth 1 -type f -name '*.dmg' -print -quit)"
+          test -n "$dmg_file"
+          bash scripts/smoke/macos-dmg.sh "$dmg_file"
+
+      - name: Upload macOS DMG artifact
+        if: ${{ inputs.upload_enabled }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.release_mode && format('macos-{0}-package', matrix.artifact_suffix) || format('{0}-dmg-{1}-{2}', inputs.artifact_prefix, matrix.artifact_suffix, github.run_id) }}
+          path: scripts/macos_output/*.dmg
+          retention-days: ${{ inputs.retention_days }}

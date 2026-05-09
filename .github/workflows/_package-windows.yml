@@ -1,0 +1,166 @@
+name: Reusable Windows Packaging
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Package/application version to embed in Windows packages.'
+        required: true
+        type: string
+      canonical_version:
+        description: 'Canonical package version used in Windows package filenames.'
+        required: true
+        type: string
+      source_tag:
+        description: 'Source tag associated with release package builds.'
+        required: false
+        default: ''
+        type: string
+      artifact_prefix:
+        description: 'Prefix for uploaded Windows package artifacts.'
+        required: true
+        type: string
+      smoke_enabled:
+        description: 'Run Windows package smoke checks.'
+        required: false
+        default: true
+        type: boolean
+      attach_msix:
+        description: 'Build, validate, and upload the MSIX package.'
+        required: false
+        default: true
+        type: boolean
+      release_mode:
+        description: 'Whether this package build is running for release orchestration.'
+        required: false
+        default: false
+        type: boolean
+      upload_enabled:
+        description: 'Upload Windows package artifacts.'
+        required: false
+        default: true
+        type: boolean
+      retention_days:
+        description: 'Retention period for uploaded Windows package artifacts.'
+        required: false
+        default: 7
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  package-windows-portable:
+    name: Build and Smoke Windows Portable
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish Windows portable EXE
+        shell: pwsh
+        run: |
+          ./scripts/ci/publish-windows-portable.ps1 `
+            -Version '${{ inputs.version }}' `
+            -OutputDir publish-windows
+
+      - name: Smoke Windows portable EXE
+        if: ${{ inputs.smoke_enabled }}
+        shell: pwsh
+        run: |
+          ./scripts/smoke/windows-portable.ps1 -Path publish-windows/CrossMacro.UI.exe
+
+      - name: Stage Windows portable release ZIP
+        if: ${{ inputs.release_mode }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exePath = 'publish-windows/CrossMacro.UI.exe'
+          $renamedExe = 'publish-windows/CrossMacro-${{ inputs.canonical_version }}-win-x64.exe'
+          $archive = 'publish-windows/CrossMacro-${{ inputs.canonical_version }}-win-x64.zip'
+          Move-Item -LiteralPath $exePath -Destination $renamedExe
+          Compress-Archive -LiteralPath $renamedExe -DestinationPath $archive -Force
+          Remove-Item -LiteralPath $renamedExe -Force
+
+      - name: Verify staged Windows portable ZIP
+        if: ${{ inputs.release_mode }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = @(Get-ChildItem -LiteralPath publish-windows -File)
+          $archives = @($files | Where-Object { $_.Extension -ieq '.zip' })
+          if ($files.Count -ne 1 -or $archives.Count -ne 1) {
+              Write-Error "Windows release package must contain exactly one ZIP and no extra files: $($files.Name -join ', ')"
+              exit 1
+          }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archivePath = 'publish-windows/CrossMacro-${{ inputs.canonical_version }}-win-x64.zip'
+          $zip = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
+          try {
+              $names = @($zip.Entries | ForEach-Object { $_.FullName })
+              $expected = 'CrossMacro-${{ inputs.canonical_version }}-win-x64.exe'
+              if ($names.Count -ne 1 -or $names[0] -ne $expected) {
+                  Write-Error "Unexpected Windows archive contents: $($names -join ', ')"
+                  exit 1
+              }
+          }
+          finally {
+              $zip.Dispose()
+          }
+
+      - name: Upload Windows portable package
+        if: ${{ inputs.upload_enabled }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.release_mode && 'windows-package' || format('{0}-portable-x64-{1}', inputs.artifact_prefix, github.run_id) }}
+          path: ${{ inputs.release_mode && 'publish-windows/*.zip' || 'publish-windows/CrossMacro.UI.exe' }}
+          retention-days: ${{ inputs.retention_days }}
+
+  package-msix:
+    name: Build and Validate MSIX
+    if: ${{ inputs.attach_msix }}
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build MSIX package
+        shell: pwsh
+        run: |
+          ./scripts/msix/build-msix.ps1 `
+            -Version '${{ inputs.version }}' `
+            -PackageVersion '${{ inputs.canonical_version }}${{ inputs.release_mode && '-x64' || '' }}' `
+            -OutputDir msix-content `
+            -PackagePath CrossMacro-${{ inputs.canonical_version }}${{ inputs.release_mode && '-x64' || '' }}.msix
+
+      - name: Smoke MSIX package
+        if: ${{ inputs.smoke_enabled }}
+        shell: pwsh
+        run: |
+          ./scripts/smoke/msix.ps1 `
+            -Path CrossMacro-${{ inputs.canonical_version }}${{ inputs.release_mode && '-x64' || '' }}.msix `
+            -ExpectedVersion '${{ inputs.version }}.0'
+
+      - name: Upload MSIX package
+        if: ${{ inputs.upload_enabled }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.release_mode && 'msix-package' || format('{0}-msix-x64-{1}', inputs.artifact_prefix, github.run_id) }}
+          path: CrossMacro-${{ inputs.canonical_version }}${{ inputs.release_mode && '-x64' || '' }}.msix
+          retention-days: ${{ inputs.retention_days }}

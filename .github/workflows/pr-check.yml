@@ -1,5 +1,9 @@
 name: PR Check
 
+# Transitional compatibility workflow. It keeps the historical required check and
+# package-adjacent gates until ci.yml plus the split package workflows have passed
+# on the remote branch and branch protection can move to those replacement checks.
+
 on:
   push:
     branches: [ main ]
@@ -10,6 +14,63 @@ permissions:
   contents: read
 
 jobs:
+  workflow-validation:
+    name: Validate Workflow Syntax and Policy
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Run actionlint
+      env:
+        ACTIONLINT_VERSION: 1.7.7
+      run: |
+        set -euo pipefail
+        curl -sSfL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" -o actionlint.tar.gz
+        tar -xzf actionlint.tar.gz actionlint
+        ./actionlint -color
+
+    - name: Verify validator CLI help
+      run: |
+        set -euo pipefail
+        python3 scripts/ci/verify_workflow_triggers.py --help
+        python3 scripts/ci/verify_workflow_security.py --help
+        python3 scripts/ci/verify_reusable_workflows.py --help
+        python3 scripts/ci/verify_artifacts.py --help
+
+    - name: Validate workflow security policy
+      run: |
+        set -euo pipefail
+        python3 scripts/ci/verify_workflow_security.py
+
+    - name: Validate current reusable workflow policy
+      run: |
+        set -euo pipefail
+        python3 scripts/ci/verify_reusable_workflows.py
+
+    - name: Advisory future workflow trigger policy
+      run: |
+        set -euo pipefail
+        echo "Advisory: future split workflow files and release trigger cleanup are handled by later CI/CD decomposition tasks."
+        python3 scripts/ci/verify_workflow_triggers.py || true
+
+  pr-release-metadata:
+    name: Resolve PR Release Metadata
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      source_tag: ${{ steps.version.outputs.source_tag }}
+      package_version_canonical: ${{ steps.version.outputs.package_version_canonical }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Resolve package metadata
+      id: version
+      run: |
+        bash scripts/ci/resolve-release-metadata.sh --mode ci
   build-linux:
     name: Build and Test (Linux)
     runs-on: ubuntu-latest
@@ -149,7 +210,8 @@ jobs:
         dotnet test tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj --configuration Debug --no-build --verbosity normal
 
   smoke-published-linux-artifacts:
-    name: Smoke Published Linux Artifacts (${{ matrix.arch_suffix }})
+    name: Publish and Smoke Linux Artifacts (${{ matrix.arch_suffix }})
+    needs: pr-release-metadata
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -158,9 +220,13 @@ jobs:
           - arch_suffix: x64
             runner: ubuntu-latest
             dotnet_rid: linux-x64
+            target_arch: x86_64
+            daemon_publish_args: ""
           - arch_suffix: arm64
             runner: ubuntu-24.04-arm
             dotnet_rid: linux-arm64
+            target_arch: aarch64
+            daemon_publish_args: "-p:PublishAot=false --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true"
 
     steps:
     - name: Checkout code
@@ -177,24 +243,283 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y clang build-essential
 
-    - name: Publish Linux UI release artifact
+    - name: Publish and smoke Linux artifacts
       run: |
-        dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj \
-          -c Release \
-          -r "${{ matrix.dotnet_rid }}" \
-          --self-contained true \
-          -p:PublishSingleFile=true \
-          -p:PublishTrimmed=true \
-          -p:PublishAot=false \
-          -p:DebugType=None \
-          -p:DebugSymbols=false \
-          -o "publish-linux-${{ matrix.arch_suffix }}/"
+        bash scripts/ci/publish-linux-artifacts.sh \
+          --rid "${{ matrix.dotnet_rid }}" \
+          --arch "${{ matrix.target_arch }}" \
+          --version "${{ needs.pr-release-metadata.outputs.version }}" \
+          --ui-output "publish-linux-${{ matrix.arch_suffix }}" \
+          --daemon-output "publish-daemon-${{ matrix.arch_suffix }}" \
+          --daemon-publish-args "${{ matrix.daemon_publish_args }}"
 
-    - name: Smoke published Linux artifacts
+    - name: Upload Linux UI artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: pr-check-linux-binary-${{ matrix.arch_suffix }}-${{ github.run_id }}
+        path: publish-linux-${{ matrix.arch_suffix }}/
+        retention-days: 7
+
+    - name: Upload Linux daemon artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: pr-check-linux-daemon-${{ matrix.arch_suffix }}-${{ github.run_id }}
+        path: publish-daemon-${{ matrix.arch_suffix }}/
+        retention-days: 7
+
+  package-deb-pr:
+    name: Package and Smoke DEB (${{ matrix.arch_suffix }})
+    needs: [pr-release-metadata, smoke-published-linux-artifacts]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_suffix: x64
+            runner: ubuntu-latest
+            target_arch: x86_64
+            docker_platform: linux/amd64
+          - arch_suffix: arm64
+            runner: ubuntu-24.04-arm
+            target_arch: aarch64
+            docker_platform: linux/arm64
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Download Linux UI artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: pr-check-linux-binary-${{ matrix.arch_suffix }}-${{ github.run_id }}
+        path: publish/
+
+    - name: Download Linux daemon artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: pr-check-linux-daemon-${{ matrix.arch_suffix }}-${{ github.run_id }}
+        path: publish-daemon/
+
+    - name: Install packaging tools
       run: |
-        chmod +x scripts/smoke-published-linux-artifacts.sh
-        ./scripts/smoke-published-linux-artifacts.sh \
-          --ui-binary "publish-linux-${{ matrix.arch_suffix }}/CrossMacro.UI"
+        sudo apt-get update
+        sudo apt-get install -y dpkg-dev fakeroot patchelf
+
+    - name: Build DEB package
+      run: |
+        cd scripts
+        chmod +x build_deb.sh
+        VERSION="${{ needs.pr-release-metadata.outputs.version }}" SOURCE_TAG="${{ needs.pr-release-metadata.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.pr-release-metadata.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" PUBLISH_DIR="../publish" DAEMON_DIR="../publish-daemon" ./build_deb.sh
+
+    - name: Verify DEB contents
+      run: |
+        set -euo pipefail
+        deb_file="$(ls -1 scripts/*.deb | head -n 1)"
+        dpkg-deb -c "$deb_file" | grep -E '/usr/share/man/man1/crossmacro\.1\.gz$'
+
+    - name: Smoke DEB install and CLI
+      run: |
+        set -euo pipefail
+        deb_file="$(ls -1 scripts/*.deb | head -n 1)"
+        docker run --rm --platform "${{ matrix.docker_platform }}" \
+          --tmpfs /run \
+          -v "$PWD/scripts":/artifacts:ro \
+          -e DEB_FILE_NAME="$(basename "$deb_file")" \
+          ubuntu:24.04 \
+          bash -lc '
+            set -euo pipefail
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update >/dev/null
+            apt-get install -y systemd dbus polkitd udev man-db libxtst6 libx11-6 libxcursor1 libxrandr2 fontconfig sudo >/dev/null
+            dpkg -i "/artifacts/${DEB_FILE_NAME}" >/dev/null || apt-get install -f -y >/dev/null
+            getent group crossmacro >/dev/null
+            getent passwd crossmacro >/dev/null
+            /usr/bin/crossmacro --help | grep -F "Usage:"
+            /usr/bin/crossmacro settings get --json | grep -F "\"status\": \"ok\""
+            /usr/bin/crossmacro run --step "move abs 10 10" --step "click left" --dry-run --json | grep -F "\"coordinateMode\": \"absolute\""
+          '
+
+  package-rpm-pr:
+    name: Package and Smoke RPM (${{ matrix.arch_suffix }})
+    needs: [pr-release-metadata, smoke-published-linux-artifacts]
+    runs-on: ${{ matrix.runner }}
+    env:
+      FEDORA_IMAGE: fedora:41
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_suffix: x64
+            runner: ubuntu-latest
+            target_arch: x86_64
+            rpm_arch: x86_64
+            docker_platform: linux/amd64
+          - arch_suffix: arm64
+            runner: ubuntu-24.04-arm
+            target_arch: aarch64
+            rpm_arch: aarch64
+            docker_platform: linux/arm64
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Download Linux UI artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: pr-check-linux-binary-${{ matrix.arch_suffix }}-${{ github.run_id }}
+        path: publish/
+
+    - name: Download Linux daemon artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: pr-check-linux-daemon-${{ matrix.arch_suffix }}-${{ github.run_id }}
+        path: publish-daemon/
+
+    - name: Build RPM package in Fedora
+      run: |
+        docker run --rm --platform "${{ matrix.docker_platform }}" \
+          -v "$PWD":/work \
+          -w /work/scripts \
+          "$FEDORA_IMAGE" \
+          bash -lc '
+            set -euo pipefail
+            dnf -y install rpm-build checkpolicy policycoreutils patchelf file >/dev/null
+            VERSION="${{ needs.pr-release-metadata.outputs.version }}" SOURCE_TAG="${{ needs.pr-release-metadata.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.pr-release-metadata.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" RPM_ARCH="${{ matrix.rpm_arch }}" PUBLISH_DIR=/work/publish DAEMON_DIR=/work/publish-daemon ./build_rpm.sh
+          '
+
+    - name: Verify RPM contents and dependencies
+      run: |
+        set -euo pipefail
+        rpm_file="$(find scripts -maxdepth 1 -type f -name '*.rpm' | head -n 1)"
+        rpm_file_name="$(basename "$rpm_file")"
+        docker run --rm --platform "${{ matrix.docker_platform }}" \
+          -v "$PWD/scripts":/artifacts:ro \
+          -e RPM_FILE_NAME="$rpm_file_name" \
+          "$FEDORA_IMAGE" \
+          bash -lc '
+            set -euo pipefail
+            dnf -y install rpm >/dev/null
+            rpm -qpl "/artifacts/${RPM_FILE_NAME}" | grep -E "^/usr/share/man/man1/crossmacro\.1(\.gz)?$"
+            requires="$(rpm -qpR "/artifacts/${RPM_FILE_NAME}")"
+            printf "%s\n" "$requires" | grep -Fx libicu
+          '
+
+    - name: Smoke RPM install and CLI
+      run: |
+        set -euo pipefail
+        rpm_file="$(find scripts -maxdepth 1 -type f -name '*.rpm' | head -n 1)"
+        rpm_file_name="$(basename "$rpm_file")"
+        docker run --rm --platform "${{ matrix.docker_platform }}" \
+          -v "$PWD/scripts":/artifacts:ro \
+          -e RPM_FILE_NAME="$rpm_file_name" \
+          "$FEDORA_IMAGE" \
+          bash -lc '
+            set -euo pipefail
+            dnf -y install polkit libXtst libX11 libXcursor libXrandr fontconfig >/dev/null
+            dnf -y install "/artifacts/${RPM_FILE_NAME}" >/dev/null
+            /usr/bin/crossmacro --help | grep -F "Usage:"
+            /usr/bin/crossmacro settings get --json | grep -F "\"status\": \"ok\""
+            /usr/bin/crossmacro run --step "move abs 10 10" --step "click left" --dry-run --json | grep -F "\"coordinateMode\": \"absolute\""
+          '
+
+  package-appimage-pr:
+    name: Package and Smoke AppImage (${{ matrix.arch_suffix }})
+    needs: [pr-release-metadata, smoke-published-linux-artifacts]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_suffix: x64
+            runner: ubuntu-24.04
+            target_arch: x86_64
+            appimage_arch: x86_64
+            appimagetool_host_arch: x86_64
+            appimagetool_sha256: ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
+          - arch_suffix: arm64
+            runner: ubuntu-24.04-arm
+            target_arch: aarch64
+            appimage_arch: aarch64
+            appimagetool_host_arch: aarch64
+            appimagetool_sha256: f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Download Linux UI artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: pr-check-linux-binary-${{ matrix.arch_suffix }}-${{ github.run_id }}
+        path: publish/
+
+    - name: Install packaging tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y file desktop-file-utils patchelf jq pkg-config libxtst6 libicu74
+
+    - name: Build AppImage
+      run: |
+        cd scripts
+        chmod +x build_appimage.sh
+        VERSION="${{ needs.pr-release-metadata.outputs.version }}" SOURCE_TAG="${{ needs.pr-release-metadata.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.pr-release-metadata.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" APPIMAGE_ARCH="${{ matrix.appimage_arch }}" APPIMAGETOOL_HOST_ARCH="${{ matrix.appimagetool_host_arch }}" APPIMAGETOOL_SHA256="${{ matrix.appimagetool_sha256 }}" PUBLISH_DIR="../publish" APPIMAGE_EXTRACT_AND_RUN=1 ./build_appimage.sh
+
+    - name: Smoke AppImage CLI
+      run: |
+        set -euo pipefail
+        appimage="$(ls -1 scripts/*-${{ matrix.appimage_arch }}.AppImage | head -n 1)"
+        chmod +x "$appimage"
+        APPIMAGE_EXTRACT_AND_RUN=1 "$appimage" --help | grep -F "Usage:"
+        APPIMAGE_EXTRACT_AND_RUN=1 "$appimage" settings get --json | grep -F '"status": "ok"'
+        APPIMAGE_EXTRACT_AND_RUN=1 "$appimage" run --step "move abs 10 10" --step "click left" --dry-run --json | grep -F '"coordinateMode": "absolute"'
+
+  package-flatpak-pr:
+    name: Package Flatpak (${{ matrix.arch_suffix }})
+    needs: [pr-release-metadata, smoke-published-linux-artifacts]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_suffix: x64
+            runner: ubuntu-latest
+            target_arch: x86_64
+            flatpak_arch: x86_64
+          - arch_suffix: arm64
+            runner: ubuntu-24.04-arm
+            target_arch: aarch64
+            flatpak_arch: aarch64
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Install Flatpak tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y flatpak flatpak-builder
+        flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+        flatpak install --user -y flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
+
+    - name: Build Flatpak bundle
+      run: |
+        cd scripts
+        chmod +x build_flatpak.sh
+        VERSION="${{ needs.pr-release-metadata.outputs.version }}" SOURCE_TAG="${{ needs.pr-release-metadata.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.pr-release-metadata.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" FLATPAK_ARCH="${{ matrix.flatpak_arch }}" ./build_flatpak.sh
+
+    - name: Verify Flatpak bundle exists
+      run: |
+        test -f "flatpak/io.github.alper_han.crossmacro-${{ needs.pr-release-metadata.outputs.package_version_canonical }}-${{ matrix.flatpak_arch }}.flatpak"
+
+    - name: Smoke Flatpak CLI
+      run: |
+        set -euo pipefail
+        bundle="flatpak/io.github.alper_han.crossmacro-${{ needs.pr-release-metadata.outputs.package_version_canonical }}-${{ matrix.flatpak_arch }}.flatpak"
+        flatpak --user install -y "$bundle"
+        flatpak run io.github.alper_han.crossmacro --help | grep -F "Usage:"
+        flatpak run io.github.alper_han.crossmacro settings get --json | grep -F '"status": "ok"'
+        flatpak run io.github.alper_han.crossmacro run --step "move abs 10 10" --step "click left" --dry-run --json | grep -F '"coordinateMode": "absolute"'
 
   build-windows:
     name: Build (Windows)
@@ -287,6 +612,146 @@ jobs:
           }
         }
 
+  package-windows-portable-pr:
+    name: Package and Smoke Windows Portable
+    needs: pr-release-metadata
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Publish Windows portable package
+      shell: pwsh
+      run: |
+        dotnet publish src/CrossMacro.UI.Windows/CrossMacro.UI.Windows.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          -p:PublishSingleFile=true `
+          -p:PublishTrimmed=true `
+          -p:TrimMode=partial `
+          -p:IncludeNativeLibrariesForSelfExtract=true `
+          -p:EnableCompressionInSingleFile=true `
+          -p:PublishReadyToRun=false `
+          -p:DebugType=None `
+          -p:DebugSymbols=false `
+          -p:ErrorOnDuplicatePublishOutputFiles=true `
+          -p:Version=${{ needs.pr-release-metadata.outputs.version }} `
+          -o publish-windows/
+
+    - name: Verify Windows portable package shape
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $unexpectedDirectories = Get-ChildItem publish-windows -Directory
+        if ($unexpectedDirectories.Count -ne 0) {
+          throw "Windows portable publish emitted unexpected directories: $($unexpectedDirectories.FullName -join ', ')"
+        }
+
+        Get-ChildItem publish-windows -Filter *.pdb -File | Remove-Item -Force
+        $files = @(Get-ChildItem publish-windows -File)
+        $exeFiles = @($files | Where-Object { $_.Extension -eq '.exe' })
+        if ($files.Count -ne 1 -or $exeFiles.Count -ne 1) {
+          throw "Windows portable package must contain exactly one EXE after symbol cleanup. Files: $($files.Name -join ', ')"
+        }
+
+    - name: Smoke Windows portable CLI
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $exe = (Get-ChildItem publish-windows -Filter *.exe -File | Select-Object -First 1).FullName
+
+        $helpOutput = (& $exe --help 2>&1 | Out-String)
+        if ($LASTEXITCODE -ne 0 -or -not ($helpOutput -match "Usage:")) {
+          throw "Windows portable --help smoke failed. Output: $helpOutput"
+        }
+
+        $jsonParseOutput = (& $exe --json 2>&1 | Out-String)
+        $jsonParseCode = $LASTEXITCODE
+        if ($jsonParseCode -ne 2 -or -not ($jsonParseOutput -match '"status":\s*"error"') -or -not ($jsonParseOutput -match '"code":\s*2')) {
+          throw "Windows portable --json smoke failed. Exit=$jsonParseCode Output=$jsonParseOutput"
+        }
+
+        $dryRunOutput = (& $exe run --step "move abs 10 10" --step "click left" --dry-run --json 2>&1 | Out-String)
+        $dryRunCode = $LASTEXITCODE
+        if ($dryRunCode -ne 0 -or -not ($dryRunOutput -match '"coordinateMode":\s*"absolute"')) {
+          throw "Windows portable dry-run smoke failed. Exit=$dryRunCode Output=$dryRunOutput"
+        }
+
+  package-msix-pr:
+    name: Package MSIX
+    needs: pr-release-metadata
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Build Windows binary for MSIX
+      shell: pwsh
+      run: |
+        dotnet publish src/CrossMacro.UI.Windows/CrossMacro.UI.Windows.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          -p:PublishSingleFile=false `
+          -p:PublishTrimmed=false `
+          -p:PublishReadyToRun=false `
+          -p:DebugType=None `
+          -p:DebugSymbols=false `
+          -p:Version=${{ needs.pr-release-metadata.outputs.version }} `
+          -o msix-content/
+
+    - name: Smoke MSIX staged executable
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $exe = "msix-content/CrossMacro.UI.exe"
+        if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) {
+          throw "MSIX staged executable missing: $exe"
+        }
+
+        $helpOutput = (& $exe --help 2>&1 | Out-String)
+        if ($LASTEXITCODE -ne 0 -or -not ($helpOutput -match "Usage:")) {
+          throw "MSIX staged --help smoke failed. Output: $helpOutput"
+        }
+
+        $dryRunOutput = (& $exe run --step "move abs 10 10" --step "click left" --dry-run --json 2>&1 | Out-String)
+        $dryRunCode = $LASTEXITCODE
+        if ($dryRunCode -ne 0 -or -not ($dryRunOutput -match '"coordinateMode":\s*"absolute"')) {
+          throw "MSIX staged dry-run smoke failed. Exit=$dryRunCode Output=$dryRunOutput"
+        }
+
+    - name: Prepare MSIX content
+      shell: pwsh
+      run: |
+        ./scripts/msix/prepare-msix.ps1 -Version "${{ needs.pr-release-metadata.outputs.version }}" -OutputDir "msix-content"
+
+    - name: Create MSIX package
+      shell: pwsh
+      run: |
+        $sdkPath = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\10.*\x64\makeappx.exe" |
+                   Sort-Object -Descending | Select-Object -First 1
+        & $sdkPath pack /d msix-content /p CrossMacro-${{ needs.pr-release-metadata.outputs.package_version_canonical }}.msix /nv
+
+    - name: Verify MSIX package exists
+      shell: pwsh
+      run: |
+        if (-not (Test-Path -LiteralPath "CrossMacro-${{ needs.pr-release-metadata.outputs.package_version_canonical }}.msix" -PathType Leaf)) {
+          throw "MSIX package was not created."
+        }
+
   build-macos:
     name: Build (macOS)
     runs-on: macos-latest
@@ -340,3 +805,44 @@ jobs:
         dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Platform.MacOS.Tests/CrossMacro.Platform.MacOS.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj --configuration Debug --no-build --verbosity normal
+
+  package-macos-dmg-pr:
+    name: Package macOS DMG (${{ matrix.rid }})
+    needs: pr-release-metadata
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: osx-arm64
+            target_arch: aarch64
+          - rid: osx-x64
+            target_arch: x86_64
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Install create-dmg
+      run: |
+        brew install create-dmg
+
+    - name: Build DMG package
+      run: |
+        chmod +x scripts/build_macos.sh
+        RID="${{ matrix.rid }}" VERSION="${{ needs.pr-release-metadata.outputs.version }}" SOURCE_TAG="${{ needs.pr-release-metadata.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.pr-release-metadata.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" ./scripts/build_macos.sh
+
+    - name: Verify DMG package contents
+      run: |
+        set -euo pipefail
+        dmg="$(ls -1 scripts/macos_output/*.dmg | head -n 1)"
+        mount_dir="$(mktemp -d)"
+        hdiutil attach "$dmg" -mountpoint "$mount_dir" -nobrowse -quiet
+        trap 'hdiutil detach "$mount_dir" -quiet || true; rmdir "$mount_dir" || true' EXIT
+        test -d "$mount_dir/CrossMacro.app"
+        test -x "$mount_dir/CrossMacro.app/Contents/MacOS/CrossMacro.UI"

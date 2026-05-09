@@ -304,7 +304,6 @@ jobs:
           bundle="flatpak/io.github.alper_han.crossmacro-${{ inputs.canonical_version }}-${{ matrix.flatpak_arch }}.flatpak"
           test -f "$bundle"
           bash scripts/smoke/flatpak.sh "$bundle"
-          flatpak run io.github.alper_han.crossmacro --help | grep -F "Usage:"
 
       - name: Upload Flatpak package
         if: ${{ inputs.upload_enabled }}

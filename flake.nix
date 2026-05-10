@@ -57,8 +57,6 @@
             libxcursor
             libxext
             libxrandr
-            libxrender
-            libxfixes
             libxtst
 
             # GLib for GIO
@@ -66,7 +64,6 @@
 
             # Graphics/OpenGL
             libglvnd
-            mesa
 
             # Wayland support
             wayland

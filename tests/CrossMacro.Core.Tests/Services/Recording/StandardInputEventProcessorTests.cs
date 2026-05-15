@@ -214,6 +214,18 @@ public class StandardInputEventProcessorTests
         result.Value.Button.Should().Be(MouseButton.ScrollDown);
     }
 
+    [Fact]
+    public void Process_MouseScroll_ShouldReturnHorizontalScrollEvents()
+    {
+        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((100, 100));
+        var args = new InputCaptureEventArgs { Type = InputEventType.MouseScroll, Code = InputEventCode.REL_HWHEEL, Value = 1 };
+
+        var result = _processor.Process(args, timestamp: 1000);
+
+        result.Should().NotBeNull();
+        result.Value.Button.Should().Be(MouseButton.ScrollRight);
+    }
+
     #endregion
 
     #region Sync Tests

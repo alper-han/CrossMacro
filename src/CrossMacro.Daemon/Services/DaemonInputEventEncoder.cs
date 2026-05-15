@@ -31,7 +31,7 @@ internal sealed class DaemonInputEventEncoder
 
         if (type == UInputNative.EV_REL)
         {
-            if (code == UInputNative.REL_WHEEL)
+            if (code is UInputNative.REL_WHEEL or UInputNative.REL_HWHEEL)
             {
                 return (byte)InputEventType.MouseScroll;
             }

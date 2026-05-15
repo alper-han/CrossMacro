@@ -60,7 +60,7 @@ public class StandardInputEventProcessor : IInputEventProcessor
 
             case InputEventType.MouseScroll:
                 if (!_recordMouse) return null;
-                if (args.Code == 1)
+                if (args.Code == InputEventCode.REL_HWHEEL)
                 {
                     return new MacroEvent
                     {

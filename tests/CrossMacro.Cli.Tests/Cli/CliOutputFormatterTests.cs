@@ -38,6 +38,38 @@ public class CliOutputFormatterTests
     }
 
     [Fact]
+    public async Task Write_WhenJsonOutputContainsBackticks_WritesReadableBackticks()
+    {
+        using var consoleLock = await ConsoleTestLock.AcquireAsync();
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        try
+        {
+            Console.SetOut(stdout);
+            Console.SetError(stderr);
+
+            var result = CliCommandExecutionResult.Ok(
+                "doctor ready",
+                data: new { remediation = "Run `sudo systemctl restart crossmacro.service`." });
+
+            CliOutputFormatter.Write(result, jsonOutput: true);
+
+            var output = stdout.ToString();
+            Assert.Contains("Run `sudo systemctl restart crossmacro.service`.", output, StringComparison.Ordinal);
+            Assert.DoesNotContain("\\u0060", output, StringComparison.Ordinal);
+            Assert.Equal(string.Empty, stderr.ToString());
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
+        }
+    }
+
+    [Fact]
     public async Task Write_WhenTextSuccess_WritesToStdout()
     {
         using var consoleLock = await ConsoleTestLock.AcquireAsync();

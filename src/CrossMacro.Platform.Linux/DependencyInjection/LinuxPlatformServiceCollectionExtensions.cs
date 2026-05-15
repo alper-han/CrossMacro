@@ -3,6 +3,7 @@ using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Infrastructure.Services.Recording.Strategies;
 using CrossMacro.Packaging.Abstractions;
+using CrossMacro.Platform.Abstractions.Diagnostics;
 using CrossMacro.Platform.Linux.Ipc;
 using CrossMacro.Platform.Linux.Services;
 using CrossMacro.Platform.Linux.Services.Factories;
@@ -29,8 +30,10 @@ internal static class LinuxPlatformServiceCollectionExtensions
         services.AddSingleton<ILinuxEnvironmentVariables, LinuxEnvironmentVariables>();
         services.AddSingleton<ILinuxEnvironmentDetector, LinuxEnvironmentDetector>();
         services.AddSingleton<ILinuxDaemonHandshakeProbe, LinuxDaemonHandshakeProbe>();
+        services.AddSingleton<ILinuxDaemonSocketAccessProbe, LinuxDaemonSocketAccessProbe>();
         services.AddSingleton<ILinuxInputCapabilitySnapshotProvider, LinuxInputCapabilitySnapshotProvider>();
         services.AddSingleton<ILinuxInputCapabilityDetector, LinuxInputCapabilityDetector>();
+        services.AddSingleton<IPlatformStartupNotificationProvider, GsrCompatibilityService>();
         services.AddSingleton<LinuxQuickSetupIdentityResolver>();
         services.AddSingleton<LinuxQuickSetupScriptBuilder>();
         services.AddSingleton<LinuxQuickSetupExecutor>();

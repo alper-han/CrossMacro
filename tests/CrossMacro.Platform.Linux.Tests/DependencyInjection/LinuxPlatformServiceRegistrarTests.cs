@@ -5,6 +5,7 @@ using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Packaging.Abstractions;
 using CrossMacro.Platform.Abstractions;
+using CrossMacro.Platform.Abstractions.Diagnostics;
 using CrossMacro.Platform.Linux.DependencyInjection;
 using CrossMacro.Platform.Linux.Services;
 using CrossMacro.Platform.Linux.Services.Factories;
@@ -30,6 +31,8 @@ public class LinuxPlatformServiceRegistrarTests
         Assert.Contains(services, d => d.ServiceType == typeof(ILinuxEnvironmentDetector) && d.ImplementationType == typeof(LinuxEnvironmentDetector));
         Assert.Contains(services, d => d.ServiceType == typeof(ILinuxEnvironmentVariables) && d.ImplementationType == typeof(LinuxEnvironmentVariables));
         Assert.Contains(services, d => d.ServiceType == typeof(ILinuxInputCapabilityDetector) && d.ImplementationType == typeof(LinuxInputCapabilityDetector));
+        Assert.Contains(services, d => d.ServiceType == typeof(IPlatformStartupNotificationProvider) && d.ImplementationType == typeof(GsrCompatibilityService));
+        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxDaemonSocketAccessProbe) && d.ImplementationType == typeof(LinuxDaemonSocketAccessProbe));
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(LinuxInputProbeUtilities));
         Assert.Contains(services, d => d.ServiceType == typeof(IEnvironmentInfoProvider) && d.ImplementationType == typeof(LinuxEnvironmentInfoProvider));
         Assert.Contains(services, d => d.ServiceType == typeof(IDisplaySessionService) && d.ImplementationType == typeof(LinuxDisplaySessionService));

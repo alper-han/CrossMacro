@@ -2,6 +2,7 @@ using System;
 using CrossMacro.Core.Services;
 using CrossMacro.Cli.Commands;
 using CrossMacro.Cli.Services;
+using CrossMacro.Platform.Abstractions.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Cli.DependencyInjection;
@@ -22,6 +23,14 @@ public static class CliServiceCollectionExtensions
             Func<string, bool>? daemonHandshakeProbe = linuxDaemonHandshakeProbe is null
                 ? null
                 : linuxDaemonHandshakeProbe.Probe;
+            Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = linuxDaemonHandshakeProbe is null
+                ? null
+                : linuxDaemonHandshakeProbe.Probe;
+
+            var linuxDaemonSocketAccessProbe = sp.GetService<ILinuxDaemonSocketAccessProbe>();
+            Func<string, LinuxDaemonSocketAccessResult>? daemonSocketAccessProbe = linuxDaemonSocketAccessProbe is null
+                ? null
+                : socketPath => linuxDaemonSocketAccessProbe.Probe(new LinuxDaemonSocketProbeOptions(socketPath, "crossmacro"));
 
             return new DoctorService(
                 sp.GetRequiredService<IEnvironmentInfoProvider>(),
@@ -30,7 +39,9 @@ public static class CliServiceCollectionExtensions
                 sp.GetRequiredService<Func<IInputCapture>>(),
                 sp.GetRequiredService<IMousePositionProvider>(),
                 sp.GetService<IPermissionChecker>(),
-                daemonHandshakeProbe);
+                daemonHandshakeProbe,
+                daemonSocketAccessProbe,
+                daemonHandshakeDiagnosticProbe);
         });
         services.AddSingleton<ICliPreflightService, CliPreflightService>();
         services.AddSingleton<ISettingsCliService, SettingsCliService>();

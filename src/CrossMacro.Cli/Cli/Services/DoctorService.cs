@@ -8,6 +8,7 @@ using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Helpers;
 using CrossMacro.Platform.Abstractions;
+using CrossMacro.Platform.Abstractions.Diagnostics;
 
 namespace CrossMacro.Cli.Services;
 
@@ -21,11 +22,16 @@ public sealed partial class DoctorService : IDoctorService
     private readonly IPermissionChecker? _permissionChecker;
     private readonly Func<string, string?> _getEnvironmentVariable;
     private readonly Func<string, bool> _fileExists;
+    private readonly Func<string, string?> _readAllTextIfExists;
     private readonly Func<string, bool> _canOpenForWrite;
+    private readonly Func<string, bool> _canOpenForRead;
+    private readonly Func<string[]> _getInputEventCandidates;
     private readonly Func<bool> _isLinux;
     private readonly Func<bool> _isWindows;
     private readonly Func<bool> _isMacOS;
     private readonly Func<string, bool> _daemonHandshakeProbe;
+    private readonly Func<string, LinuxDaemonSocketAccessResult> _daemonSocketAccessProbe;
+    private readonly Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult> _daemonHandshakeDiagnosticProbe;
 
     public DoctorService(
         IEnvironmentInfoProvider environmentInfoProvider,
@@ -34,13 +40,17 @@ public sealed partial class DoctorService : IDoctorService
         Func<IInputCapture> inputCaptureFactory,
         IMousePositionProvider mousePositionProvider,
         IPermissionChecker? permissionChecker = null,
-        Func<string, bool>? daemonHandshakeProbe = null)
+        Func<string, bool>? daemonHandshakeProbe = null,
+        Func<string, LinuxDaemonSocketAccessResult>? daemonSocketAccessProbe = null,
+        Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null)
         : this(
             environmentInfoProvider,
             displaySessionService,
             Environment.GetEnvironmentVariable,
             File.Exists,
             CanOpenForWrite,
+            CanOpenForRead,
+            GetInputEventCandidates,
             inputSimulatorFactory,
             inputCaptureFactory,
             mousePositionProvider,
@@ -48,7 +58,10 @@ public sealed partial class DoctorService : IDoctorService
             OperatingSystem.IsLinux,
             OperatingSystem.IsWindows,
             OperatingSystem.IsMacOS,
-            daemonHandshakeProbe)
+            daemonHandshakeProbe,
+            daemonSocketAccessProbe,
+            daemonHandshakeDiagnosticProbe,
+            ReadAllTextIfExists)
     {
     }
 
@@ -58,6 +71,8 @@ public sealed partial class DoctorService : IDoctorService
         Func<string, string?> getEnvironmentVariable,
         Func<string, bool> fileExists,
         Func<string, bool> canOpenForWrite,
+        Func<string, bool>? canOpenForRead,
+        Func<string[]>? getInputEventCandidates,
         Func<IInputSimulator> inputSimulatorFactory,
         Func<IInputCapture> inputCaptureFactory,
         IMousePositionProvider mousePositionProvider,
@@ -65,13 +80,19 @@ public sealed partial class DoctorService : IDoctorService
         Func<bool>? isLinux = null,
         Func<bool>? isWindows = null,
         Func<bool>? isMacOS = null,
-        Func<string, bool>? daemonHandshakeProbe = null)
+        Func<string, bool>? daemonHandshakeProbe = null,
+        Func<string, LinuxDaemonSocketAccessResult>? daemonSocketAccessProbe = null,
+        Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null,
+        Func<string, string?>? readAllTextIfExists = null)
     {
         _environmentInfoProvider = environmentInfoProvider ?? throw new ArgumentNullException(nameof(environmentInfoProvider));
         _displaySessionService = displaySessionService ?? throw new ArgumentNullException(nameof(displaySessionService));
         _getEnvironmentVariable = getEnvironmentVariable ?? throw new ArgumentNullException(nameof(getEnvironmentVariable));
         _fileExists = fileExists ?? throw new ArgumentNullException(nameof(fileExists));
+        _readAllTextIfExists = readAllTextIfExists ?? ReadAllTextIfExists;
         _canOpenForWrite = canOpenForWrite ?? throw new ArgumentNullException(nameof(canOpenForWrite));
+        _canOpenForRead = canOpenForRead ?? CanOpenForRead;
+        _getInputEventCandidates = getInputEventCandidates ?? GetInputEventCandidates;
         _inputSimulatorFactory = inputSimulatorFactory ?? throw new ArgumentNullException(nameof(inputSimulatorFactory));
         _inputCaptureFactory = inputCaptureFactory ?? throw new ArgumentNullException(nameof(inputCaptureFactory));
         _mousePositionProvider = mousePositionProvider ?? throw new ArgumentNullException(nameof(mousePositionProvider));
@@ -80,6 +101,8 @@ public sealed partial class DoctorService : IDoctorService
         _isWindows = isWindows ?? OperatingSystem.IsWindows;
         _isMacOS = isMacOS ?? OperatingSystem.IsMacOS;
         _daemonHandshakeProbe = daemonHandshakeProbe ?? ProbeDaemonHandshake;
+        _daemonSocketAccessProbe = daemonSocketAccessProbe ?? ProbeDaemonSocketAccess;
+        _daemonHandshakeDiagnosticProbe = daemonHandshakeDiagnosticProbe ?? ProbeDaemonHandshakeDiagnostic;
     }
 
     public Task<DoctorReport> RunAsync(bool verbose, CancellationToken cancellationToken)
@@ -107,9 +130,12 @@ public sealed partial class DoctorService : IDoctorService
             var linuxState = BuildLinuxInputState();
             checks.Add(BuildLinuxDisplayVariablesCheck(verbose));
             checks.Add(BuildLinuxDaemonSocketCheck(linuxState, verbose));
+            checks.Add(BuildLinuxDaemonAccessCheck(linuxState, verbose));
+            checks.Add(BuildLinuxDaemonGroupCheck(linuxState, verbose));
             checks.Add(BuildLinuxDaemonHandshakeCheck(linuxState, verbose));
             checks.Add(BuildLinuxUInputCheck(linuxState, verbose));
             checks.Add(BuildLinuxInputReadinessCheck(linuxState, verbose));
+            checks.Add(BuildLinuxGsrCompatibilityCheck(linuxState, verbose));
         }
 
         return Task.FromResult(new DoctorReport
@@ -367,6 +393,45 @@ public sealed partial class DoctorService : IDoctorService
         catch
         {
             return false;
+        }
+    }
+
+    private static bool CanOpenForRead(string path)
+    {
+        try
+        {
+            using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string[] GetInputEventCandidates()
+    {
+        try
+        {
+            return Directory.Exists("/dev/input")
+                ? Directory.GetFiles("/dev/input", "event*")
+                : [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private static string? ReadAllTextIfExists(string path)
+    {
+        try
+        {
+            return File.Exists(path) ? File.ReadAllText(path) : null;
+        }
+        catch
+        {
+            return null;
         }
     }
 }

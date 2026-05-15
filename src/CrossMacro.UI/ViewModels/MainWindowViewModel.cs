@@ -11,6 +11,7 @@ using CrossMacro.UI.Localization;
 using CrossMacro.UI.Icons;
 using CrossMacro.UI.Models;
 using CrossMacro.UI.Services;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 
@@ -28,6 +29,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly MainWindowNavigationCatalog _navigationCatalog;
     private readonly IExtensionStatusNotifier? _extensionNotifier;
     private readonly IUpdateService? _updateService;
+    private readonly IEnumerable<IPlatformStartupNotificationProvider> _platformStartupNotificationProviders;
     private readonly DisplayEnvironment _currentEnvironment;
     
     private string? _extensionWarning;
@@ -183,7 +185,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         IExternalUrlOpener externalUrlOpener,
         ILocalizationService localizationService,
         IExtensionStatusNotifier? extensionNotifier = null,
-        IUpdateService? updateService = null)
+        IUpdateService? updateService = null,
+        IEnumerable<IPlatformStartupNotificationProvider>? platformStartupNotificationProviders = null)
     {
         Recording = recording;
         Playback = playback;
@@ -200,6 +203,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _navigationCatalog = new MainWindowNavigationCatalog(_localizationService);
         _extensionNotifier = extensionNotifier;
         _updateService = updateService;
+        _platformStartupNotificationProviders = platformStartupNotificationProviders ?? Array.Empty<IPlatformStartupNotificationProvider>();
         _currentEnvironment = environmentInfo.CurrentEnvironment;
         _globalStatus = _localizationService["Status_Ready"];
         _localizationService.CultureChanged += OnCultureChanged;
@@ -261,6 +265,75 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         await Schedule.InitializeAsync();
         await CheckForUpdatesAsync();
+        ShowPlatformStartupNotificationIfNeeded();
+    }
+
+    private void ShowPlatformStartupNotificationIfNeeded()
+    {
+        if (!TryGetPlatformStartupNotification(out var notification))
+        {
+            return;
+        }
+
+        void ShowNotification()
+        {
+            if (IsAppNotificationVisible)
+            {
+                return;
+            }
+
+            ShowAppNotification(
+                title: notification.Title,
+                message: notification.Message,
+                severity: ToAppNotificationSeverity(notification.Severity),
+                duration: TimeSpan.FromSeconds(12));
+        }
+
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            ShowNotification();
+            return;
+        }
+
+        Dispatcher.UIThread.Post(ShowNotification);
+    }
+
+    private bool TryGetPlatformStartupNotification([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out PlatformStartupNotification? notification)
+    {
+        notification = null;
+
+        if (IsAppNotificationVisible)
+        {
+            return false;
+        }
+
+        foreach (var provider in _platformStartupNotificationProviders)
+        {
+            try
+            {
+                notification = provider.GetStartupNotification();
+                if (notification != null)
+                {
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[MainWindowViewModel] Platform startup notification provider failed");
+            }
+        }
+
+        return false;
+    }
+
+    private static AppNotificationSeverity ToAppNotificationSeverity(PlatformStartupNotificationSeverity severity)
+    {
+        return severity switch
+        {
+            PlatformStartupNotificationSeverity.Success => AppNotificationSeverity.Success,
+            PlatformStartupNotificationSeverity.Error => AppNotificationSeverity.Error,
+            _ => AppNotificationSeverity.Warning
+        };
     }
 
     // Update Notification Properties
@@ -662,7 +735,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             if (e.Code == ExtensionStatusCode.Enabled)
             {
                 ShowAppNotification(
-                    title: "GNOME Extension",
+                    title: _localizationService["MainWindow_GnomeExtensionTitle"],
                     message: e.Message,
                     severity: AppNotificationSeverity.Success,
                     duration: TimeSpan.FromSeconds(3));
@@ -679,7 +752,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _gnomeWarning = e.Message;
             UpdateCombinedWarning();
             ShowAppNotification(
-                title: "GNOME Extension",
+                title: _localizationService["MainWindow_GnomeExtensionTitle"],
                 message: e.Message,
                 severity: e.Code == ExtensionStatusCode.Error
                     ? AppNotificationSeverity.Error
@@ -740,13 +813,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         Dispatcher.UIThread.Post(() =>
         {
-            var troubleshootingHint = GetBackendTroubleshootingHint(_currentEnvironment);
-            var message = string.IsNullOrWhiteSpace(troubleshootingHint)
+            var troubleshootingHintKey = GetBackendTroubleshootingHintKey(_currentEnvironment);
+            var message = troubleshootingHintKey == null
                 ? error
-                : $"{error}\n\nTroubleshooting: {troubleshootingHint}";
+                : $"{error}\n\n{string.Format(
+                    _localizationService.CurrentCulture,
+                    _localizationService["MainWindow_BackendTroubleshootingFormat"],
+                    _localizationService[troubleshootingHintKey])}";
 
             ShowAppNotification(
-                title: "Backend Error",
+                title: _localizationService["MainWindow_BackendErrorTitle"],
                 message: message,
                 severity: AppNotificationSeverity.Error,
                 duration: TimeSpan.FromSeconds(10));
@@ -759,7 +835,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         ResetAppNotificationState();
     }
 
-    private static string? GetBackendTroubleshootingHint(DisplayEnvironment environment)
+    private static string? GetBackendTroubleshootingHintKey(DisplayEnvironment environment)
     {
         return environment switch
         {
@@ -769,11 +845,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 or DisplayEnvironment.LinuxWayfire
                 or DisplayEnvironment.LinuxKDE
                 or DisplayEnvironment.LinuxGnome
-                => "if you are using daemon-backed mode, check `systemctl status crossmacro.service`; direct device mode may require Linux input permissions instead.",
+                => "MainWindow_BackendTroubleshootingLinux",
             DisplayEnvironment.Windows
-                => "restart CrossMacro and verify the background service is running.",
+                => "MainWindow_BackendTroubleshootingWindows",
             DisplayEnvironment.MacOS
-                => "restart CrossMacro and verify Accessibility permissions in System Settings.",
+                => "MainWindow_BackendTroubleshootingMacOS",
             _ => null
         };
     }
@@ -815,7 +891,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 return;
             }
 
-            ResetAppNotificationState();
+            PostToUiThreadIfNeeded(ResetAppNotificationState);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -842,6 +918,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         notificationCts.Cancel();
         notificationCts.Dispose();
+    }
+
+    private static void PostToUiThreadIfNeeded(Action action)
+    {
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        Dispatcher.UIThread.Post(action);
     }
 
     private void ResetAppNotificationState()

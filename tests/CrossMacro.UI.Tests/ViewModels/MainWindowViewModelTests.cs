@@ -67,6 +67,12 @@ public class MainWindowViewModelTests
             "Status_RecordedEvents" => "[Status_RecordedEvents] {0}",
             "Status_CreatedMacro" => "[Status_CreatedMacro] {0} ({1})",
             "MainWindow_UpdateAvailableVersion" => "v{0} is available",
+            "MainWindow_GnomeExtensionTitle" => "[MainWindow_GnomeExtensionTitle]",
+            "MainWindow_BackendErrorTitle" => "[MainWindow_BackendErrorTitle]",
+            "MainWindow_BackendTroubleshootingFormat" => "Troubleshooting: {0}",
+            "MainWindow_BackendTroubleshootingLinux" => "check `systemctl status crossmacro.service`; direct device mode may require Linux input permissions instead.",
+            "MainWindow_BackendTroubleshootingWindows" => "restart CrossMacro and verify the background service is running.",
+            "MainWindow_BackendTroubleshootingMacOS" => "restart CrossMacro and verify Accessibility permissions in System Settings.",
             "Navigation_Recording" => "[Navigation_Recording]",
             "Navigation_Playback" => "[Navigation_Playback]",
             "Navigation_Files" => "[Navigation_Files]",
@@ -188,7 +194,7 @@ public class MainWindowViewModelTests
         viewModel.HasExtensionWarning.Should().BeTrue();
         viewModel.ExtensionWarning.Should().Be("Please enable GNOME extension manually or restart your session");
         viewModel.IsAppNotificationVisible.Should().BeTrue();
-        viewModel.AppNotificationTitle.Should().Be("GNOME Extension");
+        viewModel.AppNotificationTitle.Should().Be("[MainWindow_GnomeExtensionTitle]");
         viewModel.AppNotificationMessage.Should().Be("Please enable GNOME extension manually or restart your session");
         viewModel.IsAppNotificationWarning.Should().BeTrue();
     }
@@ -657,6 +663,75 @@ public class MainWindowViewModelTests
     }
 
     [Fact]
+    public async Task StartupInitialization_WhenPlatformStartupNotificationAvailable_ShowsDismissibleWarningNotification()
+    {
+        var platformNotificationProvider = Substitute.For<IPlatformStartupNotificationProvider>();
+        platformNotificationProvider.GetStartupNotification().Returns(new PlatformStartupNotification(
+            "Platform Compatibility",
+            "Platform startup warning is active.",
+            PlatformStartupNotificationSeverity.Warning));
+
+        using var viewModel = CreateMainWindowViewModel(platformStartupNotificationProviders: [platformNotificationProvider]);
+
+        await viewModel.StartupInitializationTask;
+
+        viewModel.IsAppNotificationVisible.Should().BeTrue();
+        viewModel.AppNotificationTitle.Should().Be("Platform Compatibility");
+        viewModel.AppNotificationMessage.Should().Be("Platform startup warning is active.");
+        viewModel.IsAppNotificationWarning.Should().BeTrue();
+
+        viewModel.DismissAppNotification();
+
+        viewModel.IsAppNotificationVisible.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task StartupInitialization_WhenExtensionWarningAlreadyVisible_DoesNotReplaceItWithPlatformNotification()
+    {
+        var notifier = new FakeExtensionStatusNotifier();
+        notifier.Publish(ExtensionStatusCode.Warning, "GNOME extension requires logout/login to activate");
+        var platformNotificationProvider = Substitute.For<IPlatformStartupNotificationProvider>();
+        platformNotificationProvider.GetStartupNotification().Returns(new PlatformStartupNotification(
+            "Platform Compatibility",
+            "Platform startup warning is active.",
+            PlatformStartupNotificationSeverity.Warning));
+
+        using var viewModel = CreateMainWindowViewModel(
+            extensionNotifier: notifier,
+            platformStartupNotificationProviders: [platformNotificationProvider]);
+
+        await viewModel.StartupInitializationTask;
+
+        viewModel.HasExtensionWarning.Should().BeTrue();
+        viewModel.ExtensionWarning.Should().Be("GNOME extension requires logout/login to activate");
+        viewModel.AppNotificationTitle.Should().Be("[MainWindow_GnomeExtensionTitle]");
+        viewModel.AppNotificationMessage.Should().Be("GNOME extension requires logout/login to activate");
+        viewModel.IsAppNotificationWarning.Should().BeTrue();
+        platformNotificationProvider.DidNotReceive().GetStartupNotification();
+    }
+
+    [Fact]
+    public async Task StartupInitialization_WhenPlatformStartupNotificationProviderThrows_SkipsProvider()
+    {
+        var throwingProvider = Substitute.For<IPlatformStartupNotificationProvider>();
+        throwingProvider.GetStartupNotification().Returns(_ => throw new InvalidOperationException("provider failed"));
+        var workingProvider = Substitute.For<IPlatformStartupNotificationProvider>();
+        workingProvider.GetStartupNotification().Returns(new PlatformStartupNotification(
+            "Platform Compatibility",
+            "Platform startup warning is active.",
+            PlatformStartupNotificationSeverity.Warning));
+
+        using var viewModel = CreateMainWindowViewModel(
+            platformStartupNotificationProviders: [throwingProvider, workingProvider]);
+
+        await viewModel.StartupInitializationTask;
+
+        viewModel.IsAppNotificationVisible.Should().BeTrue();
+        viewModel.AppNotificationTitle.Should().Be("Platform Compatibility");
+        viewModel.AppNotificationMessage.Should().Be("Platform startup warning is active.");
+    }
+
+    [Fact]
     public void CultureChanged_RefreshesNavigationLabels_ByLocalizationKey()
     {
         _viewModel.TopNavigationItems[0].LocalizationKey.Should().Be("Navigation_Recording");
@@ -701,30 +776,29 @@ public class MainWindowViewModelTests
     [InlineData(DisplayEnvironment.LinuxWayfire)]
     [InlineData(DisplayEnvironment.LinuxKDE)]
     [InlineData(DisplayEnvironment.LinuxGnome)]
-    public void GetBackendTroubleshootingHint_WhenLinuxEnvironment_ReturnsSystemctlGuidance(DisplayEnvironment environment)
+    public void GetBackendTroubleshootingHintKey_WhenLinuxEnvironment_ReturnsSystemctlGuidanceKey(DisplayEnvironment environment)
     {
-        var hint = GetBackendTroubleshootingHint(environment);
+        var hint = GetBackendTroubleshootingHintKey(environment);
 
         hint.Should().NotBeNull();
-        hint.Should().Contain("systemctl status crossmacro.service");
-        hint.Should().Contain("direct device mode");
+        hint.Should().Be("MainWindow_BackendTroubleshootingLinux");
     }
 
     [Theory]
     [InlineData(DisplayEnvironment.Windows)]
     [InlineData(DisplayEnvironment.MacOS)]
-    public void GetBackendTroubleshootingHint_WhenNonLinuxEnvironment_DoesNotReturnLinuxCommand(DisplayEnvironment environment)
+    public void GetBackendTroubleshootingHintKey_WhenNonLinuxEnvironment_ReturnsPlatformKey(DisplayEnvironment environment)
     {
-        var hint = GetBackendTroubleshootingHint(environment);
+        var hint = GetBackendTroubleshootingHintKey(environment);
 
         hint.Should().NotBeNull();
-        hint.Should().NotContain("systemctl status crossmacro.service");
+        hint.Should().NotBe("MainWindow_BackendTroubleshootingLinux");
     }
 
     [Fact]
-    public void GetBackendTroubleshootingHint_WhenUnknownEnvironment_ReturnsNull()
+    public void GetBackendTroubleshootingHintKey_WhenUnknownEnvironment_ReturnsNull()
     {
-        var hint = GetBackendTroubleshootingHint(DisplayEnvironment.Unknown);
+        var hint = GetBackendTroubleshootingHintKey(DisplayEnvironment.Unknown);
 
         hint.Should().BeNull();
     }
@@ -741,10 +815,10 @@ public class MainWindowViewModelTests
         act.Should().NotThrow();
     }
 
-    private static string? GetBackendTroubleshootingHint(DisplayEnvironment environment)
+    private static string? GetBackendTroubleshootingHintKey(DisplayEnvironment environment)
     {
         var method = typeof(MainWindowViewModel).GetMethod(
-            "GetBackendTroubleshootingHint",
+            "GetBackendTroubleshootingHintKey",
             BindingFlags.NonPublic | BindingFlags.Static);
 
         method.Should().NotBeNull();
@@ -767,7 +841,8 @@ public class MainWindowViewModelTests
         ISchedulerService? schedulerService = null,
         IUpdateService? updateService = null,
         bool? checkForUpdates = null,
-        IExtensionStatusNotifier? extensionNotifier = null)
+        IExtensionStatusNotifier? extensionNotifier = null,
+        IEnumerable<IPlatformStartupNotificationProvider>? platformStartupNotificationProviders = null)
     {
         var settingsService = Substitute.For<ISettingsService>();
         settingsService.Current.Returns(new AppSettings
@@ -796,6 +871,12 @@ public class MainWindowViewModelTests
             "Status_RecordedEvents" => "[Status_RecordedEvents] {0}",
             "Status_CreatedMacro" => "[Status_CreatedMacro] {0} ({1})",
             "MainWindow_UpdateAvailableVersion" => "v{0} is available",
+            "MainWindow_GnomeExtensionTitle" => "[MainWindow_GnomeExtensionTitle]",
+            "MainWindow_BackendErrorTitle" => "[MainWindow_BackendErrorTitle]",
+            "MainWindow_BackendTroubleshootingFormat" => "Troubleshooting: {0}",
+            "MainWindow_BackendTroubleshootingLinux" => "check `systemctl status crossmacro.service`; direct device mode may require Linux input permissions instead.",
+            "MainWindow_BackendTroubleshootingWindows" => "restart CrossMacro and verify the background service is running.",
+            "MainWindow_BackendTroubleshootingMacOS" => "restart CrossMacro and verify Accessibility permissions in System Settings.",
             "Navigation_Recording" => "[Navigation_Recording]",
             "Navigation_Playback" => "[Navigation_Playback]",
             "Navigation_Files" => "[Navigation_Files]",
@@ -888,7 +969,8 @@ public class MainWindowViewModelTests
             externalUrlOpener,
             localizationService,
             extensionNotifier,
-            updateService);
+            updateService,
+            platformStartupNotificationProviders);
     }
 
     private sealed class FakeExtensionStatusNotifier : IExtensionStatusNotifier

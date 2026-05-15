@@ -7,7 +7,18 @@ namespace CrossMacro.Platform.Linux.Services;
 
 public sealed class UnavailableInputCapture : IInputCapture
 {
+    public const string DefaultFailureMessage = "No usable Linux input capture backend is available.";
+
+    public UnavailableInputCapture(string? failureMessage = null)
+    {
+        FailureMessage = string.IsNullOrWhiteSpace(failureMessage)
+            ? DefaultFailureMessage
+            : failureMessage;
+    }
+
     public string ProviderName => "Unavailable (No Linux Input Backend)";
+
+    public string FailureMessage { get; }
 
     public bool IsSupported => false;
 
@@ -23,8 +34,8 @@ public sealed class UnavailableInputCapture : IInputCapture
 
     public Task StartAsync(CancellationToken ct)
     {
-        Error?.Invoke(this, "No usable Linux input capture backend is available.");
-        throw new InvalidOperationException("No usable Linux input capture backend is available.");
+        Error?.Invoke(this, FailureMessage);
+        return Task.FromException(new InvalidOperationException(FailureMessage));
     }
 
     public void Stop()

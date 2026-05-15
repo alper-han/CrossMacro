@@ -2,6 +2,7 @@ using CrossMacro.Core.Services;
 using CrossMacro.Platform.Linux.Ipc;
 using CrossMacro.Platform.Linux.Services;
 using CrossMacro.Platform.Linux.Services.Factories;
+using CrossMacro.Platform.Abstractions.Diagnostics;
 using CrossMacro.TestInfrastructure;
 using NSubstitute;
 using Xunit;
@@ -100,6 +101,7 @@ public class LinuxCaptureFactoryTests
         // Assert
         Assert.False(result.IsSupported);
         Assert.IsType<UnavailableInputCapture>(result);
+        Assert.Contains("No usable Linux input capture backend is available", ((UnavailableInputCapture)result).FailureMessage);
     }
 
     [LinuxFact]
@@ -129,6 +131,7 @@ public class LinuxCaptureFactoryTests
 
         Assert.False(result.IsSupported);
         Assert.IsType<UnavailableInputCapture>(result);
+        Assert.Contains("no readable input events", ((UnavailableInputCapture)result).FailureMessage, StringComparison.OrdinalIgnoreCase);
         Assert.False(legacyFactoryCalled);
     }
 
@@ -264,6 +267,43 @@ public class LinuxCaptureFactoryTests
         Assert.False(result.IsSupported);
         Assert.IsType<UnavailableInputCapture>(result);
         capability.Received(1).DetermineMode();
+        Assert.Contains("no readable input events", ((UnavailableInputCapture)result).FailureMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [LinuxFact]
+    public void Create_WhenWaylandPermissionDeniedAndNoReadableEvents_ReturnsDiagnosticReason()
+    {
+        var env = Substitute.For<ILinuxEnvironmentDetector>();
+        env.IsWayland.Returns(true);
+
+        var capability = Substitute.For<ILinuxInputCapabilityDetector>();
+        capability.DetermineMode().Returns(InputProviderMode.None);
+        capability.CanReadInputEvents.Returns(false);
+        capability.GetSnapshot().Returns(new LinuxInputCapabilitySnapshot(
+            "/run/crossmacro/crossmacro.sock",
+            true,
+            false,
+            false,
+            false,
+            false,
+            LinuxDaemonHandshakeProbeResult.Failed(
+                "/run/crossmacro/crossmacro.sock",
+                TimeSpan.FromSeconds(5),
+                LinuxDaemonHandshakeStatus.PermissionDenied,
+                "permission denied")));
+
+        var factory = new LinuxCaptureFactory(
+            env,
+            capability,
+            () => new LinuxInputCapture(),
+            () => throw new InvalidOperationException("IPC should not be used"),
+            () => throw new InvalidOperationException("X11 should not be used"));
+
+        var result = factory.Create();
+
+        var unavailable = Assert.IsType<UnavailableInputCapture>(result);
+        Assert.Contains("permission denied", unavailable.FailureMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("no readable input events", unavailable.FailureMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     private static X11InputCapture CreateX11Capture()

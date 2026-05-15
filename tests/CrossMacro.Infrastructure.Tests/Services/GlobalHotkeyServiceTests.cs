@@ -99,6 +99,51 @@ public class GlobalHotkeyServiceTests
     }
 
     [Fact]
+    public async Task CaptureNextKeyAsync_WhenServiceNotRunning_FailsFast()
+    {
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.CaptureNextKeyAsync());
+
+        Assert.Contains("not running", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task CaptureNextKeyAsync_WhenServiceHasUnavailableBackendError_FailsFast()
+    {
+        var capture = Substitute.For<IInputCapture>();
+        capture.ProviderName.Returns("unavailable");
+        capture.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.FromException(new InvalidOperationException("No usable Linux input capture backend is available.")));
+
+        var service = new GlobalHotkeyService(
+            _config,
+            _parser,
+            _matcher,
+            _modifierTracker,
+            _stringBuilder,
+            _mouseButtonMapper,
+            () => capture);
+
+        service.Start();
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CaptureNextKeyAsync());
+
+        Assert.Contains("No usable Linux input capture backend is available", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("No usable Linux input capture backend is available", service.LastError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task CaptureNextKeyAsync_WhenCancelled_DoesNotSurfaceError()
+    {
+        _service.Start();
+
+        using var cts = new CancellationTokenSource();
+        var captureTask = _service.CaptureNextKeyAsync(cts.Token);
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<TaskCanceledException>(async () => await captureTask);
+        Assert.Null(_service.LastError);
+    }
+
+    [Fact]
     public void Stop_WhenCalledTwice_IsIdempotent()
     {
         _service.Start();

@@ -3,6 +3,7 @@ using CrossMacro.Core.Services;
 using CrossMacro.Platform.Linux.Ipc;
 using CrossMacro.Platform.Linux.Extensions;
 using CrossMacro.Core.Logging;
+using CrossMacro.Platform.Abstractions.Diagnostics;
 
 namespace CrossMacro.Platform.Linux.Services.Factories;
 
@@ -67,18 +68,22 @@ public class LinuxCaptureFactory
 
             if (mode == InputProviderMode.None)
             {
+                var reason = BuildUnavailableCaptureMessage();
                 LoggingExtensions.LogOnce("LinuxCaptureFactory_Wayland_None",
-                    "[LinuxCaptureFactory] Wayland detected ({0}), no usable input backend found. Returning unsupported capture.",
-                    _environmentDetector.DetectedCompositor);
-                return new UnavailableInputCapture();
+                    "[LinuxCaptureFactory] Wayland detected ({0}), no usable input backend found. Returning unsupported capture: {1}",
+                    _environmentDetector.DetectedCompositor,
+                    reason);
+                return new UnavailableInputCapture(reason);
             }
 
             if (!_capabilityDetector.CanReadInputEvents)
             {
+                var reason = BuildUnavailableCaptureMessage();
                 LoggingExtensions.LogOnce("LinuxCaptureFactory_Wayland_Legacy_NoReadableEvents",
-                    "[LinuxCaptureFactory] Wayland detected ({0}), direct uinput is available but no readable input events were found. Returning unsupported capture.",
-                    _environmentDetector.DetectedCompositor);
-                return new UnavailableInputCapture();
+                    "[LinuxCaptureFactory] Wayland detected ({0}), direct uinput is available but no readable input events were found. Returning unsupported capture: {1}",
+                    _environmentDetector.DetectedCompositor,
+                    reason);
+                return new UnavailableInputCapture(reason);
             }
 
             // Fallback to legacy evdev (works with direct device permissions or Flatpak --device=all)
@@ -104,8 +109,35 @@ public class LinuxCaptureFactory
         {
             InputProviderMode.Legacy when _capabilityDetector.CanReadInputEvents => _legacyFactory(),
             InputProviderMode.Daemon => _ipcFactory(),
-            _ => new UnavailableInputCapture()
+            _ => new UnavailableInputCapture(BuildUnavailableCaptureMessage())
         };
+    }
+
+    private string BuildUnavailableCaptureMessage()
+    {
+        var snapshot = _capabilityDetector.GetSnapshot();
+        var diagnostic = snapshot.DaemonHandshakeDiagnostic;
+
+        if (diagnostic is not null)
+        {
+            return diagnostic.Value.Status switch
+            {
+                LinuxDaemonHandshakeStatus.PermissionDenied => "No usable Linux input capture backend is available: daemon socket permission denied and no readable input events were found.",
+                LinuxDaemonHandshakeStatus.MissingSocket => snapshot.CanUseDirectUInput
+                    ? "No usable Linux input capture backend is available: daemon socket is missing but direct input fallback is available only without readable input events."
+                    : "No usable Linux input capture backend is available: daemon socket is missing and no direct input fallback is available.",
+                LinuxDaemonHandshakeStatus.Timeout => snapshot.CanUseDirectUInput
+                    ? "No usable Linux input capture backend is available: daemon handshake timed out and direct input fallback is unavailable."
+                    : "No usable Linux input capture backend is available: daemon handshake timed out and no direct input fallback is available.",
+                _ => snapshot.CanUseDirectUInput && snapshot.CanReadInputEvents
+                    ? "No usable Linux input capture backend is available: daemon backend unavailable and direct event access is not usable."
+                    : "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found."
+            };
+        }
+
+        return snapshot.CanReadInputEvents
+            ? "No usable Linux input capture backend is available: daemon backend unavailable."
+            : "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.";
     }
 
 }

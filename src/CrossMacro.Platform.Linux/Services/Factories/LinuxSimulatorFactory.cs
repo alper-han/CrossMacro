@@ -3,6 +3,7 @@ using CrossMacro.Core.Services;
 using CrossMacro.Platform.Linux.Ipc;
 using CrossMacro.Platform.Linux.Extensions;
 using CrossMacro.Core.Logging;
+using CrossMacro.Platform.Abstractions.Diagnostics;
 
 namespace CrossMacro.Platform.Linux.Services.Factories;
 
@@ -67,10 +68,12 @@ public class LinuxSimulatorFactory
 
             if (mode == InputProviderMode.None)
             {
+                var reason = BuildUnavailableSimulatorMessage();
                 LoggingExtensions.LogOnce("LinuxSimulatorFactory_Wayland_None",
-                    "[LinuxSimulatorFactory] Wayland detected ({0}), no usable input backend found. Returning unsupported simulator.",
-                    _environmentDetector.DetectedCompositor);
-                return new UnavailableInputSimulator();
+                    "[LinuxSimulatorFactory] Wayland detected ({0}), no usable input backend found. Returning unsupported simulator: {1}",
+                    _environmentDetector.DetectedCompositor,
+                    reason);
+                return new UnavailableInputSimulator(reason);
             }
 
             // Fallback to legacy evdev (works with direct device permissions or Flatpak --device=all)
@@ -96,8 +99,29 @@ public class LinuxSimulatorFactory
         {
             InputProviderMode.Legacy => _legacyFactory(),
             InputProviderMode.Daemon => _ipcFactory(),
-            _ => new UnavailableInputSimulator()
+            _ => new UnavailableInputSimulator(BuildUnavailableSimulatorMessage())
         };
+    }
+
+    private string BuildUnavailableSimulatorMessage()
+    {
+        var snapshot = _capabilityDetector.GetSnapshot();
+        var diagnostic = snapshot.DaemonHandshakeDiagnostic;
+
+        if (diagnostic is not null)
+        {
+            return diagnostic.Value.Status switch
+            {
+                LinuxDaemonHandshakeStatus.PermissionDenied => "No usable Linux input backend is available: daemon socket permission denied and direct input fallback is unavailable.",
+                LinuxDaemonHandshakeStatus.MissingSocket => snapshot.CanUseDirectUInput
+                    ? "No usable Linux input backend is available: daemon socket is missing and direct input fallback is unavailable."
+                    : "No usable Linux input backend is available: daemon socket is missing and direct input fallback is unavailable.",
+                LinuxDaemonHandshakeStatus.Timeout => "No usable Linux input backend is available: daemon handshake timed out and direct input fallback is unavailable.",
+                _ => "No usable Linux input backend is available: daemon backend unavailable and direct input fallback is unavailable."
+            };
+        }
+
+        return "No usable Linux input backend is available: daemon backend unavailable and direct input fallback is unavailable.";
     }
 
 }

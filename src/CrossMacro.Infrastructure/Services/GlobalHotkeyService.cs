@@ -164,6 +164,16 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
     public async Task<string> CaptureNextKeyAsync(CancellationToken cancellationToken = default)
     {
+        if (!_isRunning)
+        {
+            throw new InvalidOperationException(LastError ?? "Global hotkey capture is not running.");
+        }
+
+        if (_inputCaptureFactory == null)
+        {
+            throw new InvalidOperationException("No input capture factory configured");
+        }
+
         _captureTcs = new TaskCompletionSource<string>();
         _isCapturing = true;
         

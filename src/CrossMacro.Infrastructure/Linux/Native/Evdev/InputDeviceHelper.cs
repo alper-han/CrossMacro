@@ -28,6 +28,9 @@ public class InputDeviceHelper
         {
             get
             {
+                if (IsVirtual && IsMouse && IsKeyboard) return "Virtual Mouse+Keyboard";
+                if (IsVirtual && IsMouse) return "Virtual Mouse";
+                if (IsVirtual && IsKeyboard) return "Virtual Keyboard";
                 if (IsVirtual) return "Virtual";
                 if (IsMouse && IsKeyboard) return "Mouse+Keyboard";
                 if (IsMouse) return "Mouse";
@@ -168,9 +171,9 @@ public class InputDeviceHelper
 
             var (busType, vendorId, productId, version) = ReadDeviceId(fd);
 
-            if (IsVirtualDevice(devicePath, name))
+            if (VirtualDeviceConstants.IsCrossMacroVirtualDevice(name, vendorId, productId))
             {
-                Log.Debug("[InputDeviceHelper] Virtual device: {Path} - {Name} (VID:0x{VID:X4} PID:0x{PID:X4})",
+                Log.Debug("[InputDeviceHelper] CrossMacro virtual output device: {Path} - {Name} (VID:0x{VID:X4} PID:0x{PID:X4})",
                     devicePath, name, vendorId, productId);
                 return new InputDevice
                 {
@@ -186,6 +189,8 @@ public class InputDeviceHelper
                 };
             }
 
+            bool isVirtual = IsVirtualDevice(devicePath, name);
+
             if (ShouldExcludeDevice(name))
             {
                 Log.Debug("[InputDeviceHelper] Excluded device: {Path} - {Name} (VID:0x{VID:X4} PID:0x{PID:X4})",
@@ -196,6 +201,7 @@ public class InputDeviceHelper
                     Name = name,
                     IsMouse = false,
                     IsKeyboard = false,
+                    IsVirtual = isVirtual,
                     BusType = busType,
                     VendorId = vendorId,
                     ProductId = productId,
@@ -216,6 +222,7 @@ public class InputDeviceHelper
                 Name = string.IsNullOrWhiteSpace(name) ? "Unknown Device" : name,
                 IsMouse = isMouse,
                 IsKeyboard = isKeyboard,
+                IsVirtual = isVirtual,
                 BusType = busType,
                 VendorId = vendorId,
                 ProductId = productId,
@@ -335,17 +342,17 @@ public class InputDeviceHelper
 
     private static bool CheckIsMouse(int fd)
     {
-        if (!HasCapability(fd, EvdevNative.EVIOCGBIT_EV, UInputNative.EV_REL) ||
-            !HasCapability(fd, EvdevNative.EVIOCGBIT_EV, UInputNative.EV_KEY))
+        if (!HasCapability(fd, UInputNative.EV_SYN, UInputNative.EV_REL) ||
+            !HasCapability(fd, UInputNative.EV_SYN, UInputNative.EV_KEY))
             return false;
 
-        if (!HasCapability(fd, EvdevNative.EVIOCGBIT_REL, UInputNative.REL_X) ||
-            !HasCapability(fd, EvdevNative.EVIOCGBIT_REL, UInputNative.REL_Y))
+        if (!HasCapability(fd, UInputNative.EV_REL, UInputNative.REL_X) ||
+            !HasCapability(fd, UInputNative.EV_REL, UInputNative.REL_Y))
             return false;
 
         for (int btn = UInputNative.BTN_LEFT; btn <= UInputNative.BTN_TASK; btn++)
         {
-            if (HasCapability(fd, EvdevNative.EVIOCGBIT_KEY, btn))
+            if (HasCapability(fd, UInputNative.EV_KEY, btn))
                 return true;
         }
         return false;
@@ -353,45 +360,45 @@ public class InputDeviceHelper
 
     private static bool CheckIsTouchpad(int fd)
     {
-        if (!HasCapability(fd, EvdevNative.EVIOCGBIT_EV, UInputNative.EV_ABS) ||
-            !HasCapability(fd, EvdevNative.EVIOCGBIT_EV, UInputNative.EV_KEY))
+        if (!HasCapability(fd, UInputNative.EV_SYN, UInputNative.EV_ABS) ||
+            !HasCapability(fd, UInputNative.EV_SYN, UInputNative.EV_KEY))
             return false;
 
-        bool hasButton = HasCapability(fd, EvdevNative.EVIOCGBIT_KEY, UInputNative.BTN_TOUCH) ||
-                         HasCapability(fd, EvdevNative.EVIOCGBIT_KEY, UInputNative.BTN_LEFT);
+        bool hasButton = HasCapability(fd, UInputNative.EV_KEY, UInputNative.BTN_TOUCH) ||
+                         HasCapability(fd, UInputNative.EV_KEY, UInputNative.BTN_LEFT);
         if (!hasButton) return false;
 
-        bool hasPosition = (HasCapability(fd, EvdevNative.EVIOCGBIT_ABS, UInputNative.ABS_X) &&
-                            HasCapability(fd, EvdevNative.EVIOCGBIT_ABS, UInputNative.ABS_Y)) ||
-                           (HasCapability(fd, EvdevNative.EVIOCGBIT_ABS, UInputNative.ABS_MT_POSITION_X) &&
-                            HasCapability(fd, EvdevNative.EVIOCGBIT_ABS, UInputNative.ABS_MT_POSITION_Y));
+        bool hasPosition = (HasCapability(fd, UInputNative.EV_ABS, UInputNative.ABS_X) &&
+                            HasCapability(fd, UInputNative.EV_ABS, UInputNative.ABS_Y)) ||
+                           (HasCapability(fd, UInputNative.EV_ABS, UInputNative.ABS_MT_POSITION_X) &&
+                            HasCapability(fd, UInputNative.EV_ABS, UInputNative.ABS_MT_POSITION_Y));
         if (!hasPosition) return false;
 
-        return !HasCapability(fd, EvdevNative.EVIOCGBIT_EV, UInputNative.EV_REL);
+        return !HasCapability(fd, UInputNative.EV_SYN, UInputNative.EV_REL);
     }
 
     private static bool CheckIsKeyboard(int fd)
     {
-        if (!HasCapability(fd, EvdevNative.EVIOCGBIT_EV, UInputNative.EV_KEY))
+        if (!HasCapability(fd, UInputNative.EV_SYN, UInputNative.EV_KEY))
             return false;
 
-        bool hasEscOrEnter = HasCapability(fd, EvdevNative.EVIOCGBIT_KEY, 1) ||
-                             HasCapability(fd, EvdevNative.EVIOCGBIT_KEY, 28);
+        bool hasEscOrEnter = HasCapability(fd, UInputNative.EV_KEY, 1) ||
+                             HasCapability(fd, UInputNative.EV_KEY, 28);
         if (!hasEscOrEnter) return false;
 
         for (int keyCode = 30; keyCode <= 44; keyCode++)
         {
-            if (HasCapability(fd, EvdevNative.EVIOCGBIT_KEY, keyCode))
+            if (HasCapability(fd, UInputNative.EV_KEY, keyCode))
                 return true;
         }
 
         return false;
     }
 
-    private static bool HasCapability(int fd, ulong type, int code)
+    private static bool HasCapability(int fd, int eventType, int code)
     {
         byte[] mask = new byte[96];
-        int len = EvdevNative.ioctl(fd, type, mask);
+        int len = EvdevNative.ioctl(fd, EvdevNative.EVIOCGBIT(eventType, mask.Length), mask);
         if (len < 0) return false;
 
         int byteIndex = code / 8;
@@ -414,7 +421,7 @@ public class InputDeviceHelper
         try
         {
             byte[] keyMask = new byte[128];
-            int len = EvdevNative.ioctl(fd, EvdevNative.EVIOCGBIT_KEY, keyMask);
+            int len = EvdevNative.ioctl(fd, EvdevNative.EVIOCGBIT(UInputNative.EV_KEY, keyMask.Length), keyMask);
             if (len < 0) return result;
 
             for (int keyCode = 0; keyCode <= 767; keyCode++)

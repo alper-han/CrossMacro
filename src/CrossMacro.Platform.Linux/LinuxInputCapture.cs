@@ -162,7 +162,7 @@ public class LinuxInputCapture : IInputCapture
             UInputNative.EV_KEY => UInputNative.IsMouseButton(e.code) 
                 ? InputEventType.MouseButton 
                 : InputEventType.Key,
-            UInputNative.EV_REL => e.code == UInputNative.REL_WHEEL 
+            UInputNative.EV_REL => e.code is UInputNative.REL_WHEEL or UInputNative.REL_HWHEEL
                 ? InputEventType.MouseScroll 
                 : InputEventType.MouseMove,
             UInputNative.EV_ABS when e.code == UInputNative.ABS_X || e.code == UInputNative.ABS_Y
@@ -203,7 +203,7 @@ public class LinuxInputCapture : IInputCapture
 
     private bool ShouldCaptureDevice(InputDeviceHelper.InputDevice device)
     {
-        if (VirtualDeviceConstants.IsCrossMacroVirtualDeviceName(device.Name))
+        if (VirtualDeviceConstants.IsCrossMacroVirtualDevice(device.Name, device.VendorId, device.ProductId))
         {
             return false;
         }

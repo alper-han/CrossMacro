@@ -16,6 +16,21 @@ public static class EvdevNative
     public const ulong EVIOCGID = 0x80084502;
     public const ulong EVIOCGKEY = 0x80604518;
 
+    public static ulong EVIOCGBIT(int eventType, int length)
+    {
+        const ulong iocRead = 2;
+        const int iocDirShift = 30;
+        const int iocSizeShift = 16;
+        const int iocTypeShift = 8;
+        const int evdevIoctlType = 0x45;
+        const int evdevGetBitBase = 0x20;
+
+        return (iocRead << iocDirShift) |
+               ((ulong)length << iocSizeShift) |
+               ((ulong)evdevIoctlType << iocTypeShift) |
+               (uint)(evdevGetBitBase + eventType);
+    }
+
     [DllImport(LibC, SetLastError = true)]
     public static extern int open(string pathname, int flags);
 

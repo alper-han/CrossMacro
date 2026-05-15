@@ -122,7 +122,7 @@ public class InputCaptureManager : IInputCaptureManager
 
     private static bool ShouldCaptureDevice(InputDeviceHelper.InputDevice device, bool captureMouse, bool captureKeyboard)
     {
-        if (VirtualDeviceConstants.IsCrossMacroVirtualDeviceName(device.Name))
+        if (VirtualDeviceConstants.IsCrossMacroVirtualDevice(device.Name, device.VendorId, device.ProductId))
         {
             return false;
         }

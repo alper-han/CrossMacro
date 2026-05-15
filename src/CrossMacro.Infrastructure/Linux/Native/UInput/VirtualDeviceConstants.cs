@@ -15,4 +15,9 @@ public static class VirtualDeviceConstants
     {
         return string.Equals(deviceName, DeviceName, StringComparison.Ordinal);
     }
+
+    public static bool IsCrossMacroVirtualDevice(string? deviceName, ushort vendorId, ushort productId)
+    {
+        return IsCrossMacroVirtualDeviceName(deviceName) && vendorId == VendorId && productId == ProductId;
+    }
 }

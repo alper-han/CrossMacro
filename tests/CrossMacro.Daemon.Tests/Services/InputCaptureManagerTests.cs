@@ -123,7 +123,9 @@ public class InputCaptureManagerTests
                 {
                     Path = "/dev/input/event-virtual",
                     Name = VirtualDeviceConstants.DeviceName,
-                    IsKeyboard = true
+                    IsKeyboard = true,
+                    VendorId = VirtualDeviceConstants.VendorId,
+                    ProductId = VirtualDeviceConstants.ProductId
                 },
                 new InputDeviceHelper.InputDevice
                 {
@@ -150,6 +152,64 @@ public class InputCaptureManagerTests
         Assert.Equal(1, result.StartedDeviceCount);
         Assert.Equal(0, virtualFactoryCalls);
         Assert.Equal(1, realReader.StartCalls);
+    }
+
+    [Fact]
+    public void StartCapture_WhenDeviceOnlyMatchesCrossMacroName_ShouldNotTreatItAsOwnOutputDevice()
+    {
+        var reader = new FakeLinuxCaptureReader();
+        var manager = new InputCaptureManager(
+            () => new[]
+            {
+                new InputDeviceHelper.InputDevice
+                {
+                    Path = "/dev/input/event-renamed",
+                    Name = VirtualDeviceConstants.DeviceName,
+                    IsKeyboard = true,
+                    VendorId = 0x9999,
+                    ProductId = 0x8888
+                }
+            },
+            _ => reader);
+
+        var received = new List<UInputNative.input_event>();
+        var result = manager.StartCapture(captureMouse: false, captureKeyboard: true, received.Add);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, result.StartedDeviceCount);
+        Assert.Equal(1, reader.StartCalls);
+    }
+
+    [Fact]
+    public void StartCapture_WhenDeviceListContainsThirdPartyVirtualKeyboard_ShouldCaptureIt()
+    {
+        var virtualKeyboardReader = new FakeLinuxCaptureReader();
+        var manager = new InputCaptureManager(
+            () => new[]
+            {
+                new InputDeviceHelper.InputDevice
+                {
+                    Path = "/dev/input/event-gsr",
+                    Name = "gsr-ui virtual keyboard",
+                    IsVirtual = true,
+                    IsKeyboard = true,
+                    VendorId = 0xdec0,
+                    ProductId = 0x5eba
+                }
+            },
+            _ => virtualKeyboardReader);
+
+        var received = new List<UInputNative.input_event>();
+        var result = manager.StartCapture(captureMouse: false, captureKeyboard: true, received.Add);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, result.StartedDeviceCount);
+        Assert.Equal(1, virtualKeyboardReader.StartCalls);
+
+        virtualKeyboardReader.Emit(new UInputNative.input_event { type = UInputNative.EV_KEY, code = 30, value = 1 });
+
+        Assert.Single(received);
+        Assert.Equal(30, received[0].code);
     }
 
     private sealed class FakeLinuxCaptureReader : InputCaptureManager.ILinuxCaptureReader

@@ -161,6 +161,34 @@ public class LinuxInputCaptureTests
     }
 
     [LinuxFact]
+    public async Task StartAsync_WhenConfiguredForMouseOnly_ForwardsHorizontalWheelAsScrollEvent()
+    {
+        var devices = new[]
+        {
+            new InputDeviceHelper.InputDevice
+            {
+                Path = "/dev/input/event-test",
+                Name = "Wheel Mouse",
+                IsMouse = true
+            }
+        };
+        var reader = new FakeLinuxInputReader();
+
+        using var capture = new LinuxInputCapture(() => devices, _ => reader);
+        capture.Configure(captureMouse: true, captureKeyboard: false);
+        await capture.StartAsync(CancellationToken.None);
+
+        InputCaptureEventArgs? received = null;
+        capture.InputReceived += (_, args) => received = args;
+
+        reader.Emit(new UInputNative.input_event { type = UInputNative.EV_REL, code = UInputNative.REL_HWHEEL, value = 1 });
+
+        Assert.NotNull(received);
+        Assert.Equal(InputEventType.MouseScroll, received!.Value.Type);
+        Assert.Equal(UInputNative.REL_HWHEEL, received.Value.Code);
+    }
+
+    [LinuxFact]
     public async Task StartAsync_WhenDeviceListContainsCrossMacroVirtualDevice_ShouldSkipIt()
     {
         var virtualFactoryCalls = 0;
@@ -170,7 +198,9 @@ public class LinuxInputCaptureTests
             {
                 Path = "/dev/input/event-virtual",
                 Name = VirtualDeviceConstants.DeviceName,
-                IsKeyboard = true
+                IsKeyboard = true,
+                VendorId = VirtualDeviceConstants.VendorId,
+                ProductId = VirtualDeviceConstants.ProductId
             },
             new InputDeviceHelper.InputDevice
             {
@@ -198,6 +228,63 @@ public class LinuxInputCaptureTests
 
         Assert.Equal(0, virtualFactoryCalls);
         Assert.Equal(1, realReader.StartCalls);
+    }
+
+    [LinuxFact]
+    public async Task StartAsync_WhenDeviceOnlyMatchesCrossMacroName_ShouldNotTreatItAsOwnOutputDevice()
+    {
+        var reader = new FakeLinuxInputReader(deviceName: VirtualDeviceConstants.DeviceName);
+        var devices = new[]
+        {
+            new InputDeviceHelper.InputDevice
+            {
+                Path = "/dev/input/event-renamed",
+                Name = VirtualDeviceConstants.DeviceName,
+                IsKeyboard = true,
+                VendorId = 0x9999,
+                ProductId = 0x8888
+            }
+        };
+
+        using var capture = new LinuxInputCapture(() => devices, _ => reader);
+        capture.Configure(captureMouse: false, captureKeyboard: true);
+
+        await capture.StartAsync(CancellationToken.None);
+
+        Assert.Equal(1, reader.StartCalls);
+    }
+
+    [LinuxFact]
+    public async Task StartAsync_WhenDeviceListContainsThirdPartyVirtualKeyboard_ShouldCaptureIt()
+    {
+        var virtualKeyboardReader = new FakeLinuxInputReader(deviceName: "gsr-ui virtual keyboard");
+        var devices = new[]
+        {
+            new InputDeviceHelper.InputDevice
+            {
+                Path = "/dev/input/event-gsr",
+                Name = "gsr-ui virtual keyboard",
+                IsVirtual = true,
+                IsKeyboard = true,
+                VendorId = 0xdec0,
+                ProductId = 0x5eba
+            }
+        };
+
+        using var capture = new LinuxInputCapture(() => devices, _ => virtualKeyboardReader);
+        capture.Configure(captureMouse: false, captureKeyboard: true);
+
+        await capture.StartAsync(CancellationToken.None);
+
+        InputCaptureEventArgs? received = null;
+        capture.InputReceived += (_, args) => received = args;
+
+        virtualKeyboardReader.Emit(new UInputNative.input_event { type = UInputNative.EV_KEY, code = 30, value = 1 });
+
+        Assert.Equal(1, virtualKeyboardReader.StartCalls);
+        Assert.NotNull(received);
+        Assert.Equal(InputEventType.Key, received!.Value.Type);
+        Assert.Equal("gsr-ui virtual keyboard", received.Value.DeviceName);
     }
 
     private sealed class FakeLinuxInputReader : LinuxInputCapture.ILinuxInputReader

@@ -184,6 +184,68 @@ public sealed partial class LinuxPackagingStaticParityTests
         Assert.Contains("LD_LIBRARY_PATH=\"\\$HERE/usr/lib", appImageScript, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ArchInstallHook_ShouldReportUserGroupChangesTruthfully()
+    {
+        var installHook = ReadRepoFile("scripts/packaging/arch/crossmacro.install");
+
+        Assert.DoesNotContain("usermod -aG crossmacro \"$installer_user\" >/dev/null 2>&1 || true", installHook, StringComparison.Ordinal);
+        Assert.DoesNotContain("was added to 'crossmacro' group (best effort)", installHook, StringComparison.Ordinal);
+        Assert.Contains("elif usermod -aG crossmacro \"$installer_user\" >/dev/null 2>&1; then", installHook, StringComparison.Ordinal);
+        Assert.Contains("installer_user_group_status=\"already_member\"", installHook, StringComparison.Ordinal);
+        Assert.Contains("installer_user_group_status=\"added\"", installHook, StringComparison.Ordinal);
+        Assert.Contains("installer_user_group_status=\"failed\"", installHook, StringComparison.Ordinal);
+        Assert.Contains("installer_user_group_status=\"unknown\"", installHook, StringComparison.Ordinal);
+        Assert.Contains("'$installer_user' is already a member of the 'crossmacro' group.", installHook, StringComparison.Ordinal);
+        Assert.Contains("'$installer_user' was added to the 'crossmacro' group.", installHook, StringComparison.Ordinal);
+        Assert.Contains("Could not add '$installer_user' to the 'crossmacro' group automatically.", installHook, StringComparison.Ordinal);
+        Assert.Contains("Could not determine the non-root user who launched the installer.", installHook, StringComparison.Ordinal);
+        Assert.Contains("sudo usermod -aG crossmacro \\$USER", installHook, StringComparison.Ordinal);
+        Assert.Contains("log out and log back in, or reboot", installHook, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ArchInstallHook_ShouldProvisionSysusersBeforeServiceStartAndRestart()
+    {
+        var installHook = ReadRepoFile("scripts/packaging/arch/crossmacro.install");
+        var postInstallSection = ExtractSection(installHook, "post_install() {", "post_upgrade() {");
+        var postUpgradeSection = ExtractSection(installHook, "post_upgrade() {", "pre_remove() {");
+
+        Assert.Contains("_crossmacro_provision_sysusers()", installHook, StringComparison.Ordinal);
+        Assert.Contains("getent passwd crossmacro >/dev/null 2>&1 || return 1", installHook, StringComparison.Ordinal);
+        Assert.Contains("getent group crossmacro >/dev/null 2>&1 || return 1", installHook, StringComparison.Ordinal);
+
+        AssertOrder(
+            postInstallSection,
+            "if _crossmacro_provision_sysusers; then",
+            "systemctl enable --now crossmacro.service");
+        AssertOrder(
+            postUpgradeSection,
+            "if ! _crossmacro_provision_sysusers; then",
+            "systemctl try-restart crossmacro.service");
+    }
+
+    private static void AssertOrder(string text, string first, string last)
+    {
+        var firstIndex = text.IndexOf(first, StringComparison.Ordinal);
+        var lastIndex = text.IndexOf(last, StringComparison.Ordinal);
+
+        Assert.True(firstIndex >= 0, $"Could not find '{first}' in packaging hook.");
+        Assert.True(lastIndex >= 0, $"Could not find '{last}' in packaging hook.");
+        Assert.True(firstIndex < lastIndex, $"Expected '{first}' before '{last}'.");
+    }
+
+    private static string ExtractSection(string text, string startMarker, string endMarker)
+    {
+        var startIndex = text.IndexOf(startMarker, StringComparison.Ordinal);
+        var endIndex = text.IndexOf(endMarker, startIndex + startMarker.Length, StringComparison.Ordinal);
+
+        Assert.True(startIndex >= 0, $"Could not find '{startMarker}' in packaging hook.");
+        Assert.True(endIndex >= 0, $"Could not find '{endMarker}' in packaging hook.");
+
+        return text.Substring(startIndex, endIndex - startIndex);
+    }
+
     private static string[] ExtractRpmRequires(string spec)
     {
         var requiresLine = spec

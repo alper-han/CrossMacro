@@ -34,21 +34,37 @@ public sealed class CaptureForwardingCoordinatorTests
             }
         };
 
-        using var firstWriter = session.WriterGate.Enter();
-        var forwarder = coordinator.CreateEventForwarder(generation, session);
-        var forwardTask = Task.Run(() => forwarder(new UInputNative.input_event
+        var firstWriter = session.WriterGate.Enter();
+        var firstWriterReleased = false;
+
+        try
         {
-            type = UInputNative.EV_KEY,
-            code = UInputNative.BTN_LEFT,
-            value = 1
-        }));
+            var forwarder = coordinator.CreateEventForwarder(generation, session);
+            var forwardTask = Task.Factory.StartNew(
+                () => forwarder(new UInputNative.input_event
+                {
+                    type = UInputNative.EV_KEY,
+                    code = UInputNative.BTN_LEFT,
+                    value = 1
+                }),
+                TaskCreationOptions.LongRunning);
 
-        await queuedWriteIssued.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await queuedWriteIssued.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
-        coordinator.Stop();
-        firstWriter.Dispose();
-        await forwardTask.WaitAsync(TimeSpan.FromSeconds(2));
+            coordinator.Stop();
+            firstWriter.Dispose();
+            firstWriterReleased = true;
 
-        Assert.Equal(0, writerStream.Length);
+            await forwardTask.WaitAsync(TimeSpan.FromSeconds(2));
+
+            Assert.Equal(0, writerStream.Length);
+        }
+        finally
+        {
+            if (!firstWriterReleased)
+            {
+                firstWriter.Dispose();
+            }
+        }
     }
 }

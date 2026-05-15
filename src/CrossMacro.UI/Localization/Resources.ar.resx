@@ -36,6 +36,21 @@
   <data name="MainWindow_UpdateAvailableVersion" xml:space="preserve">
     <value>v{0} متاح</value>
   </data>
+  <data name="MainWindow_BackendErrorTitle" xml:space="preserve">
+    <value>خطأ Backend</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingFormat" xml:space="preserve">
+    <value>استكشاف الأخطاء: {0}</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingLinux" xml:space="preserve">
+    <value>إذا كنت تستخدم وضع daemon، فتحقق من `systemctl status crossmacro.service`؛ وقد يتطلب direct device mode أذونات input في Linux.</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingWindows" xml:space="preserve">
+    <value>أعد تشغيل CrossMacro وتحقق من أن خدمة الخلفية تعمل.</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingMacOS" xml:space="preserve">
+    <value>أعد تشغيل CrossMacro وتحقق من أذونات إمكانية الوصول في إعدادات النظام.</value>
+  </data>
   <data name="Navigation_Recording" xml:space="preserve">
     <value>تسجيل</value>
   </data>
@@ -334,13 +349,13 @@
     <value>لا توجد توسعات محفوظة</value>
   </data>
   <data name="TextExpansion_EnableInSettingsTip" xml:space="preserve">
-    <value>قم بالتمكين في علامة التبويب &quot;الإعدادات&quot; لبدء التوسع</value>
+    <value>قم بالتمكين في علامة التبويب "الإعدادات" لبدء التوسع</value>
   </data>
   <data name="TextExpansion_DeleteTitle" xml:space="preserve">
     <value>حذف التوسع</value>
   </data>
   <data name="TextExpansion_DeleteMessage" xml:space="preserve">
-    <value>هل أنت متأكد أنك تريد حذف التوسيع &apos;{0}&apos;؟</value>
+    <value>هل أنت متأكد أنك تريد حذف التوسيع '{0}'؟</value>
   </data>
   <data name="Schedule_Title" xml:space="preserve">
     <value>المهام المجدولة</value>
@@ -448,7 +463,7 @@
     <value>حذف المهمة</value>
   </data>
   <data name="Schedule_DeleteMessage" xml:space="preserve">
-    <value>هل أنت متأكد أنك تريد حذف المهمة &apos;{0}&apos;؟</value>
+    <value>هل أنت متأكد أنك تريد حذف المهمة '{0}'؟</value>
   </data>
   <data name="Schedule_OpenMacroDialogTitle" xml:space="preserve">
     <value>حدد ملف ماكرو</value>
@@ -571,7 +586,7 @@
     <value>حذف الاختصار</value>
   </data>
   <data name="Shortcut_DeleteMessage" xml:space="preserve">
-    <value>هل أنت متأكد أنك تريد حذف الاختصار &apos;{0}&apos;؟</value>
+    <value>هل أنت متأكد أنك تريد حذف الاختصار '{0}'؟</value>
   </data>
   <data name="Shortcut_OpenMacroDialogTitle" xml:space="preserve">
     <value>حدد ملف ماكرو</value>
@@ -637,7 +652,7 @@
     <value>حذف الماكرو المحمّل</value>
   </data>
   <data name="Files_DeleteLoadedMacroMessage" xml:space="preserve">
-    <value>هل أنت متأكد أنك تريد إزالة الماكرو الذي تم تحميله &apos;{0}&apos;؟</value>
+    <value>هل أنت متأكد أنك تريد إزالة الماكرو الذي تم تحميله '{0}'؟</value>
   </data>
   <data name="Files_StatusRemoved" xml:space="preserve">
     <value>تمت الإزالة {0}</value>
@@ -1144,13 +1159,13 @@
     <value>حرر {0}</value>
   </data>
   <data name="Editor_Action_KeyPress" xml:space="preserve">
-    <value>اضغط على &quot;{0}&quot;</value>
+    <value>اضغط على "{0}"</value>
   </data>
   <data name="Editor_Action_KeyDown" xml:space="preserve">
-    <value>اضغط مع الاستمرار على &quot;{0}&quot;</value>
+    <value>اضغط مع الاستمرار على "{0}"</value>
   </data>
   <data name="Editor_Action_KeyUp" xml:space="preserve">
-    <value>تحرير &apos;{0}&apos;</value>
+    <value>تحرير '{0}'</value>
   </data>
   <data name="Editor_Action_DelayRandom" xml:space="preserve">
     <value>انتظر {0}-{1} مللي ثانية (عشوائي)</value>
@@ -1174,7 +1189,7 @@
     <value>إدخال النص (فارغ)</value>
   </data>
   <data name="Editor_Action_TextInput" xml:space="preserve">
-    <value>اكتب &quot;{0}&quot;</value>
+    <value>اكتب "{0}"</value>
   </data>
   <data name="Editor_Action_SetVariableShort" xml:space="preserve">
     <value>تعيين متغير</value>

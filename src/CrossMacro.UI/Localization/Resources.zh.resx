@@ -36,6 +36,21 @@
   <data name="MainWindow_UpdateAvailableVersion" xml:space="preserve">
     <value>v{0} 可用</value>
   </data>
+  <data name="MainWindow_BackendErrorTitle" xml:space="preserve">
+    <value>Backend 错误</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingFormat" xml:space="preserve">
+    <value>故障排除：{0}</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingLinux" xml:space="preserve">
+    <value>如果你使用 daemon 模式，请检查 `systemctl status crossmacro.service`；direct device mode 可能需要 Linux input 权限。</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingWindows" xml:space="preserve">
+    <value>重新启动 CrossMacro，并确认后台服务正在运行。</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingMacOS" xml:space="preserve">
+    <value>重新启动 CrossMacro，并在系统设置中确认辅助功能权限。</value>
+  </data>
   <data name="Navigation_Recording" xml:space="preserve">
     <value>录制</value>
   </data>

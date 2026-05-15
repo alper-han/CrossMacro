@@ -36,6 +36,21 @@
   <data name="MainWindow_UpdateAvailableVersion" xml:space="preserve">
     <value>v{0} は利用可能です</value>
   </data>
+  <data name="MainWindow_BackendErrorTitle" xml:space="preserve">
+    <value>Backend エラー</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingFormat" xml:space="preserve">
+    <value>トラブルシューティング: {0}</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingLinux" xml:space="preserve">
+    <value>daemon モードを使用している場合は `systemctl status crossmacro.service` を確認してください。direct device mode では Linux input 権限が必要になる場合があります。</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingWindows" xml:space="preserve">
+    <value>CrossMacro を再起動し、バックグラウンド サービスが実行中であることを確認してください。</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingMacOS" xml:space="preserve">
+    <value>CrossMacro を再起動し、システム設定のアクセシビリティ権限を確認してください。</value>
+  </data>
   <data name="Navigation_Recording" xml:space="preserve">
     <value>記録</value>
   </data>
@@ -340,7 +355,7 @@
     <value>拡張の削除</value>
   </data>
   <data name="TextExpansion_DeleteMessage" xml:space="preserve">
-    <value>拡張 &apos;{0}&apos; を削除してもよろしいですか?</value>
+    <value>拡張 '{0}' を削除してもよろしいですか?</value>
   </data>
   <data name="Schedule_Title" xml:space="preserve">
     <value>スケジュールされたタスク</value>
@@ -448,7 +463,7 @@
     <value>タスクの削除</value>
   </data>
   <data name="Schedule_DeleteMessage" xml:space="preserve">
-    <value>タスク &apos;{0}&apos; を削除してもよろしいですか?</value>
+    <value>タスク '{0}' を削除してもよろしいですか?</value>
   </data>
   <data name="Schedule_OpenMacroDialogTitle" xml:space="preserve">
     <value>マクロファイルの選択</value>
@@ -571,7 +586,7 @@
     <value>ショートカットの削除</value>
   </data>
   <data name="Shortcut_DeleteMessage" xml:space="preserve">
-    <value>ショートカット &apos;{0}&apos; を削除してもよろしいですか?</value>
+    <value>ショートカット '{0}' を削除してもよろしいですか?</value>
   </data>
   <data name="Shortcut_OpenMacroDialogTitle" xml:space="preserve">
     <value>マクロファイルの選択</value>
@@ -637,7 +652,7 @@
     <value>ロードされたマクロの削除</value>
   </data>
   <data name="Files_DeleteLoadedMacroMessage" xml:space="preserve">
-    <value>ロードされたマクロ &apos;{0}&apos; を削除してもよろしいですか?</value>
+    <value>ロードされたマクロ '{0}' を削除してもよろしいですか?</value>
   </data>
   <data name="Files_StatusRemoved" xml:space="preserve">
     <value>{0} を削除しました</value>

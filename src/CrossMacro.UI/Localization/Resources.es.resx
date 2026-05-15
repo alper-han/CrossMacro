@@ -36,6 +36,21 @@
   <data name="MainWindow_UpdateAvailableVersion" xml:space="preserve">
     <value>v{0} está disponible</value>
   </data>
+  <data name="MainWindow_BackendErrorTitle" xml:space="preserve">
+    <value>Error de backend</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingFormat" xml:space="preserve">
+    <value>Solución de problemas: {0}</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingLinux" xml:space="preserve">
+    <value>Si usas el modo daemon, revisa `systemctl status crossmacro.service`; direct device mode puede requerir permisos de input en Linux.</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingWindows" xml:space="preserve">
+    <value>Reinicia CrossMacro y verifica que el servicio en segundo plano esté en ejecución.</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingMacOS" xml:space="preserve">
+    <value>Reinicia CrossMacro y verifica los permisos de Accesibilidad en Ajustes del Sistema.</value>
+  </data>
   <data name="Navigation_Recording" xml:space="preserve">
     <value>Grabación</value>
   </data>
@@ -340,7 +355,7 @@
     <value>Eliminar expansión</value>
   </data>
   <data name="TextExpansion_DeleteMessage" xml:space="preserve">
-    <value>¿Está seguro de que desea eliminar la expansión &apos;{0}&apos;?</value>
+    <value>¿Está seguro de que desea eliminar la expansión '{0}'?</value>
   </data>
   <data name="Schedule_Title" xml:space="preserve">
     <value>TAREAS PROGRAMADAS</value>
@@ -448,7 +463,7 @@
     <value>Eliminar tarea</value>
   </data>
   <data name="Schedule_DeleteMessage" xml:space="preserve">
-    <value>¿Está seguro de que desea eliminar la tarea &apos;{0}&apos;?</value>
+    <value>¿Está seguro de que desea eliminar la tarea '{0}'?</value>
   </data>
   <data name="Schedule_OpenMacroDialogTitle" xml:space="preserve">
     <value>Seleccionar archivo de macros</value>
@@ -571,7 +586,7 @@
     <value>Eliminar acceso directo</value>
   </data>
   <data name="Shortcut_DeleteMessage" xml:space="preserve">
-    <value>¿Está seguro de que desea eliminar el acceso directo &apos;{0}&apos;?</value>
+    <value>¿Está seguro de que desea eliminar el acceso directo '{0}'?</value>
   </data>
   <data name="Shortcut_OpenMacroDialogTitle" xml:space="preserve">
     <value>Seleccionar archivo de macros</value>
@@ -637,7 +652,7 @@
     <value>Eliminar macro cargada</value>
   </data>
   <data name="Files_DeleteLoadedMacroMessage" xml:space="preserve">
-    <value>¿Está seguro de que desea eliminar la macro cargada &apos;{0}&apos;?</value>
+    <value>¿Está seguro de que desea eliminar la macro cargada '{0}'?</value>
   </data>
   <data name="Files_StatusRemoved" xml:space="preserve">
     <value>Eliminado {0}</value>
@@ -1144,13 +1159,13 @@
     <value>Soltar {0}</value>
   </data>
   <data name="Editor_Action_KeyPress" xml:space="preserve">
-    <value>Presione &apos;{0}&apos;</value>
+    <value>Presione '{0}'</value>
   </data>
   <data name="Editor_Action_KeyDown" xml:space="preserve">
-    <value>Mantenga presionado &apos;{0}&apos;</value>
+    <value>Mantenga presionado '{0}'</value>
   </data>
   <data name="Editor_Action_KeyUp" xml:space="preserve">
-    <value>Liberar &apos;{0}&apos;</value>
+    <value>Liberar '{0}'</value>
   </data>
   <data name="Editor_Action_DelayRandom" xml:space="preserve">
     <value>Espere {0}-{1}ms (aleatorio)</value>
@@ -1174,7 +1189,7 @@
     <value>Entrada de texto (vacío)</value>
   </data>
   <data name="Editor_Action_TextInput" xml:space="preserve">
-    <value>Escriba &quot;{0}&quot;</value>
+    <value>Escriba "{0}"</value>
   </data>
   <data name="Editor_Action_SetVariableShort" xml:space="preserve">
     <value>Establecer variable</value>

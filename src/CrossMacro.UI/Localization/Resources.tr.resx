@@ -31,10 +31,25 @@
     <value>Güncelleme Mevcut</value>
   </data>
   <data name="MainWindow_ViewOnGitHub" xml:space="preserve">
-    <value>GitHub&apos;da Gör</value>
+    <value>GitHub'da Gör</value>
   </data>
   <data name="MainWindow_UpdateAvailableVersion" xml:space="preserve">
     <value>v{0} sürümü mevcut</value>
+  </data>
+  <data name="MainWindow_BackendErrorTitle" xml:space="preserve">
+    <value>Backend Hatası</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingFormat" xml:space="preserve">
+    <value>Çözüm önerisi: {0}</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingLinux" xml:space="preserve">
+    <value>Daemon modunda çalışıyorsanız `systemctl status crossmacro.service` komutunu kontrol edin; direct device mode için Linux input izinleri gerekebilir.</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingWindows" xml:space="preserve">
+    <value>CrossMacro'yu yeniden başlatın ve servisinin çalıştığını kontrol edin.</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingMacOS" xml:space="preserve">
+    <value>CrossMacro'yu yeniden başlatın ve Sistem Ayarları'ndaki Accessibility izinlerini kontrol edin.</value>
   </data>
   <data name="Navigation_Recording" xml:space="preserve">
     <value>Kayıt</value>
@@ -106,13 +121,13 @@
     <value>Uygulama dilini seçin</value>
   </data>
   <data name="Settings_SupportTitle" xml:space="preserve">
-    <value>CrossMacro&apos;yu Destekle</value>
+    <value>CrossMacro'yu Destekle</value>
   </data>
   <data name="Settings_SupportDescription" xml:space="preserve">
-    <value>Projeyi beğendiysen GitHub&apos;da yıldız vererek destek olabilirsin.</value>
+    <value>Projeyi beğendiysen GitHub'da yıldız vererek destek olabilirsin.</value>
   </data>
   <data name="Settings_StarOnGitHub" xml:space="preserve">
-    <value>GitHub&apos;da Yıldızla</value>
+    <value>GitHub'da Yıldızla</value>
   </data>
   <data name="Settings_HotkeyAlreadyAssignedTitle" xml:space="preserve">
     <value>Kısayol Zaten Atanmış</value>
@@ -340,7 +355,7 @@
     <value>Genişletmeyi Sil</value>
   </data>
   <data name="TextExpansion_DeleteMessage" xml:space="preserve">
-    <value>&apos;{0}&apos; genişletmesini silmek istediğinize emin misiniz?</value>
+    <value>'{0}' genişletmesini silmek istediğinize emin misiniz?</value>
   </data>
   <data name="Schedule_Title" xml:space="preserve">
     <value>ZAMANLANMIŞ GÖREVLER</value>
@@ -448,7 +463,7 @@
     <value>Görevi Sil</value>
   </data>
   <data name="Schedule_DeleteMessage" xml:space="preserve">
-    <value>&apos;{0}&apos; görevini silmek istediğinize emin misiniz?</value>
+    <value>'{0}' görevini silmek istediğinize emin misiniz?</value>
   </data>
   <data name="Schedule_OpenMacroDialogTitle" xml:space="preserve">
     <value>Makro Dosyası Seç</value>
@@ -571,7 +586,7 @@
     <value>Kısayolu Sil</value>
   </data>
   <data name="Shortcut_DeleteMessage" xml:space="preserve">
-    <value>&apos;{0}&apos; kısayolunu silmek istediğinize emin misiniz?</value>
+    <value>'{0}' kısayolunu silmek istediğinize emin misiniz?</value>
   </data>
   <data name="Shortcut_OpenMacroDialogTitle" xml:space="preserve">
     <value>Makro Dosyası Seç</value>
@@ -637,7 +652,7 @@
     <value>Yüklü Makroyu Sil</value>
   </data>
   <data name="Files_DeleteLoadedMacroMessage" xml:space="preserve">
-    <value>&apos;{0}&apos; yüklü makrosunu kaldırmak istediğinize emin misiniz?</value>
+    <value>'{0}' yüklü makrosunu kaldırmak istediğinize emin misiniz?</value>
   </data>
   <data name="Files_StatusRemoved" xml:space="preserve">
     <value>{0} kaldırıldı</value>
@@ -1144,13 +1159,13 @@
     <value>{0} bırak</value>
   </data>
   <data name="Editor_Action_KeyPress" xml:space="preserve">
-    <value>&apos;{0}&apos; tuşuna bas</value>
+    <value>'{0}' tuşuna bas</value>
   </data>
   <data name="Editor_Action_KeyDown" xml:space="preserve">
-    <value>&apos;{0}&apos; tuşunu basılı tut</value>
+    <value>'{0}' tuşunu basılı tut</value>
   </data>
   <data name="Editor_Action_KeyUp" xml:space="preserve">
-    <value>&apos;{0}&apos; tuşunu bırak</value>
+    <value>'{0}' tuşunu bırak</value>
   </data>
   <data name="Editor_Action_DelayRandom" xml:space="preserve">
     <value>{0}-{1} ms bekle (rastgele)</value>
@@ -1174,7 +1189,7 @@
     <value>Metin Girişi (boş)</value>
   </data>
   <data name="Editor_Action_TextInput" xml:space="preserve">
-    <value>&quot;{0}&quot; yaz</value>
+    <value>"{0}" yaz</value>
   </data>
   <data name="Editor_Action_SetVariableShort" xml:space="preserve">
     <value>Değişken Ata</value>

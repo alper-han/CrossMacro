@@ -36,6 +36,21 @@
   <data name="MainWindow_UpdateAvailableVersion" xml:space="preserve">
     <value>v{0} доступен</value>
   </data>
+  <data name="MainWindow_BackendErrorTitle" xml:space="preserve">
+    <value>Ошибка Backend</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingFormat" xml:space="preserve">
+    <value>Устранение неполадок: {0}</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingLinux" xml:space="preserve">
+    <value>Если используется daemon mode, проверьте `systemctl status crossmacro.service`; direct device mode может потребовать Linux input permissions.</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingWindows" xml:space="preserve">
+    <value>Перезапустите CrossMacro и убедитесь, что фоновая служба запущена.</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingMacOS" xml:space="preserve">
+    <value>Перезапустите CrossMacro и проверьте разрешения Accessibility в System Settings.</value>
+  </data>
   <data name="Navigation_Recording" xml:space="preserve">
     <value>Запись</value>
   </data>
@@ -340,7 +355,7 @@
     <value>Удалить расширение</value>
   </data>
   <data name="TextExpansion_DeleteMessage" xml:space="preserve">
-    <value>Вы уверены, что хотите удалить расширение &apos;{0}&apos;?</value>
+    <value>Вы уверены, что хотите удалить расширение '{0}'?</value>
   </data>
   <data name="Schedule_Title" xml:space="preserve">
     <value>ЗАПЛАНИРОВАННЫЕ ЗАДАЧИ</value>
@@ -571,7 +586,7 @@
     <value>Удалить ярлык</value>
   </data>
   <data name="Shortcut_DeleteMessage" xml:space="preserve">
-    <value>Вы уверены, что хотите удалить ярлык &apos;{0}&apos;?</value>
+    <value>Вы уверены, что хотите удалить ярлык '{0}'?</value>
   </data>
   <data name="Shortcut_OpenMacroDialogTitle" xml:space="preserve">
     <value>Выберите файл макроса</value>
@@ -637,7 +652,7 @@
     <value>Удалить загруженный макрос</value>
   </data>
   <data name="Files_DeleteLoadedMacroMessage" xml:space="preserve">
-    <value>Вы уверены, что хотите удалить загруженный макрос &apos;{0}&apos;?</value>
+    <value>Вы уверены, что хотите удалить загруженный макрос '{0}'?</value>
   </data>
   <data name="Files_StatusRemoved" xml:space="preserve">
     <value>Удален {0}</value>
@@ -1144,13 +1159,13 @@
     <value>Отпустить {0}</value>
   </data>
   <data name="Editor_Action_KeyPress" xml:space="preserve">
-    <value>Нажмите &apos;{0}&apos;</value>
+    <value>Нажмите '{0}'</value>
   </data>
   <data name="Editor_Action_KeyDown" xml:space="preserve">
-    <value>Удерживайте &apos;{0}&apos;</value>
+    <value>Удерживайте '{0}'</value>
   </data>
   <data name="Editor_Action_KeyUp" xml:space="preserve">
-    <value>Отпустить &apos;{0}&apos;</value>
+    <value>Отпустить '{0}'</value>
   </data>
   <data name="Editor_Action_DelayRandom" xml:space="preserve">
     <value>Подождите {0}-{1}мс (случайно)</value>
@@ -1174,7 +1189,7 @@
     <value>Ввод текста (пусто)</value>
   </data>
   <data name="Editor_Action_TextInput" xml:space="preserve">
-    <value>Введите &quot;{0}&quot;</value>
+    <value>Введите "{0}"</value>
   </data>
   <data name="Editor_Action_SetVariableShort" xml:space="preserve">
     <value>Установить переменную</value>

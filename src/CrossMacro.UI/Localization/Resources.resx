@@ -36,6 +36,21 @@
   <data name="MainWindow_UpdateAvailableVersion" xml:space="preserve">
     <value>v{0} is available</value>
   </data>
+  <data name="MainWindow_BackendErrorTitle" xml:space="preserve">
+    <value>Backend Error</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingFormat" xml:space="preserve">
+    <value>Troubleshooting: {0}</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingLinux" xml:space="preserve">
+    <value>If you are using daemon-backed mode, check `systemctl status crossmacro.service`; direct device mode may require Linux input permissions instead.</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingWindows" xml:space="preserve">
+    <value>Restart CrossMacro and verify the background service is running.</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingMacOS" xml:space="preserve">
+    <value>Restart CrossMacro and verify Accessibility permissions in System Settings.</value>
+  </data>
   <data name="Navigation_Recording" xml:space="preserve">
     <value>Recording</value>
   </data>
@@ -175,7 +190,7 @@
     <value>Skip Initial 0,0 Position</value>
   </data>
   <data name="Recording_SkipInitialZeroZeroDescription" xml:space="preserve">
-    <value>Don&apos;t move cursor to origin when recording starts</value>
+    <value>Don't move cursor to origin when recording starts</value>
   </data>
   <data name="Recording_StartRecording" xml:space="preserve">
     <value>Start Recording</value>
@@ -340,7 +355,7 @@
     <value>Delete Expansion</value>
   </data>
   <data name="TextExpansion_DeleteMessage" xml:space="preserve">
-    <value>Are you sure you want to delete the expansion &apos;{0}&apos;?</value>
+    <value>Are you sure you want to delete the expansion '{0}'?</value>
   </data>
   <data name="Schedule_Title" xml:space="preserve">
     <value>SCHEDULED TASKS</value>
@@ -448,7 +463,7 @@
     <value>Delete Task</value>
   </data>
   <data name="Schedule_DeleteMessage" xml:space="preserve">
-    <value>Are you sure you want to delete the task &apos;{0}&apos;?</value>
+    <value>Are you sure you want to delete the task '{0}'?</value>
   </data>
   <data name="Schedule_OpenMacroDialogTitle" xml:space="preserve">
     <value>Select Macro File</value>
@@ -571,7 +586,7 @@
     <value>Delete Shortcut</value>
   </data>
   <data name="Shortcut_DeleteMessage" xml:space="preserve">
-    <value>Are you sure you want to delete the shortcut &apos;{0}&apos;?</value>
+    <value>Are you sure you want to delete the shortcut '{0}'?</value>
   </data>
   <data name="Shortcut_OpenMacroDialogTitle" xml:space="preserve">
     <value>Select Macro File</value>
@@ -637,7 +652,7 @@
     <value>Delete Loaded Macro</value>
   </data>
   <data name="Files_DeleteLoadedMacroMessage" xml:space="preserve">
-    <value>Are you sure you want to remove the loaded macro &apos;{0}&apos;?</value>
+    <value>Are you sure you want to remove the loaded macro '{0}'?</value>
   </data>
   <data name="Files_StatusRemoved" xml:space="preserve">
     <value>Removed {0}</value>
@@ -1144,13 +1159,13 @@
     <value>Release {0}</value>
   </data>
   <data name="Editor_Action_KeyPress" xml:space="preserve">
-    <value>Press &apos;{0}&apos;</value>
+    <value>Press '{0}'</value>
   </data>
   <data name="Editor_Action_KeyDown" xml:space="preserve">
-    <value>Hold &apos;{0}&apos;</value>
+    <value>Hold '{0}'</value>
   </data>
   <data name="Editor_Action_KeyUp" xml:space="preserve">
-    <value>Release &apos;{0}&apos;</value>
+    <value>Release '{0}'</value>
   </data>
   <data name="Editor_Action_DelayRandom" xml:space="preserve">
     <value>Wait {0}-{1}ms (random)</value>
@@ -1174,7 +1189,7 @@
     <value>Text Input (empty)</value>
   </data>
   <data name="Editor_Action_TextInput" xml:space="preserve">
-    <value>Type &quot;{0}&quot;</value>
+    <value>Type "{0}"</value>
   </data>
   <data name="Editor_Action_SetVariableShort" xml:space="preserve">
     <value>Set Variable</value>

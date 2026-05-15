@@ -36,6 +36,21 @@
   <data name="MainWindow_UpdateAvailableVersion" xml:space="preserve">
     <value>v{0} est disponible</value>
   </data>
+  <data name="MainWindow_BackendErrorTitle" xml:space="preserve">
+    <value>Erreur backend</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingFormat" xml:space="preserve">
+    <value>Dépannage : {0}</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingLinux" xml:space="preserve">
+    <value>Si vous utilisez le mode daemon, vérifiez `systemctl status crossmacro.service`; le direct device mode peut nécessiter des permissions input Linux.</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingWindows" xml:space="preserve">
+    <value>Redémarrez CrossMacro et vérifiez que le service en arrière-plan est en cours d'exécution.</value>
+  </data>
+  <data name="MainWindow_BackendTroubleshootingMacOS" xml:space="preserve">
+    <value>Redémarrez CrossMacro et vérifiez les permissions Accessibilité dans Réglages Système.</value>
+  </data>
   <data name="Navigation_Recording" xml:space="preserve">
     <value>Enregistrement</value>
   </data>
@@ -64,7 +79,7 @@
     <value>Raccourcis clavier globaux</value>
   </data>
   <data name="Settings_ToggleRecording" xml:space="preserve">
-    <value>Basculer l&apos;enregistrement (Démarrer/Arrêter)</value>
+    <value>Basculer l'enregistrement (Démarrer/Arrêter)</value>
   </data>
   <data name="Settings_TogglePlayback" xml:space="preserve">
     <value>Basculer la lecture (Démarrer/Arrêter)</value>
@@ -73,16 +88,16 @@
     <value>Pause/Reprise de la lecture</value>
   </data>
   <data name="Settings_EnableTrayIcon" xml:space="preserve">
-    <value>Activer l&apos;icône de la barre d&apos;état</value>
+    <value>Activer l'icône de la barre d'état</value>
   </data>
   <data name="Settings_StartMinimized" xml:space="preserve">
     <value>Démarrer réduit</value>
   </data>
   <data name="Settings_StartMinimizedDescription" xml:space="preserve">
-    <value>Lance l&apos;application masquée dans la zone de notification si disponible ; sinon démarre la fenêtre réduite.</value>
+    <value>Lance l'application masquée dans la zone de notification si disponible ; sinon démarre la fenêtre réduite.</value>
   </data>
   <data name="Settings_EnableTextExpansion" xml:space="preserve">
-    <value>Activer l&apos;extension du texte</value>
+    <value>Activer l'extension du texte</value>
   </data>
   <data name="Settings_CheckForUpdates" xml:space="preserve">
     <value>Vérifier les mises à jour au démarrage</value>
@@ -91,19 +106,19 @@
     <value>Niveau de journalisation</value>
   </data>
   <data name="Settings_LogLevelDescription" xml:space="preserve">
-    <value>Contrôle la quantité d&apos;informations de diagnostic enregistrées</value>
+    <value>Contrôle la quantité d'informations de diagnostic enregistrées</value>
   </data>
   <data name="Settings_Theme" xml:space="preserve">
     <value>Thème</value>
   </data>
   <data name="Settings_ThemeDescription" xml:space="preserve">
-    <value>Choisir le thème visuel de l&apos;application</value>
+    <value>Choisir le thème visuel de l'application</value>
   </data>
   <data name="Settings_Language" xml:space="preserve">
     <value>Langue</value>
   </data>
   <data name="Settings_LanguageDescription" xml:space="preserve">
-    <value>Choisir la langue de l&apos;application</value>
+    <value>Choisir la langue de l'application</value>
   </data>
   <data name="Settings_SupportTitle" xml:space="preserve">
     <value>Soutenir CrossMacro</value>
@@ -166,7 +181,7 @@
     <value>Forcer les coordonnées relatives</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesDescription" xml:space="preserve">
-    <value>Utiliser la position relative de la souris même si l&apos;absolue est prise en charge</value>
+    <value>Utiliser la position relative de la souris même si l'absolue est prise en charge</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesHelp" xml:space="preserve">
     <value>Nécessaire pour utiliser des macros dans le jeu.</value>
@@ -175,16 +190,16 @@
     <value>Sauter la position initiale 0,0</value>
   </data>
   <data name="Recording_SkipInitialZeroZeroDescription" xml:space="preserve">
-    <value>Ne déplacez pas le curseur vers l&apos;origine lorsque l&apos;enregistrement démarre</value>
+    <value>Ne déplacez pas le curseur vers l'origine lorsque l'enregistrement démarre</value>
   </data>
   <data name="Recording_StartRecording" xml:space="preserve">
-    <value>Commencer l&apos;enregistrement</value>
+    <value>Commencer l'enregistrement</value>
   </data>
   <data name="Recording_StopRecording" xml:space="preserve">
-    <value>Arrêter l&apos;enregistrement</value>
+    <value>Arrêter l'enregistrement</value>
   </data>
   <data name="Recording_Tip" xml:space="preserve">
-    <value>Astuce : utilisez les raccourcis clavier globaux pour contrôler l&apos;enregistrement dans d&apos;autres applications.</value>
+    <value>Astuce : utilisez les raccourcis clavier globaux pour contrôler l'enregistrement dans d'autres applications.</value>
   </data>
   <data name="Schedule_ItemsText" xml:space="preserve">
     <value>{0} éléments</value>
@@ -259,13 +274,13 @@
     <value>Nom de la macro</value>
   </data>
   <data name="Files_MacroNamePlaceholder" xml:space="preserve">
-    <value>Macro d&apos;exportation nocturne</value>
+    <value>Macro d'exportation nocturne</value>
   </data>
   <data name="Files_SequenceRepeat" xml:space="preserve">
     <value>Répétition de séquence</value>
   </data>
   <data name="Files_SequenceRepeatDescription" xml:space="preserve">
-    <value>La répétition de séquence s&apos;applique uniquement pendant que la lecture du cycle séquentiel parcourt la liste chargée.</value>
+    <value>La répétition de séquence s'applique uniquement pendant que la lecture du cycle séquentiel parcourt la liste chargée.</value>
   </data>
   <data name="Files_PlaybackMode" xml:space="preserve">
     <value>Mode de lecture</value>
@@ -274,13 +289,13 @@
     <value>Macro sélectionnée uniquement</value>
   </data>
   <data name="Files_PlaybackModeSelectedOnlyDescription" xml:space="preserve">
-    <value>Lit uniquement la macro sélectionnée. Les paramètres de boucle globale s&apos;appliquent à cette macro.</value>
+    <value>Lit uniquement la macro sélectionnée. Les paramètres de boucle globale s'appliquent à cette macro.</value>
   </data>
   <data name="Files_PlaybackModeAdvanceSelection" xml:space="preserve">
     <value>Lire sélectionné, puis sélectionner suivant</value>
   </data>
   <data name="Files_PlaybackModeAdvanceSelectionDescription" xml:space="preserve">
-    <value>Exécutez la macro sélectionnée avec les paramètres de lecture actuels, puis déplacez la sélection vers la macro chargée suivante. Il ne lit pas automatiquement l&apos;élément suivant.</value>
+    <value>Exécutez la macro sélectionnée avec les paramètres de lecture actuels, puis déplacez la sélection vers la macro chargée suivante. Il ne lit pas automatiquement l'élément suivant.</value>
   </data>
   <data name="Files_PlaybackModeSequentialCycle" xml:space="preserve">
     <value>Lecture de cycles séquentiels</value>
@@ -316,7 +331,7 @@
     <value>{0} événements | {1}</value>
   </data>
   <data name="TextExpansion_InsertionMode" xml:space="preserve">
-    <value>Mode d&apos;insertion</value>
+    <value>Mode d'insertion</value>
   </data>
   <data name="TextExpansion_PasteMethod" xml:space="preserve">
     <value>Méthode de collage</value>
@@ -337,10 +352,10 @@
     <value>Activez cette option dans l’onglet Paramètres pour commencer à développer le texte</value>
   </data>
   <data name="TextExpansion_DeleteTitle" xml:space="preserve">
-    <value>Supprimer l&apos;extension</value>
+    <value>Supprimer l'extension</value>
   </data>
   <data name="TextExpansion_DeleteMessage" xml:space="preserve">
-    <value>Êtes-vous sûr de vouloir supprimer l&apos;extension « {0} » ?</value>
+    <value>Êtes-vous sûr de vouloir supprimer l'extension « {0} » ?</value>
   </data>
   <data name="Schedule_Title" xml:space="preserve">
     <value>TÂCHES PRÉVUES</value>
@@ -361,7 +376,7 @@
     <value>Nom</value>
   </data>
   <data name="Schedule_NamePlaceholder" xml:space="preserve">
-    <value>Tâche d&apos;exportation nocturne</value>
+    <value>Tâche d'exportation nocturne</value>
   </data>
   <data name="Schedule_PlaybackSpeed" xml:space="preserve">
     <value>Vitesse de lecture</value>
@@ -394,7 +409,7 @@
     <value>à</value>
   </data>
   <data name="Schedule_IntervalSettings" xml:space="preserve">
-    <value>PARAMÈTRES D&apos;INTERVALLE</value>
+    <value>PARAMÈTRES D'INTERVALLE</value>
   </data>
   <data name="Schedule_RunEvery" xml:space="preserve">
     <value>Exécuter la macro tous les :</value>
@@ -415,7 +430,7 @@
     <value>Exécutez la macro à :</value>
   </data>
   <data name="Schedule_RunOnceTip" xml:space="preserve">
-    <value>La macro s&apos;exécutera une fois à la date sélectionnée</value>
+    <value>La macro s'exécutera une fois à la date sélectionnée</value>
   </data>
   <data name="Schedule_Status" xml:space="preserve">
     <value>STATUT</value>
@@ -457,19 +472,19 @@
     <value>Fichiers de macros</value>
   </data>
   <data name="Schedule_StatusInitFailed" xml:space="preserve">
-    <value>Planification : échec de l&apos;initialisation ({0})</value>
+    <value>Planification : échec de l'initialisation ({0})</value>
   </data>
   <data name="Schedule_StatusChangesSaved" xml:space="preserve">
     <value>Planification : modifications enregistrées</value>
   </data>
   <data name="Schedule_StatusSaveFailed" xml:space="preserve">
-    <value>Planification : échec de l&apos;enregistrement des modifications ({0})</value>
+    <value>Planification : échec de l'enregistrement des modifications ({0})</value>
   </data>
   <data name="Schedule_SaveFailedTitle" xml:space="preserve">
-    <value>Échec de l&apos;enregistrement planifié</value>
+    <value>Échec de l'enregistrement planifié</value>
   </data>
   <data name="Schedule_StatusExtensionWarning" xml:space="preserve">
-    <value>Calendrier : l&apos;extension du fichier de macro n&apos;est pas .macro (toujours autorisée)</value>
+    <value>Calendrier : l'extension du fichier de macro n'est pas .macro (toujours autorisée)</value>
   </data>
   <data name="Schedule_StatusRunning" xml:space="preserve">
     <value>Planification : exécution de {0}...</value>
@@ -523,7 +538,7 @@
     <value>Appuyez sur le raccourci pour démarrer la boucle ; appuyez à nouveau pour arrêter.</value>
   </data>
   <data name="Shortcut_RunWhenHeld" xml:space="preserve">
-    <value>Exécuter lorsqu&apos;il est maintenu</value>
+    <value>Exécuter lorsqu'il est maintenu</value>
   </data>
   <data name="Shortcut_RunWhenHeldTooltip" xml:space="preserve">
     <value>Maintenez le raccourci pour exécuter ; relâchez pour arrêter.</value>
@@ -580,16 +595,16 @@
     <value>Fichiers de macros</value>
   </data>
   <data name="Shortcut_StatusInitFailed" xml:space="preserve">
-    <value>Raccourci : échec de l&apos;initialisation ({0})</value>
+    <value>Raccourci : échec de l'initialisation ({0})</value>
   </data>
   <data name="Shortcut_StatusChangesSaved" xml:space="preserve">
     <value>Raccourci : modifications enregistrées</value>
   </data>
   <data name="Shortcut_StatusSaveFailed" xml:space="preserve">
-    <value>Raccourci : échec de l&apos;enregistrement des modifications ({0})</value>
+    <value>Raccourci : échec de l'enregistrement des modifications ({0})</value>
   </data>
   <data name="Shortcut_SaveFailedTitle" xml:space="preserve">
-    <value>Échec de l&apos;enregistrement du raccourci</value>
+    <value>Échec de l'enregistrement du raccourci</value>
   </data>
   <data name="Shortcut_StatusRunning" xml:space="preserve">
     <value>Raccourci : exécution de {0}...</value>
@@ -619,13 +634,13 @@
     <value>Enregistré dans {0}</value>
   </data>
   <data name="Files_StatusSaveError" xml:space="preserve">
-    <value>Erreur d&apos;enregistrement : {0}</value>
+    <value>Erreur d'enregistrement : {0}</value>
   </data>
   <data name="Files_StatusLoadCancelled" xml:space="preserve">
     <value>Chargement annulé</value>
   </data>
   <data name="Files_StatusLoadUnreadable" xml:space="preserve">
-    <value>Erreur de chargement : le fichier n&apos;a pas pu être lu</value>
+    <value>Erreur de chargement : le fichier n'a pas pu être lu</value>
   </data>
   <data name="Files_StatusLoaded" xml:space="preserve">
     <value>Chargé {0}</value>
@@ -676,7 +691,7 @@
     <value> - Répétition {0}/{1}</value>
   </data>
   <data name="Playback_StatusWaitingNextLoop" xml:space="preserve">
-    <value>J&apos;attends {0} avant la prochaine boucle...</value>
+    <value>J'attends {0} avant la prochaine boucle...</value>
   </data>
   <data name="Playback_StatusLoopInfinite" xml:space="preserve">
     <value>Lecture (boucle {0} - infinie)</value>
@@ -730,10 +745,10 @@
     <value>Refait</value>
   </data>
   <data name="Editor_StatusSelectActionFirst" xml:space="preserve">
-    <value>Sélectionnez d&apos;abord une action</value>
+    <value>Sélectionnez d'abord une action</value>
   </data>
   <data name="Editor_StatusCaptureMousePrompt" xml:space="preserve">
-    <value>Cliquez n&apos;importe où pour capturer la position (Esc pour annuler)...</value>
+    <value>Cliquez n'importe où pour capturer la position (Esc pour annuler)...</value>
   </data>
   <data name="Editor_StatusCaptureKeyPrompt" xml:space="preserve">
     <value>Appuyez sur une touche pour capturer...</value>
@@ -742,7 +757,7 @@
     <value>Capture annulée</value>
   </data>
   <data name="Editor_StatusCaptureSelectionChanged" xml:space="preserve">
-    <value>Capture ignorée : l&apos;action sélectionnée a été modifiée</value>
+    <value>Capture ignorée : l'action sélectionnée a été modifiée</value>
   </data>
   <data name="Editor_StatusSaveCancelled" xml:space="preserve">
     <value>Sauvegarde annulée</value>
@@ -760,7 +775,7 @@
     <value>Le bloc if sélectionné contient déjà un else</value>
   </data>
   <data name="Editor_StatusSelectIfBlockFirst" xml:space="preserve">
-    <value>Sélectionnez d&apos;abord un bloc if</value>
+    <value>Sélectionnez d'abord un bloc if</value>
   </data>
   <data name="Editor_StatusRemovedBlock" xml:space="preserve">
     <value>Bloc supprimé</value>
@@ -781,7 +796,7 @@
     <value>Aucune action</value>
   </data>
   <data name="Editor_DialogMessageNoActions" xml:space="preserve">
-    <value>Veuillez ajouter au moins une action avant d&apos;enregistrer.</value>
+    <value>Veuillez ajouter au moins une action avant d'enregistrer.</value>
   </data>
   <data name="Editor_DialogTitleValidationErrors" xml:space="preserve">
     <value>Erreurs de validation</value>
@@ -805,7 +820,7 @@
     <value>Enregistré : {0}</value>
   </data>
   <data name="Editor_StatusSaveError" xml:space="preserve">
-    <value>Erreur d&apos;enregistrement : {0}</value>
+    <value>Erreur d'enregistrement : {0}</value>
   </data>
   <data name="Editor_StatusLoaded" xml:space="preserve">
     <value>Chargé : {0}</value>
@@ -817,7 +832,7 @@
     <value>Erreur de chargement : {0}</value>
   </data>
   <data name="Editor_StatusRestoreWarningFallback" xml:space="preserve">
-    <value>Les étapes de script n&apos;ont pas pu être restaurées ; chargé à partir du flux d’événements.</value>
+    <value>Les étapes de script n'ont pas pu être restaurées ; chargé à partir du flux d’événements.</value>
   </data>
   <data name="Editor_StatusAutoManagedAction" xml:space="preserve">
     <value>Cette action est gérée automatiquement.</value>
@@ -826,7 +841,7 @@
     <value>Actions</value>
   </data>
   <data name="Editor_RemoveActionTooltip" xml:space="preserve">
-    <value>Supprimer l&apos;action</value>
+    <value>Supprimer l'action</value>
   </data>
   <data name="Editor_Remove" xml:space="preserve">
     <value>Supprimer</value>
@@ -874,7 +889,7 @@
     <value>Ajouter une action</value>
   </data>
   <data name="Editor_SelectedActionProperties" xml:space="preserve">
-    <value>Propriétés de l&apos;action sélectionnée</value>
+    <value>Propriétés de l'action sélectionnée</value>
   </data>
   <data name="Editor_Type" xml:space="preserve">
     <value>Type :</value>
@@ -964,7 +979,7 @@
     <value>Montant / variable</value>
   </data>
   <data name="Editor_IncrementDecrementHint" xml:space="preserve">
-    <value>Le montant de l&apos;incrément/décrément peut être un nombre ou une référence variable.</value>
+    <value>Le montant de l'incrément/décrément peut être un nombre ou une référence variable.</value>
   </data>
   <data name="Editor_RepeatBlock" xml:space="preserve">
     <value>Répéter le bloc :</value>
@@ -1057,13 +1072,13 @@
     <value>Non</value>
   </data>
   <data name="Dialog_Ok" xml:space="preserve">
-    <value>D&apos;accord</value>
+    <value>D'accord</value>
   </data>
   <data name="Tray_ShowHide" xml:space="preserve">
     <value>Afficher/Masquer</value>
   </data>
   <data name="Tray_StartRecording" xml:space="preserve">
-    <value>Démarrer l&apos;enregistrement ({0})</value>
+    <value>Démarrer l'enregistrement ({0})</value>
   </data>
   <data name="Tray_StartPlayback" xml:space="preserve">
     <value>Démarrer la lecture ({0})</value>
@@ -1099,7 +1114,7 @@
     <value>Saisissez le texte à saisir...</value>
   </data>
   <data name="Editor_RawScriptHint" xml:space="preserve">
-    <value>Cette étape n&apos;a pas pu être mappée aux champs structurés et sera enregistrée telle quelle.</value>
+    <value>Cette étape n'a pas pu être mappée aux champs structurés et sera enregistrée telle quelle.</value>
   </data>
   <data name="Editor_TextToTypeHint" xml:space="preserve">
     <value>Chaque caractère est saisi en appuyant sur une touche distincte (max {0} caractères)</value>
@@ -1144,13 +1159,13 @@
     <value>Relâcher {0}</value>
   </data>
   <data name="Editor_Action_KeyPress" xml:space="preserve">
-    <value>Appuyez sur &apos;{0}&apos;</value>
+    <value>Appuyez sur '{0}'</value>
   </data>
   <data name="Editor_Action_KeyDown" xml:space="preserve">
-    <value>Maintenez &apos;{0}&apos;</value>
+    <value>Maintenez '{0}'</value>
   </data>
   <data name="Editor_Action_KeyUp" xml:space="preserve">
-    <value>Libérer &apos;{0}&apos;</value>
+    <value>Libérer '{0}'</value>
   </data>
   <data name="Editor_Action_DelayRandom" xml:space="preserve">
     <value>Attendez {0}-{1}ms (aléatoire)</value>
@@ -1174,7 +1189,7 @@
     <value>Saisie de texte (vide)</value>
   </data>
   <data name="Editor_Action_TextInput" xml:space="preserve">
-    <value>Tapez &quot;{0}&quot;</value>
+    <value>Tapez "{0}"</value>
   </data>
   <data name="Editor_Action_SetVariableShort" xml:space="preserve">
     <value>Définir la variable</value>

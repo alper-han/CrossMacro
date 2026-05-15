@@ -69,13 +69,20 @@ On Linux, CrossMacro can run in two different input modes.
 The preferred packaged path is daemon-backed mode, where the app talks to
 \fBcrossmacro.service\fR over \fI/run/crossmacro/crossmacro.sock\fR and the daemon
 service user owns device access.
+The desktop user must be a member of the \fBcrossmacro\fR group to use that socket.
+After adding a user to the group, log out and back in or reboot before starting
+CrossMacro again, because existing sessions keep their old group list.
 Some channels and environments intentionally support direct device mode instead,
 where the app process itself needs access to \fI/dev/uinput\fR and, for recording or hotkeys,
 readable \fI/dev/input/event*\fR devices.
+Direct device readiness does not fix daemon socket permission failures.
 On X11, CrossMacro tries native X11 capture and playback first; a supported native X11
 session does not require daemon-backed or direct device fallback.
 Flatpak Wayland is hybrid: it uses the exposed host daemon socket when available and
 falls back to direct device mode only when the needed device permissions are present.
+Arch and CachyOS package hooks provision the \fBcrossmacro\fR sysusers entry before service
+start or restart, and print manual remediation when they cannot confirm adding the
+installing user to the \fBcrossmacro\fR group automatically.
 Wayfire IPC discovery checks \fBWAYFIRE_SOCKET\fR, then \fBXDG_RUNTIME_DIR\fR, then
 temp-directory socket candidates.
 .SH OPTIONS
@@ -144,7 +151,10 @@ Validate macro syntax and playback compatibility.
 Show macro metadata and event breakdown.
 .TP
 .B doctor
-Run environment and input capability diagnostics.
+Run environment and input capability diagnostics. On Linux, daemon-backed checks and direct
+device checks are reported separately. With \fB--json\fR, inspect daemon-specific details such as
+socket status, required group, current process groups, session membership, and remediation.
+Direct input readiness can pass while daemon IPC still warns or fails.
 .TP
 .B settings get|set
 Read or update scriptable settings keys.

@@ -110,24 +110,32 @@ CrossMacro supports two Linux runtime modes:
 On X11, CrossMacro tries the native X11 capture and playback backends first. A supported native X11
 session doesn't require the daemon or direct device fallback.
 
-After installing daemon packages on Linux, run:
+After installing daemon packages on Linux, make sure your desktop user belongs to the
+`crossmacro` group. That group grants access to the daemon socket, not to raw input
+devices:
 
 ```bash
 sudo usermod -aG crossmacro $USER
-# Reboot or re-login for group changes
+# Log out and back in, or reboot, before starting CrossMacro again
 ```
 
+Package scripts try to add the installing user to `crossmacro` when they can identify that
+user. If the package output says auto-add couldn't be confirmed, run the command above
+manually, then log out and back in or reboot so the current session gets the new group.
+
 `AUR`, `.deb`, and `.rpm` packages try to enable/start `crossmacro.service` during install
-on `systemd` hosts. If your environment skips that step (for example non-systemd/chroot),
-run manually:
+on `systemd` hosts. Arch and CachyOS packaging provisions the `crossmacro` sysusers entry
+before service start or restart. If your environment skips service setup (for example
+non-systemd/chroot), run manually:
 
 ```bash
 sudo systemctl enable --now crossmacro.service
 ```
 
-Note: `crossmacro` group membership allows the client to talk to the daemon socket.
 The daemon service user keeps device access separately for `/dev/input/event*` and `/dev/uinput`
-(typically via `input` and, on some distros, `uinput` supplementary groups). Normal users should only need membership in `crossmacro` to talk to the daemon socket in daemon-backed mode.
+(typically via `input` and, on some distros, `uinput` supplementary groups). Normal users should
+only need membership in `crossmacro` to use daemon-backed mode. Don't weaken the daemon socket
+permissions as a workaround.
 
 ### AppImage Setup (Portable Linux)
 
@@ -304,6 +312,13 @@ crossmacro headless
 
 For desktop autostart, use `crossmacro --start-minimized`. When tray icon support is available, CrossMacro starts hidden to tray; otherwise it starts as a minimized window.
 
+`crossmacro doctor --json` reports daemon-backed readiness separately from direct device
+readiness. Direct input checks can pass while daemon IPC still warns or fails, for example
+when `/run/crossmacro/crossmacro.sock` exists but your current login session isn't in the
+`crossmacro` group yet. In that case, inspect the daemon-specific checks and details such
+as socket status, required group, current session groups, and remediation text. Direct
+device readiness doesn't fix daemon socket permission problems.
+
 ### Run Command Reference
 
 <details>
@@ -387,6 +402,11 @@ sudo -u crossmacro test -w /dev/uinput && echo writable || echo not-writable
 ```
 
 Reboot or re-login after group changes.
+
+If `crossmacro doctor --json` shows direct input readiness as OK but daemon access as a
+warning or failure, fix the daemon-specific issue. Most often this means joining the
+`crossmacro` group and starting a new login session. Direct uinput access and direct
+fallback mode don't grant access to `/run/crossmacro/crossmacro.sock`.
 
 If daemon cannot write `/dev/uinput`, add service user to required groups and restart:
 

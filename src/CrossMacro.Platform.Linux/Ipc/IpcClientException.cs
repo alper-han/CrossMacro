@@ -6,9 +6,10 @@ public enum IpcClientFailureReason
 {
     SocketNotFound = 0,
     ConnectFailed = 1,
-    HandshakeFailed = 2,
-    ProtocolMismatch = 3,
-    Timeout = 4
+    PermissionDenied = 2,
+    HandshakeFailed = 3,
+    ProtocolMismatch = 4,
+    Timeout = 5
 }
 
 public sealed class IpcClientException : Exception

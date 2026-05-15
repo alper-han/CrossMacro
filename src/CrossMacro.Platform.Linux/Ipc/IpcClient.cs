@@ -195,6 +195,14 @@ public class IpcClient : IDisposable
                 Cleanup(clearSubscriptions: false, disableReconnect: false);
                 throw;
             }
+            catch (Exception ex) when (IsPermissionDeniedException(ex))
+            {
+                Cleanup(clearSubscriptions: false, disableReconnect: false);
+                throw new IpcClientException(
+                    IpcClientFailureReason.PermissionDenied,
+                    "Permission denied while connecting to or handshaking with CrossMacro daemon.",
+                    ex);
+            }
             catch (IpcClientException)
             {
                 Cleanup(clearSubscriptions: false, disableReconnect: false);
@@ -225,9 +233,36 @@ public class IpcClient : IDisposable
 
     private static string ResolveSocketPath()
     {
-        if (File.Exists(IpcProtocol.DefaultSocketPath))
+        return ResolveSocketPath(File.Exists, ProbeSocketPathAccess);
+    }
+
+    internal static string ResolveSocketPath(Func<string, bool>? fileExists, Action<string>? probeSocketAccess)
+    {
+        fileExists ??= File.Exists;
+        probeSocketAccess ??= ProbeSocketPathAccess;
+
+        if (fileExists(IpcProtocol.DefaultSocketPath))
         {
             return IpcProtocol.DefaultSocketPath;
+        }
+
+        try
+        {
+            probeSocketAccess(IpcProtocol.DefaultSocketPath);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            throw new IpcClientException(
+                IpcClientFailureReason.PermissionDenied,
+                $"Daemon socket access denied: {IpcProtocol.DefaultSocketPath}",
+                ex);
+        }
+        catch (IOException ex) when (IsPermissionDeniedException(ex))
+        {
+            throw new IpcClientException(
+                IpcClientFailureReason.PermissionDenied,
+                $"Daemon socket access denied: {IpcProtocol.DefaultSocketPath}",
+                ex);
         }
 
         throw new IpcClientException(
@@ -235,6 +270,11 @@ public class IpcClient : IDisposable
             $"Daemon socket not found. Checked:\n" +
             $"  - {IpcProtocol.DefaultSocketPath}\n" +
             $"Is the CrossMacro daemon service running?");
+    }
+
+    private static void ProbeSocketPathAccess(string socketPath)
+    {
+        _ = File.GetAttributes(socketPath);
     }
 
     private static bool IsTimeoutException(Exception ex)
@@ -255,6 +295,26 @@ public class IpcClient : IDisposable
             socketEx.SocketErrorCode == SocketError.TimedOut)
         {
             return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsPermissionDeniedException(Exception ex)
+    {
+        if (ex is UnauthorizedAccessException)
+        {
+            return true;
+        }
+
+        if (ex is SocketException socketEx)
+        {
+            return socketEx.SocketErrorCode == SocketError.AccessDenied;
+        }
+
+        if (ex is IOException ioEx && ioEx.InnerException is SocketException ioSocketEx)
+        {
+            return ioSocketEx.SocketErrorCode == SocketError.AccessDenied;
         }
 
         return false;

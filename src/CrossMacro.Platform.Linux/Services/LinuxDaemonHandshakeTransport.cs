@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Text;
 using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Platform.Linux.Ipc;
+using CrossMacro.Platform.Abstractions.Diagnostics;
 
 namespace CrossMacro.Platform.Linux.Services;
 
@@ -278,6 +279,39 @@ internal static class LinuxDaemonHandshakeTransport
         }
 
         return false;
+    }
+
+    internal static LinuxDaemonHandshakeStatus MapFailure(Exception? failure)
+    {
+        if (failure is null)
+        {
+            return LinuxDaemonHandshakeStatus.UnexpectedError;
+        }
+
+        if (failure is IpcClientException ipcClientException)
+        {
+            return ipcClientException.Reason switch
+            {
+                IpcClientFailureReason.SocketNotFound => LinuxDaemonHandshakeStatus.MissingSocket,
+                IpcClientFailureReason.ConnectFailed => LinuxDaemonHandshakeStatus.ConnectionRefusedOrStale,
+                IpcClientFailureReason.PermissionDenied => LinuxDaemonHandshakeStatus.PermissionDenied,
+                IpcClientFailureReason.HandshakeFailed => LinuxDaemonHandshakeStatus.HandshakeRejected,
+                IpcClientFailureReason.ProtocolMismatch => LinuxDaemonHandshakeStatus.ProtocolMismatch,
+                IpcClientFailureReason.Timeout => LinuxDaemonHandshakeStatus.Timeout,
+                _ => LinuxDaemonHandshakeStatus.UnexpectedError
+            };
+        }
+
+        return failure switch
+        {
+            UnauthorizedAccessException => LinuxDaemonHandshakeStatus.PermissionDenied,
+            SocketException socketException when socketException.SocketErrorCode == SocketError.AccessDenied => LinuxDaemonHandshakeStatus.PermissionDenied,
+            FileNotFoundException => LinuxDaemonHandshakeStatus.MissingSocket,
+            DirectoryNotFoundException => LinuxDaemonHandshakeStatus.MissingSocket,
+            TimeoutException => LinuxDaemonHandshakeStatus.Timeout,
+            IOException ioException when ioException.Message.Contains("not a socket", StringComparison.OrdinalIgnoreCase) => LinuxDaemonHandshakeStatus.WrongSocketType,
+            _ => LinuxDaemonHandshakeStatus.UnexpectedError
+        };
     }
 
     private static bool IsSocketTimeout(SocketException? ex)

@@ -10,21 +10,31 @@ namespace CrossMacro.Platform.Linux.Services.Keyboard;
 
 /// <summary>
 /// Detects keyboard layout across different Linux desktop environments.
-/// Priority: DE-specific (Hyprland/KDE/GNOME) > IBus > X11 > localectl
+/// Priority: DE-specific (Hyprland/KDE/GNOME/Niri) > IBus > X11 > localectl
 /// </summary>
 public class LinuxLayoutDetector : ILinuxLayoutDetector
 {
     private readonly IBusLayoutSource _ibusSource = new();
+    private readonly NiriLayoutSource _niriSource;
     private readonly bool _isHyprland;
     private readonly bool _isKde;
     private readonly bool _isGnome;
+    private readonly bool _isNiri;
 
     public LinuxLayoutDetector()
+        : this(new NiriLayoutSource())
     {
+    }
+
+    internal LinuxLayoutDetector(NiriLayoutSource niriSource)
+    {
+        _niriSource = niriSource ?? throw new ArgumentNullException(nameof(niriSource));
         _isHyprland = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("HYPRLAND_INSTANCE_SIGNATURE"));
         var desktop = Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP")?.ToUpperInvariant() ?? "";
+        var session = Environment.GetEnvironmentVariable("GDMSESSION")?.ToUpperInvariant() ?? "";
         _isKde = desktop.Contains("KDE") || desktop.Contains("PLASMA");
         _isGnome = desktop.Contains("GNOME") || desktop.Contains("UNITY");
+        _isNiri = desktop.Contains("NIRI") || session.Contains("NIRI") || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("NIRI_SOCKET"));
         
         if (_isHyprland)
             Log.Information("[LayoutDetector] Environment: Hyprland");
@@ -32,6 +42,8 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
             Log.Information("[LayoutDetector] Environment: KDE Plasma");
         else if (_isGnome)
             Log.Information("[LayoutDetector] Environment: GNOME");
+        else if (_isNiri)
+            Log.Information("[LayoutDetector] Environment: Niri");
         else
             Log.Information("[LayoutDetector] Environment: Generic (IBus primary)");
     }
@@ -64,17 +76,25 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
                     return gnomeLayout;
             }
 
-            // 4. IBus (Works on GNOME, etc.)
+            // 4. Niri IPC (IBus often not used on Niri)
+            if (_isNiri)
+            {
+                var niriLayout = _niriSource.DetectLayout();
+                if (!string.IsNullOrWhiteSpace(niriLayout))
+                    return niriLayout;
+            }
+
+            // 5. IBus (Works on GNOME, etc.)
             var ibusLayout = _ibusSource.DetectLayout();
             if (!string.IsNullOrWhiteSpace(ibusLayout))
                 return ibusLayout;
 
-            // 5. X11/XWayland fallback
+            // 6. X11/XWayland fallback
             var x11Layout = DetectX11Layout();
             if (!string.IsNullOrWhiteSpace(x11Layout))
                 return x11Layout;
 
-            // 6. System default
+            // 7. System default
             return DetectLocalectlLayout();
         }
         catch (Exception ex)
@@ -225,4 +245,5 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
         }
         return null;
     }
+
 }

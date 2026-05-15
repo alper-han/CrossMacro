@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using CrossMacro.Daemon.Contracts.Ipc;
+using CrossMacro.Platform.Abstractions.Diagnostics;
 
 namespace CrossMacro.Platform.Linux.Services;
 
@@ -42,7 +44,7 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
 
         var daemonProbeResult = daemonSocketExists
             ? ProbeDaemonHandshake(resolvedSocketPath!, daemonHandshakeBudget)
-            : LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed();
+            : LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(LinuxDaemonHandshakeStatus.MissingSocket);
 
         bool canUseDirectUInput;
         try
@@ -70,7 +72,25 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
             DaemonHandshakeSucceeded: daemonProbeResult.Succeeded,
             DaemonHandshakeTimedOut: daemonProbeResult.TimedOut,
             CanUseDirectUInput: canUseDirectUInput,
-            CanReadInputEvents: canReadInputEvents);
+            CanReadInputEvents: canReadInputEvents,
+            DaemonHandshakeDiagnostic: CreateDaemonHandshakeDiagnostic(resolvedSocketPath, daemonProbeResult, daemonHandshakeBudget));
+    }
+
+
+    private static LinuxDaemonHandshakeProbeResult CreateDaemonHandshakeDiagnostic(
+        string? socketPath,
+        LinuxInputCapabilityDetector.DaemonHandshakeProbeResult probeResult,
+        TimeSpan timeout)
+    {
+        var resolvedSocketPath = socketPath ?? IpcProtocol.DefaultSocketPath;
+        return probeResult.Succeeded
+            ? LinuxDaemonHandshakeProbeResult.Success(resolvedSocketPath, timeout)
+            : LinuxDaemonHandshakeProbeResult.Failed(
+                resolvedSocketPath,
+                timeout,
+                probeResult.Status,
+                probeResult.Failure?.Message,
+                probeResult.Failure);
     }
 
     private LinuxInputCapabilityDetector.DaemonHandshakeProbeResult ProbeDaemonHandshake(string socketPath, TimeSpan timeout)

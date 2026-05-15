@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Platform.Abstractions;
+using CrossMacro.Platform.Abstractions.Diagnostics;
 using CrossMacro.Platform.Linux.DisplayServer;
 using CrossMacro.Core.Logging;
 
@@ -78,21 +79,31 @@ namespace CrossMacro.Platform.Linux.Services
         {
         }
 
-        public readonly record struct DaemonHandshakeProbeResult(bool Succeeded, bool TimedOut, Exception? Failure)
+        public readonly record struct DaemonHandshakeProbeResult(bool Succeeded, bool TimedOut, Exception? Failure, LinuxDaemonHandshakeStatus Status)
         {
             public static DaemonHandshakeProbeResult Success()
             {
-                return new(true, false, null);
+                return new(true, false, null, LinuxDaemonHandshakeStatus.Success);
             }
 
             public static DaemonHandshakeProbeResult Failed(Exception? failure = null)
             {
-                return new(false, false, failure);
+                return new(false, false, failure, LinuxDaemonHandshakeTransport.MapFailure(failure));
+            }
+
+            public static DaemonHandshakeProbeResult Failed(LinuxDaemonHandshakeStatus status, Exception? failure = null)
+            {
+                if (status == LinuxDaemonHandshakeStatus.Success)
+                {
+                    throw new ArgumentException("Use Success for successful daemon handshakes.", nameof(status));
+                }
+
+                return new(false, status == LinuxDaemonHandshakeStatus.Timeout, failure, status);
             }
 
             public static DaemonHandshakeProbeResult Timeout(Exception? failure = null)
             {
-                return new(false, true, failure);
+                return new(false, true, failure, LinuxDaemonHandshakeStatus.Timeout);
             }
         }
 
@@ -103,20 +114,21 @@ namespace CrossMacro.Platform.Linux.Services
 
         private static LinuxInputCapabilityDetector.DaemonHandshakeProbeResult MapDisplayProbeResult(DaemonHandshakeProbeResult result)
         {
-            return result.TimedOut
-                ? LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Timeout(result.Failure)
-                : result.Succeeded
-                    ? LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success()
-                    : LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(result.Failure);
+            return result.Succeeded
+                ? LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success()
+                : LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(result.Status, result.Failure);
         }
 
         private static DaemonHandshakeProbeResult MapProbeResult(LinuxDaemonHandshakeTransport.ProbeResult result)
         {
-            return result.TimedOut
-                ? DaemonHandshakeProbeResult.Timeout(result.Failure)
-                : result.Succeeded
-                    ? DaemonHandshakeProbeResult.Success()
-                    : DaemonHandshakeProbeResult.Failed(result.Failure);
+            if (result.TimedOut)
+            {
+                return DaemonHandshakeProbeResult.Timeout(result.Failure);
+            }
+
+            return result.Succeeded
+                ? DaemonHandshakeProbeResult.Success()
+                : DaemonHandshakeProbeResult.Failed(LinuxDaemonHandshakeTransport.MapFailure(result.Failure), result.Failure);
         }
 
         public bool IsSessionSupported(out string reason)

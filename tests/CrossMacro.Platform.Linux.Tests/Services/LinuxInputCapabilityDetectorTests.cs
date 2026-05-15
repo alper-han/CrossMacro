@@ -4,6 +4,7 @@ using System.IO;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using CrossMacro.Daemon.Contracts.Ipc;
+using CrossMacro.Platform.Abstractions.Diagnostics;
 using CrossMacro.Platform.Linux;
 using CrossMacro.Platform.Linux.Services;
 using CrossMacro.TestInfrastructure;
@@ -292,6 +293,139 @@ public class LinuxInputCapabilityDetectorTests
         Assert.True(detector.CanUseDirectUInput);
         Assert.True(detector.CanReadInputEvents);
         Assert.Equal(InputProviderMode.Legacy, mode);
+    }
+
+    [LinuxFact]
+    public void GetSnapshot_WhenPermissionDeniedButDirectFallbackIsAvailable_PreservesDaemonDiagnostic()
+    {
+        var detector = new LinuxInputCapabilityDetector(
+            fileExists: path => path == IpcProtocol.DefaultSocketPath,
+            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
+            canOpenForRead: path => path == "/dev/input/event0",
+            daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(
+                LinuxDaemonHandshakeStatus.PermissionDenied,
+                new UnauthorizedAccessException("permission denied")),
+            getInputEventCandidates: () => ["/dev/input/event0"],
+            utcNow: () => DateTime.UtcNow);
+
+        var mode = detector.DetermineMode();
+        var snapshot = detector.GetSnapshot();
+
+        Assert.Equal(InputProviderMode.Legacy, mode);
+        Assert.True(snapshot.HasDirectInputAccess);
+        Assert.False(snapshot.DaemonHandshakeSucceeded);
+        Assert.False(snapshot.DaemonHandshakeTimedOut);
+        Assert.Equal(LinuxDaemonHandshakeStatus.PermissionDenied, snapshot.DaemonHandshake.Status);
+    }
+
+    [LinuxFact]
+    public void GetSnapshot_WhenDaemonTimesOut_PreservesTimeoutDiagnostic()
+    {
+        var detector = new LinuxInputCapabilityDetector(
+            fileExists: path => path == IpcProtocol.DefaultSocketPath,
+            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
+            canOpenForRead: path => path == "/dev/input/event0",
+            daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Timeout(
+                new TimeoutException("timeout")),
+            getInputEventCandidates: () => ["/dev/input/event0"],
+            utcNow: () => DateTime.UtcNow);
+
+        var mode = detector.DetermineMode();
+        var snapshot = detector.GetSnapshot();
+
+        Assert.Equal(InputProviderMode.Legacy, mode);
+        Assert.True(snapshot.DaemonHandshakeTimedOut);
+        Assert.Equal(LinuxDaemonHandshakeStatus.Timeout, snapshot.DaemonHandshake.Status);
+        Assert.NotEqual(LinuxDaemonHandshakeStatus.PermissionDenied, snapshot.DaemonHandshake.Status);
+    }
+
+    [LinuxFact]
+    public void GetSnapshot_WhenDaemonSocketMissingAndDirectFallbackIsAvailable_RecordsMissingSocketAndReturnsLegacy()
+    {
+        var detector = new LinuxInputCapabilityDetector(
+            fileExists: path => path == LinuxConstants.UInputDevicePath,
+            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
+            canOpenForRead: path => path == "/dev/input/event0",
+            daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success(),
+            getInputEventCandidates: () => ["/dev/input/event0"],
+            utcNow: () => DateTime.UtcNow);
+
+        var mode = detector.DetermineMode();
+        var snapshot = detector.GetSnapshot();
+
+        Assert.Equal(InputProviderMode.Legacy, mode);
+        Assert.False(snapshot.DaemonSocketExists);
+        Assert.True(snapshot.HasDirectInputAccess);
+        Assert.Equal(LinuxDaemonHandshakeStatus.MissingSocket, snapshot.DaemonHandshake.Status);
+    }
+
+    [LinuxFact]
+    public void SnapshotProvider_WhenPermissionDeniedAndTimeoutResultsOccur_KeepsDistinctHandshakeStatuses()
+    {
+        var permissionDeniedProvider = new LinuxInputCapabilitySnapshotProvider(
+            fileExists: path => path == IpcProtocol.DefaultSocketPath,
+            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
+            canOpenForRead: path => path == "/dev/input/event0",
+            daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(
+                LinuxDaemonHandshakeStatus.PermissionDenied,
+                new UnauthorizedAccessException("permission denied")),
+            getInputEventCandidates: () => ["/dev/input/event0"]);
+        var timeoutProvider = new LinuxInputCapabilitySnapshotProvider(
+            fileExists: path => path == IpcProtocol.DefaultSocketPath,
+            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
+            canOpenForRead: path => path == "/dev/input/event0",
+            daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Timeout(
+                new TimeoutException("timeout")),
+            getInputEventCandidates: () => ["/dev/input/event0"]);
+
+        var permissionDeniedSnapshot = permissionDeniedProvider.CaptureSnapshot(TimeSpan.FromSeconds(5));
+        var timeoutSnapshot = timeoutProvider.CaptureSnapshot(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(LinuxDaemonHandshakeStatus.PermissionDenied, permissionDeniedSnapshot.DaemonHandshake.Status);
+        Assert.False(permissionDeniedSnapshot.DaemonHandshakeTimedOut);
+        Assert.Equal(LinuxDaemonHandshakeStatus.Timeout, timeoutSnapshot.DaemonHandshake.Status);
+        Assert.True(timeoutSnapshot.DaemonHandshakeTimedOut);
+    }
+
+    [LinuxFact]
+    public void DetermineMode_WhenIssue44SocketPermissionDeniedScenarioHasNoFallback_ReturnsNone()
+    {
+        var scenario = Issue44LinuxInputCapabilityScenario.SocketPermissionDenied();
+        var detector = scenario.CreateDetector();
+
+        var mode = detector.DetermineMode();
+        var snapshot = scenario.CreateDiagnosticSnapshot();
+
+        Assert.Equal(InputProviderMode.None, mode);
+        Assert.False(detector.CanConnectToDaemon);
+        Assert.Equal(LinuxDaemonSocketAccessStatus.PermissionDenied, snapshot.SocketAccess.Status);
+        Assert.Equal(LinuxDaemonHandshakeStatus.PermissionDenied, snapshot.Handshake.Status);
+    }
+
+    [LinuxFact]
+    public void DetermineMode_WhenIssue44DirectFallbackAvailableScenario_ReturnsLegacy()
+    {
+        var scenario = Issue44LinuxInputCapabilityScenario.DirectFallbackAvailable();
+        var detector = scenario.CreateDetector();
+
+        var mode = detector.DetermineMode();
+        var snapshot = scenario.CreateDiagnosticSnapshot();
+
+        Assert.Equal(InputProviderMode.Legacy, mode);
+        Assert.True(detector.CanUseDirectUInput);
+        Assert.True(detector.CanReadInputEvents);
+        Assert.True(snapshot.DirectInputFallback.IsAvailable);
+    }
+
+    [LinuxFact]
+    public void Issue44ScenarioBuilders_ExposeMissingGroupAndStaleSessionDiagnostics()
+    {
+        var missingGroup = Issue44LinuxInputCapabilityScenario.Issue44MissingCrossmacroGroup().CreateSocketAccessResult();
+        var staleSession = Issue44LinuxInputCapabilityScenario.Issue44StaleCrossmacroSession().CreateSocketAccessResult();
+
+        Assert.Equal(LinuxDaemonGroupMembershipStatus.MissingGroup, missingGroup.GroupMembershipStatus);
+        Assert.Equal(LinuxDaemonGroupMembershipStatus.StaleSession, staleSession.GroupMembershipStatus);
+        Assert.Equal(LinuxFileSystemEntryKind.Socket, staleSession.Metadata?.EntryKind);
     }
 
     [LinuxFact]

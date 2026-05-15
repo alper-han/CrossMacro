@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Core.Logging;
+using CrossMacro.Platform.Abstractions.Diagnostics;
 
 namespace CrossMacro.Platform.Linux.Services;
 
@@ -72,21 +73,31 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
         _utcNow = utcNow ?? throw new ArgumentNullException(nameof(utcNow));
     }
 
-    public readonly record struct DaemonHandshakeProbeResult(bool Succeeded, bool TimedOut, Exception? Failure)
+    public readonly record struct DaemonHandshakeProbeResult(bool Succeeded, bool TimedOut, Exception? Failure, LinuxDaemonHandshakeStatus Status)
     {
         public static DaemonHandshakeProbeResult Success()
         {
-            return new(true, false, null);
+            return new(true, false, null, LinuxDaemonHandshakeStatus.Success);
         }
 
         public static DaemonHandshakeProbeResult Failed(Exception? failure = null)
         {
-            return new(false, false, failure);
+            return new(false, false, failure, LinuxDaemonHandshakeTransport.MapFailure(failure));
+        }
+
+        public static DaemonHandshakeProbeResult Failed(LinuxDaemonHandshakeStatus status, Exception? failure = null)
+        {
+            if (status == LinuxDaemonHandshakeStatus.Success)
+            {
+                throw new ArgumentException("Use Success for successful daemon handshakes.", nameof(status));
+            }
+
+            return new(false, status == LinuxDaemonHandshakeStatus.Timeout, failure, status);
         }
 
         public static DaemonHandshakeProbeResult Timeout(Exception? failure = null)
         {
-            return new(false, true, failure);
+            return new(false, true, failure, LinuxDaemonHandshakeStatus.Timeout);
         }
     }
 
@@ -250,7 +261,8 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
                 DaemonHandshakeSucceeded: _canConnectToDaemon,
                 DaemonHandshakeTimedOut: _lastDaemonHandshakeTimedOut,
                 CanUseDirectUInput: _canUseDirectUInput ?? false,
-                CanReadInputEvents: _canReadInputEvents ?? false);
+                CanReadInputEvents: _canReadInputEvents ?? false,
+                DaemonHandshakeDiagnostic: _lastDaemonHandshakeDiagnostic);
         }
     }
 
@@ -359,6 +371,7 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
             _resolvedSocketPath = null;
             _daemonSocketExists = false;
             _lastDaemonHandshakeTimedOut = false;
+            _lastDaemonHandshakeDiagnostic = null;
             _lastDaemonProbeUtc = DateTime.MinValue;
             _lastSuccessfulDaemonProbeUtc = DateTime.MinValue;
             _consecutiveDaemonProbeFailures = 0;
@@ -383,6 +396,10 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
             _canConnectToDaemon = true;
             _lastDaemonProbeUtc = now;
             _lastDaemonHandshakeTimedOut = false;
+            _lastDaemonHandshakeDiagnostic = CreateDaemonHandshakeDiagnostic(
+                _resolvedSocketPath,
+                DaemonHandshakeProbeResult.Success(),
+                DaemonHandshakeProbeTimeout);
             _lastSuccessfulDaemonProbeUtc = now;
             _consecutiveDaemonProbeFailures = 0;
             return;
@@ -392,6 +409,10 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
         _canConnectToDaemon = probeResult.Succeeded;
         _lastDaemonProbeUtc = now;
         _lastDaemonHandshakeTimedOut = probeResult.TimedOut;
+        _lastDaemonHandshakeDiagnostic = CreateDaemonHandshakeDiagnostic(
+            _resolvedSocketPath,
+            probeResult,
+            DaemonHandshakeProbeTimeout);
 
         if (_canConnectToDaemon)
         {
@@ -454,7 +475,7 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
 
             if (socketPath == null)
             {
-                return DaemonHandshakeProbeResult.Failed();
+                return DaemonHandshakeProbeResult.Failed(LinuxDaemonHandshakeStatus.MissingSocket);
             }
 
             return ProbeDaemonHandshake(socketPath);
@@ -476,7 +497,25 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
         return LinuxInputProbeUtilities.ResolveAvailableSocketPath(_fileExists);
     }
 
+
+    private static LinuxDaemonHandshakeProbeResult CreateDaemonHandshakeDiagnostic(
+        string? socketPath,
+        DaemonHandshakeProbeResult probeResult,
+        TimeSpan timeout)
+    {
+        var resolvedSocketPath = socketPath ?? IpcProtocol.DefaultSocketPath;
+        return probeResult.Succeeded
+            ? LinuxDaemonHandshakeProbeResult.Success(resolvedSocketPath, timeout)
+            : LinuxDaemonHandshakeProbeResult.Failed(
+                resolvedSocketPath,
+                timeout,
+                probeResult.Status,
+                probeResult.Failure?.Message,
+                probeResult.Failure);
+    }
+
     private string? _resolvedSocketPath;
     private bool _daemonSocketExists;
     private bool _lastDaemonHandshakeTimedOut;
+    private LinuxDaemonHandshakeProbeResult? _lastDaemonHandshakeDiagnostic;
 }

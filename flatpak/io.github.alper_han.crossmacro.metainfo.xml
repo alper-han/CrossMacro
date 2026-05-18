@@ -92,6 +92,18 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.2.0" date="2026-05-18">
+      <description>
+        <p>CrossMacro 1.2.0 improves Linux coordinate recording and playback, diagnostics, input reliability, and package runtime behavior.</p>
+        <ul>
+          <li>Improved Linux coordinate recording and playback with clearer absolute and relative coordinate handling.</li>
+          <li>Expanded Linux daemon, socket, input backend, and doctor diagnostics with clearer startup notifications and troubleshooting details.</li>
+          <li>Improved direct input capture edge cases, unavailable backend reporting, horizontal scroll recording, and stale daemon event handling.</li>
+          <li>Added Niri keyboard layout detection for better Wayland desktop integration.</li>
+          <li>Improved Linux package runtime reliability and metadata for this release.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.1.0" date="2026-05-05">
       <description>
         <p>CrossMacro 1.1.0 improves everyday automation with a better editor, smoother text expansion, randomized timing controls, stronger Linux integration, and more reliable packages.</p>

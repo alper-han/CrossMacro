@@ -47,7 +47,6 @@ public class MacOSPlatformServiceRegistrarTests
         Assert.IsType<MacOSCoordinateStrategyFactory>(strategyFactory);
         Assert.IsType<GenericDisplaySessionService>(displaySession);
         Assert.Null(notifier);
-        Assert.False(policy.PreferRelativeForAbsoluteMoves);
         Assert.False(policy.UseHybridAbsoluteDragMovement);
     }
 }

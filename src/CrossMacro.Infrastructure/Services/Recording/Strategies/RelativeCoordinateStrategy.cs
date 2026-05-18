@@ -8,7 +8,7 @@ namespace CrossMacro.Infrastructure.Services.Recording.Strategies;
 /// Relative coordinate strategy that buffers X/Y deltas until a SYNC event.
 /// This ensures both axes are recorded together in a single MacroEvent.
 /// </summary>
-public class RelativeCoordinateStrategy : ICoordinateStrategy
+public class RelativeCoordinateStrategy : IRelativeCoordinateStrategy
 {
     private int _pendingX;
     private int _pendingY;

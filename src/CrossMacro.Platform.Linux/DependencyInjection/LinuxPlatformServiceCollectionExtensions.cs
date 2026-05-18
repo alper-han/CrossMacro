@@ -40,7 +40,7 @@ internal static class LinuxPlatformServiceCollectionExtensions
         services.AddSingleton<FlatpakHostCommandLauncher>();
         services.AddSingleton<DirectPkexecHostCommandLauncher>();
         services.AddSingleton<IPlaybackBehaviorPolicy>(
-            _ => new PlaybackBehaviorPolicy(preferRelativeForAbsoluteMoves: true, useHybridAbsoluteDragMovement: true));
+            _ => new PlaybackBehaviorPolicy(useHybridAbsoluteDragMovement: true));
         services.AddSingleton<IFlatpakQuickSetupService>(sp =>
             new FlatpakQuickSetupService(
                 Environment.GetEnvironmentVariable,

@@ -55,7 +55,8 @@ public class StandardInputEventProcessor : IInputEventProcessor
                     Type = EventType.MouseMove,
                     Timestamp = timestamp,
                     X = pos.X,
-                    Y = pos.Y
+                    Y = pos.Y,
+                    CoordinateMode = _isAbsoluteCoordinates ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative
                 };
 
             case InputEventType.MouseScroll:
@@ -98,7 +99,8 @@ public class StandardInputEventProcessor : IInputEventProcessor
                     Type = EventType.MouseMove,
                     Timestamp = timestamp,
                     X = pos.X,
-                    Y = pos.Y
+                    Y = pos.Y,
+                    CoordinateMode = _isAbsoluteCoordinates ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative
                 };
 
             case InputEventType.Unknown:
@@ -114,7 +116,8 @@ public class StandardInputEventProcessor : IInputEventProcessor
         {
             Timestamp = timestamp,
             X = x,
-            Y = y
+            Y = y,
+            CoordinateMode = _isAbsoluteCoordinates ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative
         };
 
         if (e.Code == InputEventCode.BTN_LEFT) buttonEvent.Button = MouseButton.Left;

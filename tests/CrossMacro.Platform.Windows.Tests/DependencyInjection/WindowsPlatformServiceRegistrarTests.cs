@@ -102,7 +102,6 @@ public class WindowsPlatformServiceRegistrarTests
         using var provider = services.BuildServiceProvider();
         var policy = provider.GetRequiredService<IPlaybackBehaviorPolicy>();
 
-        Assert.False(policy.PreferRelativeForAbsoluteMoves);
         Assert.False(policy.UseHybridAbsoluteDragMovement);
     }
 }

@@ -156,6 +156,24 @@ public class MacroRecorderTests
         await _strategy.Received(1).InitializeAsync(Arg.Any<CancellationToken>());
         _processor.Received(1).Configure(true, true, Arg.Is<HashSet<int>>(x => x == null), true);
     }
+
+    [Fact]
+    public async Task StartRecordingAsync_WhenStrategyStaysAbsolute_UsesAbsoluteModeForProcessorAndSequence()
+    {
+        // Arrange
+        var absoluteStrategy = Substitute.For<ICoordinateStrategy>();
+        _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(absoluteStrategy);
+        var recorder = CreateRecorder();
+
+        // Act
+        await recorder.StartRecordingAsync(true, true, forceRelative: false);
+        var sequence = recorder.StopRecording();
+
+        // Assert
+        await absoluteStrategy.Received(1).InitializeAsync(Arg.Any<CancellationToken>());
+        _processor.Received(1).Configure(true, true, Arg.Is<HashSet<int>>(x => x == null), true);
+        sequence.IsAbsoluteCoordinates.Should().BeTrue();
+    }
     [Fact]
     public async Task StartRecordingAsync_WithForceRelative_PerformsCornerReset()
     {
@@ -201,6 +219,26 @@ public class MacroRecorderTests
     {
         // Arrange
         var relativeStrategy = new RelativeCoordinateStrategy();
+        _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
+        var mockSimulator = Substitute.For<IInputSimulator>();
+        var recorder = new MacroRecorder(_captureFactory, _strategyFactory, _processorFactory, () => mockSimulator);
+
+        // Act
+        await recorder.StartRecordingAsync(true, true, forceRelative: false);
+        var sequence = recorder.StopRecording();
+
+        // Assert
+        _processor.Received(1).Configure(true, true, Arg.Is<HashSet<int>>(x => x == null), false);
+        sequence.IsAbsoluteCoordinates.Should().BeFalse();
+        mockSimulator.Received(1).Initialize();
+        mockSimulator.Received(1).MoveRelative(-20000, -20000);
+    }
+
+    [Fact]
+    public async Task StartRecordingAsync_WhenPlatformSpecificRelativeStrategyUsed_UsesRelativeModeForProcessorAndSequence()
+    {
+        // Arrange
+        var relativeStrategy = Substitute.For<IRelativeCoordinateStrategy>();
         _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
         var mockSimulator = Substitute.For<IInputSimulator>();
         var recorder = new MacroRecorder(_captureFactory, _strategyFactory, _processorFactory, () => mockSimulator);

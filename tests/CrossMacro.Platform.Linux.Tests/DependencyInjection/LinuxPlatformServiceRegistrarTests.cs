@@ -90,7 +90,6 @@ public class LinuxPlatformServiceRegistrarTests
         var simulatorFactory = provider.GetRequiredService<Func<IInputSimulator>>();
         var captureFactory = provider.GetRequiredService<Func<IInputCapture>>();
 
-        Assert.True(policy.PreferRelativeForAbsoluteMoves);
         Assert.True(policy.UseHybridAbsoluteDragMovement);
         Assert.NotNull(simulatorFactory);
         Assert.NotNull(captureFactory);

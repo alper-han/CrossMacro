@@ -40,6 +40,24 @@ public class StandardInputEventProcessorTests
         result.Value.Y.Should().Be(20);
     }
 
+    [Theory]
+    [InlineData(true, MouseCoordinateMode.Absolute)]
+    [InlineData(false, MouseCoordinateMode.Relative)]
+    public void Process_MouseMove_ShouldStampCoordinateModeFromRecordingSession(bool isAbsoluteCoordinates, MouseCoordinateMode expectedMode)
+    {
+        // Arrange
+        _processor.Configure(recordMouse: true, recordKeyboard: true, ignoredKeys: null, isAbsoluteCoordinates: isAbsoluteCoordinates);
+        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((10, 20));
+        var args = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
+
+        // Act
+        var result = _processor.Process(args, timestamp: 1000);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Value.CoordinateMode.Should().Be(expectedMode);
+    }
+
     [Fact]
     public void Process_MouseMove_ShouldReturnNull_WhenNotRecordingMouse()
     {
@@ -164,6 +182,24 @@ public class StandardInputEventProcessorTests
         result.Value.Button.Should().Be(MouseButton.Left);
     }
 
+    [Theory]
+    [InlineData(true, MouseCoordinateMode.Absolute)]
+    [InlineData(false, MouseCoordinateMode.Relative)]
+    public void Process_MouseButton_ShouldStampCoordinateModeFromRecordingSession(bool isAbsoluteCoordinates, MouseCoordinateMode expectedMode)
+    {
+        // Arrange
+        _processor.Configure(recordMouse: true, recordKeyboard: true, ignoredKeys: null, isAbsoluteCoordinates: isAbsoluteCoordinates);
+        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((100, 100));
+        var args = new InputCaptureEventArgs { Type = InputEventType.MouseButton, Code = InputEventCode.BTN_LEFT, Value = 1 };
+
+        // Act
+        var result = _processor.Process(args, timestamp: 1000);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Value.CoordinateMode.Should().Be(expectedMode);
+    }
+
     [Fact]
     public void Process_MouseButton_ShouldReturnButtonReleaseEvent()
     {
@@ -197,6 +233,7 @@ public class StandardInputEventProcessorTests
         result.Should().NotBeNull();
         result.Value.Type.Should().Be(EventType.Click);
         result.Value.Button.Should().Be(MouseButton.ScrollUp);
+        result.Value.CoordinateMode.Should().BeNull();
     }
 
     [Fact]
@@ -212,6 +249,7 @@ public class StandardInputEventProcessorTests
         // Assert
         result.Should().NotBeNull();
         result.Value.Button.Should().Be(MouseButton.ScrollDown);
+        result.Value.CoordinateMode.Should().BeNull();
     }
 
     [Fact]
@@ -245,6 +283,24 @@ public class StandardInputEventProcessorTests
         result.Value.Type.Should().Be(EventType.MouseMove);
         result.Value.X.Should().Be(15);
         result.Value.Y.Should().Be(25);
+    }
+
+    [Theory]
+    [InlineData(true, MouseCoordinateMode.Absolute)]
+    [InlineData(false, MouseCoordinateMode.Relative)]
+    public void Process_Sync_ShouldStampCoordinateModeFromRecordingSession(bool isAbsoluteCoordinates, MouseCoordinateMode expectedMode)
+    {
+        // Arrange
+        _processor.Configure(recordMouse: true, recordKeyboard: true, ignoredKeys: null, isAbsoluteCoordinates: isAbsoluteCoordinates);
+        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((15, 25));
+        var args = new InputCaptureEventArgs { Type = InputEventType.Sync, Code = 0, Value = 0 };
+
+        // Act
+        var result = _processor.Process(args, timestamp: 1000);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Value.CoordinateMode.Should().Be(expectedMode);
     }
 
     [Fact]

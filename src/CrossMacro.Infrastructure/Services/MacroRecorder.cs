@@ -291,7 +291,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             return false;
         }
 
-        return strategy is not RelativeCoordinateStrategy;
+        return strategy is not IRelativeCoordinateStrategy;
     }
 
     private void PerformCornerReset()

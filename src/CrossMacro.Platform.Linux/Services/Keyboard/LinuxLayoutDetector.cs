@@ -11,6 +11,8 @@ namespace CrossMacro.Platform.Linux.Services.Keyboard;
 /// <summary>
 /// Detects keyboard layout across different Linux desktop environments.
 /// Priority: DE-specific (Hyprland/KDE/GNOME/Niri) > IBus > X11 > localectl
+/// TODO: COSMIC does not expose a reliable native current-layout API yet; keep using fallbacks until it does.
+/// TODO: Wayfire native layout IPC exists but is not wired here yet; add it before generic fallbacks.
 /// </summary>
 public class LinuxLayoutDetector : ILinuxLayoutDetector
 {

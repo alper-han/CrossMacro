@@ -136,12 +136,17 @@ public class UInputEventExecutor : IEventExecutor
         Log.Debug("[UInputEventExecutor] Released all inputs");
     }
     
-    public void Execute(MacroEvent ev, bool isRecordedAbsolute)
+    public void Execute(MacroEvent ev, MouseCoordinateMode? coordinateMode)
     {
         // Handle implicit movement for mouse button events (not keyboard)
-        if (ev.Type is EventType.ButtonPress or EventType.ButtonRelease or EventType.Click && !isRecordedAbsolute)
+        if (ev.Type is EventType.ButtonPress or EventType.ButtonRelease or EventType.Click)
         {
-            if (ev.X != 0 || ev.Y != 0)
+            bool isScroll = MacroPositionSemantics.IsScrollButton(ev.Button);
+            if (!isScroll && !ev.UseCurrentPosition && coordinateMode == MouseCoordinateMode.Absolute)
+            {
+                MoveAbsolute(ev.X, ev.Y);
+            }
+            else if (!isScroll && !ev.UseCurrentPosition && coordinateMode == MouseCoordinateMode.Relative && (ev.X != 0 || ev.Y != 0))
             {
                 MoveRelative(ev.X, ev.Y);
             }
@@ -160,9 +165,9 @@ public class UInputEventExecutor : IEventExecutor
                 break;
 
             case EventType.MouseMove:
-                if (isRecordedAbsolute)
+                if (coordinateMode == MouseCoordinateMode.Absolute)
                     MoveAbsolute(ev.X, ev.Y);
-                else
+                else if (coordinateMode == MouseCoordinateMode.Relative)
                     MoveRelative(ev.X, ev.Y);
                 break;
 

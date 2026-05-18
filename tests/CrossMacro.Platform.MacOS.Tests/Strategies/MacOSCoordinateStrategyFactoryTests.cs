@@ -16,21 +16,31 @@ public class MacOSCoordinateStrategyFactoryTests
     }
 
     [Fact]
-    public void Create_WhenForceRelativeRequested_StillReturnsMacOSAbsoluteStrategy()
+    public void Create_WhenForceRelativeRequested_ReturnsMacOSRelativeStrategy()
     {
         var factory = new MacOSCoordinateStrategyFactory();
 
-        var strategy = factory.Create(useAbsoluteCoordinates: false, forceRelative: true, skipInitialZero: false);
+        var strategy = factory.Create(useAbsoluteCoordinates: true, forceRelative: true, skipInitialZero: false);
 
-        Assert.IsType<MacOSAbsoluteCoordinateStrategy>(strategy);
+        Assert.IsType<MacOSRelativeCoordinateStrategy>(strategy);
     }
 
     [Fact]
-    public void Create_WhenSkipInitialZeroRequested_StillReturnsMacOSAbsoluteStrategy()
+    public void Create_WhenRelativeRequested_ReturnsMacOSRelativeStrategy()
     {
         var factory = new MacOSCoordinateStrategyFactory();
 
-        var strategy = factory.Create(useAbsoluteCoordinates: false, forceRelative: false, skipInitialZero: true);
+        var strategy = factory.Create(useAbsoluteCoordinates: false, forceRelative: false, skipInitialZero: false);
+
+        Assert.IsType<MacOSRelativeCoordinateStrategy>(strategy);
+    }
+
+    [Fact]
+    public void Create_WhenAbsoluteRequestedWithSkipInitialZero_ReturnsMacOSAbsoluteStrategy()
+    {
+        var factory = new MacOSCoordinateStrategyFactory();
+
+        var strategy = factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: true);
 
         Assert.IsType<MacOSAbsoluteCoordinateStrategy>(strategy);
     }

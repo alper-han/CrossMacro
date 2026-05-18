@@ -12,13 +12,19 @@ internal sealed class TextExpansionKeyDispatcher
         int keyCode,
         bool shift = false,
         bool altGr = false,
-        bool ctrl = false)
+        bool ctrl = false,
+        bool meta = false)
     {
         ArgumentNullException.ThrowIfNull(simulator);
 
         if (ctrl)
         {
             SendKeyState(simulator, InputEventCode.KEY_LEFTCTRL, true);
+        }
+
+        if (meta)
+        {
+            SendKeyState(simulator, InputEventCode.KEY_LEFTMETA, true);
         }
 
         if (shift)
@@ -43,6 +49,11 @@ internal sealed class TextExpansionKeyDispatcher
         if (shift)
         {
             SendKeyState(simulator, InputEventCode.KEY_LEFTSHIFT, false);
+        }
+
+        if (meta)
+        {
+            SendKeyState(simulator, InputEventCode.KEY_LEFTMETA, false);
         }
 
         if (ctrl)

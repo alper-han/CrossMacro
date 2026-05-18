@@ -117,9 +117,20 @@ internal sealed class TextExpansionClipboardInserter
                 break;
             case PasteMethod.CtrlV:
             default:
-                await _keyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_V, ctrl: true);
+                await SendStandardPasteAsync(inputSimulator);
                 break;
         }
+    }
+
+    private async Task SendStandardPasteAsync(IInputSimulator inputSimulator)
+    {
+        if (inputSimulator is IPlatformPasteShortcutProvider { UsesMetaKeyForStandardPaste: true })
+        {
+            await _keyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_V, meta: true);
+            return;
+        }
+
+        await _keyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_V, ctrl: true);
     }
 
     private async Task<bool> VerifyClipboardContainsReplacementAsync(string replacement)

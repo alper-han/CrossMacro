@@ -72,7 +72,32 @@ public class TextExpansionPrivacyTests
         var events = clipboardService.Events.ToArray();
         Assert.True(Array.IndexOf(events, "clipboard:get:1") < Array.IndexOf(events, "clipboard:set:replacement"));
         Assert.True(Array.IndexOf(events, "clipboard:set:replacement") < Array.IndexOf(events, $"input:key:{InputEventCode.KEY_BACKSPACE}"));
+        Assert.True(Array.IndexOf(events, $"input:key:{InputEventCode.KEY_LEFTCTRL}") < Array.IndexOf(events, $"input:key:{InputEventCode.KEY_V}"));
         Assert.True(Array.IndexOf(events, $"input:key:{InputEventCode.KEY_BACKSPACE}") < Array.IndexOf(events, $"input:key:{InputEventCode.KEY_V}"));
+        Assert.True(Array.IndexOf(events, $"input:key:{InputEventCode.KEY_V}") < Array.IndexOf(events, "clipboard:set:old-value"));
+    }
+
+    [Fact]
+    public async Task ExpandAsync_WhenStandardPasteUsesMetaModifier_UsesMetaPasteShortcut()
+    {
+        var clipboardService = new RecordingClipboardService(
+            backupValue: "old-value",
+            verificationValue: "replacement",
+            restoreGuardValue: "replacement");
+        var keyboardLayoutService = Substitute.For<IKeyboardLayoutService>();
+        var inputSimulator = new MetaPasteRecordingInputSimulator(clipboardService.Events);
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            keyboardLayoutService,
+            () => inputSimulator);
+
+        var expansion = new TextExpansion(":a", "replacement");
+
+        await executor.ExpandAsync(expansion);
+
+        var events = clipboardService.Events.ToArray();
+        Assert.DoesNotContain($"input:key:{InputEventCode.KEY_LEFTCTRL}", events);
+        Assert.True(Array.IndexOf(events, $"input:key:{InputEventCode.KEY_LEFTMETA}") < Array.IndexOf(events, $"input:key:{InputEventCode.KEY_V}"));
         Assert.True(Array.IndexOf(events, $"input:key:{InputEventCode.KEY_V}") < Array.IndexOf(events, "clipboard:set:old-value"));
     }
 
@@ -932,6 +957,28 @@ public class TextExpansionPrivacyTests
         {
             _events = events;
         }
+
+        public override void KeyPress(int keyCode, bool pressed)
+        {
+            if (pressed)
+            {
+                _events.Add($"input:key:{keyCode}");
+            }
+
+            base.KeyPress(keyCode, pressed);
+        }
+    }
+
+    private sealed class MetaPasteRecordingInputSimulator : TestInputSimulator, IPlatformPasteShortcutProvider
+    {
+        private readonly List<string> _events;
+
+        public MetaPasteRecordingInputSimulator(List<string> events)
+        {
+            _events = events;
+        }
+
+        public bool UsesMetaKeyForStandardPaste => true;
 
         public override void KeyPress(int keyCode, bool pressed)
         {

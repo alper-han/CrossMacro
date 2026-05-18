@@ -77,7 +77,7 @@ public enum TextInsertionMode
 public enum PasteMethod
 {
     /// <summary>
-    /// Standard GUI paste (Ctrl+V)
+    /// Standard GUI paste (Ctrl+V on Linux/Windows, Command+V on macOS)
     /// </summary>
     CtrlV,
     

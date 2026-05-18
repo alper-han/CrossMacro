@@ -1,10 +1,12 @@
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Core.Services.Playback;
 using CrossMacro.Cli;
 using CrossMacro.Cli.Services;
 using CrossMacro.Platform.Abstractions;
 using NSubstitute;
 using System.IO;
+using System.Text.Json;
 
 namespace CrossMacro.Cli.Tests;
 
@@ -41,7 +43,29 @@ public class RunScriptExecutionServiceTests
         Assert.True(result.Success);
         Assert.Equal(CliExitCode.Success, result.ExitCode);
         Assert.Equal("Run script parsed successfully (dry-run).", result.Message);
+        Assert.NotNull(result.Data);
+        var payload = JsonSerializer.SerializeToElement(result.Data);
+        Assert.Equal("absolute", payload.GetProperty("coordinateMode").GetString());
         await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenDryRunHasMixedCoordinateModes_ReportsMixedCoordinateMode()
+    {
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps =
+            [
+                "move abs 100 200",
+                "move rel 10 -5"
+            ],
+            DryRun = true
+        }, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var payload = JsonSerializer.SerializeToElement(result.Data);
+        Assert.Equal("mixed", payload.GetProperty("coordinateMode").GetString());
     }
 
     [Fact]
@@ -105,6 +129,9 @@ public class RunScriptExecutionServiceTests
         Assert.NotNull(captured);
         Assert.Equal(2, captured!.Events.Count);
         Assert.True(captured.IsAbsoluteCoordinates);
+        Assert.NotNull(result.Data);
+        var payload = JsonSerializer.SerializeToElement(result.Data);
+        Assert.Equal("absolute", payload.GetProperty("coordinateMode").GetString());
         Assert.Equal(EventType.Click, captured.Events[1].Type);
         Assert.Equal(100, captured.Events[1].X);
         Assert.Equal(120, captured.Events[1].Y);
@@ -190,8 +217,12 @@ public class RunScriptExecutionServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WhenMixingAbsAndRelMove_ReturnsInvalidArguments()
+    public async Task ExecuteAsync_WhenMixingAbsAndRelMove_CompilesPerEventCoordinateModes()
     {
+        MacroSequence? captured = null;
+        _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
         var result = await _service.ExecuteAsync(new RunExecutionRequest
         {
             Steps =
@@ -201,15 +232,24 @@ public class RunScriptExecutionServiceTests
             ]
         }, CancellationToken.None);
 
-        Assert.False(result.Success);
-        Assert.Equal(CliExitCode.InvalidArguments, result.ExitCode);
-        Assert.Contains("cannot mix absolute and relative move modes", result.Errors[0]);
+        Assert.True(result.Success);
+        Assert.Equal(CliExitCode.Success, result.ExitCode);
+        Assert.NotNull(captured);
+        Assert.False(captured!.IsAbsoluteCoordinates);
+        Assert.NotNull(result.Data);
+        var payload = JsonSerializer.SerializeToElement(result.Data);
+        Assert.Equal("mixed", payload.GetProperty("coordinateMode").GetString());
+        Assert.Equal(MouseCoordinateMode.Absolute, captured.Events[0].CoordinateMode);
+        Assert.Equal(MouseCoordinateMode.Relative, captured.Events[1].CoordinateMode);
     }
 
     [Fact]
-    public async Task ExecuteAsync_WhenAbsoluteModeIntroducedAfterButtonStep_ReturnsInvalidArguments()
+    public async Task ExecuteAsync_WhenAbsoluteModeIntroducedAfterButtonStep_CompilesMixedCurrentAndAbsoluteEvents()
     {
-        // Arrange + Act
+        MacroSequence? captured = null;
+        _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
         var result = await _service.ExecuteAsync(new RunExecutionRequest
         {
             Steps =
@@ -219,10 +259,13 @@ public class RunScriptExecutionServiceTests
             ]
         }, CancellationToken.None);
 
-        // Assert
-        Assert.False(result.Success);
-        Assert.Equal(CliExitCode.InvalidArguments, result.ExitCode);
-        Assert.Contains("absolute mode cannot be introduced", result.Errors[0], StringComparison.OrdinalIgnoreCase);
+        Assert.True(result.Success);
+        Assert.Equal(CliExitCode.Success, result.ExitCode);
+        Assert.NotNull(captured);
+        Assert.Equal(2, captured!.Events.Count);
+        Assert.True(captured.Events[0].UseCurrentPosition);
+        Assert.Null(captured.Events[0].CoordinateMode);
+        Assert.Equal(MouseCoordinateMode.Absolute, captured.Events[1].CoordinateMode);
     }
 
     [Fact]
@@ -794,5 +837,22 @@ public class RunScriptExecutionServiceTests
         Assert.False(result.Success);
         Assert.Equal(CliExitCode.InvalidArguments, result.ExitCode);
         Assert.Contains("loop iteration limit exceeded", result.Errors[0], StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenAbsolutePlaybackUnsupported_ReturnsDedicatedMessage()
+    {
+        _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new AbsolutePlaybackUnsupportedException("Relative Only")));
+
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps = ["move abs 10 10"]
+        }, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(CliExitCode.RuntimeError, result.ExitCode);
+        Assert.Equal("Absolute coordinate playback is not supported in this session.", result.Message);
+        Assert.Contains(result.Errors, error => error.Contains("absolute mouse coordinates", StringComparison.OrdinalIgnoreCase));
     }
 }

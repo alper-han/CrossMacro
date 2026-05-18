@@ -135,6 +135,25 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
             };
         }
 
+        if (executionResult.IsAbsolutePlaybackUnsupported)
+        {
+            return new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = CliExitCode.RuntimeError,
+                Message = "Absolute coordinate playback is not supported in this session.",
+                Errors = ["This run script contains absolute mouse coordinates, but the active backend cannot play absolute coordinates. Use a backend/session with absolute coordinate support or change the script to use relative coordinates."],
+                Warnings = validation.Warnings,
+                Data = BuildData(
+                    sequence,
+                    steps.Count,
+                    compileResult.InitialDelayMs,
+                    compileResult.InitialHasRandomDelay,
+                    compileResult.InitialRandomDelayMinMs,
+                    compileResult.InitialRandomDelayMaxMs)
+            };
+        }
+
         return new MacroExecutionResult
         {
             Success = false,
@@ -160,6 +179,14 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
         int initialRandomDelayMinMs,
         int initialRandomDelayMaxMs)
     {
+        var coordinateMode = MacroPositionSemantics.GetCoordinateModeSummary(sequence) switch
+        {
+            CoordinateModeSummary.Absolute => "absolute",
+            CoordinateModeSummary.Relative => "relative",
+            CoordinateModeSummary.Mixed => "mixed",
+            _ => "none"
+        };
+
         return new
         {
             stepCount,
@@ -170,7 +197,7 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
             initialRandomDelayMinMs,
             initialRandomDelayMaxMs,
             trailingDelayMs = sequence.TrailingDelayMs,
-            coordinateMode = sequence.IsAbsoluteCoordinates ? "absolute" : "relative"
+            coordinateMode
         };
     }
 }

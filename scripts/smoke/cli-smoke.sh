@@ -8,7 +8,8 @@ Usage: cli-smoke.sh (--binary <path> | --command <command> | -- <command> [args.
 Runs the shared CrossMacro CLI smoke contract:
   - top-level --help contains "Usage:"
   - settings get --json contains "status": "ok" and "code": 0
-  - dry-run macro JSON contains "coordinateMode": "absolute"
+  - absolute dry-run macro JSON contains "coordinateMode": "absolute"
+  - mixed dry-run macro JSON contains "coordinateMode": "mixed"
 
 Examples:
   cli-smoke.sh --binary /usr/bin/crossmacro
@@ -105,5 +106,8 @@ assert_contains 'settings status/code: "code": 0' "$settings_output" '"code": 0'
 
 dry_run_output="$(run_command run --step "move abs 10 10" --step "click left" --dry-run --json)"
 assert_contains 'dry-run coordinateMode: "coordinateMode": "absolute"' "$dry_run_output" '"coordinateMode": "absolute"'
+
+mixed_dry_run_output="$(run_command run --step "move abs 10 10" --step "move rel 1 -1" --dry-run --json)"
+assert_contains 'mixed dry-run coordinateMode: "coordinateMode": "mixed"' "$mixed_dry_run_output" '"coordinateMode": "mixed"'
 
 echo "CLI smoke: OK"

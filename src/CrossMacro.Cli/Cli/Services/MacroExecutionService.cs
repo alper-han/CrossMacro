@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Core.Services.Playback;
 using CrossMacro.Infrastructure.Services;
 
 namespace CrossMacro.Cli.Services;
@@ -233,6 +234,19 @@ public sealed class MacroExecutionService : IMacroExecutionService
         }
         catch (Exception ex)
         {
+            if (ex is AbsolutePlaybackUnsupportedException)
+            {
+                return new MacroExecutionResult
+                {
+                    Success = false,
+                    ExitCode = CliExitCode.RuntimeError,
+                    Message = "Absolute coordinate playback is not supported in this session.",
+                    Errors = ["This macro contains absolute mouse coordinates, but the active backend cannot play absolute coordinates. Use a backend/session with absolute coordinate support or edit the macro to use relative coordinates."],
+                    Warnings = validation.Warnings,
+                    Data = BuildSummaryData(macroFilePath, macro)
+                };
+            }
+
             return new MacroExecutionResult
             {
                 Success = false,
@@ -247,12 +261,21 @@ public sealed class MacroExecutionService : IMacroExecutionService
 
     private static object BuildSummaryData(string macroFilePath, MacroSequence macro)
     {
+        var coordinateMode = MacroPositionSemantics.GetCoordinateModeSummary(macro) switch
+        {
+            CoordinateModeSummary.Absolute => "absolute",
+            CoordinateModeSummary.Relative => "relative",
+            CoordinateModeSummary.Mixed => "mixed",
+            _ => "none"
+        };
+
         return new
         {
             macroPath = macroFilePath,
             macroName = macro.Name,
             eventCount = macro.EventCount,
             totalDurationMs = macro.TotalDurationMs,
+            coordinateMode,
             isAbsoluteCoordinates = macro.IsAbsoluteCoordinates
         };
     }
@@ -273,6 +296,13 @@ public sealed class MacroExecutionService : IMacroExecutionService
             createdAt = macro.CreatedAt,
             eventCount = macro.EventCount,
             totalDurationMs = totalDuration,
+            coordinateMode = MacroPositionSemantics.GetCoordinateModeSummary(macro) switch
+            {
+                CoordinateModeSummary.Absolute => "absolute",
+                CoordinateModeSummary.Relative => "relative",
+                CoordinateModeSummary.Mixed => "mixed",
+                _ => "none"
+            },
             isAbsoluteCoordinates = macro.IsAbsoluteCoordinates,
             skipInitialZeroZero = macro.SkipInitialZeroZero,
             trailingDelayMs = macro.TrailingDelayMs,

@@ -515,7 +515,7 @@ public class HeadlessHotkeyActionServiceTests
 
         var recorder = Substitute.For<IMacroRecorder>();
         recorder.IsRecording.Returns(false);
-        var runtimeContext = CreateRuntimeContext(isLinux: false, isWindows: false);
+        var runtimeContext = CreateRuntimeContext(isLinux: false, isWindows: false, isMacOS: false);
         var player = Substitute.For<IMacroPlayer>();
         var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, runtimeContext);
         service.Start();
@@ -534,11 +534,46 @@ public class HeadlessHotkeyActionServiceTests
         await service.DisposeAsync();
     }
 
-    private static IRuntimeContext CreateRuntimeContext(bool isLinux = true, bool isWindows = false)
+    [Fact]
+    public async Task RecordingHotkeyToggle_WhenRuntimeIsMacOS_ForwardsForceRelative()
+    {
+        var hotkeys = Substitute.For<IGlobalHotkeyService>();
+        var settings = Substitute.For<ISettingsService>();
+        settings.Current.Returns(new AppSettings
+        {
+            IsMouseRecordingEnabled = true,
+            IsKeyboardRecordingEnabled = true,
+            ForceRelativeCoordinates = true,
+            SkipInitialZeroZero = true
+        });
+
+        var recorder = Substitute.For<IMacroRecorder>();
+        recorder.IsRecording.Returns(false);
+        var runtimeContext = CreateRuntimeContext(isLinux: false, isWindows: false, isMacOS: true);
+        var player = Substitute.For<IMacroPlayer>();
+        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, runtimeContext);
+        service.Start();
+
+        hotkeys.ToggleRecordingRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
+        await Task.Yield();
+
+        await recorder.Received(1).StartRecordingAsync(
+            Arg.Any<bool>(),
+            Arg.Any<bool>(),
+            Arg.Any<IEnumerable<int>>(),
+            true,
+            true,
+            Arg.Any<CancellationToken>());
+
+        await service.DisposeAsync();
+    }
+
+    private static IRuntimeContext CreateRuntimeContext(bool isLinux = true, bool isWindows = false, bool isMacOS = false)
     {
         var runtimeContext = Substitute.For<IRuntimeContext>();
         runtimeContext.IsLinux.Returns(isLinux);
         runtimeContext.IsWindows.Returns(isWindows);
+        runtimeContext.IsMacOS.Returns(isMacOS);
         return runtimeContext;
     }
 

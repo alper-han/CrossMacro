@@ -91,3 +91,8 @@ run_and_capture dry_run_output "$UI_BINARY" run --step "move abs 10 10" --step "
 echo "$dry_run_output" | grep -F '"status": "ok"'
 echo "$dry_run_output" | grep -F '"code": 0'
 echo "$dry_run_output" | grep -F '"coordinateMode": "absolute"'
+
+run_and_capture mixed_dry_run_output "$UI_BINARY" run --step "move abs 10 10" --step "move rel 1 -1" --dry-run --json
+echo "$mixed_dry_run_output" | grep -F '"status": "ok"'
+echo "$mixed_dry_run_output" | grep -F '"code": 0'
+echo "$mixed_dry_run_output" | grep -F '"coordinateMode": "mixed"'

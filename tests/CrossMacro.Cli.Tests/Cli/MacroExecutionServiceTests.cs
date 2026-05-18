@@ -1,8 +1,10 @@
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Core.Services.Playback;
 using CrossMacro.Cli;
 using CrossMacro.Cli.Services;
 using NSubstitute;
+using System.Text.Json;
 
 namespace CrossMacro.Cli.Tests;
 
@@ -70,6 +72,28 @@ public class MacroExecutionServiceTests
     }
 
     [Fact]
+    public async Task GetInfoAsync_WhenMacroHasMixedCoordinateModes_ReportsMixedCoordinateMode()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            _fileManager.LoadAsync(tempFile).Returns(CreateMixedMacro());
+
+            var result = await _service.GetInfoAsync(tempFile, CancellationToken.None);
+
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
+            var payload = JsonSerializer.SerializeToElement(result.Data);
+            Assert.Equal("mixed", payload.GetProperty("coordinateMode").GetString());
+            Assert.False(payload.GetProperty("isAbsoluteCoordinates").GetBoolean());
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WhenDryRun_DoesNotInvokePlayer()
     {
         var tempFile = Path.GetTempFileName();
@@ -123,6 +147,34 @@ public class MacroExecutionServiceTests
         }
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WhenAbsolutePlaybackUnsupported_ReturnsDedicatedMessage()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var macro = CreateMixedMacro();
+            _fileManager.LoadAsync(tempFile).Returns(macro);
+            _player.PlayAsync(macro, Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+                .Returns<Task>(_ => throw new AbsolutePlaybackUnsupportedException("Linux UInput"));
+
+            var result = await _service.ExecuteAsync(new MacroExecutionRequest
+            {
+                MacroFilePath = tempFile,
+                DryRun = false
+            }, CancellationToken.None);
+
+            Assert.False(result.Success);
+            Assert.Equal(CliExitCode.RuntimeError, result.ExitCode);
+            Assert.Equal("Absolute coordinate playback is not supported in this session.", result.Message);
+            Assert.Contains("active backend cannot play absolute coordinates", result.Errors.Single());
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
     private static MacroSequence CreateValidMacro()
     {
         var macro = new MacroSequence
@@ -137,6 +189,35 @@ public class MacroExecutionServiceTests
             DelayMs = 0,
             Timestamp = 0
         });
+        return macro;
+    }
+
+    private static MacroSequence CreateMixedMacro()
+    {
+        var macro = new MacroSequence
+        {
+            Name = "mixed"
+        };
+
+        macro.Events.Add(new MacroEvent
+        {
+            Type = EventType.MouseMove,
+            X = 1,
+            Y = 1,
+            CoordinateMode = MouseCoordinateMode.Absolute,
+            DelayMs = 0,
+            Timestamp = 0
+        });
+        macro.Events.Add(new MacroEvent
+        {
+            Type = EventType.MouseMove,
+            X = 2,
+            Y = 2,
+            CoordinateMode = MouseCoordinateMode.Relative,
+            DelayMs = 0,
+            Timestamp = 1
+        });
+
         return macro;
     }
 }

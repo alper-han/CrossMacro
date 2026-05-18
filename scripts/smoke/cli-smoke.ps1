@@ -17,7 +17,8 @@ Usage: cli-smoke.ps1 [-Executable <path>] [-Project <path>] [-Help]
 Runs the shared CrossMacro CLI smoke contract:
   - top-level --help contains "Usage:"
   - settings get --json contains "status": "ok" and "code": 0
-  - dry-run macro JSON contains "coordinateMode": "absolute"
+  - absolute dry-run macro JSON contains "coordinateMode": "absolute"
+  - mixed dry-run macro JSON contains "coordinateMode": "mixed"
 
 Examples:
   pwsh -NoProfile -File scripts/smoke/cli-smoke.ps1 -Executable ./CrossMacro.exe
@@ -91,5 +92,8 @@ Assert-Contains 'settings status/code: "code": 0' $settingsOutput '"code": 0'
 
 $dryRunOutput = Invoke-Cli run --step 'move abs 10 10' --step 'click left' --dry-run --json
 Assert-Contains 'dry-run coordinateMode: "coordinateMode": "absolute"' $dryRunOutput '"coordinateMode": "absolute"'
+
+$mixedDryRunOutput = Invoke-Cli run --step 'move abs 10 10' --step 'move rel 1 -1' --dry-run --json
+Assert-Contains 'mixed dry-run coordinateMode: "coordinateMode": "mixed"' $mixedDryRunOutput '"coordinateMode": "mixed"'
 
 Write-Output 'CLI smoke: OK'

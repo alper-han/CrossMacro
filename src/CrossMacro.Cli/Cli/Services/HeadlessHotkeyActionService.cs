@@ -329,7 +329,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
             return;
         }
 
-        var forceRelative = settings.ForceRelativeCoordinates && (_runtimeContext.IsLinux || _runtimeContext.IsWindows);
+        var forceRelative = settings.ForceRelativeCoordinates && (_runtimeContext.IsLinux || _runtimeContext.IsWindows || _runtimeContext.IsMacOS);
         var skipInitialZero = forceRelative && settings.SkipInitialZeroZero;
         var ignoredKeys = new[]
         {

@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Core.Services.Playback;
 
 namespace CrossMacro.Cli.Services;
 
@@ -75,6 +76,10 @@ internal sealed class RunSequenceExecutor
         {
             return RunSequenceExecutionResult.Cancelled();
         }
+        catch (AbsolutePlaybackUnsupportedException ex)
+        {
+            return RunSequenceExecutionResult.AbsolutePlaybackUnsupported(ex.Message);
+        }
         catch (Exception ex)
         {
             return RunSequenceExecutionResult.Failed(ex.Message);
@@ -120,6 +125,7 @@ internal sealed class RunSequenceExecutionResult
 
     public bool Success { get; private init; }
     public bool IsCancelled { get; private init; }
+    public bool IsAbsolutePlaybackUnsupported { get; private init; }
     public string? ErrorMessage { get; private init; }
 
     public static RunSequenceExecutionResult Succeeded()
@@ -136,6 +142,17 @@ internal sealed class RunSequenceExecutionResult
         {
             Success = false,
             IsCancelled = true
+        };
+    }
+
+    public static RunSequenceExecutionResult AbsolutePlaybackUnsupported(string errorMessage)
+    {
+        return new RunSequenceExecutionResult
+        {
+            Success = false,
+            IsCancelled = false,
+            IsAbsolutePlaybackUnsupported = true,
+            ErrorMessage = errorMessage
         };
     }
 

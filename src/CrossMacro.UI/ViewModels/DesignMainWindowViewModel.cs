@@ -33,8 +33,6 @@ public sealed class DesignMainWindowViewModel : MainWindowViewModel
         HasExtensionWarning = true;
         ExtensionWarning = "GNOME extension preview warning";
         GlobalStatus = "Preview loaded";
-        LatestVersion = "v1.1.0";
-        IsUpdateNotificationVisible = true;
         AppNotificationTitle = "Preview";
         AppNotificationMessage = "Showing sample macro data for the selected page.";
         AppNotificationIcon = AppIcon.Info;

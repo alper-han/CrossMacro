@@ -1,5 +1,7 @@
 using CrossMacro.Platform.MacOS;
 using CrossMacro.Platform.Abstractions;
+using System;
+using System.Threading;
 using Xunit;
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;
@@ -82,5 +84,121 @@ public class MacKeyboardLayoutServiceTests
             capsLock: false);
 
         Assert.Equal(' ', result);
+    }
+
+    [Fact]
+    public void GetCharFromKeyCode_WhenLayoutCacheMissingOffMainThread_DoesNotLoadNativeLayout()
+    {
+        var loadCount = 0;
+        var service = new MacKeyboardLayoutService(
+            isMainThread: () => false,
+            mainThreadContext: null,
+            loadKeyboardLayoutData: () =>
+            {
+                loadCount++;
+                return default;
+            },
+            warmOnConstruction: false);
+
+        var result = service.GetCharFromKeyCode(
+            InputEventCode.KEY_A,
+            leftShift: false,
+            rightShift: false,
+            rightAlt: false,
+            leftAlt: false,
+            leftCtrl: false,
+            capsLock: false);
+
+        Assert.Null(result);
+        Assert.Equal(0, loadCount);
+    }
+
+    [Fact]
+    public void GetCharFromKeyCode_WhenOffMainThreadWithMainContext_LoadsNativeLayoutThroughContext()
+    {
+        var runningOnMainThread = false;
+        var loadCount = 0;
+        var context = new InlineMainThreadSynchronizationContext(
+            beforeSend: () => runningOnMainThread = true,
+            afterSend: () => runningOnMainThread = false);
+
+        var service = new MacKeyboardLayoutService(
+            isMainThread: () => runningOnMainThread,
+            mainThreadContext: context,
+            loadKeyboardLayoutData: () =>
+            {
+                loadCount++;
+                return default;
+            },
+            warmOnConstruction: false);
+
+        _ = service.GetCharFromKeyCode(
+            InputEventCode.KEY_A,
+            leftShift: false,
+            rightShift: false,
+            rightAlt: false,
+            leftAlt: false,
+            leftCtrl: false,
+            capsLock: false);
+
+        Assert.Equal(1, loadCount);
+    }
+
+    [Fact]
+    public void Constructor_WhenCreatedOnMainThread_WarmsLayoutCache()
+    {
+        var loadCount = 0;
+
+        _ = new MacKeyboardLayoutService(
+            isMainThread: () => true,
+            mainThreadContext: null,
+            loadKeyboardLayoutData: () =>
+            {
+                loadCount++;
+                return default;
+            },
+            warmOnConstruction: true);
+
+        Assert.Equal(1, loadCount);
+    }
+
+    [Fact]
+    public void GetInputForChar_WhenLayoutCacheMissingOffMainThread_DoesNotCacheEmptyMap()
+    {
+        var isMainThread = false;
+        var loadCount = 0;
+        var service = new MacKeyboardLayoutService(
+            isMainThread: () => isMainThread,
+            mainThreadContext: null,
+            loadKeyboardLayoutData: () =>
+            {
+                loadCount++;
+                return default;
+            },
+            warmOnConstruction: false);
+
+        var offMainResult = service.GetInputForChar('a');
+        isMainThread = true;
+        var mainThreadResult = service.GetInputForChar('a');
+
+        Assert.Null(offMainResult);
+        Assert.Null(mainThreadResult);
+        Assert.Equal(1, loadCount);
+    }
+
+    private sealed class InlineMainThreadSynchronizationContext(Action beforeSend, Action afterSend) : SynchronizationContext
+    {
+        public override void Send(SendOrPostCallback d, object? state)
+        {
+            beforeSend();
+            try
+            {
+                d(state);
+            }
+            finally
+            {
+                afterSend();
+            }
+        }
     }
 }

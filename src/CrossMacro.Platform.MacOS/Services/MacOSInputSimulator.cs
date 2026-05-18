@@ -13,6 +13,10 @@ public class MacOSInputSimulator :
     ITaggedUnicodeTextInputSimulator,
     IPlatformPasteShortcutProvider
 {
+    private readonly object _keyboardLock = new();
+    private readonly HashSet<int> _pressedModifierKeys = [];
+    private CoreGraphics.CGEventFlags _keyboardFlags;
+
     public string ProviderName => "macOS CoreGraphics";
     public bool IsSupported => OperatingSystem.IsMacOS();
     public bool SupportsUnicodeTextInput => IsSupported;
@@ -164,15 +168,84 @@ public class MacOSInputSimulator :
         CoreFoundation.CFRelease(eventRef);
     }
 
-    private static void PostKeyboardEvent(int keyCode, bool pressed, long? marker)
+    private void PostKeyboardEvent(int keyCode, bool pressed, long? marker)
     {
-        var ushortCode = KeyMap.ToMacKey(keyCode);
-        if (ushortCode == 0xFFFF) return;
+        lock (_keyboardLock)
+        {
+            var ushortCode = KeyMap.ToMacKey(keyCode);
+            if (ushortCode == 0xFFFF) return;
 
-        var eventRef = CoreGraphics.CGEventCreateKeyboardEvent(IntPtr.Zero, ushortCode, pressed);
-        ApplyKeyboardMarker(eventRef, marker);
-        CoreGraphics.CGEventPost(CoreGraphics.CGEventTapLocation.HIDEventTap, eventRef);
-        CoreFoundation.CFRelease(eventRef);
+            var flags = UpdateKeyboardFlagsCore(keyCode, pressed);
+
+            var eventRef = CoreGraphics.CGEventCreateKeyboardEvent(IntPtr.Zero, ushortCode, pressed);
+            if (eventRef == IntPtr.Zero)
+            {
+                return;
+            }
+
+            try
+            {
+                ApplyKeyboardMarker(eventRef, marker);
+                CoreGraphics.CGEventSetFlags(eventRef, flags);
+                CoreGraphics.CGEventPost(CoreGraphics.CGEventTapLocation.HIDEventTap, eventRef);
+            }
+            finally
+            {
+                CoreFoundation.CFRelease(eventRef);
+            }
+        }
+    }
+
+    internal CoreGraphics.CGEventFlags UpdateKeyboardFlags(int keyCode, bool pressed)
+    {
+        lock (_keyboardLock)
+        {
+            return UpdateKeyboardFlagsCore(keyCode, pressed);
+        }
+    }
+
+    private CoreGraphics.CGEventFlags UpdateKeyboardFlagsCore(int keyCode, bool pressed)
+    {
+        if (GetModifierFlag(keyCode) == 0)
+        {
+            return _keyboardFlags;
+        }
+
+        if (pressed)
+        {
+            _pressedModifierKeys.Add(keyCode);
+        }
+        else
+        {
+            _pressedModifierKeys.Remove(keyCode);
+        }
+
+        _keyboardFlags = CreateKeyboardFlags(_pressedModifierKeys);
+        return _keyboardFlags;
+    }
+
+    internal static CoreGraphics.CGEventFlags CreateKeyboardFlags(IEnumerable<int> pressedModifierKeys)
+    {
+        var flags = default(CoreGraphics.CGEventFlags);
+        foreach (var keyCode in pressedModifierKeys)
+        {
+            flags |= GetModifierFlag(keyCode);
+        }
+
+        return flags;
+    }
+
+    private static CoreGraphics.CGEventFlags GetModifierFlag(int keyCode)
+    {
+        return keyCode switch
+        {
+            InputEventCode.KEY_LEFTSHIFT or InputEventCode.KEY_RIGHTSHIFT => CoreGraphics.CGEventFlags.Shift,
+            InputEventCode.KEY_LEFTCTRL or InputEventCode.KEY_RIGHTCTRL => CoreGraphics.CGEventFlags.Control,
+            InputEventCode.KEY_LEFTALT or InputEventCode.KEY_RIGHTALT => CoreGraphics.CGEventFlags.Alternate,
+            InputEventCode.KEY_LEFTMETA or InputEventCode.KEY_RIGHTMETA => CoreGraphics.CGEventFlags.Command,
+            InputEventCode.KEY_CAPSLOCK => CoreGraphics.CGEventFlags.AlphaShift,
+            _ => 0
+        };
     }
 
     private static void ApplyKeyboardMarker(IntPtr eventRef, long? marker)

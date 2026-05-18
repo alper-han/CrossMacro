@@ -1050,6 +1050,372 @@ public class MacroPlayerTests
         simulator.AbsoluteMoves.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task PlayAsync_WhenMacroHasMixedCoordinateModes_ExecutesEachEventWithEffectiveMode()
+    {
+        var simulator = new TrackingInputSimulator();
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            Events = new List<MacroEvent>
+            {
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 100,
+                    Y = 200,
+                    CoordinateMode = MouseCoordinateMode.Absolute
+                },
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 10,
+                    Y = -5,
+                    CoordinateMode = MouseCoordinateMode.Relative
+                }
+            }
+        };
+
+        await player.PlayAsync(macro);
+
+        simulator.InitializedWidth.Should().Be(1920);
+        simulator.InitializedHeight.Should().Be(1080);
+        simulator.Operations.Should().ContainInOrder("abs:100,200", "rel:10,-5");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenMacroCombinesCurrentAbsoluteAndRelativeEvents_UsesPerEventMovementSemantics()
+    {
+        var simulator = new TrackingInputSimulator();
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            Events = new List<MacroEvent>
+            {
+                new()
+                {
+                    Type = EventType.Click,
+                    Button = MouseButton.Left,
+                    UseCurrentPosition = true
+                },
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 100,
+                    Y = 200,
+                    CoordinateMode = MouseCoordinateMode.Absolute
+                },
+                new()
+                {
+                    Type = EventType.Click,
+                    Button = MouseButton.Right,
+                    X = 10,
+                    Y = -5,
+                    CoordinateMode = MouseCoordinateMode.Relative
+                }
+            }
+        };
+
+        await player.PlayAsync(macro);
+
+        simulator.InitializedWidth.Should().Be(1920);
+        simulator.InitializedHeight.Should().Be(1080);
+        simulator.Operations.Should().Equal(
+            "btn:down",
+            "btn:up",
+            "abs:100,200",
+            "rel:10,-5",
+            "btn:down",
+            "btn:up");
+        simulator.AbsoluteMoves.Should().Equal([(100, 200)]);
+        simulator.ButtonTransitions.Should().HaveCount(4);
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenLegacyAbsoluteMacroHasExplicitRelativeEvent_UsesRelativeEventMode()
+    {
+        var simulator = new TrackingInputSimulator();
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            SkipInitialZeroZero = true,
+            Events = new List<MacroEvent>
+            {
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 10,
+                    Y = -5,
+                    CoordinateMode = MouseCoordinateMode.Relative
+                }
+            }
+        };
+
+        await player.PlayAsync(macro);
+
+        simulator.InitializedWidth.Should().Be(0);
+        simulator.InitializedHeight.Should().Be(0);
+        simulator.AbsoluteMoves.Should().BeEmpty();
+        simulator.Operations.Should().Contain("rel:10,-5");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenAbsoluteMacroUsesRelativeOnlySimulator_ThrowsBeforeInjectingInput()
+    {
+        var simulator = new TrackingInputSimulator(forceRelativeOnly: true);
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            Events = new List<MacroEvent>
+            {
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 100,
+                    Y = 200,
+                    CoordinateMode = MouseCoordinateMode.Absolute
+                }
+            }
+        };
+
+        var act = async () => await player.PlayAsync(macro);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*does not support absolute coordinate playback*");
+        simulator.Operations.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenAbsoluteMacroUsesResolutionOnlyProvider_CachesResolutionAndCreatesAbsoluteDevice()
+    {
+        var resolutionOnlyProvider = Substitute.For<IMousePositionProvider>();
+        resolutionOnlyProvider.IsSupported.Returns(false);
+        resolutionOnlyProvider.ProviderName.Returns("Niri IPC (Resolution Only)");
+        resolutionOnlyProvider.GetScreenResolutionAsync().Returns(Task.FromResult<(int Width, int Height)?>((1920, 1080)));
+
+        var simulator = new TrackingInputSimulator();
+        var player = new MacroPlayer(
+            resolutionOnlyProvider,
+            new PlaybackValidator(resolutionOnlyProvider),
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            Events = new List<MacroEvent>
+            {
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 100,
+                    Y = 200,
+                    CoordinateMode = MouseCoordinateMode.Absolute
+                }
+            }
+        };
+
+        await player.PlayAsync(macro);
+
+        await resolutionOnlyProvider.Received(1).GetScreenResolutionAsync();
+        simulator.InitializedWidth.Should().Be(1920);
+        simulator.InitializedHeight.Should().Be(1080);
+        simulator.Operations.Should().Contain("abs:100,200");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenRelativeMacroUsesResolutionOnlyProvider_CachesResolutionAndPlaysRelativeOnly()
+    {
+        var resolutionOnlyProvider = Substitute.For<IMousePositionProvider>();
+        resolutionOnlyProvider.IsSupported.Returns(false);
+        resolutionOnlyProvider.ProviderName.Returns("COSMIC RandR (Resolution Only)");
+        resolutionOnlyProvider.GetScreenResolutionAsync().Returns(Task.FromResult<(int Width, int Height)?>((2560, 1440)));
+
+        var simulator = new TrackingInputSimulator(forceRelativeOnly: true);
+        var player = new MacroPlayer(
+            resolutionOnlyProvider,
+            new PlaybackValidator(resolutionOnlyProvider),
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            Events =
+            [
+                new MacroEvent
+                {
+                    Type = EventType.MouseMove,
+                    X = 3,
+                    Y = 3,
+                    CoordinateMode = MouseCoordinateMode.Relative
+                }
+            ]
+        };
+
+        await player.PlayAsync(macro);
+
+        await resolutionOnlyProvider.Received(1).GetScreenResolutionAsync();
+        simulator.InitializedWidth.Should().Be(0);
+        simulator.InitializedHeight.Should().Be(0);
+        simulator.Operations.Should().Contain("rel:3,3");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenMixedMacroUsesRelativeOnlySimulator_ThrowsBeforeInjectingInput()
+    {
+        var simulator = new TrackingInputSimulator(forceRelativeOnly: true);
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            Events = new List<MacroEvent>
+            {
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 3,
+                    Y = 3,
+                    CoordinateMode = MouseCoordinateMode.Relative
+                },
+                new()
+                {
+                    Type = EventType.Click,
+                    Button = MouseButton.Left,
+                    X = 100,
+                    Y = 200,
+                    CoordinateMode = MouseCoordinateMode.Absolute
+                }
+            }
+        };
+
+        var act = async () => await player.PlayAsync(macro);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*does not support absolute coordinate playback*");
+        simulator.Operations.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenRelativeMacroUsesRelativeOnlySimulator_PlaysNormally()
+    {
+        var simulator = new TrackingInputSimulator(forceRelativeOnly: true);
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            Events = new List<MacroEvent>
+            {
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 3,
+                    Y = 3,
+                    CoordinateMode = MouseCoordinateMode.Relative
+                }
+            }
+        };
+
+        await player.PlayAsync(macro);
+
+        simulator.Operations.Should().Contain("rel:3,3");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenCurrentPositionClickUsesRelativeOnlySimulator_PlaysNormally()
+    {
+        var simulator = new TrackingInputSimulator(forceRelativeOnly: true);
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            Events = new List<MacroEvent>
+            {
+                new()
+                {
+                    Type = EventType.Click,
+                    Button = MouseButton.Left,
+                    UseCurrentPosition = true,
+                    X = 100,
+                    Y = 200
+                }
+            }
+        };
+
+        await player.PlayAsync(macro);
+
+        simulator.Operations.Should().Equal("btn:down", "btn:up");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenAbsoluteThenRelativeMacroPlays_ExecutesExactMovementSequence()
+    {
+        var simulator = new TrackingInputSimulator();
+        var player = new MacroPlayer(
+            _positionProvider,
+            _validator,
+            inputSimulatorFactory: () => simulator);
+
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            Events = new List<MacroEvent>
+            {
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 1000,
+                    Y = 1000,
+                    CoordinateMode = MouseCoordinateMode.Absolute
+                },
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 3,
+                    Y = 3,
+                    CoordinateMode = MouseCoordinateMode.Relative
+                }
+            }
+        };
+
+        await player.PlayAsync(macro);
+
+        simulator.Operations.Should().Equal("abs:1000,1000", "rel:3,3");
+    }
+
     private sealed class RecordingTimingService : IPlaybackTimingService
     {
         public List<int> WaitCalls { get; } = new();
@@ -1112,9 +1478,16 @@ public class MacroPlayerTests
 
     private sealed class TrackingInputSimulator : IInputSimulator, IInputSimulatorCapabilities
     {
+        private readonly bool _forceRelativeOnly;
+
+        public TrackingInputSimulator(bool forceRelativeOnly = false)
+        {
+            _forceRelativeOnly = forceRelativeOnly;
+        }
+
         public string ProviderName => "Tracking";
         public bool IsSupported => true;
-        public bool SupportsAbsoluteCoordinates => InitializedWidth > 0 && InitializedHeight > 0;
+        public bool SupportsAbsoluteCoordinates => !_forceRelativeOnly && InitializedWidth > 0 && InitializedHeight > 0;
         public int InitializedWidth { get; private set; }
         public int InitializedHeight { get; private set; }
         public List<(int X, int Y)> AbsoluteMoves { get; } = new();

@@ -5,15 +5,11 @@ namespace CrossMacro.Infrastructure.Services;
 
 public sealed class PlaybackBehaviorPolicy : IPlaybackBehaviorPolicy
 {
-    public PlaybackBehaviorPolicy(
-        bool preferRelativeForAbsoluteMoves,
-        bool useHybridAbsoluteDragMovement)
+    public PlaybackBehaviorPolicy(bool useHybridAbsoluteDragMovement)
     {
-        PreferRelativeForAbsoluteMoves = preferRelativeForAbsoluteMoves;
         UseHybridAbsoluteDragMovement = useHybridAbsoluteDragMovement;
     }
 
-    public bool PreferRelativeForAbsoluteMoves { get; }
     public bool UseHybridAbsoluteDragMovement { get; }
 }
 
@@ -26,6 +22,5 @@ public sealed class RuntimePlaybackBehaviorPolicy : IPlaybackBehaviorPolicy
         _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
     }
 
-    public bool PreferRelativeForAbsoluteMoves => _runtimeContext.IsLinux;
     public bool UseHybridAbsoluteDragMovement => _runtimeContext.IsLinux;
 }

@@ -80,6 +80,111 @@ public class PlaybackValidatorTests
     }
 
     [Fact]
+    public void Validate_ExplicitAbsoluteButtonEventInRelativeMacro_ReturnsWarning()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 500, Y = 300, CoordinateMode = MouseCoordinateMode.Relative },
+                new() { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 0, Y = 0, CoordinateMode = MouseCoordinateMode.Absolute }
+            }
+        };
+
+        // Act
+        var result = _validator.Validate(macro);
+
+        // Assert
+        result.Warnings.Should().Contain(w => w.Contains("(0,0)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_ExplicitRelativeButtonEventInAbsoluteMacro_DoesNotReturnZeroZeroWarning()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 500, Y = 300, CoordinateMode = MouseCoordinateMode.Absolute },
+                new() { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 0, Y = 0, CoordinateMode = MouseCoordinateMode.Relative }
+            }
+        };
+
+        // Act
+        var result = _validator.Validate(macro);
+
+        // Assert
+        result.Warnings.Should().NotContain(w => w.Contains("(0,0)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_LegacyAbsoluteButtonEventWithNullMode_ReturnsWarning()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 400, Y = 250 },
+                new() { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 0, Y = 0 }
+            }
+        };
+
+        // Act
+        var result = _validator.Validate(macro);
+
+        // Assert
+        result.Warnings.Should().Contain(w => w.Contains("(0,0)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_CurrentPositionButtonEventWithNullMode_DoesNotReturnZeroZeroWarning()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 400, Y = 250 },
+                new() { Type = EventType.Click, Button = MouseButton.Left, UseCurrentPosition = true, X = 0, Y = 0 }
+            }
+        };
+
+        // Act
+        var result = _validator.Validate(macro);
+
+        // Assert
+        result.Warnings.Should().NotContain(w => w.Contains("(0,0)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_ScrollEventWithNullMode_DoesNotReturnZeroZeroWarning()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 400, Y = 250 },
+                new() { Type = EventType.Click, Button = MouseButton.ScrollUp, X = 0, Y = 0 }
+            }
+        };
+
+        // Act
+        var result = _validator.Validate(macro);
+
+        // Assert
+        result.Warnings.Should().NotContain(w => w.Contains("(0,0)", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Validate_LongDelay_ReturnsWarning()
     {
         // Arrange - Delay over 10 seconds

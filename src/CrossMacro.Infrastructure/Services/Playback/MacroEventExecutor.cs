@@ -96,7 +96,7 @@ public class MacroEventExecutor : IEventExecutor
     /// <summary>
     /// Execute a single macro event
     /// </summary>
-    public void Execute(MacroEvent ev, bool isRecordedAbsolute)
+    public void Execute(MacroEvent ev, MouseCoordinateMode? coordinateMode)
     {
         // Handle implicit movement for mouse button events (not keyboard, not scroll)
         if (ev.Type is EventType.ButtonPress or EventType.ButtonRelease or EventType.Click)
@@ -108,11 +108,11 @@ public class MacroEventExecutor : IEventExecutor
 
             if (!isScroll && !shouldResolveFromCurrentPosition)
             {
-                if (isRecordedAbsolute)
+                if (coordinateMode == MouseCoordinateMode.Absolute)
                 {
                     MoveRecordedAbsolute(ev.X, ev.Y);
                 }
-                else if (ev.X != 0 || ev.Y != 0)
+                else if (coordinateMode == MouseCoordinateMode.Relative && (ev.X != 0 || ev.Y != 0))
                 {
                     // Relative mode: use delta directly
                     MoveRelative(ev.X, ev.Y);
@@ -140,7 +140,7 @@ public class MacroEventExecutor : IEventExecutor
                 break;
 
             case EventType.MouseMove:
-                ExecuteMouseMove(ev, isRecordedAbsolute);
+                ExecuteMouseMove(ev, coordinateMode);
                 break;
 
             case EventType.Click:
@@ -159,9 +159,9 @@ public class MacroEventExecutor : IEventExecutor
         }
     }
 
-    private void ExecuteMouseMove(MacroEvent ev, bool isRecordedAbsolute)
+    private void ExecuteMouseMove(MacroEvent ev, MouseCoordinateMode? coordinateMode)
     {
-        if (isRecordedAbsolute)
+        if (coordinateMode == MouseCoordinateMode.Absolute)
         {
             if (!_supportsAbsoluteCoordinates)
             {
@@ -190,7 +190,7 @@ public class MacroEventExecutor : IEventExecutor
             }
             _coordinator.UpdatePosition(ev.X, ev.Y);
         }
-        else
+        else if (coordinateMode == MouseCoordinateMode.Relative)
         {
             MoveRelative(ev.X, ev.Y);
         }
@@ -198,19 +198,13 @@ public class MacroEventExecutor : IEventExecutor
 
     private void MoveRecordedAbsolute(int targetX, int targetY)
     {
-        if (_supportsAbsoluteCoordinates)
+        if (!_supportsAbsoluteCoordinates)
         {
-            _simulator.MoveAbsolute(targetX, targetY);
-            _coordinator.UpdatePosition(targetX, targetY);
-            return;
+            throw new AbsolutePlaybackUnsupportedException(_simulator.ProviderName);
         }
 
-        int dx = targetX - _coordinator.CurrentX;
-        int dy = targetY - _coordinator.CurrentY;
-        if (dx != 0 || dy != 0)
-        {
-            MoveRelative(dx, dy);
-        }
+        _simulator.MoveAbsolute(targetX, targetY);
+        _coordinator.UpdatePosition(targetX, targetY);
     }
 
     private void ExecuteClick(MacroEvent ev)

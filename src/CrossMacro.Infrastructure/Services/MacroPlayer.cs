@@ -40,6 +40,8 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
     private int _cachedScreenWidth;
     private int _cachedScreenHeight;
     private bool _resolutionCached;
+    private int _acquiredSimulatorWidth;
+    private int _acquiredSimulatorHeight;
 
     private int _errorCount;
     private readonly Random _random = Random.Shared;
@@ -97,18 +99,14 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
         _inputSimulatorFactory = inputSimulatorFactory;
         _simulatorPool = simulatorPool;
-        _playbackBehaviorPolicy = playbackBehaviorPolicy ?? new PlaybackBehaviorPolicy(
-            preferRelativeForAbsoluteMoves: false,
-            useHybridAbsoluteDragMovement: false);
+        _playbackBehaviorPolicy = playbackBehaviorPolicy ?? new PlaybackBehaviorPolicy(useHybridAbsoluteDragMovement: false);
 
         // Use provided services or create defaults
         _timingService = timingService ?? new PlaybackTimingService();
         _playbackWaitAsync = playbackWaitAsync ?? Task.Delay;
         _playbackElapsedMillisecondsFactory = playbackElapsedMillisecondsFactory ?? CreateRuntimeElapsedMillisecondsProvider;
         _coordinatorFactory = coordinatorFactory
-            ?? (() => new DefaultPlaybackCoordinator(
-                positionProvider,
-                preferRelativeForAbsoluteMoves: _playbackBehaviorPolicy.PreferRelativeForAbsoluteMoves));
+            ?? (() => new DefaultPlaybackCoordinator(positionProvider));
         _buttonTrackerFactory = buttonTrackerFactory ?? (() => new ButtonStateTracker());
         _keyTrackerFactory = keyTrackerFactory ?? (() => new KeyStateTracker());
         _buttonMapper = buttonMapper ?? new DefaultPlaybackMouseButtonMapper();
@@ -187,6 +185,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
         {
             await CacheResolutionAsync();
             await AcquireSimulatorAsync(macro);
+            EnsureAbsolutePlaybackSupported(macro);
             await InitializePlaybackComponentsAsync(macro);
 
             Log.Information("[MacroPlayer] Loop settings: Loop={Loop}, RepeatCount={Count}, Infinite={Infinite}",
@@ -277,15 +276,25 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
             }
         }
 
+        if (_positionProvider != null && !_positionProvider.IsSupported)
+        {
+            Log.Information(
+                "[MacroPlayer] Position provider {ProviderName} is resolution-only for playback; absolute playback will require an absolute-capable input simulator",
+                _positionProvider.ProviderName);
+        }
+
         Log.Information("[MacroPlayer] Using screen resolution: {Width}x{Height}",
             _cachedScreenWidth, _cachedScreenHeight);
     }
 
     private async Task AcquireSimulatorAsync(MacroSequence macro)
     {
-        bool needsAbsoluteDevice = macro.IsAbsoluteCoordinates;
-        int deviceWidth = needsAbsoluteDevice ? _cachedScreenWidth : 0;
-        int deviceHeight = needsAbsoluteDevice ? _cachedScreenHeight : 0;
+        bool needsAbsoluteDevice = MacroPositionSemantics.HasAnyAbsoluteCoordinateEvents(macro);
+        bool canCreateAbsoluteDevice = needsAbsoluteDevice && _resolutionCached;
+        int deviceWidth = canCreateAbsoluteDevice ? _cachedScreenWidth : 0;
+        int deviceHeight = canCreateAbsoluteDevice ? _cachedScreenHeight : 0;
+        _acquiredSimulatorWidth = deviceWidth;
+        _acquiredSimulatorHeight = deviceHeight;
 
         if (_simulatorPool != null)
         {
@@ -304,6 +313,25 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
         {
             throw new InvalidOperationException("No input simulator pool or factory provided.");
         }
+    }
+
+    private void EnsureAbsolutePlaybackSupported(MacroSequence macro)
+    {
+        if (!MacroPositionSemantics.HasAnyAbsoluteCoordinateEvents(macro))
+        {
+            return;
+        }
+
+        if (_inputSimulator is not IInputSimulatorCapabilities capabilities
+            || !capabilities.SupportsAbsoluteCoordinates)
+        {
+            ThrowAbsolutePlaybackUnsupported();
+        }
+    }
+
+    private void ThrowAbsolutePlaybackUnsupported()
+    {
+        throw new AbsolutePlaybackUnsupportedException(_inputSimulator!.ProviderName);
     }
 
     private async Task InitializePlaybackComponentsAsync(MacroSequence macro)
@@ -441,7 +469,12 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
                     eventToExecute.Y = 0;
                 }
 
-                _eventExecutor!.Execute(eventToExecute, macro.IsAbsoluteCoordinates);
+                var coordinateMode = MacroPositionSemantics.ResolveCoordinateMode(eventToExecute, macro.IsAbsoluteCoordinates);
+                _eventExecutor!.Execute(eventToExecute, coordinateMode);
+            }
+            catch (AbsolutePlaybackUnsupportedException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -589,15 +622,15 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
         {
             if (_simulatorPool != null)
             {
-                int deviceWidth = macro.IsAbsoluteCoordinates ? _cachedScreenWidth : 0;
-                int deviceHeight = macro.IsAbsoluteCoordinates ? _cachedScreenHeight : 0;
-                _simulatorPool.Release(_inputSimulator, deviceWidth, deviceHeight);
+                _simulatorPool.Release(_inputSimulator, _acquiredSimulatorWidth, _acquiredSimulatorHeight);
             }
             else
             {
                 _inputSimulator.Dispose();
             }
             _inputSimulator = null;
+            _acquiredSimulatorWidth = 0;
+            _acquiredSimulatorHeight = 0;
         }
 
         _eventExecutor?.Dispose();

@@ -3,6 +3,7 @@ using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Core.Services.Playback;
 using CrossMacro.Infrastructure.Services.Playback;
+using FluentAssertions;
 using NSubstitute;
 using Xunit;
 
@@ -42,7 +43,7 @@ public class MacroEventExecutorTests
         var ev = new MacroEvent { Type = EventType.MouseMove, X = 10, Y = 20 };
         
         // Act
-        _executor.Execute(ev, isRecordedAbsolute: false);
+        _executor.Execute(ev, MouseCoordinateMode.Relative);
 
         // Assert
         _simulator.Received(1).MoveRelative(10, 20);
@@ -57,7 +58,7 @@ public class MacroEventExecutorTests
         var ev = new MacroEvent { Type = EventType.MouseMove, X = 100, Y = 80 };
 
         // Act
-        _executor.Execute(ev, isRecordedAbsolute: true);
+        _executor.Execute(ev, MouseCoordinateMode.Absolute);
 
         // Assert: absolute path – no button held, so MoveAbsolute is used for drift correction
         _simulator.Received(1).MoveAbsolute(100, 80);
@@ -76,7 +77,7 @@ public class MacroEventExecutorTests
         var ev = new MacroEvent { Type = EventType.MouseMove, X = 100, Y = 80 };
 
         // Act
-        _executor.Execute(ev, isRecordedAbsolute: true);
+        _executor.Execute(ev, MouseCoordinateMode.Absolute);
 
         // Assert: drift-correction absolute first, then relative delta (100-60=40, 80-40=40)
         _simulator.Received(1).MoveAbsolute(60, 40);
@@ -104,7 +105,7 @@ public class MacroEventExecutorTests
         var ev = new MacroEvent { Type = EventType.MouseMove, X = 100, Y = 80 };
 
         // Act
-        executor.Execute(ev, isRecordedAbsolute: true);
+        executor.Execute(ev, MouseCoordinateMode.Absolute);
 
         // Assert
         _simulator.Received(1).MoveAbsolute(100, 80);
@@ -120,7 +121,7 @@ public class MacroEventExecutorTests
         _buttonMapper.Map(MouseButton.Left).Returns((int)MouseButton.Left);
 
         // Act
-        _executor.Execute(ev, isRecordedAbsolute: false);
+        _executor.Execute(ev, null);
 
         // Assert
         _simulator.Received(1).MouseButton((ushort)MouseButton.Left, true);
@@ -135,7 +136,7 @@ public class MacroEventExecutorTests
         _buttonMapper.Map(MouseButton.Left).Returns((int)MouseButton.Left);
 
         // Act
-        _executor.Execute(ev, isRecordedAbsolute: false);
+        _executor.Execute(ev, null);
 
         // Assert
         _simulator.Received(1).MouseButton((ushort)MouseButton.Left, false);
@@ -149,7 +150,7 @@ public class MacroEventExecutorTests
         var ev = new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 };
 
         // Act
-        _executor.Execute(ev, isRecordedAbsolute: false);
+        _executor.Execute(ev, null);
 
         // Assert
         _simulator.Received(1).KeyPress(30, true);
@@ -164,7 +165,7 @@ public class MacroEventExecutorTests
         _buttonMapper.Map(MouseButton.Right).Returns((int)MouseButton.Right);
 
         // Act
-        _executor.Execute(ev, isRecordedAbsolute: false);
+        _executor.Execute(ev, null);
 
         // Assert
         _simulator.Received(1).MouseButton((ushort)MouseButton.Right, true);
@@ -186,7 +187,7 @@ public class MacroEventExecutorTests
         _buttonMapper.Map(MouseButton.Left).Returns((int)MouseButton.Left);
 
         // Act
-        _executor.Execute(ev, isRecordedAbsolute: true);
+        _executor.Execute(ev, null);
 
         // Assert
         _simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
@@ -196,7 +197,7 @@ public class MacroEventExecutorTests
     }
 
     [Fact]
-    public void Execute_MouseMove_Absolute_WhenSimulatorCannotMoveAbsolute_FallsBackToRelativeDelta()
+    public void Execute_MouseMove_Absolute_WhenSimulatorCannotMoveAbsolute_Throws()
     {
         var simulator = new TrackingSimulator(supportsAbsoluteCoordinates: false);
         var coordinator = Substitute.For<IPlaybackCoordinator>();
@@ -211,11 +212,12 @@ public class MacroEventExecutorTests
             coordinator);
         executor.Initialize(0, 0);
 
-        executor.Execute(new MacroEvent { Type = EventType.MouseMove, X = 100, Y = 90 }, isRecordedAbsolute: true);
+        var act = () => executor.Execute(new MacroEvent { Type = EventType.MouseMove, X = 100, Y = 90 }, MouseCoordinateMode.Absolute);
 
-        Assert.Equal((75, 50), simulator.LastRelativeMove);
+        Assert.Throws<AbsolutePlaybackUnsupportedException>(act);
+        Assert.Null(simulator.LastRelativeMove);
         Assert.Null(simulator.LastAbsoluteMove);
-        coordinator.Received(1).AddDelta(75, 50);
+        coordinator.DidNotReceive().AddDelta(Arg.Any<int>(), Arg.Any<int>());
     }
 
     [Fact]
@@ -225,10 +227,81 @@ public class MacroEventExecutorTests
         var ev = new MacroEvent { Type = EventType.Click, Button = MouseButton.ScrollUp };
 
         // Act
-        _executor.Execute(ev, isRecordedAbsolute: false);
+        _executor.Execute(ev, null);
 
         // Assert
         _simulator.Received(1).Scroll(1);
+    }
+
+    [Fact]
+    public void Execute_ButtonPress_Absolute_MovesToRecordedPositionBeforeButton()
+    {
+        var ev = new MacroEvent { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 100, Y = 200 };
+        _buttonMapper.Map(MouseButton.Left).Returns((int)MouseButton.Left);
+
+        _executor.Execute(ev, MouseCoordinateMode.Absolute);
+
+        Received.InOrder(() =>
+        {
+            _simulator.MoveAbsolute(100, 200);
+            _simulator.MouseButton((ushort)MouseButton.Left, true);
+        });
+        _coordinator.Received(1).UpdatePosition(100, 200);
+    }
+
+    [Fact]
+    public void Execute_ButtonPress_Relative_MovesByDeltaBeforeButton()
+    {
+        var ev = new MacroEvent { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 10, Y = -5 };
+        _buttonMapper.Map(MouseButton.Left).Returns((int)MouseButton.Left);
+
+        _executor.Execute(ev, MouseCoordinateMode.Relative);
+
+        Received.InOrder(() =>
+        {
+            _simulator.MoveRelative(10, -5);
+            _simulator.MouseButton((ushort)MouseButton.Left, true);
+        });
+        _coordinator.Received(1).AddDelta(10, -5);
+    }
+
+    [Fact]
+    public void Execute_ButtonPress_NullMode_EmitsButtonWithoutImplicitMovement()
+    {
+        var ev = new MacroEvent { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 10, Y = -5 };
+        _buttonMapper.Map(MouseButton.Left).Returns((int)MouseButton.Left);
+
+        _executor.Execute(ev, null);
+
+        _simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
+        _simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
+        _simulator.Received(1).MouseButton((ushort)MouseButton.Left, true);
+    }
+
+    [Fact]
+    public void Execute_ButtonPress_Absolute_WhenSimulatorCannotMoveAbsolute_ThrowsBeforeButton()
+    {
+        var simulator = new TrackingSimulator(supportsAbsoluteCoordinates: false);
+        var coordinator = Substitute.For<IPlaybackCoordinator>();
+        coordinator.CurrentX.Returns(25);
+        coordinator.CurrentY.Returns(40);
+        _buttonMapper.Map(MouseButton.Left).Returns((int)MouseButton.Left);
+
+        var executor = new MacroEventExecutor(
+            simulator,
+            _buttonTracker,
+            _keyTracker,
+            _buttonMapper,
+            coordinator);
+        executor.Initialize(0, 0);
+
+        var act = () => executor.Execute(new MacroEvent { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 100, Y = 90 }, MouseCoordinateMode.Absolute);
+
+        Assert.Throws<AbsolutePlaybackUnsupportedException>(act);
+        Assert.Null(simulator.LastRelativeMove);
+        Assert.Null(simulator.LastAbsoluteMove);
+        coordinator.DidNotReceive().AddDelta(Arg.Any<int>(), Arg.Any<int>());
+        simulator.ButtonTransitions.Should().BeEmpty();
     }
 
     private sealed class TrackingSimulator : IInputSimulator, IInputSimulatorCapabilities
@@ -243,6 +316,7 @@ public class MacroEventExecutorTests
         public bool SupportsAbsoluteCoordinates { get; }
         public (int X, int Y)? LastAbsoluteMove { get; private set; }
         public (int X, int Y)? LastRelativeMove { get; private set; }
+        public List<(int Button, bool Pressed)> ButtonTransitions { get; } = new();
 
         public void Initialize(int screenWidth = 0, int screenHeight = 0)
         {
@@ -260,6 +334,7 @@ public class MacroEventExecutorTests
 
         public void MouseButton(int button, bool pressed)
         {
+            ButtonTransitions.Add((button, pressed));
         }
 
         public void Scroll(int delta, bool isHorizontal = false)

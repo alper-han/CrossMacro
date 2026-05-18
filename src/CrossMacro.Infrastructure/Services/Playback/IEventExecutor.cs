@@ -50,7 +50,7 @@ public interface IEventExecutor : IDisposable
     bool IsMouseButtonPressed { get; }
 
     /// <summary>
-    /// Execute a macro event with full handling
+    /// Execute a macro event with full handling. A null coordinate mode means no implicit coordinate movement.
     /// </summary>
-    void Execute(MacroEvent ev, bool isRecordedAbsolute);
+    void Execute(MacroEvent ev, MouseCoordinateMode? coordinateMode);
 }

@@ -75,10 +75,7 @@ public class PlaybackValidator
             result.AddWarning($"Macro has {macro.Events.Count} events - playback may be resource intensive");
         }
 
-        if (macro.IsAbsoluteCoordinates)
-        {
-            AddSuspiciousAbsoluteButtonCoordinateWarning(macro, result);
-        }
+        AddSuspiciousAbsoluteButtonCoordinateWarning(macro, result);
 
         return result;
     }
@@ -93,7 +90,8 @@ public class PlaybackValidator
     private static void AddSuspiciousAbsoluteButtonCoordinateWarning(MacroSequence macro, ValidationResult result)
     {
         var buttonEvents = macro.Events
-            .Where(IsNonScrollButtonEvent)
+            .Where(ev => IsNonScrollButtonEvent(ev)
+                && MacroPositionSemantics.ResolveCoordinateMode(ev, macro.IsAbsoluteCoordinates) == MouseCoordinateMode.Absolute)
             .ToList();
         if (buttonEvents.Count == 0)
         {
@@ -108,7 +106,8 @@ public class PlaybackValidator
 
         bool hasNonZeroButtonEvent = buttonEvents.Any(e => e.X != 0 || e.Y != 0);
         bool hasNonZeroMouseMove = macro.Events.Any(e =>
-            e.Type == EventType.MouseMove && (e.X != 0 || e.Y != 0));
+            e.Type == EventType.MouseMove
+            && (e.X != 0 || e.Y != 0));
 
         if (hasNonZeroButtonEvent || hasNonZeroMouseMove)
         {

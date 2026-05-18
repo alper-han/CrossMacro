@@ -55,6 +55,45 @@ public class EditorViewModelIntegrationTests
         viewModel.ActionListItems[3].IndentLevel.Should().Be(0);
     }
 
+    [Fact]
+    public void LoadMacroSequence_WhenUsingRuntimeConverter_RendersRecordedKeyNames()
+    {
+        // Arrange
+        var keyCodeMapper = BuildKeyCodeMapper();
+        keyCodeMapper.GetKeyName(18).Returns("E");
+        var converter = new EditorActionConverter(keyCodeMapper);
+        var validator = new EditorActionValidator(converter);
+        var localizationService = Substitute.For<ILocalizationService>();
+        localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.InvariantCulture);
+        localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
+        {
+            "Editor_Action_KeyDown" => "Hold '{0}'",
+            _ when call.Arg<string>().StartsWith("Editor_ActionType_") => call.Arg<string>()["Editor_ActionType_".Length..],
+            _ => call.Arg<string>()
+        });
+        var viewModel = new EditorViewModel(
+            converter,
+            validator,
+            Substitute.For<ICoordinateCaptureService>(),
+            Substitute.For<IMacroFileManager>(),
+            Substitute.For<IDialogService>(),
+            keyCodeMapper,
+            localizationService,
+            new EditorActionDisplayFormatter(localizationService));
+        var sequence = new MacroSequence
+        {
+            Events = [new MacroEvent { Type = EventType.KeyPress, KeyCode = 18 }]
+        };
+
+        // Act
+        viewModel.LoadMacroSequence(sequence);
+
+        // Assert
+        viewModel.ActionListItems.Should().ContainSingle();
+        viewModel.ActionListItems[0].DisplayName.Should().Be("Hold 'E'");
+        viewModel.Actions[0].KeyName.Should().Be("E");
+    }
+
     private static IKeyCodeMapper BuildKeyCodeMapper()
     {
         var mapper = Substitute.For<IKeyCodeMapper>();

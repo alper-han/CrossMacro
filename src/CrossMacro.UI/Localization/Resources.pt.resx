@@ -255,6 +255,15 @@
   <data name="Playback_LoopTip" xml:space="preserve">
     <value>Dica: contagem de loops igual a 0 significa loop infinito</value>
   </data>
+  <data name="Playback_AbsoluteCoordinatesUnsupportedTitle" xml:space="preserve">
+    <value>Não é possível iniciar a reprodução</value>
+  </data>
+  <data name="Playback_AbsoluteCoordinatesUnsupportedMessage" xml:space="preserve">
+    <value>Esta macro contém coordenadas absolutas do mouse, mas o backend de entrada ativo não oferece suporte à reprodução com coordenadas absolutas nesta sessão. Você ainda pode carregar e editar a macro, ou usar um backend/sessão compatível antes de reproduzi-la.</value>
+  </data>
+  <data name="Playback_StatusAbsoluteCoordinatesUnsupported" xml:space="preserve">
+    <value>Reprodução indisponível: o backend de entrada ativo não oferece suporte a coordenadas absolutas.</value>
+  </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>Macros carregadas</value>
   </data>
@@ -1152,11 +1161,35 @@
   <data name="Editor_Action_MouseClick" xml:space="preserve">
     <value>Clique em {0}</value>
   </data>
+  <data name="Editor_Action_MouseClickAbsolute" xml:space="preserve">
+    <value>Clique em {0} em ({1}, {2})</value>
+  </data>
+  <data name="Editor_Action_MouseClickRelative" xml:space="preserve">
+    <value>Clique em {0} após mover ({1:+#;-#;0}, {2:+#;-#;0})</value>
+  </data>
   <data name="Editor_Action_MouseDown" xml:space="preserve">
     <value>Segurar {0}</value>
   </data>
+  <data name="Editor_Action_MouseDownCurrent" xml:space="preserve">
+    <value>Segurar {0} na posição atual</value>
+  </data>
+  <data name="Editor_Action_MouseDownAbsolute" xml:space="preserve">
+    <value>Segurar {0} em ({1}, {2})</value>
+  </data>
+  <data name="Editor_Action_MouseDownRelative" xml:space="preserve">
+    <value>Segurar {0} após mover ({1:+#;-#;0}, {2:+#;-#;0})</value>
+  </data>
   <data name="Editor_Action_MouseUp" xml:space="preserve">
     <value>Soltar {0}</value>
+  </data>
+  <data name="Editor_Action_MouseUpCurrent" xml:space="preserve">
+    <value>Soltar {0} na posição atual</value>
+  </data>
+  <data name="Editor_Action_MouseUpAbsolute" xml:space="preserve">
+    <value>Soltar {0} em ({1}, {2})</value>
+  </data>
+  <data name="Editor_Action_MouseUpRelative" xml:space="preserve">
+    <value>Soltar {0} após mover ({1:+#;-#;0}, {2:+#;-#;0})</value>
   </data>
   <data name="Editor_Action_KeyPress" xml:space="preserve">
     <value>Pressione '{0}'</value>

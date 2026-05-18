@@ -332,6 +332,7 @@ public class RecordingViewModelTests
         var runtimeContext = Substitute.For<IRuntimeContext>();
         runtimeContext.IsLinux.Returns(false);
         runtimeContext.IsWindows.Returns(false);
+        runtimeContext.IsMacOS.Returns(false);
 
         var viewModel = new RecordingViewModel(
             _recorder,
@@ -342,6 +343,31 @@ public class RecordingViewModelTests
 
         Assert.False(viewModel.IsForceRelativeSupported);
         Assert.False(viewModel.ForceRelativeCoordinates);
+    }
+
+    [Fact]
+    public void Constructor_WhenRuntimeIsMacOS_SupportsForceRelativeSetting()
+    {
+        var settingsService = Substitute.For<ISettingsService>();
+        settingsService.Current.Returns(new AppSettings
+        {
+            ForceRelativeCoordinates = true
+        });
+
+        var runtimeContext = Substitute.For<IRuntimeContext>();
+        runtimeContext.IsLinux.Returns(false);
+        runtimeContext.IsWindows.Returns(false);
+        runtimeContext.IsMacOS.Returns(true);
+
+        var viewModel = new RecordingViewModel(
+            _recorder,
+            _hotkeyService,
+            settingsService,
+            _localizationService,
+            runtimeContext);
+
+        Assert.True(viewModel.IsForceRelativeSupported);
+        Assert.True(viewModel.ForceRelativeCoordinates);
     }
 
     [Fact]

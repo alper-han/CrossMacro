@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Core.Services.Playback;
 using CrossMacro.UI.Models;
 using CrossMacro.UI.Services;
 using CrossMacro.UI.ViewModels;
@@ -22,6 +23,7 @@ public class PlaybackViewModelTests
     private readonly AppSettings _settings;
     private readonly LoadedMacroSession _loadedMacroSession;
     private readonly ILocalizationService _localizationService;
+    private readonly IDialogService _dialogService;
     private readonly PlaybackViewModel _viewModel;
 
     public PlaybackViewModelTests()
@@ -29,6 +31,7 @@ public class PlaybackViewModelTests
         _player = Substitute.For<IMacroPlayer>();
         _settingsService = Substitute.For<ISettingsService>();
         _localizationService = Substitute.For<ILocalizationService>();
+        _dialogService = Substitute.For<IDialogService>();
         _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
         _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
         {
@@ -47,6 +50,9 @@ public class PlaybackViewModelTests
             "Playback_StatusLoopInfinite" => "[Playback_StatusLoopInfinite] {0}",
             "Playback_StatusLoopProgress" => "[Playback_StatusLoopProgress] {0} | {1}",
             "Playback_StatusStartingIn" => "[Playback_StatusStartingIn] {0}",
+            "Playback_AbsoluteCoordinatesUnsupportedTitle" => "[Playback_AbsoluteCoordinatesUnsupportedTitle]",
+            "Playback_AbsoluteCoordinatesUnsupportedMessage" => "[Playback_AbsoluteCoordinatesUnsupportedMessage]",
+            "Playback_StatusAbsoluteCoordinatesUnsupported" => "[Playback_StatusAbsoluteCoordinatesUnsupported]",
             _ => call.Arg<string>()
         });
         _settings = new AppSettings
@@ -69,7 +75,7 @@ public class PlaybackViewModelTests
         _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        _viewModel = new PlaybackViewModel(_player, _settingsService, _loadedMacroSession, _localizationService);
+        _viewModel = new PlaybackViewModel(_player, _settingsService, _loadedMacroSession, _localizationService, _dialogService);
     }
 
     [Fact]
@@ -420,6 +426,26 @@ public class PlaybackViewModelTests
         _viewModel.IsPlaying.Should().BeFalse();
         _viewModel.PlaybackStatus.Should().Contain("[Playback_StatusError]");
         _viewModel.PlaybackStatus.Should().Contain("simulator failed");
+    }
+
+    [Fact]
+    public async Task PlayMacroAsync_WhenAbsoluteCoordinatePlaybackUnsupported_ShowsFriendlyDialogAndStatus()
+    {
+        var macro = CreateMacro();
+        _viewModel.SetMacro(macro);
+        _viewModel.CanPlayMacroExternal = true;
+        _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new AbsolutePlaybackUnsupportedException("Tracking")));
+
+        await _viewModel.PlayMacroAsync();
+
+        _viewModel.IsPlaying.Should().BeFalse();
+        _viewModel.PlaybackStatus.Should().Be("[Playback_StatusAbsoluteCoordinatesUnsupported]");
+        _viewModel.PlaybackStatus.Should().NotContain("Tracking");
+        await _dialogService.Received(1).ShowMessageAsync(
+            "[Playback_AbsoluteCoordinatesUnsupportedTitle]",
+            "[Playback_AbsoluteCoordinatesUnsupportedMessage]",
+            Arg.Any<string>());
     }
 
     [Fact]

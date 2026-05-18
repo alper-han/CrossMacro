@@ -255,6 +255,15 @@
   <data name="Playback_LoopTip" xml:space="preserve">
     <value>Tip: Loop Count 0 means infinite loop</value>
   </data>
+  <data name="Playback_AbsoluteCoordinatesUnsupportedTitle" xml:space="preserve">
+    <value>Playback Cannot Start</value>
+  </data>
+  <data name="Playback_AbsoluteCoordinatesUnsupportedMessage" xml:space="preserve">
+    <value>This macro contains absolute mouse coordinates, but the active input backend does not support absolute-coordinate playback in this session. You can still load and edit the macro, or switch to a backend/session with absolute-coordinate support before playing it.</value>
+  </data>
+  <data name="Playback_StatusAbsoluteCoordinatesUnsupported" xml:space="preserve">
+    <value>Playback unavailable: absolute coordinates are not supported by the active input backend.</value>
+  </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>Loaded Macros</value>
   </data>
@@ -1152,11 +1161,35 @@
   <data name="Editor_Action_MouseClick" xml:space="preserve">
     <value>Click {0}</value>
   </data>
+  <data name="Editor_Action_MouseClickAbsolute" xml:space="preserve">
+    <value>Click {0} at ({1}, {2})</value>
+  </data>
+  <data name="Editor_Action_MouseClickRelative" xml:space="preserve">
+    <value>Click {0} by ({1:+#;-#;0}, {2:+#;-#;0})</value>
+  </data>
   <data name="Editor_Action_MouseDown" xml:space="preserve">
     <value>Hold {0}</value>
   </data>
+  <data name="Editor_Action_MouseDownCurrent" xml:space="preserve">
+    <value>Hold {0} at current position</value>
+  </data>
+  <data name="Editor_Action_MouseDownAbsolute" xml:space="preserve">
+    <value>Hold {0} at ({1}, {2})</value>
+  </data>
+  <data name="Editor_Action_MouseDownRelative" xml:space="preserve">
+    <value>Hold {0} by ({1:+#;-#;0}, {2:+#;-#;0})</value>
+  </data>
   <data name="Editor_Action_MouseUp" xml:space="preserve">
     <value>Release {0}</value>
+  </data>
+  <data name="Editor_Action_MouseUpCurrent" xml:space="preserve">
+    <value>Release {0} at current position</value>
+  </data>
+  <data name="Editor_Action_MouseUpAbsolute" xml:space="preserve">
+    <value>Release {0} at ({1}, {2})</value>
+  </data>
+  <data name="Editor_Action_MouseUpRelative" xml:space="preserve">
+    <value>Release {0} by ({1:+#;-#;0}, {2:+#;-#;0})</value>
   </data>
   <data name="Editor_Action_KeyPress" xml:space="preserve">
     <value>Press '{0}'</value>

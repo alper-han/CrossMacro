@@ -6,6 +6,7 @@ using Avalonia.Threading;
 using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Core.Services.Playback;
 using CrossMacro.UI.Localization;
 using CrossMacro.UI.Models;
 using CrossMacro.UI.Services;
@@ -21,6 +22,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
     private readonly ISettingsService _settingsService;
     private readonly ILoadedMacroSession _loadedMacroSession;
     private readonly ILocalizationService _localizationService;
+    private readonly IDialogService? _dialogService;
     private readonly Random _random = Random.Shared;
 
     private double _playbackSpeed = 1.0;
@@ -62,12 +64,14 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         IMacroPlayer player,
         ISettingsService settingsService,
         ILoadedMacroSession loadedMacroSession,
-        ILocalizationService? localizationService = null)
+        ILocalizationService? localizationService = null,
+        IDialogService? dialogService = null)
     {
         _player = player;
         _settingsService = settingsService;
         _loadedMacroSession = loadedMacroSession;
         _localizationService = localizationService ?? new LocalizationService();
+        _dialogService = dialogService;
         _playbackStatus = _localizationService["Playback_StatusReady"];
 
         // Initialize playback settings from saved settings
@@ -541,7 +545,24 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            PlaybackStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Playback_StatusError"], ex.Message);
+            if (ex is AbsolutePlaybackUnsupportedException)
+            {
+                PlaybackStatus = _localizationService["Playback_StatusAbsoluteCoordinatesUnsupported"];
+                _statusUpdateTimer?.Stop();
+                IsPlaying = false;
+                IsPaused = false;
+
+                if (_dialogService != null)
+                {
+                    await _dialogService.ShowMessageAsync(
+                        _localizationService["Playback_AbsoluteCoordinatesUnsupportedTitle"],
+                        _localizationService["Playback_AbsoluteCoordinatesUnsupportedMessage"]);
+                }
+            }
+            else
+            {
+                PlaybackStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Playback_StatusError"], ex.Message);
+            }
         }
         finally
         {

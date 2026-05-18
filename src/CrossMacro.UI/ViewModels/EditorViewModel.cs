@@ -157,6 +157,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasSelectedAction));
             NotifyVisibilityChanged();
+            OnPropertyChanged(nameof(SelectedActionDisplayText));
             ResetPropertyEditUndoCoalescing();
             SyncSelectedActionListItem();
             if (!_isSelectingFromActionList)
@@ -508,6 +509,29 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     /// Show text payload field for TextInput and RawScriptStep.
     /// </summary>
     public bool ShowTextInput => SelectedAction?.Type is EditorActionType.TextInput or EditorActionType.RawScriptStep;
+    public string SelectedActionDisplayText
+    {
+        get => SelectedAction?.Type == EditorActionType.TextInput
+            ? TextInputControlCharacterFormatter.Escape(SelectedAction.Text)
+            : SelectedAction?.Text ?? string.Empty;
+        set
+        {
+            if (SelectedAction == null)
+            {
+                return;
+            }
+
+            var text = SelectedAction.Type == EditorActionType.TextInput
+                ? TextInputControlCharacterFormatter.Unescape(value)
+                : value;
+            if (SelectedAction.Text == text)
+            {
+                return;
+            }
+
+            SelectedAction.Text = text;
+        }
+    }
     public bool ShowSetVariableFields => SelectedAction?.Type == EditorActionType.SetVariable;
     public bool ShowIncDecFields => SelectedAction?.Type is EditorActionType.IncrementVariable or EditorActionType.DecrementVariable;
     public bool ShowRepeatFields => SelectedAction?.Type == EditorActionType.RepeatBlockStart;

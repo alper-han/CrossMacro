@@ -227,7 +227,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public bool IsForceRelativeSupported => _runtimeContext.IsLinux || _runtimeContext.IsWindows;
+    public bool IsForceRelativeSupported => _runtimeContext.IsLinux || _runtimeContext.IsWindows || _runtimeContext.IsMacOS;
     
     public bool SkipInitialZeroZero
     {

@@ -255,6 +255,15 @@
   <data name="Playback_LoopTip" xml:space="preserve">
     <value>İpucu: Döngü Sayısı 0 ise sonsuz döngü anlamına gelir</value>
   </data>
+  <data name="Playback_AbsoluteCoordinatesUnsupportedTitle" xml:space="preserve">
+    <value>Oynatma Başlatılamaz</value>
+  </data>
+  <data name="Playback_AbsoluteCoordinatesUnsupportedMessage" xml:space="preserve">
+    <value>Bu makro absolute fare koordinatları içeriyor, ancak etkin giriş altyapısı bu oturumda absolute koordinat oynatmayı desteklemiyor. Makroyu yine de yükleyip düzenleyebilir veya oynatmadan önce absolute koordinat destekleyen bir altyapı/oturum kullanabilirsiniz.</value>
+  </data>
+  <data name="Playback_StatusAbsoluteCoordinatesUnsupported" xml:space="preserve">
+    <value>Oynatma kullanılamıyor: etkin giriş altyapısı absolute koordinatları desteklemiyor.</value>
+  </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>Yüklü Makrolar</value>
   </data>
@@ -1152,11 +1161,35 @@
   <data name="Editor_Action_MouseClick" xml:space="preserve">
     <value>{0} tıkla</value>
   </data>
+  <data name="Editor_Action_MouseClickAbsolute" xml:space="preserve">
+    <value>({1}, {2}) konumunda {0} tıkla</value>
+  </data>
+  <data name="Editor_Action_MouseClickRelative" xml:space="preserve">
+    <value>({1:+#;-#;0}, {2:+#;-#;0}) kadar gidip {0} tıkla</value>
+  </data>
   <data name="Editor_Action_MouseDown" xml:space="preserve">
     <value>{0} basılı tut</value>
   </data>
+  <data name="Editor_Action_MouseDownCurrent" xml:space="preserve">
+    <value>Geçerli konumda {0} basılı tut</value>
+  </data>
+  <data name="Editor_Action_MouseDownAbsolute" xml:space="preserve">
+    <value>({1}, {2}) konumunda {0} basılı tut</value>
+  </data>
+  <data name="Editor_Action_MouseDownRelative" xml:space="preserve">
+    <value>({1:+#;-#;0}, {2:+#;-#;0}) kadar gidip {0} basılı tut</value>
+  </data>
   <data name="Editor_Action_MouseUp" xml:space="preserve">
     <value>{0} bırak</value>
+  </data>
+  <data name="Editor_Action_MouseUpCurrent" xml:space="preserve">
+    <value>Geçerli konumda {0} bırak</value>
+  </data>
+  <data name="Editor_Action_MouseUpAbsolute" xml:space="preserve">
+    <value>({1}, {2}) konumunda {0} bırak</value>
+  </data>
+  <data name="Editor_Action_MouseUpRelative" xml:space="preserve">
+    <value>({1:+#;-#;0}, {2:+#;-#;0}) kadar gidip {0} bırak</value>
   </data>
   <data name="Editor_Action_KeyPress" xml:space="preserve">
     <value>'{0}' tuşuna bas</value>

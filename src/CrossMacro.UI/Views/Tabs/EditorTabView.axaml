@@ -358,7 +358,7 @@
                             <!-- Text input -->
                             <StackPanel Spacing="4" IsVisible="{Binding ShowTextInput}">
                                 <TextBlock Text="{Binding TextInputLabel}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
-                                <TextBox Text="{Binding SelectedAction.Text, UpdateSourceTrigger=PropertyChanged}"
+                                <TextBox Text="{Binding SelectedActionDisplayText, UpdateSourceTrigger=PropertyChanged}"
                                          PlaceholderText="{Binding TextInputWatermark}"
                                          Background="{DynamicResource SurfaceHoverBrush}"
                                          Foreground="{DynamicResource TextPrimaryBrush}"

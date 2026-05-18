@@ -255,6 +255,15 @@
   <data name="Playback_LoopTip" xml:space="preserve">
     <value>Astuce : Le nombre de boucles 0 signifie une boucle infinie</value>
   </data>
+  <data name="Playback_AbsoluteCoordinatesUnsupportedTitle" xml:space="preserve">
+    <value>Impossible de démarrer la lecture</value>
+  </data>
+  <data name="Playback_AbsoluteCoordinatesUnsupportedMessage" xml:space="preserve">
+    <value>Cette macro contient des coordonnées absolues de souris, mais le backend d’entrée actif ne prend pas en charge la lecture en coordonnées absolues dans cette session. Vous pouvez toujours charger et modifier la macro, ou utiliser un backend/une session compatible avant de la lire.</value>
+  </data>
+  <data name="Playback_StatusAbsoluteCoordinatesUnsupported" xml:space="preserve">
+    <value>Lecture indisponible : le backend d’entrée actif ne prend pas en charge les coordonnées absolues.</value>
+  </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>Macros chargées</value>
   </data>
@@ -1152,11 +1161,35 @@
   <data name="Editor_Action_MouseClick" xml:space="preserve">
     <value>Cliquez sur {0}</value>
   </data>
+  <data name="Editor_Action_MouseClickAbsolute" xml:space="preserve">
+    <value>Cliquez sur {0} à ({1}, {2})</value>
+  </data>
+  <data name="Editor_Action_MouseClickRelative" xml:space="preserve">
+    <value>Cliquez sur {0} après déplacement de ({1:+#;-#;0}, {2:+#;-#;0})</value>
+  </data>
   <data name="Editor_Action_MouseDown" xml:space="preserve">
     <value>Maintenir {0}</value>
   </data>
+  <data name="Editor_Action_MouseDownCurrent" xml:space="preserve">
+    <value>Maintenir {0} à la position actuelle</value>
+  </data>
+  <data name="Editor_Action_MouseDownAbsolute" xml:space="preserve">
+    <value>Maintenir {0} à ({1}, {2})</value>
+  </data>
+  <data name="Editor_Action_MouseDownRelative" xml:space="preserve">
+    <value>Maintenir {0} après déplacement de ({1:+#;-#;0}, {2:+#;-#;0})</value>
+  </data>
   <data name="Editor_Action_MouseUp" xml:space="preserve">
     <value>Relâcher {0}</value>
+  </data>
+  <data name="Editor_Action_MouseUpCurrent" xml:space="preserve">
+    <value>Relâcher {0} à la position actuelle</value>
+  </data>
+  <data name="Editor_Action_MouseUpAbsolute" xml:space="preserve">
+    <value>Relâcher {0} à ({1}, {2})</value>
+  </data>
+  <data name="Editor_Action_MouseUpRelative" xml:space="preserve">
+    <value>Relâcher {0} après déplacement de ({1:+#;-#;0}, {2:+#;-#;0})</value>
   </data>
   <data name="Editor_Action_KeyPress" xml:space="preserve">
     <value>Appuyez sur '{0}'</value>

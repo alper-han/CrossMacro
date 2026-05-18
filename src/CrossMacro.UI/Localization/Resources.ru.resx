@@ -255,6 +255,15 @@
   <data name="Playback_LoopTip" xml:space="preserve">
     <value>Совет: Число циклов 0 означает бесконечный цикл.</value>
   </data>
+  <data name="Playback_AbsoluteCoordinatesUnsupportedTitle" xml:space="preserve">
+    <value>Не удалось запустить воспроизведение</value>
+  </data>
+  <data name="Playback_AbsoluteCoordinatesUnsupportedMessage" xml:space="preserve">
+    <value>Этот макрос содержит абсолютные координаты мыши, но активный backend ввода не поддерживает воспроизведение абсолютных координат в этом сеансе. Вы можете загрузить и отредактировать макрос или перед воспроизведением использовать backend/сеанс с поддержкой абсолютных координат.</value>
+  </data>
+  <data name="Playback_StatusAbsoluteCoordinatesUnsupported" xml:space="preserve">
+    <value>Воспроизведение недоступно: активный backend ввода не поддерживает абсолютные координаты.</value>
+  </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>Загруженные макросы</value>
   </data>
@@ -1152,11 +1161,35 @@
   <data name="Editor_Action_MouseClick" xml:space="preserve">
     <value>Нажмите {0}</value>
   </data>
+  <data name="Editor_Action_MouseClickAbsolute" xml:space="preserve">
+    <value>Нажмите {0} в ({1}, {2})</value>
+  </data>
+  <data name="Editor_Action_MouseClickRelative" xml:space="preserve">
+    <value>Нажмите {0} после перемещения на ({1:+#;-#;0}, {2:+#;-#;0})</value>
+  </data>
   <data name="Editor_Action_MouseDown" xml:space="preserve">
     <value>Удерживайте {0}</value>
   </data>
+  <data name="Editor_Action_MouseDownCurrent" xml:space="preserve">
+    <value>Удерживайте {0} в текущей позиции</value>
+  </data>
+  <data name="Editor_Action_MouseDownAbsolute" xml:space="preserve">
+    <value>Удерживайте {0} в ({1}, {2})</value>
+  </data>
+  <data name="Editor_Action_MouseDownRelative" xml:space="preserve">
+    <value>Удерживайте {0} после перемещения на ({1:+#;-#;0}, {2:+#;-#;0})</value>
+  </data>
   <data name="Editor_Action_MouseUp" xml:space="preserve">
     <value>Отпустить {0}</value>
+  </data>
+  <data name="Editor_Action_MouseUpCurrent" xml:space="preserve">
+    <value>Отпустить {0} в текущей позиции</value>
+  </data>
+  <data name="Editor_Action_MouseUpAbsolute" xml:space="preserve">
+    <value>Отпустить {0} в ({1}, {2})</value>
+  </data>
+  <data name="Editor_Action_MouseUpRelative" xml:space="preserve">
+    <value>Отпустить {0} после перемещения на ({1:+#;-#;0}, {2:+#;-#;0})</value>
   </data>
   <data name="Editor_Action_KeyPress" xml:space="preserve">
     <value>Нажмите '{0}'</value>

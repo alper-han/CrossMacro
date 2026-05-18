@@ -255,6 +255,15 @@
   <data name="Playback_LoopTip" xml:space="preserve">
     <value>提示：循环次数为 0 表示无限循环</value>
   </data>
+  <data name="Playback_AbsoluteCoordinatesUnsupportedTitle" xml:space="preserve">
+    <value>无法开始播放</value>
+  </data>
+  <data name="Playback_AbsoluteCoordinatesUnsupportedMessage" xml:space="preserve">
+    <value>此宏包含绝对鼠标坐标，但当前输入后端在此会话中不支持绝对坐标播放。你仍然可以加载和编辑该宏，或在播放前切换到支持绝对坐标的后端/会话。</value>
+  </data>
+  <data name="Playback_StatusAbsoluteCoordinatesUnsupported" xml:space="preserve">
+    <value>播放不可用：当前输入后端不支持绝对坐标。</value>
+  </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>已加载的宏</value>
   </data>
@@ -1152,11 +1161,35 @@
   <data name="Editor_Action_MouseClick" xml:space="preserve">
     <value>点击{0}</value>
   </data>
+  <data name="Editor_Action_MouseClickAbsolute" xml:space="preserve">
+    <value>在（{1}，{2}）点击{0}</value>
+  </data>
+  <data name="Editor_Action_MouseClickRelative" xml:space="preserve">
+    <value>移动 ({1:+#;-#;0}, {2:+#;-#;0}) 后点击{0}</value>
+  </data>
   <data name="Editor_Action_MouseDown" xml:space="preserve">
     <value>按住{0}</value>
   </data>
+  <data name="Editor_Action_MouseDownCurrent" xml:space="preserve">
+    <value>在当前位置按住{0}</value>
+  </data>
+  <data name="Editor_Action_MouseDownAbsolute" xml:space="preserve">
+    <value>在（{1}，{2}）按住{0}</value>
+  </data>
+  <data name="Editor_Action_MouseDownRelative" xml:space="preserve">
+    <value>移动 ({1:+#;-#;0}, {2:+#;-#;0}) 后按住{0}</value>
+  </data>
   <data name="Editor_Action_MouseUp" xml:space="preserve">
     <value>释放{0}</value>
+  </data>
+  <data name="Editor_Action_MouseUpCurrent" xml:space="preserve">
+    <value>在当前位置释放{0}</value>
+  </data>
+  <data name="Editor_Action_MouseUpAbsolute" xml:space="preserve">
+    <value>在（{1}，{2}）释放{0}</value>
+  </data>
+  <data name="Editor_Action_MouseUpRelative" xml:space="preserve">
+    <value>移动 ({1:+#;-#;0}, {2:+#;-#;0}) 后释放{0}</value>
   </data>
   <data name="Editor_Action_KeyPress" xml:space="preserve">
     <value>按“{0}”</value>

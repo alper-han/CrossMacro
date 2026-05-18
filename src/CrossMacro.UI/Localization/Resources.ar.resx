@@ -255,6 +255,15 @@
   <data name="Playback_LoopTip" xml:space="preserve">
     <value>نصيحة: عدد الحلقات 0 يعني حلقة لا نهائية</value>
   </data>
+  <data name="Playback_AbsoluteCoordinatesUnsupportedTitle" xml:space="preserve">
+    <value>لا يمكن بدء التشغيل</value>
+  </data>
+  <data name="Playback_AbsoluteCoordinatesUnsupportedMessage" xml:space="preserve">
+    <value>يحتوي هذا الماكرو على إحداثيات فأرة مطلقة، لكن واجهة الإدخال النشطة لا تدعم تشغيل الإحداثيات المطلقة في هذه الجلسة. لا يزال بإمكانك تحميل الماكرو وتعديله، أو استخدام واجهة/جلسة تدعم الإحداثيات المطلقة قبل تشغيله.</value>
+  </data>
+  <data name="Playback_StatusAbsoluteCoordinatesUnsupported" xml:space="preserve">
+    <value>التشغيل غير متاح: واجهة الإدخال النشطة لا تدعم الإحداثيات المطلقة.</value>
+  </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>وحدات الماكرو المحملة</value>
   </data>
@@ -1152,11 +1161,35 @@
   <data name="Editor_Action_MouseClick" xml:space="preserve">
     <value>انقر على {0}</value>
   </data>
+  <data name="Editor_Action_MouseClickAbsolute" xml:space="preserve">
+    <value>انقر على {0} عند ({1}، {2})</value>
+  </data>
+  <data name="Editor_Action_MouseClickRelative" xml:space="preserve">
+    <value>انقر على {0} بعد التحريك بمقدار ({1:+#;-#;0}, {2:+#;-#;0})</value>
+  </data>
   <data name="Editor_Action_MouseDown" xml:space="preserve">
     <value>اضغط مع الاستمرار على {0}</value>
   </data>
+  <data name="Editor_Action_MouseDownCurrent" xml:space="preserve">
+    <value>اضغط مع الاستمرار على {0} في الموضع الحالي</value>
+  </data>
+  <data name="Editor_Action_MouseDownAbsolute" xml:space="preserve">
+    <value>اضغط مع الاستمرار على {0} عند ({1}، {2})</value>
+  </data>
+  <data name="Editor_Action_MouseDownRelative" xml:space="preserve">
+    <value>اضغط مع الاستمرار على {0} بعد التحريك بمقدار ({1:+#;-#;0}, {2:+#;-#;0})</value>
+  </data>
   <data name="Editor_Action_MouseUp" xml:space="preserve">
     <value>حرر {0}</value>
+  </data>
+  <data name="Editor_Action_MouseUpCurrent" xml:space="preserve">
+    <value>حرر {0} في الموضع الحالي</value>
+  </data>
+  <data name="Editor_Action_MouseUpAbsolute" xml:space="preserve">
+    <value>حرر {0} عند ({1}، {2})</value>
+  </data>
+  <data name="Editor_Action_MouseUpRelative" xml:space="preserve">
+    <value>حرر {0} بعد التحريك بمقدار ({1:+#;-#;0}, {2:+#;-#;0})</value>
   </data>
   <data name="Editor_Action_KeyPress" xml:space="preserve">
     <value>اضغط على "{0}"</value>

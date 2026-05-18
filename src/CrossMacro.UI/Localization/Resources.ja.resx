@@ -255,6 +255,15 @@
   <data name="Playback_LoopTip" xml:space="preserve">
     <value>ヒント: ループ数 0 は無限ループを意味します</value>
   </data>
+  <data name="Playback_AbsoluteCoordinatesUnsupportedTitle" xml:space="preserve">
+    <value>再生を開始できません</value>
+  </data>
+  <data name="Playback_AbsoluteCoordinatesUnsupportedMessage" xml:space="preserve">
+    <value>このマクロにはマウスの絶対座標が含まれていますが、現在の入力バックエンドはこのセッションで絶対座標の再生をサポートしていません。マクロの読み込みと編集は可能です。再生するには、絶対座標をサポートするバックエンドまたはセッションを使用してください。</value>
+  </data>
+  <data name="Playback_StatusAbsoluteCoordinatesUnsupported" xml:space="preserve">
+    <value>再生できません: 現在の入力バックエンドは絶対座標をサポートしていません。</value>
+  </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>ロードされたマクロ</value>
   </data>
@@ -1152,11 +1161,35 @@
   <data name="Editor_Action_MouseClick" xml:space="preserve">
     <value>{0}をクリックします</value>
   </data>
+  <data name="Editor_Action_MouseClickAbsolute" xml:space="preserve">
+    <value>({1}、{2}) で {0} をクリックします</value>
+  </data>
+  <data name="Editor_Action_MouseClickRelative" xml:space="preserve">
+    <value>({1:+#;-#;0}、{2:+#;-#;0}) 移動してから {0} をクリックします</value>
+  </data>
   <data name="Editor_Action_MouseDown" xml:space="preserve">
     <value>{0}を押し続けます</value>
   </data>
+  <data name="Editor_Action_MouseDownCurrent" xml:space="preserve">
+    <value>現在の位置で {0} を押し続けます</value>
+  </data>
+  <data name="Editor_Action_MouseDownAbsolute" xml:space="preserve">
+    <value>({1}、{2}) で {0} を押し続けます</value>
+  </data>
+  <data name="Editor_Action_MouseDownRelative" xml:space="preserve">
+    <value>({1:+#;-#;0}、{2:+#;-#;0}) 移動してから {0} を押し続けます</value>
+  </data>
   <data name="Editor_Action_MouseUp" xml:space="preserve">
     <value>{0}を解放します</value>
+  </data>
+  <data name="Editor_Action_MouseUpCurrent" xml:space="preserve">
+    <value>現在の位置で {0} を解放します</value>
+  </data>
+  <data name="Editor_Action_MouseUpAbsolute" xml:space="preserve">
+    <value>({1}、{2}) で {0} を解放します</value>
+  </data>
+  <data name="Editor_Action_MouseUpRelative" xml:space="preserve">
+    <value>({1:+#;-#;0}、{2:+#;-#;0}) 移動してから {0} を解放します</value>
   </data>
   <data name="Editor_Action_KeyPress" xml:space="preserve">
     <value>「{0}」を押してください</value>

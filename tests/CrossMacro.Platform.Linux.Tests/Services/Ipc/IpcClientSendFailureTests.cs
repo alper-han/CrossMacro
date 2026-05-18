@@ -95,28 +95,31 @@ public class IpcClientSendFailureTests
 
         const int iterations = 50;
         var callbacksObserved = 0;
-        var allCallbacksObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource? nextCallbackObserved = null;
         client.ErrorOccurred += (_, _) =>
         {
-            if (Interlocked.Increment(ref callbacksObserved) == iterations)
-            {
-                allCallbacksObserved.TrySetResult();
-            }
+            Interlocked.Increment(ref callbacksObserved);
+            Volatile.Read(ref nextCallbackObserved)?.TrySetResult();
 
             client.StartCapture("stress-consumer", mouse: true, keyboard: true);
             client.StopCapture("stress-consumer");
         };
         for (var iteration = 0; iteration < iterations; iteration++)
         {
+            var callbackObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Volatile.Write(ref nextCallbackObserved, callbackObserved);
+
             InvokeHandleSendFailureWhileHoldingGate(
                 client,
                 captureGate,
                 handleSendFailureMethod!,
                 new IOException($"Simulated send failure {iteration}"),
                 pendingCallback: null);
+
+            await callbackObserved.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.Equal(iteration + 1, Volatile.Read(ref callbacksObserved));
         }
 
-        await allCallbacksObserved.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(iterations, Volatile.Read(ref callbacksObserved));
     }
 

@@ -10,13 +10,15 @@ public class MacOSInputSimulator :
     IInputSimulatorCapabilities,
     IUnicodeTextInputSimulator,
     ITaggedKeyboardInputSimulator,
-    ITaggedUnicodeTextInputSimulator
+    ITaggedUnicodeTextInputSimulator,
+    IPlatformPasteShortcutProvider
 {
     public string ProviderName => "macOS CoreGraphics";
     public bool IsSupported => OperatingSystem.IsMacOS();
     public bool SupportsUnicodeTextInput => IsSupported;
     public bool SupportsTaggedKeyboardInput => IsSupported;
     public bool SupportsAbsoluteCoordinates => true;
+    public bool UsesMetaKeyForStandardPaste => true;
 
     public void Initialize(int screenWidth = 0, int screenHeight = 0)
     {

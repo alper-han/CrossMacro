@@ -89,48 +89,65 @@ public partial class EditorViewModel
         return true;
     }
 
-    private bool GetCurrentCoordinateMode()
+    private bool GetCurrentCoordinateMode(int insertionIndex)
     {
+        if (TryGetCoordinateMode(SelectedAction, out var selectedMode))
+        {
+            return selectedMode;
+        }
+
+        for (var index = Math.Min(insertionIndex - 1, Actions.Count - 1); index >= 0; index--)
+        {
+            if (TryGetCoordinateMode(Actions[index], out var previousMode))
+            {
+                return previousMode;
+            }
+        }
+
         return Actions
             .FirstOrDefault(action => UsesCoordinateFields(action.Type) && !IsCurrentPositionMouseButtonAction(action))
             ?.IsAbsolute ?? true;
     }
 
-    private void PropagateCoordinateMode(EditorAction sourceAction)
+    private static bool TryGetCoordinateMode(EditorAction? action, out bool isAbsolute)
+    {
+        if (action != null && UsesCoordinateFields(action.Type) && !IsCurrentPositionMouseButtonAction(action))
+        {
+            isAbsolute = action.IsAbsolute;
+            return true;
+        }
+
+        isAbsolute = true;
+        return false;
+    }
+
+    private void NormalizeCoordinateAction(EditorAction sourceAction)
     {
         if (!UsesCoordinateFields(sourceAction.Type))
         {
             return;
         }
 
-        if (IsCurrentPositionMouseButtonAction(sourceAction))
-        {
-            if (sourceAction.IsAbsolute)
-            {
-                sourceAction.IsAbsolute = false;
-            }
+        NormalizeCurrentPositionMouseButtonAction(sourceAction);
+    }
 
+    private static void NormalizeCurrentPositionMouseButtonAction(EditorAction action)
+    {
+        if (!IsCurrentPositionMouseButtonAction(action))
+        {
             return;
         }
 
-        foreach (var action in Actions)
+        action.X = 0;
+        action.Y = 0;
+        action.IsAbsolute = false;
+    }
+
+    private static void NormalizeCurrentPositionMouseButtonActionSnapshot(IEnumerable<EditorAction> actions)
+    {
+        foreach (var action in actions)
         {
-            if (ReferenceEquals(action, sourceAction) || !UsesCoordinateFields(action.Type))
-            {
-                continue;
-            }
-
-            if (IsCurrentPositionMouseButtonAction(action))
-            {
-                if (action.IsAbsolute)
-                {
-                    action.IsAbsolute = false;
-                }
-
-                continue;
-            }
-
-            action.IsAbsolute = sourceAction.IsAbsolute;
+            NormalizeCurrentPositionMouseButtonAction(action);
         }
     }
 
@@ -208,6 +225,11 @@ public partial class EditorViewModel
             RefreshAvailableVariableNames();
         }
 
+        if (e.PropertyName is nameof(EditorAction.Type) or nameof(EditorAction.Text))
+        {
+            OnPropertyChanged(nameof(SelectedActionDisplayText));
+        }
+
         if (e.PropertyName == nameof(EditorAction.KeyCode) && sender is EditorAction action)
         {
             if (action.KeyCode > 0)
@@ -226,7 +248,7 @@ public partial class EditorViewModel
 
         if (e.PropertyName == nameof(EditorAction.IsAbsolute) && sender is EditorAction coordAction)
         {
-            PropagateCoordinateMode(coordAction);
+            NormalizeCoordinateAction(coordAction);
             RefreshCurrentPositionConfiguration();
         }
 
@@ -315,20 +337,7 @@ public partial class EditorViewModel
             if (action.Type is EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp
                 && action.UseCurrentPosition)
             {
-                if (action.X != 0)
-                {
-                    action.X = 0;
-                }
-
-                if (action.Y != 0)
-                {
-                    action.Y = 0;
-                }
-
-                if (action.IsAbsolute)
-                {
-                    action.IsAbsolute = false;
-                }
+                NormalizeCurrentPositionMouseButtonAction(action);
             }
         }
         finally
@@ -396,7 +405,7 @@ public partial class EditorViewModel
         SaveUndoState();
 
         var isCoordinateAction = UsesCoordinateFields(NewActionType);
-        var coordinateMode = isCoordinateAction ? GetCurrentCoordinateMode() : true;
+        var coordinateMode = isCoordinateAction ? GetCurrentCoordinateMode(insertionIndex) : true;
 
         var action = new EditorAction
         {
@@ -447,7 +456,6 @@ public partial class EditorViewModel
         };
 
         Actions.Insert(insertionIndex, action);
-        PropagateCoordinateMode(action);
         SkipInitialZeroZero = true;
         SelectedAction = action;
         Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusAddedAction"), _actionDisplayFormatter.Format(action));

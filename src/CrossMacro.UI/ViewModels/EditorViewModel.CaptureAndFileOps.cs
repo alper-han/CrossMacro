@@ -55,6 +55,8 @@ public partial class EditorViewModel
                     return;
                 }
 
+                targetAction.UseCurrentPosition = false;
+                targetAction.IsAbsolute = true;
                 targetAction.X = result.Value.X;
                 targetAction.Y = result.Value.Y;
                 Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCapturedPosition"), result.Value.X, result.Value.Y);
@@ -131,7 +133,10 @@ public partial class EditorViewModel
             return;
         }
 
-        var (isValid, errors) = _validator.ValidateAll(Actions);
+        var normalizedActions = CloneState(Actions);
+        NormalizeCurrentPositionMouseButtonActionSnapshot(normalizedActions);
+
+        var (isValid, errors) = _validator.ValidateAll(normalizedActions);
         if (!isValid)
         {
             var errorMessage = $"{Localize("Editor_ValidationErrorHeader")}\n\n{string.Join("\n", errors.Select(error => $"• {error}"))}";
@@ -158,7 +163,7 @@ public partial class EditorViewModel
                 return;
             }
 
-            var firstCoordinateAction = Actions.FirstOrDefault(action =>
+            var firstCoordinateAction = normalizedActions.FirstOrDefault(action =>
                 UsesCoordinateFields(action.Type) && !IsCurrentPositionMouseButtonAction(action));
             var isAbsolute = firstCoordinateAction?.IsAbsolute ?? false;
             var skipInitialZeroZero = _skipInitialZeroZero || RequiresSkipInitialZeroZero;
@@ -168,7 +173,7 @@ public partial class EditorViewModel
                 OnPropertyChanged(nameof(SkipInitialZeroZero));
             }
 
-            var sequence = _converter.ToMacroSequence(Actions, MacroName, isAbsolute, skipInitialZeroZero);
+            var sequence = _converter.ToMacroSequence(normalizedActions, MacroName, isAbsolute, skipInitialZeroZero);
             await _fileManager.SaveAsync(sequence, filePath);
 
             Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusSaved"), Path.GetFileName(filePath));

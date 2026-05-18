@@ -328,8 +328,8 @@ public partial class FilesViewModel : ViewModelBase
                 return;
             }
 
-            currentMacro.Name = macroNameToSave;
-            await _fileManager.SaveAsync(currentMacro, filePath);
+            var macroToSave = CreateSaveSnapshot(currentMacro, macroNameToSave);
+            await _fileManager.SaveAsync(macroToSave, filePath);
             currentItem.UpdateSourcePath(filePath);
 
             SetTransientStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusSavedTo"], Path.GetFileName(filePath)));
@@ -384,6 +384,37 @@ public partial class FilesViewModel : ViewModelBase
     /// Get current selected macro.
     /// </summary>
     public MacroSequence? GetCurrentMacro() => _loadedMacroSession.SelectedMacro;
+
+    private static MacroSequence CreateSaveSnapshot(MacroSequence macro, string name)
+    {
+        var snapshot = macro.Clone();
+        snapshot.Name = name;
+        NormalizeCurrentPositionMouseButtonEvents(snapshot);
+        snapshot.IsAbsoluteCoordinates = MacroPositionSemantics.GetCoordinateModeSummary(snapshot) == CoordinateModeSummary.Absolute;
+        return snapshot;
+    }
+
+    private static void NormalizeCurrentPositionMouseButtonEvents(MacroSequence macro)
+    {
+        if (macro.Events == null)
+        {
+            return;
+        }
+
+        for (var index = 0; index < macro.Events.Count; index++)
+        {
+            var ev = macro.Events[index];
+            if (!ev.UseCurrentPosition || !MacroPositionSemantics.IsNonScrollMouseButtonEvent(ev))
+            {
+                continue;
+            }
+
+            ev.X = 0;
+            ev.Y = 0;
+            ev.CoordinateMode = null;
+            macro.Events[index] = ev;
+        }
+    }
 
     [RelayCommand]
     private async Task RemoveLoadedMacroAsync(LoadedMacroListItem? item)

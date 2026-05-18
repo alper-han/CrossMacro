@@ -101,7 +101,7 @@ public class EditorActionValidatorTests
     }
 
     [Fact]
-    public void ValidateAll_WhenMixedCoordinateModes_ReturnsError()
+    public void ValidateAll_WhenMixedCoordinateModes_ReturnsValid()
     {
         // Arrange
         var actions = new[]
@@ -114,12 +114,12 @@ public class EditorActionValidatorTests
         var result = _validator.ValidateAll(actions);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.Contains("Cannot mix Absolute and Relative coordinates"));
+        result.IsValid.Should().BeTrue();
+        result.Errors.Should().NotContain(e => e.Contains("Cannot mix Absolute and Relative coordinates"));
     }
 
     [Fact]
-    public void ValidateAll_WhenMouseButtonModesAreMixed_ReturnsError()
+    public void ValidateAll_WhenMouseButtonModesAreMixed_ReturnsValid()
     {
         // Arrange
         var actions = new[]
@@ -132,8 +132,8 @@ public class EditorActionValidatorTests
         var result = _validator.ValidateAll(actions);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.Contains("Cannot mix Absolute and Relative coordinates"));
+        result.IsValid.Should().BeTrue();
+        result.Errors.Should().NotContain(e => e.Contains("Cannot mix Absolute and Relative coordinates"));
     }
 
     [Fact]
@@ -225,7 +225,7 @@ public class EditorActionValidatorTests
 
         // Assert
         result.IsValid.Should().BeFalse();
-        result.Error.Should().Be(ValidationMessages.CurrentPositionClickMustBeRelative);
+        result.Error.Should().Be(ValidationMessages.CurrentPositionClickMustNotUseCoordinates);
     }
 
     [Fact]
@@ -245,7 +245,7 @@ public class EditorActionValidatorTests
 
         // Assert
         result.IsValid.Should().BeFalse();
-        result.Error.Should().Be(ValidationMessages.CurrentPositionClickMustBeRelative);
+        result.Error.Should().Be(ValidationMessages.CurrentPositionClickMustNotUseCoordinates);
     }
 
     [Fact]

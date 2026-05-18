@@ -62,7 +62,6 @@ public class EditorActionValidator : IEditorActionValidator
         var actionList = actions.ToList();
         var errors = new List<string>();
         int index = 0;
-        bool? firstCoordinateMode = null;
         
         foreach (var action in actionList)
         {
@@ -71,19 +70,6 @@ public class EditorActionValidator : IEditorActionValidator
             if (!isValid && error != null)
             {
                 errors.Add($"Action {index + 1} ({action.Type}): {error}");
-            }
-            
-            // Validate coordinate mode consistency
-            if (UsesGlobalCoordinateMode(action))
-            {
-                if (firstCoordinateMode == null)
-                {
-                    firstCoordinateMode = action.IsAbsolute;
-                }
-                else if (firstCoordinateMode != action.IsAbsolute)
-                {
-                    errors.Add($"Action {index + 1}: Cannot mix Absolute and Relative coordinates in the same macro.");
-                }
             }
             
             index++;
@@ -171,7 +157,7 @@ public class EditorActionValidator : IEditorActionValidator
             return (false, ValidationMessages.UseScrollActionForScrollButtons);
 
         if (action.UseCurrentPosition && action.IsAbsolute)
-            return (false, ValidationMessages.CurrentPositionClickMustBeRelative);
+            return (false, ValidationMessages.CurrentPositionClickMustNotUseCoordinates);
 
         return ValidateCoordinateBounds(action, requireRelativeNonZero: false);
     }
@@ -200,6 +186,12 @@ public class EditorActionValidator : IEditorActionValidator
         return (true, null);
     }
 
+    private static bool IsCurrentPositionMouseButtonAction(EditorAction action)
+    {
+        return action.Type is EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp
+            && action.UseCurrentPosition;
+    }
+
     private static bool UsesCoordinateMode(EditorActionType actionType)
     {
         return actionType is
@@ -207,24 +199,6 @@ public class EditorActionValidator : IEditorActionValidator
             EditorActionType.MouseClick or
             EditorActionType.MouseDown or
             EditorActionType.MouseUp;
-    }
-
-    private static bool UsesGlobalCoordinateMode(EditorAction action)
-    {
-        if (!UsesCoordinateMode(action.Type))
-        {
-            return false;
-        }
-
-        // Current-position mouse button actions resolve from live cursor and should
-        // not force other coordinate actions to switch absolute/relative mode.
-        return !IsCurrentPositionMouseButtonAction(action);
-    }
-
-    private static bool IsCurrentPositionMouseButtonAction(EditorAction action)
-    {
-        return action.Type is EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp
-            && action.UseCurrentPosition;
     }
     
     private static (bool IsValid, string? Error) ValidateTextInput(EditorAction action)

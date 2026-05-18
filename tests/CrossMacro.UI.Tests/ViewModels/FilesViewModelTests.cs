@@ -343,8 +343,9 @@ public class FilesViewModelTests
         saveCompletion.SetResult(true);
         await saveTask;
 
-        savedMacro.Should().BeSameAs(firstMacro);
+        savedMacro.Should().NotBeSameAs(firstMacro);
         savedMacro!.Name.Should().Be("Pinned First Macro");
+        firstMacro.Name.Should().Be("Pinned First Macro");
         savedPath.Should().Be("/path/to/first.macro");
         firstItem!.SourcePath.Should().Be("/path/to/first.macro");
         secondItem!.SourcePath.Should().BeNull();
@@ -375,12 +376,92 @@ public class FilesViewModelTests
 
         await _viewModel.SaveMacroAsync();
 
-        await _fileManager.Received(1).SaveAsync(macro, "/path/to/MyMacro.macro");
+        await _fileManager.Received(1).SaveAsync(
+            Arg.Is<MacroSequence>(saved => !ReferenceEquals(saved, macro) && saved.Name == "MyMacro"),
+            "/path/to/MyMacro.macro");
         _viewModel.Status.Should().Contain("[Files_StatusSavedTo]");
         _viewModel.Status.Should().Contain("MyMacro.macro");
         macro.Name.Should().Be("MyMacro");
         _viewModel.SelectedMacroItem!.SourcePath.Should().Be("/path/to/MyMacro.macro");
         _viewModel.SelectedMacroItem.Description.Should().Contain("MyMacro.macro");
+    }
+
+    [Fact]
+    public async Task SaveMacroAsync_WhenCurrentPositionEventHasStaleCoordinates_SavesNormalizedClone()
+    {
+        var macro = new MacroSequence
+        {
+            Name = "Stale Current Position",
+            Events =
+            [
+                new MacroEvent
+                {
+                    Type = EventType.Click,
+                    Button = MouseButton.Left,
+                    UseCurrentPosition = true,
+                    X = 123,
+                    Y = 456,
+                    CoordinateMode = MouseCoordinateMode.Absolute
+                }
+            ]
+        };
+        _viewModel.SetMacro(macro);
+
+        _dialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .Returns(Task.FromResult<string?>("/path/to/stale.macro"));
+
+        MacroSequence? savedMacro = null;
+        _fileManager.SaveAsync(Arg.Do<MacroSequence>(saved => savedMacro = saved), "/path/to/stale.macro")
+            .Returns(Task.CompletedTask);
+
+        await _viewModel.SaveMacroAsync();
+
+        savedMacro.Should().NotBeNull();
+        savedMacro.Should().NotBeSameAs(macro);
+        savedMacro!.Events.Should().ContainSingle();
+        savedMacro.Events[0].X.Should().Be(0);
+        savedMacro.Events[0].Y.Should().Be(0);
+        savedMacro.Events[0].CoordinateMode.Should().BeNull();
+
+        macro.Events[0].X.Should().Be(123);
+        macro.Events[0].Y.Should().Be(456);
+        macro.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+    }
+
+    [Fact]
+    public async Task SaveMacroAsync_WhenOnlyAbsoluteEventIsCurrentPosition_RecomputesSnapshotAsNonAbsolute()
+    {
+        var macro = new MacroSequence
+        {
+            Name = "Current Position Only",
+            IsAbsoluteCoordinates = true,
+            Events =
+            [
+                new MacroEvent
+                {
+                    Type = EventType.Click,
+                    Button = MouseButton.Left,
+                    UseCurrentPosition = true,
+                    CoordinateMode = MouseCoordinateMode.Absolute,
+                    X = 77,
+                    Y = 88
+                }
+            ]
+        };
+        _viewModel.SetMacro(macro);
+        _dialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .Returns("/tmp/current-position-only.macro");
+
+        MacroSequence? saved = null;
+        _fileManager.SaveAsync(Arg.Do<MacroSequence>(m => saved = m), Arg.Any<string>())
+            .Returns(Task.CompletedTask);
+
+        await _viewModel.SaveMacroAsync();
+
+        saved.Should().NotBeNull();
+        saved!.IsAbsoluteCoordinates.Should().BeFalse();
+        saved.Events[0].CoordinateMode.Should().BeNull();
+        macro.IsAbsoluteCoordinates.Should().BeTrue();
     }
 
     [Fact]

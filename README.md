@@ -437,12 +437,13 @@ CrossMacro works on Wayland.
     - Wayfire IPC discovery checks `WAYFIRE_SOCKET`, then `XDG_RUNTIME_DIR`, then temp-directory socket candidates.
   - KDE Plasma (D-Bus)
   - GNOME (Shell Extension)
-- If an absolute cursor provider is unavailable, CrossMacro automatically falls back to relative-position mode.
+- Niri and COSMIC are detected for screen resolution only; they do not currently expose a safe absolute cursor-position API for recording.
+- If an absolute cursor provider is unavailable, CrossMacro automatically falls back to relative-position mode for recording. Macros that contain absolute-coordinate events require an absolute-capable backend for playback.
 - You can force relative mode with **Force Relative Coordinates**.
 - You can disable origin move at recording start with **Skip Initial 0,0 Position**.
 - For the smoothest relative-position playback, disable pointer acceleration and use a flat pointer profile in your desktop or compositor settings; accelerated profiles can distort replayed movement deltas.
 
-Both absolute and relative modes support macro recording and playback.
+Absolute and relative coordinate events can be mixed in one macro. Current-position clicks do not carry coordinates and execute at the live cursor position.
 
 </details>
 

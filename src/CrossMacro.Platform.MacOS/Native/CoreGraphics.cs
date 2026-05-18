@@ -92,18 +92,19 @@ internal static class CoreGraphics
         [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.U2)] ushort[] unicodeString);
     
     // Text Input Source (TIS) functions for keyboard layout
-    private const string CarbonLib = "/System/Library/Frameworks/Carbon.framework/Carbon";
+    private const string CarbonCoreLib = "/System/Library/Frameworks/CoreServices.framework/Frameworks/CarbonCore.framework/CarbonCore";
+    private const string HIToolboxLib = "/System/Library/Frameworks/Carbon.framework/Frameworks/HIToolbox.framework/HIToolbox";
     
-    [DllImport(CarbonLib)]
+    [DllImport(HIToolboxLib)]
     public static extern IntPtr TISCopyCurrentKeyboardInputSource();
     
-    [DllImport(CarbonLib)]
+    [DllImport(HIToolboxLib)]
     public static extern IntPtr TISCopyCurrentKeyboardLayoutInputSource();
     
-    [DllImport(CarbonLib)]
+    [DllImport(HIToolboxLib)]
     public static extern IntPtr TISGetInputSourceProperty(IntPtr inputSource, IntPtr propertyKey);
 
-    [DllImport(CarbonLib)]
+    [DllImport(HIToolboxLib)]
     public static extern byte LMGetKbdType();
     
     // Property key for Unicode keyboard layout data - loaded at runtime
@@ -113,7 +114,7 @@ internal static class CoreGraphics
     {
         try
         {
-            IntPtr lib = NativeLibrary.Load(CarbonLib);
+            IntPtr lib = NativeLibrary.Load(HIToolboxLib);
             IntPtr addr = NativeLibrary.GetExport(lib, "kTISPropertyUnicodeKeyLayoutData");
             kTISPropertyUnicodeKeyLayoutData = Marshal.ReadIntPtr(addr);
         }
@@ -126,7 +127,7 @@ internal static class CoreGraphics
     /// <summary>
     /// UCKeyTranslate - converts keycode to unicode character
     /// </summary>
-    [DllImport(CarbonLib)]
+    [DllImport(CarbonCoreLib)]
     public static extern int UCKeyTranslate(
         IntPtr keyLayoutPtr,
         ushort virtualKeyCode,

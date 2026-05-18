@@ -1,20 +1,51 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
+using System.Threading;
 using CrossMacro.Core.Services;
 using CrossMacro.Platform.MacOS.Native;
 using CrossMacro.Platform.MacOS.Services;
 
 namespace CrossMacro.Platform.MacOS;
 
-public class MacKeyboardLayoutService : IKeyboardLayoutService
+public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
 {
     private Dictionary<char, (int KeyCode, bool Shift, bool AltGr)>? _charToInputCache;
     private readonly object _lock = new();
+    private readonly object _layoutLock = new();
+    private readonly Func<bool> _isMainThread;
+    private readonly SynchronizationContext? _mainThreadContext;
+    private readonly Func<(IntPtr LayoutData, IntPtr KeyboardLayout, byte KeyboardType)> _loadKeyboardLayoutData;
     
     // Cache for keyboard layout pointer
     private IntPtr _cachedKeyboardLayout = IntPtr.Zero;
-    private IntPtr _cachedInputSource = IntPtr.Zero;
+    private IntPtr _cachedLayoutData = IntPtr.Zero;
+    private byte _cachedKeyboardType;
+    private bool _disposed;
+
+    public MacKeyboardLayoutService()
+        : this(
+            MacOSMainThread.IsMainThread,
+            SynchronizationContext.Current,
+            LoadNativeKeyboardLayoutData,
+            warmOnConstruction: true)
+    {
+    }
+
+    internal MacKeyboardLayoutService(
+        Func<bool> isMainThread,
+        SynchronizationContext? mainThreadContext,
+        Func<(IntPtr LayoutData, IntPtr KeyboardLayout, byte KeyboardType)> loadKeyboardLayoutData,
+        bool warmOnConstruction)
+    {
+        _isMainThread = isMainThread;
+        _mainThreadContext = mainThreadContext;
+        _loadKeyboardLayoutData = loadKeyboardLayoutData;
+
+        if (warmOnConstruction && _isMainThread())
+        {
+            LoadAndCacheKeyboardLayoutData();
+        }
+    }
 
     public string GetKeyName(int keyCode)
     {
@@ -155,8 +186,7 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService
             if (macKeyCode == 0xFFFF) return null;
             
             // Get keyboard layout
-            IntPtr layoutData = GetKeyboardLayoutData();
-            if (layoutData == IntPtr.Zero) return null;
+            if (GetKeyboardLayoutData() == IntPtr.Zero) return null;
             
             // Build modifier state for UCKeyTranslate
             // Mac modifier format: bits for shift, option, control, command
@@ -173,17 +203,26 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService
             ushort[] output = new ushort[4];
             nuint actualLength;
             
-            int result = CoreGraphics.UCKeyTranslate(
-                layoutData,
-                macKeyCode,
-                CoreGraphics.kUCKeyActionDown,
-                modifierState,
-                CoreGraphics.LMGetKbdType(),
-                CoreGraphics.kUCKeyTranslateNoDeadKeysMask,
-                ref deadKeyState,
-                (nuint)output.Length,
-                out actualLength,
-                output);
+            int result;
+            lock (_layoutLock)
+            {
+                if (_disposed || _cachedKeyboardLayout == IntPtr.Zero)
+                {
+                    return null;
+                }
+
+                result = CoreGraphics.UCKeyTranslate(
+                    _cachedKeyboardLayout,
+                    macKeyCode,
+                    CoreGraphics.kUCKeyActionDown,
+                    modifierState,
+                    _cachedKeyboardType,
+                    CoreGraphics.kUCKeyTranslateNoDeadKeysMask,
+                    ref deadKeyState,
+                    (nuint)output.Length,
+                    out actualLength,
+                    output);
+            }
             
             char translated = (char)output[0];
             if (result == 0 && actualLength > 0 && !char.IsControl(translated))
@@ -203,18 +242,23 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService
     {
         lock (_lock)
         {
-            if (_charToInputCache == null)
+            if (_charToInputCache == null && !BuildCharInputCache())
             {
-                BuildCharInputCache();
+                return null;
             }
 
             return _charToInputCache!.TryGetValue(c, out var input) ? input : null;
         }
     }
 
-    private void BuildCharInputCache()
+    private bool BuildCharInputCache()
     {
-        _charToInputCache = new Dictionary<char, (int KeyCode, bool Shift, bool AltGr)>();
+        if (GetKeyboardLayoutData() == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        var charToInputCache = new Dictionary<char, (int KeyCode, bool Shift, bool AltGr)>();
 
         // Scan all key codes with different modifiers
         for (int code = 1; code < 128; code++)
@@ -222,64 +266,217 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService
             if (IsModifier(code)) continue;
 
             // No modifiers
-            TryAddCharToCache(code, false, false);
+            TryAddCharToCache(charToInputCache, code, false, false);
             // Shift
-            TryAddCharToCache(code, true, false);
+            TryAddCharToCache(charToInputCache, code, true, false);
             // Option (AltGr equivalent on Mac)
-            TryAddCharToCache(code, false, true);
+            TryAddCharToCache(charToInputCache, code, false, true);
             // Shift + Option
-            TryAddCharToCache(code, true, true);
+            TryAddCharToCache(charToInputCache, code, true, true);
         }
+
+        _charToInputCache = charToInputCache;
+        return true;
     }
 
-    private void TryAddCharToCache(int code, bool shift, bool option)
+    private void TryAddCharToCache(Dictionary<char, (int KeyCode, bool Shift, bool AltGr)> charToInputCache, int code, bool shift, bool option)
     {
         var c = GetCharFromKeyCode(code, shift, false, option, false, false, false);
-        if (c.HasValue && !_charToInputCache!.ContainsKey(c.Value))
+        if (c.HasValue && !charToInputCache.ContainsKey(c.Value))
         {
-            _charToInputCache[c.Value] = (code, shift, option);
+            charToInputCache[c.Value] = (code, shift, option);
         }
     }
 
     private IntPtr GetKeyboardLayoutData()
     {
-        if (_cachedKeyboardLayout != IntPtr.Zero)
-            return _cachedKeyboardLayout;
+        lock (_layoutLock)
+        {
+            if (_disposed)
+            {
+                return IntPtr.Zero;
+            }
 
+            if (_cachedKeyboardLayout != IntPtr.Zero)
+            {
+                return _cachedKeyboardLayout;
+            }
+        }
+
+        if (_isMainThread())
+        {
+            return LoadAndCacheKeyboardLayoutData();
+        }
+
+        if (_mainThreadContext == null)
+        {
+            return IntPtr.Zero;
+        }
+
+        IntPtr layoutData = IntPtr.Zero;
         try
         {
-            // Get current keyboard input source
-            IntPtr inputSource = CoreGraphics.TISCopyCurrentKeyboardLayoutInputSource();
-            if (inputSource == IntPtr.Zero)
-            {
-                inputSource = CoreGraphics.TISCopyCurrentKeyboardInputSource();
-            }
-            
-            if (inputSource == IntPtr.Zero) return IntPtr.Zero;
-            
-            _cachedInputSource = inputSource;
-            
-            // Get the property key for keyboard layout data
-            IntPtr propertyKey = CoreGraphics.kTISPropertyUnicodeKeyLayoutData;
-            if (propertyKey == IntPtr.Zero) return IntPtr.Zero;
-            
-            // Get the layout data
-            IntPtr layoutData = CoreGraphics.TISGetInputSourceProperty(inputSource, propertyKey);
-            if (layoutData == IntPtr.Zero) return IntPtr.Zero;
-            
-            // Get the actual byte pointer from CFData
-            _cachedKeyboardLayout = CoreFoundation.CFDataGetBytePtr(layoutData);
-            
-            return _cachedKeyboardLayout;
+            _mainThreadContext.Send(_ => layoutData = LoadAndCacheKeyboardLayoutData(), null);
         }
         catch
         {
             return IntPtr.Zero;
         }
+
+        return layoutData;
+    }
+
+    private IntPtr LoadAndCacheKeyboardLayoutData()
+    {
+        lock (_layoutLock)
+        {
+            if (_disposed)
+            {
+                return IntPtr.Zero;
+            }
+
+            if (_cachedKeyboardLayout != IntPtr.Zero)
+            {
+                return _cachedKeyboardLayout;
+            }
+
+            if (!_isMainThread())
+            {
+                return IntPtr.Zero;
+            }
+
+            var layoutData = _loadKeyboardLayoutData();
+            _cachedLayoutData = layoutData.LayoutData;
+            _cachedKeyboardLayout = layoutData.KeyboardLayout;
+            _cachedKeyboardType = layoutData.KeyboardType;
+            return _cachedKeyboardLayout;
+        }
+    }
+
+    private static (IntPtr LayoutData, IntPtr KeyboardLayout, byte KeyboardType) LoadNativeKeyboardLayoutData()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return default;
+        }
+
+        IntPtr inputSource = IntPtr.Zero;
+        IntPtr retainedLayoutData = IntPtr.Zero;
+
+        try
+        {
+            // Get current keyboard input source
+            inputSource = CoreGraphics.TISCopyCurrentKeyboardLayoutInputSource();
+            if (inputSource == IntPtr.Zero)
+            {
+                inputSource = CoreGraphics.TISCopyCurrentKeyboardInputSource();
+            }
+            
+            if (inputSource == IntPtr.Zero) return default;
+
+            // Get the property key for keyboard layout data
+            IntPtr propertyKey = CoreGraphics.kTISPropertyUnicodeKeyLayoutData;
+            if (propertyKey == IntPtr.Zero)
+            {
+                ReleaseInputSource(ref inputSource);
+                return default;
+            }
+            
+            // Get the layout data
+            IntPtr layoutData = CoreGraphics.TISGetInputSourceProperty(inputSource, propertyKey);
+            if (layoutData == IntPtr.Zero)
+            {
+                ReleaseInputSource(ref inputSource);
+                return default;
+            }
+
+            retainedLayoutData = CoreFoundation.CFRetain(layoutData);
+            if (retainedLayoutData == IntPtr.Zero)
+            {
+                ReleaseInputSource(ref inputSource);
+                return default;
+            }
+            
+            // Get the actual byte pointer from CFData
+            var keyboardLayout = CoreFoundation.CFDataGetBytePtr(retainedLayoutData);
+            if (keyboardLayout == IntPtr.Zero)
+            {
+                ReleaseLayoutData(ref retainedLayoutData);
+                ReleaseInputSource(ref inputSource);
+                return default;
+            }
+
+            var keyboardType = CoreGraphics.LMGetKbdType();
+            ReleaseInputSource(ref inputSource);
+
+            return (retainedLayoutData, keyboardLayout, keyboardType);
+        }
+        catch
+        {
+            if (retainedLayoutData != IntPtr.Zero)
+            {
+                ReleaseLayoutData(ref retainedLayoutData);
+            }
+
+            if (inputSource != IntPtr.Zero)
+            {
+                ReleaseInputSource(ref inputSource);
+            }
+
+            return default;
+        }
+    }
+
+    private static void ReleaseInputSource(ref IntPtr inputSource)
+    {
+        if (inputSource == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var sourceToRelease = inputSource;
+        inputSource = IntPtr.Zero;
+        CoreFoundation.CFRelease(sourceToRelease);
+    }
+
+    private static void ReleaseLayoutData(ref IntPtr layoutData)
+    {
+        if (layoutData == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var dataToRelease = layoutData;
+        layoutData = IntPtr.Zero;
+        CoreFoundation.CFRelease(dataToRelease);
     }
 
     private static bool IsModifier(int keyCode)
     {
         return keyCode is 29 or 97 or 42 or 54 or 56 or 100 or 125 or 126;
+    }
+
+    public void Dispose()
+    {
+        lock (_layoutLock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+
+            if (_cachedLayoutData != IntPtr.Zero && OperatingSystem.IsMacOS())
+            {
+                CoreFoundation.CFRelease(_cachedLayoutData);
+            }
+
+            _cachedLayoutData = IntPtr.Zero;
+            _cachedKeyboardLayout = IntPtr.Zero;
+            _cachedKeyboardType = 0;
+        }
+
+        GC.SuppressFinalize(this);
     }
 }

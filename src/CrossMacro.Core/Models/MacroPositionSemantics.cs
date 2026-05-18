@@ -28,6 +28,77 @@ public static class MacroPositionSemantics
         return ev.UseCurrentPosition || (useLegacyInterpretation && ev.X == 0 && ev.Y == 0);
     }
 
+    public static bool IsCoordinateBearing(MacroEvent ev)
+    {
+        if (ev.Type == EventType.MouseMove)
+        {
+            return true;
+        }
+
+        return IsNonScrollMouseButtonEvent(ev) && !ev.UseCurrentPosition;
+    }
+
+    public static bool HasExplicitCoordinateMode(MacroEvent ev)
+    {
+        return IsCoordinateBearing(ev) && ev.CoordinateMode.HasValue;
+    }
+
+    public static MouseCoordinateMode? ResolveCoordinateMode(MacroEvent ev, bool legacyIsAbsolute)
+    {
+        if (!IsCoordinateBearing(ev))
+        {
+            return null;
+        }
+
+        return ev.CoordinateMode ?? (legacyIsAbsolute ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative);
+    }
+
+    public static bool HasAnyAbsoluteCoordinateEvents(MacroSequence macro)
+    {
+        if (macro == null)
+        {
+            return false;
+        }
+
+        return macro.Events.Any(ev => ResolveCoordinateMode(ev, macro.IsAbsoluteCoordinates) == MouseCoordinateMode.Absolute);
+    }
+
+    public static CoordinateModeSummary GetCoordinateModeSummary(MacroSequence macro)
+    {
+        if (macro == null)
+        {
+            return CoordinateModeSummary.None;
+        }
+
+        var hasAbsolute = false;
+        var hasRelative = false;
+
+        foreach (var ev in macro.Events)
+        {
+            switch (ResolveCoordinateMode(ev, macro.IsAbsoluteCoordinates))
+            {
+                case MouseCoordinateMode.Absolute:
+                    hasAbsolute = true;
+                    break;
+                case MouseCoordinateMode.Relative:
+                    hasRelative = true;
+                    break;
+            }
+
+            if (hasAbsolute && hasRelative)
+            {
+                return CoordinateModeSummary.Mixed;
+            }
+        }
+
+        if (hasAbsolute)
+        {
+            return CoordinateModeSummary.Absolute;
+        }
+
+        return hasRelative ? CoordinateModeSummary.Relative : CoordinateModeSummary.None;
+    }
+
     public static bool IsLegacyCurrentPositionMacro(MacroSequence macro)
     {
         if (macro == null

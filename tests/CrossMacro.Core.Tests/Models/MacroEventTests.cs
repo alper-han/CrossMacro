@@ -22,6 +22,7 @@ public class MacroEventTests
         ev.RandomDelayMinMs.Should().Be(0);
         ev.RandomDelayMaxMs.Should().Be(0);
         ev.KeyCode.Should().Be(0);
+        ev.CoordinateMode.Should().BeNull();
     }
 
     [Theory]
@@ -75,6 +76,20 @@ public class MacroEventTests
 
         ev.X.Should().Be(-100);
         ev.Y.Should().Be(-50);
+    }
+
+    [Theory]
+    [InlineData(MouseCoordinateMode.Absolute)]
+    [InlineData(MouseCoordinateMode.Relative)]
+    public void MacroEvent_CanSetCoordinateMode(MouseCoordinateMode coordinateMode)
+    {
+        var ev = new MacroEvent
+        {
+            Type = EventType.MouseMove,
+            CoordinateMode = coordinateMode
+        };
+
+        ev.CoordinateMode.Should().Be(coordinateMode);
     }
 
     [Fact]

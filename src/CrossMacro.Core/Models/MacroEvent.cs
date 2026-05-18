@@ -3,7 +3,7 @@ using System;
 namespace CrossMacro.Core.Models;
 
 /// <summary>
-/// Represents a single mouse event in a macro sequence
+/// Represents a single input event in a macro sequence.
 /// </summary>
 public struct MacroEvent
 {
@@ -13,17 +13,21 @@ public struct MacroEvent
     public EventType Type { get; set; }
     
     /// <summary>
-    /// X coordinate (for move events)
+    /// X coordinate or horizontal delta for coordinate-bearing mouse events.
+    /// The value is interpreted by the effective coordinate mode resolved from
+    /// <see cref="CoordinateMode" /> or the macro's legacy coordinate metadata.
     /// </summary>
     public int X { get; set; }
     
     /// <summary>
-    /// Y coordinate (for move events)
+    /// Y coordinate or vertical delta for coordinate-bearing mouse events.
+    /// The value is interpreted by the effective coordinate mode resolved from
+    /// <see cref="CoordinateMode" /> or the macro's legacy coordinate metadata.
     /// </summary>
     public int Y { get; set; }
     
     /// <summary>
-    /// Mouse button (for click events)
+    /// Mouse button for button press, button release, click, and scroll events.
     /// </summary>
     public MouseButton Button { get; set; }
     
@@ -53,10 +57,17 @@ public struct MacroEvent
     public int RandomDelayMaxMs { get; set; }
     
     /// <summary>
-    /// Keyboard key code (for key press/release events)
+    /// Keyboard key code for key press and key release events.
     /// Uses Linux input key codes (e.g., 30 = KEY_A, 57 = KEY_SPACE)
     /// </summary>
     public int KeyCode { get; set; }
+
+    /// <summary>
+    /// Optional event-level coordinate mode for coordinate-bearing mouse events.
+    /// When unset, the macro-wide legacy coordinate metadata is used as the fallback.
+    /// Ignored for keyboard events, scroll events, and current-position mouse button events.
+    /// </summary>
+    public MouseCoordinateMode? CoordinateMode { get; set; }
 
     /// <summary>
     /// Whether a non-scroll mouse button event should use the live cursor
@@ -86,7 +97,7 @@ public enum EventType
     ButtonRelease,
     
     /// <summary>
-    /// Mouse moved to absolute position
+    /// Mouse moved by coordinates or deltas interpreted by the effective coordinate mode.
     /// </summary>
     MouseMove,
     

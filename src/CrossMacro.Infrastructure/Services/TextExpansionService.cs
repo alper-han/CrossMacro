@@ -73,6 +73,7 @@ public class TextExpansionService : ITextExpansionService
 
             try
             {
+                _storageService.Load();
                 _isRunning = true;
                 _captureLifecycle.Start(
                     _inputCaptureFactory,

@@ -46,6 +46,96 @@ public class RunScriptCompilerTests
     }
 
     [Fact]
+    public void Compile_WhenAbsoluteAndRelativeMovesAreMixed_EmitsPerEventCoordinateModes()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("move abs 100 200"),
+            new RunScriptStep("move rel 10 -5")
+        ]);
+
+        result.Success.Should().BeTrue();
+        result.Sequence.Should().NotBeNull();
+        result.Sequence!.IsAbsoluteCoordinates.Should().BeFalse();
+        result.Sequence.Events.Should().HaveCount(2);
+        result.Sequence.Events.Select(e => (e.Type, e.X, e.Y, e.CoordinateMode)).Should().Equal(
+            (EventType.MouseMove, 100, 200, MouseCoordinateMode.Absolute),
+            (EventType.MouseMove, 10, -5, MouseCoordinateMode.Relative));
+        MacroPositionSemantics.GetCoordinateModeSummary(result.Sequence).Should().Be(CoordinateModeSummary.Mixed);
+    }
+
+    [Fact]
+    public void Compile_WhenRelativeMoveThenClick_EmitsRelativeButtonEventAtCurrentCoordinates()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("move rel 10 -5"),
+            new RunScriptStep("click left")
+        ]);
+
+        result.Success.Should().BeTrue();
+        result.Sequence.Should().NotBeNull();
+        result.Sequence!.Events.Should().HaveCount(2);
+        var click = result.Sequence.Events[1];
+        click.Type.Should().Be(EventType.Click);
+        click.Button.Should().Be(MouseButton.Left);
+        click.UseCurrentPosition.Should().BeFalse();
+        click.X.Should().Be(0);
+        click.Y.Should().Be(0);
+        click.CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+    }
+
+    [Fact]
+    public void Compile_WhenMixedMovesAndClicks_EmitsButtonEventsWithCurrentMoveMode()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("move abs 100 200"),
+            new RunScriptStep("click left"),
+            new RunScriptStep("move rel 10 -5"),
+            new RunScriptStep("click right")
+        ]);
+
+        result.Success.Should().BeTrue();
+        result.Sequence.Should().NotBeNull();
+        result.Sequence!.IsAbsoluteCoordinates.Should().BeFalse();
+        result.Sequence.Events.Should().HaveCount(4);
+        result.Sequence.Events.Select(e => (e.Type, e.Button, e.X, e.Y, e.CoordinateMode)).Should().Equal(
+            (EventType.MouseMove, MouseButton.None, 100, 200, MouseCoordinateMode.Absolute),
+            (EventType.Click, MouseButton.Left, 100, 200, MouseCoordinateMode.Absolute),
+            (EventType.MouseMove, MouseButton.None, 10, -5, MouseCoordinateMode.Relative),
+            (EventType.Click, MouseButton.Right, 0, 0, MouseCoordinateMode.Relative));
+        MacroPositionSemantics.GetCoordinateModeSummary(result.Sequence).Should().Be(CoordinateModeSummary.Mixed);
+    }
+
+    [Fact]
+    public void Compile_WhenCurrentClickFollowsAbsoluteMove_DoesNotAssignCoordinateMode()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("move abs 100 200"),
+            new RunScriptStep("click current left")
+        ]);
+
+        result.Success.Should().BeTrue();
+        result.Sequence.Should().NotBeNull();
+        var click = result.Sequence!.Events[1];
+        click.UseCurrentPosition.Should().BeTrue();
+        click.X.Should().Be(0);
+        click.Y.Should().Be(0);
+        click.CoordinateMode.Should().BeNull();
+    }
+
+    [Fact]
+    public void Compile_WhenMalformedAbsoluteMove_ReturnsFailure()
+    {
+        var result = _compiler.Compile([new RunScriptStep("move abs 100")]);
+
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("unsupported step syntax");
+    }
+
+    [Fact]
     public void Compile_WhenTypeStepRequiresAltGr_EmitsModifierWrappedKeyEvents()
     {
         var result = _compiler.Compile([new RunScriptStep("type @")]);

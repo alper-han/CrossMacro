@@ -201,7 +201,15 @@ public class MacroSequenceTests
             Name = "Original",
             Events = new List<MacroEvent>
             {
-                new() { Type = EventType.MouseMove, X = 10, Y = 20, Timestamp = 30, DelayMs = 40 }
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 10,
+                    Y = 20,
+                    Timestamp = 30,
+                    DelayMs = 40,
+                    CoordinateMode = MouseCoordinateMode.Absolute
+                }
             },
             ScriptSteps = new List<string> { "move 10 20" },
             TextInputBoundaries = new List<TextInputBoundary>
@@ -230,6 +238,7 @@ public class MacroSequenceTests
         clone.Should().NotBeSameAs(original);
         clone.Should().BeEquivalentTo(original);
         clone.Events.Should().NotBeSameAs(original.Events);
+        clone.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
         clone.ScriptSteps.Should().NotBeSameAs(original.ScriptSteps);
         clone.TextInputBoundaries.Should().NotBeSameAs(original.TextInputBoundaries);
 

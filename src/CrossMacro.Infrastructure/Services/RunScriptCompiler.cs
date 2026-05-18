@@ -119,11 +119,10 @@ public sealed class RunScriptCompiler
         var initialRandomDelayMinMs = 0;
         var initialRandomDelayMaxMs = 0;
         var hasEvents = false;
-        bool? moveIsAbsolute = null;
+        MouseCoordinateMode? currentMoveMode = null;
         var hasAbsoluteCursorPosition = false;
         var absoluteCursorX = 0;
         var absoluteCursorY = 0;
-        var hasUnpositionedMouseButtonSteps = false;
 
         for (var i = 0; i < expandedSteps.Count; i++)
         {
@@ -172,23 +171,13 @@ public sealed class RunScriptCompiler
 
                 if (TryParseMove(step, out var isAbsolute, out var x, out var y))
                 {
-                    if (moveIsAbsolute.HasValue && moveIsAbsolute.Value != isAbsolute)
-                    {
-                        return RunScriptCompileResult.Fail($"{stepPrefix}: cannot mix absolute and relative move modes in a single run script.");
-                    }
-
-                    if (isAbsolute && hasUnpositionedMouseButtonSteps)
-                    {
-                        return RunScriptCompileResult.Fail(
-                            $"{stepPrefix}: absolute mode cannot be introduced after click/down/up steps. Place 'move abs <x> <y>' before mouse button steps.");
-                    }
-
-                    moveIsAbsolute ??= isAbsolute;
+                    currentMoveMode = isAbsolute ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative;
                     EmitEvent(new MacroEvent
                     {
                         Type = EventType.MouseMove,
                         X = x,
-                        Y = y
+                        Y = y,
+                        CoordinateMode = currentMoveMode
                     });
 
                     if (isAbsolute)
@@ -196,6 +185,10 @@ public sealed class RunScriptCompiler
                         hasAbsoluteCursorPosition = true;
                         absoluteCursorX = x;
                         absoluteCursorY = y;
+                    }
+                    else
+                    {
+                        hasAbsoluteCursorPosition = false;
                     }
 
                     continue;
@@ -207,7 +200,7 @@ public sealed class RunScriptCompiler
                     {
                         Type = EventType.ButtonPress,
                         Button = downButton,
-                        UseCurrentPosition = isCurrentPositionDown || moveIsAbsolute == null
+                        UseCurrentPosition = isCurrentPositionDown || currentMoveMode == null
                     };
 
                     if (isCurrentPositionDown)
@@ -216,7 +209,7 @@ public sealed class RunScriptCompiler
                         continue;
                     }
 
-                    if (moveIsAbsolute == true)
+                    if (currentMoveMode == MouseCoordinateMode.Absolute)
                     {
                         if (!hasAbsoluteCursorPosition)
                         {
@@ -226,10 +219,11 @@ public sealed class RunScriptCompiler
 
                         downEvent.X = absoluteCursorX;
                         downEvent.Y = absoluteCursorY;
+                        downEvent.CoordinateMode = MouseCoordinateMode.Absolute;
                     }
-                    else if (moveIsAbsolute == null)
+                    else if (currentMoveMode == MouseCoordinateMode.Relative)
                     {
-                        hasUnpositionedMouseButtonSteps = true;
+                        downEvent.CoordinateMode = MouseCoordinateMode.Relative;
                     }
 
                     EmitEvent(downEvent);
@@ -242,7 +236,7 @@ public sealed class RunScriptCompiler
                     {
                         Type = EventType.ButtonRelease,
                         Button = upButton,
-                        UseCurrentPosition = isCurrentPositionUp || moveIsAbsolute == null
+                        UseCurrentPosition = isCurrentPositionUp || currentMoveMode == null
                     };
 
                     if (isCurrentPositionUp)
@@ -251,7 +245,7 @@ public sealed class RunScriptCompiler
                         continue;
                     }
 
-                    if (moveIsAbsolute == true)
+                    if (currentMoveMode == MouseCoordinateMode.Absolute)
                     {
                         if (!hasAbsoluteCursorPosition)
                         {
@@ -261,10 +255,11 @@ public sealed class RunScriptCompiler
 
                         upEvent.X = absoluteCursorX;
                         upEvent.Y = absoluteCursorY;
+                        upEvent.CoordinateMode = MouseCoordinateMode.Absolute;
                     }
-                    else if (moveIsAbsolute == null)
+                    else if (currentMoveMode == MouseCoordinateMode.Relative)
                     {
-                        hasUnpositionedMouseButtonSteps = true;
+                        upEvent.CoordinateMode = MouseCoordinateMode.Relative;
                     }
 
                     EmitEvent(upEvent);
@@ -277,7 +272,7 @@ public sealed class RunScriptCompiler
                     {
                         Type = EventType.Click,
                         Button = clickButton,
-                        UseCurrentPosition = isCurrentPositionClick || moveIsAbsolute == null
+                        UseCurrentPosition = isCurrentPositionClick || currentMoveMode == null
                     };
 
                     if (isCurrentPositionClick)
@@ -286,7 +281,7 @@ public sealed class RunScriptCompiler
                         continue;
                     }
 
-                    if (moveIsAbsolute == true)
+                    if (currentMoveMode == MouseCoordinateMode.Absolute)
                     {
                         if (!hasAbsoluteCursorPosition)
                         {
@@ -296,10 +291,11 @@ public sealed class RunScriptCompiler
 
                         clickEvent.X = absoluteCursorX;
                         clickEvent.Y = absoluteCursorY;
+                        clickEvent.CoordinateMode = MouseCoordinateMode.Absolute;
                     }
-                    else if (moveIsAbsolute == null)
+                    else if (currentMoveMode == MouseCoordinateMode.Relative)
                     {
-                        hasUnpositionedMouseButtonSteps = true;
+                        clickEvent.CoordinateMode = MouseCoordinateMode.Relative;
                     }
 
                     EmitEvent(clickEvent);
@@ -376,7 +372,7 @@ public sealed class RunScriptCompiler
                 "Run script did not produce any executable events. Add at least one runtime step (move/click/down/up/scroll/key/tap/type).");
         }
 
-        sequence.IsAbsoluteCoordinates = moveIsAbsolute ?? false;
+        sequence.IsAbsoluteCoordinates = MacroPositionSemantics.GetCoordinateModeSummary(sequence) == CoordinateModeSummary.Absolute;
         sequence.TrailingDelayMs = pendingFixedDelayMs;
         sequence.HasTrailingRandomDelay = pendingHasRandomDelay;
         sequence.TrailingDelayMinMs = pendingRandomDelayMinMs;

@@ -48,10 +48,13 @@ public class MacroFileManager : IMacroFileManager
         using var writer = new StreamWriter(filePath);
         
         // Write Header
+        // TODO: Deprecate # IsAbsolute once all supported .macro files carry explicit per-event coordinate mode tokens.
+        // It must remain for now as the legacy fallback for old token-less coordinate events.
+        var legacyHeaderIsAbsolute = GetLegacyHeaderCoordinateMode(macro);
         await writer.WriteLineAsync($"# Name: {macro.Name}");
         await writer.WriteLineAsync($"# Created: {macro.CreatedAt:O}");
         await writer.WriteLineAsync($"# DurationMs: {macro.TotalDurationMs}");
-        await writer.WriteLineAsync($"# IsAbsolute: {macro.IsAbsoluteCoordinates}");
+        await writer.WriteLineAsync($"# IsAbsolute: {legacyHeaderIsAbsolute}");
         await writer.WriteLineAsync($"# SkipInitialZero: {macro.SkipInitialZeroZero}");
         if (macro.TrailingDelayMs > 0)
         {
@@ -100,8 +103,7 @@ public class MacroFileManager : IMacroFileManager
             switch (ev.Type)
             {
                 case EventType.MouseMove:
-                    // Format: M,X,Y
-                    await writer.WriteLineAsync($"M,{ev.X},{ev.Y}");
+                    await writer.WriteLineAsync(BuildMouseMoveLine(ev));
                     break;
                     
                 case EventType.ButtonPress:
@@ -134,9 +136,49 @@ public class MacroFileManager : IMacroFileManager
 
     private static string BuildMouseButtonLine(string command, MacroEvent ev)
     {
-        return ev.UseCurrentPosition
-            ? $"{command},{ev.X},{ev.Y},{ev.Button},CurrentPosition"
-            : $"{command},{ev.X},{ev.Y},{ev.Button}";
+        if (ev.UseCurrentPosition)
+        {
+            return $"{command},{ev.X},{ev.Y},{ev.Button},CurrentPosition";
+        }
+
+        if (MacroPositionSemantics.IsNonScrollMouseButtonEvent(ev) && ev.CoordinateMode.HasValue)
+        {
+            return $"{command},{ToCoordinateModeToken(ev.CoordinateMode.Value)},{ev.X},{ev.Y},{ev.Button}";
+        }
+
+        return $"{command},{ev.X},{ev.Y},{ev.Button}";
+    }
+
+    private static string BuildMouseMoveLine(MacroEvent ev)
+    {
+        return ev.CoordinateMode.HasValue
+            ? $"M,{ToCoordinateModeToken(ev.CoordinateMode.Value)},{ev.X},{ev.Y}"
+            : $"M,{ev.X},{ev.Y}";
+    }
+
+    private static bool GetLegacyHeaderCoordinateMode(MacroSequence macro)
+    {
+        if (macro.Events.Any(ev => MacroPositionSemantics.IsCoordinateBearing(ev)
+            && !MacroPositionSemantics.HasExplicitCoordinateMode(ev)))
+        {
+            return macro.IsAbsoluteCoordinates;
+        }
+
+        // Event-level coordinate mode wins; the header remains legacy/default metadata.
+        foreach (var ev in macro.Events)
+        {
+            if (MacroPositionSemantics.HasExplicitCoordinateMode(ev))
+            {
+                return ev.CoordinateMode == MouseCoordinateMode.Absolute;
+            }
+        }
+
+        return macro.IsAbsoluteCoordinates;
+    }
+
+    private static string ToCoordinateModeToken(MouseCoordinateMode mode)
+    {
+        return mode == MouseCoordinateMode.Absolute ? "abs" : "rel";
     }
     
     /// <summary>
@@ -275,9 +317,22 @@ public class MacroFileManager : IMacroFileManager
                 // Handle Move
                 if ((type == "M" || type == "MOVE") && parts.Length >= 3)
                 {
+                    var coordinateIndex = 1;
+                    if (!int.TryParse(parts[coordinateIndex], out var x))
+                    {
+                        if (parts.Length < 4 || !TryParseCoordinateMode(parts[coordinateIndex], out var mode))
+                        {
+                            throw new FormatException($"Invalid coordinate mode token '{parts[coordinateIndex]}'");
+                        }
+
+                        ev.CoordinateMode = mode;
+                        coordinateIndex++;
+                        x = int.Parse(parts[coordinateIndex]);
+                    }
+
                     ev.Type = EventType.MouseMove;
-                    ev.X = int.Parse(parts[1]);
-                    ev.Y = int.Parse(parts[2]);
+                    ev.X = x;
+                    ev.Y = int.Parse(parts[coordinateIndex + 1]);
                     ev.Button = MouseButton.None;
                     validEvent = true;
                 }
@@ -286,6 +341,20 @@ public class MacroFileManager : IMacroFileManager
                           type == "R" || type == "RELEASE" || 
                           type == "C" || type == "CLICK") && parts.Length >= 4)
                 {
+                    var coordinateIndex = 1;
+                    MouseCoordinateMode? coordinateMode = null;
+                    if (!int.TryParse(parts[coordinateIndex], out var x))
+                    {
+                        if (parts.Length < 5 || !TryParseCoordinateMode(parts[coordinateIndex], out var mode))
+                        {
+                            throw new FormatException($"Invalid coordinate mode token '{parts[coordinateIndex]}'");
+                        }
+
+                        coordinateMode = mode;
+                        coordinateIndex++;
+                        x = int.Parse(parts[coordinateIndex]);
+                    }
+
                     ev.Type = type switch 
                     {
                         "P" or "PRESS" => EventType.ButtonPress,
@@ -293,10 +362,15 @@ public class MacroFileManager : IMacroFileManager
                         "C" or "CLICK" => EventType.Click,
                         _ => EventType.Click
                     };
-                    ev.X = int.Parse(parts[1]);
-                    ev.Y = int.Parse(parts[2]);
-                    ev.Button = Enum.Parse<MouseButton>(parts[3]);
-                    ev.UseCurrentPosition = parts.Length >= 5 && IsCurrentPositionToken(parts[4]);
+                    ev.X = x;
+                    ev.Y = int.Parse(parts[coordinateIndex + 1]);
+                    ev.Button = Enum.Parse<MouseButton>(parts[coordinateIndex + 2]);
+                    ev.UseCurrentPosition = parts.Length > coordinateIndex + 3 && IsCurrentPositionToken(parts[coordinateIndex + 3]);
+                    if (!ev.UseCurrentPosition && MacroPositionSemantics.IsNonScrollMouseButtonEvent(ev))
+                    {
+                        ev.CoordinateMode = coordinateMode;
+                    }
+
                     validEvent = true;
                 }
                 // Handle Keyboard Events
@@ -379,6 +453,27 @@ public class MacroFileManager : IMacroFileManager
             || token.Trim().Equals("1", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool TryParseCoordinateMode(string token, out MouseCoordinateMode mode)
+    {
+        var normalized = token.Trim();
+        if (normalized.Equals("abs", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("absolute", StringComparison.OrdinalIgnoreCase))
+        {
+            mode = MouseCoordinateMode.Absolute;
+            return true;
+        }
+
+        if (normalized.Equals("rel", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("relative", StringComparison.OrdinalIgnoreCase))
+        {
+            mode = MouseCoordinateMode.Relative;
+            return true;
+        }
+
+        mode = default;
+        return false;
+    }
+
     private static void MarkLegacyCurrentPositionEvents(MacroSequence macro)
     {
         if (macro.IsAbsoluteCoordinates
@@ -407,6 +502,11 @@ public class MacroFileManager : IMacroFileManager
             if (!MacroPositionSemantics.IsNonScrollMouseButtonEvent(ev))
             {
                 continue;
+            }
+
+            if (MacroPositionSemantics.HasExplicitCoordinateMode(ev))
+            {
+                break;
             }
 
             if (ev.X != 0 || ev.Y != 0)

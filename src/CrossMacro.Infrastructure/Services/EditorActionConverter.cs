@@ -38,7 +38,8 @@ public class EditorActionConverter : IEditorActionConverter
                     Type = EventType.MouseMove,
                     X = action.X,
                     Y = action.Y,
-                    DelayMs = action.DelayMs
+                    DelayMs = action.DelayMs,
+                    CoordinateMode = action.IsAbsolute ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative
                 });
                 break;
                 
@@ -50,7 +51,8 @@ public class EditorActionConverter : IEditorActionConverter
                     Y = action.UseCurrentPosition ? 0 : action.Y,
                     Button = action.Button,
                     DelayMs = action.DelayMs,
-                    UseCurrentPosition = action.UseCurrentPosition
+                    UseCurrentPosition = action.UseCurrentPosition,
+                    CoordinateMode = GetCoordinateMode(action)
                 });
                 break;
                 
@@ -62,7 +64,8 @@ public class EditorActionConverter : IEditorActionConverter
                     Y = action.UseCurrentPosition ? 0 : action.Y,
                     Button = action.Button,
                     DelayMs = action.DelayMs,
-                    UseCurrentPosition = action.UseCurrentPosition
+                    UseCurrentPosition = action.UseCurrentPosition,
+                    CoordinateMode = GetCoordinateMode(action)
                 });
                 break;
                 
@@ -74,7 +77,8 @@ public class EditorActionConverter : IEditorActionConverter
                     Y = action.UseCurrentPosition ? 0 : action.Y,
                     Button = action.Button,
                     DelayMs = action.DelayMs,
-                    UseCurrentPosition = action.UseCurrentPosition
+                    UseCurrentPosition = action.UseCurrentPosition,
+                    CoordinateMode = GetCoordinateMode(action)
                 });
                 break;
                 
@@ -152,6 +156,13 @@ public class EditorActionConverter : IEditorActionConverter
                 break;
                 
             case EditorActionType.TextInput:
+                var preservedTextInputEvents = action.GetPreservedTextInputEvents();
+                if (preservedTextInputEvents != null)
+                {
+                    events.AddRange(preservedTextInputEvents.Select(CloneEvent));
+                    break;
+                }
+
                 bool isFirst = true;
                 foreach (var c in action.Text)
                 {
@@ -238,6 +249,31 @@ public class EditorActionConverter : IEditorActionConverter
         
         return events;
     }
+
+    private static MouseCoordinateMode? GetCoordinateMode(EditorAction action)
+    {
+        if (action.UseCurrentPosition || IsScrollButton(action.Button))
+        {
+            return null;
+        }
+
+        return action.IsAbsolute ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative;
+    }
+
+    private static MacroEvent CloneEvent(MacroEvent ev)
+    {
+        return ev;
+    }
+
+    private EditorAction CreateKeyAction(EditorActionType type, int keyCode)
+    {
+        return new EditorAction
+        {
+            Type = type,
+            KeyCode = keyCode,
+            KeyName = _keyCodeMapper.GetKeyName(keyCode)
+        };
+    }
     
     /// <inheritdoc/>
     public EditorAction FromMacroEvent(MacroEvent ev, MacroEvent? nextEvent = null)
@@ -256,7 +292,10 @@ public class EditorActionConverter : IEditorActionConverter
                 action.Type = EditorActionType.MouseMove;
                 action.X = ev.X;
                 action.Y = ev.Y;
-                // IsAbsolute will be set based on sequence metadata
+                if (ev.CoordinateMode.HasValue)
+                {
+                    action.IsAbsolute = ev.CoordinateMode.Value == MouseCoordinateMode.Absolute;
+                }
                 break;
                 
             case EventType.Click:
@@ -273,6 +312,11 @@ public class EditorActionConverter : IEditorActionConverter
                     action.X = ev.X;
                     action.Y = ev.Y;
                     action.Button = ev.Button;
+                    action.UseCurrentPosition = ev.UseCurrentPosition;
+                    if (ev.CoordinateMode.HasValue)
+                    {
+                        action.IsAbsolute = ev.CoordinateMode.Value == MouseCoordinateMode.Absolute;
+                    }
                 }
                 break;
                 
@@ -282,6 +326,10 @@ public class EditorActionConverter : IEditorActionConverter
                 action.Y = ev.Y;
                 action.Button = ev.Button;
                 action.UseCurrentPosition = ev.UseCurrentPosition;
+                if (ev.CoordinateMode.HasValue)
+                {
+                    action.IsAbsolute = ev.CoordinateMode.Value == MouseCoordinateMode.Absolute;
+                }
                 break;
                 
             case EventType.ButtonRelease:
@@ -290,6 +338,10 @@ public class EditorActionConverter : IEditorActionConverter
                 action.Y = ev.Y;
                 action.Button = ev.Button;
                 action.UseCurrentPosition = ev.UseCurrentPosition;
+                if (ev.CoordinateMode.HasValue)
+                {
+                    action.IsAbsolute = ev.CoordinateMode.Value == MouseCoordinateMode.Absolute;
+                }
                 break;
                 
             case EventType.KeyPress:
@@ -303,11 +355,13 @@ public class EditorActionConverter : IEditorActionConverter
                     action.Type = EditorActionType.KeyDown;
                 }
                 action.KeyCode = ev.KeyCode;
+                action.KeyName = _keyCodeMapper.GetKeyName(ev.KeyCode);
                 break;
                 
             case EventType.KeyRelease:
                 action.Type = EditorActionType.KeyUp;
                 action.KeyCode = ev.KeyCode;
+                action.KeyName = _keyCodeMapper.GetKeyName(ev.KeyCode);
                 break;
                 
             default:
@@ -848,11 +902,16 @@ public class EditorActionConverter : IEditorActionConverter
                     ev.HasRandomDelay,
                     ev.RandomDelayMinMs,
                     ev.RandomDelayMaxMs);
-                actions.Add(new EditorAction
+                var textInputAction = new EditorAction
                 {
                     Type = EditorActionType.TextInput,
                     Text = textInputBoundary.Text
-                });
+                };
+                textInputAction.PreserveTextInputEvents(CopyBoundaryEventsWithoutLeadingDelay(
+                    events,
+                    textInputBoundary.StartEventIndex,
+                    textInputBoundary.EventCount));
+                actions.Add(textInputAction);
                 i += textInputBoundary.EventCount - 1;
                 continue;
             }
@@ -865,44 +924,16 @@ public class EditorActionConverter : IEditorActionConverter
                 {
                     continue; // Already merged
                 }
-                if (prevAction?.Type == EditorActionType.TextInput)
-                {
-                    continue; // Part of text input sequence
-                }
-            }
-            
-            // Try to detect and merge consecutive KeyPress events into TextInput
-            if (ev.Type == EventType.KeyPress && CanStartTextInputMerge(events, i))
-            {
-                var (textAction, consumed) = MergeConsecutiveKeyPresses(events, i);
-                if (textAction != null && consumed > 0)
-                {
-                    AppendDelayActions(
-                        actions,
-                        ev.DelayMs,
-                        ev.HasRandomDelay,
-                        ev.RandomDelayMinMs,
-                        ev.RandomDelayMaxMs);
-                    textAction.DelayMs = 0;
-                    textAction.UseRandomDelay = false;
-                    textAction.RandomDelayMinMs = 0;
-                    textAction.RandomDelayMaxMs = 0;
-                    actions.Add(textAction);
-                    i += consumed - 1; // -1 because loop will increment
-                    continue;
-                }
             }
             
             var action = FromMacroEvent(ev, nextEvent);
             
-            // Set IsAbsolute based on sequence metadata for coordinate-bearing mouse actions.
+            // Set IsAbsolute from event-level mode, falling back to legacy sequence metadata.
             if (action.Type is EditorActionType.MouseMove
                 or EditorActionType.MouseClick
                 or EditorActionType.MouseDown
                 or EditorActionType.MouseUp)
             {
-                action.IsAbsolute = sequence.IsAbsoluteCoordinates;
-
                 if ((action.Type is EditorActionType.MouseClick
                     or EditorActionType.MouseDown
                     or EditorActionType.MouseUp)
@@ -912,6 +943,11 @@ public class EditorActionConverter : IEditorActionConverter
                     action.IsAbsolute = false;
                     action.X = 0;
                     action.Y = 0;
+                }
+                else
+                {
+                    action.IsAbsolute = MacroPositionSemantics.ResolveCoordinateMode(ev, sequence.IsAbsoluteCoordinates)
+                        == MouseCoordinateMode.Absolute;
                 }
             }
 
@@ -1007,6 +1043,29 @@ public class EditorActionConverter : IEditorActionConverter
         return true;
     }
 
+    private static List<MacroEvent> CopyBoundaryEventsWithoutLeadingDelay(
+        IReadOnlyList<MacroEvent> events,
+        int startEventIndex,
+        int eventCount)
+    {
+        var preserved = new List<MacroEvent>(eventCount);
+        for (var offset = 0; offset < eventCount; offset++)
+        {
+            var ev = events[startEventIndex + offset];
+            if (offset == 0)
+            {
+                ev.DelayMs = 0;
+                ev.HasRandomDelay = false;
+                ev.RandomDelayMinMs = 0;
+                ev.RandomDelayMaxMs = 0;
+            }
+
+            preserved.Add(ev);
+        }
+
+        return preserved;
+    }
+
     private bool TryRestoreActionsFromScriptSteps(
         IReadOnlyList<string>? scriptSteps,
         out List<EditorAction> actions,
@@ -1022,6 +1081,7 @@ public class EditorActionConverter : IEditorActionConverter
         var hasAbsoluteCursorPosition = false;
         var absoluteCursorX = 0;
         var absoluteCursorY = 0;
+        MouseCoordinateMode? currentMoveMode = null;
 
         for (var index = 0; index < scriptSteps.Count; index++)
         {
@@ -1036,11 +1096,16 @@ public class EditorActionConverter : IEditorActionConverter
 
             if (TryParseMoveStep(step, out var isAbsoluteMove, out var moveX, out var moveY))
             {
+                currentMoveMode = isAbsoluteMove ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative;
                 if (isAbsoluteMove)
                 {
                     hasAbsoluteCursorPosition = true;
                     absoluteCursorX = moveX;
                     absoluteCursorY = moveY;
+                }
+                else
+                {
+                    hasAbsoluteCursorPosition = false;
                 }
 
                 actions.Add(new EditorAction
@@ -1065,7 +1130,7 @@ public class EditorActionConverter : IEditorActionConverter
                     continue;
                 }
 
-                if (hasAbsoluteCursorPosition)
+                if (currentMoveMode == MouseCoordinateMode.Absolute && hasAbsoluteCursorPosition)
                 {
                     actions.Add(CreatePositionedButtonAction(
                         currentButtonKeyword,
@@ -1076,27 +1141,30 @@ public class EditorActionConverter : IEditorActionConverter
                     continue;
                 }
 
+                if (currentMoveMode == MouseCoordinateMode.Relative)
+                {
+                    actions.Add(CreatePositionedButtonAction(
+                        currentButtonKeyword,
+                        currentButton,
+                        isAbsolute: false,
+                        0,
+                        0));
+                    continue;
+                }
+
                 actions.Add(CreateCurrentPositionButtonAction(currentButtonKeyword, currentButton));
                 continue;
             }
 
             if (TryParseTapStep(step, out var tapKeyCode))
             {
-                actions.Add(new EditorAction
-                {
-                    Type = EditorActionType.KeyPress,
-                    KeyCode = tapKeyCode
-                });
+                actions.Add(CreateKeyAction(EditorActionType.KeyPress, tapKeyCode));
                 continue;
             }
 
             if (TryParseKeyStep(step, out var keyActionType, out var keyCode))
             {
-                actions.Add(new EditorAction
-                {
-                    Type = keyActionType,
-                    KeyCode = keyCode
-                });
+                actions.Add(CreateKeyAction(keyActionType, keyCode));
                 continue;
             }
 
@@ -1981,88 +2049,6 @@ public class EditorActionConverter : IEditorActionConverter
         return EditorActionScriptTokens.IsValidVariableName(variableName);
     }
     
-    /// <summary>
-    /// Determines if the current position can start a TextInput merge.
-    /// Requires at least 2 consecutive printable character KeyPress events.
-    /// </summary>
-    private bool CanStartTextInputMerge(List<MacroEvent> events, int startIndex)
-    {
-        int printableCount = 0;
-        
-        for (int i = startIndex; i < events.Count && printableCount < 2; i++)
-        {
-            var ev = events[i];
-            
-            // Skip shift key events
-            if (IsShiftKey(ev.KeyCode))
-                continue;
-            
-            // Must be KeyPress or KeyRelease
-            if (ev.Type != EventType.KeyPress && ev.Type != EventType.KeyRelease)
-                break;
-            
-            // For KeyPress, check if it's a printable character
-            if (ev.Type == EventType.KeyPress)
-            {
-                var c = _keyCodeMapper.GetCharacterForKeyCode(ev.KeyCode, false);
-                if (!c.HasValue)
-                    break;
-                printableCount++;
-            }
-        }
-        
-        return printableCount >= 2;
-    }
-    
-    /// <summary>
-    /// Merges consecutive KeyPress events into a single TextInput action.
-    /// </summary>
-    private (EditorAction?, int) MergeConsecutiveKeyPresses(List<MacroEvent> events, int startIndex)
-    {
-        var text = new System.Text.StringBuilder();
-        int consumed = 0;
-        bool shiftActive = false;
-        
-        for (int i = startIndex; i < events.Count; i++)
-        {
-            var ev = events[i];
-            
-            // Track Shift state
-            if (IsShiftKey(ev.KeyCode))
-            {
-                shiftActive = ev.Type == EventType.KeyPress;
-                consumed++;
-                continue;
-            }
-            
-            // Only process KeyPress (skip KeyRelease)
-            if (ev.Type == EventType.KeyRelease)
-            {
-                consumed++;
-                continue;
-            }
-            
-            if (ev.Type != EventType.KeyPress)
-                break;
-            
-            var c = _keyCodeMapper.GetCharacterForKeyCode(ev.KeyCode, shiftActive);
-            if (!c.HasValue)
-                break;
-
-            text.Append(c.Value);
-            consumed++;
-        }
-        
-        if (text.Length < 2)
-            return (null, 0);
-        
-        return (new EditorAction
-        {
-            Type = EditorActionType.TextInput,
-            Text = text.ToString()
-        }, consumed);
-    }
-
     private static void AppendDelayActions(
         ICollection<EditorAction> actions,
         int fixedDelayMs,

@@ -47,6 +47,8 @@ public class EditorAction : INotifyPropertyChanged
     private ScriptNumericSourceType _forStepType = ScriptNumericSourceType.Number;
     private string _forStepValue = "1";
     private bool _preferLegacyScriptText;
+    private List<MacroEvent>? _preservedTextInputEvents;
+    private string? _preservedTextInputText;
     
     public event PropertyChangedEventHandler? PropertyChanged;
     
@@ -75,6 +77,11 @@ public class EditorAction : INotifyPropertyChanged
             if (_type != value)
             {
                 _type = value; 
+                if (value != EditorActionType.TextInput)
+                {
+                    ClearPreservedTextInputEvents();
+                }
+
                 if (!IsScriptPayloadAction(value))
                 {
                     _preferLegacyScriptText = false;
@@ -326,7 +333,13 @@ public class EditorAction : INotifyPropertyChanged
         { 
             if (_text != value)
             {
-                _text = value ?? string.Empty; 
+                var normalized = value ?? string.Empty;
+                _text = normalized;
+                if (Type == EditorActionType.TextInput && _preservedTextInputText != normalized)
+                {
+                    ClearPreservedTextInputEvents();
+                }
+
                 if (IsScriptPayloadAction(Type))
                 {
                     _preferLegacyScriptText = !string.IsNullOrWhiteSpace(_text);
@@ -345,6 +358,22 @@ public class EditorAction : INotifyPropertyChanged
     {
         get => _preferLegacyScriptText;
         set => _preferLegacyScriptText = value;
+    }
+
+    public IReadOnlyList<MacroEvent>? GetPreservedTextInputEvents()
+    {
+        return Type == EditorActionType.TextInput
+            && _preservedTextInputEvents is { Count: > 0 }
+            && _preservedTextInputText == Text
+            ? _preservedTextInputEvents
+            : null;
+    }
+
+    public void PreserveTextInputEvents(IEnumerable<MacroEvent> events)
+    {
+        ArgumentNullException.ThrowIfNull(events);
+        _preservedTextInputEvents = events.ToList();
+        _preservedTextInputText = Text;
     }
 
     /// <summary>
@@ -728,9 +757,14 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.MouseMove when IsAbsolute => $"Move to ({X}, {Y})",
             EditorActionType.MouseMove => $"Move by ({X:+#;-#;0}, {Y:+#;-#;0})",
             EditorActionType.MouseClick when UseCurrentPosition => $"Click {Button} at current position",
-            EditorActionType.MouseClick => $"Click {Button}",
-            EditorActionType.MouseDown => $"Hold {Button}",
-            EditorActionType.MouseUp => $"Release {Button}",
+            EditorActionType.MouseClick when IsAbsolute => $"Click {Button} at ({X}, {Y})",
+            EditorActionType.MouseClick => $"Click {Button} by ({X:+#;-#;0}, {Y:+#;-#;0})",
+            EditorActionType.MouseDown when UseCurrentPosition => $"Hold {Button} at current position",
+            EditorActionType.MouseDown when IsAbsolute => $"Hold {Button} at ({X}, {Y})",
+            EditorActionType.MouseDown => $"Hold {Button} by ({X:+#;-#;0}, {Y:+#;-#;0})",
+            EditorActionType.MouseUp when UseCurrentPosition => $"Release {Button} at current position",
+            EditorActionType.MouseUp when IsAbsolute => $"Release {Button} at ({X}, {Y})",
+            EditorActionType.MouseUp => $"Release {Button} by ({X:+#;-#;0}, {Y:+#;-#;0})",
             EditorActionType.KeyPress => $"Press '{KeyName ?? KeyCode.ToString()}'",
             EditorActionType.KeyDown => $"Hold '{KeyName ?? KeyCode.ToString()}'",
             EditorActionType.KeyUp => $"Release '{KeyName ?? KeyCode.ToString()}'",
@@ -794,7 +828,7 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.Delay => DelayMs >= 0,
             EditorActionType.KeyPress or EditorActionType.KeyDown or EditorActionType.KeyUp => KeyCode > 0,
             EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal => ScrollAmount != 0,
-            EditorActionType.MouseClick when UseCurrentPosition => !IsAbsolute,
+            EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp when UseCurrentPosition => !IsAbsolute,
             EditorActionType.TextInput => !string.IsNullOrWhiteSpace(Text),
             EditorActionType.SetVariable => UseLegacyScriptTextDisplay || ValidateSetVariableFields(),
             EditorActionType.IncrementVariable or EditorActionType.DecrementVariable => UseLegacyScriptTextDisplay || ValidateIncDecFields(),
@@ -844,11 +878,19 @@ public class EditorAction : INotifyPropertyChanged
             _forHasStep = ForHasStep,
             _forStepType = ForStepType,
             _forStepValue = ForStepValue,
-            _preferLegacyScriptText = PreferLegacyScriptText
+            _preferLegacyScriptText = PreferLegacyScriptText,
+            _preservedTextInputText = _preservedTextInputText,
+            _preservedTextInputEvents = _preservedTextInputEvents?.ToList()
         };
     }
 
     private bool UseLegacyScriptTextDisplay => PreferLegacyScriptText && !string.IsNullOrWhiteSpace(Text);
+
+    private void ClearPreservedTextInputEvents()
+    {
+        _preservedTextInputEvents = null;
+        _preservedTextInputText = null;
+    }
 
     private void MarkStructuredScriptEdited()
     {

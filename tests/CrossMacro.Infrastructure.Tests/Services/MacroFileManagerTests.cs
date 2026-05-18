@@ -448,6 +448,31 @@ C,0,0,Left";
     }
 
     [Fact]
+    public async Task Load_WhenExplicitRelativeZeroButtonEvent_DoesNotUpgradeToCurrentPosition()
+    {
+        // Arrange
+        var filePath = GetTempFilePath();
+        var content = @"# Name: Explicit Relative Zero Click
+# Created: 2024-01-01T00:00:00Z
+# DurationMs: 0
+# IsAbsolute: False
+# SkipInitialZero: True
+# Format: Cmd,Args...
+C,rel,0,0,Left";
+
+        await File.WriteAllTextAsync(filePath, content);
+
+        // Act
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.Events.Should().ContainSingle();
+        loaded.Events[0].UseCurrentPosition.Should().BeFalse();
+        loaded.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+    }
+
+    [Fact]
     public async Task SaveAndLoad_RoundTrip_PreservesRandomDelayMetadata()
     {
         // Arrange
@@ -600,6 +625,265 @@ M,100,100";
         // Assert
         loaded.Should().NotBeNull();
         loaded!.TextInputBoundaries.Should().Equal(macro.TextInputBoundaries);
+    }
+
+    [Fact]
+    public async Task Load_WhenLegacyAbsoluteEventsHaveNoModeTokens_UsesHeaderFallback()
+    {
+        // Arrange
+        var filePath = GetTempFilePath();
+        var content = @"# Name: Legacy Absolute
+# IsAbsolute: True
+# Format: Cmd,Args...
+M,10,20
+P,10,20,Left";
+
+        await File.WriteAllTextAsync(filePath, content);
+
+        // Act
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.IsAbsoluteCoordinates.Should().BeTrue();
+        loaded.Events.Should().HaveCount(2);
+        loaded.Events[0].CoordinateMode.Should().BeNull();
+        loaded.Events[1].CoordinateMode.Should().BeNull();
+        MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[0], loaded.IsAbsoluteCoordinates)
+            .Should().Be(MouseCoordinateMode.Absolute);
+        MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[1], loaded.IsAbsoluteCoordinates)
+            .Should().Be(MouseCoordinateMode.Absolute);
+    }
+
+    [Fact]
+    public async Task Load_WhenLegacyRelativeEventsHaveNoModeTokens_UsesHeaderFallback()
+    {
+        // Arrange
+        var filePath = GetTempFilePath();
+        var content = @"# Name: Legacy Relative
+# IsAbsolute: False
+# SkipInitialZero: False
+# Format: Cmd,Args...
+M,5,6
+C,5,6,Right";
+
+        await File.WriteAllTextAsync(filePath, content);
+
+        // Act
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.IsAbsoluteCoordinates.Should().BeFalse();
+        loaded.Events.Should().HaveCount(2);
+        loaded.Events[0].CoordinateMode.Should().BeNull();
+        loaded.Events[1].CoordinateMode.Should().BeNull();
+        MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[0], loaded.IsAbsoluteCoordinates)
+            .Should().Be(MouseCoordinateMode.Relative);
+        MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[1], loaded.IsAbsoluteCoordinates)
+            .Should().Be(MouseCoordinateMode.Relative);
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_WhenMixedExplicitCoordinateModes_PreservesEventModesAndHeaderUsesFirstExplicitMode()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Mixed Explicit Modes",
+            IsAbsoluteCoordinates = false,
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 100, Y = 200, CoordinateMode = MouseCoordinateMode.Absolute },
+                new() { Type = EventType.MouseMove, X = 10, Y = 20, CoordinateMode = MouseCoordinateMode.Relative }
+            }
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        await _manager.SaveAsync(macro, filePath);
+        var saved = await File.ReadAllTextAsync(filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        saved.Should().Contain("# IsAbsolute: True");
+        saved.Should().Contain("M,abs,100,200");
+        saved.Should().Contain("M,rel,10,20");
+        loaded.Should().NotBeNull();
+        loaded!.IsAbsoluteCoordinates.Should().BeTrue();
+        loaded.Events.Select(ev => ev.CoordinateMode).Should().Equal(
+            MouseCoordinateMode.Absolute,
+            MouseCoordinateMode.Relative);
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_WhenExplicitAndLegacyFallbackModesAreMixed_PreservesLegacyFallbackHeader()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Mixed Explicit And Legacy Fallback",
+            IsAbsoluteCoordinates = false,
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 100, Y = 200, CoordinateMode = MouseCoordinateMode.Absolute },
+                new() { Type = EventType.MouseMove, X = 10, Y = 20 },
+                new() { Type = EventType.Click, X = 5, Y = 6, Button = MouseButton.Left }
+            }
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        await _manager.SaveAsync(macro, filePath);
+        var saved = await File.ReadAllTextAsync(filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        saved.Should().Contain("# IsAbsolute: False");
+        saved.Should().Contain("M,abs,100,200");
+        saved.Should().Contain("M,10,20");
+        saved.Should().Contain("C,5,6,Left");
+        loaded.Should().NotBeNull();
+        loaded!.IsAbsoluteCoordinates.Should().BeFalse();
+        MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[0], loaded.IsAbsoluteCoordinates)
+            .Should().Be(MouseCoordinateMode.Absolute);
+        MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[1], loaded.IsAbsoluteCoordinates)
+            .Should().Be(MouseCoordinateMode.Relative);
+        MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[2], loaded.IsAbsoluteCoordinates)
+            .Should().Be(MouseCoordinateMode.Relative);
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_WhenExplicitButtonCoordinateModes_PreservesModeTokens()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Explicit Button Modes",
+            IsAbsoluteCoordinates = true,
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.ButtonPress, X = 1, Y = 2, Button = MouseButton.Left, CoordinateMode = MouseCoordinateMode.Absolute },
+                new() { Type = EventType.ButtonRelease, X = 3, Y = 4, Button = MouseButton.Right, CoordinateMode = MouseCoordinateMode.Relative },
+                new() { Type = EventType.Click, X = 5, Y = 6, Button = MouseButton.Middle, CoordinateMode = MouseCoordinateMode.Relative }
+            }
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        await _manager.SaveAsync(macro, filePath);
+        var saved = await File.ReadAllTextAsync(filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        saved.Should().Contain("P,abs,1,2,Left");
+        saved.Should().Contain("R,rel,3,4,Right");
+        saved.Should().Contain("C,rel,5,6,Middle");
+        loaded.Should().NotBeNull();
+        loaded!.Events.Select(ev => ev.CoordinateMode).Should().Equal(
+            MouseCoordinateMode.Absolute,
+            MouseCoordinateMode.Relative,
+            MouseCoordinateMode.Relative);
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_WhenCurrentPositionHasCoordinateMode_DoesNotWriteOrRestoreModeToken()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Current Position No Mode",
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            Events = new List<MacroEvent>
+            {
+                new()
+                {
+                    Type = EventType.Click,
+                    X = 0,
+                    Y = 0,
+                    Button = MouseButton.Left,
+                    UseCurrentPosition = true,
+                    CoordinateMode = MouseCoordinateMode.Relative
+                }
+            }
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        await _manager.SaveAsync(macro, filePath);
+        var saved = await File.ReadAllTextAsync(filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        saved.Should().Contain("C,0,0,Left,CurrentPosition");
+        saved.Should().NotContain("C,rel,0,0,Left");
+        loaded.Should().NotBeNull();
+        loaded!.Events.Should().ContainSingle();
+        loaded.Events[0].UseCurrentPosition.Should().BeTrue();
+        loaded.Events[0].CoordinateMode.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_WhenScrollHasCoordinateMode_DoesNotWriteOrRestoreModeToken()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Scroll No Mode",
+            IsAbsoluteCoordinates = false,
+            Events = new List<MacroEvent>
+            {
+                new()
+                {
+                    Type = EventType.Click,
+                    X = 0,
+                    Y = 0,
+                    Button = MouseButton.ScrollDown,
+                    CoordinateMode = MouseCoordinateMode.Absolute
+                }
+            }
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        await _manager.SaveAsync(macro, filePath);
+        var saved = await File.ReadAllTextAsync(filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        saved.Should().Contain("C,0,0,ScrollDown");
+        saved.Should().NotContain("C,abs,0,0,ScrollDown");
+        loaded.Should().NotBeNull();
+        loaded!.Events.Should().ContainSingle();
+        loaded.Events[0].Button.Should().Be(MouseButton.ScrollDown);
+        loaded.Events[0].CoordinateMode.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Load_WhenMalformedCoordinateModeTokenAppears_IgnoresLineAndContinues()
+    {
+        // Arrange
+        var filePath = GetTempFilePath();
+        var content = @"# Name: Invalid Mode
+# IsAbsolute: True
+# Format: Cmd,Args...
+M,foo,1,2
+P,bar,3,4,Left
+M,abs,10,20";
+
+        await File.WriteAllTextAsync(filePath, content);
+
+        // Act
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.Events.Should().ContainSingle();
+        loaded.Events[0].Type.Should().Be(EventType.MouseMove);
+        loaded.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        loaded.Events[0].X.Should().Be(10);
+        loaded.Events[0].Y.Should().Be(20);
     }
 
     [Fact]

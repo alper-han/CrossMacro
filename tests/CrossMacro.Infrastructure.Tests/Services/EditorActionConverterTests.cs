@@ -92,6 +92,33 @@ public class EditorActionConverterTests
     }
 
     [Fact]
+    public void ToMacroEvents_MouseClickWithCoordinates_EmitsSingleClickEventWithCoordinateMode()
+    {
+        // Arrange
+        var action = new EditorAction
+        {
+            Type = EditorActionType.MouseClick,
+            Button = MouseButton.Left,
+            IsAbsolute = true,
+            UseCurrentPosition = false,
+            X = 120,
+            Y = 240
+        };
+
+        // Act
+        var events = _converter.ToMacroEvents(action);
+
+        // Assert
+        events.Should().ContainSingle();
+        events[0].Type.Should().Be(EventType.Click);
+        events[0].X.Should().Be(120);
+        events[0].Y.Should().Be(240);
+        events[0].Button.Should().Be(MouseButton.Left);
+        events[0].UseCurrentPosition.Should().BeFalse();
+        events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+    }
+
+    [Fact]
     public void ToMacroEvents_DelayWithRandom_ProducesPlaceholderWithRandomMetadata()
     {
         // Arrange
@@ -193,6 +220,7 @@ public class EditorActionConverterTests
     public void FromMacroEvent_WhenPressFollowedByRelease_MergesToKeyPressAction()
     {
         // Arrange
+        _keyCodeMapper.GetKeyName(30).Returns("A");
         var keyPress = new MacroEvent { Type = EventType.KeyPress, KeyCode = 30, DelayMs = 15 };
         var keyRelease = new MacroEvent { Type = EventType.KeyRelease, KeyCode = 30 };
 
@@ -202,11 +230,114 @@ public class EditorActionConverterTests
         // Assert
         action.Type.Should().Be(EditorActionType.KeyPress);
         action.KeyCode.Should().Be(30);
+        action.KeyName.Should().Be("A");
         action.DelayMs.Should().Be(15);
     }
 
+    [Theory]
+    [InlineData(EventType.KeyPress, EditorActionType.KeyDown)]
+    [InlineData(EventType.KeyRelease, EditorActionType.KeyUp)]
+    public void FromMacroEvent_WhenKeyboardEvent_RestoresKeyName(EventType eventType, EditorActionType expectedActionType)
+    {
+        // Arrange
+        _keyCodeMapper.GetKeyName(18).Returns("E");
+        var macroEvent = new MacroEvent { Type = eventType, KeyCode = 18 };
+
+        // Act
+        var action = _converter.FromMacroEvent(macroEvent);
+
+        // Assert
+        action.Type.Should().Be(expectedActionType);
+        action.KeyCode.Should().Be(18);
+        action.KeyName.Should().Be("E");
+    }
+
     [Fact]
-    public void FromMacroSequence_WhenConsecutivePrintableKeys_MergesToTextInput()
+    public void ToMacroEvents_WhenMouseActionHasCoordinates_EmitsActionCoordinateMode()
+    {
+        // Arrange
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = true, X = 10, Y = 20 },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, IsAbsolute = false, X = 3, Y = 4 },
+            new EditorAction { Type = EditorActionType.MouseDown, Button = MouseButton.Right, IsAbsolute = true, X = 30, Y = 40 },
+            new EditorAction { Type = EditorActionType.MouseUp, Button = MouseButton.Right, IsAbsolute = false, X = 5, Y = 6 }
+        };
+
+        // Act
+        var events = actions.Select(action => _converter.ToMacroEvents(action).Single()).ToList();
+
+        // Assert
+        events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        events[1].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+        events[1].Type.Should().Be(EventType.Click);
+        events[2].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        events[3].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+    }
+
+    [Fact]
+    public void ToMacroEvents_WhenCurrentPositionOrScroll_DoesNotEmitCoordinateMode()
+    {
+        // Arrange
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = true, X = 10, Y = 20 },
+            new EditorAction { Type = EditorActionType.MouseDown, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = true, X = 30, Y = 40 },
+            new EditorAction { Type = EditorActionType.MouseUp, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = true, X = 50, Y = 60 },
+            new EditorAction { Type = EditorActionType.ScrollVertical, ScrollAmount = 1, IsAbsolute = true },
+            new EditorAction { Type = EditorActionType.ScrollHorizontal, ScrollAmount = -1, IsAbsolute = true }
+        };
+
+        // Act
+        var events = actions.SelectMany(action => _converter.ToMacroEvents(action)).ToList();
+
+        // Assert
+        events.Should().OnlyContain(ev => ev.CoordinateMode == null);
+        events[0].UseCurrentPosition.Should().BeTrue();
+        events[0].X.Should().Be(0);
+        events[0].Y.Should().Be(0);
+        events[1].UseCurrentPosition.Should().BeTrue();
+        events[1].X.Should().Be(0);
+        events[1].Y.Should().Be(0);
+        events[2].UseCurrentPosition.Should().BeTrue();
+        events[2].X.Should().Be(0);
+        events[2].Y.Should().Be(0);
+        events[3].Button.Should().Be(MouseButton.ScrollUp);
+        events[4].Button.Should().Be(MouseButton.ScrollLeft);
+    }
+
+    [Fact]
+    public void FromMacroEvent_WhenCoordinateModePresent_SetsActionMode()
+    {
+        // Arrange
+        var moveEvent = new MacroEvent
+        {
+            Type = EventType.MouseMove,
+            X = 10,
+            Y = 20,
+            CoordinateMode = MouseCoordinateMode.Absolute
+        };
+        var clickEvent = new MacroEvent
+        {
+            Type = EventType.Click,
+            Button = MouseButton.Left,
+            X = 3,
+            Y = 4,
+            CoordinateMode = MouseCoordinateMode.Relative
+        };
+
+        // Act
+        var moveAction = _converter.FromMacroEvent(moveEvent);
+        var clickAction = _converter.FromMacroEvent(clickEvent);
+
+        // Assert
+        moveAction.IsAbsolute.Should().BeTrue();
+        clickAction.IsAbsolute.Should().BeFalse();
+        clickAction.UseCurrentPosition.Should().BeFalse();
+    }
+
+    [Fact]
+    public void FromMacroSequence_WhenRecordedPrintableKeysHaveNoBoundary_PreservesRawTimingActions()
     {
         // Arrange
         _keyCodeMapper.GetCharacterForKeyCode(30, false).Returns('a');
@@ -227,12 +358,17 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(2);
+        actions.Should().HaveCount(4);
         actions[0].Type.Should().Be(EditorActionType.Delay);
         actions[0].DelayMs.Should().Be(12);
-        actions[1].Type.Should().Be(EditorActionType.TextInput);
-        actions[1].Text.Should().Be("ab");
+        actions[1].Type.Should().Be(EditorActionType.KeyPress);
+        actions[1].KeyCode.Should().Be(30);
         actions[1].DelayMs.Should().Be(0);
+        actions[2].Type.Should().Be(EditorActionType.Delay);
+        actions[2].DelayMs.Should().Be(10);
+        actions[3].Type.Should().Be(EditorActionType.KeyPress);
+        actions[3].KeyCode.Should().Be(48);
+        actions[3].DelayMs.Should().Be(0);
     }
 
     [Fact]
@@ -368,7 +504,7 @@ public class EditorActionConverterTests
     }
 
     [Fact]
-    public void FromMacroSequence_WhenTextInputBoundaryIsInvalid_FallsBackToRawKeyMerge()
+    public void FromMacroSequence_WhenTextInputBoundaryIsInvalid_FallsBackToRawKeyActions()
     {
         _keyCodeMapper.GetCharacterForKeyCode(30, false).Returns('a');
         _keyCodeMapper.GetCharacterForKeyCode(48, false).Returns('b');
@@ -386,13 +522,14 @@ public class EditorActionConverterTests
 
         var restored = _converter.FromMacroSequence(sequence);
 
-        restored.Should().ContainSingle();
-        restored[0].Type.Should().Be(EditorActionType.TextInput);
-        restored[0].Text.Should().Be("ab");
+        restored.Select(action => action.Type).Should().Equal(
+            EditorActionType.KeyPress,
+            EditorActionType.KeyPress);
+        restored.Select(action => action.KeyCode).Should().Equal(30, 48);
     }
 
     [Fact]
-    public void FromMacroSequence_WhenTextInputBoundaryTextDoesNotMatchEvents_FallsBackToRawKeyMerge()
+    public void FromMacroSequence_WhenTextInputBoundaryTextDoesNotMatchEvents_FallsBackToRawKeyActions()
     {
         _keyCodeMapper.GetCharacterForKeyCode(30, false).Returns('a');
         _keyCodeMapper.GetCharacterForKeyCode(48, false).Returns('b');
@@ -410,9 +547,73 @@ public class EditorActionConverterTests
 
         var restored = _converter.FromMacroSequence(sequence);
 
-        restored.Should().ContainSingle();
-        restored[0].Type.Should().Be(EditorActionType.TextInput);
-        restored[0].Text.Should().Be("ab");
+        restored.Select(action => action.Type).Should().Equal(
+            EditorActionType.KeyPress,
+            EditorActionType.KeyPress);
+        restored.Select(action => action.KeyCode).Should().Equal(30, 48);
+    }
+
+    [Fact]
+    public void ToMacroSequence_WhenBoundaryRestoredTextInputIsUnedited_PreservesOriginalKeyTiming()
+    {
+        ConfigureTextInputTyping();
+
+        var sequence = new MacroSequence
+        {
+            Events =
+            [
+                new MacroEvent { Type = EventType.KeyPress, KeyCode = 1_000 + 'a', DelayMs = 25 },
+                new MacroEvent { Type = EventType.KeyRelease, KeyCode = 1_000 + 'a', DelayMs = 7 },
+                new MacroEvent { Type = EventType.KeyPress, KeyCode = 1_000 + 'b', DelayMs = 93 },
+                new MacroEvent { Type = EventType.KeyRelease, KeyCode = 1_000 + 'b', DelayMs = 11 }
+            ],
+            TextInputBoundaries = [new TextInputBoundary(0, 4, "ab")]
+        };
+
+        var restored = _converter.FromMacroSequence(sequence);
+        var roundTripped = _converter.ToMacroSequence(restored, "Preserve timed text", isAbsolute: true);
+
+        restored.Select(action => action.Type).Should().Equal(EditorActionType.Delay, EditorActionType.TextInput);
+        restored[0].DelayMs.Should().Be(25);
+        restored[1].Text.Should().Be("ab");
+        roundTripped.Events.Should().HaveCount(4);
+        roundTripped.Events.Select(ev => ev.DelayMs).Should().Equal(25, 7, 93, 11);
+        roundTripped.Events.Select(ev => ev.Type).Should().Equal(
+            EventType.KeyPress,
+            EventType.KeyRelease,
+            EventType.KeyPress,
+            EventType.KeyRelease);
+        roundTripped.TextInputBoundaries.Should().ContainSingle()
+            .Which.Should().Be(new TextInputBoundary(0, 4, "ab"));
+    }
+
+    [Fact]
+    public void ToMacroSequence_WhenBoundaryRestoredTextInputIsEdited_RegeneratesSyntheticTypingEvents()
+    {
+        ConfigureTextInputTyping();
+
+        var sequence = new MacroSequence
+        {
+            Events =
+            [
+                new MacroEvent { Type = EventType.KeyPress, KeyCode = 1_000 + 'a', DelayMs = 25 },
+                new MacroEvent { Type = EventType.KeyRelease, KeyCode = 1_000 + 'a', DelayMs = 7 },
+                new MacroEvent { Type = EventType.KeyPress, KeyCode = 1_000 + 'b', DelayMs = 93 },
+                new MacroEvent { Type = EventType.KeyRelease, KeyCode = 1_000 + 'b', DelayMs = 11 }
+            ],
+            TextInputBoundaries = [new TextInputBoundary(0, 4, "ab")]
+        };
+
+        var restored = _converter.FromMacroSequence(sequence);
+        restored.Select(action => action.Type).Should().Equal(EditorActionType.Delay, EditorActionType.TextInput);
+        restored[1].Text = "ac";
+
+        var roundTripped = _converter.ToMacroSequence(restored, "Regenerate edited text", isAbsolute: true);
+
+        roundTripped.Events.Should().HaveCount(4);
+        roundTripped.Events.Select(ev => ev.DelayMs).Should().Equal(25, 0, 10, 0);
+        roundTripped.TextInputBoundaries.Should().ContainSingle()
+            .Which.Should().Be(new TextInputBoundary(0, 4, "ac"));
     }
 
     [Fact]
@@ -585,6 +786,187 @@ public class EditorActionConverterTests
     }
 
     [Fact]
+    public void FromMacroSequence_WhenEventCoordinateModesAreMixed_RestoresPerActionMode()
+    {
+        // Arrange
+        var sequence = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            Events =
+            [
+                new MacroEvent
+                {
+                    Type = EventType.MouseMove,
+                    X = 100,
+                    Y = 200,
+                    CoordinateMode = MouseCoordinateMode.Absolute
+                },
+                new MacroEvent
+                {
+                    Type = EventType.Click,
+                    Button = MouseButton.Left,
+                    X = 5,
+                    Y = -2,
+                    CoordinateMode = MouseCoordinateMode.Relative
+                },
+                new MacroEvent
+                {
+                    Type = EventType.ButtonPress,
+                    Button = MouseButton.Right,
+                    X = 300,
+                    Y = 400,
+                    CoordinateMode = MouseCoordinateMode.Absolute
+                },
+                new MacroEvent
+                {
+                    Type = EventType.ButtonRelease,
+                    Button = MouseButton.Right,
+                    X = -1,
+                    Y = -1,
+                    CoordinateMode = MouseCoordinateMode.Relative
+                },
+                new MacroEvent
+                {
+                    Type = EventType.Click,
+                    Button = MouseButton.Middle,
+                    UseCurrentPosition = true,
+                    CoordinateMode = MouseCoordinateMode.Absolute
+                }
+            ]
+        };
+
+        // Act
+        var actions = _converter.FromMacroSequence(sequence);
+
+        // Assert
+        actions.Should().HaveCount(5);
+        actions[0].Type.Should().Be(EditorActionType.MouseMove);
+        actions[0].IsAbsolute.Should().BeTrue();
+        actions[1].Type.Should().Be(EditorActionType.MouseClick);
+        actions[1].IsAbsolute.Should().BeFalse();
+        actions[1].UseCurrentPosition.Should().BeFalse();
+        actions[2].Type.Should().Be(EditorActionType.MouseDown);
+        actions[2].IsAbsolute.Should().BeTrue();
+        actions[3].Type.Should().Be(EditorActionType.MouseUp);
+        actions[3].IsAbsolute.Should().BeFalse();
+        actions[4].Type.Should().Be(EditorActionType.MouseClick);
+        actions[4].UseCurrentPosition.Should().BeTrue();
+        actions[4].IsAbsolute.Should().BeFalse();
+    }
+
+    [Fact]
+    public void FromMacroSequence_WhenCoordinateModeMissing_UsesLegacySequenceFallback()
+    {
+        // Arrange
+        var sequence = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            Events =
+            [
+                new MacroEvent { Type = EventType.MouseMove, X = 10, Y = 20 },
+                new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 30, Y = 40 }
+            ]
+        };
+
+        // Act
+        var actions = _converter.FromMacroSequence(sequence);
+
+        // Assert
+        actions.Should().HaveCount(2);
+        actions.Should().OnlyContain(action => action.IsAbsolute);
+    }
+
+    [Fact]
+    public void ToAndFromMacroSequence_WhenActionsUseMixedCoordinateModes_PreservesModesOnEventsAndActions()
+    {
+        // Arrange
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = true, X = 100, Y = 200 },
+            new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = false, X = 5, Y = -3 },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, IsAbsolute = true, X = 300, Y = 400 },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Right, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.ScrollVertical, ScrollAmount = -1, IsAbsolute = true }
+        };
+
+        // Act
+        var sequence = _converter.ToMacroSequence(actions, "Mixed Modes", isAbsolute: false);
+        var restored = _converter.FromMacroSequence(sequence);
+
+        // Assert
+        sequence.Events.Should().HaveCount(5);
+        sequence.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        sequence.Events[1].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+        sequence.Events[2].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        sequence.Events[2].Type.Should().Be(EventType.Click);
+        sequence.Events[3].UseCurrentPosition.Should().BeTrue();
+        sequence.Events[3].CoordinateMode.Should().BeNull();
+        sequence.Events[4].Button.Should().Be(MouseButton.ScrollDown);
+        sequence.Events[4].CoordinateMode.Should().BeNull();
+
+        restored.Should().HaveCount(5);
+        restored[0].IsAbsolute.Should().BeTrue();
+        restored[1].IsAbsolute.Should().BeFalse();
+        restored[2].IsAbsolute.Should().BeTrue();
+        restored[3].UseCurrentPosition.Should().BeTrue();
+        restored[3].IsAbsolute.Should().BeFalse();
+        restored[4].Type.Should().Be(EditorActionType.ScrollVertical);
+    }
+
+    [Fact]
+    public async Task ToMacroSequence_SaveLoadAndRestore_WhenActionsUseMixedModes_PreservesEventModesAndCurrentPosition()
+    {
+        // Arrange
+        var fileManager = new MacroFileManager();
+        var filePath = Path.Combine(Path.GetTempPath(), $"mixed_editor_roundtrip_{Guid.NewGuid()}.macro");
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = true, X = 100, Y = 200 },
+            new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = false, X = 5, Y = -3 },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false }
+        };
+
+        try
+        {
+            // Act
+            var sequence = _converter.ToMacroSequence(actions, "Mixed Editor Round Trip", isAbsolute: true);
+            await fileManager.SaveAsync(sequence, filePath);
+            var saved = await File.ReadAllTextAsync(filePath);
+            var loaded = await fileManager.LoadAsync(filePath);
+            var restored = _converter.FromMacroSequence(loaded!);
+
+            // Assert
+            sequence.Events.Select(ev => ev.CoordinateMode).Should().Equal(
+                MouseCoordinateMode.Absolute,
+                MouseCoordinateMode.Relative,
+                null);
+            saved.Should().Contain("M,abs,100,200");
+            saved.Should().Contain("M,rel,5,-3");
+            saved.Should().Contain("C,0,0,Left,CurrentPosition");
+            saved.Should().NotContain("C,abs,0,0,Left");
+            saved.Should().NotContain("C,rel,0,0,Left");
+
+            loaded.Should().NotBeNull();
+            loaded!.Events.Select(ev => ev.CoordinateMode).Should().Equal(
+                MouseCoordinateMode.Absolute,
+                MouseCoordinateMode.Relative,
+                null);
+            restored.Should().HaveCount(3);
+            restored[0].IsAbsolute.Should().BeTrue();
+            restored[1].IsAbsolute.Should().BeFalse();
+            restored[2].UseCurrentPosition.Should().BeTrue();
+            restored[2].IsAbsolute.Should().BeFalse();
+        }
+        finally
+        {
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+        }
+    }
+
+    [Fact]
     public void ToMacroSequence_WhenScriptStepIfElse_CompilesBranch()
     {
         // Arrange
@@ -690,9 +1072,11 @@ public class EditorActionConverterTests
         sequence.Events.Should().HaveCount(2);
         sequence.Events[0].Type.Should().Be(EventType.Click);
         sequence.Events[0].UseCurrentPosition.Should().BeTrue();
+        sequence.Events[0].CoordinateMode.Should().BeNull();
         sequence.Events[1].Type.Should().Be(EventType.MouseMove);
         sequence.Events[1].X.Should().Be(320);
         sequence.Events[1].Y.Should().Be(240);
+        sequence.Events[1].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
         sequence.ScriptSteps.Should().Equal(
             "set mode fast",
             "click current left",
@@ -1385,6 +1769,7 @@ public class EditorActionConverterTests
     {
         // Arrange
         _keyCodeMapper.GetKeyCode("ctrl").Returns(29);
+        _keyCodeMapper.GetKeyName(29).Returns("Ctrl");
         var sequence = new MacroSequence
         {
             ScriptSteps =
@@ -1401,8 +1786,10 @@ public class EditorActionConverterTests
         actions.Should().HaveCount(2);
         actions[0].Type.Should().Be(EditorActionType.KeyDown);
         actions[0].KeyCode.Should().Be(29);
+        actions[0].KeyName.Should().Be("Ctrl");
         actions[1].Type.Should().Be(EditorActionType.KeyUp);
         actions[1].KeyCode.Should().Be(29);
+        actions[1].KeyName.Should().Be("Ctrl");
     }
 
     [Fact]
@@ -1410,6 +1797,7 @@ public class EditorActionConverterTests
     {
         // Arrange
         _keyCodeMapper.GetKeyCode("enter").Returns(28);
+        _keyCodeMapper.GetKeyName(28).Returns("Enter");
         var sequence = new MacroSequence
         {
             ScriptSteps =
@@ -1425,6 +1813,7 @@ public class EditorActionConverterTests
         actions.Should().HaveCount(1);
         actions[0].Type.Should().Be(EditorActionType.KeyPress);
         actions[0].KeyCode.Should().Be(28);
+        actions[0].KeyName.Should().Be("Enter");
     }
 
     [Fact]
@@ -1596,6 +1985,41 @@ public class EditorActionConverterTests
         saved.Events[3].Type.Should().Be(EventType.Click);
         saved.Events[3].X.Should().Be(20);
         saved.Events[3].Y.Should().Be(20);
+    }
+
+    [Fact]
+    public void FromMacroSequence_WhenScriptStepsUseMixedMoveModes_RoundTripsEventCoordinateModes()
+    {
+        // Arrange
+        var sequence = new MacroSequence
+        {
+            ScriptSteps =
+            [
+                "move abs 200 300",
+                "click left",
+                "move rel 5 -4",
+                "click right"
+            ]
+        };
+
+        // Act
+        var actions = _converter.FromMacroSequence(sequence);
+        var saved = _converter.ToMacroSequence(actions, "Mixed Script Modes", isAbsolute: false);
+
+        // Assert
+        actions.Should().HaveCount(4);
+        actions[0].IsAbsolute.Should().BeTrue();
+        actions[1].IsAbsolute.Should().BeTrue();
+        actions[1].UseCurrentPosition.Should().BeFalse();
+        actions[2].IsAbsolute.Should().BeFalse();
+        actions[3].IsAbsolute.Should().BeFalse();
+        actions[3].UseCurrentPosition.Should().BeFalse();
+
+        saved.Events.Should().HaveCount(4);
+        saved.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        saved.Events[1].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        saved.Events[2].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+        saved.Events[3].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
     }
 
     [Fact]

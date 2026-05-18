@@ -210,25 +210,32 @@ public class MacOSInputCapture : IInputCapture
 
     private IntPtr EventTapCallback(IntPtr proxy, CoreGraphics.CGEventType type, IntPtr eventRef, IntPtr userInfo)
     {
-        if (type == CoreGraphics.CGEventType.TapDisabledByTimeout)
-        {
-            CoreGraphics.CGEventTapEnable(_eventTap, true);
-            return eventRef;
-        }
-        
-        if (type == CoreGraphics.CGEventType.TapDisabledByUserInput)
-        {
-            return eventRef;
-        }
-
         try
         {
+            if (type == CoreGraphics.CGEventType.TapDisabledByTimeout)
+            {
+                CoreGraphics.CGEventTapEnable(_eventTap, true);
+                return eventRef;
+            }
+
+            if (type == CoreGraphics.CGEventType.TapDisabledByUserInput)
+            {
+                return eventRef;
+            }
+
             ProcessAndFire(type, eventRef);
         }
         catch (Exception ex)
         {
-             System.Diagnostics.Debug.WriteLine($"[MacOSInputCapture] Error in callback: {ex}");
-             Error?.Invoke(this, $"Error processing event: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[MacOSInputCapture] Error in callback: {ex}");
+            try
+            {
+                Error?.Invoke(this, $"Error processing event: {ex.Message}");
+            }
+            catch (Exception errorHandlerException)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MacOSInputCapture] Error handler threw: {errorHandlerException}");
+            }
         }
 
         return eventRef;

@@ -136,7 +136,11 @@ public class MacOSInputSimulator :
             return;
         }
 
-        var codeUnits = text.ToCharArray();
+        var codeUnits = new ushort[text.Length];
+        for (int i = 0; i < text.Length; i++)
+        {
+            codeUnits[i] = text[i];
+        }
         PostUnicodeKeyboardEvent(codeUnits, keyDown: true, marker);
         PostUnicodeKeyboardEvent(codeUnits, keyDown: false, marker);
     }
@@ -149,7 +153,7 @@ public class MacOSInputSimulator :
         return loc;
     }
 
-    private static void PostUnicodeKeyboardEvent(char[] codeUnits, bool keyDown, long? marker)
+    private static void PostUnicodeKeyboardEvent(ushort[] codeUnits, bool keyDown, long? marker)
     {
         var eventRef = CoreGraphics.CGEventCreateKeyboardEvent(IntPtr.Zero, 0, keyDown);
         ApplyKeyboardMarker(eventRef, marker);

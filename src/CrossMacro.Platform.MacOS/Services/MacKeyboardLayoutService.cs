@@ -161,17 +161,16 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService
             // Build modifier state for UCKeyTranslate
             // Mac modifier format: bits for shift, option, control, command
             uint modifierState = 0;
-            if (shift) modifierState |= (1 << 1); // shiftKey bit
-            if (option) modifierState |= (1 << 3); // optionKey bit
-            if (leftCtrl) modifierState |= (1 << 4); // controlKey bit
-            // CapsLock is handled differently - as alphaLock
-            if (capsLock) modifierState |= (1 << 0); // alphaLock bit
+            if (capsLock) modifierState |= 1u << 10; // alphaLock
+            if (shift) modifierState |= 1u << 9; // shiftKey
+            if (option) modifierState |= 1u << 11; // optionKey
+            if (leftCtrl) modifierState |= 1u << 12; // controlKey
             
             // Shift modifier state to match UCKeyTranslate format (>> 8)
             modifierState = (modifierState >> 8) & 0xFF;
             
             uint deadKeyState = 0;
-            char[] output = new char[4];
+            ushort[] output = new ushort[4];
             nuint actualLength;
             
             int result = CoreGraphics.UCKeyTranslate(
@@ -179,16 +178,17 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService
                 macKeyCode,
                 CoreGraphics.kUCKeyActionDown,
                 modifierState,
-                0, // Keyboard type (0 = ANSI)
+                CoreGraphics.LMGetKbdType(),
                 CoreGraphics.kUCKeyTranslateNoDeadKeysMask,
                 ref deadKeyState,
                 (nuint)output.Length,
                 out actualLength,
                 output);
             
-            if (result == 0 && actualLength > 0 && !char.IsControl(output[0]))
+            char translated = (char)output[0];
+            if (result == 0 && actualLength > 0 && !char.IsControl(translated))
             {
-                return output[0];
+                return translated;
             }
         }
         catch

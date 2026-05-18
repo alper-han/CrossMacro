@@ -7,6 +7,7 @@ internal static class CoreGraphics
 {
     private const string CoreGraphicsLib = "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics";
 
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate IntPtr CGEventTapCallBack(
         IntPtr tapProxy,
         CGEventType type,
@@ -23,7 +24,7 @@ internal static class CoreGraphics
         IntPtr userInfo);
 
     [DllImport(CoreGraphicsLib)]
-    public static extern bool CGEventTapEnable(IntPtr tap, bool enable);
+    public static extern void CGEventTapEnable(IntPtr tap, [MarshalAs(UnmanagedType.I1)] bool enable);
 
     [DllImport(CoreGraphicsLib)]
     public static extern void CGEventPost(CGEventTapLocation tap, IntPtr eventRef);
@@ -32,7 +33,7 @@ internal static class CoreGraphics
     public static extern IntPtr CGEventCreate(IntPtr source);
 
     [DllImport(CoreGraphicsLib)]
-    public static extern IntPtr CGEventCreateKeyboardEvent(IntPtr source, ushort virtualKey, bool keyDown);
+    public static extern IntPtr CGEventCreateKeyboardEvent(IntPtr source, ushort virtualKey, [MarshalAs(UnmanagedType.I1)] bool keyDown);
 
     [DllImport(CoreGraphicsLib)]
     public static extern IntPtr CGEventCreateMouseEvent(
@@ -79,7 +80,7 @@ internal static class CoreGraphics
         IntPtr eventRef,
         nuint maxStringLength,
         out nuint actualStringLength,
-        [Out] char[] unicodeString);
+        [Out, MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.U2)] ushort[] unicodeString);
 
     /// <summary>
     /// Sets the unicode string for a keyboard event (for typing characters)
@@ -88,7 +89,7 @@ internal static class CoreGraphics
     public static extern void CGEventKeyboardSetUnicodeString(
         IntPtr eventRef,
         nuint stringLength,
-        char[] unicodeString);
+        [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.U2)] ushort[] unicodeString);
     
     // Text Input Source (TIS) functions for keyboard layout
     private const string CarbonLib = "/System/Library/Frameworks/Carbon.framework/Carbon";
@@ -101,6 +102,9 @@ internal static class CoreGraphics
     
     [DllImport(CarbonLib)]
     public static extern IntPtr TISGetInputSourceProperty(IntPtr inputSource, IntPtr propertyKey);
+
+    [DllImport(CarbonLib)]
+    public static extern byte LMGetKbdType();
     
     // Property key for Unicode keyboard layout data - loaded at runtime
     public static readonly IntPtr kTISPropertyUnicodeKeyLayoutData;
@@ -133,7 +137,7 @@ internal static class CoreGraphics
         ref uint deadKeyState,
         nuint maxStringLength,
         out nuint actualStringLength,
-        [Out] char[] unicodeString);
+        [Out, MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.U2)] ushort[] unicodeString);
     
     // UCKeyTranslate action types
     public const ushort kUCKeyActionDown = 0;

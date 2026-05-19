@@ -134,7 +134,7 @@ jobs:
       smoke_enabled: true
       release_mode: true
       upload_enabled: true
-      retention_days: 1
+      retention_days: 90
 
   package-linux:
     name: Package Linux
@@ -149,7 +149,7 @@ jobs:
       smoke_enabled: true
       release_mode: true
       upload_enabled: true
-      retention_days: 1
+      retention_days: 90
       build_run_id: ${{ github.run_id }}
       attach_flatpak: ${{ github.event.inputs.attach_flatpak == 'true' }}
 
@@ -167,7 +167,7 @@ jobs:
       attach_msix: ${{ github.event.inputs.attach_msix == 'true' }}
       release_mode: true
       upload_enabled: true
-      retention_days: 1
+      retention_days: 90
 
   package-macos:
     name: Package macOS
@@ -182,7 +182,7 @@ jobs:
       smoke_enabled: true
       release_mode: true
       upload_enabled: true
-      retention_days: 1
+      retention_days: 90
 
   # ============================================
   # Stage 3: Stage and Validate Release Assets
@@ -266,7 +266,7 @@ jobs:
       with:
         name: release-candidate-assets
         path: release-staging/
-        retention-days: 30
+        retention-days: 90
 
   # ============================================
   # Stage 4: Publish Release (manual opt-in)

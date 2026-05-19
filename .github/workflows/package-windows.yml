@@ -44,4 +44,4 @@ jobs:
       attach_msix: true
       release_mode: false
       upload_enabled: true
-      retention_days: 7
+      retention_days: 90

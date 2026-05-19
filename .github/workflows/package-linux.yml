@@ -43,7 +43,7 @@ jobs:
       smoke_enabled: true
       release_mode: false
       upload_enabled: true
-      retention_days: 7
+      retention_days: 90
 
   package-linux:
     name: Build and Smoke Linux Packages
@@ -57,6 +57,6 @@ jobs:
       smoke_enabled: true
       release_mode: false
       upload_enabled: true
-      retention_days: 7
+      retention_days: 90
       build_run_id: ${{ github.run_id }}
       attach_flatpak: true

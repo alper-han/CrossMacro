@@ -10,6 +10,10 @@ param(
     [string]$OutputDir = '',
 
     [Parameter(ParameterSetName = 'Publish')]
+    [ValidateSet('x64', 'arm64')]
+    [string]$Architecture = 'x64',
+
+    [Parameter(ParameterSetName = 'Publish')]
     [switch]$NoCli
 )
 
@@ -17,10 +21,10 @@ $ErrorActionPreference = 'Stop'
 
 function Show-Usage {
     @'
-Usage: publish-windows-portable.ps1 [-Version <version>] [-OutputDir <path>] [-NoCli] [-Help]
+Usage: publish-windows-portable.ps1 [-Version <version>] [-OutputDir <path>] [-Architecture <x64|arm64>] [-NoCli] [-Help]
 
 Publishes the Windows portable CrossMacro artifact:
-  - dotnet publish Release win-x64 as a self-contained single-file executable
+  - dotnet publish Release win-x64 or win-arm64 as a self-contained single-file executable
   - removes PDB symbols from the publish directory
   - requires a flat output containing exactly one file and exactly one .exe
   - runs scripts/smoke/windows-portable.ps1 against the resulting executable
@@ -28,6 +32,7 @@ Publishes the Windows portable CrossMacro artifact:
 Options:
   -Version <version>  Assembly/package version. Defaults to VERSION at repository root.
   -OutputDir <path>  Publish output directory. Defaults to <repo>/publish-windows.
+  -Architecture      Windows architecture to publish: x64 or arm64. Defaults to x64.
   -NoCli             Skip executable CLI smoke after structure checks.
   -Help              Show this help.
 '@
@@ -73,6 +78,11 @@ if ([string]::IsNullOrWhiteSpace($OutputDir)) {
     $OutputDir = Join-Path $projectRoot 'publish-windows'
 }
 
+$runtimeIdentifier = switch ($Architecture) {
+    'x64' { 'win-x64' }
+    'arm64' { 'win-arm64' }
+}
+
 if (-not (Test-Path -LiteralPath $projectPath -PathType Leaf)) {
     Fail-PortablePublish "Windows project not found: $projectPath"
 }
@@ -90,7 +100,7 @@ New-Item -ItemType Directory -Path $resolvedOutputDir -Force | Out-Null
 $publishArgs = @(
     'publish', $projectPath,
     '-c', 'Release',
-    '-r', 'win-x64',
+    '-r', $runtimeIdentifier,
     '--self-contained', 'true',
     '-p:PublishSingleFile=true',
     '-p:PublishTrimmed=true',

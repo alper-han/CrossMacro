@@ -47,6 +47,16 @@ on:
         type: boolean
         required: false
         default: false
+      publish_msstore:
+        description: 'Publish the MSIX upload package to Microsoft Store after GitHub Release publishing succeeds'
+        type: boolean
+        required: false
+        default: false
+      msstore_no_commit:
+        description: 'Create the Microsoft Store submission as a draft without committing it'
+        type: boolean
+        required: false
+        default: true
       publish_winget:
         description: 'Publish WinGet package after GitHub Release publishing succeeds'
         type: boolean
@@ -76,7 +86,7 @@ jobs:
       source_tag_sha: ${{ steps.tag_sha.outputs.source_tag_sha }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
     
     - name: Extract version
       id: version
@@ -156,7 +166,7 @@ jobs:
   package-windows:
     name: Package Windows
     needs: build-core
-    if: github.event.inputs.publish_existing_release != 'true'
+    if: github.event.inputs.publish_existing_release != 'true' || github.event.inputs.publish_msstore == 'true'
     uses: ./.github/workflows/_package-windows.yml
     with:
       version: ${{ needs.build-core.outputs.version }}
@@ -201,12 +211,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       with:
         ref: ${{ needs.build-core.outputs.source_tag }}
 
     - name: Download all artifacts
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
         path: artifacts/
 
@@ -220,7 +230,8 @@ jobs:
           artifacts/linux-packages-deb-*/*.deb
           artifacts/linux-packages-rpm-*/*.rpm
           artifacts/linux-packages-appimage-*/*.AppImage
-          artifacts/windows-package/*.zip
+          artifacts/windows-x64-package/*.exe
+          artifacts/windows-arm64-package/*.exe
           artifacts/macos-arm64-package/*.dmg
           artifacts/macos-x64-package/*.dmg
         )
@@ -232,7 +243,10 @@ jobs:
           )
         fi
         if [ "${{ github.event.inputs.attach_msix }}" = "true" ]; then
-          files+=(artifacts/msix-package/CrossMacro-${{ needs.build-core.outputs.package_version_canonical }}-x64.msix)
+          files+=(
+            artifacts/msix-x64-package/CrossMacro-${{ needs.build-core.outputs.package_version_canonical }}-x64.msix
+            artifacts/msix-arm64-package/CrossMacro-${{ needs.build-core.outputs.package_version_canonical }}-arm64.msix
+          )
         fi
 
         for file in "${files[@]}"; do
@@ -258,7 +272,7 @@ jobs:
           --attach-msix "${{ github.event.inputs.attach_msix }}"
 
     - name: Upload staged release candidate
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
       with:
         name: release-candidate-assets
         path: release-staging/
@@ -307,7 +321,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     - name: Download staged release candidate
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
         name: release-candidate-assets
         path: release-staging/
@@ -333,19 +347,23 @@ jobs:
     needs: build-core
     if: github.event.inputs.publish_existing_release == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      is_draft: ${{ steps.release_state.outputs.is_draft }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       with:
         ref: ${{ needs.build-core.outputs.source_tag }}
 
     - name: Verify release exists
+      id: release_state
       env:
         GH_TOKEN: ${{ github.token }}
         SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
       run: |
         set -euo pipefail
-        gh release view "$SOURCE_TAG" --repo "$GITHUB_REPOSITORY" > /dev/null
+        IS_DRAFT="$(gh release view "$SOURCE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
+        echo "is_draft=${IS_DRAFT}" >> "$GITHUB_OUTPUT"
 
     - name: Download existing release assets
       env:
@@ -386,7 +404,7 @@ jobs:
         pacman -Sy --noconfirm git openssh wget
         
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
     
     - name: Setup SSH for AUR
       env:
@@ -527,7 +545,7 @@ jobs:
   publish-winget:
     name: Publish to Winget
     needs: [build-core, create-release, verify-existing-release]
-    runs-on: ubuntu-latest
+    runs-on: windows-2025
     if: |
       always() &&
       !cancelled() &&
@@ -535,12 +553,170 @@ jobs:
       (needs.create-release.result == 'success' || needs.verify-existing-release.result == 'success') &&
       (github.event.inputs.publish_release == 'true' || github.event.inputs.publish_existing_release == 'true') &&
       github.event.inputs.publish_winget == 'true' &&
+      ((github.event.inputs.publish_release == 'true' && github.event.inputs.draft != 'true') || (github.event.inputs.publish_existing_release == 'true' && needs.verify-existing-release.outputs.is_draft != 'true')) &&
       needs.build-core.outputs.is_prerelease_release != 'true'
     steps:
-      - name: Publish to Winget
-        # Pinned from alper-han/winget-releaser@main on 2026-05-09.
-        # Update by checking the current main branch, reviewing upstream changes, then replacing this SHA.
-        uses: alper-han/winget-releaser@19e706d4c9121098010096f9c495a70a7518b30f
+      - name: Setup .NET for WinGetCreate
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7
         with:
-          identifier: AlperHan.CrossMacro
-          token: ${{ secrets.WINGET_TOKEN }}
+          dotnet-version: '6.x'
+
+      - name: Submit WinGet manifest update
+        shell: pwsh
+        env:
+          WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
+          PACKAGE_VERSION: ${{ needs.build-core.outputs.package_version_canonical }}
+          SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
+          REPOSITORY: ${{ github.repository }}
+          WINGETCREATE_TAG: v1.12.8.0
+          WINGETCREATE_SHA256: 8bd738851b524885410112678e3771b341c5c716de60fbbecb88ab0a363ed85d
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+
+          function Invoke-CheckedNative {
+            if ($args.Count -eq 0) {
+              throw 'Invoke-CheckedNative requires a command.'
+            }
+
+            $command = $args[0]
+            $commandArgs = @()
+            if ($args.Count -gt 1) {
+              $commandArgs = @($args[1..($args.Count - 1)])
+            }
+
+            & $command @commandArgs
+            if ($LASTEXITCODE -ne 0) {
+              throw "Native command failed with exit code $LASTEXITCODE: $($args -join ' ')"
+            }
+          }
+
+          $wingetCreateUrl = "https://github.com/microsoft/winget-create/releases/download/$env:WINGETCREATE_TAG/wingetcreate.exe"
+          Invoke-WebRequest -Uri $wingetCreateUrl -OutFile wingetcreate.exe
+          $actualWingetCreateSha256 = (Get-FileHash -LiteralPath .\wingetcreate.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualWingetCreateSha256 -ne $env:WINGETCREATE_SHA256) {
+            throw "WinGetCreate SHA256 mismatch. Expected $env:WINGETCREATE_SHA256, got $actualWingetCreateSha256"
+          }
+
+          $releaseBaseUrl = "https://github.com/$env:REPOSITORY/releases/download/$env:SOURCE_TAG"
+          $x64InstallerUrl = "$releaseBaseUrl/CrossMacro-$env:PACKAGE_VERSION-win-x64.exe"
+          $arm64InstallerUrl = "$releaseBaseUrl/CrossMacro-$env:PACKAGE_VERSION-win-arm64.exe"
+          $manifestDirectory = Join-Path $env:GITHUB_WORKSPACE 'winget-manifests'
+
+          Invoke-CheckedNative .\wingetcreate.exe update AlperHan.CrossMacro `
+            --version "$env:PACKAGE_VERSION" `
+            --urls "$x64InstallerUrl|x64" `
+            --out "$manifestDirectory"
+
+          $arm64Installer = Join-Path $env:RUNNER_TEMP "CrossMacro-$env:PACKAGE_VERSION-win-arm64.exe"
+          Invoke-WebRequest -Uri $arm64InstallerUrl -OutFile $arm64Installer
+          $arm64Sha256 = (Get-FileHash -LiteralPath $arm64Installer -Algorithm SHA256).Hash.ToUpperInvariant()
+
+          $installerManifest = Get-ChildItem -Path $manifestDirectory -Recurse -Filter 'AlperHan.CrossMacro.installer.yaml' | Select-Object -First 1
+          if ($null -eq $installerManifest) {
+            throw "WinGet installer manifest was not generated under $manifestDirectory"
+          }
+
+          $installerText = Get-Content -LiteralPath $installerManifest.FullName -Raw
+          if ($installerText -notmatch '(?m)^- Architecture: x64$') {
+            throw 'Generated WinGet installer manifest does not contain the expected x64 installer node.'
+          }
+          if ($installerText -match '(?m)^- Architecture: arm64$') {
+            throw 'Generated WinGet installer manifest already contains an arm64 installer node; update this workflow to pass both URLs directly to wingetcreate update.'
+          }
+
+          $arm64Node = @(
+            '- Architecture: arm64'
+            "  InstallerUrl: $arm64InstallerUrl"
+            "  InstallerSha256: $arm64Sha256"
+          ) -join "`n"
+          $installerText = $installerText -replace '(?m)^ManifestType: installer$', "$arm64Node`nManifestType: installer"
+          Set-Content -LiteralPath $installerManifest.FullName -Value $installerText -NoNewline
+
+          $manifestFiles = Get-ChildItem -Path $manifestDirectory -Recurse -Filter 'AlperHan.CrossMacro.*.yaml'
+          if ($manifestFiles.Count -eq 0) {
+            throw "No WinGet manifest files were generated under $manifestDirectory"
+          }
+          $finalInstallerText = Get-Content -LiteralPath $installerManifest.FullName -Raw
+          foreach ($expectedArchitecture in @('x64', 'arm64')) {
+            if ($finalInstallerText -notmatch "(?m)^- Architecture: $expectedArchitecture$") {
+              throw "Final WinGet installer manifest is missing $expectedArchitecture installer node."
+            }
+            if ($finalInstallerText -notmatch "CrossMacro-$env:PACKAGE_VERSION-win-$expectedArchitecture\.exe") {
+              throw "Final WinGet installer manifest is missing $expectedArchitecture installer URL."
+            }
+          }
+
+          if (Get-Command winget -ErrorAction SilentlyContinue) {
+            Invoke-CheckedNative winget validate --manifest "$manifestDirectory" --disable-interactivity --verbose-logs
+          }
+          else {
+            Write-Warning 'winget CLI was not found on the runner; continuing after structural manifest checks and relying on wingetcreate submit validation.'
+          }
+
+          Invoke-CheckedNative .\wingetcreate.exe submit "$manifestDirectory" `
+            --prtitle "Update AlperHan.CrossMacro to $env:PACKAGE_VERSION" `
+            --no-open
+
+  publish-msstore:
+    name: Publish to Microsoft Store
+    needs: [build-core, package-windows, create-release, verify-existing-release]
+    runs-on: windows-2025
+    if: |
+      always() &&
+      !cancelled() &&
+      needs.build-core.result == 'success' &&
+      needs.package-windows.result == 'success' &&
+      (needs.create-release.result == 'success' || needs.verify-existing-release.result == 'success') &&
+      (github.event.inputs.publish_release == 'true' || github.event.inputs.publish_existing_release == 'true') &&
+      github.event.inputs.publish_msstore == 'true' &&
+      github.event.inputs.attach_msix == 'true' &&
+      needs.build-core.outputs.is_prerelease_release != 'true'
+    steps:
+      - name: Download MSIX upload artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: msix-store-package
+          path: msix-store-package/
+
+      - name: Setup Microsoft Store Developer CLI
+        # Pinned from microsoft/microsoft-store-apppublisher@v1.3 on 2026-05-19.
+        # Update by checking the current v1.3 tag, reviewing upstream changes, then replacing this SHA.
+        uses: microsoft/microsoft-store-apppublisher@b76227f539d68e6465f79bbbc82ed92f61081aa4
+
+      - name: Configure Microsoft Store Developer CLI
+        shell: pwsh
+        env:
+          PARTNER_CENTER_TENANT_ID: ${{ secrets.PARTNER_CENTER_TENANT_ID }}
+          PARTNER_CENTER_SELLER_ID: ${{ secrets.PARTNER_CENTER_SELLER_ID }}
+          PARTNER_CENTER_CLIENT_ID: ${{ secrets.PARTNER_CENTER_CLIENT_ID }}
+          PARTNER_CENTER_CLIENT_SECRET: ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          msstore reconfigure `
+            --tenantId "$env:PARTNER_CENTER_TENANT_ID" `
+            --sellerId "$env:PARTNER_CENTER_SELLER_ID" `
+            --clientId "$env:PARTNER_CENTER_CLIENT_ID" `
+            --clientSecret "$env:PARTNER_CENTER_CLIENT_SECRET"
+
+      - name: Publish MSIX upload to Microsoft Store
+        shell: pwsh
+        env:
+          PACKAGE_VERSION: ${{ needs.build-core.outputs.package_version_canonical }}
+          MSSTORE_PRODUCT_ID: ${{ secrets.MSSTORE_PRODUCT_ID }}
+          MSSTORE_NO_COMMIT: ${{ github.event.inputs.msstore_no_commit }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $msixUpload = Join-Path $env:GITHUB_WORKSPACE "msix-store-package/CrossMacro-$env:PACKAGE_VERSION.msixupload"
+          if (-not (Test-Path -LiteralPath $msixUpload)) {
+            throw "MSIX upload artifact was not found: $msixUpload"
+          }
+
+          $arguments = @('publish', $env:GITHUB_WORKSPACE, '--inputFile', $msixUpload, '--appId', $env:MSSTORE_PRODUCT_ID)
+          if ($env:MSSTORE_NO_COMMIT -eq 'true') {
+            $arguments += '--noCommit'
+          }
+
+          msstore @arguments

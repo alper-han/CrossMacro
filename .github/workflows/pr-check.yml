@@ -20,11 +20,11 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
     - name: Run actionlint
       env:
-        ACTIONLINT_VERSION: 1.7.7
+        ACTIONLINT_VERSION: 1.7.12
       run: |
         set -euo pipefail
         curl -sSfL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" -o actionlint.tar.gz
@@ -65,7 +65,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
     - name: Resolve package metadata
       id: version
@@ -77,10 +77,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7
       with:
         dotnet-version: '10.0.x'
 
@@ -230,10 +230,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7
       with:
         dotnet-version: '10.0.x'
 
@@ -262,14 +262,14 @@ jobs:
         bash scripts/ci/publish-linux-artifacts.sh "${args[@]}"
 
     - name: Upload Linux UI artifact
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
       with:
         name: pr-check-linux-binary-${{ matrix.arch_suffix }}-${{ github.run_id }}
         path: publish-linux-${{ matrix.arch_suffix }}/
         retention-days: 7
 
     - name: Upload Linux daemon artifact
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
       with:
         name: pr-check-linux-daemon-${{ matrix.arch_suffix }}-${{ github.run_id }}
         path: publish-daemon-${{ matrix.arch_suffix }}/
@@ -294,16 +294,16 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
     - name: Download Linux UI artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
         name: pr-check-linux-binary-${{ matrix.arch_suffix }}-${{ github.run_id }}
         path: publish/
 
     - name: Download Linux daemon artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
         name: pr-check-linux-daemon-${{ matrix.arch_suffix }}-${{ github.run_id }}
         path: publish-daemon/
@@ -370,16 +370,16 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
     - name: Download Linux UI artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
         name: pr-check-linux-binary-${{ matrix.arch_suffix }}-${{ github.run_id }}
         path: publish/
 
     - name: Download Linux daemon artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
         name: pr-check-linux-daemon-${{ matrix.arch_suffix }}-${{ github.run_id }}
         path: publish-daemon/
@@ -454,10 +454,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
     - name: Download Linux UI artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
         name: pr-check-linux-binary-${{ matrix.arch_suffix }}-${{ github.run_id }}
         path: publish/
@@ -499,7 +499,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
     - name: Install Flatpak tools
       run: |
@@ -529,14 +529,14 @@ jobs:
 
   build-windows:
     name: Build (Windows)
-    runs-on: windows-latest
+    runs-on: windows-2025
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7
       with:
         dotnet-version: '10.0.x'
 
@@ -619,142 +619,73 @@ jobs:
         }
 
   package-windows-portable-pr:
-    name: Package and Smoke Windows Portable
+    name: Package and Smoke Windows Portable (${{ matrix.architecture }})
     needs: pr-release-metadata
-    runs-on: windows-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: x64
+            runtime: win-x64
+            runner: windows-2025
+          - architecture: arm64
+            runtime: win-arm64
+            runner: windows-11-arm
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7
       with:
         dotnet-version: '10.0.x'
 
-    - name: Publish Windows portable package
+    - name: Publish and smoke Windows portable package
       shell: pwsh
       run: |
-        dotnet publish src/CrossMacro.UI.Windows/CrossMacro.UI.Windows.csproj `
-          -c Release `
-          -r win-x64 `
-          --self-contained true `
-          -p:PublishSingleFile=true `
-          -p:PublishTrimmed=true `
-          -p:TrimMode=partial `
-          -p:IncludeNativeLibrariesForSelfExtract=true `
-          -p:EnableCompressionInSingleFile=true `
-          -p:PublishReadyToRun=false `
-          -p:DebugType=None `
-          -p:DebugSymbols=false `
-          -p:ErrorOnDuplicatePublishOutputFiles=true `
-          -p:Version=${{ needs.pr-release-metadata.outputs.version }} `
-          -o publish-windows/
-
-    - name: Verify Windows portable package shape
-      shell: pwsh
-      run: |
-        $ErrorActionPreference = 'Stop'
-        $unexpectedDirectories = Get-ChildItem publish-windows -Directory
-        if ($unexpectedDirectories.Count -ne 0) {
-          throw "Windows portable publish emitted unexpected directories: $($unexpectedDirectories.FullName -join ', ')"
-        }
-
-        Get-ChildItem publish-windows -Filter *.pdb -File | Remove-Item -Force
-        $files = @(Get-ChildItem publish-windows -File)
-        $exeFiles = @($files | Where-Object { $_.Extension -eq '.exe' })
-        if ($files.Count -ne 1 -or $exeFiles.Count -ne 1) {
-          throw "Windows portable package must contain exactly one EXE after symbol cleanup. Files: $($files.Name -join ', ')"
-        }
-
-    - name: Smoke Windows portable CLI
-      shell: pwsh
-      run: |
-        $ErrorActionPreference = 'Stop'
-        $exe = (Get-ChildItem publish-windows -Filter *.exe -File | Select-Object -First 1).FullName
-
-        $helpOutput = (& $exe --help 2>&1 | Out-String)
-        if ($LASTEXITCODE -ne 0 -or -not ($helpOutput -match "Usage:")) {
-          throw "Windows portable --help smoke failed. Output: $helpOutput"
-        }
-
-        $jsonParseOutput = (& $exe --json 2>&1 | Out-String)
-        $jsonParseCode = $LASTEXITCODE
-        if ($jsonParseCode -ne 2 -or -not ($jsonParseOutput -match '"status":\s*"error"') -or -not ($jsonParseOutput -match '"code":\s*2')) {
-          throw "Windows portable --json smoke failed. Exit=$jsonParseCode Output=$jsonParseOutput"
-        }
-
-        $dryRunOutput = (& $exe run --step "move abs 10 10" --step "click left" --dry-run --json 2>&1 | Out-String)
-        $dryRunCode = $LASTEXITCODE
-        if ($dryRunCode -ne 0 -or -not ($dryRunOutput -match '"coordinateMode":\s*"absolute"')) {
-          throw "Windows portable dry-run smoke failed. Exit=$dryRunCode Output=$dryRunOutput"
-        }
+        ./scripts/ci/publish-windows-portable.ps1 `
+          -Version '${{ needs.pr-release-metadata.outputs.version }}' `
+          -Architecture '${{ matrix.architecture }}' `
+          -OutputDir publish-windows
 
   package-msix-pr:
-    name: Package MSIX
+    name: Package MSIX (${{ matrix.architecture }})
     needs: pr-release-metadata
-    runs-on: windows-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: x64
+            runner: windows-2025
+          - architecture: arm64
+            runner: windows-11-arm
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7
       with:
         dotnet-version: '10.0.x'
 
-    - name: Build Windows binary for MSIX
+    - name: Build and smoke MSIX package
       shell: pwsh
       run: |
-        dotnet publish src/CrossMacro.UI.Windows/CrossMacro.UI.Windows.csproj `
-          -c Release `
-          -r win-x64 `
-          --self-contained true `
-          -p:PublishSingleFile=false `
-          -p:PublishTrimmed=false `
-          -p:PublishReadyToRun=false `
-          -p:DebugType=None `
-          -p:DebugSymbols=false `
-          -p:Version=${{ needs.pr-release-metadata.outputs.version }} `
-          -o msix-content/
-
-    - name: Smoke MSIX staged executable
-      shell: pwsh
-      run: |
-        $ErrorActionPreference = 'Stop'
-        $exe = "msix-content/CrossMacro.UI.exe"
-        if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) {
-          throw "MSIX staged executable missing: $exe"
-        }
-
-        $helpOutput = (& $exe --help 2>&1 | Out-String)
-        if ($LASTEXITCODE -ne 0 -or -not ($helpOutput -match "Usage:")) {
-          throw "MSIX staged --help smoke failed. Output: $helpOutput"
-        }
-
-        $dryRunOutput = (& $exe run --step "move abs 10 10" --step "click left" --dry-run --json 2>&1 | Out-String)
-        $dryRunCode = $LASTEXITCODE
-        if ($dryRunCode -ne 0 -or -not ($dryRunOutput -match '"coordinateMode":\s*"absolute"')) {
-          throw "MSIX staged dry-run smoke failed. Exit=$dryRunCode Output=$dryRunOutput"
-        }
-
-    - name: Prepare MSIX content
-      shell: pwsh
-      run: |
-        ./scripts/msix/prepare-msix.ps1 -Version "${{ needs.pr-release-metadata.outputs.version }}" -OutputDir "msix-content"
-
-    - name: Create MSIX package
-      shell: pwsh
-      run: |
-        $sdkPath = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\10.*\x64\makeappx.exe" |
-                   Sort-Object -Descending | Select-Object -First 1
-        & $sdkPath pack /d msix-content /p CrossMacro-${{ needs.pr-release-metadata.outputs.package_version_canonical }}.msix /nv
+        ./scripts/msix/build-msix.ps1 `
+          -Version '${{ needs.pr-release-metadata.outputs.version }}' `
+          -PackageVersion '${{ needs.pr-release-metadata.outputs.package_version_canonical }}' `
+          -Architecture '${{ matrix.architecture }}' `
+          -OutputDir msix-content-${{ matrix.architecture }} `
+          -PackagePath CrossMacro-${{ needs.pr-release-metadata.outputs.package_version_canonical }}-${{ matrix.architecture }}.msix
 
     - name: Verify MSIX package exists
       shell: pwsh
       run: |
-        if (-not (Test-Path -LiteralPath "CrossMacro-${{ needs.pr-release-metadata.outputs.package_version_canonical }}.msix" -PathType Leaf)) {
+        if (-not (Test-Path -LiteralPath "CrossMacro-${{ needs.pr-release-metadata.outputs.package_version_canonical }}-${{ matrix.architecture }}.msix" -PathType Leaf)) {
           throw "MSIX package was not created."
         }
 
@@ -764,10 +695,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7
       with:
         dotnet-version: '10.0.x'
 
@@ -827,10 +758,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7
       with:
         dotnet-version: '10.0.x'
 

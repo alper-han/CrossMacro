@@ -51,17 +51,25 @@ permissions:
 
 jobs:
   package-windows-portable:
-    name: Build and Smoke Windows Portable
-    runs-on: windows-latest
+    name: Build and Smoke Windows Portable (${{ matrix.architecture }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: x64
+            runner: windows-2025
+          - architecture: arm64
+            runner: windows-11-arm
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7
         with:
           dotnet-version: '10.0.x'
 
@@ -70,6 +78,7 @@ jobs:
         run: |
           ./scripts/ci/publish-windows-portable.ps1 `
             -Version '${{ inputs.version }}' `
+            -Architecture '${{ matrix.architecture }}' `
             -OutputDir publish-windows
 
       - name: Smoke Windows portable EXE
@@ -78,7 +87,7 @@ jobs:
         run: |
           ./scripts/smoke/windows-portable.ps1 -Path publish-windows
 
-      - name: Stage Windows portable release ZIP
+      - name: Stage Windows portable release EXE
         if: ${{ inputs.release_mode }}
         shell: pwsh
         run: |
@@ -90,59 +99,51 @@ jobs:
               exit 1
           }
 
-          $renamedExe = 'publish-windows/CrossMacro-${{ inputs.canonical_version }}-win-x64.exe'
-          $archive = 'publish-windows/CrossMacro-${{ inputs.canonical_version }}-win-x64.zip'
+          $renamedExe = 'publish-windows/CrossMacro-${{ inputs.canonical_version }}-win-${{ matrix.architecture }}.exe'
           Move-Item -LiteralPath $exeFiles[0].FullName -Destination $renamedExe
-          Compress-Archive -LiteralPath $renamedExe -DestinationPath $archive -Force
-          Remove-Item -LiteralPath $renamedExe -Force
 
-      - name: Verify staged Windows portable ZIP
+      - name: Verify staged Windows portable EXE
         if: ${{ inputs.release_mode }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $files = @(Get-ChildItem -LiteralPath publish-windows -File)
-          $archives = @($files | Where-Object { $_.Extension -ieq '.zip' })
-          if ($files.Count -ne 1 -or $archives.Count -ne 1) {
-              Write-Error "Windows release package must contain exactly one ZIP and no extra files: $($files.Name -join ', ')"
+          $expected = 'CrossMacro-${{ inputs.canonical_version }}-win-${{ matrix.architecture }}.exe'
+          $executables = @($files | Where-Object { $_.Name -eq $expected })
+          if ($files.Count -ne 1 -or $executables.Count -ne 1) {
+              Write-Error "Windows release package must contain exactly one expected EXE and no extra files: $($files.Name -join ', ')"
               exit 1
-          }
-          Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $archivePath = 'publish-windows/CrossMacro-${{ inputs.canonical_version }}-win-x64.zip'
-          $zip = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
-          try {
-              $names = @($zip.Entries | ForEach-Object { $_.FullName })
-              $expected = 'CrossMacro-${{ inputs.canonical_version }}-win-x64.exe'
-              if ($names.Count -ne 1 -or $names[0] -ne $expected) {
-                  Write-Error "Unexpected Windows archive contents: $($names -join ', ')"
-                  exit 1
-              }
-          }
-          finally {
-              $zip.Dispose()
           }
 
       - name: Upload Windows portable package
         if: ${{ inputs.upload_enabled }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: ${{ inputs.release_mode && 'windows-package' || format('{0}-portable-x64-{1}', inputs.artifact_prefix, github.run_id) }}
-          path: ${{ inputs.release_mode && 'publish-windows/*.zip' || 'publish-windows/*.exe' }}
+          name: ${{ inputs.release_mode && format('windows-{0}-package', matrix.architecture) || format('{0}-portable-{1}-{2}', inputs.artifact_prefix, matrix.architecture, github.run_id) }}
+          path: publish-windows/*.exe
           retention-days: ${{ inputs.retention_days }}
 
   package-msix:
-    name: Build and Validate MSIX
+    name: Build and Validate MSIX (${{ matrix.architecture }})
     if: ${{ inputs.attach_msix }}
-    runs-on: windows-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: x64
+            runner: windows-2025
+          - architecture: arm64
+            runner: windows-11-arm
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7
         with:
           dotnet-version: '10.0.x'
 
@@ -151,22 +152,67 @@ jobs:
         run: |
           ./scripts/msix/build-msix.ps1 `
             -Version '${{ inputs.version }}' `
-            -PackageVersion '${{ inputs.canonical_version }}${{ inputs.release_mode && '-x64' || '' }}' `
-            -OutputDir msix-content `
-            -PackagePath CrossMacro-${{ inputs.canonical_version }}${{ inputs.release_mode && '-x64' || '' }}.msix
+            -PackageVersion '${{ inputs.canonical_version }}' `
+            -Architecture '${{ matrix.architecture }}' `
+            -OutputDir msix-content-${{ matrix.architecture }} `
+            -PackagePath CrossMacro-${{ inputs.canonical_version }}-${{ matrix.architecture }}.msix
 
       - name: Smoke MSIX package
         if: ${{ inputs.smoke_enabled }}
         shell: pwsh
         run: |
-          ./scripts/smoke/msix.ps1 `
-            -Path CrossMacro-${{ inputs.canonical_version }}${{ inputs.release_mode && '-x64' || '' }}.msix `
-            -ExpectedVersion '${{ inputs.version }}.0'
+          $smokeArgs = @{
+            Path = 'CrossMacro-${{ inputs.canonical_version }}-${{ matrix.architecture }}.msix'
+            ExpectedVersion = '${{ inputs.version }}.0'
+            ExpectedArchitecture = '${{ matrix.architecture }}'
+          }
+          ./scripts/smoke/msix.ps1 @smokeArgs
 
       - name: Upload MSIX package
         if: ${{ inputs.upload_enabled }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: ${{ inputs.release_mode && 'msix-package' || format('{0}-msix-x64-{1}', inputs.artifact_prefix, github.run_id) }}
-          path: CrossMacro-${{ inputs.canonical_version }}${{ inputs.release_mode && '-x64' || '' }}.msix
+          name: ${{ inputs.release_mode && format('msix-{0}-package', matrix.architecture) || format('{0}-msix-{1}-{2}', inputs.artifact_prefix, matrix.architecture, github.run_id) }}
+          path: CrossMacro-${{ inputs.canonical_version }}-${{ matrix.architecture }}.msix
+          retention-days: ${{ inputs.retention_days }}
+
+  package-msix-store-upload:
+    name: Build MSIX Store Upload
+    if: ${{ inputs.attach_msix && inputs.release_mode && inputs.upload_enabled }}
+    needs: package-msix
+    runs-on: windows-2025
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
+
+      - name: Download x64 MSIX
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: msix-x64-package
+          path: msix-store/packages/
+
+      - name: Download arm64 MSIX
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: msix-arm64-package
+          path: msix-store/packages/
+
+      - name: Build MSIX bundle and upload package
+        shell: pwsh
+        run: |
+          ./scripts/msix/build-msix-store-upload.ps1 `
+            -Version '${{ inputs.version }}' `
+            -PackageVersion '${{ inputs.canonical_version }}' `
+            -PackageDir msix-store/packages `
+            -BundlePath CrossMacro-${{ inputs.canonical_version }}.msixbundle `
+            -UploadPath CrossMacro-${{ inputs.canonical_version }}.msixupload
+
+      - name: Upload MSIX Store artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: msix-store-package
+          path: CrossMacro-${{ inputs.canonical_version }}.msixupload
           retention-days: ${{ inputs.retention_days }}

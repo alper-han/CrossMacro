@@ -69,18 +69,18 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
 
       - name: Download Linux UI artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ inputs.artifact_prefix }}-ui-${{ matrix.arch_suffix }}-${{ inputs.build_run_id }}
           path: publish/
 
       - name: Download Linux daemon artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ inputs.artifact_prefix }}-daemon-${{ matrix.arch_suffix }}-${{ inputs.build_run_id }}
           path: publish-daemon/
@@ -110,7 +110,7 @@ jobs:
 
       - name: Upload DEB package
         if: ${{ inputs.upload_enabled }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ inputs.artifact_prefix }}-deb-${{ matrix.arch_suffix }}-${{ github.run_id }}
           path: scripts/*.deb
@@ -138,18 +138,18 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
 
       - name: Download Linux UI artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ inputs.artifact_prefix }}-ui-${{ matrix.arch_suffix }}-${{ inputs.build_run_id }}
           path: publish/
 
       - name: Download Linux daemon artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ inputs.artifact_prefix }}-daemon-${{ matrix.arch_suffix }}-${{ inputs.build_run_id }}
           path: publish-daemon/
@@ -185,7 +185,7 @@ jobs:
 
       - name: Upload RPM package
         if: ${{ inputs.upload_enabled }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ inputs.artifact_prefix }}-rpm-${{ matrix.arch_suffix }}-${{ github.run_id }}
           path: scripts/*.rpm
@@ -213,12 +213,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
 
       - name: Download Linux UI artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ inputs.artifact_prefix }}-ui-${{ matrix.arch_suffix }}-${{ inputs.build_run_id }}
           path: publish/
@@ -252,7 +252,7 @@ jobs:
 
       - name: Upload AppImage package
         if: ${{ inputs.upload_enabled }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ inputs.artifact_prefix }}-appimage-${{ matrix.arch_suffix }}-${{ github.run_id }}
           path: scripts/*-${{ matrix.appimage_arch }}.AppImage
@@ -277,7 +277,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
 
@@ -307,7 +307,7 @@ jobs:
 
       - name: Upload Flatpak package
         if: ${{ inputs.upload_enabled }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ inputs.artifact_prefix }}-flatpak-${{ matrix.arch_suffix }}-${{ github.run_id }}
           path: flatpak/*-${{ matrix.flatpak_arch }}.flatpak

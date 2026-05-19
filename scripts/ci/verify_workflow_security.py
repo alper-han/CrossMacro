@@ -21,16 +21,13 @@ RELEASE_WORKFLOW = "release.yml"
 RELEASE_WRITE_JOB = "create-release"
 PUBLISH_JOB_GATES = {
     "update-aur": "publish_aur",
-    "publish-msstore": "publish_msstore",
     "publish-winget": "publish_winget",
 }
 EXTERNAL_PUBLISH_INTENT_INPUTS = ("publish_release", "publish_existing_release")
 FULL_COMMIT_SHA_REF = re.compile(r"@[0-9a-fA-F]{40}\s*(?:#.*)?$")
 MUTABLE_ACTION_REF = re.compile(r"(?m)^\s*uses\s*:\s*([^\s#]+)\s*(?:#.*)?$")
 AUR_ED25519_FINGERPRINT = "SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4"
-SECRET_PUBLISH_ACTIONS_REQUIRING_SHA = (
-    "microsoft/microsoft-store-apppublisher",
-)
+SECRET_PUBLISH_ACTIONS_REQUIRING_SHA = ()
 MUTABLE_EXECUTABLE_DOWNLOADS = (
     "aka.ms/wingetcreate/latest",
 )

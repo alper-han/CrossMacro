@@ -47,16 +47,6 @@ on:
         type: boolean
         required: false
         default: false
-      publish_msstore:
-        description: 'Publish the MSIX upload package to Microsoft Store after GitHub Release publishing succeeds'
-        type: boolean
-        required: false
-        default: false
-      msstore_no_commit:
-        description: 'Create the Microsoft Store submission as a draft without committing it'
-        type: boolean
-        required: false
-        default: true
       publish_winget:
         description: 'Publish WinGet package after GitHub Release publishing succeeds'
         type: boolean
@@ -166,7 +156,7 @@ jobs:
   package-windows:
     name: Package Windows
     needs: build-core
-    if: github.event.inputs.publish_existing_release != 'true' || github.event.inputs.publish_msstore == 'true'
+    if: github.event.inputs.publish_existing_release != 'true'
     uses: ./.github/workflows/_package-windows.yml
     with:
       version: ${{ needs.build-core.outputs.version }}
@@ -657,66 +647,3 @@ jobs:
           Invoke-CheckedNative .\wingetcreate.exe submit "$manifestDirectory" `
             --prtitle "Update AlperHan.CrossMacro to $env:PACKAGE_VERSION" `
             --no-open
-
-  publish-msstore:
-    name: Publish to Microsoft Store
-    needs: [build-core, package-windows, create-release, verify-existing-release]
-    runs-on: windows-2025
-    if: |
-      always() &&
-      !cancelled() &&
-      needs.build-core.result == 'success' &&
-      needs.package-windows.result == 'success' &&
-      (needs.create-release.result == 'success' || needs.verify-existing-release.result == 'success') &&
-      (github.event.inputs.publish_release == 'true' || github.event.inputs.publish_existing_release == 'true') &&
-      github.event.inputs.publish_msstore == 'true' &&
-      github.event.inputs.attach_msix == 'true' &&
-      needs.build-core.outputs.is_prerelease_release != 'true'
-    steps:
-      - name: Download MSIX upload artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: msix-store-package
-          path: msix-store-package/
-
-      - name: Setup Microsoft Store Developer CLI
-        # Pinned from microsoft/microsoft-store-apppublisher@v1.3 on 2026-05-19.
-        # Update by checking the current v1.3 tag, reviewing upstream changes, then replacing this SHA.
-        uses: microsoft/microsoft-store-apppublisher@b76227f539d68e6465f79bbbc82ed92f61081aa4
-
-      - name: Configure Microsoft Store Developer CLI
-        shell: pwsh
-        env:
-          PARTNER_CENTER_TENANT_ID: ${{ secrets.PARTNER_CENTER_TENANT_ID }}
-          PARTNER_CENTER_SELLER_ID: ${{ secrets.PARTNER_CENTER_SELLER_ID }}
-          PARTNER_CENTER_CLIENT_ID: ${{ secrets.PARTNER_CENTER_CLIENT_ID }}
-          PARTNER_CENTER_CLIENT_SECRET: ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-
-          msstore reconfigure `
-            --tenantId "$env:PARTNER_CENTER_TENANT_ID" `
-            --sellerId "$env:PARTNER_CENTER_SELLER_ID" `
-            --clientId "$env:PARTNER_CENTER_CLIENT_ID" `
-            --clientSecret "$env:PARTNER_CENTER_CLIENT_SECRET"
-
-      - name: Publish MSIX upload to Microsoft Store
-        shell: pwsh
-        env:
-          PACKAGE_VERSION: ${{ needs.build-core.outputs.package_version_canonical }}
-          MSSTORE_PRODUCT_ID: ${{ secrets.MSSTORE_PRODUCT_ID }}
-          MSSTORE_NO_COMMIT: ${{ github.event.inputs.msstore_no_commit }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-
-          $msixUpload = Join-Path $env:GITHUB_WORKSPACE "msix-store-package/CrossMacro-$env:PACKAGE_VERSION.msixupload"
-          if (-not (Test-Path -LiteralPath $msixUpload)) {
-            throw "MSIX upload artifact was not found: $msixUpload"
-          }
-
-          $arguments = @('publish', $env:GITHUB_WORKSPACE, '--inputFile', $msixUpload, '--appId', $env:MSSTORE_PRODUCT_ID)
-          if ($env:MSSTORE_NO_COMMIT -eq 'true') {
-            $arguments += '--noCommit'
-          }
-
-          msstore @arguments

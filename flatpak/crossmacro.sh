@@ -1,8 +1,6 @@
 #!/bin/sh
 # CrossMacro Flatpak Launcher (Hybrid Mode)
 
-export DOTNET_ROOT=/app/lib/dotnet
-
 # Check if CrossMacro daemon is available on host
 DAEMON_SOCKET="/run/crossmacro/crossmacro.sock"
 
@@ -14,4 +12,4 @@ else
     echo "[CrossMacro] Using direct mode (Flatpak permissions)" >&2
 fi
 
-exec /app/lib/dotnet/dotnet /app/lib/crossmacro/CrossMacro.UI.dll "$@"
+exec /app/lib/crossmacro/CrossMacro.UI "$@"

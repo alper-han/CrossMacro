@@ -56,7 +56,6 @@ public sealed partial class LinuxPackagingStaticParityTests
             "--filesystem=xdg-run/hypr:ro",
             HostDaemonFilesystemArg,
             "--filesystem=~/.local/share/gnome-shell/extensions:create",
-            "--env=DOTNET_ROOT=/app/lib/dotnet",
             "--env=CROSSMACRO_FLATPAK=1"
         };
 

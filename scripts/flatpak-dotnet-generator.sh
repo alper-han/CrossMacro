@@ -128,8 +128,8 @@ for PROJECT in "${PROJECTS[@]}"; do
             --share=network \
             --filesystem=host \
             "org.freedesktop.Sdk.Extension.dotnet${DOTNET}//${FREEDESKTOP}" \
-            -c "PATH=\"\${PATH}:/usr/lib/sdk/dotnet${DOTNET}/bin\" LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:/usr/lib/sdk/dotnet${DOTNET}/lib\" dotnet restore --packages \"$TMPDIR\" \"$PROJECT\" -r \"$RUNTIME\"" \
-            2>&1 || true
+            -c "PATH=\"\${PATH}:/usr/lib/sdk/dotnet${DOTNET}/bin\" LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:/usr/lib/sdk/dotnet${DOTNET}/lib\" dotnet restore --packages \"$TMPDIR\" \"$PROJECT\" -r \"$RUNTIME\" -p:SelfContained=true -p:PublishSingleFile=true -p:PublishTrimmed=true -p:TrimMode=partial -p:PublishAot=false --source https://api.nuget.org/v3/index.json --source /usr/lib/sdk/dotnet${DOTNET}/nuget/packages" \
+            2>&1
     done
 done
 

@@ -211,6 +211,13 @@
     },
     {
         "type": "file",
+        "url": "https://api.nuget.org/v3-flatcontainer/microsoft.net.illink.tasks/10.0.7/microsoft.net.illink.tasks.10.0.7.nupkg",
+        "sha512": "7aa7f83a78680c287d79c0558118df6cbb71f20154d809bc6059f8bc6f5f252f9bc2d983807d3fa36ab92a30d886709c383a07b431850f3fab8f1fbac0a81ffb",
+        "dest": "nuget-sources",
+        "dest-filename": "microsoft.net.illink.tasks.10.0.7.nupkg"
+    },
+    {
+        "type": "file",
         "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.runtime.linux-arm64/10.0.7/microsoft.netcore.app.runtime.linux-arm64.10.0.7.nupkg",
         "sha512": "97f334245cbe06a565d159a1ffb5d6fee4ad0b991c271b36d11417ac1f60b72d7fd7e8de30fb4d8cf3314215f897c2299efc492b11eb4304b87e61b17952dc93",
         "dest": "nuget-sources",

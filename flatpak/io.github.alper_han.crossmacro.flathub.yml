@@ -35,14 +35,13 @@ finish-args:
   - --filesystem=~/.local/share/gnome-shell/extensions:create
 
   # Environment
-  - --env=DOTNET_ROOT=/app/lib/dotnet
   - --env=CROSSMACRO_FLATPAK=1
 
 build-options:
   prepend-path: /usr/lib/sdk/dotnet10/bin
   append-ld-library-path: /usr/lib/sdk/dotnet10/lib
   prepend-pkg-config-path: /usr/lib/sdk/dotnet10/lib/pkgconfig
-  strip: true
+  strip: false
   env:
     DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
@@ -51,17 +50,19 @@ cleanup:
   - '*.pdb'
 
 modules:
-  # .NET Runtime Installation (Framework-Dependent approach)
-  - name: dotnet
-    buildsystem: simple
-    build-commands:
-      - /usr/lib/sdk/dotnet10/bin/install.sh
-
   - name: crossmacro
     buildsystem: simple
     build-commands:
-      # Publish as framework-dependent (supports both x86_64 and aarch64)
-      - dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj -c Release --no-self-contained -p:PublishReadyToRun=false -p:PublishTrimmed=false --source nuget-sources -o /app/lib/crossmacro
+      # Publish as a self-contained trimmed bundle (supports both x86_64 and aarch64)
+      - |
+        case "${FLATPAK_ARCH:-$(uname -m)}" in
+          x86_64) rid=linux-x64 ;;
+          aarch64|arm64) rid=linux-arm64 ;;
+          *) echo "Unsupported Flatpak architecture: ${FLATPAK_ARCH:-$(uname -m)}" >&2; exit 1 ;;
+        esac
+        dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj -c Release -r "$rid" --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -p:TrimMode=partial -p:PublishAot=false -p:PublishReadyToRun=false -p:DebugType=None -p:DebugSymbols=false -p:EnableCompressionInSingleFile=true --source nuget-sources --source /usr/lib/sdk/dotnet10/nuget/packages -o /app/lib/crossmacro
+        find /app/lib/crossmacro -type f -name '*.pdb' -delete
+        chmod +x /app/lib/crossmacro/CrossMacro.UI
 
       # Install launcher script
       - install -Dm755 crossmacro.sh /app/bin/crossmacro

@@ -26,7 +26,7 @@
 # Scripts
 *.bash text eol=lf
 *.fish text eol=lf
-*.ps1 text eol=crlf
+*.ps1 text eol=lf
 
 # Serialization
 *.json text

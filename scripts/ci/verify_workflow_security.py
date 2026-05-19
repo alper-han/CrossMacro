@@ -21,11 +21,19 @@ RELEASE_WORKFLOW = "release.yml"
 RELEASE_WRITE_JOB = "create-release"
 PUBLISH_JOB_GATES = {
     "update-aur": "publish_aur",
+    "publish-msstore": "publish_msstore",
     "publish-winget": "publish_winget",
 }
 EXTERNAL_PUBLISH_INTENT_INPUTS = ("publish_release", "publish_existing_release")
-MUTABLE_ACTION_REF = re.compile(r"(?m)^\s*uses\s*:\s*[^\s#]+@(main|master)\s*(?:#.*)?$")
+FULL_COMMIT_SHA_REF = re.compile(r"@[0-9a-fA-F]{40}\s*(?:#.*)?$")
+MUTABLE_ACTION_REF = re.compile(r"(?m)^\s*uses\s*:\s*([^\s#]+)\s*(?:#.*)?$")
 AUR_ED25519_FINGERPRINT = "SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4"
+SECRET_PUBLISH_ACTIONS_REQUIRING_SHA = (
+    "microsoft/microsoft-store-apppublisher",
+)
+MUTABLE_EXECUTABLE_DOWNLOADS = (
+    "aka.ms/wingetcreate/latest",
+)
 
 
 def repo_root() -> pathlib.Path:
@@ -158,6 +166,42 @@ def has_any_manual_input_gate(job_text: str, input_names: tuple[str, ...]) -> bo
     return any(has_manual_input_gate(job_text, input_name) for input_name in input_names)
 
 
+def has_release_draft_guard(job_text: str) -> bool:
+    new_release_guard = "github.event.inputs.draft != 'true'" in job_text or 'github.event.inputs.draft != "true"' in job_text
+    existing_release_guard = "needs.verify-existing-release.outputs.is_draft != 'true'" in job_text or 'needs.verify-existing-release.outputs.is_draft != "true"' in job_text
+    return new_release_guard and existing_release_guard
+
+
+def has_verified_wingetcreate_download(job_text: str) -> bool:
+    return (
+        "github.com/microsoft/winget-create/releases/download/" in job_text
+        and "WINGETCREATE_SHA256" in job_text
+        and "Get-FileHash" in job_text
+        and "aka.ms/wingetcreate/latest" not in job_text
+    )
+
+
+def external_action_uses(job_text: str) -> list[str]:
+    uses = []
+    for match in re.finditer(r"(?m)^\s*uses\s*:\s*([^\s#]+)\s*(?:#.*)?$", job_text):
+        uses.append(match.group(1).strip().strip("'\""))
+    return uses
+
+
+def action_ref_errors(text: str, path: pathlib.Path) -> list[str]:
+    errors = []
+    for match in MUTABLE_ACTION_REF.finditer(text):
+        ref = match.group(1).strip().strip("'\"")
+        if ref.startswith("./"):
+            continue
+        if "@" not in ref:
+            errors.append(f"{path}: external action reference must include an explicit ref: uses: {ref}")
+            continue
+        if not FULL_COMMIT_SHA_REF.search(ref):
+            errors.append(f"{path}: action reference must be pinned to a full commit SHA: uses: {ref}")
+    return errors
+
+
 def job_is_release_write_job(path: pathlib.Path, job_name: str, job_text: str, triggers: set[str]) -> bool:
     return (
         path.name == RELEASE_WORKFLOW
@@ -196,8 +240,7 @@ def validate_workflow(path: pathlib.Path) -> list[str]:
         errors.append(f"{path}: top-level permissions must be exactly contents: read, found {permissions}")
     if re.search(r"(?m)^\s*secrets\s*:\s*inherit\s*$", text):
         errors.append(f"{path}: broad secrets: inherit is forbidden")
-    for match in MUTABLE_ACTION_REF.finditer(text):
-        errors.append(f"{path}: mutable action reference is forbidden: {match.group(0).strip()}")
+    errors.extend(action_ref_errors(text, path))
     if path.name == RELEASE_WORKFLOW and "ssh-keyscan" in text and AUR_ED25519_FINGERPRINT not in text:
         errors.append(f"{path}: AUR ssh-keyscan must verify the pinned ed25519 fingerprint")
     for job_name, _, _, block_lines in job_blocks(lines):
@@ -211,6 +254,19 @@ def validate_workflow(path: pathlib.Path) -> list[str]:
         publish_input = PUBLISH_JOB_GATES.get(job_name)
         if publish_input and not secret_publish_job:
             errors.append(f"{path}: job '{job_name}' must be gated by publish_release=true or publish_existing_release=true, plus {publish_input}=true")
+        if secret_publish_job:
+            for action_ref in external_action_uses(job_text):
+                for action_name in SECRET_PUBLISH_ACTIONS_REQUIRING_SHA:
+                    if action_ref.startswith(f"{action_name}@") and not FULL_COMMIT_SHA_REF.search(action_ref):
+                        errors.append(f"{path}: job '{job_name}' must pin {action_name} to a full commit SHA")
+            for mutable_download in MUTABLE_EXECUTABLE_DOWNLOADS:
+                if mutable_download in job_text:
+                    errors.append(f"{path}: job '{job_name}' downloads mutable executable URL: {mutable_download}")
+        if path.name == RELEASE_WORKFLOW and job_name == "publish-winget":
+            if secret_publish_job and not has_release_draft_guard(job_text):
+                errors.append(f"{path}: job '{job_name}' must not publish against draft GitHub releases")
+            if secret_publish_job and not has_verified_wingetcreate_download(job_text):
+                errors.append(f"{path}: job '{job_name}' must download WinGetCreate from a versioned release and verify SHA256")
     return errors
 
 

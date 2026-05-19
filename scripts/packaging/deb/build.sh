@@ -207,6 +207,14 @@ else
     dotnet publish "$PROJECT_ROOT/src/CrossMacro.Daemon/CrossMacro.Daemon.csproj" \
         -c Release \
         -r "$DAEMON_RID" \
+        -p:PublishAot=true \
+        -p:EnableCompressionInSingleFile=true \
+        -p:PublishReadyToRun=true \
+        -p:OptimizationPreference=Speed \
+        -p:StripSymbols=true \
+        -p:IlcTrimMetadata=true \
+        -p:DebugType=None \
+        -p:DebugSymbols=false \
         -p:Version=$VERSION \
         -o "$DEB_DIR/usr/lib/$APP_NAME/daemon"
 fi

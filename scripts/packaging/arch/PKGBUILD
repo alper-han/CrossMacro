@@ -42,6 +42,7 @@ build() {
         -r "$target_rid" \
         --self-contained true \
         -p:PublishSingleFile=true \
+        -p:EnableCompressionInSingleFile=true \
         -p:PublishTrimmed=true \
         -p:PublishReadyToRun=false \
         -p:PublishAot=false \
@@ -53,6 +54,14 @@ build() {
     dotnet publish src/CrossMacro.Daemon/CrossMacro.Daemon.csproj \
         -c Release \
         -r "$target_rid" \
+        -p:PublishAot=true \
+        -p:EnableCompressionInSingleFile=true \
+        -p:PublishReadyToRun=true \
+        -p:OptimizationPreference=Speed \
+        -p:StripSymbols=true \
+        -p:IlcTrimMetadata=true \
+        -p:DebugType=None \
+        -p:DebugSymbols=false \
         -o publish-daemon/
 }
 

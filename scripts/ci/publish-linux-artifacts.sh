@@ -160,8 +160,10 @@ dotnet publish "$UI_PROJECT" \
     -r "$RID" \
     --self-contained true \
     -p:PublishSingleFile=true \
+    -p:EnableCompressionInSingleFile=true \
     -p:PublishTrimmed=true \
     -p:PublishAot=false \
+    -p:PublishReadyToRun=false \
     -p:DebugType=None \
     -p:DebugSymbols=false \
     -p:Version="$VERSION_VALUE" \
@@ -177,6 +179,14 @@ dotnet publish "$DAEMON_PROJECT" \
     -c Release \
     -r "$RID" \
     "${DAEMON_ARGS[@]}" \
+    -p:PublishAot=true \
+    -p:EnableCompressionInSingleFile=true \
+    -p:PublishReadyToRun=true \
+    -p:OptimizationPreference=Speed \
+    -p:StripSymbols=true \
+    -p:IlcTrimMetadata=true \
+    -p:DebugType=None \
+    -p:DebugSymbols=false \
     -p:Version="$VERSION_VALUE" \
     -o "$DAEMON_OUTPUT/"
 

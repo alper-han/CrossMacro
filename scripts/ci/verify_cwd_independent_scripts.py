@@ -40,11 +40,13 @@ SHELL_SCRIPTS = SHELL_WRAPPERS + SHELL_IMPLEMENTATIONS
 
 POWERSHELL_WRAPPERS = [
     "scripts/msix/build-msix.ps1",
+    "scripts/msix/build-msix-store-upload.ps1",
     "scripts/msix/prepare-msix.ps1",
 ]
 
 POWERSHELL_IMPLEMENTATIONS = [
     "scripts/packaging/msix/build-msix.ps1",
+    "scripts/packaging/msix/build-msix-store-upload.ps1",
     "scripts/packaging/msix/prepare-msix.ps1",
 ]
 
@@ -117,6 +119,7 @@ EXPECTED_SHELL_PATHS = {
 
 EXPECTED_PS_WRAPPER_TARGETS = {
     "scripts/msix/build-msix.ps1": "../packaging/msix/build-msix.ps1",
+    "scripts/msix/build-msix-store-upload.ps1": "../packaging/msix/build-msix-store-upload.ps1",
     "scripts/msix/prepare-msix.ps1": "../packaging/msix/prepare-msix.ps1",
 }
 
@@ -126,6 +129,11 @@ EXPECTED_PS_IMPLEMENTATION_PATHS = {
         "$projectRoot = (Resolve-Path -LiteralPath (Join-Path $scriptsDir '..')).Path",
         "$manifestPath = Join-Path $scriptsDir 'msix/AppxManifest.xml'",
         "$assetsPath = Join-Path $scriptsDir 'msix/Assets'",
+    ],
+    "scripts/packaging/msix/build-msix-store-upload.ps1": [
+        "$scriptsDir = (Resolve-Path -LiteralPath (Join-Path $scriptDir '../..')).Path",
+        "$projectRoot = (Resolve-Path -LiteralPath (Join-Path $scriptsDir '..')).Path",
+        "$smokeScript = Join-Path $projectRoot 'scripts/smoke/msix.ps1'",
     ],
     "scripts/packaging/msix/prepare-msix.ps1": [
         '$ScriptsDir = Resolve-Path -LiteralPath (Join-Path $ScriptDir "../..")',

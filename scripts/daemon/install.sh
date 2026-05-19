@@ -79,7 +79,7 @@ fi
 # 2. Build Daemon
 # -----------------------------------------------------------------------------
 echo ""
-echo "Building Daemon (Native AOT)..."
+echo "Building Daemon..."
 
 DAEMON_PROJECT="$REPO_ROOT/src/CrossMacro.Daemon/CrossMacro.Daemon.csproj"
 INSTALL_DIR="/opt/crossmacro/daemon"
@@ -90,6 +90,14 @@ if [ -n "${SUDO_USER:-}" ]; then
     BUILD_TEMP_DIR="$(sudo -u "$SUDO_USER" mktemp -d)"
     sudo -u "$SUDO_USER" dotnet publish "$DAEMON_PROJECT" \
         -c Release \
+        -p:PublishAot=true \
+        -p:EnableCompressionInSingleFile=true \
+        -p:PublishReadyToRun=true \
+        -p:OptimizationPreference=Speed \
+        -p:StripSymbols=true \
+        -p:IlcTrimMetadata=true \
+        -p:DebugType=None \
+        -p:DebugSymbols=false \
         -o "$BUILD_TEMP_DIR" \
         --verbosity quiet
     
@@ -97,6 +105,14 @@ if [ -n "${SUDO_USER:-}" ]; then
 else
     dotnet publish "$DAEMON_PROJECT" \
         -c Release \
+        -p:PublishAot=true \
+        -p:EnableCompressionInSingleFile=true \
+        -p:PublishReadyToRun=true \
+        -p:OptimizationPreference=Speed \
+        -p:StripSymbols=true \
+        -p:IlcTrimMetadata=true \
+        -p:DebugType=None \
+        -p:DebugSymbols=false \
         -o "$INSTALL_DIR" \
         --verbosity quiet
 fi

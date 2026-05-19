@@ -46,7 +46,7 @@ Options:
   -OutputDir <path>          Staged MSIX content directory. Defaults to <repo>/msix-content.
   -PackagePath <path>        Output .msix path. Defaults to <repo>/CrossMacro-<PackageVersion>-<Architecture>.msix.
   -Architecture <x64|arm64>  Target MSIX architecture and .NET runtime identifier. Defaults to x64.
-  -SymbolsDir <path>         Optional directory where PDBs are copied before package cleanup for .appxsym generation.
+  -SymbolsDir <path>         Ignored. Debug symbols are disabled for MSIX packages.
   -NoCli                     Skip executable CLI smoke after structure checks.
   -Help                      Show this help.
 '@
@@ -109,29 +109,6 @@ function Remove-PublishDebugArtifacts {
 
     Get-ChildItem -LiteralPath $Directory -Recurse -File -Filter '*.pdb' -ErrorAction SilentlyContinue |
         Remove-Item -Force
-}
-
-function Copy-PublishDebugArtifacts {
-    param(
-        [Parameter(Mandatory = $true)][string]$SourceDirectory,
-        [Parameter(Mandatory = $true)][string]$DestinationDirectory
-    )
-
-    $debugArtifacts = @(Get-ChildItem -LiteralPath $SourceDirectory -Recurse -File -Filter '*.pdb' -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -like 'CrossMacro*.pdb' })
-    if ($debugArtifacts.Count -eq 0) {
-        Fail-MsixBuild "MSIX symbols were requested, but publish emitted no CrossMacro PDB files in $SourceDirectory"
-    }
-
-    foreach ($debugArtifact in $debugArtifacts) {
-        $relativePath = [System.IO.Path]::GetRelativePath($SourceDirectory, $debugArtifact.FullName)
-        $targetPath = Join-Path $DestinationDirectory $relativePath
-        $targetParent = Split-Path -Parent $targetPath
-        if (-not (Test-Path -LiteralPath $targetParent -PathType Container)) {
-            New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
-        }
-        Copy-Item -LiteralPath $debugArtifact.FullName -Destination $targetPath -Force
-    }
 }
 
 function Assert-SingleFilePublishOutput {
@@ -217,6 +194,10 @@ if (-not (Test-Path -LiteralPath $assetsPath -PathType Container)) {
     Fail-MsixBuild "MSIX assets directory not found: $assetsPath"
 }
 
+if (-not [string]::IsNullOrWhiteSpace($SymbolsDir)) {
+    Write-Warning '-SymbolsDir is ignored because Release publishes disable debug symbols.'
+}
+
 $makeappx = Find-MakeAppx
 if (-not $makeappx) {
     Fail-MsixBuild 'makeappx.exe was not found. Install the Windows SDK or run on windows-2025.'
@@ -238,17 +219,8 @@ if (Test-Path -LiteralPath $resolvedPackagePath -PathType Leaf) {
     Remove-Item -LiteralPath $resolvedPackagePath -Force
 }
 
-$resolvedSymbolsDir = ''
-if (-not [string]::IsNullOrWhiteSpace($SymbolsDir)) {
-    $resolvedSymbolsDir = [System.IO.Path]::GetFullPath($SymbolsDir)
-    if (Test-Path -LiteralPath $resolvedSymbolsDir) {
-        Remove-Item -LiteralPath $resolvedSymbolsDir -Recurse -Force
-    }
-    New-Item -ItemType Directory -Path $resolvedSymbolsDir -Force | Out-Null
-}
-
-$debugType = if ($resolvedSymbolsDir) { 'portable' } else { 'None' }
-$debugSymbols = if ($resolvedSymbolsDir) { 'true' } else { 'false' }
+$debugType = 'None'
+$debugSymbols = 'false'
 
 $publishArgs = @(
     'publish', $projectPath,
@@ -271,10 +243,6 @@ $publishArgs = @(
 & dotnet @publishArgs
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
-}
-
-if ($resolvedSymbolsDir) {
-    Copy-PublishDebugArtifacts -SourceDirectory $resolvedOutputDir -DestinationDirectory $resolvedSymbolsDir
 }
 
 Remove-PublishDebugArtifacts -Directory $resolvedOutputDir

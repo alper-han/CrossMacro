@@ -37,6 +37,7 @@ dotnet publish "$PROJECT_ROOT/src/CrossMacro.UI.MacOS/CrossMacro.UI.MacOS.csproj
     -r "$RID" \
     --self-contained true \
     -p:PublishSingleFile=true \
+    -p:EnableCompressionInSingleFile=true \
     -p:PublishTrimmed=true \
     -p:TrimMode=partial \
     -p:PublishReadyToRun=false \
@@ -148,7 +149,7 @@ if [[ "${OSTYPE:-}" == "darwin"* ]]; then
             rm "$DMG_PATH"
         fi
 
-        CREATE_DMG_ARGS=(--volname "$APP_NAME Installer")
+        CREATE_DMG_ARGS=(--volname "$APP_NAME Installer" --format ULMO)
         
         if [ -f "$ICON_ICNS" ]; then
             CREATE_DMG_ARGS+=(--volicon "$ICON_ICNS")
@@ -172,12 +173,12 @@ if [[ "${OSTYPE:-}" == "darwin"* ]]; then
                 echo "create-dmg returned non-zero but DMG was created (likely a warning)"
             else
                 echo "create-dmg failed, falling back to hdiutil..."
-                hdiutil create -volname "$APP_NAME" -srcfolder "$APP_BUNDLE" -ov -format UDZO "$DMG_PATH"
+                hdiutil create -volname "$APP_NAME" -srcfolder "$APP_BUNDLE" -ov -format ULMO "$DMG_PATH"
             fi
         fi
     else
         echo "create-dmg not found, using hdiutil..."
-        hdiutil create -volname "$APP_NAME" -srcfolder "$APP_BUNDLE" -ov -format UDZO "$DMG_PATH"
+        hdiutil create -volname "$APP_NAME" -srcfolder "$APP_BUNDLE" -ov -format ULMO "$DMG_PATH"
     fi
     
     echo "DMG Created at: $DMG_PATH"

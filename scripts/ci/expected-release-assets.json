@@ -8,6 +8,8 @@
     "publishRelease": false,
     "draft": true,
     "publishAur": false,
+    "publishMsstore": false,
+    "msstoreNoCommit": true,
     "publishWinget": false
   },
   "assets": [
@@ -74,7 +76,14 @@
       "platform": "windows",
       "arch": "x64",
       "enabledByDefault": true,
-      "file": "CrossMacro-1.2.3-win-x64.zip"
+      "file": "CrossMacro-1.2.3-win-x64.exe"
+    },
+    {
+      "kind": "windows-portable",
+      "platform": "windows",
+      "arch": "arm64",
+      "enabledByDefault": true,
+      "file": "CrossMacro-1.2.3-win-arm64.exe"
     },
     {
       "kind": "msix",
@@ -83,6 +92,14 @@
       "enabledByDefault": true,
       "manualInput": "attach_msix",
       "file": "CrossMacro-1.2.3-x64.msix"
+    },
+    {
+      "kind": "msix",
+      "platform": "windows",
+      "arch": "arm64",
+      "enabledByDefault": true,
+      "manualInput": "attach_msix",
+      "file": "CrossMacro-1.2.3-arm64.msix"
     },
     {
       "kind": "macos-dmg",

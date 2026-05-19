@@ -16,6 +16,13 @@ param(
     [string]$PackagePath = '',
 
     [Parameter(ParameterSetName = 'Build')]
+    [ValidateSet('x64', 'arm64')]
+    [string]$Architecture = 'x64',
+
+    [Parameter(ParameterSetName = 'Build')]
+    [string]$SymbolsDir = '',
+
+    [Parameter(ParameterSetName = 'Build')]
     [switch]$NoCli
 )
 
@@ -23,10 +30,10 @@ $ErrorActionPreference = 'Stop'
 
 function Show-Usage {
     @'
-Usage: build-msix.ps1 [-Version <version>] [-PackageVersion <name-version>] [-OutputDir <path>] [-PackagePath <path>] [-NoCli] [-Help]
+Usage: build-msix.ps1 [-Version <version>] [-PackageVersion <name-version>] [-OutputDir <path>] [-PackagePath <path>] [-Architecture <x64|arm64>] [-SymbolsDir <path>] [-NoCli] [-Help]
 
 Builds and validates the CrossMacro MSIX package without installing it:
-  - dotnet publish Release win-x64 as non-single-file staged content
+  - dotnet publish Release win-x64 or win-arm64 as a trimmed single-file executable
   - calls scripts/packaging/msix/prepare-msix.ps1 with manifest, assets, version, and output paths
   - validates the staged AppxManifest.xml and CrossMacro.UI.exe with scripts/smoke/msix.ps1
   - runs makeappx.exe pack to create the .msix package
@@ -37,7 +44,9 @@ Options:
   -Version <version>         Three-part package version. Defaults to VERSION at repository root.
   -PackageVersion <version>  Version text used in the package filename. Defaults to -Version.
   -OutputDir <path>          Staged MSIX content directory. Defaults to <repo>/msix-content.
-  -PackagePath <path>        Output .msix path. Defaults to <repo>/CrossMacro-<PackageVersion>.msix.
+  -PackagePath <path>        Output .msix path. Defaults to <repo>/CrossMacro-<PackageVersion>-<Architecture>.msix.
+  -Architecture <x64|arm64>  Target MSIX architecture and .NET runtime identifier. Defaults to x64.
+  -SymbolsDir <path>         Optional directory where PDBs are copied before package cleanup for .appxsym generation.
   -NoCli                     Skip executable CLI smoke after structure checks.
   -Help                      Show this help.
 '@
@@ -71,21 +80,86 @@ function Find-MakeAppx {
         return $command.Source
     }
 
+    $sdkToolArchitectures = @('x64', 'arm64', 'x86')
+    if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq [System.Runtime.InteropServices.Architecture]::Arm64) {
+        $sdkToolArchitectures = @('arm64', 'x64', 'x86')
+    }
+
     $programFilesX86 = ${env:ProgramFiles(x86)}
     if (-not [string]::IsNullOrWhiteSpace($programFilesX86)) {
         $sdkRoot = Join-Path $programFilesX86 'Windows Kits\10\bin'
         if (Test-Path -LiteralPath $sdkRoot -PathType Container) {
-            $candidate = Get-ChildItem -LiteralPath $sdkRoot -Filter makeappx.exe -Recurse -ErrorAction SilentlyContinue |
-                Where-Object { $_.FullName -match '\\x64\\makeappx\.exe$' } |
-                Sort-Object FullName -Descending |
-                Select-Object -First 1
-            if ($candidate) {
-                return $candidate.FullName
+            foreach ($sdkToolArchitecture in $sdkToolArchitectures) {
+                $candidate = Get-ChildItem -LiteralPath $sdkRoot -Filter makeappx.exe -Recurse -ErrorAction SilentlyContinue |
+                    Where-Object { $_.FullName -match "\\$sdkToolArchitecture\\makeappx\.exe$" } |
+                    Sort-Object FullName -Descending |
+                    Select-Object -First 1
+                if ($candidate) {
+                    return $candidate.FullName
+                }
             }
         }
     }
 
     return $null
+}
+
+function Remove-PublishDebugArtifacts {
+    param([Parameter(Mandatory = $true)][string]$Directory)
+
+    Get-ChildItem -LiteralPath $Directory -Recurse -File -Filter '*.pdb' -ErrorAction SilentlyContinue |
+        Remove-Item -Force
+}
+
+function Copy-PublishDebugArtifacts {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceDirectory,
+        [Parameter(Mandatory = $true)][string]$DestinationDirectory
+    )
+
+    $debugArtifacts = @(Get-ChildItem -LiteralPath $SourceDirectory -Recurse -File -Filter '*.pdb' -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like 'CrossMacro*.pdb' })
+    if ($debugArtifacts.Count -eq 0) {
+        Fail-MsixBuild "MSIX symbols were requested, but publish emitted no CrossMacro PDB files in $SourceDirectory"
+    }
+
+    foreach ($debugArtifact in $debugArtifacts) {
+        $relativePath = [System.IO.Path]::GetRelativePath($SourceDirectory, $debugArtifact.FullName)
+        $targetPath = Join-Path $DestinationDirectory $relativePath
+        $targetParent = Split-Path -Parent $targetPath
+        if (-not (Test-Path -LiteralPath $targetParent -PathType Container)) {
+            New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
+        }
+        Copy-Item -LiteralPath $debugArtifact.FullName -Destination $targetPath -Force
+    }
+}
+
+function Assert-SingleFilePublishOutput {
+    param([Parameter(Mandatory = $true)][string]$Directory)
+
+    $unexpectedDirectories = @(Get-ChildItem -LiteralPath $Directory -Directory)
+    if ($unexpectedDirectories.Count -gt 0) {
+        Fail-MsixBuild "single-file MSIX publish emitted unexpected directories: $($unexpectedDirectories.FullName -join ', ')"
+    }
+
+    $files = @(Get-ChildItem -LiteralPath $Directory -File)
+    $executables = @($files | Where-Object { $_.Extension -ieq '.exe' })
+    if ($files.Count -ne 1 -or $executables.Count -ne 1) {
+        Fail-MsixBuild "single-file MSIX publish output must contain exactly one EXE before MSIX metadata is staged; found $($files.Count): $($files.Name -join ', ')"
+    }
+}
+
+function Test-Arm64CliSmokeSupported {
+    $isWindowsRuntime = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
+    if (-not $isWindowsRuntime) {
+        return $false
+    }
+
+    if ($Architecture -ne 'arm64') {
+        return $true
+    }
+
+    return [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq [System.Runtime.InteropServices.Architecture]::Arm64
 }
 
 if ($Help) {
@@ -114,12 +188,23 @@ if ([string]::IsNullOrWhiteSpace($PackageVersion)) {
     $PackageVersion = $Version
 }
 
+$Architecture = $Architecture.ToLowerInvariant()
+$rid = switch ($Architecture) {
+    'x64' { 'win-x64' }
+    'arm64' { 'win-arm64' }
+    default { Fail-MsixBuild "unsupported MSIX architecture: $Architecture" }
+}
+
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {
     $OutputDir = Join-Path $projectRoot 'msix-content'
 }
 
 if ([string]::IsNullOrWhiteSpace($PackagePath)) {
-    $PackagePath = Join-Path $projectRoot "CrossMacro-$PackageVersion.msix"
+    $packageFileVersion = $PackageVersion
+    if ($packageFileVersion -notmatch "-$([regex]::Escape($Architecture))$") {
+        $packageFileVersion = "$packageFileVersion-$Architecture"
+    }
+    $PackagePath = Join-Path $projectRoot "CrossMacro-$packageFileVersion.msix"
 }
 
 foreach ($requiredPath in @($projectPath, $prepareScript, $manifestPath, $smokeScript)) {
@@ -134,7 +219,7 @@ if (-not (Test-Path -LiteralPath $assetsPath -PathType Container)) {
 
 $makeappx = Find-MakeAppx
 if (-not $makeappx) {
-    Fail-MsixBuild 'makeappx.exe was not found. Install the Windows SDK or run on windows-latest.'
+    Fail-MsixBuild 'makeappx.exe was not found. Install the Windows SDK or run on windows-2025.'
 }
 
 $resolvedOutputDir = [System.IO.Path]::GetFullPath($OutputDir)
@@ -153,16 +238,32 @@ if (Test-Path -LiteralPath $resolvedPackagePath -PathType Leaf) {
     Remove-Item -LiteralPath $resolvedPackagePath -Force
 }
 
+$resolvedSymbolsDir = ''
+if (-not [string]::IsNullOrWhiteSpace($SymbolsDir)) {
+    $resolvedSymbolsDir = [System.IO.Path]::GetFullPath($SymbolsDir)
+    if (Test-Path -LiteralPath $resolvedSymbolsDir) {
+        Remove-Item -LiteralPath $resolvedSymbolsDir -Recurse -Force
+    }
+    New-Item -ItemType Directory -Path $resolvedSymbolsDir -Force | Out-Null
+}
+
+$debugType = if ($resolvedSymbolsDir) { 'portable' } else { 'None' }
+$debugSymbols = if ($resolvedSymbolsDir) { 'true' } else { 'false' }
+
 $publishArgs = @(
     'publish', $projectPath,
     '-c', 'Release',
-    '-r', 'win-x64',
+    '-r', $rid,
     '--self-contained', 'true',
-    '-p:PublishSingleFile=false',
-    '-p:PublishTrimmed=false',
+    '-p:PublishSingleFile=true',
+    '-p:PublishTrimmed=true',
+    '-p:TrimMode=partial',
+    '-p:IncludeNativeLibrariesForSelfExtract=true',
+    '-p:EnableCompressionInSingleFile=true',
     '-p:PublishReadyToRun=false',
-    '-p:DebugType=None',
-    '-p:DebugSymbols=false',
+    "-p:DebugType=$debugType",
+    "-p:DebugSymbols=$debugSymbols",
+    '-p:ErrorOnDuplicatePublishOutputFiles=true',
     "-p:Version=$Version",
     '-o', $resolvedOutputDir
 )
@@ -171,6 +272,13 @@ $publishArgs = @(
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
+
+if ($resolvedSymbolsDir) {
+    Copy-PublishDebugArtifacts -SourceDirectory $resolvedOutputDir -DestinationDirectory $resolvedSymbolsDir
+}
+
+Remove-PublishDebugArtifacts -Directory $resolvedOutputDir
+Assert-SingleFilePublishOutput -Directory $resolvedOutputDir
 
 $expectedExecutable = Join-Path $resolvedOutputDir 'CrossMacro.UI.exe'
 if (-not (Test-Path -LiteralPath $expectedExecutable -PathType Leaf)) {
@@ -182,23 +290,24 @@ if (-not (Test-Path -LiteralPath $expectedExecutable -PathType Leaf)) {
     Move-Item -LiteralPath $publishedExecutables[0].FullName -Destination $expectedExecutable
 }
 
-& $prepareScript -Version $Version -ManifestPath $manifestPath -AssetsPath $assetsPath -OutputDir $resolvedOutputDir
+& $prepareScript -Version $Version -Architecture $Architecture -ManifestPath $manifestPath -AssetsPath $assetsPath -OutputDir $resolvedOutputDir
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
 $expectedMsixVersion = "$Version.0"
-if ($NoCli) {
-    & $smokeScript -Path $resolvedOutputDir -Staged -ExpectedVersion $expectedMsixVersion -NoCli
+$skipCli = $NoCli -or -not (Test-Arm64CliSmokeSupported)
+if ($skipCli) {
+    & $smokeScript -Path $resolvedOutputDir -Staged -ExpectedVersion $expectedMsixVersion -ExpectedArchitecture $Architecture -NoCli
 }
 else {
-    & $smokeScript -Path $resolvedOutputDir -Staged -ExpectedVersion $expectedMsixVersion
+    & $smokeScript -Path $resolvedOutputDir -Staged -ExpectedVersion $expectedMsixVersion -ExpectedArchitecture $Architecture
 }
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-& $makeappx pack /d $resolvedOutputDir /p $resolvedPackagePath /nv
+& $makeappx pack /d $resolvedOutputDir /p $resolvedPackagePath
 if ($LASTEXITCODE -ne 0) {
     Fail-MsixBuild "makeappx pack failed for $resolvedPackagePath"
 }
@@ -222,11 +331,11 @@ finally {
     }
 }
 
-if ($NoCli) {
-    & $smokeScript -Path $resolvedPackagePath -ExpectedVersion $expectedMsixVersion -NoCli
+if ($skipCli) {
+    & $smokeScript -Path $resolvedPackagePath -ExpectedVersion $expectedMsixVersion -ExpectedArchitecture $Architecture -NoCli
 }
 else {
-    & $smokeScript -Path $resolvedPackagePath -ExpectedVersion $expectedMsixVersion
+    & $smokeScript -Path $resolvedPackagePath -ExpectedVersion $expectedMsixVersion -ExpectedArchitecture $Architecture
 }
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE

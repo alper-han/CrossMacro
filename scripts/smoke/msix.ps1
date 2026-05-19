@@ -13,6 +13,9 @@ param(
     [string]$ExpectedVersion,
 
     [Parameter(ParameterSetName = 'Smoke')]
+    [string]$ExpectedArchitecture,
+
+    [Parameter(ParameterSetName = 'Smoke')]
     [switch]$NoCli
 )
 
@@ -20,7 +23,7 @@ $ErrorActionPreference = 'Stop'
 
 function Show-Usage {
     @'
-Usage: msix.ps1 <package.msix-or-staged-directory> [-Staged] [-ExpectedVersion <version>] [-NoCli] [-Help]
+Usage: msix.ps1 <package.msix-or-staged-directory> [-Staged] [-ExpectedVersion <version>] [-ExpectedArchitecture <x64|arm64>] [-NoCli] [-Help]
 
 Validates a CrossMacro MSIX package or staged MSIX directory without installing it:
   - staged mode validates AppxManifest.xml directly
@@ -31,6 +34,7 @@ Validates a CrossMacro MSIX package or staged MSIX directory without installing 
 Options:
   -Staged                    Treat Path as an already unpacked/staged MSIX content directory
   -ExpectedVersion <version> Require AppxManifest.xml Identity Version to match this value
+  -ExpectedArchitecture <a>  Require AppxManifest.xml Identity ProcessorArchitecture to match x64 or arm64
   -NoCli                     Skip executable CLI smoke after structure checks
   -Help                      Show this help
 '@
@@ -48,18 +52,25 @@ function Find-MakeAppx {
         return $command.Source
     }
 
+    $sdkToolArchitectures = @('x64', 'arm64', 'x86')
+    if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq [System.Runtime.InteropServices.Architecture]::Arm64) {
+        $sdkToolArchitectures = @('arm64', 'x64', 'x86')
+    }
+
     $programFilesX86 = ${env:ProgramFiles(x86)}
     if ([string]::IsNullOrWhiteSpace($programFilesX86)) {
         return $null
     }
     $sdkRoot = Join-Path $programFilesX86 'Windows Kits\10\bin'
     if (Test-Path -LiteralPath $sdkRoot -PathType Container) {
-        $candidate = Get-ChildItem -LiteralPath $sdkRoot -Filter makeappx.exe -Recurse -ErrorAction SilentlyContinue |
-            Where-Object { $_.FullName -match '\\x64\\makeappx\.exe$' } |
-            Sort-Object FullName -Descending |
-            Select-Object -First 1
-        if ($candidate) {
-            return $candidate.FullName
+        foreach ($sdkToolArchitecture in $sdkToolArchitectures) {
+            $candidate = Get-ChildItem -LiteralPath $sdkRoot -Filter makeappx.exe -Recurse -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -match "\\$sdkToolArchitecture\\makeappx\.exe$" } |
+                Sort-Object FullName -Descending |
+                Select-Object -First 1
+            if ($candidate) {
+                return $candidate.FullName
+            }
         }
     }
 
@@ -95,8 +106,26 @@ function Get-ManifestNamespaceManager {
     $namespaceManager = New-Object System.Xml.XmlNamespaceManager($Manifest.NameTable)
     $namespaceManager.AddNamespace('appx', 'http://schemas.microsoft.com/appx/manifest/foundation/windows10')
     $namespaceManager.AddNamespace('uap', 'http://schemas.microsoft.com/appx/manifest/uap/windows10')
+    $namespaceManager.AddNamespace('uap3', 'http://schemas.microsoft.com/appx/manifest/uap/windows10/3')
+    $namespaceManager.AddNamespace('uap10', 'http://schemas.microsoft.com/appx/manifest/uap/windows10/10')
+    $namespaceManager.AddNamespace('desktop', 'http://schemas.microsoft.com/appx/manifest/desktop/windows10')
     $namespaceManager.AddNamespace('rescap', 'http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities')
     return ,$namespaceManager
+}
+
+function Test-CliSmokeSupported {
+    param([Parameter(Mandatory = $true)][string]$Architecture)
+
+    $isWindowsRuntime = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
+    if (-not $isWindowsRuntime) {
+        return $false
+    }
+
+    if ($Architecture -ne 'arm64') {
+        return $true
+    }
+
+    return [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq [System.Runtime.InteropServices.Architecture]::Arm64
 }
 
 if ($Help) {
@@ -145,6 +174,14 @@ try {
         Fail-Smoke "unexpected MSIX Identity Name: $($identity.Name)"
     }
 
+    if ($ExpectedArchitecture -and $ExpectedArchitecture -notin @('x64', 'arm64')) {
+        Fail-Smoke "ExpectedArchitecture must be x64 or arm64: $ExpectedArchitecture"
+    }
+
+    if ($ExpectedArchitecture -and $identity.ProcessorArchitecture -ne $ExpectedArchitecture) {
+        Fail-Smoke "MSIX architecture mismatch. Expected $ExpectedArchitecture, got $($identity.ProcessorArchitecture)"
+    }
+
     if ($ExpectedVersion -and $identity.Version -ne $ExpectedVersion) {
         Fail-Smoke "MSIX version mismatch. Expected $ExpectedVersion, got $($identity.Version)"
     }
@@ -163,6 +200,52 @@ try {
         Fail-Smoke "unexpected Application Executable: $executableRelative"
     }
 
+    if ($application.EntryPoint -ne 'Windows.FullTrustApplication') {
+        Fail-Smoke "unexpected Application EntryPoint: $($application.EntryPoint)"
+    }
+
+    $runtimeBehavior = $application.GetAttribute('RuntimeBehavior', 'http://schemas.microsoft.com/appx/manifest/uap/windows10/10')
+    if (-not [string]::IsNullOrWhiteSpace($runtimeBehavior)) {
+        Fail-Smoke "Application should use EntryPoint compatibility mode instead of uap10 RuntimeBehavior: $runtimeBehavior"
+    }
+
+    $trustLevel = $application.GetAttribute('TrustLevel', 'http://schemas.microsoft.com/appx/manifest/uap/windows10/10')
+    if (-not [string]::IsNullOrWhiteSpace($trustLevel)) {
+        Fail-Smoke "Application should use EntryPoint compatibility mode instead of uap10 TrustLevel: $trustLevel"
+    }
+
+    $targetDeviceFamily = $manifest.SelectSingleNode('/appx:Package/appx:Dependencies/appx:TargetDeviceFamily[@Name="Windows.Desktop"]', $namespaceManager)
+    if ($null -eq $targetDeviceFamily) {
+        Fail-Smoke 'AppxManifest.xml missing Windows.Desktop TargetDeviceFamily'
+    }
+
+    if ([version]$targetDeviceFamily.MinVersion -lt [version]'10.0.19041.0') {
+        Fail-Smoke "MSIX manifest requires TargetDeviceFamily MinVersion 10.0.19041.0 or newer, got $($targetDeviceFamily.MinVersion)"
+    }
+
+    $ignorableNamespaces = @($manifest.Package.IgnorableNamespaces -split '\s+' | Where-Object { $_ })
+    foreach ($requiredNamespace in @('uap3', 'desktop', 'rescap')) {
+        if ($requiredNamespace -notin $ignorableNamespaces) {
+            Fail-Smoke "Package IgnorableNamespaces missing $requiredNamespace"
+        }
+    }
+
+    $executionAliasExtension = $manifest.SelectSingleNode('/appx:Package/appx:Applications/appx:Application/appx:Extensions/uap3:Extension[@Category="windows.appExecutionAlias"]', $namespaceManager)
+    if ($null -eq $executionAliasExtension) {
+        Fail-Smoke 'AppxManifest.xml missing app execution alias extension'
+    }
+    if ($executionAliasExtension.Executable -ne 'CrossMacro.UI.exe') {
+        Fail-Smoke "unexpected app execution alias executable: $($executionAliasExtension.Executable)"
+    }
+    if ($executionAliasExtension.EntryPoint -ne 'Windows.FullTrustApplication') {
+        Fail-Smoke "unexpected app execution alias EntryPoint: $($executionAliasExtension.EntryPoint)"
+    }
+
+    $executionAlias = $manifest.SelectSingleNode('/appx:Package/appx:Applications/appx:Application/appx:Extensions/uap3:Extension[@Category="windows.appExecutionAlias"]/uap3:AppExecutionAlias/desktop:ExecutionAlias[@Alias="crossmacro.exe"]', $namespaceManager)
+    if ($null -eq $executionAlias) {
+        Fail-Smoke 'AppxManifest.xml missing crossmacro.exe app execution alias'
+    }
+
     $capability = $manifest.SelectSingleNode('/appx:Package/appx:Capabilities/rescap:Capability[@Name="runFullTrust"]', $namespaceManager)
     if ($null -eq $capability) {
         Fail-Smoke 'AppxManifest.xml missing runFullTrust capability'
@@ -171,6 +254,11 @@ try {
     $executablePath = Join-Path $contentDir $executableRelative
     if (-not (Test-Path -LiteralPath $executablePath -PathType Leaf)) {
         Fail-Smoke "expected executable not found: $executableRelative"
+    }
+
+    $debugArtifacts = @(Get-ChildItem -LiteralPath $contentDir -Recurse -File -Filter '*.pdb' -ErrorAction SilentlyContinue)
+    if ($debugArtifacts.Count -gt 0) {
+        Fail-Smoke "MSIX content contains PDB debug artifacts: $($debugArtifacts.FullName -join ', ')"
     }
 
     $requiredAssets = @(
@@ -192,7 +280,8 @@ try {
         Fail-Smoke "shared CLI smoke helper not found: $cliSmoke"
     }
 
-    if (-not $NoCli) {
+    $skipCli = $NoCli -or -not (Test-CliSmokeSupported -Architecture $identity.ProcessorArchitecture)
+    if (-not $skipCli) {
         & $cliSmoke -Executable $executablePath
         if ($LASTEXITCODE -ne 0) {
             exit $LASTEXITCODE

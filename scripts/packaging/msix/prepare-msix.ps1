@@ -1,20 +1,50 @@
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName = 'Build')]
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(ParameterSetName = 'Help')]
+    [switch]$Help,
+
+    [Parameter(Mandatory = $true, ParameterSetName = 'Build')]
     [ValidatePattern('^[0-9]+\.[0-9]+\.[0-9]+$')]
     [string]$Version,
 
-    [Parameter()]
+    [Parameter(ParameterSetName = 'Build')]
     [string]$ManifestPath = "",
 
-    [Parameter()]
+    [Parameter(ParameterSetName = 'Build')]
     [string]$AssetsPath = "",
 
-    [Parameter()]
-    [string]$OutputDir = "msix-content"
+    [Parameter(ParameterSetName = 'Build')]
+    [string]$OutputDir = "msix-content",
+
+    [Parameter(ParameterSetName = 'Build')]
+    [ValidateSet("x64", "arm64")]
+    [string]$Architecture = "x64"
 )
 
 $ErrorActionPreference = "Stop"
+
+function Show-Usage {
+    @'
+Usage: prepare-msix.ps1 -Version <version> [-ManifestPath <path>] [-AssetsPath <path>] [-OutputDir <path>] [-Architecture <x64|arm64>] [-Help]
+
+Stages static MSIX metadata for CrossMacro:
+  - copies MSIX assets into the staging directory
+  - writes AppxManifest.xml with the requested package version and architecture
+
+Options:
+  -Version <version>         Three-part package version written as <version>.0.
+  -ManifestPath <path>       Source AppxManifest.xml. Defaults to scripts/msix/AppxManifest.xml.
+  -AssetsPath <path>         Source MSIX assets directory. Defaults to scripts/msix/Assets.
+  -OutputDir <path>          Staged MSIX content directory. Defaults to msix-content.
+  -Architecture <x64|arm64>  ProcessorArchitecture written to the manifest. Defaults to x64.
+  -Help                      Show this help.
+'@
+}
+
+if ($Help) {
+    Show-Usage
+    exit 0
+}
 
 $ScriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 $ScriptsDir = Resolve-Path -LiteralPath (Join-Path $ScriptDir "../..")
@@ -37,6 +67,7 @@ if (-not (Test-Path -LiteralPath $AssetsPath -PathType Container)) {
 }
 
 $msixVersion = "$Version.0"
+$Architecture = $Architecture.ToLowerInvariant()
 
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 Copy-Item -Path $AssetsPath -Destination (Join-Path $OutputDir "Assets") -Recurse -Force
@@ -51,6 +82,7 @@ if ($null -eq $identity) {
 }
 
 $identity.SetAttribute("Version", $msixVersion)
+$identity.SetAttribute("ProcessorArchitecture", $Architecture)
 
 $manifestOutputPath = Join-Path $OutputDir "AppxManifest.xml"
 $writerSettings = New-Object System.Xml.XmlWriterSettings
@@ -67,4 +99,4 @@ finally {
     $writer.Dispose()
 }
 
-Write-Host "Prepared MSIX content with Identity Version $msixVersion at $OutputDir"
+Write-Host "Prepared MSIX content with Identity Version $msixVersion and ProcessorArchitecture $Architecture at $OutputDir"

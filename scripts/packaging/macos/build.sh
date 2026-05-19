@@ -37,7 +37,11 @@ dotnet publish "$PROJECT_ROOT/src/CrossMacro.UI.MacOS/CrossMacro.UI.MacOS.csproj
     -r "$RID" \
     --self-contained true \
     -p:PublishSingleFile=true \
+    -p:PublishTrimmed=true \
+    -p:TrimMode=partial \
     -p:PublishReadyToRun=false \
+    -p:DebugType=None \
+    -p:DebugSymbols=false \
     -p:Version="$VERSION" \
     -o "$PUBLISH_DIR"
 
@@ -86,6 +90,7 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<EOF
 EOF
 
 echo "Copying application files..."
+find "$PUBLISH_DIR" -type f -name '*.pdb' -delete
 cp -R "$PUBLISH_DIR/"* "$APP_BUNDLE/Contents/MacOS/"
 
 chmod +x "$APP_BUNDLE/Contents/MacOS/CrossMacro.UI"

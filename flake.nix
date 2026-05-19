@@ -27,7 +27,9 @@
         }:
         let
           versionFileContent = builtins.readFile ./VERSION;
-          normalizedVersion = builtins.replaceStrings [ "\n" "\r" " " "\t" ] [ "" "" "" "" ] versionFileContent;
+          normalizedVersion =
+            builtins.replaceStrings [ "\n" "\r" " " "\t" ] [ "" "" "" "" ]
+              versionFileContent;
           versionMatch = builtins.match "([0-9]+\\.[0-9]+\\.[0-9]+)" normalizedVersion;
           crossmacroVersion =
             if versionMatch == null then
@@ -44,7 +46,7 @@
 
           # Context: https://github.com/AvaloniaUI/Avalonia/wiki/Linux-Dependencies
           linuxLibs = with pkgs; [
-             # Core GUI dependencies
+            # Core GUI dependencies
             fontconfig
             freetype
             expat
@@ -118,6 +120,11 @@
                   ];
 
                   dotnetFlags = [
+                    "-p:PublishAot=true"
+                    "-p:PublishReadyToRun=true"
+                    "-p:OptimizationPreference=Speed"
+                    "-p:StripSymbols=true"
+                    "-p:IlcTrimMetadata=true"
                     "-p:Version=${crossmacroVersion}"
                   ];
 
@@ -125,7 +132,7 @@
                   postInstall = ''
                     install -Dm644 scripts/assets/io.github.alper_han.crossmacro.policy $out/share/polkit-1/actions/io.github.alper_han.crossmacro.policy
                     install -Dm644 scripts/assets/50-crossmacro.rules $out/share/polkit-1/rules.d/50-crossmacro.rules
-                    
+
                     # Force dependency on libsystemd for runtime P/Invoke resolution
                     # This tells autoPatchelfHook to link systemd even though it's not a build-time dep
                     if [ -f $out/lib/crossmacro-daemon/CrossMacro.Daemon ]; then
@@ -170,37 +177,47 @@
 
               nativeBuildInputs = [ pkgs.installShellFiles ];
 
-              postInstall =
-                ''
-                  installManPage docs/man/crossmacro.1
-                ''
-                + (
-                  if pkgs.stdenv.isLinux then
-                    ''
-                      install -Dm644 scripts/assets/CrossMacro.desktop $out/share/applications/crossmacro.desktop
-                      
-                      # Create lowercase alias for compatibility (and desktop file support)
-                      mkdir -p $out/bin
-                      ln -s $out/bin/CrossMacro.UI $out/bin/crossmacro
-                      
-                      ${pkgs.lib.concatMapStringsSep "\n" (size: ''
+              postInstall = ''
+                installManPage docs/man/crossmacro.1
+              ''
+              + (
+                if pkgs.stdenv.isLinux then
+                  ''
+                    install -Dm644 scripts/assets/CrossMacro.desktop $out/share/applications/crossmacro.desktop
+
+                    # Create lowercase alias for compatibility (and desktop file support)
+                    mkdir -p $out/bin
+                    ln -s $out/bin/CrossMacro.UI $out/bin/crossmacro
+
+                    ${pkgs.lib.concatMapStringsSep "\n"
+                      (size: ''
                         mkdir -p $out/share/icons/hicolor/${size}x${size}/apps
                         install -Dm644 src/CrossMacro.UI/Assets/icons/${size}x${size}/apps/crossmacro.png $out/share/icons/hicolor/${size}x${size}/apps/crossmacro.png
-                      '') [ "16" "32" "48" "64" "128" "256" "512" ]}
+                      '')
+                      [
+                        "16"
+                        "32"
+                        "48"
+                        "64"
+                        "128"
+                        "256"
+                        "512"
+                      ]
+                    }
 
-                      install -Dm644 scripts/assets/io.github.alper-han.CrossMacro.metainfo.xml $out/share/metainfo/io.github.alper-han.CrossMacro.metainfo.xml
-                    ''
-                  else
-                    # macOS specific post-install could go here (e.g. bundle creation)
-                    # For now, we leave it empty for raw binary output
-                    ""
-                );
+                    install -Dm644 scripts/assets/io.github.alper-han.CrossMacro.metainfo.xml $out/share/metainfo/io.github.alper-han.CrossMacro.metainfo.xml
+                  ''
+                else
+                  # macOS specific post-install could go here (e.g. bundle creation)
+                  # For now, we leave it empty for raw binary output
+                  ""
+              );
 
               meta = with pkgs.lib; {
                 description = "Cross-platform mouse and keyboard macro recorder and player";
                 homepage = "https://github.com/alper-han/CrossMacro";
                 license = licenses.gpl3Only;
-                 # Support both Linux and Darwin
+                # Support both Linux and Darwin
                 platforms = platforms.unix;
                 mainProgram = "crossmacro";
                 maintainers = with maintainers; [ ];
@@ -209,14 +226,13 @@
           );
         in
         {
-          packages =
-            {
-              default = crossmacro;
-              crossmacro = crossmacro;
-            }
-            // (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
-              daemon = crossmacro-daemon;
-            });
+          packages = {
+            default = crossmacro;
+            crossmacro = crossmacro;
+          }
+          // (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+            daemon = crossmacro-daemon;
+          });
 
           apps = {
             default = {
@@ -265,10 +281,11 @@
           let
             cfg = config.programs.crossmacro;
             # Safe access to daemon package, falls back to null if not available
-            daemonPkg = 
-              if inputs.self.packages.${pkgs.stdenv.hostPlatform.system} ? daemon 
-              then inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.daemon
-              else null;
+            daemonPkg =
+              if inputs.self.packages.${pkgs.stdenv.hostPlatform.system} ? daemon then
+                inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.daemon
+              else
+                null;
           in
           {
             options.programs.crossmacro = {
@@ -320,21 +337,25 @@
               '';
 
               # Install canonical polkit policy for authorization dialogs
-              environment.etc."polkit-1/actions/io.github.alper_han.crossmacro.policy".source = "${cfg.daemonPackage}/share/polkit-1/actions/io.github.alper_han.crossmacro.policy";
-              
+              environment.etc."polkit-1/actions/io.github.alper_han.crossmacro.policy".source =
+                "${cfg.daemonPackage}/share/polkit-1/actions/io.github.alper_han.crossmacro.policy";
+
               # Install polkit rules for passwordless auth (local active sessions only)
-              environment.etc."polkit-1/rules.d/50-crossmacro.rules".source = "${cfg.daemonPackage}/share/polkit-1/rules.d/50-crossmacro.rules";
+              environment.etc."polkit-1/rules.d/50-crossmacro.rules".source =
+                "${cfg.daemonPackage}/share/polkit-1/rules.d/50-crossmacro.rules";
 
               users.groups.crossmacro = { };
 
               # Add specified users to the crossmacro group and define the daemon user
               users.users =
-                builtins.listToAttrs (map (user: {
-                  name = user;
-                  value = {
-                    extraGroups = [ "crossmacro" ];
-                  };
-                }) cfg.users)
+                builtins.listToAttrs (
+                  map (user: {
+                    name = user;
+                    value = {
+                      extraGroups = [ "crossmacro" ];
+                    };
+                  }) cfg.users
+                )
                 // {
                   crossmacro = {
                     isSystemUser = true;
@@ -369,8 +390,18 @@
                   RestartSec = 5;
                   RuntimeDirectory = "crossmacro";
                   RuntimeDirectoryMode = "0750";
-                  CapabilityBoundingSet = [ "CAP_SYS_ADMIN" "CAP_SETUID" "CAP_SETGID" "CAP_CHOWN" "CAP_DAC_READ_SEARCH" ];
-                  AmbientCapabilities = [ "CAP_SYS_ADMIN" "CAP_CHOWN" "CAP_DAC_READ_SEARCH" ];
+                  CapabilityBoundingSet = [
+                    "CAP_SYS_ADMIN"
+                    "CAP_SETUID"
+                    "CAP_SETGID"
+                    "CAP_CHOWN"
+                    "CAP_DAC_READ_SEARCH"
+                  ];
+                  AmbientCapabilities = [
+                    "CAP_SYS_ADMIN"
+                    "CAP_CHOWN"
+                    "CAP_DAC_READ_SEARCH"
+                  ];
                 };
               };
             };

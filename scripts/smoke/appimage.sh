@@ -74,6 +74,23 @@ grep -R "^Exec=AppRun" "$appdir/CrossMacro.desktop" "$appdir/usr/share/applicati
 
 lib_dir="$appdir/usr/lib"
 [ -d "$lib_dir" ] || fail "extracted usr/lib directory is missing"
+expected_arch=""
+case "$(basename "$artifact")" in
+  *-x86_64.AppImage)
+    expected_arch="x86-64"
+    ;;
+  *-aarch64.AppImage)
+    expected_arch="ARM aarch64"
+    ;;
+esac
+
+assert_library_arch() {
+  local library="$1"
+  [ -n "$expected_arch" ] || return 0
+  command -v file >/dev/null 2>&1 || return 0
+  file -L "$library" | grep -q "$expected_arch" || fail "bundled library has wrong architecture: $library"
+}
+
 for family in icudata icui18n icuuc; do
   find "$lib_dir" -maxdepth 1 -name "lib${family}.so.*" -print -quit | grep . >/dev/null || fail "bundled lib${family} library not found in usr/lib"
 done
@@ -86,12 +103,18 @@ icu_version_count="$(printf '%s\n' "$icu_versions" | sed '/^$/d' | wc -l | tr -d
 
 icu_version="$icu_versions"
 for family in icudata icui18n icuuc; do
-  [ -e "$lib_dir/lib${family}.so.$icu_version" ] || fail "bundled lib${family}.so.$icu_version is missing"
+  icu_library="$lib_dir/lib${family}.so.$icu_version"
+  [ -e "$icu_library" ] || fail "bundled lib${family}.so.$icu_version is missing"
+  assert_library_arch "$icu_library"
 done
 
 grep -E "DOTNET_SYSTEM_GLOBALIZATION_APPLOCALICU=\"?$icu_version\"?" "$appdir/AppRun" >/dev/null 2>&1 || fail "AppRun does not pin bundled ICU version $icu_version"
-if ! find "$lib_dir" -maxdepth 1 -name 'libXtst.so*' -print -quit | grep . >/dev/null; then
-  echo "AppImage smoke: libXtst.so not bundled; continuing because build may rely on host library for this architecture." >&2
+libxtst_path="$(find "$lib_dir" -maxdepth 1 -name 'libXtst.so*' -print -quit)"
+if [ -z "$libxtst_path" ]; then
+  [ -z "$expected_arch" ] || fail "bundled libXtst.so library not found in usr/lib"
+  echo "AppImage smoke: libXtst.so not bundled; continuing because the AppImage architecture is unknown." >&2
+else
+  assert_library_arch "$libxtst_path"
 fi
 
 if [ "$skip_cli" -eq 0 ]; then

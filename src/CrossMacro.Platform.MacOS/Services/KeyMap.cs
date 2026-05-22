@@ -12,11 +12,17 @@ internal static class KeyMap
         return 0xFFFF;
     }
 
+    public static bool TryFromMacKey(ushort code, out int inputEventCode)
+    {
+        return _fromMac.TryGetValue(code, out inputEventCode);
+    }
+
     public static int FromMacKey(ushort code)
     {
-        if (_fromMac.TryGetValue(code, out var c))
-            return c;
-        return 0; 
+        if (TryFromMacKey(code, out var inputEventCode))
+            return inputEventCode;
+
+        throw new KeyNotFoundException($"No macOS key mapping exists for native key code 0x{code:X2}.");
     }
 
     private static readonly Dictionary<int, ushort> _toMac = new()
@@ -146,9 +152,13 @@ internal static class KeyMap
         
         // ISO Section Key (between left shift and Z on ISO keyboards)
         { InputEventCode.KEY_102ND, 0x0A },         // kVK_ISO_Section
+
+        // JIS Keys
+        { InputEventCode.KEY_YEN, 0x5D },           // kVK_JIS_Yen
+        { InputEventCode.KEY_KPJPCOMMA, 0x5F },     // kVK_JIS_KeypadComma
         
-        // Insert key (maps to Help on Mac or Fn+Delete)
-        { InputEventCode.KEY_INSERT, 0x72 },        // Maps to Help key position
+        // Outbound Insert is a lossy alias for kVK_Help; inbound 0x72 resolves to KEY_HELP.
+        { InputEventCode.KEY_INSERT, 0x72 },
     };
     
     private static readonly Dictionary<ushort, int> _fromMac = new();

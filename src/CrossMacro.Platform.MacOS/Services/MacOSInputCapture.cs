@@ -10,7 +10,9 @@ public class MacOSInputCapture : IInputCapture
 {
     private readonly Lock _stateLock = new();
     private IntPtr _eventTap;
+    private IntPtr _systemDefinedEventTap;
     private IntPtr _runLoopSource;
+    private IntPtr _systemDefinedRunLoopSource;
     private IntPtr _runLoop;
     private Thread? _captureThread;
     private bool _captureMouse = true;
@@ -20,13 +22,18 @@ public class MacOSInputCapture : IInputCapture
     private CancellationTokenRegistration _startCancellationRegistration;
     private Task? _startupTask;
     private TaskCompletionSource<object?>? _startupCompletionSource;
-    
+
     private CoreGraphics.CGEventTapCallBack _callbackDelegate;
 
     private const long NxSubtypeAuxControlButtons = 8;
+    private const int NxKeyTypeSoundUp = 0;
+    private const int NxKeyTypeSoundDown = 1;
+    private const int NxKeyTypeMute = 7;
     private const int NxKeyTypePlay = 16;
     private const int NxKeyTypeNext = 17;
     private const int NxKeyTypePrevious = 18;
+    private const int NxKeyTypeFast = 19;
+    private const int NxKeyTypeRewind = 20;
     private const int SystemDefinedKeyDownState = 0x0A;
     private const int SystemDefinedKeyUpState = 0x0B;
 
@@ -46,9 +53,6 @@ public class MacOSInputCapture : IInputCapture
         _captureMouse = captureMouse;
         _captureKeyboard = captureKeyboard;
     }
-
-
-
     public Task StartAsync(CancellationToken ct)
     {
         lock (_stateLock)
@@ -121,6 +125,11 @@ public class MacOSInputCapture : IInputCapture
         {
             CoreGraphics.CGEventTapEnable(_eventTap, false);
         }
+
+        if (_systemDefinedEventTap != IntPtr.Zero)
+        {
+            CoreGraphics.CGEventTapEnable(_systemDefinedEventTap, false);
+        }
         
         if (_runLoop != IntPtr.Zero)
         {
@@ -135,23 +144,28 @@ public class MacOSInputCapture : IInputCapture
             _runLoop = CoreFoundation.CFRunLoopGetCurrent();
             if (_stopRequested) return;
 
-            var eventsOfInterest = (ulong)(
-                (1 << (int)CoreGraphics.CGEventType.KeyDown) |
-                (1 << (int)CoreGraphics.CGEventType.KeyUp) |
-                (1 << (int)CoreGraphics.CGEventType.FlagsChanged) |
-                (1 << (int)CoreGraphics.CGEventType.SystemDefined) |
-                (1 << (int)CoreGraphics.CGEventType.LeftMouseDown) |
-                (1 << (int)CoreGraphics.CGEventType.LeftMouseUp) |
-                (1 << (int)CoreGraphics.CGEventType.RightMouseDown) |
-                (1 << (int)CoreGraphics.CGEventType.RightMouseUp) |
-                (1 << (int)CoreGraphics.CGEventType.OtherMouseDown) |
-                (1 << (int)CoreGraphics.CGEventType.OtherMouseUp) |
-                (1 << (int)CoreGraphics.CGEventType.MouseMoved) |
-                (1 << (int)CoreGraphics.CGEventType.LeftMouseDragged) |
-                (1 << (int)CoreGraphics.CGEventType.RightMouseDragged) |
-                (1 << (int)CoreGraphics.CGEventType.OtherMouseDragged) |
-                (1 << (int)CoreGraphics.CGEventType.ScrollWheel)
+            _systemDefinedEventTap = CoreGraphics.CGEventTapCreate(
+                CoreGraphics.CGEventTapLocation.SessionEventTap,
+                CoreGraphics.CGEventTapPlacement.HeadInsertEventTap,
+                CoreGraphics.CGEventTapOptions.Default,
+                CreateSystemDefinedEventMask(),
+                _callbackDelegate,
+                IntPtr.Zero
             );
+
+            if (_systemDefinedEventTap != IntPtr.Zero)
+            {
+                _systemDefinedRunLoopSource = CoreFoundation.CFMachPortCreateRunLoopSource(IntPtr.Zero, _systemDefinedEventTap, IntPtr.Zero);
+                if (_systemDefinedRunLoopSource == IntPtr.Zero)
+                {
+                    CoreFoundation.CFRelease(_systemDefinedEventTap);
+                    _systemDefinedEventTap = IntPtr.Zero;
+                }
+            }
+
+            bool useSessionSystemDefinedTap = _systemDefinedEventTap != IntPtr.Zero &&
+                _systemDefinedRunLoopSource != IntPtr.Zero;
+            var eventsOfInterest = CreateHidEventMask(useSessionSystemDefinedTap);
 
             _eventTap = CoreGraphics.CGEventTapCreate(
                 CoreGraphics.CGEventTapLocation.HIDEventTap,
@@ -170,9 +184,14 @@ public class MacOSInputCapture : IInputCapture
                 return;
             }
 
+            if (useSessionSystemDefinedTap)
+            {
+                CoreFoundation.CFRunLoopAddSource(_runLoop, _systemDefinedRunLoopSource, CoreFoundation.kCFRunLoopCommonModes);
+                CoreGraphics.CGEventTapEnable(_systemDefinedEventTap, true);
+            }
+
             _runLoopSource = CoreFoundation.CFMachPortCreateRunLoopSource(IntPtr.Zero, _eventTap, IntPtr.Zero);
             CoreFoundation.CFRunLoopAddSource(_runLoop, _runLoopSource, CoreFoundation.kCFRunLoopCommonModes);
-
             CoreGraphics.CGEventTapEnable(_eventTap, true);
 
             if (_stopRequested) return;
@@ -186,9 +205,13 @@ public class MacOSInputCapture : IInputCapture
         }
         finally
         {
+            if (_systemDefinedRunLoopSource != IntPtr.Zero) CoreFoundation.CFRelease(_systemDefinedRunLoopSource);
+            if (_systemDefinedEventTap != IntPtr.Zero) CoreFoundation.CFRelease(_systemDefinedEventTap);
             if (_runLoopSource != IntPtr.Zero) CoreFoundation.CFRelease(_runLoopSource);
             if (_eventTap != IntPtr.Zero) CoreFoundation.CFRelease(_eventTap);
 
+            _systemDefinedRunLoopSource = IntPtr.Zero;
+            _systemDefinedEventTap = IntPtr.Zero;
             _runLoopSource = IntPtr.Zero;
             _eventTap = IntPtr.Zero;
             _runLoop = IntPtr.Zero;
@@ -221,7 +244,7 @@ public class MacOSInputCapture : IInputCapture
         {
             if (type == CoreGraphics.CGEventType.TapDisabledByTimeout)
             {
-                CoreGraphics.CGEventTapEnable(_eventTap, true);
+                EnableActiveEventTaps();
                 return eventRef;
             }
 
@@ -248,104 +271,117 @@ public class MacOSInputCapture : IInputCapture
         return eventRef;
     }
 
+    private void EnableActiveEventTaps()
+    {
+        if (_eventTap != IntPtr.Zero)
+        {
+            CoreGraphics.CGEventTapEnable(_eventTap, true);
+        }
+
+        if (_systemDefinedEventTap != IntPtr.Zero)
+        {
+            CoreGraphics.CGEventTapEnable(_systemDefinedEventTap, true);
+        }
+    }
+
     private void ProcessAndFire(CoreGraphics.CGEventType type, IntPtr eventRef)
     {
-         if (!_captureMouse && IsMouseEvent(type)) return;
-         if (!_captureKeyboard && IsKeyEvent(type)) return;
+        if (!_captureMouse && IsMouseEvent(type)) return;
+        if (!_captureKeyboard && IsKeyEvent(type)) return;
 
-         if (IsKeyEvent(type) &&
-             ShouldIgnoreKeyboardEvent(CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.EventSourceUserData)))
-         {
-             return;
-         }
+        if (IsKeyEvent(type) &&
+            ShouldIgnoreKeyboardEvent(CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.EventSourceUserData)))
+        {
+            return;
+        }
 
-         long timestamp = GetCurrentTimestamp();
+        long timestamp = GetCurrentTimestamp();
 
-          if (IsKeyEvent(type))
-          {
-              if (type == CoreGraphics.CGEventType.SystemDefined)
-              {
-                  long subtype = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.EventSubtype);
-                  long data1 = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.EventData1);
+        if (IsKeyEvent(type))
+        {
+            if (type == CoreGraphics.CGEventType.SystemDefined)
+            {
+                long subtype = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.EventSubtype);
+                long data1 = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.EventData1);
 
-                  if (!TryCreateSystemDefinedInput(type, subtype, data1, timestamp, out var systemDefinedEvent))
-                  {
-                      return;
-                  }
+                if (!TryCreateSystemDefinedInput(type, subtype, data1, timestamp, out var systemDefinedEvent))
+                {
+                    return;
+                }
 
-                  InputReceived?.Invoke(this, systemDefinedEvent);
-                  return;
-              }
+                InputReceived?.Invoke(this, systemDefinedEvent);
+                return;
+            }
 
-              long keyCodeNative = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.KeyboardEventKeycode);
-              var flags = type == CoreGraphics.CGEventType.FlagsChanged
-                  ? CoreGraphics.CGEventGetFlags(eventRef)
-                  : default;
+            long keyCodeNative = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.KeyboardEventKeycode);
+            var flags = type == CoreGraphics.CGEventType.FlagsChanged
+                ? CoreGraphics.CGEventGetFlags(eventRef)
+                : default;
 
-              if (!TryCreateKeyboardInput(type, (ushort)keyCodeNative, flags, timestamp, out var keyEvent))
-              {
-                  return;
-              }
+            if (!TryCreateKeyboardInput(type, (ushort)keyCodeNative, flags, timestamp, out var keyEvent))
+            {
+                return;
+            }
 
-              InputReceived?.Invoke(this, keyEvent);
-          }
-         else if (IsMouseEvent(type))
-         {
-             if (type == CoreGraphics.CGEventType.LeftMouseDown || type == CoreGraphics.CGEventType.LeftMouseUp)
-             {
-                 FireBtn(MouseButtonCode.Left, type == CoreGraphics.CGEventType.LeftMouseDown, timestamp);
-             }
-             else if (type == CoreGraphics.CGEventType.RightMouseDown || type == CoreGraphics.CGEventType.RightMouseUp)
-             {
-                 FireBtn(MouseButtonCode.Right, type == CoreGraphics.CGEventType.RightMouseDown, timestamp);
-             }
-             else if (type == CoreGraphics.CGEventType.OtherMouseDown || type == CoreGraphics.CGEventType.OtherMouseUp)
-             {
-                 long btnNum = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.MouseEventButtonNumber);
-                 if (btnNum == 2) FireBtn(MouseButtonCode.Middle, type == CoreGraphics.CGEventType.OtherMouseDown, timestamp);
-             }
-             
-             if (type == CoreGraphics.CGEventType.MouseMoved || type == CoreGraphics.CGEventType.LeftMouseDragged || 
-                 type == CoreGraphics.CGEventType.RightMouseDragged || type == CoreGraphics.CGEventType.OtherMouseDragged)
-             {
-                 var loc = CoreGraphics.CGEventGetLocation(eventRef);
-                 InputReceived?.Invoke(this, new InputCaptureEventArgs { 
-                    Type = InputEventType.MouseMove, 
-                    Code = InputEventCode.ABS_X, 
-                    Value = (int)loc.X, 
-                    Timestamp = timestamp 
-                 });
-                 InputReceived?.Invoke(this, new InputCaptureEventArgs { 
-                    Type = InputEventType.MouseMove, 
-                    Code = InputEventCode.ABS_Y, 
-                    Value = (int)loc.Y, 
-                    Timestamp = timestamp 
-                 });
-                 
-                 // SYNC event to ensure X and Y are processed together
-                 InputReceived?.Invoke(this, new InputCaptureEventArgs { 
-                    Type = InputEventType.Sync, 
+            InputReceived?.Invoke(this, keyEvent);
+        }
+        else if (IsMouseEvent(type))
+        {
+            if (type == CoreGraphics.CGEventType.LeftMouseDown || type == CoreGraphics.CGEventType.LeftMouseUp)
+            {
+                FireBtn(MouseButtonCode.Left, type == CoreGraphics.CGEventType.LeftMouseDown, timestamp);
+            }
+            else if (type == CoreGraphics.CGEventType.RightMouseDown || type == CoreGraphics.CGEventType.RightMouseUp)
+            {
+                FireBtn(MouseButtonCode.Right, type == CoreGraphics.CGEventType.RightMouseDown, timestamp);
+            }
+            else if (type == CoreGraphics.CGEventType.OtherMouseDown || type == CoreGraphics.CGEventType.OtherMouseUp)
+            {
+                long btnNum = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.MouseEventButtonNumber);
+                if (btnNum == 2) FireBtn(MouseButtonCode.Middle, type == CoreGraphics.CGEventType.OtherMouseDown, timestamp);
+            }
+
+            if (type == CoreGraphics.CGEventType.MouseMoved || type == CoreGraphics.CGEventType.LeftMouseDragged ||
+                type == CoreGraphics.CGEventType.RightMouseDragged || type == CoreGraphics.CGEventType.OtherMouseDragged)
+            {
+                var loc = CoreGraphics.CGEventGetLocation(eventRef);
+                InputReceived?.Invoke(this, new InputCaptureEventArgs {
+                    Type = InputEventType.MouseMove,
+                    Code = InputEventCode.ABS_X,
+                    Value = (int)loc.X,
+                    Timestamp = timestamp
+                });
+                InputReceived?.Invoke(this, new InputCaptureEventArgs {
+                    Type = InputEventType.MouseMove,
+                    Code = InputEventCode.ABS_Y,
+                    Value = (int)loc.Y,
+                    Timestamp = timestamp
+                });
+
+                // SYNC event to ensure X and Y are processed together
+                InputReceived?.Invoke(this, new InputCaptureEventArgs {
+                    Type = InputEventType.Sync,
                     Code = 0,
                     Value = 0,
                     Timestamp = timestamp,
                     DeviceName = ProviderName
-                 });
-             }
-             
-             if (type == CoreGraphics.CGEventType.ScrollWheel)
-             {
-                  long dy = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.ScrollWheelEventDeltaAxis1);
-                  if (dy != 0)
-                  {
-                      InputReceived?.Invoke(this, new InputCaptureEventArgs {
-                          Type = InputEventType.MouseScroll, 
-                          Code = InputEventCode.REL_WHEEL,
-                          Value = (int)dy, 
-                          Timestamp = timestamp
-                      });
-                  }
-             }
-         }
+                });
+            }
+
+            if (type == CoreGraphics.CGEventType.ScrollWheel)
+            {
+                long dy = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.ScrollWheelEventDeltaAxis1);
+                if (dy != 0)
+                {
+                    InputReceived?.Invoke(this, new InputCaptureEventArgs {
+                        Type = InputEventType.MouseScroll,
+                        Code = InputEventCode.REL_WHEEL,
+                        Value = (int)dy,
+                        Timestamp = timestamp
+                    });
+                }
+            }
+        }
     }
 
     private void FireBtn(int btnCode, bool pressed, long timestamp)
@@ -413,9 +449,12 @@ public class MacOSInputCapture : IInputCapture
 
         int keyType = (int)((data1 >> 16) & 0xFFFF);
         int code;
-        if (keyType == NxKeyTypePlay) code = InputEventCode.KEY_PLAYPAUSE;
-        else if (keyType == NxKeyTypeNext) code = InputEventCode.KEY_NEXTSONG;
-        else if (keyType == NxKeyTypePrevious) code = InputEventCode.KEY_PREVIOUSSONG;
+        if (keyType == NxKeyTypeSoundUp) code = InputEventCode.KEY_VOLUMEUP;
+        else if (keyType == NxKeyTypeSoundDown) code = InputEventCode.KEY_VOLUMEDOWN;
+        else if (keyType == NxKeyTypeMute) code = InputEventCode.KEY_MUTE;
+        else if (keyType == NxKeyTypePlay) code = InputEventCode.KEY_PLAYPAUSE;
+        else if (keyType == NxKeyTypeNext || keyType == NxKeyTypeFast) code = InputEventCode.KEY_NEXTSONG;
+        else if (keyType == NxKeyTypePrevious || keyType == NxKeyTypeRewind) code = InputEventCode.KEY_PREVIOUSSONG;
         else return false;
 
         inputEvent = new InputCaptureEventArgs
@@ -427,6 +466,42 @@ public class MacOSInputCapture : IInputCapture
         };
 
         return true;
+    }
+
+    internal static ulong CreateHidEventMask(bool useSessionSystemDefinedTap)
+    {
+        var mask =
+            EventMask(CoreGraphics.CGEventType.KeyDown) |
+            EventMask(CoreGraphics.CGEventType.KeyUp) |
+            EventMask(CoreGraphics.CGEventType.FlagsChanged) |
+            EventMask(CoreGraphics.CGEventType.LeftMouseDown) |
+            EventMask(CoreGraphics.CGEventType.LeftMouseUp) |
+            EventMask(CoreGraphics.CGEventType.RightMouseDown) |
+            EventMask(CoreGraphics.CGEventType.RightMouseUp) |
+            EventMask(CoreGraphics.CGEventType.OtherMouseDown) |
+            EventMask(CoreGraphics.CGEventType.OtherMouseUp) |
+            EventMask(CoreGraphics.CGEventType.MouseMoved) |
+            EventMask(CoreGraphics.CGEventType.LeftMouseDragged) |
+            EventMask(CoreGraphics.CGEventType.RightMouseDragged) |
+            EventMask(CoreGraphics.CGEventType.OtherMouseDragged) |
+            EventMask(CoreGraphics.CGEventType.ScrollWheel);
+
+        if (!useSessionSystemDefinedTap)
+        {
+            mask |= EventMask(CoreGraphics.CGEventType.SystemDefined);
+        }
+
+        return mask;
+    }
+
+    internal static ulong CreateSystemDefinedEventMask()
+    {
+        return EventMask(CoreGraphics.CGEventType.SystemDefined);
+    }
+
+    private static ulong EventMask(CoreGraphics.CGEventType type)
+    {
+        return 1UL << (int)type;
     }
 
     private static bool IsModifierPressed(int code, CoreGraphics.CGEventFlags flags)

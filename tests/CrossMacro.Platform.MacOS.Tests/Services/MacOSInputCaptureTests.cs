@@ -63,9 +63,14 @@ public class MacOSInputCaptureTests
     }
 
     [Theory]
+    [InlineData(0, InputEventCode.KEY_VOLUMEUP)]
+    [InlineData(1, InputEventCode.KEY_VOLUMEDOWN)]
+    [InlineData(7, InputEventCode.KEY_MUTE)]
     [InlineData(16, InputEventCode.KEY_PLAYPAUSE)]
     [InlineData(17, InputEventCode.KEY_NEXTSONG)]
     [InlineData(18, InputEventCode.KEY_PREVIOUSSONG)]
+    [InlineData(19, InputEventCode.KEY_NEXTSONG)]
+    [InlineData(20, InputEventCode.KEY_PREVIOUSSONG)]
     public void TryCreateSystemDefinedInput_WhenSupportedMediaKeyIsPressed_CreatesKeyDownEvent(int keyType, int expectedCode)
     {
         bool created = MacOSInputCapture.TryCreateSystemDefinedInput(
@@ -83,9 +88,14 @@ public class MacOSInputCaptureTests
     }
 
     [Theory]
+    [InlineData(0, InputEventCode.KEY_VOLUMEUP)]
+    [InlineData(1, InputEventCode.KEY_VOLUMEDOWN)]
+    [InlineData(7, InputEventCode.KEY_MUTE)]
     [InlineData(16, InputEventCode.KEY_PLAYPAUSE)]
     [InlineData(17, InputEventCode.KEY_NEXTSONG)]
     [InlineData(18, InputEventCode.KEY_PREVIOUSSONG)]
+    [InlineData(19, InputEventCode.KEY_NEXTSONG)]
+    [InlineData(20, InputEventCode.KEY_PREVIOUSSONG)]
     public void TryCreateSystemDefinedInput_WhenSupportedMediaKeyIsReleased_CreatesKeyUpEvent(int keyType, int expectedCode)
     {
         bool created = MacOSInputCapture.TryCreateSystemDefinedInput(
@@ -103,12 +113,8 @@ public class MacOSInputCaptureTests
     }
 
     [Theory]
-    [InlineData(2)]
-    [InlineData(3)]
     [InlineData(6)]
     [InlineData(14)]
-    [InlineData(19)]
-    [InlineData(20)]
     [InlineData(21)]
     [InlineData(22)]
     [InlineData(23)]
@@ -122,6 +128,45 @@ public class MacOSInputCaptureTests
             out _);
 
         Assert.False(created);
+    }
+
+    [Fact]
+    public void CreateHidEventMask_WhenSessionSystemDefinedTapIsUsed_ExcludesSystemDefined()
+    {
+        var mask = MacOSInputCapture.CreateHidEventMask(useSessionSystemDefinedTap: true);
+
+        Assert.True(ContainsEvent(mask, CoreGraphics.CGEventType.KeyDown));
+        Assert.True(ContainsEvent(mask, CoreGraphics.CGEventType.KeyUp));
+        Assert.True(ContainsEvent(mask, CoreGraphics.CGEventType.FlagsChanged));
+        Assert.False(ContainsEvent(mask, CoreGraphics.CGEventType.SystemDefined));
+    }
+
+    [Fact]
+    public void CreateHidEventMask_WhenSessionSystemDefinedTapIsUnavailable_IncludesSystemDefinedFallback()
+    {
+        var mask = MacOSInputCapture.CreateHidEventMask(useSessionSystemDefinedTap: false);
+
+        Assert.True(ContainsEvent(mask, CoreGraphics.CGEventType.SystemDefined));
+    }
+
+    [Fact]
+    public void CreateHidEventMask_WhenSessionSystemDefinedSourceCreationFails_IncludesSystemDefinedFallback()
+    {
+        const bool useSessionSystemDefinedTap = false;
+
+        var mask = MacOSInputCapture.CreateHidEventMask(useSessionSystemDefinedTap);
+
+        Assert.True(ContainsEvent(mask, CoreGraphics.CGEventType.SystemDefined));
+    }
+
+    [Fact]
+    public void CreateSystemDefinedEventMask_IncludesOnlySystemDefined()
+    {
+        var mask = MacOSInputCapture.CreateSystemDefinedEventMask();
+
+        Assert.True(ContainsEvent(mask, CoreGraphics.CGEventType.SystemDefined));
+        Assert.False(ContainsEvent(mask, CoreGraphics.CGEventType.KeyDown));
+        Assert.False(ContainsEvent(mask, CoreGraphics.CGEventType.MouseMoved));
     }
 
     [Theory]
@@ -177,6 +222,11 @@ public class MacOSInputCaptureTests
     private static long CreateSystemDefinedData1(int keyType, int state)
     {
         return (keyType << 16) | (state << 8);
+    }
+
+    private static bool ContainsEvent(ulong mask, CoreGraphics.CGEventType eventType)
+    {
+        return (mask & (1UL << (int)eventType)) != 0;
     }
 
     [MacOSFact]

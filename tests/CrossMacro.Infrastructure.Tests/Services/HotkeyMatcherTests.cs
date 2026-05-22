@@ -77,6 +77,32 @@ public class HotkeyMatcherTests
     }
 
     [Fact]
+    public void TryMatch_ReturnsTrue_WhenConfiguredPlaybackF9ReceivesNormalizedMacF9()
+    {
+        var mapping = new HotkeyMapping { MainKey = InputEventCode.KEY_F9 };
+        var currentModifiers = new HashSet<int>();
+
+        var result = _matcher.TryMatch(InputEventCode.KEY_F9, currentModifiers, mapping, "PlaybackF9MacRegression");
+
+        result.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(InputEventCode.KEY_F10)]
+    [InlineData(InputEventCode.KEY_F21)]
+    [InlineData(0)]
+    [InlineData(InputEventCode.KEY_PLAYPAUSE)]
+    public void TryMatch_ReturnsFalse_WhenConfiguredPlaybackF9ReceivesDifferentUnsupportedUnknownOrMediaKey(int keyCode)
+    {
+        var mapping = new HotkeyMapping { MainKey = InputEventCode.KEY_F9 };
+        var currentModifiers = new HashSet<int>();
+
+        var result = _matcher.TryMatch(keyCode, currentModifiers, mapping, "PlaybackF9RejectRegression");
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
     public void TryMatch_ReturnsFalse_WhenDebounceIsActive()
     {
         // Arrange

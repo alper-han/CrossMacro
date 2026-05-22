@@ -250,6 +250,82 @@ public class GlobalHotkeyServiceTests
     }
 
     [Fact]
+    public void OnInputReceived_PlaybackHotkeyF9FromMacNormalizedInput_TriggersPlaybackExactlyOnce()
+    {
+        var service = CreateRealMatcherService(recordingHotkey: "F8", playbackHotkey: "F9", pauseHotkey: "F10", out var capture);
+        service.Start();
+        var playbackRequests = 0;
+        service.TogglePlaybackRequested += (_, _) => playbackRequests++;
+
+        capture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(
+            this,
+            new InputCaptureEventArgs
+            {
+                Type = InputEventType.Key,
+                Code = InputEventCode.KEY_F9,
+                Value = 1,
+                Timestamp = 123
+            });
+
+        Assert.Equal(1, playbackRequests);
+    }
+
+    [Theory]
+    [InlineData(InputEventCode.KEY_F10)]
+    [InlineData(InputEventCode.KEY_F21)]
+    [InlineData(0)]
+    [InlineData(InputEventCode.KEY_PLAYPAUSE)]
+    public void OnInputReceived_PlaybackHotkeyF9_DoesNotTriggerForNonF9UnsupportedUnknownOrMediaKeys(int inputCode)
+    {
+        var service = CreateRealMatcherService(recordingHotkey: "F8", playbackHotkey: "F9", pauseHotkey: "F10", out var capture);
+        service.Start();
+        var playbackRequests = 0;
+        service.TogglePlaybackRequested += (_, _) => playbackRequests++;
+
+        capture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(
+            this,
+            new InputCaptureEventArgs
+            {
+                Type = InputEventType.Key,
+                Code = inputCode,
+                Value = 1,
+                Timestamp = 123
+            });
+
+        Assert.Equal(0, playbackRequests);
+    }
+
+    private static GlobalHotkeyService CreateRealMatcherService(
+        string recordingHotkey,
+        string playbackHotkey,
+        string pauseHotkey,
+        out IInputCapture capture)
+    {
+        var config = Substitute.For<IHotkeyConfigurationService>();
+        config.Load().Returns(new HotkeySettings
+        {
+            RecordingHotkey = recordingHotkey,
+            PlaybackHotkey = playbackHotkey,
+            PauseHotkey = pauseHotkey
+        });
+
+        var layoutService = Substitute.For<IKeyboardLayoutService>();
+        layoutService.GetKeyName(Arg.Any<int>()).Returns(call => $"Key{call.Arg<int>()}");
+        var keyCodeMapper = new KeyCodeMapper(layoutService);
+        var inputCapture = Substitute.For<IInputCapture>();
+        capture = inputCapture;
+
+        return new GlobalHotkeyService(
+            config,
+            new HotkeyParser(keyCodeMapper),
+            new HotkeyMatcher { DebounceIntervalMs = 0 },
+            new ModifierStateTracker(keyCodeMapper),
+            new HotkeyStringBuilder(keyCodeMapper),
+            new MouseButtonMapper(),
+            () => inputCapture);
+    }
+
+    [Fact]
     public async Task OnInputCaptureError_ShouldAttemptSingleRestart()
     {
         var firstCapture = Substitute.For<IInputCapture>();

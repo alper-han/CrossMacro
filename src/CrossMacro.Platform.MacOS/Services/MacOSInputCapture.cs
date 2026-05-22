@@ -1,5 +1,4 @@
 using System;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Platform.Abstractions;
@@ -23,6 +22,13 @@ public class MacOSInputCapture : IInputCapture
     private TaskCompletionSource<object?>? _startupCompletionSource;
     
     private CoreGraphics.CGEventTapCallBack _callbackDelegate;
+
+    private const long NxSubtypeAuxControlButtons = 8;
+    private const int NxKeyTypePlay = 16;
+    private const int NxKeyTypeNext = 17;
+    private const int NxKeyTypePrevious = 18;
+    private const int SystemDefinedKeyDownState = 0x0A;
+    private const int SystemDefinedKeyUpState = 0x0B;
 
     public string ProviderName => "macOS CoreGraphics";
     public bool IsSupported => OperatingSystem.IsMacOS();
@@ -133,6 +139,7 @@ public class MacOSInputCapture : IInputCapture
                 (1 << (int)CoreGraphics.CGEventType.KeyDown) |
                 (1 << (int)CoreGraphics.CGEventType.KeyUp) |
                 (1 << (int)CoreGraphics.CGEventType.FlagsChanged) |
+                (1 << (int)CoreGraphics.CGEventType.SystemDefined) |
                 (1 << (int)CoreGraphics.CGEventType.LeftMouseDown) |
                 (1 << (int)CoreGraphics.CGEventType.LeftMouseUp) |
                 (1 << (int)CoreGraphics.CGEventType.RightMouseDown) |
@@ -252,30 +259,36 @@ public class MacOSInputCapture : IInputCapture
              return;
          }
 
-         long timestamp = DateTime.UtcNow.Ticks;
+         long timestamp = GetCurrentTimestamp();
 
-         if (IsKeyEvent(type))
-         {
-            long keyCodeNative = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.KeyboardEventKeycode);
-            int code = KeyMap.FromMacKey((ushort)keyCodeNative);
-            int value = 0;
-            
-            if (type == CoreGraphics.CGEventType.KeyDown) value = 1;
-            else if (type == CoreGraphics.CGEventType.KeyUp) value = 0;
-            else if (type == CoreGraphics.CGEventType.FlagsChanged)
-            {
-                var flags = CoreGraphics.CGEventGetFlags(eventRef);
-                bool isPressed = IsModifierPressed(code, flags);
-                value = isPressed ? 1 : 0;
-            }
-            
-            InputReceived?.Invoke(this, new InputCaptureEventArgs { 
-                Type = InputEventType.Key, 
-                Code = code, 
-                Value = value, 
-                Timestamp = timestamp 
-            });
-         }
+          if (IsKeyEvent(type))
+          {
+              if (type == CoreGraphics.CGEventType.SystemDefined)
+              {
+                  long subtype = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.EventSubtype);
+                  long data1 = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.EventData1);
+
+                  if (!TryCreateSystemDefinedInput(type, subtype, data1, timestamp, out var systemDefinedEvent))
+                  {
+                      return;
+                  }
+
+                  InputReceived?.Invoke(this, systemDefinedEvent);
+                  return;
+              }
+
+              long keyCodeNative = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.KeyboardEventKeycode);
+              var flags = type == CoreGraphics.CGEventType.FlagsChanged
+                  ? CoreGraphics.CGEventGetFlags(eventRef)
+                  : default;
+
+              if (!TryCreateKeyboardInput(type, (ushort)keyCodeNative, flags, timestamp, out var keyEvent))
+              {
+                  return;
+              }
+
+              InputReceived?.Invoke(this, keyEvent);
+          }
          else if (IsMouseEvent(type))
          {
              if (type == CoreGraphics.CGEventType.LeftMouseDown || type == CoreGraphics.CGEventType.LeftMouseUp)
@@ -345,7 +358,78 @@ public class MacOSInputCapture : IInputCapture
         });
     }
 
-    private bool IsModifierPressed(int code, CoreGraphics.CGEventFlags flags)
+    internal static bool TryCreateKeyboardInput(
+        CoreGraphics.CGEventType type,
+        ushort nativeKeyCode,
+        CoreGraphics.CGEventFlags flags,
+        long timestamp,
+        out InputCaptureEventArgs inputEvent)
+    {
+        inputEvent = default;
+
+        if (!KeyMap.TryFromMacKey(nativeKeyCode, out var code))
+        {
+            return false;
+        }
+
+        int value = 0;
+        if (type == CoreGraphics.CGEventType.KeyDown) value = 1;
+        else if (type == CoreGraphics.CGEventType.FlagsChanged)
+        {
+            bool isPressed = IsModifierPressed(code, flags);
+            value = isPressed ? 1 : 0;
+        }
+
+        inputEvent = new InputCaptureEventArgs
+        {
+            Type = InputEventType.Key,
+            Code = code,
+            Value = value,
+            Timestamp = timestamp
+        };
+
+        return true;
+    }
+
+    internal static bool TryCreateSystemDefinedInput(
+        CoreGraphics.CGEventType type,
+        long subtype,
+        long data1,
+        long timestamp,
+        out InputCaptureEventArgs inputEvent)
+    {
+        inputEvent = default;
+
+        if (type != CoreGraphics.CGEventType.SystemDefined || subtype != NxSubtypeAuxControlButtons)
+        {
+            return false;
+        }
+
+        int valueState = (int)((data1 >> 8) & 0xFF);
+        int value;
+        if (valueState == SystemDefinedKeyDownState) value = 1;
+        else if (valueState == SystemDefinedKeyUpState) value = 0;
+        else return false;
+
+        int keyType = (int)((data1 >> 16) & 0xFFFF);
+        int code;
+        if (keyType == NxKeyTypePlay) code = InputEventCode.KEY_PLAYPAUSE;
+        else if (keyType == NxKeyTypeNext) code = InputEventCode.KEY_NEXTSONG;
+        else if (keyType == NxKeyTypePrevious) code = InputEventCode.KEY_PREVIOUSSONG;
+        else return false;
+
+        inputEvent = new InputCaptureEventArgs
+        {
+            Type = InputEventType.Key,
+            Code = code,
+            Value = value,
+            Timestamp = timestamp
+        };
+
+        return true;
+    }
+
+    private static bool IsModifierPressed(int code, CoreGraphics.CGEventFlags flags)
     {
         if (code == InputEventCode.KEY_LEFTSHIFT || code == InputEventCode.KEY_RIGHTSHIFT) return flags.HasFlag(CoreGraphics.CGEventFlags.Shift);
         if (code == InputEventCode.KEY_LEFTCTRL || code == InputEventCode.KEY_RIGHTCTRL) return flags.HasFlag(CoreGraphics.CGEventFlags.Control);
@@ -359,19 +443,26 @@ public class MacOSInputCapture : IInputCapture
     {
         return type != CoreGraphics.CGEventType.KeyDown &&
                type != CoreGraphics.CGEventType.KeyUp &&
-               type != CoreGraphics.CGEventType.FlagsChanged;
+               type != CoreGraphics.CGEventType.FlagsChanged &&
+               type != CoreGraphics.CGEventType.SystemDefined;
     }
 
     private bool IsKeyEvent(CoreGraphics.CGEventType type)
     {
         return type == CoreGraphics.CGEventType.KeyDown ||
                type == CoreGraphics.CGEventType.KeyUp ||
-               type == CoreGraphics.CGEventType.FlagsChanged;
+               type == CoreGraphics.CGEventType.FlagsChanged ||
+               type == CoreGraphics.CGEventType.SystemDefined;
     }
 
     internal static bool ShouldIgnoreKeyboardEvent(long eventSourceUserData)
     {
         return eventSourceUserData == InputEventMarkers.TextExpansionKeyboardEvent;
+    }
+
+    internal static long GetCurrentTimestamp()
+    {
+        return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
     }
 
     public void Dispose()

@@ -43,12 +43,18 @@ public class KeyCodeMapper : IKeyCodeMapper
             keyName.Equals("Meta", StringComparison.OrdinalIgnoreCase))
             return 125; 
 
-        // Function keys (F1-F24)
+        // Function keys
         if (keyName.StartsWith("F", StringComparison.OrdinalIgnoreCase) && 
             int.TryParse(keyName[1..], out var fNum))
         {
-            if (fNum >= 1 && fNum <= 24)
-                return 59 + fNum - 1; 
+            if (fNum >= 1 && fNum <= 10)
+                return 59 + fNum - 1;
+            if (fNum == 11)
+                return 87;
+            if (fNum == 12)
+                return 88;
+            if (fNum >= 13 && fNum <= 20)
+                return 183 + fNum - 13;
         }
 
         // Special keys
@@ -157,7 +163,7 @@ public class KeyCodeMapper : IKeyCodeMapper
             
             // Numpad
             "Numpad7" => 71, "Numpad8" => 72, "Numpad9" => 73, "Numpad-" => 74,
-            "Numpad4" => 75, "Numpad5" => 76, "Numpad6" => 77, "Numpad+" => 78,
+            "Numpad4" => 75, "Numpad5" => 76, "Numpad6" => 77, "Numpad+" or "NumpadPlus" => 78,
             "Numpad1" => 79, "Numpad2" => 80, "Numpad3" => 81,
             "Numpad0" => 82, "Numpad." => 83, "NumpadEnter" => 96, "Numpad/" => 98,
             "Numpad*" => 55, "Numpad=" => 117,

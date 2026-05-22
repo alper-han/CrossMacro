@@ -98,4 +98,39 @@ public class HotkeyParserTests
         // Assert
         result.MainKey.Should().Be(30);
     }
+
+    [Theory]
+    [InlineData("F9", InputEventCode.KEY_F9)]
+    [InlineData("F10", InputEventCode.KEY_F10)]
+    [InlineData("F11", InputEventCode.KEY_F11)]
+    [InlineData("F12", InputEventCode.KEY_F12)]
+    [InlineData("F13", InputEventCode.KEY_F13)]
+    [InlineData("F20", InputEventCode.KEY_F20)]
+    [InlineData("Numpad=", InputEventCode.KEY_KPEQUAL)]
+    [InlineData("Help", InputEventCode.KEY_HELP)]
+    [InlineData("Yen", InputEventCode.KEY_YEN)]
+    public void Parse_WhenRoundTripDisplayNameIsSupported_ReturnsCanonicalMainKey(string displayName, int expectedCode)
+    {
+        _mapper.GetKeyCode(displayName).Returns(expectedCode);
+        _mapper.IsModifierKeyCode(expectedCode).Returns(false);
+
+        var result = _parser.Parse(displayName);
+
+        result.MainKey.Should().Be(expectedCode);
+    }
+
+    [Theory]
+    [InlineData("F21")]
+    [InlineData("F22")]
+    [InlineData("F23")]
+    [InlineData("F24")]
+    [InlineData("Menu")]
+    public void Parse_WhenNameIsUnsupported_DoesNotAssignUnrelatedMainKey(string displayName)
+    {
+        _mapper.GetKeyCode(displayName).Returns(-1);
+
+        var result = _parser.Parse(displayName);
+
+        result.MainKey.Should().Be(-1);
+    }
 }

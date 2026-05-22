@@ -128,4 +128,23 @@ public class HotkeyStringBuilderTests
         parts[2].Should().Be("Alt");
         parts[3].Should().Be("A");
     }
+
+    [Theory]
+    [InlineData(InputEventCode.KEY_F9, "F9")]
+    [InlineData(InputEventCode.KEY_F10, "F10")]
+    [InlineData(InputEventCode.KEY_F11, "F11")]
+    [InlineData(InputEventCode.KEY_F13, "F13")]
+    [InlineData(InputEventCode.KEY_F20, "F20")]
+    [InlineData(InputEventCode.KEY_KPEQUAL, "Numpad=")]
+    [InlineData(InputEventCode.KEY_HELP, "Help")]
+    [InlineData(InputEventCode.KEY_YEN, "Yen")]
+    public void Build_ShouldUseMapperDisplayName_ForRoundTripKeys(int keyCode, string displayName)
+    {
+        _keyCodeMapper.GetKeyName(keyCode).Returns(displayName);
+        var modifiers = new HashSet<int>();
+
+        var result = _builder.Build(keyCode, modifiers);
+
+        result.Should().Be(displayName);
+    }
 }

@@ -35,10 +35,55 @@ public class KeyCodeMapperTests
     [Theory]
     [InlineData("F1", 59)]
     [InlineData("F2", 60)]
-    [InlineData("F12", 70)]
+    [InlineData("F9", 67)]
+    [InlineData("F10", 68)]
+    [InlineData("F11", 87)]
+    [InlineData("F12", 88)]
+    [InlineData("F13", 183)]
+    [InlineData("F20", 190)]
     public void GetKeyCode_ShouldReturnCorrectCode_ForFunctionKeys(string keyName, int expectedCode)
     {
         var result = _mapper.GetKeyCode(keyName);
+        result.Should().Be(expectedCode);
+    }
+
+    [Theory]
+    [InlineData("F21")]
+    [InlineData("F22")]
+    [InlineData("F23")]
+    [InlineData("F24")]
+    public void GetKeyCode_ShouldRejectFunctionKeysWithoutMacOrdinaryMapping_WhenLayoutDoesNotHandleThem(string keyName)
+    {
+        _layoutService.GetKeyCode(keyName).Returns(-1);
+
+        var result = _mapper.GetKeyCode(keyName);
+
+        result.Should().Be(-1);
+    }
+
+    [Theory]
+    [InlineData("Numpad=", 117)]
+    [InlineData("NumpadPlus", 78)]
+    public void GetKeyCode_ShouldReturnCorrectCode_ForMacRoundTripNumpadNames(string keyName, int expectedCode)
+    {
+        var result = _mapper.GetKeyCode(keyName);
+
+        result.Should().Be(expectedCode);
+    }
+
+    [Theory]
+    [InlineData("Help", 138)]
+    [InlineData("Mute", 113)]
+    [InlineData("VolumeDown", 114)]
+    [InlineData("VolumeUp", 115)]
+    [InlineData("Yen", 124)]
+    [InlineData("NumpadJpComma", 95)]
+    public void GetKeyCode_ShouldUseLayoutService_ForMacSupportedSemanticNames(string keyName, int expectedCode)
+    {
+        _layoutService.GetKeyCode(keyName).Returns(expectedCode);
+
+        var result = _mapper.GetKeyCode(keyName);
+
         result.Should().Be(expectedCode);
     }
 

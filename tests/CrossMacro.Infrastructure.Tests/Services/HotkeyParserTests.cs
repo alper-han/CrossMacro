@@ -108,6 +108,12 @@ public class HotkeyParserTests
     [InlineData("F20", InputEventCode.KEY_F20)]
     [InlineData("Numpad=", InputEventCode.KEY_KPEQUAL)]
     [InlineData("Help", InputEventCode.KEY_HELP)]
+    [InlineData("Mute", InputEventCode.KEY_MUTE)]
+    [InlineData("VolumeDown", InputEventCode.KEY_VOLUMEDOWN)]
+    [InlineData("VolumeUp", InputEventCode.KEY_VOLUMEUP)]
+    [InlineData("PlayPause", InputEventCode.KEY_PLAYPAUSE)]
+    [InlineData("PreviousSong", InputEventCode.KEY_PREVIOUSSONG)]
+    [InlineData("NextSong", InputEventCode.KEY_NEXTSONG)]
     [InlineData("Yen", InputEventCode.KEY_YEN)]
     public void Parse_WhenRoundTripDisplayNameIsSupported_ReturnsCanonicalMainKey(string displayName, int expectedCode)
     {

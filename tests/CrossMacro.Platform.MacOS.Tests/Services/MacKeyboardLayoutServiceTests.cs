@@ -30,6 +30,9 @@ public class MacKeyboardLayoutServiceTests
     [InlineData("Mute", InputEventCode.KEY_MUTE)]
     [InlineData("VolumeDown", InputEventCode.KEY_VOLUMEDOWN)]
     [InlineData("VolumeUp", InputEventCode.KEY_VOLUMEUP)]
+    [InlineData("PlayPause", InputEventCode.KEY_PLAYPAUSE)]
+    [InlineData("PreviousSong", InputEventCode.KEY_PREVIOUSSONG)]
+    [InlineData("NextSong", InputEventCode.KEY_NEXTSONG)]
     [InlineData("Yen", InputEventCode.KEY_YEN)]
     [InlineData("NumpadJpComma", InputEventCode.KEY_KPJPCOMMA)]
     public void GetKeyCode_WhenUsingKnownNames_ReturnsExpectedCode(string keyName, int expected)
@@ -64,6 +67,9 @@ public class MacKeyboardLayoutServiceTests
     [InlineData(InputEventCode.KEY_MUTE, "Mute")]
     [InlineData(InputEventCode.KEY_VOLUMEDOWN, "VolumeDown")]
     [InlineData(InputEventCode.KEY_VOLUMEUP, "VolumeUp")]
+    [InlineData(InputEventCode.KEY_PLAYPAUSE, "PlayPause")]
+    [InlineData(InputEventCode.KEY_PREVIOUSSONG, "PreviousSong")]
+    [InlineData(InputEventCode.KEY_NEXTSONG, "NextSong")]
     [InlineData(InputEventCode.KEY_YEN, "Yen")]
     [InlineData(InputEventCode.KEY_KPJPCOMMA, "NumpadJpComma")]
     public void GetKeyName_WhenUsingKnownCodes_ReturnsExpectedName(int keyCode, string expected)
@@ -88,6 +94,9 @@ public class MacKeyboardLayoutServiceTests
     [InlineData(InputEventCode.KEY_MUTE)]
     [InlineData(InputEventCode.KEY_VOLUMEDOWN)]
     [InlineData(InputEventCode.KEY_VOLUMEUP)]
+    [InlineData(InputEventCode.KEY_PLAYPAUSE)]
+    [InlineData(InputEventCode.KEY_PREVIOUSSONG)]
+    [InlineData(InputEventCode.KEY_NEXTSONG)]
     [InlineData(InputEventCode.KEY_YEN)]
     [InlineData(InputEventCode.KEY_KPJPCOMMA)]
     public void DisplayNames_WhenMacSupportedKeysInTaskScope_ParseBackToSameCode(int keyCode)

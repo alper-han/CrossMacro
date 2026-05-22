@@ -137,6 +137,12 @@ public class HotkeyStringBuilderTests
     [InlineData(InputEventCode.KEY_F20, "F20")]
     [InlineData(InputEventCode.KEY_KPEQUAL, "Numpad=")]
     [InlineData(InputEventCode.KEY_HELP, "Help")]
+    [InlineData(InputEventCode.KEY_MUTE, "Mute")]
+    [InlineData(InputEventCode.KEY_VOLUMEDOWN, "VolumeDown")]
+    [InlineData(InputEventCode.KEY_VOLUMEUP, "VolumeUp")]
+    [InlineData(InputEventCode.KEY_PLAYPAUSE, "PlayPause")]
+    [InlineData(InputEventCode.KEY_PREVIOUSSONG, "PreviousSong")]
+    [InlineData(InputEventCode.KEY_NEXTSONG, "NextSong")]
     [InlineData(InputEventCode.KEY_YEN, "Yen")]
     public void Build_ShouldUseMapperDisplayName_ForRoundTripKeys(int keyCode, string displayName)
     {

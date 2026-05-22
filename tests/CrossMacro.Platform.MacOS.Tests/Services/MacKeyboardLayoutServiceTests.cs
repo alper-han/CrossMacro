@@ -23,6 +23,15 @@ public class MacKeyboardLayoutServiceTests
     [InlineData("Home", InputEventCode.KEY_HOME)]
     [InlineData("F1", InputEventCode.KEY_F1)]
     [InlineData("F12", InputEventCode.KEY_F12)]
+    [InlineData("F20", InputEventCode.KEY_F20)]
+    [InlineData("Numpad=", InputEventCode.KEY_KPEQUAL)]
+    [InlineData("NumpadPlus", InputEventCode.KEY_KPPLUS)]
+    [InlineData("Help", InputEventCode.KEY_HELP)]
+    [InlineData("Mute", InputEventCode.KEY_MUTE)]
+    [InlineData("VolumeDown", InputEventCode.KEY_VOLUMEDOWN)]
+    [InlineData("VolumeUp", InputEventCode.KEY_VOLUMEUP)]
+    [InlineData("Yen", InputEventCode.KEY_YEN)]
+    [InlineData("NumpadJpComma", InputEventCode.KEY_KPJPCOMMA)]
     public void GetKeyCode_WhenUsingKnownNames_ReturnsExpectedCode(string keyName, int expected)
     {
         var code = _service.GetKeyCode(keyName);
@@ -49,11 +58,57 @@ public class MacKeyboardLayoutServiceTests
     [InlineData(InputEventCode.KEY_RIGHTMETA, "Command")]
     [InlineData(InputEventCode.KEY_F1, "F1")]
     [InlineData(InputEventCode.KEY_UP, "Up")]
+    [InlineData(InputEventCode.KEY_KPEQUAL, "Numpad=")]
+    [InlineData(InputEventCode.KEY_KPPLUS, "NumpadPlus")]
+    [InlineData(InputEventCode.KEY_HELP, "Help")]
+    [InlineData(InputEventCode.KEY_MUTE, "Mute")]
+    [InlineData(InputEventCode.KEY_VOLUMEDOWN, "VolumeDown")]
+    [InlineData(InputEventCode.KEY_VOLUMEUP, "VolumeUp")]
+    [InlineData(InputEventCode.KEY_YEN, "Yen")]
+    [InlineData(InputEventCode.KEY_KPJPCOMMA, "NumpadJpComma")]
     public void GetKeyName_WhenUsingKnownCodes_ReturnsExpectedName(int keyCode, string expected)
     {
         var name = _service.GetKeyName(keyCode);
 
         Assert.Equal(expected, name);
+    }
+
+    [Theory]
+    [InlineData(InputEventCode.KEY_F9)]
+    [InlineData(InputEventCode.KEY_F10)]
+    [InlineData(InputEventCode.KEY_F11)]
+    [InlineData(InputEventCode.KEY_F12)]
+    [InlineData(InputEventCode.KEY_F13)]
+    [InlineData(InputEventCode.KEY_F20)]
+    [InlineData(InputEventCode.KEY_KP0)]
+    [InlineData(InputEventCode.KEY_KP1)]
+    [InlineData(InputEventCode.KEY_KPPLUS)]
+    [InlineData(InputEventCode.KEY_KPEQUAL)]
+    [InlineData(InputEventCode.KEY_HELP)]
+    [InlineData(InputEventCode.KEY_MUTE)]
+    [InlineData(InputEventCode.KEY_VOLUMEDOWN)]
+    [InlineData(InputEventCode.KEY_VOLUMEUP)]
+    [InlineData(InputEventCode.KEY_YEN)]
+    [InlineData(InputEventCode.KEY_KPJPCOMMA)]
+    public void DisplayNames_WhenMacSupportedKeysInTaskScope_ParseBackToSameCode(int keyCode)
+    {
+        var displayName = _service.GetKeyName(keyCode);
+        var parsedCode = _service.GetKeyCode(displayName);
+
+        Assert.Equal(keyCode, parsedCode);
+    }
+
+    [Theory]
+    [InlineData("F21")]
+    [InlineData("F22")]
+    [InlineData("F23")]
+    [InlineData("F24")]
+    [InlineData("Menu")]
+    public void GetKeyCode_WhenNameHasNoSupportedMacOrdinaryMapping_ReturnsMinusOne(string keyName)
+    {
+        var code = _service.GetKeyCode(keyName);
+
+        Assert.Equal(-1, code);
     }
 
     [Fact]

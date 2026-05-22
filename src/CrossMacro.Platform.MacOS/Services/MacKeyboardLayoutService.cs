@@ -49,69 +49,17 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
 
     public string GetKeyName(int keyCode)
     {
+        var semanticName = GetSemanticKeyName(keyCode);
+        if (semanticName != null) return semanticName;
+
         // Try to get character first via UCKeyTranslate
         var c = GetCharFromKeyCode(keyCode, false, false, false, false, false, false);
         if (c.HasValue && !char.IsControl(c.Value))
         {
             return c.Value.ToString().ToUpper();
         }
-        
-        // Modifier keys
-        var modifierName = keyCode switch
-        {
-            29 => "Ctrl",      // KEY_LEFTCTRL
-            97 => "Ctrl",      // KEY_RIGHTCTRL
-            42 => "Shift",     // KEY_LEFTSHIFT
-            54 => "Shift",     // KEY_RIGHTSHIFT
-            56 => "Alt",       // KEY_LEFTALT (Option)
-            100 => "Alt",      // KEY_RIGHTALT (Option)
-            125 => "Command",  // KEY_LEFTMETA
-            126 => "Command",  // KEY_RIGHTMETA
-            _ => null
-        };
-        if (modifierName != null) return modifierName;
 
-        // Special/Navigation keys
-        return keyCode switch
-        {
-            57 => "Space",
-            28 => "Enter",
-            15 => "Tab",
-            14 => "Backspace",
-            1 => "Escape",
-            111 => "Delete",
-            110 => "Insert",
-            102 => "Home",
-            107 => "End",
-            104 => "PageUp",
-            109 => "PageDown",
-            103 => "Up",
-            108 => "Down",
-            105 => "Left",
-            106 => "Right",
-            58 => "CapsLock",
-            69 => "NumLock",
-            70 => "ScrollLock",
-            99 => "PrintScreen",
-            119 => "Pause",
-            127 => "Menu",
-            
-            // Function Keys
-            59 => "F1", 60 => "F2", 61 => "F3", 62 => "F4",
-            63 => "F5", 64 => "F6", 65 => "F7", 66 => "F8",
-            67 => "F9", 68 => "F10", 87 => "F11", 88 => "F12",
-            183 => "F13", 184 => "F14", 185 => "F15", 186 => "F16",
-            187 => "F17", 188 => "F18", 189 => "F19", 190 => "F20",
-            
-            // Numpad
-            71 => "Numpad7", 72 => "Numpad8", 73 => "Numpad9", 74 => "Numpad-",
-            75 => "Numpad4", 76 => "Numpad5", 77 => "Numpad6", 78 => "Numpad+",
-            79 => "Numpad1", 80 => "Numpad2", 81 => "Numpad3",
-            82 => "Numpad0", 83 => "Numpad.", 96 => "NumpadEnter",
-            98 => "Numpad/", 55 => "Numpad*",
-            
-            _ => $"Key{keyCode}"
-        };
+        return $"Key{keyCode}";
     }
 
     public int GetKeyCode(string keyName)
@@ -153,7 +101,31 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
             "Left" => 105,
             "Right" => 106,
             "CapsLock" => 58,
-            "Menu" => 127,
+            "NumLock" => 69,
+            "Help" => 138,
+            "Mute" => 113,
+            "VolumeDown" => 114,
+            "VolumeUp" => 115,
+            "ISOSection" => 86,
+            "Yen" => 124,
+            "NumpadJpComma" => 95,
+            "Numpad7" => 71,
+            "Numpad8" => 72,
+            "Numpad9" => 73,
+            "Numpad-" => 74,
+            "Numpad4" => 75,
+            "Numpad5" => 76,
+            "Numpad6" => 77,
+            "Numpad+" or "NumpadPlus" => 78,
+            "Numpad1" => 79,
+            "Numpad2" => 80,
+            "Numpad3" => 81,
+            "Numpad0" => 82,
+            "Numpad." => 83,
+            "NumpadEnter" => 96,
+            "Numpad/" => 98,
+            "Numpad*" => 55,
+            "Numpad=" => 117,
             _ => -1
         };
         if (special != -1) return special;
@@ -166,6 +138,63 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
         }
 
         return -1;
+    }
+
+    private static string? GetSemanticKeyName(int keyCode)
+    {
+        return keyCode switch
+        {
+            29 => "Ctrl",
+            97 => "Ctrl",
+            42 => "Shift",
+            54 => "Shift",
+            56 => "Alt",
+            100 => "Alt",
+            125 => "Command",
+            126 => "Command",
+
+            57 => "Space",
+            28 => "Enter",
+            15 => "Tab",
+            14 => "Backspace",
+            1 => "Escape",
+            111 => "Delete",
+            110 => "Insert",
+            102 => "Home",
+            107 => "End",
+            104 => "PageUp",
+            109 => "PageDown",
+            103 => "Up",
+            108 => "Down",
+            105 => "Left",
+            106 => "Right",
+            58 => "CapsLock",
+            69 => "NumLock",
+            70 => "ScrollLock",
+            99 => "PrintScreen",
+            119 => "Pause",
+            138 => "Help",
+            113 => "Mute",
+            114 => "VolumeDown",
+            115 => "VolumeUp",
+            86 => "ISOSection",
+            124 => "Yen",
+            95 => "NumpadJpComma",
+
+            59 => "F1", 60 => "F2", 61 => "F3", 62 => "F4",
+            63 => "F5", 64 => "F6", 65 => "F7", 66 => "F8",
+            67 => "F9", 68 => "F10", 87 => "F11", 88 => "F12",
+            183 => "F13", 184 => "F14", 185 => "F15", 186 => "F16",
+            187 => "F17", 188 => "F18", 189 => "F19", 190 => "F20",
+
+            71 => "Numpad7", 72 => "Numpad8", 73 => "Numpad9", 74 => "Numpad-",
+            75 => "Numpad4", 76 => "Numpad5", 77 => "Numpad6", 78 => "NumpadPlus",
+            79 => "Numpad1", 80 => "Numpad2", 81 => "Numpad3",
+            82 => "Numpad0", 83 => "Numpad.", 96 => "NumpadEnter",
+            98 => "Numpad/", 55 => "Numpad*", 117 => "Numpad=",
+
+            _ => null
+        };
     }
 
     public char? GetCharFromKeyCode(int keyCode, bool leftShift, bool rightShift, bool rightAlt, bool leftAlt, bool leftCtrl, bool capsLock)

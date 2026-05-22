@@ -83,26 +83,46 @@ public class MacOSAssignmentPlaybackRegressionTests
         Assert.False(created);
     }
 
-    [Fact]
-    public void Assignment_WhenSupportedSystemDefinedMediaKeyIsCaptured_CreatesPlayPauseKeyEvent()
+    [Theory]
+    [InlineData(0, InputEventCode.KEY_VOLUMEUP, "VolumeUp")]
+    [InlineData(1, InputEventCode.KEY_VOLUMEDOWN, "VolumeDown")]
+    [InlineData(7, InputEventCode.KEY_MUTE, "Mute")]
+    [InlineData(16, InputEventCode.KEY_PLAYPAUSE, "PlayPause")]
+    [InlineData(17, InputEventCode.KEY_NEXTSONG, "NextSong")]
+    [InlineData(18, InputEventCode.KEY_PREVIOUSSONG, "PreviousSong")]
+    [InlineData(19, InputEventCode.KEY_NEXTSONG, "NextSong")]
+    [InlineData(20, InputEventCode.KEY_PREVIOUSSONG, "PreviousSong")]
+    public void Assignment_WhenSupportedSystemDefinedMediaKeyIsCaptured_RoundTripsThroughDisplayAndParser(
+        int keyType,
+        int expectedCode,
+        string expectedDisplayName)
     {
+        var layoutService = CreateLayoutService();
+        var parser = new HotkeyParser(new KeyCodeMapper(layoutService));
+        var stringBuilder = new HotkeyStringBuilder(new KeyCodeMapper(layoutService));
+
         bool created = MacOSInputCapture.TryCreateSystemDefinedInput(
             CoreGraphics.CGEventType.SystemDefined,
             subtype: 8,
-            data1: CreateSystemDefinedData1(keyType: 16, state: 0x0A),
+            data1: CreateSystemDefinedData1(keyType, state: 0x0A),
             timestamp: 123,
             out var inputEvent);
 
         Assert.True(created);
         Assert.Equal(InputEventType.Key, inputEvent.Type);
-        Assert.Equal(InputEventCode.KEY_PLAYPAUSE, inputEvent.Code);
+        Assert.Equal(expectedCode, inputEvent.Code);
         Assert.Equal(1, inputEvent.Value);
+        Assert.Equal(expectedDisplayName, layoutService.GetKeyName(inputEvent.Code));
+        Assert.Equal(expectedCode, layoutService.GetKeyCode(expectedDisplayName));
+        Assert.Equal(expectedCode, parser.Parse(expectedDisplayName).MainKey);
+        Assert.Equal(expectedDisplayName, stringBuilder.Build(inputEvent.Code, new HashSet<int>()));
     }
 
     [Theory]
     [InlineData(2)]
     [InlineData(6)]
-    [InlineData(19)]
+    [InlineData(14)]
+    [InlineData(21)]
     public void Assignment_WhenSystemDefinedKeyTypeIsUnsupported_ReturnsNoMatchWithoutCodeZeroEvent(int keyType)
     {
         bool created = MacOSInputCapture.TryCreateSystemDefinedInput(

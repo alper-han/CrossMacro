@@ -1,5 +1,4 @@
 using System;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using CrossMacro.Core.Services;
 using CrossMacro.Platform.MacOS.Native;
@@ -14,9 +13,30 @@ public class MacOSMousePositionProvider : IMousePositionProvider
     public Task<(int X, int Y)?> GetAbsolutePositionAsync()
     {
         var eventRef = CoreGraphics.CGEventCreate(IntPtr.Zero);
+        if (eventRef == IntPtr.Zero)
+        {
+            return Task.FromResult<(int X, int Y)?>(null);
+        }
+
+        try
+        {
+            return Task.FromResult(ReadPosition(eventRef));
+        }
+        finally
+        {
+            CoreFoundation.CFRelease(eventRef);
+        }
+    }
+
+    internal static (int X, int Y)? ReadPosition(IntPtr eventRef)
+    {
+        if (eventRef == IntPtr.Zero)
+        {
+            return null;
+        }
+
         var loc = CoreGraphics.CGEventGetLocation(eventRef);
-        CoreFoundation.CFRelease(eventRef);
-        return Task.FromResult<(int X, int Y)?>(((int)loc.X, (int)loc.Y));
+        return ((int)loc.X, (int)loc.Y);
     }
 
     public Task<(int Width, int Height)?> GetScreenResolutionAsync()

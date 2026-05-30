@@ -94,11 +94,29 @@ public sealed class DesktopPermissionGateServiceTests
     [Fact]
     public void GetStartupPermissionGateKind_WhenMacOSStatusProbeThrows_FallsBackToAccessibilityGate()
     {
-        var checker = new ThrowingStatusPermissionChecker(accessibilityGranted: false);
+        var checker = new ThrowingStatusPermissionChecker(
+            listenEventGranted: true,
+            postEventGranted: false,
+            accessibilityGranted: false);
 
         var gateKind = DesktopPermissionGateService.GetStartupPermissionGateKind(checker);
 
         Assert.Equal(DesktopPermissionGateService.StartupPermissionGateKind.Accessibility, gateKind);
+    }
+
+    [Fact]
+    public void GetStartupPermissionGateKind_WhenMacOSListenEventMissing_DoesNotProbeAccessibilityFirst()
+    {
+        var checker = new ThrowingStatusPermissionChecker(
+            listenEventGranted: false,
+            postEventGranted: true,
+            accessibilityGranted: true);
+
+        var gateKind = DesktopPermissionGateService.GetStartupPermissionGateKind(checker);
+
+        Assert.Equal(DesktopPermissionGateService.StartupPermissionGateKind.InputMonitoring, gateKind);
+        Assert.Equal(0, checker.AccessibilityProbeCount);
+        Assert.Equal(0, checker.PostEventProbeCount);
     }
 
     [Fact]
@@ -246,6 +264,16 @@ public sealed class DesktopPermissionGateServiceTests
             return _accessibilityGranted;
         }
 
+        public bool IsListenEventAccessGranted()
+        {
+            return _listenEventApiAvailable && _listenEventGranted;
+        }
+
+        public bool IsPostEventAccessGranted()
+        {
+            return _postEventApiAvailable && _postEventGranted;
+        }
+
         public bool CheckUInputAccess()
         {
             return false;
@@ -280,7 +308,13 @@ public sealed class DesktopPermissionGateServiceTests
 
         public bool IsPermissionGranted(MacOSPermissionRequirement requirement)
         {
-            return GetCurrentStatus().IsGranted(requirement);
+            return requirement switch
+            {
+                MacOSPermissionRequirement.ListenEvent => IsListenEventAccessGranted(),
+                MacOSPermissionRequirement.PostEvent => IsPostEventAccessGranted(),
+                MacOSPermissionRequirement.Accessibility => IsAccessibilityTrusted(),
+                _ => false
+            };
         }
 
         public void OpenInputMonitoringSettings()
@@ -297,12 +331,19 @@ public sealed class DesktopPermissionGateServiceTests
 
     private sealed class ThrowingStatusPermissionChecker : IMacOSPermissionChecker
     {
+        private readonly bool _listenEventGranted;
+        private readonly bool _postEventGranted;
         private readonly bool _accessibilityGranted;
 
-        internal ThrowingStatusPermissionChecker(bool accessibilityGranted)
+        internal ThrowingStatusPermissionChecker(bool listenEventGranted, bool postEventGranted, bool accessibilityGranted)
         {
+            _listenEventGranted = listenEventGranted;
+            _postEventGranted = postEventGranted;
             _accessibilityGranted = accessibilityGranted;
         }
+
+        public int AccessibilityProbeCount { get; private set; }
+        public int PostEventProbeCount { get; private set; }
 
         public bool IsSupported => true;
         public bool RequiresStartupPermissionGate => true;
@@ -334,7 +375,19 @@ public sealed class DesktopPermissionGateServiceTests
 
         public bool IsAccessibilityTrusted()
         {
+            AccessibilityProbeCount++;
             return _accessibilityGranted;
+        }
+
+        public bool IsListenEventAccessGranted()
+        {
+            return _listenEventGranted;
+        }
+
+        public bool IsPostEventAccessGranted()
+        {
+            PostEventProbeCount++;
+            return _postEventGranted;
         }
 
         public bool CheckUInputAccess()

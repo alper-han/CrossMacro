@@ -81,15 +81,14 @@ internal sealed class DesktopPermissionGateService
             return StartupPermissionGateKind.None;
         }
 
-        var macOSStatus = TryGetMacOSPermissionStatusOrDefault(permissionChecker);
-        if (macOSStatus.HasValue)
+        if (permissionChecker is IMacOSPermissionChecker macOSPermissionChecker)
         {
-            if (!macOSStatus.Value.ListenEventGrantedAndAvailable)
+            if (!macOSPermissionChecker.IsListenEventAccessGranted())
             {
                 return StartupPermissionGateKind.InputMonitoring;
             }
 
-            return macOSStatus.Value.PlaybackPermissionGranted
+            return macOSPermissionChecker.IsPostEventAccessGranted() || macOSPermissionChecker.IsAccessibilityTrusted()
                 ? StartupPermissionGateKind.None
                 : StartupPermissionGateKind.Accessibility;
         }
@@ -280,38 +279,5 @@ internal sealed class DesktopPermissionGateService
         }
 
         permissionChecker.OpenAccessibilitySettings();
-    }
-
-    private static MacOSPermissionStatusSnapshot? TryGetMacOSPermissionStatusOrDefault(IPermissionChecker permissionChecker)
-    {
-        if (permissionChecker is not IMacOSPermissionChecker macOSPermissionChecker)
-        {
-            return null;
-        }
-
-        try
-        {
-            var status = macOSPermissionChecker.GetCurrentStatus();
-            return new MacOSPermissionStatusSnapshot(
-                status.ListenEventGranted,
-                status.PostEventGranted,
-                status.AccessibilityGranted,
-                status.ListenEventApiAvailable);
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-    }
-
-    private readonly record struct MacOSPermissionStatusSnapshot(
-        bool ListenEventGranted,
-        bool PostEventGranted,
-        bool AccessibilityGranted,
-        bool ListenEventApiAvailable)
-    {
-        internal bool ListenEventGrantedAndAvailable => ListenEventApiAvailable && ListenEventGranted;
-
-        internal bool PlaybackPermissionGranted => PostEventGranted || AccessibilityGranted;
     }
 }

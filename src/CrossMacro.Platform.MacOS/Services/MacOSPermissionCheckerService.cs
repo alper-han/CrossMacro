@@ -8,6 +8,8 @@ namespace CrossMacro.Platform.MacOS.Services;
 public class MacOSPermissionCheckerService : IMacOSPermissionChecker
 {
     private readonly Func<MacOSPermissionStatus> _getCurrentStatus;
+    private readonly Func<bool> _isListenEventAccessGranted;
+    private readonly Func<bool> _isPostEventAccessGranted;
     private readonly Func<bool> _isAccessibilityTrusted;
     private readonly Func<bool> _requestListenEventAccess;
     private readonly Func<bool> _requestPostEventAccess;
@@ -16,6 +18,8 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
         : this(
             MacOSPermissionChecker.GetCurrentStatus,
             MacOSPermissionChecker.IsAccessibilityTrusted,
+            MacOSPermissionChecker.IsListenEventAccessGranted,
+            MacOSPermissionChecker.IsPostEventAccessGranted,
             MacOSPermissionChecker.RequestListenEventAccess,
             MacOSPermissionChecker.RequestPostEventAccess)
     {
@@ -24,10 +28,14 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
     internal MacOSPermissionCheckerService(
         Func<MacOSPermissionStatus> getCurrentStatus,
         Func<bool> isAccessibilityTrusted,
+        Func<bool>? isListenEventAccessGranted = null,
+        Func<bool>? isPostEventAccessGranted = null,
         Func<bool>? requestListenEventAccess = null,
         Func<bool>? requestPostEventAccess = null)
     {
         _getCurrentStatus = getCurrentStatus;
+        _isListenEventAccessGranted = isListenEventAccessGranted ?? (() => getCurrentStatus().IsGranted(MacOSPermissionRequirement.ListenEvent));
+        _isPostEventAccessGranted = isPostEventAccessGranted ?? (() => getCurrentStatus().IsGranted(MacOSPermissionRequirement.PostEvent));
         _isAccessibilityTrusted = isAccessibilityTrusted;
         _requestListenEventAccess = requestListenEventAccess ?? (() => false);
         _requestPostEventAccess = requestPostEventAccess ?? (() => false);
@@ -43,17 +51,23 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
 
     public bool IsPermissionGranted(MacOSPermissionRequirement requirement)
     {
-        return GetCurrentStatus().IsGranted(requirement);
+        return requirement switch
+        {
+            MacOSPermissionRequirement.ListenEvent => IsListenEventAccessGranted(),
+            MacOSPermissionRequirement.PostEvent => IsPostEventAccessGranted(),
+            MacOSPermissionRequirement.Accessibility => IsAccessibilityTrusted(),
+            _ => false
+        };
     }
 
     public bool IsListenEventAccessGranted()
     {
-        return IsPermissionGranted(MacOSPermissionRequirement.ListenEvent);
+        return _isListenEventAccessGranted();
     }
 
     public bool IsPostEventAccessGranted()
     {
-        return IsPermissionGranted(MacOSPermissionRequirement.PostEvent);
+        return _isPostEventAccessGranted();
     }
 
     public bool RequestPermission(MacOSPermissionRequirement requirement)

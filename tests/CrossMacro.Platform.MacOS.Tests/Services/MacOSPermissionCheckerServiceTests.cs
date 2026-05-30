@@ -112,6 +112,54 @@ public class MacOSPermissionCheckerServiceTests
     }
 
     [Fact]
+    public void IsPermissionGranted_ForListenEvent_UsesDedicatedListenProbeWithoutAccessibilityProbe()
+    {
+        var listenProbes = 0;
+        var accessibilityProbes = 0;
+        var checker = new MacOSPermissionCheckerService(
+            getCurrentStatus: () => throw new InvalidOperationException("full status should not be used"),
+            isAccessibilityTrusted: () =>
+            {
+                accessibilityProbes++;
+                return true;
+            },
+            isListenEventAccessGranted: () =>
+            {
+                listenProbes++;
+                return false;
+            });
+
+        Assert.False(checker.IsPermissionGranted(MacOSPermissionRequirement.ListenEvent));
+        Assert.False(checker.IsListenEventAccessGranted());
+        Assert.Equal(2, listenProbes);
+        Assert.Equal(0, accessibilityProbes);
+    }
+
+    [Fact]
+    public void IsPermissionGranted_ForPostEvent_UsesDedicatedPostProbeWithoutAccessibilityProbe()
+    {
+        var postProbes = 0;
+        var accessibilityProbes = 0;
+        var checker = new MacOSPermissionCheckerService(
+            getCurrentStatus: () => throw new InvalidOperationException("full status should not be used"),
+            isAccessibilityTrusted: () =>
+            {
+                accessibilityProbes++;
+                return false;
+            },
+            isPostEventAccessGranted: () =>
+            {
+                postProbes++;
+                return true;
+            });
+
+        Assert.True(checker.IsPermissionGranted(MacOSPermissionRequirement.PostEvent));
+        Assert.True(checker.IsPostEventAccessGranted());
+        Assert.Equal(2, postProbes);
+        Assert.Equal(0, accessibilityProbes);
+    }
+
+    [Fact]
     public void RequestPermission_WhenPostEventRequested_CallsOnlyPostRequestFlow()
     {
         var listenRequests = 0;

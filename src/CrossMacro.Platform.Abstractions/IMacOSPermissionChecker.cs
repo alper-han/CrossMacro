@@ -54,6 +54,8 @@ public interface IMacOSPermissionChecker : IPermissionChecker
 {
     MacOSPermissionStatus GetCurrentStatus();
     bool IsPermissionGranted(MacOSPermissionRequirement requirement);
+    bool IsListenEventAccessGranted();
+    bool IsPostEventAccessGranted();
     bool RequestPermission(MacOSPermissionRequirement requirement);
     bool RequestListenEventAccess();
     bool RequestPostEventAccess();

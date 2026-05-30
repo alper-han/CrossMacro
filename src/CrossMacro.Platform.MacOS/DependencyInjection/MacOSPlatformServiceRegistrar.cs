@@ -27,8 +27,16 @@ public sealed class MacOSPlatformServiceRegistrar : IPlatformServiceRegistrar
         services.AddSingleton<IExtensionStatusNotifier?>(sp => null);
 #pragma warning restore CS8634
 
-        services.AddTransient<Func<IInputSimulator>>(sp => () => new MacOSInputSimulator());
-        services.AddTransient<Func<IInputCapture>>(sp => () => new MacOSInputCapture());
+        services.AddTransient<Func<IInputSimulator>>(sp =>
+        {
+            var permissionChecker = sp.GetRequiredService<IPermissionChecker>();
+            return () => new MacOSInputSimulator(MacOSPermissionRequestDelegates.RequestPostEventAccess(permissionChecker));
+        });
+        services.AddTransient<Func<IInputCapture>>(sp =>
+        {
+            var permissionChecker = sp.GetRequiredService<IPermissionChecker>();
+            return () => new MacOSInputCapture(MacOSPermissionRequestDelegates.RequestListenEventAccess(permissionChecker));
+        });
 
         services.AddSingleton<ICoordinateStrategyFactory, MacOSCoordinateStrategyFactory>();
         services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();

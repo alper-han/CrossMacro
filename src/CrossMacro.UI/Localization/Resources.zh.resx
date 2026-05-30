@@ -264,6 +264,15 @@
   <data name="Playback_StatusAbsoluteCoordinatesUnsupported" xml:space="preserve">
     <value>播放不可用：当前输入后端不支持绝对坐标。</value>
   </data>
+  <data name="Playback_PermissionRequiredTitle" xml:space="preserve">
+    <value>需要播放权限</value>
+  </data>
+  <data name="Playback_PermissionRequiredMessage" xml:space="preserve">
+    <value>macOS 需要 Accessibility 权限，CrossMacro 才能回放鼠标和键盘事件。Input Monitoring 只允许录制。打开 System Settings > Privacy &amp; Security > Accessibility，允许 CrossMacro，然后再次尝试播放。</value>
+  </data>
+  <data name="Playback_StatusPermissionRequired" xml:space="preserve">
+    <value>无法播放：请授予 macOS Accessibility 权限以进行播放。</value>
+  </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>已加载的宏</value>
   </data>

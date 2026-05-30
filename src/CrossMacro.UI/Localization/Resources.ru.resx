@@ -264,6 +264,15 @@
   <data name="Playback_StatusAbsoluteCoordinatesUnsupported" xml:space="preserve">
     <value>Воспроизведение недоступно: активный backend ввода не поддерживает абсолютные координаты.</value>
   </data>
+  <data name="Playback_PermissionRequiredTitle" xml:space="preserve">
+    <value>Требуется разрешение для воспроизведения</value>
+  </data>
+  <data name="Playback_PermissionRequiredMessage" xml:space="preserve">
+    <value>macOS требует разрешение Accessibility, прежде чем CrossMacro сможет воспроизводить события мыши и клавиатуры. Input Monitoring разрешает только запись. Откройте System Settings > Privacy &amp; Security > Accessibility, разрешите CrossMacro доступ и повторите воспроизведение.</value>
+  </data>
+  <data name="Playback_StatusPermissionRequired" xml:space="preserve">
+    <value>Воспроизведение недоступно: предоставьте macOS разрешение Accessibility для воспроизведения.</value>
+  </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>Загруженные макросы</value>
   </data>

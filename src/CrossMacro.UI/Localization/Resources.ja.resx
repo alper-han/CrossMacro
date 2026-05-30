@@ -264,6 +264,15 @@
   <data name="Playback_StatusAbsoluteCoordinatesUnsupported" xml:space="preserve">
     <value>再生できません: 現在の入力バックエンドは絶対座標をサポートしていません。</value>
   </data>
+  <data name="Playback_PermissionRequiredTitle" xml:space="preserve">
+    <value>再生権限が必要です</value>
+  </data>
+  <data name="Playback_PermissionRequiredMessage" xml:space="preserve">
+    <value>CrossMacro がマウスとキーボードのイベントを再生するには、macOS のアクセシビリティ権限が必要です。Input Monitoring は記録のみを許可します。システム設定 > プライバシーとセキュリティ > アクセシビリティを開き、CrossMacro を許可してから、再生をもう一度試してください。</value>
+  </data>
+  <data name="Playback_StatusPermissionRequired" xml:space="preserve">
+    <value>再生できません: 再生には macOS のアクセシビリティ権限を許可してください。</value>
+  </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>ロードされたマクロ</value>
   </data>

@@ -264,6 +264,15 @@
   <data name="Playback_StatusAbsoluteCoordinatesUnsupported" xml:space="preserve">
     <value>التشغيل غير متاح: واجهة الإدخال النشطة لا تدعم الإحداثيات المطلقة.</value>
   </data>
+  <data name="Playback_PermissionRequiredTitle" xml:space="preserve">
+    <value>إذن التشغيل مطلوب</value>
+  </data>
+  <data name="Playback_PermissionRequiredMessage" xml:space="preserve">
+    <value>يتطلب macOS إذن Accessibility قبل أن يتمكن CrossMacro من تشغيل أحداث الماوس ولوحة المفاتيح. يسمح Input Monitoring بالتسجيل فقط. افتح إعدادات النظام > الخصوصية والأمان > Accessibility، ثم امنح الإذن لـ CrossMacro وحاول التشغيل مرة أخرى.</value>
+  </data>
+  <data name="Playback_StatusPermissionRequired" xml:space="preserve">
+    <value>التشغيل غير متاح: امنح إذن Accessibility في macOS للتشغيل.</value>
+  </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>وحدات الماكرو المحملة</value>
   </data>

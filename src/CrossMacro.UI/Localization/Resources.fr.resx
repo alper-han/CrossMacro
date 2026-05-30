@@ -264,6 +264,15 @@
   <data name="Playback_StatusAbsoluteCoordinatesUnsupported" xml:space="preserve">
     <value>Lecture indisponible : le backend d’entrée actif ne prend pas en charge les coordonnées absolues.</value>
   </data>
+  <data name="Playback_PermissionRequiredTitle" xml:space="preserve">
+    <value>Autorisation de lecture requise</value>
+  </data>
+  <data name="Playback_PermissionRequiredMessage" xml:space="preserve">
+    <value>macOS nécessite l’autorisation Accessibilité avant que CrossMacro puisse rejouer les événements de souris et de clavier. Input Monitoring permet seulement l’enregistrement. Ouvrez Réglages Système > Confidentialité et sécurité > Accessibilité, autorisez CrossMacro, puis réessayez la lecture.</value>
+  </data>
+  <data name="Playback_StatusPermissionRequired" xml:space="preserve">
+    <value>Lecture indisponible : accordez l’autorisation Accessibilité de macOS pour la lecture.</value>
+  </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>Macros chargées</value>
   </data>

@@ -264,6 +264,15 @@
   <data name="Playback_StatusAbsoluteCoordinatesUnsupported" xml:space="preserve">
     <value>Reprodução indisponível: o backend de entrada ativo não oferece suporte a coordenadas absolutas.</value>
   </data>
+  <data name="Playback_PermissionRequiredTitle" xml:space="preserve">
+    <value>Permissão de reprodução necessária</value>
+  </data>
+  <data name="Playback_PermissionRequiredMessage" xml:space="preserve">
+    <value>O macOS exige a permissão Accessibility antes que o CrossMacro possa reproduzir eventos de mouse e teclado. Input Monitoring permite apenas gravar. Abra Ajustes do Sistema > Privacidade e Segurança > Accessibility, permita o CrossMacro e tente reproduzir novamente.</value>
+  </data>
+  <data name="Playback_StatusPermissionRequired" xml:space="preserve">
+    <value>Reprodução indisponível: conceda a permissão Accessibility do macOS para reproduzir.</value>
+  </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>Macros carregadas</value>
   </data>

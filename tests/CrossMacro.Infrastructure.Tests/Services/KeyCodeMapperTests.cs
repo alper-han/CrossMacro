@@ -76,9 +76,13 @@ public class KeyCodeMapperTests
     [InlineData("Mute", 113)]
     [InlineData("VolumeDown", 114)]
     [InlineData("VolumeUp", 115)]
+    [InlineData("BrightnessDown", 224)]
+    [InlineData("BrightnessUp", 225)]
     [InlineData("PlayPause", 164)]
     [InlineData("PreviousSong", 165)]
     [InlineData("NextSong", 163)]
+    [InlineData("Rewind", 168)]
+    [InlineData("FastForward", 208)]
     [InlineData("Yen", 124)]
     [InlineData("NumpadJpComma", 95)]
     public void GetKeyCode_ShouldUseLayoutService_ForMacSupportedSemanticNames(string keyName, int expectedCode)

@@ -164,6 +164,10 @@ public static class InputEventCode
     public const int KEY_PREVIOUSSONG = 165;
     public const int KEY_NEXTSONG = 163;
     public const int KEY_STOPCD = 166;
+    public const int KEY_REWIND = 168;
+    public const int KEY_FASTFORWARD = 208;
+    public const int KEY_BRIGHTNESSDOWN = 224;
+    public const int KEY_BRIGHTNESSUP = 225;
     public const int KEY_MAIL = 155;
     public const int KEY_WWW = 150;
 

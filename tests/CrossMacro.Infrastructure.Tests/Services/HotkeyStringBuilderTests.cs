@@ -140,9 +140,13 @@ public class HotkeyStringBuilderTests
     [InlineData(InputEventCode.KEY_MUTE, "Mute")]
     [InlineData(InputEventCode.KEY_VOLUMEDOWN, "VolumeDown")]
     [InlineData(InputEventCode.KEY_VOLUMEUP, "VolumeUp")]
+    [InlineData(InputEventCode.KEY_BRIGHTNESSDOWN, "BrightnessDown")]
+    [InlineData(InputEventCode.KEY_BRIGHTNESSUP, "BrightnessUp")]
     [InlineData(InputEventCode.KEY_PLAYPAUSE, "PlayPause")]
     [InlineData(InputEventCode.KEY_PREVIOUSSONG, "PreviousSong")]
     [InlineData(InputEventCode.KEY_NEXTSONG, "NextSong")]
+    [InlineData(InputEventCode.KEY_REWIND, "Rewind")]
+    [InlineData(InputEventCode.KEY_FASTFORWARD, "FastForward")]
     [InlineData(InputEventCode.KEY_YEN, "Yen")]
     public void Build_ShouldUseMapperDisplayName_ForRoundTripKeys(int keyCode, string displayName)
     {

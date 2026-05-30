@@ -86,12 +86,14 @@ public class MacOSAssignmentPlaybackRegressionTests
     [Theory]
     [InlineData(0, InputEventCode.KEY_VOLUMEUP, "VolumeUp")]
     [InlineData(1, InputEventCode.KEY_VOLUMEDOWN, "VolumeDown")]
+    [InlineData(2, InputEventCode.KEY_BRIGHTNESSUP, "BrightnessUp")]
+    [InlineData(3, InputEventCode.KEY_BRIGHTNESSDOWN, "BrightnessDown")]
     [InlineData(7, InputEventCode.KEY_MUTE, "Mute")]
     [InlineData(16, InputEventCode.KEY_PLAYPAUSE, "PlayPause")]
     [InlineData(17, InputEventCode.KEY_NEXTSONG, "NextSong")]
     [InlineData(18, InputEventCode.KEY_PREVIOUSSONG, "PreviousSong")]
-    [InlineData(19, InputEventCode.KEY_NEXTSONG, "NextSong")]
-    [InlineData(20, InputEventCode.KEY_PREVIOUSSONG, "PreviousSong")]
+    [InlineData(19, InputEventCode.KEY_FASTFORWARD, "FastForward")]
+    [InlineData(20, InputEventCode.KEY_REWIND, "Rewind")]
     public void Assignment_WhenSupportedSystemDefinedMediaKeyIsCaptured_RoundTripsThroughDisplayAndParser(
         int keyType,
         int expectedCode,
@@ -119,7 +121,6 @@ public class MacOSAssignmentPlaybackRegressionTests
     }
 
     [Theory]
-    [InlineData(2)]
     [InlineData(6)]
     [InlineData(14)]
     [InlineData(21)]

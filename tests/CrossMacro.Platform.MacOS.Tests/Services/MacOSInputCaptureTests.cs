@@ -13,6 +13,16 @@ namespace CrossMacro.Platform.MacOS.Tests.Services;
 public class MacOSInputCaptureTests
 {
     [Fact]
+    public void SystemDefinedConstants_MatchNativeGoldenValues()
+    {
+        Assert.Equal(14, (int)CoreGraphics.CGEventType.SystemDefined);
+        Assert.Equal(8, MacOSSystemKeyMap.NxSubtypeAuxControlButtons);
+        Assert.Equal(83, (int)CoreGraphics.CGEventField.EventSubtype);
+        Assert.Equal(149, (int)CoreGraphics.CGEventField.EventData1);
+        Assert.Equal(150, (int)CoreGraphics.CGEventField.EventData2);
+    }
+
+    [Fact]
     public void ShouldIgnoreKeyboardEvent_RecognizesOnlyCrossMacroMarker()
     {
         Assert.True(MacOSInputCapture.ShouldIgnoreKeyboardEvent(InputEventMarkers.TextExpansionKeyboardEvent));
@@ -65,12 +75,14 @@ public class MacOSInputCaptureTests
     [Theory]
     [InlineData(0, InputEventCode.KEY_VOLUMEUP)]
     [InlineData(1, InputEventCode.KEY_VOLUMEDOWN)]
+    [InlineData(2, InputEventCode.KEY_BRIGHTNESSUP)]
+    [InlineData(3, InputEventCode.KEY_BRIGHTNESSDOWN)]
     [InlineData(7, InputEventCode.KEY_MUTE)]
     [InlineData(16, InputEventCode.KEY_PLAYPAUSE)]
     [InlineData(17, InputEventCode.KEY_NEXTSONG)]
     [InlineData(18, InputEventCode.KEY_PREVIOUSSONG)]
-    [InlineData(19, InputEventCode.KEY_NEXTSONG)]
-    [InlineData(20, InputEventCode.KEY_PREVIOUSSONG)]
+    [InlineData(19, InputEventCode.KEY_FASTFORWARD)]
+    [InlineData(20, InputEventCode.KEY_REWIND)]
     public void TryCreateSystemDefinedInput_WhenSupportedMediaKeyIsPressed_CreatesKeyDownEvent(int keyType, int expectedCode)
     {
         bool created = MacOSInputCapture.TryCreateSystemDefinedInput(
@@ -90,12 +102,14 @@ public class MacOSInputCaptureTests
     [Theory]
     [InlineData(0, InputEventCode.KEY_VOLUMEUP)]
     [InlineData(1, InputEventCode.KEY_VOLUMEDOWN)]
+    [InlineData(2, InputEventCode.KEY_BRIGHTNESSUP)]
+    [InlineData(3, InputEventCode.KEY_BRIGHTNESSDOWN)]
     [InlineData(7, InputEventCode.KEY_MUTE)]
     [InlineData(16, InputEventCode.KEY_PLAYPAUSE)]
     [InlineData(17, InputEventCode.KEY_NEXTSONG)]
     [InlineData(18, InputEventCode.KEY_PREVIOUSSONG)]
-    [InlineData(19, InputEventCode.KEY_NEXTSONG)]
-    [InlineData(20, InputEventCode.KEY_PREVIOUSSONG)]
+    [InlineData(19, InputEventCode.KEY_FASTFORWARD)]
+    [InlineData(20, InputEventCode.KEY_REWIND)]
     public void TryCreateSystemDefinedInput_WhenSupportedMediaKeyIsReleased_CreatesKeyUpEvent(int keyType, int expectedCode)
     {
         bool created = MacOSInputCapture.TryCreateSystemDefinedInput(
@@ -110,6 +124,18 @@ public class MacOSInputCaptureTests
         Assert.Equal(expectedCode, inputEvent.Code);
         Assert.Equal(0, inputEvent.Value);
         Assert.Equal(456, inputEvent.Timestamp);
+    }
+
+    [Fact]
+    public void CreateSystemDefinedData1_WhenPressed_UsesGoldenNativeEncoding()
+    {
+        Assert.Equal((16 << 16) | 0x0A00, CreateSystemDefinedData1(16, 0x0A));
+    }
+
+    [Fact]
+    public void CreateSystemDefinedData1_WhenReleased_UsesGoldenNativeEncoding()
+    {
+        Assert.Equal((16 << 16) | 0x0B00, CreateSystemDefinedData1(16, 0x0B));
     }
 
     [Theory]
@@ -167,6 +193,27 @@ public class MacOSInputCaptureTests
         Assert.True(ContainsEvent(mask, CoreGraphics.CGEventType.SystemDefined));
         Assert.False(ContainsEvent(mask, CoreGraphics.CGEventType.KeyDown));
         Assert.False(ContainsEvent(mask, CoreGraphics.CGEventType.MouseMoved));
+    }
+
+    [Fact]
+    public void CreateObserveOnlyTapOptions_UsesListenOnly()
+    {
+        Assert.Equal(CoreGraphics.CGEventTapOptions.ListenOnly, MacOSInputCapture.CreateObserveOnlyTapOptions());
+    }
+
+    [Fact]
+    public async Task StartAsync_WhenPlatformUnsupported_DoesNotRequestListenEventAccess()
+    {
+        var listenRequests = 0;
+        using var capture = new MacOSInputCapture(() =>
+        {
+            listenRequests++;
+            return true;
+        });
+
+        await capture.StartAsync(CancellationToken.None);
+
+        Assert.Equal(0, listenRequests);
     }
 
     [Theory]

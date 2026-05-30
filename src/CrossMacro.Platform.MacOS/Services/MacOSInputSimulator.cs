@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 using CrossMacro.Platform.Abstractions;
+using CrossMacro.Platform.MacOS.Helpers;
 using CrossMacro.Platform.MacOS.Native;
 
 namespace CrossMacro.Platform.MacOS.Services;
@@ -14,8 +15,10 @@ public class MacOSInputSimulator :
     IPlatformPasteShortcutProvider
 {
     private readonly object _keyboardLock = new();
+    private readonly Func<bool> _requestPostEventAccess;
     private readonly HashSet<int> _pressedModifierKeys = [];
     private CoreGraphics.CGEventFlags _keyboardFlags;
+    private bool _postEventPermissionRequested;
 
     public string ProviderName => "macOS CoreGraphics";
     public bool IsSupported => OperatingSystem.IsMacOS();
@@ -24,13 +27,24 @@ public class MacOSInputSimulator :
     public bool SupportsAbsoluteCoordinates => true;
     public bool UsesMetaKeyForStandardPaste => true;
 
+    public MacOSInputSimulator()
+        : this(MacOSPermissionChecker.RequestPostEventAccess)
+    {
+    }
+
+    internal MacOSInputSimulator(Func<bool> requestPostEventAccess)
+    {
+        _requestPostEventAccess = requestPostEventAccess ?? throw new ArgumentNullException(nameof(requestPostEventAccess));
+    }
+
     public void Initialize(int screenWidth = 0, int screenHeight = 0)
     {
     }
 
     public void MoveAbsolute(int x, int y)
     {
-         var point = new CoreGraphics.CGPoint { X = x, Y = y };
+        RequestPostEventAccessOnce();
+        var point = new CoreGraphics.CGPoint { X = x, Y = y };
          var eventRef = CoreGraphics.CGEventCreateMouseEvent(
              IntPtr.Zero, 
              CoreGraphics.CGEventType.MouseMoved, 
@@ -49,6 +63,7 @@ public class MacOSInputSimulator :
 
     public void MouseButton(int button, bool pressed)
     {
+        RequestPostEventAccessOnce();
         var current = GetCursorPos();
         
         CoreGraphics.CGMouseButton macBtn = CoreGraphics.CGMouseButton.Left;
@@ -88,6 +103,7 @@ public class MacOSInputSimulator :
 
     public void Scroll(int delta, bool isHorizontal = false)
     {
+        RequestPostEventAccessOnce();
         var eventRef = isHorizontal
             ? CoreGraphics.CGEventCreateScrollWheelEvent2(
                 IntPtr.Zero,
@@ -117,11 +133,13 @@ public class MacOSInputSimulator :
 
     public void TypeText(string text)
     {
+        RequestPostEventAccessOnce();
         TypeTextCore(text, marker: null);
     }
 
     public void TypeTextTagged(string text, long tag)
     {
+        RequestPostEventAccessOnce();
         TypeTextCore(text, tag);
     }
 
@@ -172,10 +190,20 @@ public class MacOSInputSimulator :
     {
         lock (_keyboardLock)
         {
-            var ushortCode = KeyMap.ToMacKey(keyCode);
-            if (ushortCode == 0xFFFF) return;
-
+            RequestPostEventAccessOnce();
             var flags = UpdateKeyboardFlagsCore(keyCode, pressed);
+
+            var route = ResolveKeyboardEventRoute(keyCode, out var nxKeyType, out var ushortCode);
+            if (route == MacOSKeyboardEventRoute.SystemDefined)
+            {
+                PostSystemDefinedKeyEvent(nxKeyType, pressed, marker, flags);
+                return;
+            }
+
+            if (route == MacOSKeyboardEventRoute.Unsupported)
+            {
+                return;
+            }
 
             var eventRef = CoreGraphics.CGEventCreateKeyboardEvent(IntPtr.Zero, ushortCode, pressed);
             if (eventRef == IntPtr.Zero)
@@ -194,6 +222,68 @@ public class MacOSInputSimulator :
                 CoreFoundation.CFRelease(eventRef);
             }
         }
+    }
+
+    private void RequestPostEventAccessOnce()
+    {
+        if (_postEventPermissionRequested || !OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        _postEventPermissionRequested = true;
+        _requestPostEventAccess();
+    }
+
+    private static void PostSystemDefinedKeyEvent(
+        int nxKeyType,
+        bool pressed,
+        long? marker,
+        CoreGraphics.CGEventFlags activeModifierFlags)
+    {
+        if (!MacOSSystemKeyEventFactory.TryCreateEvent(
+                nxKeyType,
+                pressed,
+                marker,
+                activeModifierFlags,
+                out var eventRef))
+        {
+            return;
+        }
+
+        try
+        {
+            CoreGraphics.CGEventPost(CoreGraphics.CGEventTapLocation.HIDEventTap, eventRef);
+        }
+        finally
+        {
+            CoreFoundation.CFRelease(eventRef);
+        }
+    }
+
+    internal static bool TryGetSystemDefinedKeyType(int keyCode, out int nxKeyType)
+    {
+        return MacOSSystemKeyEventFactory.TryGetNxKeyType(keyCode, out nxKeyType);
+    }
+
+    internal static MacOSKeyboardEventRoute ResolveKeyboardEventRoute(
+        int keyCode,
+        out int nxKeyType,
+        out ushort virtualKeyCode)
+    {
+        if (MacOSSystemKeyEventFactory.TryGetNxKeyType(keyCode, out nxKeyType))
+        {
+            virtualKeyCode = 0xFFFF;
+            return MacOSKeyboardEventRoute.SystemDefined;
+        }
+
+        virtualKeyCode = KeyMap.ToMacKey(keyCode);
+        if (virtualKeyCode == 0xFFFF)
+        {
+            return MacOSKeyboardEventRoute.Unsupported;
+        }
+
+        return MacOSKeyboardEventRoute.Keyboard;
     }
 
     internal CoreGraphics.CGEventFlags UpdateKeyboardFlags(int keyCode, bool pressed)

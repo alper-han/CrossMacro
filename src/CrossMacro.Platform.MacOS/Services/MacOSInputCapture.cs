@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Platform.Abstractions;
+using CrossMacro.Platform.MacOS.Helpers;
 using CrossMacro.Platform.MacOS.Native;
 
 namespace CrossMacro.Platform.MacOS.Services;
@@ -22,20 +23,9 @@ public class MacOSInputCapture : IInputCapture
     private CancellationTokenRegistration _startCancellationRegistration;
     private Task? _startupTask;
     private TaskCompletionSource<object?>? _startupCompletionSource;
+    private readonly Func<bool> _requestListenEventAccess;
 
     private CoreGraphics.CGEventTapCallBack _callbackDelegate;
-
-    private const long NxSubtypeAuxControlButtons = 8;
-    private const int NxKeyTypeSoundUp = 0;
-    private const int NxKeyTypeSoundDown = 1;
-    private const int NxKeyTypeMute = 7;
-    private const int NxKeyTypePlay = 16;
-    private const int NxKeyTypeNext = 17;
-    private const int NxKeyTypePrevious = 18;
-    private const int NxKeyTypeFast = 19;
-    private const int NxKeyTypeRewind = 20;
-    private const int SystemDefinedKeyDownState = 0x0A;
-    private const int SystemDefinedKeyUpState = 0x0B;
 
     public string ProviderName => "macOS CoreGraphics";
     public bool IsSupported => OperatingSystem.IsMacOS();
@@ -44,7 +34,13 @@ public class MacOSInputCapture : IInputCapture
     public event EventHandler<string>? Error;
 
     public MacOSInputCapture()
+        : this(MacOSPermissionChecker.RequestListenEventAccess)
     {
+    }
+
+    internal MacOSInputCapture(Func<bool> requestListenEventAccess)
+    {
+        _requestListenEventAccess = requestListenEventAccess ?? throw new ArgumentNullException(nameof(requestListenEventAccess));
         _callbackDelegate = EventTapCallback;
     }
 
@@ -74,6 +70,7 @@ public class MacOSInputCapture : IInputCapture
             }
 
             ct.ThrowIfCancellationRequested();
+            _requestListenEventAccess();
 
             _stopRequested = false;
             var startupCompletionSource = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -147,7 +144,7 @@ public class MacOSInputCapture : IInputCapture
             _systemDefinedEventTap = CoreGraphics.CGEventTapCreate(
                 CoreGraphics.CGEventTapLocation.SessionEventTap,
                 CoreGraphics.CGEventTapPlacement.HeadInsertEventTap,
-                CoreGraphics.CGEventTapOptions.Default,
+                CreateObserveOnlyTapOptions(),
                 CreateSystemDefinedEventMask(),
                 _callbackDelegate,
                 IntPtr.Zero
@@ -170,7 +167,7 @@ public class MacOSInputCapture : IInputCapture
             _eventTap = CoreGraphics.CGEventTapCreate(
                 CoreGraphics.CGEventTapLocation.HIDEventTap,
                 CoreGraphics.CGEventTapPlacement.HeadInsertEventTap,
-                CoreGraphics.CGEventTapOptions.Default,
+                CreateObserveOnlyTapOptions(),
                 eventsOfInterest,
                 _callbackDelegate,
                 IntPtr.Zero
@@ -180,7 +177,7 @@ public class MacOSInputCapture : IInputCapture
             {
                 FailStartup(
                     startupCompletionSource,
-                    new InvalidOperationException("Failed to create CGEventTap. Check Accessibility permissions."));
+                    new InvalidOperationException("Failed to create CGEventTap. Check Input Monitoring permission in System Settings."));
                 return;
             }
 
@@ -436,26 +433,19 @@ public class MacOSInputCapture : IInputCapture
     {
         inputEvent = default;
 
-        if (type != CoreGraphics.CGEventType.SystemDefined || subtype != NxSubtypeAuxControlButtons)
+        if (type != CoreGraphics.CGEventType.SystemDefined || subtype != MacOSSystemKeyMap.NxSubtypeAuxControlButtons)
         {
             return false;
         }
 
         int valueState = (int)((data1 >> 8) & 0xFF);
         int value;
-        if (valueState == SystemDefinedKeyDownState) value = 1;
-        else if (valueState == SystemDefinedKeyUpState) value = 0;
+        if (valueState == MacOSSystemKeyMap.SystemDefinedKeyDownState) value = 1;
+        else if (valueState == MacOSSystemKeyMap.SystemDefinedKeyUpState) value = 0;
         else return false;
 
         int keyType = (int)((data1 >> 16) & 0xFFFF);
-        int code;
-        if (keyType == NxKeyTypeSoundUp) code = InputEventCode.KEY_VOLUMEUP;
-        else if (keyType == NxKeyTypeSoundDown) code = InputEventCode.KEY_VOLUMEDOWN;
-        else if (keyType == NxKeyTypeMute) code = InputEventCode.KEY_MUTE;
-        else if (keyType == NxKeyTypePlay) code = InputEventCode.KEY_PLAYPAUSE;
-        else if (keyType == NxKeyTypeNext || keyType == NxKeyTypeFast) code = InputEventCode.KEY_NEXTSONG;
-        else if (keyType == NxKeyTypePrevious || keyType == NxKeyTypeRewind) code = InputEventCode.KEY_PREVIOUSSONG;
-        else return false;
+        if (!MacOSSystemKeyMap.TryGetInputEventCode(keyType, out var code)) return false;
 
         inputEvent = new InputCaptureEventArgs
         {
@@ -497,6 +487,11 @@ public class MacOSInputCapture : IInputCapture
     internal static ulong CreateSystemDefinedEventMask()
     {
         return EventMask(CoreGraphics.CGEventType.SystemDefined);
+    }
+
+    internal static CoreGraphics.CGEventTapOptions CreateObserveOnlyTapOptions()
+    {
+        return CoreGraphics.CGEventTapOptions.ListenOnly;
     }
 
     private static ulong EventMask(CoreGraphics.CGEventType type)

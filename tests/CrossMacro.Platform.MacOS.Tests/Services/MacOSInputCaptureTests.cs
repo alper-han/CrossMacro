@@ -201,7 +201,7 @@ public class MacOSInputCaptureTests
         Assert.Equal(CoreGraphics.CGEventTapOptions.ListenOnly, MacOSInputCapture.CreateObserveOnlyTapOptions());
     }
 
-    [Fact]
+    [NonMacOSFact]
     public async Task StartAsync_WhenPlatformUnsupported_DoesNotRequestListenEventAccess()
     {
         var listenRequests = 0;

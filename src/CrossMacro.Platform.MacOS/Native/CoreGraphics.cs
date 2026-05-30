@@ -8,6 +8,14 @@ internal static class CoreGraphics
     private const string CoreGraphicsLib = "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics";
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate byte PermissionAccessDelegate();
+
+    private static readonly OptionalPermissionAccessFunction PreflightListenEventAccess = new("CGPreflightListenEventAccess");
+    private static readonly OptionalPermissionAccessFunction RequestListenEventAccess = new("CGRequestListenEventAccess");
+    private static readonly OptionalPermissionAccessFunction PreflightPostEventAccess = new("CGPreflightPostEventAccess");
+    private static readonly OptionalPermissionAccessFunction RequestPostEventAccess = new("CGRequestPostEventAccess");
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate IntPtr CGEventTapCallBack(
         IntPtr tapProxy,
         CGEventType type,
@@ -35,6 +43,49 @@ internal static class CoreGraphics
     [DllImport(CoreGraphicsLib)]
     public static extern IntPtr CGEventCreateKeyboardEvent(IntPtr source, ushort virtualKey, [MarshalAs(UnmanagedType.I1)] bool keyDown);
 
+    // These CoreGraphics ListenEvent/PostEvent TCC helpers are macOS 10.15+ era APIs.
+    // Resolve them dynamically so older systems or unusual runtimes report unavailable instead of
+    // failing with EntryPointNotFoundException when checking permission status.
+    public static bool IsCGPreflightListenEventAccessAvailable()
+    {
+        return PreflightListenEventAccess.IsAvailable;
+    }
+
+    public static bool IsCGRequestListenEventAccessAvailable()
+    {
+        return RequestListenEventAccess.IsAvailable;
+    }
+
+    public static bool IsCGPreflightPostEventAccessAvailable()
+    {
+        return PreflightPostEventAccess.IsAvailable;
+    }
+
+    public static bool IsCGRequestPostEventAccessAvailable()
+    {
+        return RequestPostEventAccess.IsAvailable;
+    }
+
+    public static bool CGPreflightListenEventAccess()
+    {
+        return PreflightListenEventAccess.Invoke();
+    }
+
+    public static bool CGRequestListenEventAccess()
+    {
+        return RequestListenEventAccess.Invoke();
+    }
+
+    public static bool CGPreflightPostEventAccess()
+    {
+        return PreflightPostEventAccess.Invoke();
+    }
+
+    public static bool CGRequestPostEventAccess()
+    {
+        return RequestPostEventAccess.Invoke();
+    }
+
     [DllImport(CoreGraphicsLib)]
     public static extern IntPtr CGEventCreateMouseEvent(
         IntPtr source,
@@ -59,6 +110,9 @@ internal static class CoreGraphics
 
     [DllImport(CoreGraphicsLib)]
     public static extern void CGEventSetFlags(IntPtr eventRef, CGEventFlags flags);
+
+    [DllImport(CoreGraphicsLib)]
+    public static extern void CGEventSetType(IntPtr eventRef, CGEventType type);
     
     [DllImport(CoreGraphicsLib)]
     public static extern CGEventFlags CGEventGetFlags(IntPtr eventRef);
@@ -279,4 +333,44 @@ internal static class CoreGraphics
     
     [DllImport(CoreGraphicsLib)]
     public static extern CGRect CGDisplayBounds(uint display);
+
+    private sealed class OptionalPermissionAccessFunction
+    {
+        private readonly string _entryPoint;
+        private readonly Lazy<PermissionAccessDelegate?> _function;
+
+        internal OptionalPermissionAccessFunction(string entryPoint)
+        {
+            _entryPoint = entryPoint;
+            _function = new Lazy<PermissionAccessDelegate?>(LoadFunction);
+        }
+
+        internal bool IsAvailable => _function.Value is not null;
+
+        internal bool Invoke()
+        {
+            var function = _function.Value;
+            return function is not null && function() != 0;
+        }
+
+        private PermissionAccessDelegate? LoadFunction()
+        {
+            if (!OperatingSystem.IsMacOS())
+            {
+                return null;
+            }
+
+            if (!NativeLibrary.TryLoad(CoreGraphicsLib, out var coreGraphics))
+            {
+                return null;
+            }
+
+            if (!NativeLibrary.TryGetExport(coreGraphics, _entryPoint, out var address))
+            {
+                return null;
+            }
+
+            return Marshal.GetDelegateForFunctionPointer<PermissionAccessDelegate>(address);
+        }
+    }
 }

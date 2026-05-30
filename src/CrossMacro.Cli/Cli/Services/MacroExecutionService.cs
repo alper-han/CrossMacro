@@ -247,6 +247,19 @@ public sealed class MacroExecutionService : IMacroExecutionService
                 };
             }
 
+            if (ex is InputInjectionPermissionRequiredException)
+            {
+                return new MacroExecutionResult
+                {
+                    Success = false,
+                    ExitCode = CliExitCode.EnvironmentError,
+                    Message = "Playback permission is missing.",
+                    Errors = [ex.Message],
+                    Warnings = validation.Warnings,
+                    Data = BuildSummaryData(macroFilePath, macro)
+                };
+            }
+
             return new MacroExecutionResult
             {
                 Success = false,

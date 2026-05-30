@@ -49,7 +49,7 @@
     <value>CrossMacro'yu yeniden başlatın ve servisinin çalıştığını kontrol edin.</value>
   </data>
   <data name="MainWindow_BackendTroubleshootingMacOS" xml:space="preserve">
-    <value>CrossMacro'yu yeniden başlatın ve Sistem Ayarları'ndaki Accessibility izinlerini kontrol edin.</value>
+    <value>CrossMacro'yu yeniden başlatın ve Sistem Ayarları'nda Input Monitoring ile Accessibility izinlerini kontrol edin.</value>
   </data>
   <data name="Navigation_Recording" xml:space="preserve">
     <value>Kayıt</value>

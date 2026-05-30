@@ -49,7 +49,7 @@
     <value>Перезапустите CrossMacro и убедитесь, что фоновая служба запущена.</value>
   </data>
   <data name="MainWindow_BackendTroubleshootingMacOS" xml:space="preserve">
-    <value>Перезапустите CrossMacro и проверьте разрешения Accessibility в System Settings.</value>
+    <value>Перезапустите CrossMacro и проверьте разрешения Input Monitoring и Accessibility в System Settings.</value>
   </data>
   <data name="Navigation_Recording" xml:space="preserve">
     <value>Запись</value>

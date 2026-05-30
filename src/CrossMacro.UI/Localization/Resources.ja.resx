@@ -49,7 +49,7 @@
     <value>CrossMacro を再起動し、バックグラウンド サービスが実行中であることを確認してください。</value>
   </data>
   <data name="MainWindow_BackendTroubleshootingMacOS" xml:space="preserve">
-    <value>CrossMacro を再起動し、システム設定のアクセシビリティ権限を確認してください。</value>
+    <value>CrossMacro を再起動し、システム設定で Input Monitoring とアクセシビリティ権限を確認してください。</value>
   </data>
   <data name="Navigation_Recording" xml:space="preserve">
     <value>記録</value>

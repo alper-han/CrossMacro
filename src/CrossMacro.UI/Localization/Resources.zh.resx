@@ -49,7 +49,7 @@
     <value>重新启动 CrossMacro，并确认后台服务正在运行。</value>
   </data>
   <data name="MainWindow_BackendTroubleshootingMacOS" xml:space="preserve">
-    <value>重新启动 CrossMacro，并在系统设置中确认辅助功能权限。</value>
+    <value>重新启动 CrossMacro，并在系统设置中确认 Input Monitoring 和辅助功能权限。</value>
   </data>
   <data name="Navigation_Recording" xml:space="preserve">
     <value>录制</value>

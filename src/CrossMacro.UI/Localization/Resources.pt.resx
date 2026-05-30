@@ -49,7 +49,7 @@
     <value>Reinicie o CrossMacro e verifique se o serviço em segundo plano está em execução.</value>
   </data>
   <data name="MainWindow_BackendTroubleshootingMacOS" xml:space="preserve">
-    <value>Reinicie o CrossMacro e verifique as permissões de Acessibilidade nos Ajustes do Sistema.</value>
+    <value>Reinicie o CrossMacro e verifique as permissões de Input Monitoring e Acessibilidade nos Ajustes do Sistema.</value>
   </data>
   <data name="Navigation_Recording" xml:space="preserve">
     <value>Gravação</value>

@@ -49,7 +49,7 @@
     <value>Redémarrez CrossMacro et vérifiez que le service en arrière-plan est en cours d'exécution.</value>
   </data>
   <data name="MainWindow_BackendTroubleshootingMacOS" xml:space="preserve">
-    <value>Redémarrez CrossMacro et vérifiez les permissions Accessibilité dans Réglages Système.</value>
+    <value>Redémarrez CrossMacro et vérifiez les autorisations Input Monitoring et Accessibilité dans Réglages Système.</value>
   </data>
   <data name="Navigation_Recording" xml:space="preserve">
     <value>Enregistrement</value>

@@ -11,11 +11,19 @@ public static class UIStrings
     public const string PermissionRequiredTitle = "Permission Required";
     
     /// <summary>
-    /// Startup permission block message for macOS accessibility.
+    /// Startup permission block message for macOS capture permissions.
+    /// </summary>
+    public const string MacOSInputMonitoringStartupBlockMessage =
+        "CrossMacro needs macOS Input Monitoring permission before capture and recording can run.\n\n" +
+        "This startup check does not require event posting or Accessibility. Playback and text expansion will request event posting separately when needed.\n\n" +
+        "Open System Settings now?";
+
+    /// <summary>
+    /// Legacy startup permission block message for permission checkers that only expose Accessibility.
     /// </summary>
     public const string MacOSAccessibilityStartupBlockMessage =
-        "CrossMacro cannot run without Accessibility permissions on macOS.\n\n" +
-        "Global hotkeys, recording, playback and text expansion depend on system input access.\n\n" +
+        "CrossMacro needs macOS Accessibility permission before this legacy permission gate can continue.\n\n" +
+        "Modern macOS builds use Input Monitoring for capture and event posting for playback, but this checker exposes only Accessibility status.\n\n" +
         "Open System Settings now?";
     
     /// <summary>

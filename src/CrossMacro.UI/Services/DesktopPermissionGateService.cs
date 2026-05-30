@@ -23,6 +23,13 @@ internal sealed class DesktopPermissionGateService
         }
     }
 
+    internal enum StartupPermissionGateKind
+    {
+        None,
+        InputMonitoring,
+        Accessibility
+    }
+
     private readonly IDisplaySessionService _displaySessionService;
     private readonly Func<IPermissionChecker?> _getPermissionChecker;
 
@@ -39,9 +46,10 @@ internal sealed class DesktopPermissionGateService
         ArgumentNullException.ThrowIfNull(desktop);
 
         var permissionChecker = _getPermissionChecker();
-        if (IsStartupPermissionBlocked(permissionChecker))
+        var startupGateKind = GetStartupPermissionGateKind(permissionChecker);
+        if (startupGateKind != StartupPermissionGateKind.None)
         {
-            await HandleMacAccessibilityPermissionGateAsync(desktop, permissionChecker!);
+            await HandleStartupPermissionGateAsync(desktop, permissionChecker!, startupGateKind);
             return GateResult.HandledByDialog();
         }
 
@@ -55,17 +63,32 @@ internal sealed class DesktopPermissionGateService
 
     internal static bool IsStartupPermissionBlocked(IPermissionChecker? permissionChecker)
     {
+        return GetStartupPermissionGateKind(permissionChecker) != StartupPermissionGateKind.None;
+    }
+
+    internal static StartupPermissionGateKind GetStartupPermissionGateKind(IPermissionChecker? permissionChecker)
+    {
         if (permissionChecker == null || !permissionChecker.IsSupported)
         {
-            return false;
+            return StartupPermissionGateKind.None;
         }
 
         if (!permissionChecker.RequiresStartupPermissionGate)
         {
-            return false;
+            return StartupPermissionGateKind.None;
         }
 
-        return !permissionChecker.IsAccessibilityTrusted();
+        var macOSStatus = TryGetMacOSPermissionStatusOrDefault(permissionChecker);
+        if (macOSStatus.HasValue)
+        {
+            return macOSStatus.Value.ListenEventGrantedAndAvailable
+                ? StartupPermissionGateKind.None
+                : StartupPermissionGateKind.InputMonitoring;
+        }
+
+        return permissionChecker.IsAccessibilityTrusted()
+            ? StartupPermissionGateKind.None
+            : StartupPermissionGateKind.Accessibility;
     }
 
     internal static ConfirmationDialog CreateCenteredConfirmationDialog(
@@ -113,9 +136,10 @@ internal sealed class DesktopPermissionGateService
         }
     }
 
-    private async Task HandleMacAccessibilityPermissionGateAsync(
+    private async Task HandleStartupPermissionGateAsync(
         IClassicDesktopStyleApplicationLifetime desktop,
-        IPermissionChecker permissionChecker)
+        IPermissionChecker permissionChecker,
+        StartupPermissionGateKind gateKind)
     {
         await RunWithBootstrapOwnerAsync(desktop, async bootstrapOwner =>
         {
@@ -123,7 +147,7 @@ internal sealed class DesktopPermissionGateService
             {
                 var permissionDialog = CreateCenteredConfirmationDialog(
                     UIStrings.PermissionRequiredTitle,
-                    UIStrings.MacOSAccessibilityStartupBlockMessage,
+                    GetStartupPermissionMessage(gateKind),
                     UIStrings.OpenSettingsButton,
                     UIStrings.ExitButton,
                     dangerYes: false,
@@ -132,12 +156,12 @@ internal sealed class DesktopPermissionGateService
                 var shouldOpenSettings = await permissionDialog.ShowDialog<bool>(bootstrapOwner);
                 if (shouldOpenSettings)
                 {
-                    permissionChecker.OpenAccessibilitySettings();
+                    OpenStartupPermissionSettings(permissionChecker, gateKind);
                 }
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[DesktopStartupCoordinator] macOS accessibility permission gate flow failed");
+                Log.Error(ex, "[DesktopStartupCoordinator] macOS startup permission gate flow failed");
             }
         });
 
@@ -163,5 +187,56 @@ internal sealed class DesktopPermissionGateService
             WindowDecorations = WindowDecorations.None,
             WindowStartupLocation = WindowStartupLocation.Manual
         };
+    }
+
+    private static string GetStartupPermissionMessage(StartupPermissionGateKind gateKind)
+    {
+        return gateKind == StartupPermissionGateKind.InputMonitoring
+            ? UIStrings.MacOSInputMonitoringStartupBlockMessage
+            : UIStrings.MacOSAccessibilityStartupBlockMessage;
+    }
+
+    internal static void OpenStartupPermissionSettings(IPermissionChecker permissionChecker, StartupPermissionGateKind gateKind)
+    {
+        if (gateKind != StartupPermissionGateKind.InputMonitoring)
+        {
+            permissionChecker.OpenAccessibilitySettings();
+            return;
+        }
+
+        if (permissionChecker is IMacOSPermissionChecker macOSPermissionChecker)
+        {
+            macOSPermissionChecker.OpenInputMonitoringSettings();
+            return;
+        }
+
+        permissionChecker.OpenAccessibilitySettings();
+    }
+
+    private static MacOSPermissionStatusSnapshot? TryGetMacOSPermissionStatusOrDefault(IPermissionChecker permissionChecker)
+    {
+        if (permissionChecker is not IMacOSPermissionChecker macOSPermissionChecker)
+        {
+            return null;
+        }
+
+        try
+        {
+            var status = macOSPermissionChecker.GetCurrentStatus();
+            return new MacOSPermissionStatusSnapshot(
+                status.ListenEventGranted,
+                status.ListenEventApiAvailable);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    private readonly record struct MacOSPermissionStatusSnapshot(
+        bool ListenEventGranted,
+        bool ListenEventApiAvailable)
+    {
+        internal bool ListenEventGrantedAndAvailable => ListenEventApiAvailable && ListenEventGranted;
     }
 }

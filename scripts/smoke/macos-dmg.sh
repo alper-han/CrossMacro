@@ -88,6 +88,7 @@ grep -A1 '<key>CFBundleIdentifier</key>' "$plist" | grep -F '<string>net.crossma
 grep -A1 '<key>CFBundleExecutable</key>' "$plist" | grep -F '<string>CrossMacro.UI</string>' >/dev/null || fail "Info.plist executable mismatch"
 grep -F '<key>CFBundleVersion</key>' "$plist" >/dev/null || fail "Info.plist CFBundleVersion missing"
 grep -F '<key>CFBundleShortVersionString</key>' "$plist" >/dev/null || fail "Info.plist CFBundleShortVersionString missing"
+grep -F '<key>NSInputMonitoringUsageDescription</key>' "$plist" >/dev/null || fail "Info.plist NSInputMonitoringUsageDescription missing"
 
 if [ "$skip_cli" -eq 0 ]; then
   "$CLI_SMOKE" --binary "$executable"

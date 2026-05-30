@@ -476,6 +476,10 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
             {
                 throw;
             }
+            catch (InputInjectionPermissionRequiredException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 Log.Error(ex, "[MacroPlayer] Error executing event {Current}/{Total}: {Type}", eventCount, totalEvents, ev.Type);

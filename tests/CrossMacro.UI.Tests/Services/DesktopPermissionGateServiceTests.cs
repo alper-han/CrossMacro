@@ -52,12 +52,25 @@ public sealed class DesktopPermissionGateServiceTests
     }
 
     [Fact]
-    public void GetStartupPermissionGateKind_WhenMacOSStatusReportsListenGranted_DoesNotBlockForMissingPostOrAccessibility()
+    public void GetStartupPermissionGateKind_WhenMacOSStatusReportsListenGranted_BlocksForMissingPlaybackPermission()
     {
         var checker = new TestMacOSPermissionChecker(
             listenEventGranted: true,
             postEventGranted: false,
             accessibilityGranted: false);
+
+        var gateKind = DesktopPermissionGateService.GetStartupPermissionGateKind(checker);
+
+        Assert.Equal(DesktopPermissionGateService.StartupPermissionGateKind.Accessibility, gateKind);
+    }
+
+    [Fact]
+    public void GetStartupPermissionGateKind_WhenMacOSStatusReportsListenAndPlaybackGranted_DoesNotBlock()
+    {
+        var checker = new TestMacOSPermissionChecker(
+            listenEventGranted: true,
+            postEventGranted: false,
+            accessibilityGranted: true);
 
         var gateKind = DesktopPermissionGateService.GetStartupPermissionGateKind(checker);
 
@@ -89,32 +102,53 @@ public sealed class DesktopPermissionGateServiceTests
     }
 
     [Fact]
-    public void MacOSStartupPermissionMessage_ExplainsInputMonitoringGateDoesNotRequirePostEvent()
+    public void MacOSStartupPermissionMessage_ExplainsTwoStepPermissionSetup()
     {
         var message = UIStrings.MacOSInputMonitoringStartupBlockMessage;
 
         Assert.Contains("Input Monitoring", message);
-        Assert.Contains("capture", message);
+        Assert.Contains("read", message);
         Assert.Contains("recording", message);
-        Assert.Contains("event posting", message);
-        Assert.Contains("separately", message);
         Assert.Contains("Accessibility", message);
-        Assert.DoesNotContain("cannot run without Accessibility permissions", message);
+        Assert.Contains("play macros back", message);
+        Assert.Contains("correct System Settings page", message);
+        Assert.Contains("do not need to add the app by hand", message);
     }
 
     [Fact]
-    public void MacOSAccessibilityStartupBlockMessage_IsLegacyFallbackCopy()
+    public void MacOSAccessibilityStartupBlockMessage_ExplainsPlaybackPermissionStep()
     {
         var message = UIStrings.MacOSAccessibilityStartupBlockMessage;
 
-        Assert.Contains("legacy permission gate", message);
-        Assert.Contains("only Accessibility status", message);
+        Assert.Contains("playback", message);
+        Assert.Contains("Accessibility", message);
         Assert.Contains("Input Monitoring", message);
-        Assert.Contains("event posting", message);
+        Assert.Contains("recording", message);
+        Assert.Contains("current app", message);
+        Assert.Contains("check again", message);
     }
 
     [Fact]
-    public void OpenStartupPermissionSettings_WhenInputMonitoringGate_OpensInputMonitoringSettingsWithoutRequestingPermission()
+    public void MacOSPermissionApprovalRecheckMessage_ExplainsContinueFlow()
+    {
+        var message = UIStrings.MacOSPermissionApprovalRecheckMessage;
+
+        Assert.Contains("Approve CrossMacro", message);
+        Assert.Contains("click Continue", message);
+        Assert.Contains("continue automatically", message);
+    }
+
+    [Fact]
+    public void MacOSApprovalPendingMessages_ExplainRestartFallback()
+    {
+        Assert.Contains("Input Monitoring", UIStrings.MacOSInputMonitoringApprovalPendingMessage);
+        Assert.Contains("quit and reopen CrossMacro", UIStrings.MacOSInputMonitoringApprovalPendingMessage);
+        Assert.Contains("Accessibility", UIStrings.MacOSAccessibilityApprovalPendingMessage);
+        Assert.Contains("quit and reopen CrossMacro", UIStrings.MacOSAccessibilityApprovalPendingMessage);
+    }
+
+    [Fact]
+    public void OpenStartupPermissionSettings_WhenInputMonitoringGate_RequestsAndOpensInputMonitoringSettings()
     {
         var checker = new TestMacOSPermissionChecker(
             listenEventGranted: false,
@@ -125,9 +159,27 @@ public sealed class DesktopPermissionGateServiceTests
             checker,
             DesktopPermissionGateService.StartupPermissionGateKind.InputMonitoring);
 
-        Assert.Equal(0, checker.ListenEventRequestCount);
+        Assert.Equal(1, checker.ListenEventRequestCount);
         Assert.Equal(1, checker.InputMonitoringSettingsOpenCount);
         Assert.Equal(0, checker.AccessibilitySettingsOpenCount);
+    }
+
+    [Fact]
+    public void OpenStartupPermissionSettings_WhenAccessibilityGate_RequestsAndOpensAccessibilitySettings()
+    {
+        var checker = new TestMacOSPermissionChecker(
+            listenEventGranted: true,
+            postEventGranted: false,
+            accessibilityGranted: false);
+
+        DesktopPermissionGateService.OpenStartupPermissionSettings(
+            checker,
+            DesktopPermissionGateService.StartupPermissionGateKind.Accessibility);
+
+        Assert.Equal(0, checker.ListenEventRequestCount);
+        Assert.Equal(1, checker.AccessibilityRequestCount);
+        Assert.Equal(0, checker.InputMonitoringSettingsOpenCount);
+        Assert.Equal(1, checker.AccessibilitySettingsOpenCount);
     }
 
     [Fact]
@@ -175,6 +227,7 @@ public sealed class DesktopPermissionGateServiceTests
         public bool IsSupported => true;
         public bool RequiresStartupPermissionGate => true;
         public int ListenEventRequestCount { get; private set; }
+        public int AccessibilityRequestCount { get; private set; }
         public int InputMonitoringSettingsOpenCount { get; private set; }
         public int AccessibilitySettingsOpenCount { get; private set; }
 
@@ -220,7 +273,7 @@ public sealed class DesktopPermissionGateServiceTests
             {
                 MacOSPermissionRequirement.ListenEvent => RequestListenEventAccess(),
                 MacOSPermissionRequirement.PostEvent => RequestPostEventAccess(),
-                MacOSPermissionRequirement.Accessibility => true,
+                MacOSPermissionRequirement.Accessibility => RequestAccessibilityPermission(),
                 _ => false
             };
         }
@@ -233,6 +286,12 @@ public sealed class DesktopPermissionGateServiceTests
         public void OpenInputMonitoringSettings()
         {
             InputMonitoringSettingsOpenCount++;
+        }
+
+        private bool RequestAccessibilityPermission()
+        {
+            AccessibilityRequestCount++;
+            return true;
         }
     }
 

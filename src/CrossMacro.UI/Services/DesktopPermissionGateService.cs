@@ -49,8 +49,11 @@ internal sealed class DesktopPermissionGateService
         var startupGateKind = GetStartupPermissionGateKind(permissionChecker);
         if (startupGateKind != StartupPermissionGateKind.None)
         {
-            await HandleStartupPermissionGateAsync(desktop, permissionChecker!, startupGateKind);
-            return GateResult.HandledByDialog();
+            var permissionResolved = await HandleStartupPermissionGateAsync(desktop, permissionChecker!, startupGateKind);
+            if (!permissionResolved)
+            {
+                return GateResult.HandledByDialog();
+            }
         }
 
         if (!_displaySessionService.IsSessionSupported(out var reason))
@@ -81,9 +84,14 @@ internal sealed class DesktopPermissionGateService
         var macOSStatus = TryGetMacOSPermissionStatusOrDefault(permissionChecker);
         if (macOSStatus.HasValue)
         {
-            return macOSStatus.Value.ListenEventGrantedAndAvailable
+            if (!macOSStatus.Value.ListenEventGrantedAndAvailable)
+            {
+                return StartupPermissionGateKind.InputMonitoring;
+            }
+
+            return macOSStatus.Value.PlaybackPermissionGranted
                 ? StartupPermissionGateKind.None
-                : StartupPermissionGateKind.InputMonitoring;
+                : StartupPermissionGateKind.Accessibility;
         }
 
         return permissionChecker.IsAccessibilityTrusted()
@@ -136,28 +144,59 @@ internal sealed class DesktopPermissionGateService
         }
     }
 
-    private async Task HandleStartupPermissionGateAsync(
+    private async Task<bool> HandleStartupPermissionGateAsync(
         IClassicDesktopStyleApplicationLifetime desktop,
         IPermissionChecker permissionChecker,
         StartupPermissionGateKind gateKind)
     {
+        var permissionResolved = false;
+
         await RunWithBootstrapOwnerAsync(desktop, async bootstrapOwner =>
         {
             try
             {
-                var permissionDialog = CreateCenteredConfirmationDialog(
-                    UIStrings.PermissionRequiredTitle,
-                    GetStartupPermissionMessage(gateKind),
-                    UIStrings.OpenSettingsButton,
-                    UIStrings.ExitButton,
-                    dangerYes: false,
-                    dangerNo: true);
-
-                var shouldOpenSettings = await permissionDialog.ShowDialog<bool>(bootstrapOwner);
-                if (shouldOpenSettings)
+                var currentGateKind = gateKind;
+                while (currentGateKind != StartupPermissionGateKind.None)
                 {
-                    OpenStartupPermissionSettings(permissionChecker, gateKind);
+                    var permissionDialog = CreateCenteredConfirmationDialog(
+                        UIStrings.PermissionRequiredTitle,
+                        GetStartupPermissionMessage(currentGateKind),
+                        UIStrings.OpenSettingsButton,
+                        UIStrings.ExitButton,
+                        dangerYes: false,
+                        dangerNo: true);
+
+                    var shouldOpenSettings = await permissionDialog.ShowDialog<bool>(bootstrapOwner);
+                    if (!shouldOpenSettings)
+                    {
+                        return;
+                    }
+
+                    OpenStartupPermissionSettings(permissionChecker, currentGateKind);
+
+                    var recheckDialog = CreateCenteredConfirmationDialog(
+                        UIStrings.PermissionRequiredTitle,
+                        UIStrings.MacOSPermissionApprovalRecheckMessage,
+                        UIStrings.ContinueButton,
+                        UIStrings.ExitButton,
+                        dangerYes: false,
+                        dangerNo: true);
+
+                    var shouldRecheck = await recheckDialog.ShowDialog<bool>(bootstrapOwner);
+                    if (!shouldRecheck)
+                    {
+                        return;
+                    }
+
+                    currentGateKind = GetStartupPermissionGateKind(permissionChecker);
+                    if (currentGateKind != StartupPermissionGateKind.None)
+                    {
+                        await ShowApprovalPendingDialogAsync(bootstrapOwner, currentGateKind);
+                        return;
+                    }
                 }
+
+                permissionResolved = true;
             }
             catch (Exception ex)
             {
@@ -165,14 +204,19 @@ internal sealed class DesktopPermissionGateService
             }
         });
 
-        try
+        if (!permissionResolved)
         {
-            desktop.Shutdown();
+            try
+            {
+                desktop.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[DesktopStartupCoordinator] Failed to shutdown app after macOS permission gate");
+            }
         }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "[DesktopStartupCoordinator] Failed to shutdown app after macOS permission gate");
-        }
+
+        return permissionResolved;
     }
 
     private static Window CreateBootstrapOwnerWindow()
@@ -196,16 +240,41 @@ internal sealed class DesktopPermissionGateService
             : UIStrings.MacOSAccessibilityStartupBlockMessage;
     }
 
+    private static async Task ShowApprovalPendingDialogAsync(Window bootstrapOwner, StartupPermissionGateKind gateKind)
+    {
+        var pendingDialog = CreateCenteredConfirmationDialog(
+            UIStrings.PermissionRequiredTitle,
+            GetApprovalPendingMessage(gateKind),
+            UIStrings.ExitButton,
+            noText: null,
+            dangerYes: true);
+
+        await pendingDialog.ShowDialog<bool>(bootstrapOwner);
+    }
+
+    private static string GetApprovalPendingMessage(StartupPermissionGateKind gateKind)
+    {
+        return gateKind == StartupPermissionGateKind.InputMonitoring
+            ? UIStrings.MacOSInputMonitoringApprovalPendingMessage
+            : UIStrings.MacOSAccessibilityApprovalPendingMessage;
+    }
+
     internal static void OpenStartupPermissionSettings(IPermissionChecker permissionChecker, StartupPermissionGateKind gateKind)
     {
         if (gateKind != StartupPermissionGateKind.InputMonitoring)
         {
+            if (permissionChecker is IMacOSPermissionChecker accessibilityPermissionChecker)
+            {
+                accessibilityPermissionChecker.RequestPermission(MacOSPermissionRequirement.Accessibility);
+            }
+
             permissionChecker.OpenAccessibilitySettings();
             return;
         }
 
         if (permissionChecker is IMacOSPermissionChecker macOSPermissionChecker)
         {
+            macOSPermissionChecker.RequestListenEventAccess();
             macOSPermissionChecker.OpenInputMonitoringSettings();
             return;
         }
@@ -225,6 +294,8 @@ internal sealed class DesktopPermissionGateService
             var status = macOSPermissionChecker.GetCurrentStatus();
             return new MacOSPermissionStatusSnapshot(
                 status.ListenEventGranted,
+                status.PostEventGranted,
+                status.AccessibilityGranted,
                 status.ListenEventApiAvailable);
         }
         catch (Exception)
@@ -235,8 +306,12 @@ internal sealed class DesktopPermissionGateService
 
     private readonly record struct MacOSPermissionStatusSnapshot(
         bool ListenEventGranted,
+        bool PostEventGranted,
+        bool AccessibilityGranted,
         bool ListenEventApiAvailable)
     {
         internal bool ListenEventGrantedAndAvailable => ListenEventApiAvailable && ListenEventGranted;
+
+        internal bool PlaybackPermissionGranted => PostEventGranted || AccessibilityGranted;
     }
 }

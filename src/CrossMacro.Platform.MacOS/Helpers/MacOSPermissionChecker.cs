@@ -61,14 +61,29 @@ public static class MacOSPermissionChecker
     {
         return RequestPermissionAccess(
             isApiAvailable: IsPostEventRequestApiAvailable,
-            requestAccess: CoreGraphics.CGRequestPostEventAccess);
+            requestAccess: CoreGraphics.CGRequestPostEventAccess)
+            || PromptAccessibilityPermission();
     }
     
     public static bool PromptAccessibilityPermission()
     {
-        // No native prompt support without CFDictionary construction.
-        // The UI handles showing a dialog if this returns false.
-        return IsAccessibilityTrusted();
+        if (!OperatingSystem.IsMacOS())
+        {
+            return false;
+        }
+
+        try
+        {
+            return Accessibility.AXIsProcessTrustedWithPrompt();
+        }
+        catch (DllNotFoundException)
+        {
+            return false;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return false;
+        }
     }
     
     public static void OpenAccessibilitySettings()

@@ -34,8 +34,18 @@ internal static class CoreFoundation
     [DllImport(CoreFoundationLib)]
     public static extern IntPtr CFDataGetBytePtr(IntPtr cfData);
 
+    [DllImport(CoreFoundationLib)]
+    public static extern IntPtr CFDictionaryCreate(
+        IntPtr allocator,
+        IntPtr[] keys,
+        IntPtr[] values,
+        nint numValues,
+        IntPtr keyCallBacks,
+        IntPtr valueCallBacks);
+
     public static readonly IntPtr kCFRunLoopCommonModes;
     public static readonly IntPtr kCFRunLoopDefaultMode;
+    public static readonly IntPtr kCFBooleanTrue;
 
     static CoreFoundation()
     {
@@ -43,6 +53,7 @@ internal static class CoreFoundation
         IntPtr lib = NativeLibrary.Load(CoreFoundationLib);
         kCFRunLoopCommonModes = ReadIntPtr(lib, "kCFRunLoopCommonModes");
         kCFRunLoopDefaultMode = ReadIntPtr(lib, "kCFRunLoopDefaultMode");
+        kCFBooleanTrue = ReadIntPtr(lib, "kCFBooleanTrue");
     }
 
     private static IntPtr ReadIntPtr(IntPtr lib, string name)

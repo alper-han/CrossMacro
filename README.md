@@ -276,7 +276,7 @@ For Store and fresh-install options, use the Quick Install Matrix above.
 
 1. Download `.dmg` from [Releases](https://github.com/alper-han/CrossMacro/releases).
 2. Drag **CrossMacro** to **Applications**.
-3. Launch and grant Accessibility permissions when prompted.
+3. Launch and grant macOS permissions as needed: Input Monitoring for capture/recording, event posting for playback/injection, and Accessibility only for AX features if prompted.
 
 If Gatekeeper blocks first launch:
 

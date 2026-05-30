@@ -73,7 +73,7 @@ This section guides you through submitting a bug report for CrossMacro.
    dotnet run --project src/CrossMacro.UI.MacOS/
    ```
 
-   **Permissions**: You will be prompted to grant Accessibility permissions on the first run. This is required for CGEvent Taps to function.
+   **Permissions**: macOS permissions are operation-specific. Capture/recording requires Input Monitoring, playback/injection requires event posting, and Accessibility is only required for AX features or legacy permission flows.
 
 
 ## 📥 Pull Requests

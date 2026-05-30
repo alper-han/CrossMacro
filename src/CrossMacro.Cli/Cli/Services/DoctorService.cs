@@ -122,7 +122,7 @@ public sealed partial class DoctorService : IDoctorService
 
         if (_isMacOS())
         {
-            checks.Add(BuildMacOSAccessibilityCheck(verbose));
+            checks.AddRange(BuildMacOSPermissionChecks(verbose));
         }
 
         if (_isLinux())
@@ -315,53 +315,141 @@ public sealed partial class DoctorService : IDoctorService
         };
     }
 
-    private DoctorCheck BuildMacOSAccessibilityCheck(bool verbose)
+    private IEnumerable<DoctorCheck> BuildMacOSPermissionChecks(bool verbose)
     {
+        var checks = new List<DoctorCheck>();
+
         if (!_isMacOS() || _isWindows() || _isLinux())
         {
-            return new DoctorCheck
+            checks.Add(new DoctorCheck
             {
-                Name = "macos-accessibility",
+                Name = "macos-input-monitoring",
                 Status = DoctorCheckStatus.Warn,
-                Message = "macOS accessibility check was skipped outside macOS.",
+                Message = "macOS Input Monitoring check was skipped outside macOS.",
                 Details = verbose ? new { skipped = true } : null
-            };
+            });
+
+            return checks;
         }
 
         if (_permissionChecker is null || !_permissionChecker.IsSupported)
         {
-            return new DoctorCheck
+            checks.Add(new DoctorCheck
             {
-                Name = "macos-accessibility",
+                Name = "macos-input-monitoring",
                 Status = DoctorCheckStatus.Warn,
-                Message = "macOS accessibility checker is unavailable.",
+                Message = "macOS permission checker is unavailable.",
                 Details = verbose ? new { checkerAvailable = false } : null
-            };
+            });
+
+            return checks;
         }
 
+        if (_permissionChecker is not IMacOSPermissionChecker macOSPermissionChecker)
+        {
+            checks.Add(new DoctorCheck
+            {
+                Name = "macos-input-monitoring",
+                Status = DoctorCheckStatus.Warn,
+                Message = "macOS Input Monitoring status is unavailable from this permission checker.",
+                Details = verbose ? new { checkerProvidesSeparateMacOSStatus = false } : null
+            });
+
+            checks.Add(new DoctorCheck
+            {
+                Name = "macos-event-posting",
+                Status = DoctorCheckStatus.Warn,
+                Message = "macOS event posting status is unavailable from this permission checker.",
+                Details = verbose ? new { checkerProvidesSeparateMacOSStatus = false } : null
+            });
+
+            bool trusted;
+            try
+            {
+                trusted = _permissionChecker.IsAccessibilityTrusted();
+            }
+            catch (Exception ex)
+            {
+                checks.Add(new DoctorCheck
+                {
+                    Name = "macos-accessibility",
+                    Status = DoctorCheckStatus.Warn,
+                    Message = "macOS Accessibility trust probe failed.",
+                    Details = verbose ? new { error = ex.Message } : null
+                });
+
+                return checks;
+            }
+
+            checks.Add(BuildMacOSAccessibilityCheck(trusted, verbose));
+            return checks;
+        }
+
+        MacOSPermissionStatus status;
         try
         {
-            var trusted = _permissionChecker.IsAccessibilityTrusted();
-            return new DoctorCheck
-            {
-                Name = "macos-accessibility",
-                Status = trusted ? DoctorCheckStatus.Pass : DoctorCheckStatus.Fail,
-                Message = trusted
-                    ? "macOS accessibility permission is granted."
-                    : "macOS accessibility permission is missing. Grant CrossMacro access in System Settings > Privacy & Security > Accessibility.",
-                Details = verbose ? new { trusted } : null
-            };
+            status = macOSPermissionChecker.GetCurrentStatus();
         }
         catch (Exception ex)
         {
-            return new DoctorCheck
+            checks.Add(new DoctorCheck
             {
-                Name = "macos-accessibility",
+                Name = "macos-input-monitoring",
                 Status = DoctorCheckStatus.Warn,
-                Message = "macOS accessibility permission probe failed.",
+                Message = "macOS permission status probe failed.",
                 Details = verbose ? new { error = ex.Message } : null
-            };
+            });
+
+            return checks;
         }
+
+        checks.Add(new DoctorCheck
+        {
+            Name = "macos-input-monitoring",
+            Status = status.ListenEventGranted ? DoctorCheckStatus.Pass : DoctorCheckStatus.Fail,
+            Message = status.ListenEventGranted
+                ? "macOS Input Monitoring permission is granted for capture and recording."
+                : "macOS Input Monitoring permission is missing. Grant CrossMacro access in System Settings > Privacy & Security > Input Monitoring for capture and recording.",
+            Details = verbose
+                ? new
+                {
+                    listenEventGranted = status.ListenEventGranted,
+                    listenEventApiAvailable = status.ListenEventApiAvailable
+                }
+                : null
+        });
+
+        checks.Add(new DoctorCheck
+        {
+            Name = "macos-event-posting",
+            Status = status.PostEventGranted ? DoctorCheckStatus.Pass : DoctorCheckStatus.Fail,
+            Message = status.PostEventGranted
+                ? "macOS event posting permission is granted for playback and injection."
+                : "macOS event posting permission is missing. Allow event posting for playback and injection; macOS may show this under Accessibility.",
+            Details = verbose
+                ? new
+                {
+                    postEventGranted = status.PostEventGranted,
+                    postEventApiAvailable = status.PostEventApiAvailable
+                }
+                : null
+        });
+
+        checks.Add(BuildMacOSAccessibilityCheck(status.AccessibilityGranted, verbose));
+        return checks;
+    }
+
+    private static DoctorCheck BuildMacOSAccessibilityCheck(bool trusted, bool verbose)
+    {
+        return new DoctorCheck
+        {
+            Name = "macos-accessibility",
+            Status = trusted ? DoctorCheckStatus.Pass : DoctorCheckStatus.Fail,
+            Message = trusted
+                ? "macOS Accessibility trust is granted for AX features."
+                : "macOS Accessibility trust is missing for AX features. Grant CrossMacro access in System Settings > Privacy & Security > Accessibility only if AX features are needed.",
+            Details = verbose ? new { accessibilityTrusted = trusted } : null
+        };
     }
 
     private static bool CanWriteDirectory(string directory)

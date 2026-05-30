@@ -643,7 +643,50 @@ public class DoctorServiceTests
     }
 
     [Fact]
-    public async Task RunAsync_WhenMacOSAccessibilityNotTrusted_ReturnsFailAccessibilityCheck()
+    public async Task RunAsync_WhenMacOSPermissionCheckerHasSeparateStatus_ReturnsModernPermissionChecks()
+    {
+        _environmentInfoProvider.CurrentEnvironment.Returns(DisplayEnvironment.MacOS);
+        _displaySessionService.IsSessionSupported(out Arg.Any<string>()).Returns(x =>
+        {
+            x[0] = string.Empty;
+            return true;
+        });
+
+        var permissionChecker = new TestMacOSPermissionChecker(
+            new MacOSPermissionStatus(
+                ListenEventGranted: false,
+                PostEventGranted: true,
+                AccessibilityGranted: false));
+
+        var service = CreateService(
+            _ => null,
+            _ => false,
+            _ => false,
+            isLinux: () => false,
+            isWindows: () => false,
+            isMacOS: () => true,
+            permissionChecker: permissionChecker);
+
+        var report = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        var inputMonitoring = Assert.Single(report.Checks, x => x.Name == "macos-input-monitoring");
+        Assert.Equal(DoctorCheckStatus.Fail, inputMonitoring.Status);
+        Assert.Contains("Input Monitoring", inputMonitoring.Message);
+        Assert.Contains("capture", inputMonitoring.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Accessibility permission is missing", inputMonitoring.Message);
+
+        var eventPosting = Assert.Single(report.Checks, x => x.Name == "macos-event-posting");
+        Assert.Equal(DoctorCheckStatus.Pass, eventPosting.Status);
+        Assert.Contains("event posting", eventPosting.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("playback", eventPosting.Message, StringComparison.OrdinalIgnoreCase);
+
+        var accessibility = Assert.Single(report.Checks, x => x.Name == "macos-accessibility");
+        Assert.Equal(DoctorCheckStatus.Fail, accessibility.Status);
+        Assert.Contains("AX features", accessibility.Message);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenMacOSPermissionCheckerDoesNotExposeSeparateStatus_ReportsUnavailableModernChecks()
     {
         _environmentInfoProvider.CurrentEnvironment.Returns(DisplayEnvironment.MacOS);
         _displaySessionService.IsSessionSupported(out Arg.Any<string>()).Returns(x =>
@@ -666,6 +709,14 @@ public class DoctorServiceTests
             permissionChecker: permissionChecker);
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        var inputMonitoring = Assert.Single(report.Checks, x => x.Name == "macos-input-monitoring");
+        Assert.Equal(DoctorCheckStatus.Warn, inputMonitoring.Status);
+        Assert.Contains("Input Monitoring status is unavailable", inputMonitoring.Message);
+
+        var eventPosting = Assert.Single(report.Checks, x => x.Name == "macos-event-posting");
+        Assert.Equal(DoctorCheckStatus.Warn, eventPosting.Status);
+        Assert.Contains("event posting status is unavailable", eventPosting.Message);
 
         var accessibility = Assert.Single(report.Checks, x => x.Name == "macos-accessibility");
         Assert.Equal(DoctorCheckStatus.Fail, accessibility.Status);
@@ -712,5 +763,61 @@ public class DoctorServiceTests
         var result = (bool)(method!.Invoke(null, ["/run/crossmacro/nonexistent.sock"]) ?? false);
 
         result.Should().BeFalse();
+    }
+
+    private sealed class TestMacOSPermissionChecker : IMacOSPermissionChecker
+    {
+        private readonly MacOSPermissionStatus _status;
+
+        public TestMacOSPermissionChecker(MacOSPermissionStatus status)
+        {
+            _status = status;
+        }
+
+        public bool IsSupported => true;
+        public bool RequiresStartupPermissionGate => true;
+
+        public MacOSPermissionStatus GetCurrentStatus()
+        {
+            return _status;
+        }
+
+        public bool IsPermissionGranted(MacOSPermissionRequirement requirement)
+        {
+            return _status.IsGranted(requirement);
+        }
+
+        public bool RequestPermission(MacOSPermissionRequirement requirement)
+        {
+            return false;
+        }
+
+        public bool RequestListenEventAccess()
+        {
+            return false;
+        }
+
+        public bool RequestPostEventAccess()
+        {
+            return false;
+        }
+
+        public bool IsAccessibilityTrusted()
+        {
+            return _status.AccessibilityGranted;
+        }
+
+        public bool CheckUInputAccess()
+        {
+            return false;
+        }
+
+        public void OpenAccessibilitySettings()
+        {
+        }
+
+        public void OpenInputMonitoringSettings()
+        {
+        }
     }
 }

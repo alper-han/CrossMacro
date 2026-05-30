@@ -61,6 +61,58 @@ public class MacOSInputSimulatorTests
     }
 
     [Fact]
+    public void KeyPress_WhenPostEventPermissionRequestFails_ThrowsPermissionRequired()
+    {
+        var simulator = new MacOSInputSimulator(() => false, isMacOS: () => true);
+
+        var exception = Assert.Throws<InputInjectionPermissionRequiredException>(
+            () => simulator.KeyPress(InputEventCode.KEY_A, pressed: true));
+
+        Assert.Contains("Accessibility", exception.Message);
+        Assert.Contains("Input Monitoring", exception.Message);
+    }
+
+    [Fact]
+    public void KeyPress_WhenPostEventPermissionRequestFails_RechecksOnNextAttempt()
+    {
+        var postRequests = 0;
+        var simulator = new MacOSInputSimulator(
+            () =>
+            {
+                postRequests++;
+                return false;
+            },
+            isMacOS: () => true);
+
+        Assert.Throws<InputInjectionPermissionRequiredException>(
+            () => simulator.KeyPress(InputEventCode.KEY_A, pressed: true));
+        Assert.Throws<InputInjectionPermissionRequiredException>(
+            () => simulator.KeyPress(InputEventCode.KEY_A, pressed: true));
+
+        Assert.Equal(2, postRequests);
+    }
+
+    [Fact]
+    public void KeyPress_WhenPostEventPermissionEventuallySucceeds_CachesGrantedPermission()
+    {
+        var postRequests = 0;
+        var simulator = new MacOSInputSimulator(
+            () =>
+            {
+                postRequests++;
+                return postRequests == 2;
+            },
+            isMacOS: () => true);
+
+        Assert.Throws<InputInjectionPermissionRequiredException>(
+            () => simulator.KeyPress(InputEventCode.KEY_A, pressed: true));
+        simulator.KeyPress(InputEventCode.KEY_F21, pressed: true);
+        simulator.KeyPress(InputEventCode.KEY_F21, pressed: false);
+
+        Assert.Equal(2, postRequests);
+    }
+
+    [Fact]
     public void CreateKeyboardFlags_WhenMetaIsPressed_IncludesCommandFlag()
     {
         var flags = MacOSInputSimulator.CreateKeyboardFlags([InputEventCode.KEY_LEFTMETA]);

@@ -16,9 +16,10 @@ public class MacOSInputSimulator :
 {
     private readonly object _keyboardLock = new();
     private readonly Func<bool> _requestPostEventAccess;
+    private readonly Func<bool> _isMacOS;
     private readonly HashSet<int> _pressedModifierKeys = [];
     private CoreGraphics.CGEventFlags _keyboardFlags;
-    private bool _postEventPermissionRequested;
+    private bool _postEventPermissionGranted;
 
     public string ProviderName => "macOS CoreGraphics";
     public bool IsSupported => OperatingSystem.IsMacOS();
@@ -32,9 +33,10 @@ public class MacOSInputSimulator :
     {
     }
 
-    internal MacOSInputSimulator(Func<bool> requestPostEventAccess)
+    internal MacOSInputSimulator(Func<bool> requestPostEventAccess, Func<bool>? isMacOS = null)
     {
         _requestPostEventAccess = requestPostEventAccess ?? throw new ArgumentNullException(nameof(requestPostEventAccess));
+        _isMacOS = isMacOS ?? OperatingSystem.IsMacOS;
     }
 
     public void Initialize(int screenWidth = 0, int screenHeight = 0)
@@ -226,13 +228,23 @@ public class MacOSInputSimulator :
 
     private void RequestPostEventAccessOnce()
     {
-        if (_postEventPermissionRequested || !OperatingSystem.IsMacOS())
+        if (_postEventPermissionGranted || !_isMacOS())
         {
             return;
         }
 
-        _postEventPermissionRequested = true;
-        _requestPostEventAccess();
+        if (!_requestPostEventAccess())
+        {
+            ThrowPlaybackPermissionRequired();
+        }
+
+        _postEventPermissionGranted = true;
+    }
+
+    private static void ThrowPlaybackPermissionRequired()
+    {
+        throw new InputInjectionPermissionRequiredException(
+            "macOS Accessibility permission is required for playback and input injection. Input Monitoring only allows CrossMacro to capture and record input. Open System Settings > Privacy & Security > Accessibility, approve CrossMacro, then try playback again.");
     }
 
     private static void PostSystemDefinedKeyEvent(

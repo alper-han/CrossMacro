@@ -13,6 +13,16 @@ public class CoreGraphicsPermissionAccessTests
         Assert.Equal(1u, (uint)CoreGraphics.CGEventTapOptions.ListenOnly);
     }
 
+    [Fact]
+    public void IOKitInputMonitoringConstants_MatchNativeValues()
+    {
+        Assert.Equal(0u, (uint)IOKit.IOHIDRequestType.PostEvent);
+        Assert.Equal(1u, (uint)IOKit.IOHIDRequestType.ListenEvent);
+        Assert.Equal(0u, (uint)IOKit.IOHIDAccessType.Granted);
+        Assert.Equal(1u, (uint)IOKit.IOHIDAccessType.Denied);
+        Assert.Equal(2u, (uint)IOKit.IOHIDAccessType.Unknown);
+    }
+
     [Theory]
     [InlineData(nameof(CoreGraphics.CGPreflightListenEventAccess))]
     [InlineData(nameof(CoreGraphics.CGRequestListenEventAccess))]

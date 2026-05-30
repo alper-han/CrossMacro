@@ -42,19 +42,22 @@ public static class MacOSPermissionChecker
 
     public static bool IsListenEventAccessGranted()
     {
-        return GetCurrentStatus().IsGranted(MacOSPermissionRequirement.ListenEvent);
+        return IsListenEventPreflightApiAvailable() && PreflightListenEventAccess();
     }
 
     public static bool IsPostEventAccessGranted()
     {
-        return GetCurrentStatus().IsGranted(MacOSPermissionRequirement.PostEvent);
+        return IsPostEventPreflightApiAvailable() && PreflightPostEventAccess();
     }
 
     public static bool RequestListenEventAccess()
     {
         return RequestPermissionAccess(
-            isApiAvailable: IsListenEventRequestApiAvailable,
-            requestAccess: CoreGraphics.CGRequestListenEventAccess);
+            isApiAvailable: IsIOHIDListenEventRequestApiAvailable,
+            requestAccess: IOKit.RequestListenEventAccess)
+            || RequestPermissionAccess(
+                isApiAvailable: IsListenEventRequestApiAvailable,
+                requestAccess: CoreGraphics.CGRequestListenEventAccess);
     }
 
     public static bool RequestPostEventAccess()
@@ -110,13 +113,18 @@ public static class MacOSPermissionChecker
     private static bool IsListenEventPreflightApiAvailable()
     {
         return OperatingSystem.IsMacOSVersionAtLeast(10, 15)
-            && CoreGraphics.IsCGPreflightListenEventAccessAvailable();
+            && (IsIOHIDListenEventRequestApiAvailable() || CoreGraphics.IsCGPreflightListenEventAccessAvailable());
     }
 
     private static bool IsListenEventRequestApiAvailable()
     {
         return OperatingSystem.IsMacOSVersionAtLeast(10, 15)
             && CoreGraphics.IsCGRequestListenEventAccessAvailable();
+    }
+
+    private static bool IsIOHIDListenEventRequestApiAvailable()
+    {
+        return OperatingSystem.IsMacOSVersionAtLeast(10, 15);
     }
 
     private static bool IsPostEventPreflightApiAvailable()
@@ -133,25 +141,33 @@ public static class MacOSPermissionChecker
 
     private static bool PreflightListenEventAccess()
     {
-        try
-        {
-            return CoreGraphics.CGPreflightListenEventAccess();
-        }
-        catch (DllNotFoundException)
-        {
-            return false;
-        }
-        catch (EntryPointNotFoundException)
-        {
-            return false;
-        }
+        return CheckPermissionAccess(
+            isApiAvailable: IsIOHIDListenEventRequestApiAvailable,
+            checkAccess: IOKit.CheckListenEventAccess)
+            || CheckPermissionAccess(
+                isApiAvailable: () => OperatingSystem.IsMacOSVersionAtLeast(10, 15)
+                    && CoreGraphics.IsCGPreflightListenEventAccessAvailable(),
+                checkAccess: CoreGraphics.CGPreflightListenEventAccess);
     }
 
     private static bool PreflightPostEventAccess()
     {
+        return CheckPermissionAccess(
+            isApiAvailable: () => OperatingSystem.IsMacOSVersionAtLeast(10, 15)
+                && CoreGraphics.IsCGPreflightPostEventAccessAvailable(),
+            checkAccess: CoreGraphics.CGPreflightPostEventAccess);
+    }
+
+    private static bool CheckPermissionAccess(Func<bool> isApiAvailable, Func<bool> checkAccess)
+    {
+        if (!OperatingSystem.IsMacOS() || !isApiAvailable())
+        {
+            return false;
+        }
+
         try
         {
-            return CoreGraphics.CGPreflightPostEventAccess();
+            return checkAccess();
         }
         catch (DllNotFoundException)
         {

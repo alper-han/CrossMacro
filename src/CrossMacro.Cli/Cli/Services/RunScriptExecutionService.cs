@@ -154,6 +154,25 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
             };
         }
 
+        if (executionResult.IsInputInjectionPermissionRequired)
+        {
+            return new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = CliExitCode.EnvironmentError,
+                Message = "Playback permission is missing.",
+                Errors = [executionResult.ErrorMessage ?? "macOS playback permission is missing."],
+                Warnings = validation.Warnings,
+                Data = BuildData(
+                    sequence,
+                    steps.Count,
+                    compileResult.InitialDelayMs,
+                    compileResult.InitialHasRandomDelay,
+                    compileResult.InitialRandomDelayMinMs,
+                    compileResult.InitialRandomDelayMaxMs)
+            };
+        }
+
         return new MacroExecutionResult
         {
             Success = false,

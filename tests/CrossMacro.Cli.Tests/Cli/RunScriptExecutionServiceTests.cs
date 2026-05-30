@@ -855,4 +855,21 @@ public class RunScriptExecutionServiceTests
         Assert.Equal("Absolute coordinate playback is not supported in this session.", result.Message);
         Assert.Contains(result.Errors, error => error.Contains("absolute mouse coordinates", StringComparison.OrdinalIgnoreCase));
     }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenInputInjectionPermissionRequired_ReturnsEnvironmentError()
+    {
+        _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new InputInjectionPermissionRequiredException("permission missing")));
+
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps = ["type a"]
+        }, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(CliExitCode.EnvironmentError, result.ExitCode);
+        Assert.Equal("Playback permission is missing.", result.Message);
+        Assert.Contains("permission missing", result.Errors[0], StringComparison.OrdinalIgnoreCase);
+    }
 }

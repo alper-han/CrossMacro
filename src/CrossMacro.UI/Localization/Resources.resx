@@ -264,6 +264,15 @@
   <data name="Playback_StatusAbsoluteCoordinatesUnsupported" xml:space="preserve">
     <value>Playback unavailable: absolute coordinates are not supported by the active input backend.</value>
   </data>
+  <data name="Playback_PermissionRequiredTitle" xml:space="preserve">
+    <value>Playback Permission Required</value>
+  </data>
+  <data name="Playback_PermissionRequiredMessage" xml:space="preserve">
+    <value>macOS needs Accessibility permission before CrossMacro can play back mouse and keyboard events. Input Monitoring only allows recording. Open System Settings > Privacy &amp; Security > Accessibility, approve CrossMacro, then try playback again.</value>
+  </data>
+  <data name="Playback_StatusPermissionRequired" xml:space="preserve">
+    <value>Playback unavailable: grant macOS Accessibility permission for playback.</value>
+  </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>Loaded Macros</value>
   </data>

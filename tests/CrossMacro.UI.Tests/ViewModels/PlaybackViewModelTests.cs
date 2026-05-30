@@ -53,6 +53,9 @@ public class PlaybackViewModelTests
             "Playback_AbsoluteCoordinatesUnsupportedTitle" => "[Playback_AbsoluteCoordinatesUnsupportedTitle]",
             "Playback_AbsoluteCoordinatesUnsupportedMessage" => "[Playback_AbsoluteCoordinatesUnsupportedMessage]",
             "Playback_StatusAbsoluteCoordinatesUnsupported" => "[Playback_StatusAbsoluteCoordinatesUnsupported]",
+            "Playback_PermissionRequiredTitle" => "[Playback_PermissionRequiredTitle]",
+            "Playback_PermissionRequiredMessage" => "[Playback_PermissionRequiredMessage]",
+            "Playback_StatusPermissionRequired" => "[Playback_StatusPermissionRequired]",
             _ => call.Arg<string>()
         });
         _settings = new AppSettings
@@ -445,6 +448,25 @@ public class PlaybackViewModelTests
         await _dialogService.Received(1).ShowMessageAsync(
             "[Playback_AbsoluteCoordinatesUnsupportedTitle]",
             "[Playback_AbsoluteCoordinatesUnsupportedMessage]",
+            Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task PlayMacroAsync_WhenPlaybackPermissionRequired_ShowsFriendlyDialogAndStatus()
+    {
+        var macro = CreateMacro();
+        _viewModel.SetMacro(macro);
+        _viewModel.CanPlayMacroExternal = true;
+        _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new InputInjectionPermissionRequiredException("permission missing")));
+
+        await _viewModel.PlayMacroAsync();
+
+        _viewModel.IsPlaying.Should().BeFalse();
+        _viewModel.PlaybackStatus.Should().Be("[Playback_StatusPermissionRequired]");
+        await _dialogService.Received(1).ShowMessageAsync(
+            "[Playback_PermissionRequiredTitle]",
+            "[Playback_PermissionRequiredMessage]",
             Arg.Any<string>());
     }
 

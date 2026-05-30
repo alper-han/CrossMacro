@@ -559,6 +559,20 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
                         _localizationService["Playback_AbsoluteCoordinatesUnsupportedMessage"]);
                 }
             }
+            else if (ex is InputInjectionPermissionRequiredException)
+            {
+                PlaybackStatus = _localizationService["Playback_StatusPermissionRequired"];
+                _statusUpdateTimer?.Stop();
+                IsPlaying = false;
+                IsPaused = false;
+
+                if (_dialogService != null)
+                {
+                    await _dialogService.ShowMessageAsync(
+                        _localizationService["Playback_PermissionRequiredTitle"],
+                        _localizationService["Playback_PermissionRequiredMessage"]);
+                }
+            }
             else
             {
                 PlaybackStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Playback_StatusError"], ex.Message);

@@ -264,6 +264,15 @@
   <data name="Playback_StatusAbsoluteCoordinatesUnsupported" xml:space="preserve">
     <value>Oynatma kullanılamıyor: etkin giriş altyapısı absolute koordinatları desteklemiyor.</value>
   </data>
+  <data name="Playback_PermissionRequiredTitle" xml:space="preserve">
+    <value>Oynatma İzni Gerekli</value>
+  </data>
+  <data name="Playback_PermissionRequiredMessage" xml:space="preserve">
+    <value>macOS, CrossMacro'nun fare ve klavye olaylarını oynatabilmesi için Accessibility izni ister. Input Monitoring yalnızca kayıt almayı sağlar. Sistem Ayarları > Gizlilik ve Güvenlik > Accessibility bölümünü açın, CrossMacro'ya izin verin ve oynatmayı tekrar deneyin.</value>
+  </data>
+  <data name="Playback_StatusPermissionRequired" xml:space="preserve">
+    <value>Oynatma kullanılamıyor: oynatma için macOS Accessibility izni verin.</value>
+  </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>Yüklü Makrolar</value>
   </data>

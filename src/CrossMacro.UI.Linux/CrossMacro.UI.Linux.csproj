@@ -36,7 +36,6 @@
     <TrimmerRootAssembly Include="Svg.Controls.Skia.Avalonia" />
     <TrimmerRootAssembly Include="Svg.Animation" />
     <TrimmerRootAssembly Include="Svg.Custom" />
-    <TrimmerRootAssembly Include="Svg.JavaScript" />
     <TrimmerRootAssembly Include="Svg.Skia" />
     <TrimmerRootAssembly Include="Svg.SceneGraph" />
     <TrimmerRootAssembly Include="Svg.Model" />

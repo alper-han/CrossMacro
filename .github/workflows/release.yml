@@ -608,10 +608,10 @@ jobs:
           }
 
           $installerText = Get-Content -LiteralPath $installerManifest.FullName -Raw
-          if ($installerText -notmatch '(?im)^- Architecture:\s*x64\s*$') {
+          if ($installerText -notmatch '(?im)^-[ \t]*Architecture:[ \t]*x64[ \t\r]*$') {
             throw 'Generated WinGet installer manifest does not contain the expected x64 installer node.'
           }
-          if ($installerText -match '(?im)^- Architecture:\s*arm64\s*$') {
+          if ($installerText -match '(?im)^-[ \t]*Architecture:[ \t]*arm64[ \t\r]*$') {
             throw 'Generated WinGet installer manifest already contains an arm64 installer node; update this workflow to pass both URLs directly to wingetcreate update.'
           }
 
@@ -620,7 +620,11 @@ jobs:
             "  InstallerUrl: $arm64InstallerUrl"
             "  InstallerSha256: $arm64Sha256"
           ) -join "`n"
-          $installerText = $installerText -replace '(?m)^ManifestType: installer$', "$arm64Node`nManifestType: installer"
+          $manifestTypePattern = '(?im)^ManifestType:[ \t]*installer[ \t\r]*$'
+          if ($installerText -notmatch $manifestTypePattern) {
+            throw 'Generated WinGet installer manifest does not contain ManifestType: installer.'
+          }
+          $installerText = $installerText -replace $manifestTypePattern, "$arm64Node`nManifestType: installer"
           Set-Content -LiteralPath $installerManifest.FullName -Value $installerText -NoNewline
 
           $manifestFiles = Get-ChildItem -Path $manifestDirectory -Recurse -Filter 'AlperHan.CrossMacro.*.yaml'
@@ -629,7 +633,7 @@ jobs:
           }
           $finalInstallerText = Get-Content -LiteralPath $installerManifest.FullName -Raw
           foreach ($expectedArchitecture in @('x64', 'arm64')) {
-            if ($finalInstallerText -notmatch "(?im)^- Architecture:\s*$expectedArchitecture\s*$") {
+            if ($finalInstallerText -notmatch "(?im)^-[ \t]*Architecture:[ \t]*$expectedArchitecture[ \t\r]*$") {
               throw "Final WinGet installer manifest is missing $expectedArchitecture installer node."
             }
             if ($finalInstallerText -notmatch "CrossMacro-$env:PACKAGE_VERSION-win-$expectedArchitecture\.exe") {

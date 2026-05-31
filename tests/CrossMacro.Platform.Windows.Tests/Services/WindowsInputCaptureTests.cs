@@ -22,6 +22,16 @@ public class WindowsInputCaptureTests
         Assert.Equal(expected, WindowsInputCapture.ShouldIgnoreKeyboardHookEvent(hookFlags, InputEventMarkers.ToIntPtr(extraInfo)));
     }
 
+    [Theory]
+    [InlineData(User32.WM_WTSSESSION_CHANGE, 0x8, true)]
+    [InlineData(User32.WM_WTSSESSION_CHANGE, 0xF, true)]
+    [InlineData(User32.WM_WTSSESSION_CHANGE, 0x7, false)]
+    [InlineData(User32.WM_KEYDOWN, 0x8, false)]
+    public void IsSessionRecoveryMessage_RecognizesUnlockAndDesktopReady(uint message, int reason, bool expected)
+    {
+        Assert.Equal(expected, WindowsInputCapture.IsSessionRecoveryMessage(message, new IntPtr(reason)));
+    }
+
     [WindowsFact]
     public async Task StartAsync_WhenMouseHookInstallFails_ThrowsInvalidOperationException()
     {

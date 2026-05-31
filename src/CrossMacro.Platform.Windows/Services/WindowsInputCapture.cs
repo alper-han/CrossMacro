@@ -12,6 +12,10 @@ public class WindowsInputCapture : IInputCapture
     private const uint LowLevelKeyboardHookFlagExtended = 0x01;
     private const uint LowLevelKeyboardHookFlagLowerIntegrityInjected = 0x02;
     private const uint LowLevelKeyboardHookFlagInjected = 0x10;
+    private const uint NotifyForThisSession = 0;
+    private const int WtsSessionUnlock = 0x8;
+    private const int WtsSessionDesktopReady = 0xF;
+    private static readonly IntPtr HwndMessage = new(-3);
 
     public string ProviderName => "Windows Hooks";
     public bool IsSupported => OperatingSystem.IsWindows();
@@ -28,8 +32,12 @@ public class WindowsInputCapture : IInputCapture
     
     private IntPtr _mouseHookHandle = IntPtr.Zero;
     private IntPtr _keyboardHookHandle = IntPtr.Zero;
+    private IntPtr _sessionWindowHandle = IntPtr.Zero;
     private User32.HookProc? _mouseProc;
     private User32.HookProc? _keyboardProc;
+    private User32.WindowProc? _sessionWindowProc;
+    private readonly string _sessionWindowClassName = $"CrossMacroSessionSwitch_{Guid.NewGuid():N}";
+    private bool _sessionNotificationRegistered;
     
     private Thread? _messagePumpThread;
     private uint _messagePumpThreadId;
@@ -59,6 +67,7 @@ public class WindowsInputCapture : IInputCapture
                 
                 _mouseProc = MouseHookCallback;
                 _keyboardProc = KeyboardHookCallback;
+                _sessionWindowProc = SessionWindowCallback;
 
                 using (var curProcess = Process.GetCurrentProcess())
                 using (var curModule = curProcess.MainModule)
@@ -83,6 +92,8 @@ public class WindowsInputCapture : IInputCapture
                         }
                     }
                 }
+
+                RegisterSessionNotificationWindow();
 
                 startupTcs.TrySetResult();
                 
@@ -113,6 +124,7 @@ public class WindowsInputCapture : IInputCapture
             }
             finally
             {
+                UnregisterSessionNotificationWindow();
                 UninstallHooks();
                 _messagePumpThreadId = 0;
             }
@@ -146,6 +158,86 @@ public class WindowsInputCapture : IInputCapture
 
     protected virtual IntPtr InstallKeyboardHook(IntPtr moduleHandle)
         => User32.SetWindowsHookEx(User32.WH_KEYBOARD_LL, _keyboardProc!, moduleHandle, 0);
+
+    private void RegisterSessionNotificationWindow()
+    {
+        var instanceHandle = Kernel32.GetModuleHandle(null);
+        var windowClass = new WNDCLASSEX
+        {
+            cbSize = (uint)Marshal.SizeOf<WNDCLASSEX>(),
+            lpfnWndProc = _sessionWindowProc!,
+            hInstance = instanceHandle,
+            lpszClassName = _sessionWindowClassName
+        };
+
+        if (User32.RegisterClassEx(ref windowClass) == 0)
+        {
+            Log.Warning("[WindowsInputCapture] Failed to register session notification window class");
+            return;
+        }
+
+        _sessionWindowHandle = User32.CreateWindowEx(
+            0,
+            _sessionWindowClassName,
+            _sessionWindowClassName,
+            0,
+            0,
+            0,
+            0,
+            0,
+            HwndMessage,
+            IntPtr.Zero,
+            instanceHandle,
+            IntPtr.Zero);
+
+        if (_sessionWindowHandle == IntPtr.Zero)
+        {
+            Log.Warning("[WindowsInputCapture] Failed to create session notification window");
+            User32.UnregisterClass(_sessionWindowClassName, instanceHandle);
+            return;
+        }
+
+        if (!WtsApi32.WTSRegisterSessionNotification(_sessionWindowHandle, NotifyForThisSession))
+        {
+            Log.Warning("[WindowsInputCapture] Failed to register session notifications");
+            DestroySessionNotificationWindow(instanceHandle);
+            return;
+        }
+
+        _sessionNotificationRegistered = true;
+    }
+
+    private void UnregisterSessionNotificationWindow()
+    {
+        DestroySessionNotificationWindow(Kernel32.GetModuleHandle(null));
+    }
+
+    private void DestroySessionNotificationWindow(IntPtr instanceHandle)
+    {
+        if (_sessionNotificationRegistered && _sessionWindowHandle != IntPtr.Zero)
+        {
+            WtsApi32.WTSUnRegisterSessionNotification(_sessionWindowHandle);
+            _sessionNotificationRegistered = false;
+        }
+
+        if (_sessionWindowHandle != IntPtr.Zero)
+        {
+            User32.DestroyWindow(_sessionWindowHandle);
+            _sessionWindowHandle = IntPtr.Zero;
+        }
+
+        User32.UnregisterClass(_sessionWindowClassName, instanceHandle);
+    }
+
+    private IntPtr SessionWindowCallback(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
+    {
+        if (IsSessionRecoveryMessage(msg, wParam))
+        {
+            Error?.Invoke(this, "Recovery: Windows session unlocked; restarting input capture.");
+        }
+
+        return User32.DefWindowProc(hwnd, msg, wParam, lParam);
+    }
 
     private void UninstallHooks()
     {
@@ -366,5 +458,16 @@ public class WindowsInputCapture : IInputCapture
     {
         var isInjected = (hookFlags & (LowLevelKeyboardHookFlagInjected | LowLevelKeyboardHookFlagLowerIntegrityInjected)) != 0;
         return isInjected && extraInfo == InputEventMarkers.ToIntPtr(InputEventMarkers.TextExpansionKeyboardEvent);
+    }
+
+    internal static bool IsSessionRecoveryMessage(uint message, IntPtr wParam)
+    {
+        if (message != User32.WM_WTSSESSION_CHANGE)
+        {
+            return false;
+        }
+
+        var reason = wParam.ToInt32();
+        return reason is WtsSessionUnlock or WtsSessionDesktopReady;
     }
 }

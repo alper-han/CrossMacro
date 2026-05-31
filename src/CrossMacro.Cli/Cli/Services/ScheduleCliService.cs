@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 
 namespace CrossMacro.Cli.Services;
@@ -20,17 +21,7 @@ public sealed class ScheduleCliService : IScheduleCliService
             cancellationToken: cancellationToken,
             loadAsync: () => _schedulerService.LoadAsync(),
             getTasks: () => _schedulerService.Tasks,
-            mapTask: x => new
-            {
-                id = x.Id,
-                name = x.Name,
-                enabled = x.IsEnabled,
-                type = x.Type.ToString(),
-                macroFilePath = x.MacroFilePath,
-                nextRunTime = x.NextRunTime,
-                lastRunTime = x.LastRunTime,
-                lastStatus = x.LastStatus
-            });
+            mapTask: MapScheduleTask);
     }
 
     public async Task<CliCommandExecutionResult> RunAsync(string taskId, CancellationToken cancellationToken)
@@ -53,5 +44,37 @@ public sealed class ScheduleCliService : IScheduleCliService
                 lastRunTime = task.LastRunTime,
                 lastStatus = task.LastStatus
             });
+    }
+
+    private static object MapScheduleTask(ScheduledTask task)
+    {
+        if (task.Type == ScheduleType.Weekly)
+        {
+            return new
+            {
+                id = task.Id,
+                name = task.Name,
+                enabled = task.IsEnabled,
+                type = task.Type.ToString(),
+                macroFilePath = task.MacroFilePath,
+                weeklyDays = task.WeeklyDays.ToString(),
+                weeklyTime = task.WeeklyTime,
+                nextRunTime = task.NextRunTime,
+                lastRunTime = task.LastRunTime,
+                lastStatus = task.LastStatus
+            };
+        }
+
+        return new
+        {
+            id = task.Id,
+            name = task.Name,
+            enabled = task.IsEnabled,
+            type = task.Type.ToString(),
+            macroFilePath = task.MacroFilePath,
+            nextRunTime = task.NextRunTime,
+            lastRunTime = task.LastRunTime,
+            lastStatus = task.LastStatus
+        };
     }
 }

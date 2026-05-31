@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Text.Json;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Cli;
@@ -30,6 +31,56 @@ public class ScheduleCliServiceTests
 
         Assert.True(result.Success);
         await scheduler.Received(1).LoadAsync();
+    }
+
+    [Fact]
+    public async Task ListAsync_WhenTaskIsWeekly_ReturnsWeeklyFields()
+    {
+        var scheduler = Substitute.For<ISchedulerService>();
+        scheduler.Tasks.Returns(new ObservableCollection<ScheduledTask>
+        {
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Name = "Weekly task",
+                MacroFilePath = "/tmp/a.macro",
+                Type = ScheduleType.Weekly,
+                WeeklyDays = ScheduleDays.Weekdays,
+                WeeklyTime = new TimeSpan(9, 30, 0)
+            }
+        });
+
+        var service = new ScheduleCliService(scheduler);
+        var result = await service.ListAsync(CancellationToken.None);
+
+        var task = JsonSerializer.SerializeToElement(result.Data)
+            .GetProperty("tasks")[0];
+        Assert.Equal("Weekdays", task.GetProperty("weeklyDays").GetString());
+        Assert.Equal("09:30:00", task.GetProperty("weeklyTime").GetString());
+    }
+
+    [Fact]
+    public async Task ListAsync_WhenTaskIsNotWeekly_OmitsWeeklyFields()
+    {
+        var scheduler = Substitute.For<ISchedulerService>();
+        scheduler.Tasks.Returns(new ObservableCollection<ScheduledTask>
+        {
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Name = "Interval task",
+                MacroFilePath = "/tmp/a.macro",
+                Type = ScheduleType.Interval
+            }
+        });
+
+        var service = new ScheduleCliService(scheduler);
+        var result = await service.ListAsync(CancellationToken.None);
+
+        var task = JsonSerializer.SerializeToElement(result.Data)
+            .GetProperty("tasks")[0];
+        Assert.False(task.TryGetProperty("weeklyDays", out _));
+        Assert.False(task.TryGetProperty("weeklyTime", out _));
     }
 
     [Fact]

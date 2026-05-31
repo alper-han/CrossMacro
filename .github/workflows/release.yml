@@ -606,6 +606,7 @@ jobs:
           if ($null -eq $installerManifest) {
             throw "WinGet installer manifest was not generated under $manifestDirectory"
           }
+          $versionManifestDirectory = $installerManifest.DirectoryName
 
           $installerText = Get-Content -LiteralPath $installerManifest.FullName -Raw
           if ($installerText -notmatch '(?im)^-[ \t]*Architecture:[ \t]*x64[ \t\r]*$') {
@@ -627,7 +628,7 @@ jobs:
           $installerText = $installerText -replace $manifestTypePattern, "$arm64Node`nManifestType: installer"
           Set-Content -LiteralPath $installerManifest.FullName -Value $installerText -NoNewline
 
-          $manifestFiles = Get-ChildItem -Path $manifestDirectory -Recurse -Filter 'AlperHan.CrossMacro.*.yaml'
+          $manifestFiles = Get-ChildItem -Path $versionManifestDirectory -Filter 'AlperHan.CrossMacro.*.yaml'
           if ($manifestFiles.Count -eq 0) {
             throw "No WinGet manifest files were generated under $manifestDirectory"
           }
@@ -642,12 +643,12 @@ jobs:
           }
 
           if (Get-Command winget -ErrorAction SilentlyContinue) {
-            Invoke-CheckedNative winget validate --manifest "$manifestDirectory" --disable-interactivity --verbose-logs
+            Invoke-CheckedNative winget validate --manifest "$versionManifestDirectory" --disable-interactivity --verbose-logs
           }
           else {
             Write-Warning 'winget CLI was not found on the runner; continuing after structural manifest checks and relying on wingetcreate submit validation.'
           }
 
-          Invoke-CheckedNative .\wingetcreate.exe submit "$manifestDirectory" `
+          Invoke-CheckedNative .\wingetcreate.exe submit "$versionManifestDirectory" `
             --prtitle "Update AlperHan.CrossMacro to $env:PACKAGE_VERSION" `
             --no-open

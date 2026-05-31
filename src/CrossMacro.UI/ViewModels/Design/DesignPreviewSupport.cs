@@ -196,7 +196,20 @@ internal static class DesignPreviewSamples
         oneShotTask.IsEnabled = true;
         oneShotTask.NextRunTime = SampleNow.Date.AddDays(1).AddHours(1);
 
-        return [intervalTask, oneShotTask];
+        var weeklyTask = new ScheduledTask
+        {
+            Name = "Send weekday report",
+            Type = ScheduleType.Weekly,
+            MacroFilePath = "/home/demo/macros/send-weekday-report.macro",
+            PlaybackSpeed = 1.0,
+            WeeklyDays = ScheduleDays.Weekdays,
+            WeeklyTime = new TimeSpan(9, 0, 0),
+            LastStatus = "Waiting for next weekday"
+        };
+        weeklyTask.IsEnabled = true;
+        weeklyTask.NextRunTime = SampleNow.Date.AddDays(1).AddHours(9);
+
+        return [intervalTask, oneShotTask, weeklyTask];
     }
 
     public static IReadOnlyList<ShortcutTask> CreateShortcutTasks()

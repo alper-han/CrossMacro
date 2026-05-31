@@ -75,14 +75,16 @@ public class EditorTabConvertersTests
         var localizationService = Substitute.For<ILocalizationService>();
         localizationService.CurrentCulture.Returns(CultureInfo.InvariantCulture);
         localizationService["Schedule_TypeInterval"].Returns("[Schedule_TypeInterval]");
+        localizationService["Schedule_TypeWeekly"].Returns("[Schedule_TypeWeekly]");
         localizationService["Schedule_NoFile"].Returns("[Schedule_NoFile]");
         localizationService["Schedule_ListSummary"].Returns("[Schedule_ListSummary] {0} | {1}");
         ScheduleTaskConverters.Configure(localizationService);
 
-        var task = new ScheduledTask { Type = ScheduleType.Interval, MacroFilePath = string.Empty };
+        var task = new ScheduledTask { Type = ScheduleType.Weekly, MacroFilePath = string.Empty };
 
         var result = ScheduleTaskConverters.SummaryText.Convert(task, typeof(string), null, CultureInfo.InvariantCulture);
 
-        Assert.Equal("[Schedule_ListSummary] [Schedule_TypeInterval] | [Schedule_NoFile]", result);
+        Assert.Equal("[Schedule_ListSummary] [Schedule_TypeWeekly] | [Schedule_NoFile]", result);
     }
+
 }

@@ -18,16 +18,16 @@
 
     <ScrollViewer Padding="10">
         <StackPanel Spacing="16" Margin="0,0,0,50">
-            
+
             <!-- Task List Section -->
             <Border Background="{DynamicResource SurfaceColor}" CornerRadius="12" Padding="16"
                     x:Name="TaskListBorder">
                 <StackPanel Spacing="12">
                     <Grid ColumnDefinitions="*,Auto,Auto">
                         <TextBlock Grid.Column="0"
-                                  Text="{localization:Loc Schedule_Title}" 
-                                  FontWeight="SemiBold" 
-                                  Foreground="{DynamicResource TextSecondaryBrush}" 
+                                  Text="{localization:Loc Schedule_Title}"
+                                  FontWeight="SemiBold"
+                                  Foreground="{DynamicResource TextSecondaryBrush}"
                                   FontSize="12"
                                   VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1"
@@ -36,7 +36,7 @@
                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                   FontSize="12"
                                   Margin="0,0,12,0"/>
-                        <Button Grid.Column="2" 
+                        <Button Grid.Column="2"
                                Command="{Binding AddTaskCommand}"
                                Background="{DynamicResource SurfaceHoverBrush}"
                                CornerRadius="6"
@@ -48,18 +48,18 @@
                                       Foreground="{DynamicResource PrimaryBrush}"/>
                         </Button>
                     </Grid>
-                    
+
                     <ItemsControl ItemsSource="{Binding Tasks}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="core:ScheduledTask">
-                                <Border Padding="10,8" 
-                                        CornerRadius="8" 
+                                <Border Padding="10,8"
+                                        CornerRadius="8"
                                         Margin="0,2"
                                         Classes="row-item no-hover"
                                         Background="{DynamicResource BackgroundBrush}">
                                     <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                                         <!-- Task Info (clickable area for selection) -->
-                                        <Button Grid.Column="0" 
+                                        <Button Grid.Column="0"
                                                 Classes="flat row-select"
                                                 Background="Transparent"
                                                 Padding="0"
@@ -69,25 +69,25 @@
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand">
                                             <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
-                                                <TextBlock Text="{Binding Name}" 
+                                                <TextBlock Text="{Binding Name}"
                                                           FontWeight="Medium"
                                                           FontSize="13"
                                                           TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock FontSize="11" 
+                                                <TextBlock FontSize="11"
                                                           Foreground="{DynamicResource TextSecondaryBrush}"
                                                           TextTrimming="CharacterEllipsis"
                                                           Text="{Binding Converter={x:Static local:ScheduleTaskConverters.SummaryText}}"/>
                                             </StackPanel>
                                         </Button>
-                                        
+
                                         <!-- Toggle Switch -->
-                                        <ToggleSwitch Grid.Column="1" 
+                                        <ToggleSwitch Grid.Column="1"
                                                      IsChecked="{Binding IsEnabled}"
                                                      IsEnabled="{Binding CanBeEnabled}"
                                                      OnContent="" OffContent=""
                                                      VerticalAlignment="Center"
                                                      Margin="0,0,4,0"/>
-                                        
+
                                         <!-- Edit Button -->
                                         <Button Grid.Column="2"
                                                 Classes="flat row-action"
@@ -99,7 +99,7 @@
                                                 ToolTip.Tip="{localization:Loc Schedule_EditTask}">
                                             <icons:EmojiAppIcon Icon="Edit" Width="14" Height="14"/>
                                         </Button>
-                                        
+
                                         <!-- Delete Button -->
                                         <Button Grid.Column="3"
                                                 Classes="flat row-action danger"
@@ -118,57 +118,57 @@
                     </ItemsControl>
                 </StackPanel>
             </Border>
-            
+
             <!-- Task Settings Section (visible when task selected) -->
-            <Border Background="{DynamicResource SurfaceColor}" 
-                    CornerRadius="12" 
+            <Border Background="{DynamicResource SurfaceColor}"
+                    CornerRadius="12"
                     Padding="16"
                     IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Spacing="16">
-                    <TextBlock Text="{localization:Loc Schedule_TaskSettings}" 
-                              FontWeight="SemiBold" 
-                              Foreground="{DynamicResource TextSecondaryBrush}" 
+                    <TextBlock Text="{localization:Loc Schedule_TaskSettings}"
+                              FontWeight="SemiBold"
+                              Foreground="{DynamicResource TextSecondaryBrush}"
                               FontSize="12"/>
-                    
+
                     <!-- Task Name -->
                     <StackPanel Spacing="4">
                         <TextBlock Text="{localization:Loc Schedule_Name}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                        <TextBox Text="{Binding SelectedTask.Name, Mode=TwoWay, FallbackValue=''}" 
+                        <TextBox Text="{Binding SelectedTask.Name, Mode=TwoWay, FallbackValue=''}"
                                 PlaceholderText="{localization:Loc Schedule_NamePlaceholder}"/>
                     </StackPanel>
-                    
+
                     <!-- Playback Speed -->
                     <StackPanel Spacing="8">
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBlock Grid.Column="0" Classes="label" Text="{localization:Loc Schedule_PlaybackSpeed}"/>
-                            <TextBlock Grid.Column="1" 
-                                      Text="{Binding SelectedTask.PlaybackSpeed, StringFormat='{}{0:0.0}x', FallbackValue='1.0x'}" 
+                            <TextBlock Grid.Column="1"
+                                      Text="{Binding SelectedTask.PlaybackSpeed, StringFormat='{}{0:0.0}x', FallbackValue='1.0x'}"
                                       FontWeight="Medium"
                                       FontSize="16"
                                       Foreground="{DynamicResource PrimaryBrush}"/>
                         </Grid>
                         <Slider Value="{Binding SelectedTask.PlaybackSpeed, Mode=TwoWay, FallbackValue=1.0}"
-                               Minimum="0.1" 
-                               Maximum="10.0" 
+                               Minimum="0.1"
+                               Maximum="10.0"
                                TickFrequency="0.1"
                                IsSnapToTickEnabled="True"/>
                     </StackPanel>
-                    
+
                     <!-- Macro File -->
                     <StackPanel Spacing="4">
                         <TextBlock Text="{localization:Loc Schedule_MacroFile}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <Grid ColumnDefinitions="*,Auto">
-                            <Border Grid.Column="0" 
-                                   Background="{DynamicResource BackgroundBrush}" 
-                                   CornerRadius="6" 
+                            <Border Grid.Column="0"
+                                   Background="{DynamicResource BackgroundBrush}"
+                                   CornerRadius="6"
                                    Padding="12,8"
                                    Margin="0,0,8,0">
-                                <TextBlock Text="{Binding SelectedMacroFileName}" 
+                                <TextBlock Text="{Binding SelectedMacroFileName}"
                                           VerticalAlignment="Center"
                                           TextTrimming="CharacterEllipsis"
                                           ToolTip.Tip="{Binding SelectedMacroFilePath, FallbackValue=''}"/>
                             </Border>
-                            <Button Grid.Column="1" 
+                            <Button Grid.Column="1"
                                    Command="{Binding BrowseMacroCommand}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <icons:EmojiAppIcon Icon="FolderOpen" Width="16" Height="16"/>
@@ -177,7 +177,7 @@
                             </Button>
                         </Grid>
                     </StackPanel>
-                    
+
                     <!-- Schedule Type -->
                     <StackPanel Spacing="8">
                         <TextBlock Text="{localization:Loc Schedule_Type}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -196,14 +196,21 @@
                                     <TextBlock Text="{localization:Loc Schedule_TypeDateTime}"/>
                                 </StackPanel>
                             </RadioButton>
+                            <RadioButton IsChecked="{Binding IsWeeklySelected, Mode=TwoWay}"
+                                        GroupName="ScheduleType">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <icons:EmojiAppIcon Icon="Clock" Width="16" Height="16"/>
+                                    <TextBlock Text="{localization:Loc Schedule_TypeWeekly}"/>
+                                </StackPanel>
+                            </RadioButton>
                         </StackPanel>
                     </StackPanel>
                 </StackPanel>
             </Border>
-            
+
             <!-- Interval Settings -->
-            <Border Background="{DynamicResource SurfaceColor}" 
-                   CornerRadius="12" 
+            <Border Background="{DynamicResource SurfaceColor}"
+                   CornerRadius="12"
                    Padding="16">
                 <Border.IsVisible>
                     <MultiBinding Converter="{x:Static BoolConverters.And}">
@@ -212,8 +219,8 @@
                     </MultiBinding>
                 </Border.IsVisible>
                 <StackPanel Spacing="12">
-                    <TextBlock Text="{localization:Loc Schedule_IntervalSettings}" 
-                              FontWeight="SemiBold" 
+                    <TextBlock Text="{localization:Loc Schedule_IntervalSettings}"
+                              FontWeight="SemiBold"
                               Foreground="{DynamicResource TextSecondaryBrush}"
                               FontSize="12"/>
                     <CheckBox Content="{localization:Loc Schedule_RandomizeInterval}"
@@ -256,10 +263,10 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
-            
+
             <!-- DateTime Settings -->
-            <Border Background="{DynamicResource SurfaceColor}" 
-                   CornerRadius="12" 
+            <Border Background="{DynamicResource SurfaceColor}"
+                   CornerRadius="12"
                    Padding="16">
                 <Border.IsVisible>
                     <MultiBinding Converter="{x:Static BoolConverters.And}">
@@ -268,8 +275,8 @@
                     </MultiBinding>
                 </Border.IsVisible>
                 <StackPanel Spacing="12">
-                    <TextBlock Text="{localization:Loc Schedule_DateTimeSettings}" 
-                              FontWeight="SemiBold" 
+                    <TextBlock Text="{localization:Loc Schedule_DateTimeSettings}"
+                              FontWeight="SemiBold"
                               Foreground="{DynamicResource TextSecondaryBrush}"
                               FontSize="12"/>
                     <TextBlock Text="{localization:Loc Schedule_RunAt}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -277,6 +284,7 @@
                         <DatePicker SelectedDate="{Binding ScheduledDate, Mode=TwoWay, FallbackValue={x:Null}}"
                                    HorizontalAlignment="Stretch"/>
                         <TimePicker SelectedTime="{Binding ScheduledTime, Mode=TwoWay, FallbackValue={x:Null}}"
+                                   ClockIdentifier="24HourClock"
                                    UseSeconds="True"
                                    HorizontalAlignment="Stretch"/>
                     </StackPanel>
@@ -286,36 +294,95 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
-            
+
+            <!-- Weekly Settings -->
+            <Border Background="{DynamicResource SurfaceColor}"
+                   CornerRadius="12"
+                   Padding="16">
+                <Border.IsVisible>
+                    <MultiBinding Converter="{x:Static BoolConverters.And}">
+                        <Binding Path="HasSelectedTask"/>
+                        <Binding Path="IsWeeklySelected"/>
+                    </MultiBinding>
+                </Border.IsVisible>
+                <StackPanel Spacing="12">
+                    <TextBlock Text="{localization:Loc Schedule_WeeklySettings}"
+                              FontWeight="SemiBold"
+                              Foreground="{DynamicResource TextSecondaryBrush}"
+                              FontSize="12"/>
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{localization:Loc Schedule_RunOn}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <ComboBox ItemsSource="{Binding WeeklyPresetOptions}"
+                                  SelectedItem="{Binding SelectedWeeklyPreset, Mode=TwoWay}"
+                                  Width="180"
+                                  HorizontalAlignment="Left">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate DataType="vm:WeeklyPresetOption">
+                                    <TextBlock Text="{Binding DisplayName}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Spacing="8" IsVisible="{Binding IsWeeklyCustomSelected}">
+                        <TextBlock Text="{localization:Loc Schedule_WeeklyCustomDays}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <ItemsControl ItemsSource="{Binding WeeklyDayOptions}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="vm:WeeklyDayOption">
+                                    <CheckBox Content="{Binding DisplayName}"
+                                              Margin="0,0,12,8"
+                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                    <StackPanel Spacing="4" HorizontalAlignment="Left">
+                        <TextBlock Text="{localization:Loc Schedule_RunAt}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TimePicker SelectedTime="{Binding WeeklyTime, Mode=TwoWay, FallbackValue={x:Null}}"
+                                    ClockIdentifier="24HourClock"
+                                    UseSeconds="False"
+                                    HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <icons:EmojiAppIcon Icon="Tip" Width="11" Height="11" Opacity="0.85"/>
+                        <TextBlock Text="{localization:Loc Schedule_WeeklyTip}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
             <!-- Status Section -->
-            <Border Background="{DynamicResource SurfaceColor}" 
-                   CornerRadius="12" 
+            <Border Background="{DynamicResource SurfaceColor}"
+                   CornerRadius="12"
                    Padding="16"
                    IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Spacing="8">
-                    <TextBlock Text="{localization:Loc Schedule_Status}" 
-                              FontWeight="SemiBold" 
+                    <TextBlock Text="{localization:Loc Schedule_Status}"
+                              FontWeight="SemiBold"
                               Foreground="{DynamicResource TextSecondaryBrush}"
                               FontSize="12"/>
                     <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Loc Schedule_LastRun}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                        <TextBlock Grid.Row="0" Grid.Column="1" 
-                                  Text="{Binding SelectedLastRunText}" 
+                        <TextBlock Grid.Row="0" Grid.Column="1"
+                                  Text="{Binding SelectedLastRunText}"
                                   FontSize="12"/>
-                        
+
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="{localization:Loc Schedule_NextRun}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                        <TextBlock Grid.Row="1" Grid.Column="1" 
-                                  Text="{Binding SelectedNextRunText}" 
+                        <TextBlock Grid.Row="1" Grid.Column="1"
+                                  Text="{Binding SelectedNextRunText}"
                                   FontSize="12"/>
-                        
+
                         <TextBlock Grid.Row="2" Grid.Column="0" Text="{localization:Loc Schedule_StatusLabel}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                        <TextBlock Grid.Row="2" Grid.Column="1" 
-                                  Text="{Binding SelectedStatusText}" 
+                        <TextBlock Grid.Row="2" Grid.Column="1"
+                                  Text="{Binding SelectedStatusText}"
                                   FontSize="12"/>
                     </Grid>
                 </StackPanel>
             </Border>
-            
+
             <!-- Save Button -->
             <Button Command="{Binding SaveCommand}"
                    Classes="primary"
@@ -326,25 +393,25 @@
                     <TextBlock Text="{localization:Loc Schedule_SaveAllTasks}"/>
                 </StackPanel>
             </Button>
-            
+
             <!-- Empty State -->
-            <Border Background="{DynamicResource SurfaceColor}" 
-                    CornerRadius="12" 
+            <Border Background="{DynamicResource SurfaceColor}"
+                    CornerRadius="12"
                     Padding="32"
                     IsVisible="{Binding !HasSelectedTask}">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
                     <icons:EmojiAppIcon Icon="Clock" Width="48" Height="48" Opacity="0.8" HorizontalAlignment="Center"/>
-                    <TextBlock Text="{localization:Loc Schedule_NoTaskSelected}" 
-                              FontSize="16" 
+                    <TextBlock Text="{localization:Loc Schedule_NoTaskSelected}"
+                              FontSize="16"
                               FontWeight="Medium"
                               HorizontalAlignment="Center"/>
-                    <TextBlock Text="{localization:Loc Schedule_SelectTaskHint}" 
+                    <TextBlock Text="{localization:Loc Schedule_SelectTaskHint}"
                               FontSize="12"
                               Foreground="{DynamicResource TextSecondaryBrush}"
                               HorizontalAlignment="Center"/>
                 </StackPanel>
             </Border>
-            
+
         </StackPanel>
     </ScrollViewer>
 </UserControl>

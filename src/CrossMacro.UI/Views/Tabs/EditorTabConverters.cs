@@ -85,6 +85,7 @@ public static class ScheduleTaskConverters
         {
             ScheduleType.Interval => localizationService["Schedule_TypeInterval"],
             ScheduleType.SpecificTime => localizationService["Schedule_TypeDateTime"],
+            ScheduleType.Weekly => localizationService["Schedule_TypeWeekly"],
             _ => task.Type.ToString()
         };
 
@@ -94,6 +95,7 @@ public static class ScheduleTaskConverters
 
         return string.Format(localizationService.CurrentCulture, localizationService["Schedule_ListSummary"], typeDisplay, fileDisplay);
     });
+
 }
 
 /// <summary>

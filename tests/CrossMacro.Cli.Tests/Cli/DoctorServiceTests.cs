@@ -792,6 +792,11 @@ public class DoctorServiceTests
             return _status.IsGranted(MacOSPermissionRequirement.ListenEvent);
         }
 
+        public bool IsListenEventListedOrGranted()
+        {
+            return _status.IsGranted(MacOSPermissionRequirement.ListenEvent);
+        }
+
         public bool IsPostEventAccessGranted()
         {
             return _status.IsGranted(MacOSPermissionRequirement.PostEvent);

@@ -29,11 +29,11 @@ public static class MacOSPermissionChecker
 
     public static MacOSPermissionStatus GetCurrentStatus()
     {
-        var listenEventApiAvailable = IsListenEventPreflightApiAvailable();
+        var listenEventApiAvailable = IsCoreGraphicsListenEventPreflightApiAvailable();
         var postEventApiAvailable = IsPostEventPreflightApiAvailable();
 
         return new MacOSPermissionStatus(
-            ListenEventGranted: listenEventApiAvailable && PreflightListenEventAccess(),
+            ListenEventGranted: listenEventApiAvailable && PreflightListenEventListedOrGranted(),
             PostEventGranted: postEventApiAvailable && PreflightPostEventAccess(),
             AccessibilityGranted: IsAccessibilityTrusted(),
             ListenEventApiAvailable: listenEventApiAvailable,
@@ -42,7 +42,12 @@ public static class MacOSPermissionChecker
 
     public static bool IsListenEventAccessGranted()
     {
-        return IsListenEventPreflightApiAvailable() && PreflightListenEventAccess();
+        return IsListenEventListedOrGranted();
+    }
+
+    public static bool IsListenEventListedOrGranted()
+    {
+        return PreflightListenEventListedOrGranted();
     }
 
     public static bool IsPostEventAccessGranted()
@@ -52,12 +57,14 @@ public static class MacOSPermissionChecker
 
     public static bool RequestListenEventAccess()
     {
-        return RequestPermissionAccess(
+        var ioHidRequested = RequestPermissionAccess(
             isApiAvailable: IsIOHIDListenEventRequestApiAvailable,
-            requestAccess: IOKit.RequestListenEventAccess)
-            || RequestPermissionAccess(
-                isApiAvailable: IsListenEventRequestApiAvailable,
-                requestAccess: CoreGraphics.CGRequestListenEventAccess);
+            requestAccess: IOKit.RequestListenEventAccess);
+        var coreGraphicsRequested = RequestPermissionAccess(
+            isApiAvailable: IsListenEventRequestApiAvailable,
+            requestAccess: CoreGraphics.CGRequestListenEventAccess);
+
+        return ioHidRequested || coreGraphicsRequested;
     }
 
     public static bool RequestPostEventAccess()
@@ -110,10 +117,10 @@ public static class MacOSPermissionChecker
         });
     }
 
-    private static bool IsListenEventPreflightApiAvailable()
+    private static bool IsCoreGraphicsListenEventPreflightApiAvailable()
     {
         return OperatingSystem.IsMacOSVersionAtLeast(10, 15)
-            && (IsIOHIDListenEventRequestApiAvailable() || CoreGraphics.IsCGPreflightListenEventAccessAvailable());
+            && CoreGraphics.IsCGPreflightListenEventAccessAvailable();
     }
 
     private static bool IsListenEventRequestApiAvailable()
@@ -139,15 +146,16 @@ public static class MacOSPermissionChecker
             && CoreGraphics.IsCGRequestPostEventAccessAvailable();
     }
 
-    private static bool PreflightListenEventAccess()
+    private static bool PreflightCoreGraphicsListenEventAccess()
+    {
+        return CoreGraphics.CGPreflightListenEventAccess();
+    }
+
+    private static bool PreflightListenEventListedOrGranted()
     {
         return CheckPermissionAccess(
-            isApiAvailable: IsIOHIDListenEventRequestApiAvailable,
-            checkAccess: IOKit.CheckListenEventAccess)
-            || CheckPermissionAccess(
-                isApiAvailable: () => OperatingSystem.IsMacOSVersionAtLeast(10, 15)
-                    && CoreGraphics.IsCGPreflightListenEventAccessAvailable(),
-                checkAccess: CoreGraphics.CGPreflightListenEventAccess);
+            isApiAvailable: IsCoreGraphicsListenEventPreflightApiAvailable,
+            checkAccess: PreflightCoreGraphicsListenEventAccess);
     }
 
     private static bool PreflightPostEventAccess()

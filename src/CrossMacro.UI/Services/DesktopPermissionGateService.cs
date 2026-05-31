@@ -46,6 +46,7 @@ internal sealed class DesktopPermissionGateService
         ArgumentNullException.ThrowIfNull(desktop);
 
         var permissionChecker = _getPermissionChecker();
+        PrepareStartupPermissionRequest(permissionChecker);
         var startupGateKind = GetStartupPermissionGateKind(permissionChecker);
         if (startupGateKind != StartupPermissionGateKind.None)
         {
@@ -69,6 +70,19 @@ internal sealed class DesktopPermissionGateService
         return GetStartupPermissionGateKind(permissionChecker) != StartupPermissionGateKind.None;
     }
 
+    internal static void PrepareStartupPermissionRequest(IPermissionChecker? permissionChecker)
+    {
+        if (permissionChecker == null || !permissionChecker.IsSupported || !permissionChecker.RequiresStartupPermissionGate)
+        {
+            return;
+        }
+
+        if (permissionChecker is IMacOSPermissionChecker macOSPermissionChecker)
+        {
+            macOSPermissionChecker.RequestListenEventAccess();
+        }
+    }
+
     internal static StartupPermissionGateKind GetStartupPermissionGateKind(IPermissionChecker? permissionChecker)
     {
         if (permissionChecker == null || !permissionChecker.IsSupported)
@@ -83,7 +97,7 @@ internal sealed class DesktopPermissionGateService
 
         if (permissionChecker is IMacOSPermissionChecker macOSPermissionChecker)
         {
-            if (!macOSPermissionChecker.IsListenEventAccessGranted())
+            if (!macOSPermissionChecker.IsListenEventListedOrGranted())
             {
                 return StartupPermissionGateKind.InputMonitoring;
             }

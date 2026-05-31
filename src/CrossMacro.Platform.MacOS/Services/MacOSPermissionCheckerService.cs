@@ -9,6 +9,7 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
 {
     private readonly Func<MacOSPermissionStatus> _getCurrentStatus;
     private readonly Func<bool> _isListenEventAccessGranted;
+    private readonly Func<bool> _isListenEventListedOrGranted;
     private readonly Func<bool> _isPostEventAccessGranted;
     private readonly Func<bool> _isAccessibilityTrusted;
     private readonly Func<bool> _requestListenEventAccess;
@@ -19,6 +20,7 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
             MacOSPermissionChecker.GetCurrentStatus,
             MacOSPermissionChecker.IsAccessibilityTrusted,
             MacOSPermissionChecker.IsListenEventAccessGranted,
+            MacOSPermissionChecker.IsListenEventListedOrGranted,
             MacOSPermissionChecker.IsPostEventAccessGranted,
             MacOSPermissionChecker.RequestListenEventAccess,
             MacOSPermissionChecker.RequestPostEventAccess)
@@ -29,12 +31,14 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
         Func<MacOSPermissionStatus> getCurrentStatus,
         Func<bool> isAccessibilityTrusted,
         Func<bool>? isListenEventAccessGranted = null,
+        Func<bool>? isListenEventListedOrGranted = null,
         Func<bool>? isPostEventAccessGranted = null,
         Func<bool>? requestListenEventAccess = null,
         Func<bool>? requestPostEventAccess = null)
     {
         _getCurrentStatus = getCurrentStatus;
-        _isListenEventAccessGranted = isListenEventAccessGranted ?? (() => getCurrentStatus().IsGranted(MacOSPermissionRequirement.ListenEvent));
+        _isListenEventListedOrGranted = isListenEventListedOrGranted ?? (() => getCurrentStatus().IsGranted(MacOSPermissionRequirement.ListenEvent));
+        _isListenEventAccessGranted = isListenEventAccessGranted ?? _isListenEventListedOrGranted;
         _isPostEventAccessGranted = isPostEventAccessGranted ?? (() => getCurrentStatus().IsGranted(MacOSPermissionRequirement.PostEvent));
         _isAccessibilityTrusted = isAccessibilityTrusted;
         _requestListenEventAccess = requestListenEventAccess ?? (() => false);
@@ -63,6 +67,11 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
     public bool IsListenEventAccessGranted()
     {
         return _isListenEventAccessGranted();
+    }
+
+    public bool IsListenEventListedOrGranted()
+    {
+        return _isListenEventListedOrGranted();
     }
 
     public bool IsPostEventAccessGranted()

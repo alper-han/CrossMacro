@@ -65,6 +65,20 @@ public sealed class DesktopPermissionGateServiceTests
     }
 
     [Fact]
+    public void GetStartupPermissionGateKind_WhenMacOSListenAccessGrantedButNotListed_BlocksForInputMonitoring()
+    {
+        var checker = new TestMacOSPermissionChecker(
+            listenEventGranted: true,
+            postEventGranted: true,
+            accessibilityGranted: true,
+            listenEventListedOrGranted: false);
+
+        var gateKind = DesktopPermissionGateService.GetStartupPermissionGateKind(checker);
+
+        Assert.Equal(DesktopPermissionGateService.StartupPermissionGateKind.InputMonitoring, gateKind);
+    }
+
+    [Fact]
     public void GetStartupPermissionGateKind_WhenMacOSStatusReportsListenAndPlaybackGranted_DoesNotBlock()
     {
         var checker = new TestMacOSPermissionChecker(
@@ -117,6 +131,34 @@ public sealed class DesktopPermissionGateServiceTests
         Assert.Equal(DesktopPermissionGateService.StartupPermissionGateKind.InputMonitoring, gateKind);
         Assert.Equal(0, checker.AccessibilityProbeCount);
         Assert.Equal(0, checker.PostEventProbeCount);
+    }
+
+    [Fact]
+    public void PrepareStartupPermissionRequest_WhenMacOSStartupGateRequired_RequestsListenEventEvenWhenAlreadyGranted()
+    {
+        var checker = new TestMacOSPermissionChecker(
+            listenEventGranted: true,
+            postEventGranted: true,
+            accessibilityGranted: true);
+
+        DesktopPermissionGateService.PrepareStartupPermissionRequest(checker);
+
+        Assert.Equal(1, checker.ListenEventRequestCount);
+        Assert.Equal(0, checker.AccessibilityRequestCount);
+    }
+
+    [Fact]
+    public void PrepareStartupPermissionRequest_WhenCheckerUnsupported_DoesNotRequestListenEvent()
+    {
+        var checker = new TestMacOSPermissionChecker(
+            listenEventGranted: true,
+            postEventGranted: true,
+            accessibilityGranted: true,
+            isSupported: false);
+
+        DesktopPermissionGateService.PrepareStartupPermissionRequest(checker);
+
+        Assert.Equal(0, checker.ListenEventRequestCount);
     }
 
     [Fact]
@@ -226,23 +268,29 @@ public sealed class DesktopPermissionGateServiceTests
         private readonly bool _postEventGranted;
         private readonly bool _accessibilityGranted;
         private readonly bool _listenEventApiAvailable;
+        private readonly bool? _listenEventListedOrGranted;
         private readonly bool _postEventApiAvailable;
+        private readonly bool _isSupported;
 
         internal TestMacOSPermissionChecker(
             bool listenEventGranted,
             bool postEventGranted,
             bool accessibilityGranted,
             bool listenEventApiAvailable = true,
-            bool postEventApiAvailable = true)
+            bool? listenEventListedOrGranted = null,
+            bool postEventApiAvailable = true,
+            bool isSupported = true)
         {
             _listenEventGranted = listenEventGranted;
             _postEventGranted = postEventGranted;
             _accessibilityGranted = accessibilityGranted;
             _listenEventApiAvailable = listenEventApiAvailable;
+            _listenEventListedOrGranted = listenEventListedOrGranted;
             _postEventApiAvailable = postEventApiAvailable;
+            _isSupported = isSupported;
         }
 
-        public bool IsSupported => true;
+        public bool IsSupported => _isSupported;
         public bool RequiresStartupPermissionGate => true;
         public int ListenEventRequestCount { get; private set; }
         public int AccessibilityRequestCount { get; private set; }
@@ -267,6 +315,11 @@ public sealed class DesktopPermissionGateServiceTests
         public bool IsListenEventAccessGranted()
         {
             return _listenEventApiAvailable && _listenEventGranted;
+        }
+
+        public bool IsListenEventListedOrGranted()
+        {
+            return _listenEventListedOrGranted ?? (_listenEventApiAvailable && _listenEventGranted);
         }
 
         public bool IsPostEventAccessGranted()
@@ -380,6 +433,11 @@ public sealed class DesktopPermissionGateServiceTests
         }
 
         public bool IsListenEventAccessGranted()
+        {
+            return _listenEventGranted;
+        }
+
+        public bool IsListenEventListedOrGranted()
         {
             return _listenEventGranted;
         }

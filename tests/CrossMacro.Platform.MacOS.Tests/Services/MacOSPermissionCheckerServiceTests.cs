@@ -136,6 +136,31 @@ public class MacOSPermissionCheckerServiceTests
     }
 
     [Fact]
+    public void IsListenEventListedOrGranted_UsesDedicatedListingProbe()
+    {
+        var accessProbes = 0;
+        var listingProbes = 0;
+        var checker = new MacOSPermissionCheckerService(
+            getCurrentStatus: () => throw new InvalidOperationException("full status should not be used"),
+            isAccessibilityTrusted: () => true,
+            isListenEventAccessGranted: () =>
+            {
+                accessProbes++;
+                return true;
+            },
+            isListenEventListedOrGranted: () =>
+            {
+                listingProbes++;
+                return false;
+            });
+
+        Assert.False(checker.IsListenEventListedOrGranted());
+        Assert.True(checker.IsListenEventAccessGranted());
+        Assert.Equal(1, listingProbes);
+        Assert.Equal(1, accessProbes);
+    }
+
+    [Fact]
     public void IsPermissionGranted_ForPostEvent_UsesDedicatedPostProbeWithoutAccessibilityProbe()
     {
         var postProbes = 0;

@@ -643,7 +643,10 @@ jobs:
           }
 
           if (Get-Command winget -ErrorAction SilentlyContinue) {
-            Invoke-CheckedNative winget validate --manifest "$versionManifestDirectory" --disable-interactivity --verbose-logs
+            winget validate --manifest "$versionManifestDirectory" --disable-interactivity --verbose-logs
+            if ($LASTEXITCODE -ne 0) {
+              Write-Warning "winget validate returned exit code $LASTEXITCODE. Continuing after structural checks and relying on wingetcreate submit validation."
+            }
           }
           else {
             Write-Warning 'winget CLI was not found on the runner; continuing after structural manifest checks and relying on wingetcreate submit validation.'

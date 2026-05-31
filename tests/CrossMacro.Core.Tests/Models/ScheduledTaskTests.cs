@@ -225,6 +225,133 @@ public class ScheduledTaskTests
         task.NextRunTime.Should().Be(expectedUtc);
     }
 
+    [Fact]
+    public void CalculateNextRunTime_Weekly_WhenSelectedDayTimeIsAheadToday_UsesToday()
+    {
+        var now = new DateTime(2024, 1, 1, 8, 0, 0, DateTimeKind.Local); // Monday
+        var task = new ScheduledTask
+        {
+            Type = ScheduleType.Weekly,
+            WeeklyDays = ScheduleDays.Monday | ScheduleDays.Wednesday,
+            WeeklyTime = new TimeSpan(9, 0, 0)
+        };
+
+        task.CalculateNextRunTime(now);
+
+        task.NextRunTime.Should().Be(new DateTime(2024, 1, 1, 9, 0, 0, DateTimeKind.Local).ToUniversalTime());
+    }
+
+    [Fact]
+    public void CalculateNextRunTime_Weekly_WhenSelectedDayTimeHasPassedToday_UsesNextSelectedDay()
+    {
+        var now = new DateTime(2024, 1, 1, 10, 0, 0, DateTimeKind.Local); // Monday
+        var task = new ScheduledTask
+        {
+            Type = ScheduleType.Weekly,
+            WeeklyDays = ScheduleDays.Monday | ScheduleDays.Wednesday,
+            WeeklyTime = new TimeSpan(9, 0, 0)
+        };
+
+        task.CalculateNextRunTime(now);
+
+        task.NextRunTime.Should().Be(new DateTime(2024, 1, 3, 9, 0, 0, DateTimeKind.Local).ToUniversalTime());
+    }
+
+    [Fact]
+    public void CalculateNextRunTime_Weekly_WhenWeekdaysFromSunday_UsesMonday()
+    {
+        var now = new DateTime(2024, 1, 7, 12, 0, 0, DateTimeKind.Local); // Sunday
+        var task = new ScheduledTask
+        {
+            Type = ScheduleType.Weekly,
+            WeeklyDays = ScheduleDays.Weekdays,
+            WeeklyTime = new TimeSpan(8, 30, 0)
+        };
+
+        task.CalculateNextRunTime(now);
+
+        task.NextRunTime.Should().Be(new DateTime(2024, 1, 8, 8, 30, 0, DateTimeKind.Local).ToUniversalTime());
+    }
+
+    [Fact]
+    public void CalculateNextRunTime_Weekly_WhenOnlySelectedDayTimeHasPassed_UsesSameDayNextWeek()
+    {
+        var now = new DateTime(2024, 1, 1, 10, 0, 0, DateTimeKind.Local); // Monday
+        var task = new ScheduledTask
+        {
+            Type = ScheduleType.Weekly,
+            WeeklyDays = ScheduleDays.Monday,
+            WeeklyTime = new TimeSpan(9, 0, 0)
+        };
+
+        task.CalculateNextRunTime(now);
+
+        task.NextRunTime.Should().Be(new DateTime(2024, 1, 8, 9, 0, 0, DateTimeKind.Local).ToUniversalTime());
+    }
+
+    [Fact]
+    public void CalculateNextRunTime_Weekly_WhenNoDaysSelected_ClearsNextRunTime()
+    {
+        var now = new DateTime(2024, 1, 1, 8, 0, 0, DateTimeKind.Local);
+        var task = new ScheduledTask
+        {
+            Type = ScheduleType.Weekly,
+            WeeklyDays = ScheduleDays.None,
+            WeeklyTime = new TimeSpan(9, 0, 0)
+        };
+
+        task.CalculateNextRunTime(now);
+
+        task.NextRunTime.Should().BeNull();
+    }
+
+    [Fact]
+    public void CanBeEnabled_WhenWeeklyHasNoSelectedDays_ReturnsFalse()
+    {
+        var task = new ScheduledTask
+        {
+            MacroFilePath = "test.macro",
+            Type = ScheduleType.Weekly,
+            WeeklyDays = ScheduleDays.None
+        };
+
+        task.CanBeEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsEnabled_WhenWeeklyHasNoSelectedDays_DoesNotEnable()
+    {
+        var task = new ScheduledTask
+        {
+            MacroFilePath = "test.macro",
+            Type = ScheduleType.Weekly,
+            WeeklyDays = ScheduleDays.None
+        };
+
+        task.IsEnabled = true;
+
+        task.IsEnabled.Should().BeFalse();
+        task.NextRunTime.Should().BeNull();
+    }
+
+    [Fact]
+    public void WeeklyDays_WhenEnabledTaskLosesAllSelectedDays_DisablesTask()
+    {
+        var task = new ScheduledTask
+        {
+            MacroFilePath = "test.macro",
+            Type = ScheduleType.Weekly,
+            WeeklyDays = ScheduleDays.Monday,
+            WeeklyTime = new TimeSpan(9, 0, 0)
+        };
+        task.IsEnabled = true;
+
+        task.WeeklyDays = ScheduleDays.None;
+
+        task.IsEnabled.Should().BeFalse();
+        task.NextRunTime.Should().BeNull();
+    }
+
     private static TimeSpan ToInterval(IntervalUnit unit, int value)
     {
         return unit switch

@@ -17,7 +17,32 @@ public enum ScheduleType
     /// <summary>
     /// Runs once at a specific date and time
     /// </summary>
-    SpecificTime
+    SpecificTime,
+
+    /// <summary>
+    /// Repeats weekly on selected days at a specific local time
+    /// </summary>
+    Weekly
+}
+
+/// <summary>
+/// Days of week used by weekly scheduled tasks.
+/// </summary>
+[Flags]
+public enum ScheduleDays
+{
+    None = 0,
+    Monday = 1 << 0,
+    Tuesday = 1 << 1,
+    Wednesday = 1 << 2,
+    Thursday = 1 << 3,
+    Friday = 1 << 4,
+    Saturday = 1 << 5,
+    Sunday = 1 << 6,
+
+    Weekdays = Monday | Tuesday | Wednesday | Thursday | Friday,
+    Weekends = Saturday | Sunday,
+    EveryDay = Weekdays | Weekends
 }
 
 /// <summary>
@@ -67,18 +92,23 @@ public class ScheduledTask : INotifyPropertyChanged
         { 
             _macroFilePath = value; 
             OnPropertyChanged(); 
-            OnPropertyChanged(nameof(CanBeEnabled));
+            RefreshEnableState();
         }
     }
     
     /// <summary>
-    /// Type of schedule (Interval or DateTime)
+    /// Type of schedule (Interval, DateTime, or Weekly)
     /// </summary>
     private ScheduleType _type = ScheduleType.Interval;
     public ScheduleType Type
     {
         get => _type;
-        set { _type = value; OnPropertyChanged(); }
+        set
+        {
+            _type = value;
+            OnPropertyChanged();
+            RefreshEnableState();
+        }
     }
     
     /// <summary>
@@ -108,10 +138,10 @@ public class ScheduledTask : INotifyPropertyChanged
         get => _isEnabled;
         set
         {
-            // Can only enable if macro file is set
-            if (value && string.IsNullOrEmpty(MacroFilePath))
+            // Can only enable if required schedule inputs are set
+            if (value && !CanBeEnabled)
             {
-                return; // Don't allow enabling without a macro file
+                return; // Don't allow enabling without required inputs
             }
             
             _isEnabled = value;
@@ -130,7 +160,8 @@ public class ScheduledTask : INotifyPropertyChanged
     /// <summary>
     /// Whether the task can be enabled (has a macro file path)
     /// </summary>
-    public bool CanBeEnabled => !string.IsNullOrEmpty(MacroFilePath);
+    public bool CanBeEnabled => !string.IsNullOrEmpty(MacroFilePath)
+        && (Type != ScheduleType.Weekly || WeeklyDays != ScheduleDays.None);
     
     // Interval settings
     
@@ -199,6 +230,44 @@ public class ScheduledTask : INotifyPropertyChanged
     {
         get => _scheduledDateTime;
         set { _scheduledDateTime = value; OnPropertyChanged(); }
+    }
+
+    // Weekly settings
+
+    /// <summary>
+    /// Days on which a weekly task should run.
+    /// </summary>
+    private ScheduleDays _weeklyDays = ScheduleDays.Weekdays;
+    public ScheduleDays WeeklyDays
+    {
+        get => _weeklyDays;
+        set
+        {
+            _weeklyDays = value;
+            OnPropertyChanged();
+            RefreshEnableState();
+        }
+    }
+
+    private void RefreshEnableState()
+    {
+        OnPropertyChanged(nameof(CanBeEnabled));
+        if (_isEnabled && !CanBeEnabled)
+        {
+            _isEnabled = false;
+            OnPropertyChanged(nameof(IsEnabled));
+            NextRunTime = null;
+        }
+    }
+
+    /// <summary>
+    /// Local time of day at which a weekly task should run.
+    /// </summary>
+    private TimeSpan _weeklyTime = new(9, 0, 0);
+    public TimeSpan WeeklyTime
+    {
+        get => _weeklyTime;
+        set { _weeklyTime = NormalizeTimeOfDay(value); OnPropertyChanged(); }
     }
     
     // State
@@ -305,6 +374,70 @@ public class ScheduledTask : INotifyPropertyChanged
 
             NextRunTime = scheduledUtc;
         }
+        else if (Type == ScheduleType.Weekly)
+        {
+            NextRunTime = CalculateNextWeeklyRunTime(baseTime);
+        }
+    }
+
+    private DateTime? CalculateNextWeeklyRunTime(DateTime baseTime)
+    {
+        if (WeeklyDays == ScheduleDays.None)
+        {
+            return null;
+        }
+
+        var localBaseTime = baseTime.Kind switch
+        {
+            DateTimeKind.Local => baseTime,
+            DateTimeKind.Utc => baseTime.ToLocalTime(),
+            _ => DateTime.SpecifyKind(baseTime, DateTimeKind.Local)
+        };
+        var normalizedWeeklyTime = NormalizeTimeOfDay(WeeklyTime);
+
+        for (var dayOffset = 0; dayOffset <= 7; dayOffset++)
+        {
+            var candidateDate = localBaseTime.Date.AddDays(dayOffset);
+            if (!WeeklyDays.HasFlag(ToScheduleDay(candidateDate.DayOfWeek)))
+            {
+                continue;
+            }
+
+            var candidateLocal = DateTime.SpecifyKind(candidateDate + normalizedWeeklyTime, DateTimeKind.Local);
+            if (candidateLocal > localBaseTime)
+            {
+                return candidateLocal.ToUniversalTime();
+            }
+        }
+
+        return null;
+    }
+
+    private static ScheduleDays ToScheduleDay(DayOfWeek dayOfWeek)
+    {
+        return dayOfWeek switch
+        {
+            DayOfWeek.Monday => ScheduleDays.Monday,
+            DayOfWeek.Tuesday => ScheduleDays.Tuesday,
+            DayOfWeek.Wednesday => ScheduleDays.Wednesday,
+            DayOfWeek.Thursday => ScheduleDays.Thursday,
+            DayOfWeek.Friday => ScheduleDays.Friday,
+            DayOfWeek.Saturday => ScheduleDays.Saturday,
+            DayOfWeek.Sunday => ScheduleDays.Sunday,
+            _ => ScheduleDays.None
+        };
+    }
+
+    private static TimeSpan NormalizeTimeOfDay(TimeSpan time)
+    {
+        if (time < TimeSpan.Zero)
+        {
+            return TimeSpan.Zero;
+        }
+
+        return time >= TimeSpan.FromDays(1)
+            ? TimeSpan.FromTicks(TimeSpan.TicksPerDay - 1)
+            : time;
     }
 
     private TimeSpan GetNextIntervalDelay()

@@ -1,4 +1,5 @@
 using CoreLogging = CrossMacro.Core.Logging;
+using CrossMacro.Infrastructure.Logging;
 
 namespace CrossMacro.Cli.Tests;
 
@@ -30,6 +31,7 @@ internal static class ConsoleTestLock
         public void Dispose()
         {
             Interlocked.Exchange(ref _loggerScope, null)?.Dispose();
+            LoggerSetup.Initialize("Fatal", enableFileLogging: false, enableConsoleLogging: false);
             Gate.Release();
         }
     }

@@ -562,8 +562,6 @@ jobs:
           WINGETCREATE_SHA256: 8bd738851b524885410112678e3771b341c5c716de60fbbecb88ab0a363ed85d
         run: |
           $ErrorActionPreference = 'Stop'
-          $PSNativeCommandUseErrorActionPreference = $true
-
           function Invoke-CheckedNative {
             if ($args.Count -eq 0) {
               throw 'Invoke-CheckedNative requires a command.'
@@ -640,16 +638,6 @@ jobs:
             if ($finalInstallerText -notmatch "CrossMacro-$env:PACKAGE_VERSION-win-$expectedArchitecture\.exe") {
               throw "Final WinGet installer manifest is missing $expectedArchitecture installer URL."
             }
-          }
-
-          if (Get-Command winget -ErrorAction SilentlyContinue) {
-            winget validate --manifest "$versionManifestDirectory" --disable-interactivity --verbose-logs
-            if ($LASTEXITCODE -ne 0) {
-              Write-Warning "winget validate returned exit code $LASTEXITCODE. Continuing after structural checks and relying on wingetcreate submit validation."
-            }
-          }
-          else {
-            Write-Warning 'winget CLI was not found on the runner; continuing after structural manifest checks and relying on wingetcreate submit validation.'
           }
 
           Invoke-CheckedNative .\wingetcreate.exe submit "$versionManifestDirectory" `

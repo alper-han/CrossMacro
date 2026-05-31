@@ -41,6 +41,10 @@ public class ScheduleViewModelTests
             "Schedule_StatusRunning" => "[Schedule_StatusRunning] {0}",
             "Schedule_StatusCompleted" => "[Schedule_StatusCompleted] {0}",
             "Schedule_StatusFailedExecution" => "[Schedule_StatusFailedExecution] {0} | {1}",
+            "Schedule_WeeklyEveryDay" => "[Schedule_WeeklyEveryDay]",
+            "Schedule_WeeklyWeekdays" => "[Schedule_WeeklyWeekdays]",
+            "Schedule_WeeklyWeekends" => "[Schedule_WeeklyWeekends]",
+            "Schedule_WeeklyCustom" => "[Schedule_WeeklyCustom]",
             _ => call.Arg<string>()
         });
         var timeProvider = Substitute.For<ITimeProvider>();
@@ -121,6 +125,22 @@ public class ScheduleViewModelTests
         _schedulerService.Received(1).AddTask(Arg.Any<ScheduledTask>());
         _viewModel.SelectedTask.Should().NotBeNull();
         _viewModel.SelectedTask!.Name.Should().Contain("[Schedule_DefaultTaskName]");
+    }
+
+    [Fact]
+    public void SelectedRunTexts_DisplayUtcRuntimeValuesAsLocalTime()
+    {
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        _localizationService.CurrentCulture.Returns(culture);
+        var task = new ScheduledTask
+        {
+            LastRunTime = new DateTime(2026, 1, 1, 7, 0, 0, DateTimeKind.Utc),
+            NextRunTime = new DateTime(2026, 1, 1, 8, 30, 0, DateTimeKind.Utc)
+        };
+        _viewModel.SelectedTask = task;
+
+        _viewModel.SelectedLastRunText.Should().Be(task.LastRunTime.Value.ToLocalTime().ToString("G", culture));
+        _viewModel.SelectedNextRunText.Should().Be(task.NextRunTime.Value.ToLocalTime().ToString("G", culture));
     }
 
     [Fact]
@@ -223,6 +243,14 @@ public class ScheduleViewModelTests
 
         // Assert 2
         task.Type.Should().Be(ScheduleType.Interval);
+        _viewModel.IsDateTimeSelected.Should().BeFalse();
+
+        // Act 3
+        _viewModel.IsWeeklySelected = true;
+
+        // Assert 3
+        task.Type.Should().Be(ScheduleType.Weekly);
+        _viewModel.IsIntervalSelected.Should().BeFalse();
         _viewModel.IsDateTimeSelected.Should().BeFalse();
     }
 
@@ -329,5 +357,91 @@ public class ScheduleViewModelTests
 
         // Assert
         task.ScheduledDateTime.Should().Be(new DateTime(2032, 6, 7, 15, 20, 25));
+    }
+
+    [Fact]
+    public void WeeklyTime_WhenChanged_UpdatesSelectedTaskTime()
+    {
+        var task = new ScheduledTask { Type = ScheduleType.Weekly, WeeklyTime = new TimeSpan(9, 0, 0) };
+        _viewModel.SelectedTask = task;
+
+        _viewModel.WeeklyTime = new TimeSpan(14, 45, 0);
+
+        task.WeeklyTime.Should().Be(new TimeSpan(14, 45, 0));
+    }
+
+    [Fact]
+    public void SelectedWeeklyPreset_WhenChanged_UpdatesWeeklyDays()
+    {
+        var task = new ScheduledTask { Type = ScheduleType.Weekly, WeeklyDays = ScheduleDays.Weekdays };
+        _viewModel.SelectedTask = task;
+
+        _viewModel.SelectedWeeklyPreset = _viewModel.WeeklyPresetOptions.Single(x => x.Value == ScheduleDays.Weekends);
+
+        task.WeeklyDays.Should().Be(ScheduleDays.Weekends);
+        _viewModel.IsWeeklyCustomSelected.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SelectedWeeklyPreset_WhenCustomSelected_ShowsCustomDaySelection()
+    {
+        var task = new ScheduledTask { Type = ScheduleType.Weekly, WeeklyDays = ScheduleDays.Weekdays };
+        _viewModel.SelectedTask = task;
+
+        _viewModel.SelectedWeeklyPreset = _viewModel.WeeklyPresetOptions.Single(x => x.Value == null);
+
+        task.WeeklyDays.Should().Be(ScheduleDays.Weekdays);
+        _viewModel.IsWeeklyCustomSelected.Should().BeTrue();
+    }
+
+    [Fact]
+    public void WeeklyDaySelection_WhenChanged_UpdatesWeeklyDays()
+    {
+        var task = new ScheduledTask { Type = ScheduleType.Weekly, WeeklyDays = ScheduleDays.Monday };
+        _viewModel.SelectedTask = task;
+
+        var dayOptions = _viewModel.WeeklyDayOptions.ToArray();
+        dayOptions.Single(option => option.Value == ScheduleDays.Wednesday).IsSelected = true;
+        dayOptions.Single(option => option.Value == ScheduleDays.Monday).IsSelected = false;
+
+        task.WeeklyDays.Should().Be(ScheduleDays.Wednesday);
+        _viewModel.IsWeeklyCustomSelected.Should().BeTrue();
+        dayOptions.Select(option => option.Value)
+            .Should().Contain([ScheduleDays.Monday, ScheduleDays.Tuesday, ScheduleDays.Wednesday, ScheduleDays.Thursday, ScheduleDays.Friday, ScheduleDays.Saturday, ScheduleDays.Sunday]);
+    }
+
+    [Fact]
+    public void SelectedTask_WhenWeeklyHasNoSelectedDays_CannotBeEnabled()
+    {
+        var task = new ScheduledTask
+        {
+            MacroFilePath = "test.macro",
+            Type = ScheduleType.Weekly,
+            WeeklyDays = ScheduleDays.None
+        };
+
+        _viewModel.SelectedTask = task;
+
+        task.CanBeEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void WeeklyDaySelection_WhenLastDayIsCleared_DisablesEnabledTask()
+    {
+        var task = new ScheduledTask
+        {
+            MacroFilePath = "test.macro",
+            Type = ScheduleType.Weekly,
+            WeeklyDays = ScheduleDays.Monday,
+            WeeklyTime = new TimeSpan(9, 0, 0)
+        };
+        task.IsEnabled = true;
+        _viewModel.SelectedTask = task;
+
+        _viewModel.WeeklyDayOptions.Single(option => option.Value == ScheduleDays.Monday).IsSelected = false;
+
+        task.IsEnabled.Should().BeFalse();
+        task.CanBeEnabled.Should().BeFalse();
+        task.NextRunTime.Should().BeNull();
     }
 }

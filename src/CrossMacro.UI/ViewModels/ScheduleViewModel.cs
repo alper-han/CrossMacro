@@ -28,6 +28,8 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     private ScheduledTask? _selectedTask;
     private bool _isIntervalSelected = true;
     private bool _isDateTimeSelected;
+    private bool _isWeeklySelected;
+    private bool _useCustomWeeklyDays;
     private bool _disposed;
 
     public ObservableCollection<ScheduledTask> Tasks => _schedulerService.Tasks ?? new ObservableCollection<ScheduledTask>();
@@ -37,6 +39,25 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         new IntervalUnitOption(IntervalUnit.Seconds, _localizationService["Schedule_Seconds"]),
         new IntervalUnitOption(IntervalUnit.Minutes, _localizationService["Schedule_Minutes"]),
         new IntervalUnitOption(IntervalUnit.Hours, _localizationService["Schedule_Hours"])
+    };
+
+    public IReadOnlyList<WeeklyPresetOption> WeeklyPresetOptions => new[]
+    {
+        new WeeklyPresetOption(ScheduleDays.EveryDay, _localizationService["Schedule_WeeklyEveryDay"]),
+        new WeeklyPresetOption(ScheduleDays.Weekdays, _localizationService["Schedule_WeeklyWeekdays"]),
+        new WeeklyPresetOption(ScheduleDays.Weekends, _localizationService["Schedule_WeeklyWeekends"]),
+        new WeeklyPresetOption(null, _localizationService["Schedule_WeeklyCustom"])
+    };
+
+    public IReadOnlyList<WeeklyDayOption> WeeklyDayOptions => new WeeklyDayOption[]
+    {
+        new(this, ScheduleDays.Monday, _localizationService["Schedule_Monday"]),
+        new(this, ScheduleDays.Tuesday, _localizationService["Schedule_Tuesday"]),
+        new(this, ScheduleDays.Wednesday, _localizationService["Schedule_Wednesday"]),
+        new(this, ScheduleDays.Thursday, _localizationService["Schedule_Thursday"]),
+        new(this, ScheduleDays.Friday, _localizationService["Schedule_Friday"]),
+        new(this, ScheduleDays.Saturday, _localizationService["Schedule_Saturday"]),
+        new(this, ScheduleDays.Sunday, _localizationService["Schedule_Sunday"])
     };
 
     public string TaskCountText => string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_ItemsText"], Tasks.Count);
@@ -98,6 +119,8 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
                 or nameof(ScheduledTask.IntervalMinValue)
                 or nameof(ScheduledTask.IntervalMaxValue)
                 or nameof(ScheduledTask.ScheduledDateTime)
+                or nameof(ScheduledTask.WeeklyDays)
+                or nameof(ScheduledTask.WeeklyTime)
                 or nameof(ScheduledTask.Type))
         {
             RaiseOnUiThread(() =>
@@ -105,6 +128,13 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
                 if (e.PropertyName == nameof(ScheduledTask.IntervalUnit))
                 {
                     OnPropertyChanged(nameof(SelectedIntervalUnit));
+                }
+
+                if (e.PropertyName == nameof(ScheduledTask.WeeklyDays))
+                {
+                    SyncWeeklyPresetFromSelectedTask();
+                    OnWeeklyDaySelectionChanged();
+                    OnPropertyChanged(nameof(SelectedTask));
                 }
 
                 task.CalculateNextRunTime(_timeProvider.UtcNow);
@@ -136,10 +166,10 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             ? _localizationService["Schedule_NoFileSelected"] 
             : Path.GetFileName(SelectedTask.MacroFilePath);
 
-    public string SelectedLastRunText => SelectedTask?.LastRunTime?.ToString("G", _localizationService.CurrentCulture)
+    public string SelectedLastRunText => SelectedTask?.LastRunTime?.ToLocalTime().ToString("G", _localizationService.CurrentCulture)
         ?? _localizationService["Schedule_Never"];
 
-    public string SelectedNextRunText => SelectedTask?.NextRunTime?.ToString("G", _localizationService.CurrentCulture)
+    public string SelectedNextRunText => SelectedTask?.NextRunTime?.ToLocalTime().ToString("G", _localizationService.CurrentCulture)
         ?? _localizationService["Schedule_NotScheduled"];
 
     public string SelectedStatusText => string.IsNullOrWhiteSpace(SelectedTask?.LastStatus)
@@ -159,7 +189,9 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
                 {
                     SelectedTask.Type = ScheduleType.Interval;
                     _isDateTimeSelected = false;
+                    _isWeeklySelected = false;
                     OnPropertyChanged(nameof(IsDateTimeSelected));
+                    OnPropertyChanged(nameof(IsWeeklySelected));
                 }
             }
         }
@@ -178,7 +210,30 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
                 {
                     SelectedTask.Type = ScheduleType.SpecificTime;
                     _isIntervalSelected = false;
+                    _isWeeklySelected = false;
                     OnPropertyChanged(nameof(IsIntervalSelected));
+                    OnPropertyChanged(nameof(IsWeeklySelected));
+                }
+            }
+        }
+    }
+
+    public bool IsWeeklySelected
+    {
+        get => _isWeeklySelected;
+        set
+        {
+            if (_isWeeklySelected != value)
+            {
+                _isWeeklySelected = value;
+                OnPropertyChanged();
+                if (value && SelectedTask != null)
+                {
+                    SelectedTask.Type = ScheduleType.Weekly;
+                    _isIntervalSelected = false;
+                    _isDateTimeSelected = false;
+                    OnPropertyChanged(nameof(IsIntervalSelected));
+                    OnPropertyChanged(nameof(IsDateTimeSelected));
                 }
             }
         }
@@ -278,16 +333,128 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         }
     }
 
+    public TimeSpan? WeeklyTime
+    {
+        get => SelectedTask?.WeeklyTime;
+        set
+        {
+            if (SelectedTask != null && value.HasValue && SelectedTask.WeeklyTime != value.Value)
+            {
+                SelectedTask.WeeklyTime = value.Value;
+                if (SelectedTask.IsEnabled)
+                {
+                    SelectedTask.CalculateNextRunTime(_timeProvider.UtcNow);
+                }
+
+                OnPropertyChanged();
+                OnSelectedTaskStatusChanged();
+            }
+        }
+    }
+
+    public WeeklyPresetOption? SelectedWeeklyPreset
+    {
+        get
+        {
+            if (SelectedTask == null)
+            {
+                return null;
+            }
+
+            if (_useCustomWeeklyDays)
+            {
+                return WeeklyPresetOptions.FirstOrDefault(option => option.Value == null);
+            }
+
+            return WeeklyPresetOptions.FirstOrDefault(option => option.Value == SelectedTask.WeeklyDays)
+                ?? WeeklyPresetOptions.FirstOrDefault(option => option.Value == null);
+        }
+        set
+        {
+            if (SelectedTask == null || value == null)
+            {
+                return;
+            }
+
+            if (value.Value == null)
+            {
+                _useCustomWeeklyDays = true;
+                OnPropertyChanged();
+                OnWeeklyDaySelectionChanged();
+                return;
+            }
+
+            _useCustomWeeklyDays = false;
+            if (SelectedTask.WeeklyDays != value.Value.Value)
+            {
+                SelectedTask.WeeklyDays = value.Value.Value;
+            }
+
+            OnPropertyChanged();
+            OnWeeklyDaySelectionChanged();
+        }
+    }
+
+    public bool IsWeeklyCustomSelected => _useCustomWeeklyDays;
+
     private void UpdateScheduleTypeSelection()
     {
         if (SelectedTask != null)
         {
             _isIntervalSelected = SelectedTask.Type == ScheduleType.Interval;
             _isDateTimeSelected = SelectedTask.Type == ScheduleType.SpecificTime;
+            _isWeeklySelected = SelectedTask.Type == ScheduleType.Weekly;
+            SyncWeeklyPresetFromSelectedTask();
             OnPropertyChanged(nameof(IsIntervalSelected));
             OnPropertyChanged(nameof(IsDateTimeSelected));
+            OnPropertyChanged(nameof(IsWeeklySelected));
             OnPropertyChanged(nameof(ScheduledDate));
             OnPropertyChanged(nameof(ScheduledTime));
+            OnPropertyChanged(nameof(WeeklyTime));
+            OnPropertyChanged(nameof(SelectedWeeklyPreset));
+            OnWeeklyDaySelectionChanged();
+        }
+    }
+
+    private void SyncWeeklyPresetFromSelectedTask()
+    {
+        _useCustomWeeklyDays = SelectedTask?.WeeklyDays is not (ScheduleDays.EveryDay or ScheduleDays.Weekdays or ScheduleDays.Weekends);
+    }
+
+    internal bool HasWeeklyDay(ScheduleDays day)
+    {
+        return SelectedTask?.WeeklyDays.HasFlag(day) == true;
+    }
+
+    internal void SetWeeklyDay(ScheduleDays day, bool selected)
+    {
+        if (SelectedTask == null)
+        {
+            return;
+        }
+
+        var nextDays = selected
+            ? SelectedTask.WeeklyDays | day
+            : SelectedTask.WeeklyDays & ~day;
+
+        if (SelectedTask.WeeklyDays == nextDays)
+        {
+            return;
+        }
+
+        _useCustomWeeklyDays = true;
+        SelectedTask.WeeklyDays = nextDays;
+        OnPropertyChanged(nameof(SelectedWeeklyPreset));
+        OnWeeklyDaySelectionChanged();
+    }
+
+    private void OnWeeklyDaySelectionChanged()
+    {
+        OnPropertyChanged(nameof(IsWeeklyCustomSelected));
+        OnPropertyChanged(nameof(WeeklyDayOptions));
+        foreach (var option in WeeklyDayOptions)
+        {
+            option.RefreshSelection();
         }
     }
     
@@ -469,7 +636,11 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(SelectedMacroFileName));
         OnPropertyChanged(nameof(IntervalUnitOptions));
         OnPropertyChanged(nameof(SelectedIntervalUnit));
+        OnPropertyChanged(nameof(WeeklyPresetOptions));
+        OnPropertyChanged(nameof(WeeklyDayOptions));
+        OnPropertyChanged(nameof(SelectedWeeklyPreset));
         OnPropertyChanged(nameof(SelectedTask));
+        OnWeeklyDaySelectionChanged();
         OnSelectedTaskStatusChanged();
     }
 
@@ -498,3 +669,32 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
 }
 
 public sealed record IntervalUnitOption(IntervalUnit Value, string DisplayName);
+
+public sealed record WeeklyPresetOption(ScheduleDays? Value, string DisplayName);
+
+public sealed class WeeklyDayOption : ViewModelBase
+{
+    private readonly ScheduleViewModel _owner;
+
+    public WeeklyDayOption(ScheduleViewModel owner, ScheduleDays value, string displayName)
+    {
+        _owner = owner;
+        Value = value;
+        DisplayName = displayName;
+    }
+
+    public ScheduleDays Value { get; }
+
+    public string DisplayName { get; }
+
+    public bool IsSelected
+    {
+        get => _owner.HasWeeklyDay(Value);
+        set => _owner.SetWeeklyDay(Value, value);
+    }
+
+    internal void RefreshSelection()
+    {
+        OnPropertyChanged(nameof(IsSelected));
+    }
+}

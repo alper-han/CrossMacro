@@ -84,11 +84,10 @@ echo ""
 # Generate deps.json (new format - recommended by nixpkgs)
 echo -e "${BLUE}Generating deps.json...${NC}"
 
-# Create temporary file for atomic write
+# Create temporary files for atomic write
 TEMP_DEPS=$(mktemp)
-trap "rm -f $TEMP_DEPS" EXIT
-
-echo "[" > "$TEMP_DEPS"
+TEMP_ITEMS=$(mktemp)
+trap "rm -f $TEMP_DEPS $TEMP_ITEMS" EXIT
 
 # Extract packages from all assets files
 # Exclude SDK-provided toolchain packages that are already injected by nixpkgs
@@ -113,7 +112,6 @@ mapfile -t PACKAGES < <(
 TOTAL=${#PACKAGES[@]}
 CURRENT=0
 FAILED=0
-FIRST=1
 
 echo "Found $TOTAL NuGet packages to process"
 echo ""
@@ -144,21 +142,12 @@ for package in "${PACKAGES[@]}"; do
 
         echo -e "${GREEN}✓${NC}"
         
-        # Add comma before entry (except first)
-        if [ $FIRST -eq 1 ]; then
-            FIRST=0
-        else
-            echo "," >> "$TEMP_DEPS"
-        fi
-        
-        # JSON format for deps.json
-        cat >> "$TEMP_DEPS" <<EOF
-  {
-    "pname": "${name}",
-    "version": "${version}",
-    "hash": "${sri_hash}"
-  }
-EOF
+        jq -n \
+            --arg pname "$name" \
+            --arg version "$version" \
+            --arg hash "$sri_hash" \
+            '{pname: $pname, version: $version, hash: $hash}' \
+            >> "$TEMP_ITEMS"
     else
         echo -e "${RED}✗${NC}"
         FAILED=$((FAILED + 1))
@@ -171,19 +160,12 @@ EOF
             sri_hash=$(nix-hash --type sha256 --to-sri "$hash")
             echo -e "${GREEN}✓${NC}"
             
-            if [ $FIRST -eq 1 ]; then
-                FIRST=0
-            else
-                echo "," >> "$TEMP_DEPS"
-            fi
-            
-            cat >> "$TEMP_DEPS" <<EOF
-  {
-    "pname": "${name}",
-    "version": "${version}",
-    "hash": "${sri_hash}"
-  }
-EOF
+            jq -n \
+                --arg pname "$name" \
+                --arg version "$version" \
+                --arg hash "$sri_hash" \
+                '{pname: $pname, version: $version, hash: $hash}' \
+                >> "$TEMP_ITEMS"
             FAILED=$((FAILED - 1))
         else
             echo -e "${RED}✗ FAILED${NC}"
@@ -192,8 +174,7 @@ EOF
     fi
 done
 
-echo "" >> "$TEMP_DEPS"
-echo "]" >> "$TEMP_DEPS"
+jq -s . "$TEMP_ITEMS" > "$TEMP_DEPS"
 
 # Move temp file to final location only if successful
 mv "$TEMP_DEPS" deps.json

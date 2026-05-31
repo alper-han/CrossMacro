@@ -100,6 +100,11 @@ if [[ ${#RUNTIMES[@]} -eq 0 ]]; then
     usage
 fi
 
+if ! command -v jq >/dev/null 2>&1; then
+    echo -e "${RED}Error: 'jq' is required${NC}" >&2
+    exit 1
+fi
+
 echo -e "${GREEN}=== Flatpak .NET NuGet Sources Generator ===${NC}"
 echo "Output: $OUTPUT"
 echo "Projects: ${PROJECTS[*]}"
@@ -111,7 +116,8 @@ echo
 # Create temp directory in current working dir (accessible from flatpak sandbox)
 TMPDIR="$(pwd)/.nuget-temp-$$"
 mkdir -p "$TMPDIR"
-trap 'rm -rf "$TMPDIR"' EXIT
+TEMP_ITEMS=$(mktemp)
+trap 'rm -rf "$TMPDIR" "$TEMP_ITEMS"' EXIT
 
 echo -e "${YELLOW}Restoring NuGet packages in Flatpak sandbox...${NC}"
 
@@ -135,48 +141,28 @@ done
 
 echo -e "${YELLOW}Generating JSON from downloaded packages...${NC}"
 
-# Find all .nupkg.sha512 files and generate JSON
-{
-    echo "["
-    first=true
-    
-    # Use find instead of globbing for better compatibility
-    while IFS= read -r -d '' sha_file; do
-        # Extract package info from path structure: $TMPDIR/packagename/version/packagename.version.nupkg.sha512
-        version_dir=$(dirname "$sha_file")
-        package_dir=$(dirname "$version_dir")
-        
-        name=$(basename "$package_dir")
-        version=$(basename "$version_dir")
-        filename="${name}.${version}.nupkg"
-        
-        # Decode base64 SHA512 to hex
-        if [[ -f "$sha_file" ]]; then
-            sha512=$(base64 -d < "$sha_file" | xxd -p | tr -d '\n')
-            
-            # Add comma separator (except for first entry)
-            if $first; then
-                first=false
-                prefix=""
-            else
-                prefix=","
-            fi
-            
-            # Output JSON entry
-            cat << ENTRY
-${prefix}    {
-        "type": "file",
-        "url": "https://api.nuget.org/v3-flatcontainer/${name}/${version}/${filename}",
-        "sha512": "${sha512}",
-        "dest": "nuget-sources",
-        "dest-filename": "${filename}"
-    }
-ENTRY
-        fi
-    done < <(find "$TMPDIR" -name "*.nupkg.sha512" -print0 | sort -z)
-    
-    echo "]"
-} > "$OUTPUT"
+# Use find instead of globbing for better compatibility.
+while IFS= read -r -d '' sha_file; do
+    # Extract package info from path structure: $TMPDIR/packagename/version/packagename.version.nupkg.sha512
+    version_dir=$(dirname "$sha_file")
+    package_dir=$(dirname "$version_dir")
+
+    name=$(basename "$package_dir")
+    version=$(basename "$version_dir")
+    filename="${name}.${version}.nupkg"
+
+    # Decode base64 SHA512 to hex.
+    sha512=$(base64 -d < "$sha_file" | xxd -p | tr -d '\n')
+
+    jq -n \
+        --arg url "https://api.nuget.org/v3-flatcontainer/${name}/${version}/${filename}" \
+        --arg sha512 "$sha512" \
+        --arg filename "$filename" \
+        '{type: "file", url: $url, sha512: $sha512, dest: "nuget-sources", "dest-filename": $filename}' \
+        >> "$TEMP_ITEMS"
+done < <(find "$TMPDIR" -name "*.nupkg.sha512" -print0 | sort -z)
+
+jq -s . "$TEMP_ITEMS" > "$OUTPUT"
 
 # Count packages
 PACKAGE_COUNT=$(grep -c '"type": "file"' "$OUTPUT" || echo "0")

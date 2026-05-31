@@ -226,6 +226,55 @@ public class SchedulerServiceTests
     }
 
     [Fact]
+    public async Task LoadAsync_WeeklyEnabled_RecalculatesNextRunTime()
+    {
+        var now = _timeProvider.UtcNow;
+        var task = new ScheduledTask
+        {
+            Name = "Weekly task",
+            MacroFilePath = "task.macro",
+            Type = ScheduleType.Weekly,
+            WeeklyDays = ScheduleDays.EveryDay,
+            WeeklyTime = now.ToLocalTime().TimeOfDay.Add(TimeSpan.FromMinutes(30))
+        };
+        task.IsEnabled = true;
+        task.NextRunTime = now.AddDays(3);
+
+        _repository.LoadAsync().Returns(Task.FromResult(new List<ScheduledTask> { task }));
+
+        await _service.LoadAsync();
+
+        var loaded = _service.Tasks.Should().ContainSingle().Subject;
+        loaded.IsEnabled.Should().BeTrue();
+        loaded.NextRunTime.Should().NotBeNull();
+        loaded.NextRunTime!.Value.Should().BeOnOrAfter(now);
+        loaded.NextRunTime.Value.Should().BeBefore(now.AddDays(1));
+    }
+
+    [Fact]
+    public async Task LoadAsync_WeeklyWithoutDays_DisablesTaskAndClearsNextRunTime()
+    {
+        var task = new ScheduledTask
+        {
+            Name = "Invalid weekly task",
+            MacroFilePath = "task.macro",
+            Type = ScheduleType.Weekly,
+            WeeklyDays = ScheduleDays.None,
+            WeeklyTime = new TimeSpan(9, 0, 0)
+        };
+        task.IsEnabled = true;
+        task.NextRunTime = _timeProvider.UtcNow.AddHours(1);
+
+        _repository.LoadAsync().Returns(Task.FromResult(new List<ScheduledTask> { task }));
+
+        await _service.LoadAsync();
+
+        var loaded = _service.Tasks.Should().ContainSingle().Subject;
+        loaded.IsEnabled.Should().BeFalse();
+        loaded.NextRunTime.Should().BeNull();
+    }
+
+    [Fact]
     public async Task LoadAsync_WhenRepositoryContainsNullTask_SkipsNullAndLoadsValidTasks()
     {
         // Arrange

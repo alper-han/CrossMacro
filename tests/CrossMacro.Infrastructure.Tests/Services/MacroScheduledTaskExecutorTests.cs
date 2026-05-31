@@ -278,6 +278,39 @@ public class MacroScheduledTaskExecutorTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WhenWeeklyTaskSuccess_ReschedulesNextRunTime()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var nextLocalTime = _timeProvider.UtcNow.ToLocalTime().TimeOfDay.Add(TimeSpan.FromMinutes(30));
+            var task = new ScheduledTask
+            {
+                MacroFilePath = tempFile,
+                Type = ScheduleType.Weekly,
+                WeeklyDays = ScheduleDays.EveryDay,
+                WeeklyTime = nextLocalTime,
+                IsEnabled = true
+            };
+
+            var macro = new MacroSequence();
+            _fileManager.LoadAsync(tempFile).Returns(macro);
+
+            await _executor.ExecuteAsync(task);
+
+            await _player.Received(1).PlayAsync(macro, Arg.Any<PlaybackOptions>());
+            task.LastStatus.Should().Be("Success");
+            task.NextRunTime.Should().NotBeNull();
+            task.NextRunTime!.Value.Should().BeAfter(_timeProvider.UtcNow);
+            task.IsEnabled.Should().BeTrue();
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WhenCancelled_UpdatesStatusAndReschedulesIntervalTask()
     {
         var tempFile = Path.GetTempFileName();

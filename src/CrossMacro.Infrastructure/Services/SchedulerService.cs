@@ -101,6 +101,8 @@ public class SchedulerService : ISchedulerService
                 existing.IntervalMinValue = task.IntervalMinValue;
                 existing.IntervalMaxValue = task.IntervalMaxValue;
                 existing.ScheduledDateTime = task.ScheduledDateTime;
+                existing.WeeklyDays = task.WeeklyDays;
+                existing.WeeklyTime = task.WeeklyTime;
                 
                 // Update IsEnabled last as it might trigger recalculations
                 existing.IsEnabled = task.IsEnabled;
@@ -377,6 +379,21 @@ public class SchedulerService : ISchedulerService
                             {
                                 task.IsEnabled = false;
                                 task.NextRunTime = null;
+                            }
+                        }
+                        else if (task.Type == ScheduleType.Weekly)
+                        {
+                            if (task.WeeklyDays == ScheduleDays.None)
+                            {
+                                task.IsEnabled = false;
+                                task.NextRunTime = null;
+                                Log.Warning(
+                                    "[SchedulerService] Task {TaskId} disabled during load because Weekly schedule has no selected days",
+                                    task.Id);
+                            }
+                            else
+                            {
+                                task.CalculateNextRunTime(now);
                             }
                         }
                         else

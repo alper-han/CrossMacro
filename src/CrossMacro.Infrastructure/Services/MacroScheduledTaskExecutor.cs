@@ -124,7 +124,7 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
 
     private void UpdateScheduleAfterAttempt(ScheduledTask task)
     {
-        if (task.Type == ScheduleType.Interval)
+        if (task.Type is ScheduleType.Interval or ScheduleType.Weekly)
         {
             task.CalculateNextRunTime(_timeProvider.UtcNow);
             return;

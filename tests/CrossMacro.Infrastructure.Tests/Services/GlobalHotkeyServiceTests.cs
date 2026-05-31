@@ -408,6 +408,48 @@ public class GlobalHotkeyServiceTests
     }
 
     [Fact]
+    public async Task OnRecoveryInputCaptureError_RestartsCaptureClearsModifiersAndDoesNotNotifyUser()
+    {
+        var firstCapture = Substitute.For<IInputCapture>();
+        var secondCapture = Substitute.For<IInputCapture>();
+        var secondStarted = new AsyncSignal();
+        var notified = false;
+
+        firstCapture.ProviderName.Returns("first");
+        secondCapture.ProviderName.Returns("second");
+        firstCapture.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        secondCapture.StartAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask)
+            .AndDoes(_ => secondStarted.Signal());
+
+        var factoryCall = 0;
+        var restartingService = new GlobalHotkeyService(
+            _config,
+            _parser,
+            _matcher,
+            _modifierTracker,
+            _stringBuilder,
+            _mouseButtonMapper,
+            () => ++factoryCall == 1 ? firstCapture : secondCapture);
+
+        restartingService.ErrorOccurred += (_, _) => notified = true;
+
+        restartingService.Start();
+        firstCapture.Error += Raise.Event<EventHandler<string>>(
+            this,
+            "Recovery: Windows session unlocked; restarting input capture.");
+
+        await secondStarted.WaitAsync(TestTimeout);
+
+        Assert.False(notified);
+        _modifierTracker.Received(1).Clear();
+        firstCapture.Received(1).Stop();
+        firstCapture.Received(1).Dispose();
+        secondCapture.Received(1).Configure(true, true);
+        await secondCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Start_WhenCaptureStartTaskFaults_ShouldStopWithoutRestart()
     {
         var firstCapture = Substitute.For<IInputCapture>();

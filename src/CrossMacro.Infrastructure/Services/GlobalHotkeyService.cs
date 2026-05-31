@@ -22,6 +22,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     private readonly Lock _lock = new();
     private int _restartInProgress;
     private readonly InputCaptureLifecycle _captureLifecycle = new();
+    private const string InputCaptureRecoveryPrefix = "Recovery:";
 
     // Injected services
     private readonly IHotkeyConfigurationService _configService;
@@ -347,7 +348,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             }
 
             LastError = errorMessage;
-            shouldNotify = true;
+            shouldNotify = !errorMessage.StartsWith(InputCaptureRecoveryPrefix, StringComparison.Ordinal);
 
             if (!_isRunning)
             {
@@ -462,6 +463,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
                 try
                 {
                     CleanupCapture_NoLock();
+                    _modifierTracker.Clear();
                     StartCapture_NoLock();
                     LastError = null;
                 }

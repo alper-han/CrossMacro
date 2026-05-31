@@ -450,6 +450,54 @@
   <data name="Schedule_RunOnceTip" xml:space="preserve">
     <value>マクロは選択した日付に 1 回実行されます</value>
   </data>
+  <data name="Schedule_TypeWeekly" xml:space="preserve">
+    <value>毎週</value>
+  </data>
+  <data name="Schedule_WeeklySettings" xml:space="preserve">
+    <value>毎週の設定</value>
+  </data>
+  <data name="Schedule_RunOn" xml:space="preserve">
+    <value>実行する曜日:</value>
+  </data>
+  <data name="Schedule_WeeklyEveryDay" xml:space="preserve">
+    <value>毎日</value>
+  </data>
+  <data name="Schedule_WeeklyWeekdays" xml:space="preserve">
+    <value>平日</value>
+  </data>
+  <data name="Schedule_WeeklyWeekends" xml:space="preserve">
+    <value>週末</value>
+  </data>
+  <data name="Schedule_WeeklyCustom" xml:space="preserve">
+    <value>曜日を指定</value>
+  </data>
+  <data name="Schedule_WeeklyCustomDays" xml:space="preserve">
+    <value>曜日を指定</value>
+  </data>
+  <data name="Schedule_Monday" xml:space="preserve">
+    <value>月曜日</value>
+  </data>
+  <data name="Schedule_Tuesday" xml:space="preserve">
+    <value>火曜日</value>
+  </data>
+  <data name="Schedule_Wednesday" xml:space="preserve">
+    <value>水曜日</value>
+  </data>
+  <data name="Schedule_Thursday" xml:space="preserve">
+    <value>木曜日</value>
+  </data>
+  <data name="Schedule_Friday" xml:space="preserve">
+    <value>金曜日</value>
+  </data>
+  <data name="Schedule_Saturday" xml:space="preserve">
+    <value>土曜日</value>
+  </data>
+  <data name="Schedule_Sunday" xml:space="preserve">
+    <value>日曜日</value>
+  </data>
+  <data name="Schedule_WeeklyTip" xml:space="preserve">
+    <value>マクロは選択した曜日の指定時刻に実行されます</value>
+  </data>
   <data name="Schedule_Status" xml:space="preserve">
     <value>状態</value>
   </data>

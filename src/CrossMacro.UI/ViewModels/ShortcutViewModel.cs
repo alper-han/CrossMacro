@@ -107,7 +107,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public string SelectedLastTriggeredText => SelectedTask?.LastTriggeredTime?.ToString("G", _localizationService.CurrentCulture)
+    public string SelectedLastTriggeredText => SelectedTask?.LastTriggeredTime?.ToLocalTime().ToString("G", _localizationService.CurrentCulture)
         ?? _localizationService["Shortcut_Never"];
 
     public string SelectedStatusText => string.IsNullOrWhiteSpace(SelectedTask?.LastStatus)

@@ -123,6 +123,21 @@ public class ShortcutViewModelTests
     }
 
     [Fact]
+    public void SelectedLastTriggeredText_DisplaysUtcRuntimeValueAsLocalTime()
+    {
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        _localizationService.CurrentCulture.Returns(culture);
+        var task = new ShortcutTask
+        {
+            LastTriggeredTime = new DateTime(2026, 1, 1, 7, 0, 0, DateTimeKind.Utc)
+        };
+
+        _viewModel.SelectedTask = task;
+
+        _viewModel.SelectedLastTriggeredText.Should().Be(task.LastTriggeredTime.Value.ToLocalTime().ToString("G", culture));
+    }
+
+    [Fact]
     public async Task RemoveTask_WhenConfirmed_RemovesTask()
     {
         // Arrange

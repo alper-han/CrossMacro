@@ -608,10 +608,10 @@ jobs:
           }
 
           $installerText = Get-Content -LiteralPath $installerManifest.FullName -Raw
-          if ($installerText -notmatch '(?m)^- Architecture: x64$') {
+          if ($installerText -notmatch '(?im)^- Architecture:\s*x64\s*$') {
             throw 'Generated WinGet installer manifest does not contain the expected x64 installer node.'
           }
-          if ($installerText -match '(?m)^- Architecture: arm64$') {
+          if ($installerText -match '(?im)^- Architecture:\s*arm64\s*$') {
             throw 'Generated WinGet installer manifest already contains an arm64 installer node; update this workflow to pass both URLs directly to wingetcreate update.'
           }
 
@@ -629,7 +629,7 @@ jobs:
           }
           $finalInstallerText = Get-Content -LiteralPath $installerManifest.FullName -Raw
           foreach ($expectedArchitecture in @('x64', 'arm64')) {
-            if ($finalInstallerText -notmatch "(?m)^- Architecture: $expectedArchitecture$") {
+            if ($finalInstallerText -notmatch "(?im)^- Architecture:\s*$expectedArchitecture\s*$") {
               throw "Final WinGet installer manifest is missing $expectedArchitecture installer node."
             }
             if ($finalInstallerText -notmatch "CrossMacro-$env:PACKAGE_VERSION-win-$expectedArchitecture\.exe") {

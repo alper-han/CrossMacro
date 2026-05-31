@@ -450,6 +450,54 @@
   <data name="Schedule_RunOnceTip" xml:space="preserve">
     <value>سيتم تشغيل الماكرو مرة واحدة في التاريخ المحدد</value>
   </data>
+  <data name="Schedule_TypeWeekly" xml:space="preserve">
+    <value>أسبوعي</value>
+  </data>
+  <data name="Schedule_WeeklySettings" xml:space="preserve">
+    <value>إعدادات أسبوعية</value>
+  </data>
+  <data name="Schedule_RunOn" xml:space="preserve">
+    <value>تشغيل في:</value>
+  </data>
+  <data name="Schedule_WeeklyEveryDay" xml:space="preserve">
+    <value>كل يوم</value>
+  </data>
+  <data name="Schedule_WeeklyWeekdays" xml:space="preserve">
+    <value>أيام الأسبوع</value>
+  </data>
+  <data name="Schedule_WeeklyWeekends" xml:space="preserve">
+    <value>عطلات نهاية الأسبوع</value>
+  </data>
+  <data name="Schedule_WeeklyCustom" xml:space="preserve">
+    <value>أيام مخصصة</value>
+  </data>
+  <data name="Schedule_WeeklyCustomDays" xml:space="preserve">
+    <value>أيام مخصصة</value>
+  </data>
+  <data name="Schedule_Monday" xml:space="preserve">
+    <value>الاثنين</value>
+  </data>
+  <data name="Schedule_Tuesday" xml:space="preserve">
+    <value>الثلاثاء</value>
+  </data>
+  <data name="Schedule_Wednesday" xml:space="preserve">
+    <value>الأربعاء</value>
+  </data>
+  <data name="Schedule_Thursday" xml:space="preserve">
+    <value>الخميس</value>
+  </data>
+  <data name="Schedule_Friday" xml:space="preserve">
+    <value>الجمعة</value>
+  </data>
+  <data name="Schedule_Saturday" xml:space="preserve">
+    <value>السبت</value>
+  </data>
+  <data name="Schedule_Sunday" xml:space="preserve">
+    <value>الأحد</value>
+  </data>
+  <data name="Schedule_WeeklyTip" xml:space="preserve">
+    <value>سيتم تشغيل الماكرو في الأيام المحددة وفي الوقت المحدد</value>
+  </data>
   <data name="Schedule_Status" xml:space="preserve">
     <value>حالة</value>
   </data>

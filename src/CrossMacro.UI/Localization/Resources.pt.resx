@@ -450,6 +450,54 @@
   <data name="Schedule_RunOnceTip" xml:space="preserve">
     <value>A macro será executada uma vez na data selecionada</value>
   </data>
+  <data name="Schedule_TypeWeekly" xml:space="preserve">
+    <value>Semanal</value>
+  </data>
+  <data name="Schedule_WeeklySettings" xml:space="preserve">
+    <value>CONFIGURAÇÕES SEMANAIS</value>
+  </data>
+  <data name="Schedule_RunOn" xml:space="preserve">
+    <value>Executar em:</value>
+  </data>
+  <data name="Schedule_WeeklyEveryDay" xml:space="preserve">
+    <value>Todos os dias</value>
+  </data>
+  <data name="Schedule_WeeklyWeekdays" xml:space="preserve">
+    <value>Dias úteis</value>
+  </data>
+  <data name="Schedule_WeeklyWeekends" xml:space="preserve">
+    <value>Fins de semana</value>
+  </data>
+  <data name="Schedule_WeeklyCustom" xml:space="preserve">
+    <value>Dias personalizados</value>
+  </data>
+  <data name="Schedule_WeeklyCustomDays" xml:space="preserve">
+    <value>Dias personalizados</value>
+  </data>
+  <data name="Schedule_Monday" xml:space="preserve">
+    <value>Segunda-feira</value>
+  </data>
+  <data name="Schedule_Tuesday" xml:space="preserve">
+    <value>Terça-feira</value>
+  </data>
+  <data name="Schedule_Wednesday" xml:space="preserve">
+    <value>Quarta-feira</value>
+  </data>
+  <data name="Schedule_Thursday" xml:space="preserve">
+    <value>Quinta-feira</value>
+  </data>
+  <data name="Schedule_Friday" xml:space="preserve">
+    <value>Sexta-feira</value>
+  </data>
+  <data name="Schedule_Saturday" xml:space="preserve">
+    <value>Sábado</value>
+  </data>
+  <data name="Schedule_Sunday" xml:space="preserve">
+    <value>Domingo</value>
+  </data>
+  <data name="Schedule_WeeklyTip" xml:space="preserve">
+    <value>A macro será executada nos dias selecionados no horário escolhido</value>
+  </data>
   <data name="Schedule_Status" xml:space="preserve">
     <value>ESTADO</value>
   </data>

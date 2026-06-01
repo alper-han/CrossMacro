@@ -479,26 +479,36 @@ jobs:
         wget "https://github.com/alper-han/CrossMacro/archive/$SOURCE_TAG.tar.gz" -O source.tar.gz
         SHA256=$(sha256sum source.tar.gz | cut -d' ' -f1)
         awk -v sha="$SHA256" '
-          /^sha256sums=\(/ {
-            print "sha256sums=(\047" sha "\047"
-            print "            \047SKIP\047"
-            print "            \047SKIP\047)"
-            skipping=1
-            next
+          BEGIN { in_sums=0; updated=0 }
+          /^sha256sums=\(/ { in_sums=1 }
+          in_sums && !updated && /\047[^\047]*\047/ {
+            sub(/\047[^\047]*\047/, "\047" sha "\047")
+            updated=1
           }
-          skipping && /^\)/ {
-            skipping=0
-            next
+          { print }
+          in_sums && /\)/ { in_sums=0 }
+          END {
+            if (!updated) {
+              print "ERROR: sha256sums array not found in PKGBUILD" > "/dev/stderr"
+              exit 1
+            }
           }
-          !skipping { print }
         ' PKGBUILD > PKGBUILD.tmp
         mv PKGBUILD.tmp PKGBUILD
         rm source.tar.gz
+
+        # Fail before publishing if checksum rewriting or future edits drop the package payload.
+        grep -qx 'install=crossmacro.install' PKGBUILD
+        grep -q '^build() {' PKGBUILD
+        grep -q '^package() {' PKGBUILD
+        grep -q 'CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj' PKGBUILD
+        grep -q '/usr/bin/\$pkgname' PKGBUILD
         
         # Update .SRCINFO
         useradd builduser
         chown -R builduser:builduser .
         su builduser -c "makepkg --printsrcinfo" > .SRCINFO
+        grep -q '^[[:space:]]*install = crossmacro\.install$' .SRCINFO
     
     - name: Commit and push to AUR
       env:

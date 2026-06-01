@@ -391,7 +391,24 @@ jobs:
     steps:
     - name: Install dependencies
       run: |
-        pacman -Sy --noconfirm git openssh wget
+        pacman -Syu --noconfirm --needed \
+          git \
+          openssh \
+          wget \
+          dotnet-sdk \
+          clang \
+          zlib \
+          fontconfig \
+          libx11 \
+          libxcursor \
+          libxrandr \
+          polkit \
+          libxtst \
+          systemd-libs \
+          libxkbcommon \
+          icu \
+          openssl \
+          libarchive
         
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -502,13 +519,42 @@ jobs:
         grep -q '^build() {' PKGBUILD
         grep -q '^package() {' PKGBUILD
         grep -q 'CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj' PKGBUILD
-        grep -q '/usr/bin/\$pkgname' PKGBUILD
+        grep -q '/usr/bin/[$]pkgname' PKGBUILD
         
         # Update .SRCINFO
         useradd builduser
         chown -R builduser:builduser .
         su builduser -c "makepkg --printsrcinfo" > .SRCINFO
         grep -q '^[[:space:]]*install = crossmacro\.install$' .SRCINFO
+
+    - name: Build and smoke AUR package
+      run: |
+        set -euo pipefail
+        cd aur-repo
+
+        chown -R builduser:builduser .
+        su builduser -c "makepkg --cleanbuild --force --noconfirm"
+
+        pkg_file="$(find "$PWD" -maxdepth 1 -type f -name 'crossmacro-*.pkg.tar.zst' | sort | head -n 1)"
+        test -n "$pkg_file"
+
+        bsdtar -tf "$pkg_file" | sort > package-files.txt
+        grep -Fx 'usr/bin/crossmacro' package-files.txt
+        grep -Fx 'usr/lib/crossmacro/CrossMacro.UI' package-files.txt
+        grep -Fx 'usr/lib/crossmacro/daemon/CrossMacro.Daemon' package-files.txt
+        grep -Fx 'usr/lib/systemd/system/crossmacro.service' package-files.txt
+        grep -Fx 'usr/lib/sysusers.d/crossmacro.conf' package-files.txt
+        grep -Fx 'usr/lib/modules-load.d/crossmacro.conf' package-files.txt
+        grep -Fx 'usr/lib/udev/rules.d/99-crossmacro.rules' package-files.txt
+        grep -Fx 'usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy' package-files.txt
+        grep -Fx 'usr/share/polkit-1/rules.d/50-crossmacro.rules' package-files.txt
+        grep -Fx 'usr/share/applications/crossmacro.desktop' package-files.txt
+        grep -E '^usr/share/man/man1/crossmacro\.1(\.gz)?$' package-files.txt
+        grep -Fx 'usr/share/licenses/crossmacro/LICENSE' package-files.txt
+
+        pacman -U --noconfirm "$pkg_file"
+        chmod +x ../scripts/smoke/cli-smoke.sh
+        ../scripts/smoke/cli-smoke.sh --binary /usr/bin/crossmacro
     
     - name: Commit and push to AUR
       env:

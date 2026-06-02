@@ -73,7 +73,7 @@ export default class CursorSpyExtension extends Extension {
   ""name"": ""Cursor Spy"",
   ""description"": ""Exposes cursor position via DBus"",
   ""uuid"": ""crossmacro@zynix.net"",
-  ""shell-version"": [ ""45"", ""46"", ""47"", ""48"", ""49"" ]
+  ""shell-version"": [ ""45"", ""46"", ""47"", ""48"", ""49"", ""50"" ]
 }
 ";
         private const string ExtensionUuid = "crossmacro@zynix.net";

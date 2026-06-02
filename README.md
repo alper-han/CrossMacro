@@ -12,22 +12,26 @@
   <img src="screenshots/recording-tab.png" alt="CrossMacro recording interface preview" />
 </p>
 
-CrossMacro is a cross-platform mouse and keyboard macro recorder and player with macro editor, text expansion, shortcuts, and scheduling.
+CrossMacro is a cross-platform desktop automation app for recording, editing,
+scheduling, and replaying mouse/keyboard workflows. It combines a polished
+Avalonia GUI, scriptable CLI, text expansion, shortcuts, and a GUI-less desktop
+runtime in one app.
 
-- Linux support for Wayland and X11
-- Windows support (Microsoft Store, winget, portable binary)
-- macOS support
+- Linux-first support for Wayland and X11, with daemon-backed/direct-device
+  input modes and compositor-aware cursor positioning
+- Windows support through Microsoft Store, winget, MSIX, and portable binaries
+- macOS support through Apple Silicon and Intel DMG packages
 
 ## Contents
 
 - [Features](#features)
+- [Why CrossMacro?](#why-crossmacro)
 - [Screenshots](#screenshots)
 - [Quick Start](#quick-start)
 - [Installation](#installation)
 - [CLI Usage](#cli-usage)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [Security](#security)
+- [Diagnostics and Troubleshooting](#diagnostics-and-troubleshooting)
+- [Support and Project Links](#support-and-project-links)
 - [Contributors](#contributors)
 - [Star History](#star-history)
 - [License](#license)
@@ -35,25 +39,60 @@ CrossMacro is a cross-platform mouse and keyboard macro recorder and player with
 
 ## Features
 
-- Mouse event recording (clicks and movement)
-- Keyboard event recording
-- Macro playback with pause/resume
-- Loop mode, repeat count, and repeat delay controls
-- Playback speed control (`0.1x` to `10.0x`)
-- Macro editor with undo/redo, coordinate capture, and action reordering
-- Text expansion shortcuts (for example `:mail` -> `email@example.com`)
-- Shortcut-bound macro execution (keyboard key, mouse button, or key combo)
-- Shortcut modes: toggle and run-while-held
-- Shortcut loop controls: repeat count and repeat delay
-- Scheduled task execution
-- Save and load `.macro` files
-- Optional system tray controls
-- Theme support (Classic, Latte, Mocha, Dracula, Nord, Everforest, Gruvbox, Solarized, Crimson)
+### Record and replay
+
+- Mouse recording for clicks, movement, and scrolling
+- Keyboard recording and macro playback with pause/resume
+- Playback speed control from `0.1x` to `10.0x`
+- Loop mode, repeat count, fixed repeat delay, and randomized repeat-delay ranges
 - Customizable global hotkeys:
   - `F8` start/stop recording
   - `F9` start/stop playback
   - `F10` pause/resume playback
-- CLI and headless workflows
+
+### Edit and organize
+
+- Files tab for loading, saving, sequencing, and replaying `.macro` files
+- Macro editor with undo/redo, coordinate capture, action reordering, filtering,
+  variables, loops, conditionals, text input, and delay editing
+
+### Automate and trigger
+
+- Shortcut-bound macro execution with keyboard shortcuts and key combinations
+- Shortcut modes for press-to-start/stop and run-while-held playback
+- Scheduled task execution with interval, random interval, one-time, weekly, and
+  custom weekday options
+- CLI playback, recording, validation, settings, schedules, shortcuts, and inline
+  `run` steps
+- GUI-less desktop runtime for hotkeys, scheduler, shortcuts, and text expansion
+
+### Text expansion and desktop polish
+
+- Text expansion shortcuts with per-entry enable/disable and insertion-mode controls
+- Optional system tray controls where the desktop session supports tray icons
+- Theme support: Classic, Latte, Mocha, Dracula, Nord, Everforest, Gruvbox,
+  Solarized, Crimson
+- Language selection, runtime log-level control, and update-check settings
+
+Some features require platform permissions, such as Linux input device or daemon
+access, macOS Input Monitoring/Accessibility, or desktop-session tray support.
+
+## Why CrossMacro?
+
+CrossMacro is built for people who want desktop automation without stitching
+together separate recorders, hotkey tools, text expanders, and platform-specific
+scripts.
+
+- **One workflow across platforms:** a polished Avalonia GUI with packaged builds
+  for Linux, Windows, and macOS.
+- **Modern Linux support:** Wayland and X11 are first-class targets, with
+  daemon-backed/direct-device input paths and compositor-aware cursor positioning
+  where the desktop exposes it.
+- **GUI when you want it, CLI when you need it:** record and edit visually, run
+  macros from scripts, or keep automation available with a GUI-less desktop
+  runtime.
+- **More than playback:** shortcuts, schedules, text expansion, files, themes,
+  and editor tools live in the same app.
 
 ## Screenshots
 
@@ -65,12 +104,18 @@ CrossMacro is a cross-platform mouse and keyboard macro recorder and player with
 
 ## Quick Start
 
-1. Install CrossMacro.
-2. Launch the app.
+1. Install CrossMacro for your platform.
+2. Launch the app and grant any platform permissions it requests.
 3. Press `F8` to start/stop recording.
 4. Press `F9` to start/stop playback.
 5. Press `F10` to pause/resume playback.
-6. Save your macro and optionally bind it to a shortcut.
+6. Save your macro, edit it if needed, and optionally bind it to a shortcut or schedule.
+
+If setup or playback does not work, run:
+
+```bash
+crossmacro doctor --json --verbose
+```
 
 ## Installation
 
@@ -82,413 +127,104 @@ Download page for all release binaries:
 
 | Platform | Channel | Command / Link | Notes |
 | --- | --- | --- | --- |
-| [![Flatpak](https://img.shields.io/badge/Flatpak-Flathub-0E5AFC?logo=flatpak&logoColor=white)](https://flathub.org/en/apps/io.github.alper_han.crossmacro) | Flathub | [Store](https://flathub.org/en/apps/io.github.alper_han.crossmacro)<br>`flatpak install flathub io.github.alper_han.crossmacro` | Sandboxed install |
-| [![Debian](https://img.shields.io/badge/Debian-Ubuntu-A81D33?logo=debian&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | `.deb` | `sudo apt install ./crossmacro*.deb` | Download from Releases |
-| [![Fedora](https://img.shields.io/badge/Fedora-RHEL-51A2DA?logo=fedora&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | `.rpm` | `sudo dnf install ./crossmacro*.rpm` | Download from Releases |
-| [![Arch](https://img.shields.io/badge/Arch-AUR-1793D1?logo=arch-linux&logoColor=white)](https://aur.archlinux.org/packages/crossmacro) | AUR | `yay -S crossmacro`<br>`paru -S crossmacro` | Community package |
-| [![Linux](https://img.shields.io/badge/Linux-AppImage-1793D1?logo=appimage&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | AppImage | [Releases](https://github.com/alper-han/CrossMacro/releases) | One-time setup required |
-| [![NixOS](https://img.shields.io/badge/Nixpkgs-unstable-5277C3?logo=nixos&logoColor=white)](https://search.nixos.org/packages?channel=unstable&query=crossmacro) | nixpkgs | `nix profile install nixpkgs#crossmacro` | UI package only |
-| ![Nix](https://img.shields.io/badge/Nix-Flake-5277C3?logo=nixos&logoColor=white) | flake | `nix run github:alper-han/CrossMacro` | UI-only convenience run |
+| [![Flatpak](https://img.shields.io/badge/Flatpak-Flathub-0E5AFC?logo=flatpak&logoColor=white)](https://flathub.org/en/apps/io.github.alper_han.crossmacro) | Flathub | [Store](https://flathub.org/en/apps/io.github.alper_han.crossmacro)<br>`flatpak install flathub io.github.alper_han.crossmacro` | Sandboxed install; daemon or Quick Setup on Wayland |
+| [![Debian](https://img.shields.io/badge/Debian-Ubuntu-A81D33?logo=debian&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | `.deb` | `sudo apt install ./crossmacro*.deb` | Daemon-backed Linux package |
+| [![Fedora](https://img.shields.io/badge/Fedora-RHEL-51A2DA?logo=fedora&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | `.rpm` | `sudo dnf install ./crossmacro*.rpm` | Daemon-backed Linux package |
+| [![Arch](https://img.shields.io/badge/Arch-AUR-1793D1?logo=arch-linux&logoColor=white)](https://aur.archlinux.org/packages/crossmacro) | AUR | `yay -S crossmacro`<br>`paru -S crossmacro` | Community daemon-backed package |
+| [![Linux](https://img.shields.io/badge/Linux-AppImage-1793D1?logo=appimage&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | AppImage | [Releases](https://github.com/alper-han/CrossMacro/releases) | Portable `x86_64` and `aarch64`; Quick Setup may prompt on Wayland |
+| [![NixOS](https://img.shields.io/badge/NixOS-Module-5277C3?logo=nixos&logoColor=white)](https://search.nixos.org/options?channel=unstable&query=services.crossmacro) | nixpkgs module | `services.crossmacro = { enable = true; users = [ "you" ]; };` | Daemon-backed setup with service, uinput, polkit, group, and users |
 | [![Windows](https://img.shields.io/badge/Windows-Store-0078D6?logo=windows&logoColor=white)](https://apps.microsoft.com/detail/9n1qp1d6js70) | Store | [Store](https://apps.microsoft.com/detail/9n1qp1d6js70) | Managed updates |
-| ![Windows](https://img.shields.io/badge/Windows-winget-0078D6?logo=windows&logoColor=white) | winget | `winget install AlperHan.CrossMacro` | CLI install |
-| [![Windows](https://img.shields.io/badge/Windows-Portable-0078D6?logo=windows&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | Portable EXE | [Releases](https://github.com/alper-han/CrossMacro/releases) | Self-contained |
-| [![macOS](https://img.shields.io/badge/macOS-DMG-000000?logo=apple&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | `.dmg` | [Releases](https://github.com/alper-han/CrossMacro/releases) | Drag to Apps |
+| ![Windows](https://img.shields.io/badge/Windows-winget-0078D6?logo=windows&logoColor=white) | winget | `winget install AlperHan.CrossMacro` | Stable updates may lag behind GitHub Releases |
+| [![Windows](https://img.shields.io/badge/Windows-MSIX-0078D6?logo=windows&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | MSIX | [Releases](https://github.com/alper-han/CrossMacro/releases) | App package for `x64` and `arm64` |
+| [![Windows](https://img.shields.io/badge/Windows-Portable-0078D6?logo=windows&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | Portable EXE | [Releases](https://github.com/alper-han/CrossMacro/releases) | Self-contained `x64` and `arm64` binaries |
+| [![macOS](https://img.shields.io/badge/macOS-DMG-000000?logo=apple&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | `.dmg` | [Releases](https://github.com/alper-han/CrossMacro/releases) | Choose `osx-arm64` for Apple Silicon or `osx-x64` for Intel |
 
-> **AppImage users:** Run the quick one-time setup in [AppImage Setup](#appimage-setup-portable-linux) before first launch.
-> **Flatpak users (Wayland):** On first launch, CrossMacro may show a **Wayland Setup Required** dialog and run Quick Setup for device permissions.
+### First-run notes
 
-### Linux Post-Install (Daemon Packages)
+- **Linux daemon packages (`.deb`, `.rpm`, AUR):** package scripts try to set up
+  `crossmacro.service` and the `crossmacro` group. Log out and back in, or
+  reboot, if your user was added to that group.
+- **Flatpak/AppImage on Wayland:** CrossMacro may show a setup dialog and run
+  Quick Setup for temporary direct device permissions.
+- **NixOS:** use the nixpkgs module for a complete daemon-backed setup. Enable
+  `services.crossmacro` and set `services.crossmacro.users` for your desktop
+  users.
+- **Windows:** Store and winget are the easiest update paths. Portable EXE users
+  run the downloaded binary directly unless they add it to `PATH`.
+- **macOS:** requires macOS 10.15 or newer. Grant permissions when prompted; if
+  macOS blocks a GitHub DMG on first launch after dragging the app to
+  Applications, run `xattr -cr /Applications/CrossMacro.app`.
 
-CrossMacro supports two Linux runtime modes:
+### Platform-specific setup
 
-- **Daemon-backed mode**: the preferred packaged mode. The app talks to `crossmacro.service`
-  over `/run/crossmacro/crossmacro.sock`, while the daemon service user keeps Linux device access.
-- **Direct device mode**: an intentional fallback for channels like AppImage, and for some
-  Wayland/sandbox scenarios when daemon-backed mode is unavailable. In this mode the app process
-  itself needs access to `/dev/uinput` and, for recording or hotkeys, readable `/dev/input/event*`.
-
-On X11, CrossMacro tries the native X11 capture and playback backends first. A supported native X11
-session doesn't require the daemon or direct device fallback.
-
-After installing daemon packages on Linux, make sure your desktop user belongs to the
-`crossmacro` group. That group grants access to the daemon socket, not to raw input
-devices:
-
-```bash
-sudo usermod -aG crossmacro $USER
-# Log out and back in, or reboot, before starting CrossMacro again
-```
-
-Package scripts try to add the installing user to `crossmacro` when they can identify that
-user. If the package output says auto-add couldn't be confirmed, run the command above
-manually, then log out and back in or reboot so the current session gets the new group.
-
-`AUR`, `.deb`, and `.rpm` packages try to enable/start `crossmacro.service` during install
-on `systemd` hosts. Arch and CachyOS packaging provisions the `crossmacro` sysusers entry
-before service start or restart. If your environment skips service setup (for example
-non-systemd/chroot), run manually:
-
-```bash
-sudo systemctl enable --now crossmacro.service
-```
-
-The daemon service user keeps device access separately for `/dev/input/event*` and `/dev/uinput`
-(typically via `input` and, on some distros, `uinput` supplementary groups). Normal users should
-only need membership in `crossmacro` to use daemon-backed mode. Don't weaken the daemon socket
-permissions as a workaround.
-
-### AppImage Setup (Portable Linux)
-
-AppImage currently uses **direct device mode**, not the packaged daemon-backed service path.
-That means the user session itself needs the Linux input permissions described below.
-
-If you use the AppImage build on Linux, complete this one-time setup before first launch:
-
-```bash
-# Add uinput rule
-echo 'KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"' | sudo tee /etc/udev/rules.d/99-crossmacro.rules
-
-# Reload udev rules
-sudo udevadm control --reload-rules && sudo udevadm trigger
-
-# Add your user to input group
-sudo usermod -aG input $USER
-```
-
-Then reboot/re-login and run:
-
-```bash
-chmod +x CrossMacro-*.AppImage
-./CrossMacro-*.AppImage
-```
-
-Note: adding a user to `input` grants direct access to input devices.
-
-### Flatpak Wayland Setup
-
-For Flatpak on Wayland, CrossMacro supports a hybrid startup path:
-
-- **Daemon-backed mode** when the host daemon socket is exposed at `/run/crossmacro/crossmacro.sock`
-- **Direct device mode** when the daemon path is unavailable and temporary device access is granted to the user session
-
-If required permissions are missing, app startup shows **Wayland Setup Required** and can run Quick Setup automatically.
-Quick Setup enables the direct device mode fallback by using `flatpak-spawn --host pkexec` to apply session ACLs on the host:
-
-- `rw` access to `/dev/uinput` (or `/dev/input/uinput` if present)
-- `r` access to `/dev/input/event*`
-
-If Quick Setup is denied or fails, you can apply the same permissions manually on host:
-
-```bash
-sudo modprobe uinput
-for p in /dev/uinput /dev/input/uinput; do [ -e "$p" ] && sudo setfacl -m "u:$USER:rw" "$p"; done
-for p in /dev/input/event*; do [ -e "$p" ] && sudo setfacl -m "u:$USER:r" "$p"; done
-```
-
-If `setfacl` is missing, install your distro's `acl` package first.
-
-In other words: packaged daemon installs prefer daemon-backed mode, while AppImage and some Flatpak/Wayland scenarios intentionally rely on direct device mode when the daemon path is unavailable.
-
-### Nix and NixOS
-
-- `nix run github:alper-han/CrossMacro` and `nix profile install nixpkgs#crossmacro` provide the UI package only.
-- The daemon-backed Linux model on Nix is provided by the NixOS module in `flake.nix`, which provisions the `crossmacro.service`, daemon user, group membership, and runtime directory policy.
-
-### Advanced Platform Notes
-
-<details>
-<summary><strong>Nixpkgs (unstable)</strong></summary>
-
-```bash
-nix profile install nixpkgs#crossmacro
-```
-
-</details>
-
-<details>
-<summary><strong>Run directly from this repo flake</strong></summary>
-
-```bash
-nix run github:alper-han/CrossMacro
-```
-
-</details>
-
-<details>
-<summary><strong>Use as flake input in your own flake.nix</strong></summary>
-
-```nix
-{
-  inputs.crossmacro.url = "github:alper-han/CrossMacro";
-
-  outputs = { self, crossmacro, ... }:
-  let
-    system = "x86_64-linux";
-  in {
-    packages.${system}.crossmacro = crossmacro.packages.${system}.default;
-  };
-}
-```
-
-</details>
-
-<details>
-<summary><strong>NixOS module</strong></summary>
-
-```nix
-{
-  inputs.crossmacro.url = "github:alper-han/CrossMacro";
-
-  outputs = { nixpkgs, crossmacro, ... }: {
-    nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      modules = [
-        crossmacro.nixosModules.default
-        ({ ... }: {
-          programs.crossmacro = {
-            enable = true;
-            users = [ "yourusername" ];
-          };
-        })
-      ];
-    };
-  };
-}
-```
-
-</details>
-
-<details>
-<summary><strong>Windows notes</strong></summary>
-
-Update an existing winget install:
-
-```powershell
-winget upgrade -e --id AlperHan.CrossMacro
-```
-
-For Store and fresh-install options, use the Quick Install Matrix above.
-
-</details>
-
-<details>
-<summary><strong>macOS notes</strong></summary>
-
-1. Download `.dmg` from [Releases](https://github.com/alper-han/CrossMacro/releases).
-2. Drag **CrossMacro** to **Applications**.
-3. Launch and grant macOS permissions as needed: Input Monitoring for capture/recording, event posting for playback/injection, and Accessibility only for AX features if prompted.
-
-If Gatekeeper blocks first launch:
-
-```bash
-xattr -cr /Applications/CrossMacro.app
-```
-
-</details>
+- Linux setup, runtime modes, Wayland notes, NixOS, and daemon/direct-device
+  troubleshooting: [docs/linux.md](docs/linux.md)
+- Windows Store and winget provide managed updates. GitHub Releases include MSIX
+  packages and self-contained portable EXE files for `x64` and `arm64`.
+- macOS install, Gatekeeper, Input Monitoring, and Accessibility setup:
+  [docs/macos.md](docs/macos.md)
 
 ## CLI Usage
+
+Use the platform app executable as `crossmacro` when your install channel places
+it on `PATH`. Portable builds may require running the executable directly from
+its download folder.
 
 ```bash
 crossmacro --help
 crossmacro --version
+crossmacro --start-minimized
 
-crossmacro play ./demo.macro --speed 1.25 --repeat 3
+crossmacro play ./demo.macro --speed 1.25 --repeat 3 --repeat-delay-ms 500
 crossmacro macro validate ./demo.macro
 crossmacro macro info ./demo.macro
-crossmacro doctor --json
+crossmacro doctor --json --verbose
 
 crossmacro settings get
 crossmacro settings get playback.speed
 crossmacro settings set playback.speed 1.25
 
 crossmacro schedule list
-crossmacro schedule run <task-guid>
 crossmacro shortcut list
-crossmacro shortcut run <shortcut-guid>
-
-crossmacro record --output ./recorded.macro --duration 10
-crossmacro headless
-```
-
-For desktop autostart, use `crossmacro --start-minimized`. When tray icon support is available, CrossMacro starts hidden to tray; otherwise it starts as a minimized window.
-
-`crossmacro doctor --json` reports daemon-backed readiness separately from direct device
-readiness. Direct input checks can pass while daemon IPC still warns or fails, for example
-when `/run/crossmacro/crossmacro.sock` exists but your current login session isn't in the
-`crossmacro` group yet. In that case, inspect the daemon-specific checks and details such
-as socket status, required group, current session groups, and remediation text. Direct
-device readiness doesn't fix daemon socket permission problems.
-
-### Run Command Reference
-
-<details>
-<summary><strong>Run Syntax and Options</strong></summary>
-
-Syntax:
-
-```bash
-crossmacro run --step <step> [--step <step> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]
-crossmacro run <step-command> [<step-command> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]
-```
-
-Options:
-
-- `--step`: Add one run step (repeatable).
-- `--file`: Load steps from file (one step per line, `#` comments allowed).
-- `--speed`: Playback speed multiplier (`0.1`..`10.0`).
-- `--countdown`: Countdown before execution in seconds (`>= 0`).
-- `--timeout`: Command timeout in seconds (`>= 0`).
-- `--dry-run`: Parse/compile/validate only, do not send input.
-- `--json`: Print machine-readable JSON result.
-- `--log-level`: Override log level (`Debug|Information|Warning|Error`).
-
-</details>
-
-<details>
-<summary><strong>Run Step Commands and Examples</strong></summary>
-
-Step commands:
-
-- `move abs <x> <y>`, `move rel <dx> <dy>`
-- `click <button>`, `down <button>`, `up <button>`
-- `click current <button>`, `down current <button>`, `up current <button>`
-- `scroll <up|down|left|right> [count]`
-- `key down <key>`, `key up <key>`, `tap <combo>`, `type <text>`
-- `delay <ms>`, `delay random <min> <max>`, `delay random <min>..<max>`
-- `set <name> <value>` or `set <name>=<value>`
-- `inc <name> [amount]`, `dec <name> [amount]`
-- `repeat <count> { ... }`
-- `if <left> <op> <right> { ... } else { ... }`
-- `while <left> <op> <right> { ... }`
-- `for <var> from <start> to <end> [step <n>] { ... }`
-- `break`, `continue`, `}`
-
-Examples:
-
-```bash
 crossmacro run --step "move abs 800 400" --step "click left" --dry-run
-crossmacro run --step "set n=3" --step "repeat $n {" --step "click left" --step "delay random 20 50" --step "}"
-crossmacro run --step "set i=0" --step "while $i < 10 {" --step "click left" --step "inc i" --step "}"
-crossmacro run --step "for i from 0 to 10 {" --step "if $i == 3 {" --step "continue" --step "}" --step "if $i == 8 {" --step "break" --step "}" --step "click left" --step "}"
-crossmacro run --step "move abs 800 400" --step "click current left"
-crossmacro run --file ./steps.txt --json
 ```
 
-</details>
+For command syntax, direct-run steps, log levels, and GUI-less desktop runtime
+notes, see [docs/cli.md](docs/cli.md). The `headless` commands still require a
+desktop session; they are not intended for display-less server automation.
 
-## Troubleshooting
+## Diagnostics and Troubleshooting
 
-<details>
-<summary><strong>Daemon not running (Linux)</strong></summary>
+Start with doctor instead of guessing from manual commands:
 
 ```bash
-systemctl status crossmacro.service
-sudo systemctl start crossmacro.service
-sudo systemctl enable crossmacro.service
+crossmacro doctor --json --verbose
 ```
 
-</details>
+On Linux, doctor reports daemon-backed readiness separately from direct device
+readiness. Direct input checks can pass while daemon IPC still warns or fails,
+for example when `/run/crossmacro/crossmacro.sock` exists but the current login
+session has not picked up `crossmacro` group membership. Direct device readiness
+does not grant access to the daemon socket.
 
-<details>
-<summary><strong>Linux input permissions</strong></summary>
+When opening an issue, include your platform, install channel, relevant logs, and
+`crossmacro doctor --json --verbose` output.
 
-```bash
-groups | grep crossmacro
-sudo usermod -aG crossmacro $USER
+Linux setup and troubleshooting details are in [docs/linux.md](docs/linux.md).
+For Windows or macOS capture/playback issues, restart CrossMacro after changing
+permissions or switching sessions, and pause other automation, overlay, or
+security tools before retesting.
 
-stat -c '%A %a %U:%G %n' /dev/uinput
-id crossmacro
-sudo -u crossmacro test -w /dev/uinput && echo writable || echo not-writable
-```
-
-Reboot or re-login after group changes.
-
-If `crossmacro doctor --json` shows direct input readiness as OK but daemon access as a
-warning or failure, fix the daemon-specific issue. Most often this means joining the
-`crossmacro` group and starting a new login session. Direct uinput access and direct
-fallback mode don't grant access to `/run/crossmacro/crossmacro.sock`.
-
-If daemon cannot write `/dev/uinput`, add service user to required groups and restart:
-
-```bash
-sudo usermod -aG input crossmacro
-sudo usermod -aG uinput crossmacro
-sudo systemctl restart crossmacro.service
-```
-
-</details>
-
-<details>
-<summary><strong>GNOME Wayland extension</strong></summary>
-
-GNOME Wayland needs a shell extension for absolute mouse position.
-Log out/in after first-time setup if prompted.
-
-</details>
-
-<details>
-<summary><strong>Wayland cursor positioning options</strong></summary>
-
-CrossMacro works on Wayland.
-
-- Absolute cursor position is available on:
-  - Hyprland (IPC)
-  - Wayfire (IPC, `ipc` + `ipc-rules` plugins, v0.10+)
-    - Wayfire IPC discovery checks `WAYFIRE_SOCKET`, then `XDG_RUNTIME_DIR`, then temp-directory socket candidates.
-  - KDE Plasma (D-Bus)
-  - GNOME (Shell Extension)
-- Niri and COSMIC are detected for screen resolution only; they do not currently expose a safe absolute cursor-position API for recording.
-- If an absolute cursor provider is unavailable, CrossMacro automatically falls back to relative-position mode for recording. Macros that contain absolute-coordinate events require an absolute-capable backend for playback.
-- You can force relative mode with **Force Relative Coordinates**.
-- You can disable origin move at recording start with **Skip Initial 0,0 Position**.
-- For the smoothest relative-position playback, disable pointer acceleration and use a flat pointer profile in your desktop or compositor settings; accelerated profiles can distort replayed movement deltas.
-
-Absolute and relative coordinate events can be mixed in one macro. Current-position clicks do not carry coordinates and execute at the live cursor position.
-
-</details>
-
-<details>
-<summary><strong>Enable debug logging</strong></summary>
-
-```bash
-sudo systemctl kill -s USR1 crossmacro.service
-journalctl -u crossmacro.service -f
-```
-
-Send `USR1` again to restore normal log level.
-
-</details>
-
-<details>
-<summary><strong>Polkit on minimal systems</strong></summary>
-
-```bash
-which pkcheck
-pkcheck --version
-```
-
-Install polkit to enable daemon mode on minimal systems.
-
-</details>
-
-<details>
-<summary><strong>Input capture conflicts (Linux)</strong></summary>
-
-Some applications can lock input devices exclusively.
-If capture/playback behaves inconsistently, pause conflicting tools (example: GPU Screen Recorder), test CrossMacro, then resume them.
-
-</details>
-
-## Contributing
+## Support and Project Links
 
 - Contribution guide: [CONTRIBUTING.md](CONTRIBUTING.md)
-- Issues (bugs/features): <https://github.com/alper-han/CrossMacro/issues>
-- Discussions (questions/ideas): <https://github.com/alper-han/CrossMacro/discussions>
-
-## Security
-
 - Security policy: [SECURITY.md](SECURITY.md)
+- Linux setup and troubleshooting: [docs/linux.md](docs/linux.md)
+- CLI usage and run syntax: [docs/cli.md](docs/cli.md)
+- Issues: <https://github.com/alper-han/CrossMacro/issues>
+- Discussions: <https://github.com/alper-han/CrossMacro/discussions>
 - Private vulnerability reporting: <https://github.com/alper-han/CrossMacro/security/advisories/new>
+- Packaged CLI manpage: [`docs/man/crossmacro.1`](docs/man/crossmacro.1)
 
 ## Contributors
 

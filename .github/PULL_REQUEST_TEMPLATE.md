@@ -1,14 +1,16 @@
-# Pull Request
+# Summary
 
 <!--
-Open pull requests against dev unless a maintainer asks for another target.
-Do not bump release versions unless this is maintainer-approved release work.
+What changed?
+Why is it needed?
 -->
 
-## Summary
+## Impact
 
-- What changed?
-- Why is it needed?
+<!--
+Mention affected platforms, install channels, permissions, daemon/setup,
+breaking changes, or release metadata if relevant.
+-->
 
 ## Type of change
 
@@ -19,50 +21,11 @@ Do not bump release versions unless this is maintainer-approved release work.
 - [ ] Documentation
 - [ ] Build / CI
 - [ ] Packaging / Release
-
-## User-facing area
-
-- [ ] GUI recording / playback
-- [ ] Macro editor / files
-- [ ] Shortcuts / global hotkeys
-- [ ] Scheduled tasks
-- [ ] Text expansion
-- [ ] CLI / GUI-less desktop runtime
-- [ ] Doctor / diagnostics
-- [ ] Install / update / packaging
-- [ ] Documentation only
-
-## Platforms affected
-
-- [ ] Linux X11
-- [ ] Linux Wayland (GNOME / KDE / Hyprland / Wayfire / Niri / COSMIC / Other)
-- [ ] Windows
-- [ ] macOS
-- [ ] Cross-platform / not platform-specific
-
-## Packaging / distribution impact
-
-- [ ] Flatpak
-- [ ] AppImage
-- [ ] `.deb`
-- [ ] `.rpm`
-- [ ] AUR
-- [ ] Nix / NixOS
-- [ ] Microsoft Store
-- [ ] winget
-- [ ] MSIX
-- [ ] Portable EXE
-- [ ] DMG
-- [ ] None
-
-## Permissions / daemon / setup impact
-
-- [ ] Linux daemon protocol or socket changes
-- [ ] Linux uinput / input device access changes
-- [ ] polkit / pkexec / Quick Setup changes
-- [ ] Wayland absolute cursor provider changes
-- [ ] macOS Input Monitoring / Accessibility changes
-- [ ] No permission, daemon, or setup changes
+- [ ] Performance
+- [ ] Security
+- [ ] Localization
+- [ ] Dependencies / Maintenance
+- [ ] Other
 
 ## Verification performed
 
@@ -74,24 +37,4 @@ Do not bump release versions unless this is maintainer-approved release work.
 - [ ] Documentation rendered / links checked
 - [ ] Not run; explain below
 
-## Documentation
-
-- [ ] README / docs updated
-- [ ] CLI manpage updated
-- [ ] CONTRIBUTING updated
-- [ ] No documentation change needed
-
 ## Screenshots / logs (if applicable)
-
-## Risks / review notes
-
-- Risk level, review hotspots, or follow-up notes.
-
-## Breaking changes
-
-- [ ] Yes; describe below
-- [ ] No
-
-## Related issues
-
-- Fixes #

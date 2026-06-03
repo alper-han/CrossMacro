@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/alper-han/CrossMacro/security/advisories/new
+    about: Please report vulnerabilities privately instead of opening a public issue.
+  - name: Questions and discussions
+    url: https://github.com/alper-han/CrossMacro/discussions
+    about: Use discussions for usage questions, ideas, and community support.

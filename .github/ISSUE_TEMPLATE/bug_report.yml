@@ -1,24 +1,29 @@
-name: 🐞 Bug Report
-description: Create a report to help us improve CrossMacro
+name: Bug Report
+description: Report a reproducible CrossMacro problem
 title: "[Bug]: "
 labels: ["bug", "triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to fill out this bug report!
-  
+        Thanks for taking the time to report a bug. Please include the install
+        channel, platform/session details, reproduction steps, logs, and doctor
+        output whenever possible.
+
   - type: dropdown
     id: platform
     attributes:
       label: Platform
       description: Which platform are you using?
       options:
-        - Linux (X11)
-        - Hyprland (Wayland)
-        - KDE Plasma (Wayland)
-        - GNOME (Wayland)
-        - Other Wayland
+        - Linux X11
+        - Linux Wayland - GNOME
+        - Linux Wayland - KDE Plasma
+        - Linux Wayland - Hyprland
+        - Linux Wayland - Wayfire
+        - Linux Wayland - Niri
+        - Linux Wayland - COSMIC
+        - Linux Wayland - Other
         - Windows
         - macOS
     validations:
@@ -36,11 +41,13 @@ body:
         - .rpm (Fedora/RHEL)
         - AUR
         - Nix / NixOS
-        - Windows Store
+        - Microsoft Store
         - winget
+        - MSIX
         - Portable EXE
-        - DMG (macOS)
+        - DMG
         - Built from source
+        - Other
     validations:
       required: true
 
@@ -48,19 +55,45 @@ body:
     id: os_version
     attributes:
       label: OS Version
-      description: e.g., Arch Linux, Ubuntu 24.04, Fedora 40, NixOS, Windows 11, macOS
-      placeholder: Arch Linux / Windows 11 / macOS
+      description: Distribution or OS release.
+      placeholder: Arch Linux / Ubuntu 24.04 / Fedora 40 / NixOS / Windows 11 / macOS 15
     validations:
       required: true
+
+  - type: input
+    id: desktop_session
+    attributes:
+      label: Desktop/session details
+      description: Add compositor, desktop environment, session type, or relevant session state.
+      placeholder: GNOME 50 Wayland / KDE Plasma 6 Wayland / Hyprland / X11 / locked Windows session
 
   - type: input
     id: app_version
     attributes:
       label: CrossMacro Version
       description: App version shown in About or `crossmacro --version`
-      placeholder: 0.9.9
+      placeholder: 1.2.0
     validations:
       required: true
+
+  - type: dropdown
+    id: affected_area
+    attributes:
+      label: Affected area
+      description: Which part of CrossMacro is affected?
+      multiple: true
+      options:
+        - Recording
+        - Playback
+        - Macro editor / files
+        - Shortcuts / global hotkeys
+        - Scheduled tasks
+        - Text expansion
+        - CLI / GUI-less desktop runtime
+        - Doctor / diagnostics
+        - Linux daemon / direct device setup
+        - Install / update / packaging
+        - Other
 
   - type: dropdown
     id: linux_mode
@@ -68,9 +101,24 @@ body:
       label: Linux Mode (if applicable)
       description: If you're on Linux, which mode are you using?
       options:
-        - Daemon mode (socket at /run/crossmacro/crossmacro.sock)
-        - Direct mode (Wayland permissions)
+        - Native X11 backend
+        - Daemon-backed mode (socket at /run/crossmacro/crossmacro.sock)
+        - Direct device mode
         - Not sure / Not Linux
+
+  - type: dropdown
+    id: setup_flow
+    attributes:
+      label: Setup or permission flow (if applicable)
+      description: Did a setup, permission, or diagnostics flow appear before the problem?
+      multiple: true
+      options:
+        - Linux Quick Setup
+        - Linux daemon setup
+        - macOS Input Monitoring
+        - macOS Accessibility
+        - Doctor reported warnings or failures
+        - Not applicable / not sure
 
   - type: textarea
     id: description
@@ -80,6 +128,12 @@ body:
       placeholder: When I press F8 to record...
     validations:
       required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
 
   - type: textarea
     id: reproduction
@@ -95,15 +149,21 @@ body:
       required: true
 
   - type: textarea
-    id: logs
+    id: doctor
     attributes:
-      label: Logs
-      description: Please copy and paste any relevant logs.
+      label: Doctor output
+      description: Paste `crossmacro doctor --json --verbose` output. On macOS DMG installs, use `/Applications/CrossMacro.app/Contents/MacOS/CrossMacro.UI doctor --json --verbose` if `crossmacro` is not on PATH.
       render: shell
 
   - type: textarea
-    id: doctor
+    id: logs
     attributes:
-      label: `crossmacro doctor --json --verbose`
-      description: If possible, run `crossmacro doctor --json --verbose` and paste the output.
+      label: Logs
+      description: Please copy and paste relevant app, terminal, daemon, packaging, or system logs. For Linux daemon installs, `journalctl -u crossmacro.service -f` is often useful.
       render: shell
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional context
+      description: Add screenshots, workarounds tried, or anything else that may help.

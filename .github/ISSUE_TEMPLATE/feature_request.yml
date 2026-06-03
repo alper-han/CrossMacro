@@ -1,12 +1,13 @@
-name: 💡 Feature Request
-description: Suggest an idea for this project
+name: Feature Request
+description: Suggest a CrossMacro workflow improvement
 title: "[Feature]: "
-labels: ["enhancement"]
+labels: ["enhancement", "triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for suggesting a new feature!
+        Thanks for suggesting a new feature. Please describe the workflow or
+        problem first, then the proposed behavior.
 
   - type: input
     id: title
@@ -17,15 +18,80 @@ body:
       required: true
 
   - type: textarea
-    id: description
+    id: problem
     attributes:
-      label: Detailed Description
-      description: Describe the solution you'd like.
+      label: Problem / workflow
+      description: What workflow, limitation, or user problem should this solve?
     validations:
       required: true
 
   - type: textarea
-    id: use_case
+    id: proposal
     attributes:
-      label: Use Case
-      description: Describe the problem this feature solves or why it would be useful.
+      label: Proposed solution
+      description: Describe the behavior you would like CrossMacro to support.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: affected_area
+    attributes:
+      label: Affected area
+      description: Which part of CrossMacro would this change?
+      multiple: true
+      options:
+        - GUI recording / playback
+        - Macro editor / files
+        - Shortcuts / global hotkeys
+        - Scheduled tasks
+        - Text expansion
+        - CLI / GUI-less desktop runtime
+        - Doctor / diagnostics
+        - Install / update / packaging
+        - Documentation
+        - Other
+
+  - type: dropdown
+    id: platforms
+    attributes:
+      label: Platforms
+      description: Which platforms or sessions should support this?
+      multiple: true
+      options:
+        - Linux X11
+        - Linux Wayland
+        - Windows
+        - macOS
+        - Cross-platform / not platform-specific
+
+  - type: dropdown
+    id: install_channels
+    attributes:
+      label: Install channels
+      description: Which install or distribution channels are affected, if any?
+      multiple: true
+      options:
+        - Flatpak
+        - AppImage
+        - .deb / .rpm
+        - AUR
+        - Nix / NixOS
+        - Microsoft Store
+        - winget
+        - MSIX
+        - Portable EXE
+        - DMG
+        - Built from source
+        - Not applicable
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds, other tools, or alternate designs have you considered?
+
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility / documentation notes
+      description: Note any expected effects on permissions, macro files, CLI syntax, packaging, platform behavior, or user documentation.

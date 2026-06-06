@@ -18,6 +18,8 @@ public class MacOSInputCapture : IInputCapture
     private Thread? _captureThread;
     private bool _captureMouse = true;
     private bool _captureKeyboard = true;
+    private bool _captureGamepad = true;
+    
     private volatile bool _stopRequested;
     private bool _disposed;
     private CancellationTokenRegistration _startCancellationRegistration;
@@ -44,10 +46,11 @@ public class MacOSInputCapture : IInputCapture
         _callbackDelegate = EventTapCallback;
     }
 
-    public void Configure(bool captureMouse, bool captureKeyboard)
+    public void Configure(bool captureMouse, bool captureKeyboard, bool captureGamepad)
     {
         _captureMouse = captureMouse;
         _captureKeyboard = captureKeyboard;
+        _captureGamepad = captureGamepad;
     }
     public Task StartAsync(CancellationToken ct)
     {

@@ -35,5 +35,6 @@ public enum AppIcon
     Tip,
     Tools,
     Undo,
-    Warning
+    Warning,
+    Gamepad
 }

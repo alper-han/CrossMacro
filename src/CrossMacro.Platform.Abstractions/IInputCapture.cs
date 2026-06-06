@@ -14,7 +14,7 @@ public interface IInputCapture : IDisposable
 
     event EventHandler<string>? Error;
 
-    void Configure(bool captureMouse, bool captureKeyboard);
+    void Configure(bool captureMouse, bool captureKeyboard, bool captureGamepad);
 
     Task StartAsync(CancellationToken ct);
 

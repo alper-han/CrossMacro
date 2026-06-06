@@ -48,7 +48,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
         _inputSimulatorFactory = inputSimulatorFactory;
     }
 
-    public async Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, IEnumerable<int>? ignoredKeys = null, bool forceRelative = false, bool skipInitialZero = false, CancellationToken cancellationToken = default)
+    public async Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, bool recordGamepad, IEnumerable<int>? ignoredKeys = null, bool forceRelative = false, bool skipInitialZero = false, CancellationToken cancellationToken = default)
     {
         if (_isRecording)
             return;
@@ -108,13 +108,13 @@ public class MacroRecorder : IMacroRecorder, IDisposable
 
             // 3. Initialize Processor
             _currentProcessor = _processorFactory(_currentStrategy);
-            _currentProcessor.Configure(recordMouse, recordKeyboard, ignoredKeys != null ? new HashSet<int>(ignoredKeys) : null, useAbsoluteCoordinates);
+            _currentProcessor.Configure(recordMouse, recordKeyboard, recordGamepad, ignoredKeys != null ? new HashSet<int>(ignoredKeys) : null, useAbsoluteCoordinates);
 
             // 4. Initialize Capture
             _inputCapture = _inputCaptureFactory();
             var inputCapture = _inputCapture;
             var providerName = inputCapture.ProviderName;
-            inputCapture.Configure(recordMouse, recordKeyboard);
+            inputCapture.Configure(recordMouse, recordKeyboard, recordGamepad);
             inputCapture.InputReceived += OnInputReceived;
             inputCapture.Error += OnInputCaptureError;
 

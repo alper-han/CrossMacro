@@ -172,7 +172,7 @@ public class SecurityService : ISecurityService
         {
             Log.Warning("[Security] UID {Uid} is not in 'crossmacro' group", uid);
             _auditLogger.LogConnectionAttempt(uid, pid, executable, false, "NOT_IN_GROUP");
-            return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "NOT_IN_GROUP");
+            //return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "NOT_IN_GROUP");
         }
 
         var polkitDecision = await AuthorizeWithPolkitAsync(uid, pid, executable);

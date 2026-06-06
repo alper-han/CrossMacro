@@ -104,6 +104,11 @@ public class AppSettings
     /// Whether keyboard recording is enabled
     /// </summary>
     public bool IsKeyboardRecordingEnabled { get; set; } = true;
+    
+    /// <summary>
+    /// Whether gamepad recording is enabled
+    /// </summary>
+    public bool IsGamepadRecordingEnabled { get; set; } = false;
 
     /// <summary>
     /// Force using relative coordinates even when absolute coordinates are supported

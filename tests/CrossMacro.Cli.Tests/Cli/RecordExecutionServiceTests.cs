@@ -55,6 +55,7 @@ public class RecordExecutionServiceTests
         await _macroRecorder.Received(1).StartRecordingAsync(
             true,
             true,
+            true,
             Arg.Any<IEnumerable<int>>(),
             forceRelative: true,
             skipInitialZero: false,
@@ -84,6 +85,7 @@ public class RecordExecutionServiceTests
 
         Assert.True(result.Success);
         await _macroRecorder.Received(1).StartRecordingAsync(
+            true,
             true,
             true,
             Arg.Any<IEnumerable<int>>(),
@@ -165,6 +167,7 @@ public class RecordExecutionServiceTests
         _macroRecorder.StartRecordingAsync(
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
+                Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
@@ -202,6 +205,7 @@ public class RecordExecutionServiceTests
         _macroRecorder.StartRecordingAsync(
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
+                Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
@@ -226,6 +230,7 @@ public class RecordExecutionServiceTests
         var delayedStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var startInvoked = new AsyncSignal();
         _macroRecorder.StartRecordingAsync(
+                Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
@@ -261,6 +266,7 @@ public class RecordExecutionServiceTests
         _mousePositionProvider.IsSupported.Returns(false);
         var delayedStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _macroRecorder.StartRecordingAsync(
+                Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
@@ -303,6 +309,7 @@ public class RecordExecutionServiceTests
         _macroRecorder.StartRecordingAsync(
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
+                Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
@@ -339,6 +346,7 @@ public class RecordExecutionServiceTests
         _mousePositionProvider.IsSupported.Returns(false);
         var blockingStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _macroRecorder.StartRecordingAsync(
+                Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
@@ -381,6 +389,7 @@ public class RecordExecutionServiceTests
         _macroRecorder.StartRecordingAsync(
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
+                Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
@@ -419,6 +428,7 @@ public class RecordExecutionServiceTests
         var delayedStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var startInvoked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _macroRecorder.StartRecordingAsync(
+                Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
@@ -469,6 +479,7 @@ public class RecordExecutionServiceTests
         _macroRecorder.StartRecordingAsync(
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
+                Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
@@ -511,6 +522,7 @@ public class RecordExecutionServiceTests
     private void ConfigureImmediateStart()
     {
         _macroRecorder.StartRecordingAsync(
+                Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),

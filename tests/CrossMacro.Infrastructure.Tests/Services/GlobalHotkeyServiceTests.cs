@@ -83,7 +83,7 @@ public class GlobalHotkeyServiceTests
         _service.Start();
 
         // Assert
-        _inputCapture.Received(1).Configure(true, true);
+        _inputCapture.Received(1).Configure(true, true, true);
         Assert.True(_service.IsRunning);
     }
 
@@ -94,7 +94,7 @@ public class GlobalHotkeyServiceTests
 
         _service.Start();
 
-        _inputCapture.Received(1).Configure(true, true);
+        _inputCapture.Received(1).Configure(true, true, true);
         _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
     }
 
@@ -356,14 +356,14 @@ public class GlobalHotkeyServiceTests
 
         firstCapture.Received(1).Stop();
         firstCapture.Received(1).Dispose();
-        secondCapture.Received(1).Configure(true, true);
+        secondCapture.Received(1).Configure(true, true, true);
         await secondCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
 
         Received.InOrder(() =>
         {
             firstCapture.Stop();
             firstCapture.Dispose();
-            secondCapture.Configure(true, true);
+            secondCapture.Configure(true, true, true);
             secondCapture.StartAsync(Arg.Any<CancellationToken>());
         });
     }
@@ -403,7 +403,7 @@ public class GlobalHotkeyServiceTests
         Assert.True(restartingService.IsRunning);
         firstCapture.Received(1).Stop();
         firstCapture.Received(1).Dispose();
-        secondCapture.Received(1).Configure(true, true);
+        secondCapture.Received(1).Configure(true, true, true);
         await secondCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
     }
 
@@ -445,7 +445,7 @@ public class GlobalHotkeyServiceTests
         _modifierTracker.Received(1).Clear();
         firstCapture.Received(1).Stop();
         firstCapture.Received(1).Dispose();
-        secondCapture.Received(1).Configure(true, true);
+        secondCapture.Received(1).Configure(true, true, true);
         await secondCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
     }
 
@@ -533,7 +533,7 @@ public class GlobalHotkeyServiceTests
         Assert.Contains("Restart failed", restartingService.LastError, StringComparison.OrdinalIgnoreCase);
         firstCapture.Received(1).Stop();
         firstCapture.Received(1).Dispose();
-        secondCapture.Received(1).Configure(true, true);
+        secondCapture.Received(1).Configure(true, true, true);
         await secondCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
         secondCapture.Received(1).Stop();
         secondCapture.Received(1).Dispose();
@@ -542,7 +542,7 @@ public class GlobalHotkeyServiceTests
         {
             firstCapture.Stop();
             firstCapture.Dispose();
-            secondCapture.Configure(true, true);
+            secondCapture.Configure(true, true, true);
             secondCapture.StartAsync(Arg.Any<CancellationToken>());
             secondCapture.Stop();
             secondCapture.Dispose();

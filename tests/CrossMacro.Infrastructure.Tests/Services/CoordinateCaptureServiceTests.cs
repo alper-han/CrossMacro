@@ -189,7 +189,7 @@ public class CoordinateCaptureServiceTests
             remove { }
         }
 
-        public void Configure(bool captureMouse, bool captureKeyboard)
+        public void Configure(bool captureMouse, bool captureKeyboard, bool captureGamepad)
         {
             ConfigureCalls++;
             LastCaptureMouse = captureMouse;

@@ -20,6 +20,7 @@ public class LinuxInputCapture : IInputCapture
     
     private bool _captureMouse = true;
     private bool _captureKeyboard = true;
+    private bool _captureGamepad = true;
     
     public string ProviderName => "Linux Evdev";
     
@@ -57,10 +58,12 @@ public class LinuxInputCapture : IInputCapture
         _readerFactory = readerFactory;
     }
     
-    public void Configure(bool captureMouse, bool captureKeyboard)
+    public void Configure(bool captureMouse, bool captureKeyboard, bool captureGamepad)
     {
         _captureMouse = captureMouse;
         _captureKeyboard = captureKeyboard;
+        _captureGamepad = captureGamepad;
+        
         Log.Information("[LinuxInputCapture] Configured: Mouse={Mouse}, Keyboard={Keyboard}", captureMouse, captureKeyboard);
     }
     

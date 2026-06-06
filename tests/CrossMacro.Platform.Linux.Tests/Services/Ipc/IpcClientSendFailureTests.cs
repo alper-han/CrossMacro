@@ -101,7 +101,7 @@ public class IpcClientSendFailureTests
             Interlocked.Increment(ref callbacksObserved);
             Volatile.Read(ref nextCallbackObserved)?.TrySetResult();
 
-            client.StartCapture("stress-consumer", mouse: true, keyboard: true);
+            client.StartCapture("stress-consumer", mouse: true, keyboard: true, gamepad: true);
             client.StopCapture("stress-consumer");
         };
         for (var iteration = 0; iteration < iterations; iteration++)

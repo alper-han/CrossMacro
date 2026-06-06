@@ -45,10 +45,10 @@ namespace CrossMacro.Platform.Linux.Services
             _relativeCapture.Error += (s, e) => Error?.Invoke(this, e);
         }
 
-        public void Configure(bool captureMouse, bool captureKeyboard)
+        public void Configure(bool captureMouse, bool captureKeyboard, bool captureGamepad)
         {
-            _absoluteCapture.Configure(captureMouse, captureKeyboard);
-            _relativeCapture.Configure(captureMouse, captureKeyboard);
+            _absoluteCapture.Configure(captureMouse, captureKeyboard, captureGamepad);
+            _relativeCapture.Configure(captureMouse, captureKeyboard, captureGamepad);
         }
 
 

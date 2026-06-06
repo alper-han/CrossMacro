@@ -659,7 +659,7 @@ internal sealed class DesignMacroRecorder : IMacroRecorder
         remove { }
     }
 
-    public Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, IEnumerable<int>? ignoredKeys = null, bool forceRelative = false, bool skipInitialZero = false, CancellationToken cancellationToken = default)
+    public Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, bool recordGamepad, IEnumerable<int>? ignoredKeys = null, bool forceRelative = false, bool skipInitialZero = false, CancellationToken cancellationToken = default)
     {
         IsRecording = true;
         return Task.CompletedTask;

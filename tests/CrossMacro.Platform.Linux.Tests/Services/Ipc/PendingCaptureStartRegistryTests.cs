@@ -22,7 +22,8 @@ public class PendingCaptureStartRegistryTests
             "shared-consumer",
             hadPreviousSubscription: true,
             previousCaptureMouse: true,
-            previousCaptureKeyboard: true);
+            previousCaptureKeyboard: true,
+            previousCaptureGamepad: true);
 
         var failed = registry.TryFail(registration.RequestId, out var failureContext);
 

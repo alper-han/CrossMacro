@@ -24,13 +24,14 @@ internal sealed class InputCaptureLifecycle
         Func<IInputCapture> inputCaptureFactory,
         bool captureMouse,
         bool captureKeyboard,
+        bool captureGamepad,
         EventHandler<InputCaptureEventArgs> onInputReceived,
         EventHandler<string> onError,
         Action<IInputCapture> onStarted,
         Action<IInputCapture, Exception> onFault)
     {
         var capture = inputCaptureFactory();
-        capture.Configure(captureMouse, captureKeyboard);
+        capture.Configure(captureMouse, captureKeyboard, captureGamepad);
         capture.InputReceived += onInputReceived;
         capture.Error += onError;
 

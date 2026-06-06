@@ -5,7 +5,6 @@ namespace CrossMacro.Core.Models;
 /// </summary>
 public static class EditorActionValidationLimits
 {
-    public const int MaxTextInputLength = 500;
     public const int MaxDelayMs = 3_600_000; // 1 hour
     public const int MaxKeyCode = 767;
     public const int MaxScrollAmount = 100;

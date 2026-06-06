@@ -1183,7 +1183,7 @@
     <value>لا يمكن تعيين هذه الخطوة إلى الحقول المنظمة وسيتم حفظها كما هي.</value>
   </data>
   <data name="Editor_TextToTypeHint" xml:space="preserve">
-    <value>تتم كتابة كل حرف كضغطة مفتاح منفصلة (بحد أقصى {0} حرفًا)</value>
+    <value>تتم كتابة النص كضغطات مفاتيح؛ ويتم إرسال فواصل الأسطر كمفتاح Enter.</value>
   </data>
   <data name="Editor_StatusAddedAction" xml:space="preserve">
     <value>تمت الإضافة {0}</value>

@@ -51,9 +51,15 @@
                             <StackPanel Grid.Row="0" Grid.Column="2" Spacing="6">
                                 <TextBlock Text="{localization:Loc TextExpansion_Replacement}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 <TextBox PlaceholderText="{localization:Loc TextExpansion_ReplacementPlaceholder}"
-                                          Text="{Binding ReplacementInput, FallbackValue=''}"
-                                         CornerRadius="6"
-                                         Padding="10"/>
+                                           Text="{Binding ReplacementInput, FallbackValue='', UpdateSourceTrigger=PropertyChanged}"
+                                           AcceptsReturn="True"
+                                           TextWrapping="Wrap"
+                                           ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                           ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                           MinHeight="96"
+                                           MaxHeight="220"
+                                           CornerRadius="6"
+                                           Padding="10"/>
                             </StackPanel>
                             <!-- Insertion Mode -->
                             <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Spacing="6" Margin="0,16,0,0">

@@ -1457,10 +1457,17 @@ public sealed class RunScriptCompiler
             return true;
         }
 
-        foreach (var ch in textToType)
+        for (var index = 0; index < textToType.Length; index++)
         {
+            var ch = textToType[index];
             if (ch == '\r')
             {
+                if (index + 1 < textToType.Length && textToType[index + 1] == '\n')
+                {
+                    index++;
+                }
+
+                emitTapKeyByName("Enter");
                 continue;
             }
 
@@ -1473,6 +1480,12 @@ public sealed class RunScriptCompiler
             if (ch == '\t')
             {
                 emitTapKeyByName("Tab");
+                continue;
+            }
+
+            if (ch == '\b')
+            {
+                emitTapKeyByName("Backspace");
                 continue;
             }
 

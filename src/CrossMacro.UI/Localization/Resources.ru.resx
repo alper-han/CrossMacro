@@ -1183,7 +1183,7 @@
     <value>Этот шаг невозможно сопоставить со структурированными полями, и он будет сохранен как есть.</value>
   </data>
   <data name="Editor_TextToTypeHint" xml:space="preserve">
-    <value>Каждый символ набирается как отдельное нажатие клавиши (максимум {0} символов)</value>
+    <value>Текст вводится как нажатия клавиш; переносы строк отправляются как Enter.</value>
   </data>
   <data name="Editor_StatusAddedAction" xml:space="preserve">
     <value>Добавлен {0}</value>

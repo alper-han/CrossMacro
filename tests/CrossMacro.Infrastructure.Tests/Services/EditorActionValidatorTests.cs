@@ -43,21 +43,21 @@ public class EditorActionValidatorTests
     }
 
     [Fact]
-    public void Validate_TextInputTooLong_ReturnsInvalid()
+    public void Validate_TextInputWithLongMultilineContent_ReturnsValid()
     {
         // Arrange
         var action = new EditorAction
         {
             Type = EditorActionType.TextInput,
-            Text = new string('x', EditorActionValidator.MaxTextInputLength + 1)
+            Text = string.Join('\n', Enumerable.Repeat(new string('x', 1_000), 20))
         };
 
         // Act
         var result = _validator.Validate(action);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain("maximum length");
+        result.IsValid.Should().BeTrue();
+        result.Error.Should().BeNull();
     }
 
     [Fact]

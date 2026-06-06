@@ -1183,7 +1183,7 @@
     <value>This step could not be mapped to structured fields and will be saved as-is.</value>
   </data>
   <data name="Editor_TextToTypeHint" xml:space="preserve">
-    <value>Each character is typed as a separate key press (max {0} chars)</value>
+    <value>Text is typed as key presses; line breaks are sent as Enter.</value>
   </data>
   <data name="Editor_StatusAddedAction" xml:space="preserve">
     <value>Added {0}</value>

@@ -366,8 +366,11 @@
                                          CornerRadius="4"
                                          Padding="8,6"
                                          AcceptsReturn="{Binding TextInputAcceptsReturn}"
-                                         TextWrapping="NoWrap"
-                                         MaxLength="500"/>
+                                         TextWrapping="Wrap"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         MinHeight="96"
+                                         MaxHeight="220"/>
                                 <TextBlock Text="{Binding TextInputHint}"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="11"

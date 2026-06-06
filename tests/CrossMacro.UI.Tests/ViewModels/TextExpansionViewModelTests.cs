@@ -107,6 +107,24 @@ public class TextExpansionViewModelTests
     }
 
     [Fact]
+    public async Task AddExpansion_PreservesMultilineReplacement()
+    {
+        // Arrange
+        var replacement = "first line\nsecond line\nthird line";
+        _viewModel.TriggerInput = ":message";
+        _viewModel.ReplacementInput = replacement;
+
+        // Act
+        await _viewModel.AddExpansionCommand.ExecuteAsync(null);
+
+        // Assert
+        _viewModel.Expansions.Should().ContainSingle();
+        _viewModel.Expansions[0].Replacement.Should().Be(replacement);
+        await _storageService.Received(1).SaveAsync(Arg.Is<IEnumerable<TextExpansion>>(expansions =>
+            expansions.Single().Replacement == replacement));
+    }
+
+    [Fact]
     public void AddExpansion_CanExecute_ValidatesInput()
     {
          // Arrange

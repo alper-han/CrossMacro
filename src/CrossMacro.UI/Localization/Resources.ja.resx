@@ -1183,7 +1183,7 @@
     <value>このステップは構造化フィールドにマップできなかったため、そのまま保存されます。</value>
   </data>
   <data name="Editor_TextToTypeHint" xml:space="preserve">
-    <value>各文字は個別のキー押下として入力されます (最大 {0} 文字)</value>
+    <value>テキストはキー押下として入力され、改行は Enter として送信されます。</value>
   </data>
   <data name="Editor_StatusAddedAction" xml:space="preserve">
     <value>{0}を追加しました</value>

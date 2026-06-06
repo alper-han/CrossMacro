@@ -35,6 +35,5 @@ public static class ValidationMessages
 
     // Text / Script
     public const string TextInputRequired = "Text content is required";
-    public const string TextInputTooLong = "Text content exceeds maximum length";
     public const string ActionPayloadRequired = "Action payload is required";
 }

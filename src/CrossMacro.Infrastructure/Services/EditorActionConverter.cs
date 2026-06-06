@@ -164,71 +164,28 @@ public class EditorActionConverter : IEditorActionConverter
                 }
 
                 bool isFirst = true;
-                foreach (var c in action.Text)
+                for (var index = 0; index < action.Text.Length; index++)
                 {
+                    var c = action.Text[index];
+                    if (c == '\r' && index + 1 < action.Text.Length && action.Text[index + 1] == '\n')
+                    {
+                        index++;
+                        AddKeyStroke(events, InputEventCode.KEY_ENTER, ref isFirst, action.DelayMs);
+                        continue;
+                    }
+
+                    if (TryGetTextInputControlKeyCode(c, out var controlKeyCode))
+                    {
+                        AddKeyStroke(events, controlKeyCode, ref isFirst, action.DelayMs);
+                        continue;
+                    }
+
                     var keyCode = _keyCodeMapper.GetKeyCodeForCharacter(c);
                     if (keyCode == -1) continue; // Skip unmappable characters
-                    
+
                     var needsShift = _keyCodeMapper.RequiresShift(c);
                     var needsAltGr = _keyCodeMapper.RequiresAltGr(c);
-                    
-                    // Press modifiers first
-                    if (needsShift)
-                    {
-                        events.Add(new MacroEvent
-                        {
-                            Type = EventType.KeyPress,
-                            KeyCode = InputEventCode.KEY_LEFTSHIFT,
-                            DelayMs = 0
-                        });
-                    }
-                    
-                    if (needsAltGr)
-                    {
-                        events.Add(new MacroEvent
-                        {
-                            Type = EventType.KeyPress,
-                            KeyCode = InputEventCode.KEY_RIGHTALT,
-                            DelayMs = 0
-                        });
-                    }
-                    
-                    // Press and release the actual key
-                    events.Add(new MacroEvent
-                    {
-                        Type = EventType.KeyPress,
-                        KeyCode = keyCode,
-                        DelayMs = isFirst ? action.DelayMs : DefaultKeyPressDelayMs
-                    });
-                    events.Add(new MacroEvent
-                    {
-                        Type = EventType.KeyRelease,
-                        KeyCode = keyCode,
-                        DelayMs = 0
-                    });
-                    
-                    // Release modifiers in reverse order
-                    if (needsAltGr)
-                    {
-                        events.Add(new MacroEvent
-                        {
-                            Type = EventType.KeyRelease,
-                            KeyCode = InputEventCode.KEY_RIGHTALT,
-                            DelayMs = 0
-                        });
-                    }
-                    
-                    if (needsShift)
-                    {
-                        events.Add(new MacroEvent
-                        {
-                            Type = EventType.KeyRelease,
-                            KeyCode = InputEventCode.KEY_LEFTSHIFT,
-                            DelayMs = 0
-                        });
-                    }
-                    
-                    isFirst = false;
+                    AddKeyStroke(events, keyCode, ref isFirst, action.DelayMs, needsShift, needsAltGr);
                 }
                 break;
 
@@ -248,6 +205,83 @@ public class EditorActionConverter : IEditorActionConverter
         }
         
         return events;
+    }
+
+    private static bool TryGetTextInputControlKeyCode(char character, out int keyCode)
+    {
+        keyCode = character switch
+        {
+            '\r' or '\n' => InputEventCode.KEY_ENTER,
+            '\t' => InputEventCode.KEY_TAB,
+            '\b' => InputEventCode.KEY_BACKSPACE,
+            _ => -1
+        };
+
+        return keyCode != -1;
+    }
+
+    private static void AddKeyStroke(
+        ICollection<MacroEvent> events,
+        int keyCode,
+        ref bool isFirst,
+        int initialDelayMs,
+        bool needsShift = false,
+        bool needsAltGr = false)
+    {
+        if (needsShift)
+        {
+            events.Add(new MacroEvent
+            {
+                Type = EventType.KeyPress,
+                KeyCode = InputEventCode.KEY_LEFTSHIFT,
+                DelayMs = 0
+            });
+        }
+
+        if (needsAltGr)
+        {
+            events.Add(new MacroEvent
+            {
+                Type = EventType.KeyPress,
+                KeyCode = InputEventCode.KEY_RIGHTALT,
+                DelayMs = 0
+            });
+        }
+
+        events.Add(new MacroEvent
+        {
+            Type = EventType.KeyPress,
+            KeyCode = keyCode,
+            DelayMs = isFirst ? initialDelayMs : DefaultKeyPressDelayMs
+        });
+        events.Add(new MacroEvent
+        {
+            Type = EventType.KeyRelease,
+            KeyCode = keyCode,
+            DelayMs = 0
+        });
+
+        if (needsAltGr)
+        {
+            events.Add(new MacroEvent
+            {
+                Type = EventType.KeyRelease,
+                KeyCode = InputEventCode.KEY_RIGHTALT,
+                DelayMs = 0
+            });
+        }
+
+        if (needsShift)
+        {
+            events.Add(new MacroEvent
+            {
+                Type = EventType.KeyRelease,
+                KeyCode = InputEventCode.KEY_LEFTSHIFT,
+                DelayMs = 0
+            });
+        }
+
+        isFirst = false;
     }
 
     private static MouseCoordinateMode? GetCoordinateMode(EditorAction action)
@@ -635,7 +669,7 @@ public class EditorActionConverter : IEditorActionConverter
                 yield break;
 
             case EditorActionType.TextInput:
-                yield return $"type {action.Text}";
+                yield return $"type {EditorActionScriptTokens.EscapeLiteralDollar(action.Text)}";
                 yield break;
 
             case EditorActionType.SetVariable:
@@ -1196,7 +1230,7 @@ public class EditorActionConverter : IEditorActionConverter
                 actions.Add(new EditorAction
                 {
                     Type = EditorActionType.TextInput,
-                    Text = text
+                    Text = EditorActionScriptTokens.UnescapeLiteralDollar(text)
                 });
                 continue;
             }

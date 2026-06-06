@@ -1183,7 +1183,7 @@
     <value>此步骤无法映射到结构化字段，将按原样保存。</value>
   </data>
   <data name="Editor_TextToTypeHint" xml:space="preserve">
-    <value>每个字符均作为单独的按键输入（最多 {0} 个字符）</value>
+    <value>文本将作为按键输入；换行将作为 Enter 发送。</value>
   </data>
   <data name="Editor_StatusAddedAction" xml:space="preserve">
     <value>添加了{0}</value>

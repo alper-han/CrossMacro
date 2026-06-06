@@ -1183,7 +1183,7 @@
     <value>Este paso no se pudo asignar a campos estructurados y se guardará tal cual.</value>
   </data>
   <data name="Editor_TextToTypeHint" xml:space="preserve">
-    <value>Cada carácter se escribe al presionar una tecla por separado (máximo {0} caracteres)</value>
+    <value>El texto se escribe como pulsaciones de teclas; los saltos de línea se envían como Enter.</value>
   </data>
   <data name="Editor_StatusAddedAction" xml:space="preserve">
     <value>Añadido {0}</value>

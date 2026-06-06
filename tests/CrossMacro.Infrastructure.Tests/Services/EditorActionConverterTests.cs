@@ -411,6 +411,145 @@ public class EditorActionConverterTests
     }
 
     [Fact]
+    public void ToAndFromMacroSequence_WhenTextInputContainsControlCharacters_PreservesMultilineTextInputAction()
+    {
+        ConfigureTextInputTyping();
+
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.TextInput, Text = "a\r\nb\t\b" }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Multiline text boundary", isAbsolute: true);
+        var restored = _converter.FromMacroSequence(sequence);
+
+        sequence.Events.Should().HaveCount(10);
+        sequence.Events.Select(ev => ev.KeyCode).Should().Equal(
+            1_000 + 'a',
+            1_000 + 'a',
+            InputEventCode.KEY_ENTER,
+            InputEventCode.KEY_ENTER,
+            1_000 + 'b',
+            1_000 + 'b',
+            InputEventCode.KEY_TAB,
+            InputEventCode.KEY_TAB,
+            InputEventCode.KEY_BACKSPACE,
+            InputEventCode.KEY_BACKSPACE);
+        sequence.TextInputBoundaries.Should().ContainSingle()
+            .Which.Should().Be(new TextInputBoundary(0, 10, "a\r\nb\t\b"));
+        restored.Should().ContainSingle();
+        restored[0].Type.Should().Be(EditorActionType.TextInput);
+        restored[0].Text.Should().Be("a\r\nb\t\b");
+    }
+
+    [Fact]
+    public void ToMacroSequence_WhenScriptBackedTextInputContainsControlCharacters_CompilesAndRestoresMultilineTextInputAction()
+    {
+        ConfigureTextInputTyping();
+        _keyCodeMapper.GetKeyCode("Enter").Returns(InputEventCode.KEY_ENTER);
+        _keyCodeMapper.GetKeyCode("Tab").Returns(InputEventCode.KEY_TAB);
+        _keyCodeMapper.GetKeyCode("Backspace").Returns(InputEventCode.KEY_BACKSPACE);
+
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.RepeatBlockStart, Text = "1" },
+            new EditorAction { Type = EditorActionType.TextInput, Text = "a\r\nb\t\b" },
+            new EditorAction { Type = EditorActionType.BlockEnd }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Script multiline text", isAbsolute: true);
+        var restored = _converter.FromMacroSequence(sequence);
+
+        sequence.ScriptSteps.Should().Equal(
+            "repeat 1 {",
+            "type a\r\nb\t\b",
+            "}");
+        sequence.Events.Should().HaveCount(10);
+        sequence.Events.Select(ev => ev.KeyCode).Should().Equal(
+            1_000 + 'a',
+            1_000 + 'a',
+            InputEventCode.KEY_ENTER,
+            InputEventCode.KEY_ENTER,
+            1_000 + 'b',
+            1_000 + 'b',
+            InputEventCode.KEY_TAB,
+            InputEventCode.KEY_TAB,
+            InputEventCode.KEY_BACKSPACE,
+            InputEventCode.KEY_BACKSPACE);
+        restored.Should().HaveCount(3);
+        restored[0].Type.Should().Be(EditorActionType.RepeatBlockStart);
+        restored[1].Type.Should().Be(EditorActionType.TextInput);
+        restored[1].Text.Should().Be("a\r\nb\t\b");
+        restored[2].Type.Should().Be(EditorActionType.BlockEnd);
+    }
+
+    [Fact]
+    public void ToMacroSequence_WhenScriptBackedTextInputContainsLiteralDollar_CompilesAndRestoresLiteralDollarText()
+    {
+        ConfigureTextInputTyping();
+
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.RepeatBlockStart, Text = "1" },
+            new EditorAction { Type = EditorActionType.TextInput, Text = "price $10 and $$HOME" },
+            new EditorAction { Type = EditorActionType.BlockEnd }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Script dollar text", isAbsolute: true);
+        var restored = _converter.FromMacroSequence(sequence);
+
+        sequence.ScriptSteps.Should().Equal(
+            "repeat 1 {",
+            "type price $$10 and $$$$HOME",
+            "}");
+        restored.Should().HaveCount(3);
+        restored[1].Type.Should().Be(EditorActionType.TextInput);
+        restored[1].Text.Should().Be("price $10 and $$HOME");
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_WhenScriptBackedTextInputContainsMultilineDollarText_PreservesRestoredTextInputAction()
+    {
+        ConfigureTextInputTyping();
+        _keyCodeMapper.GetKeyCode("Enter").Returns(InputEventCode.KEY_ENTER);
+        var fileManager = new MacroFileManager();
+        var filePath = Path.Combine(Path.GetTempPath(), $"crossmacro_converter_{Guid.NewGuid():N}.macro");
+        var text = "first line\nprice $10";
+
+        try
+        {
+            var sequence = _converter.ToMacroSequence(
+                [
+                    new EditorAction { Type = EditorActionType.RepeatBlockStart, Text = "1" },
+                    new EditorAction { Type = EditorActionType.TextInput, Text = text },
+                    new EditorAction { Type = EditorActionType.BlockEnd }
+                ],
+                "Script multiline dollar text",
+                isAbsolute: true);
+
+            await fileManager.SaveAsync(sequence, filePath);
+            var loaded = await fileManager.LoadAsync(filePath);
+            var restored = _converter.FromMacroSequence(loaded!);
+
+            loaded.Should().NotBeNull();
+            loaded!.ScriptSteps.Should().Equal(
+                "repeat 1 {",
+                "type first line\nprice $$10",
+                "}");
+            restored.Should().HaveCount(3);
+            restored[1].Type.Should().Be(EditorActionType.TextInput);
+            restored[1].Text.Should().Be(text);
+        }
+        finally
+        {
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+        }
+    }
+
+    [Fact]
     public void ToAndFromMacroSequence_WhenTextInputRequiresAltGr_PreservesTextInputAction()
     {
         ConfigureTextInputTyping();

@@ -90,7 +90,7 @@ public class EditorViewModelTests
     }
 
     [Fact]
-    public void SelectedActionDisplayText_ForTextInput_EscapesControlCharacters()
+    public void SelectedActionDisplayText_ForTextInput_PreservesMultilineText()
     {
         // Arrange
         var action = new EditorAction
@@ -102,11 +102,11 @@ public class EditorViewModelTests
         _viewModel.SelectedAction = action;
 
         // Act / Assert
-        _viewModel.SelectedActionDisplayText.Should().Be("⌫asd↵↵asd⇥\\");
+        _viewModel.SelectedActionDisplayText.Should().Be("\basd\r\nasd\t\\");
     }
 
     [Fact]
-    public void SelectedActionDisplayText_ForTextInput_UnescapesEditableTokens()
+    public void SelectedActionDisplayText_ForTextInput_SetsRawMultilineText()
     {
         // Arrange
         var action = new EditorAction { Type = EditorActionType.TextInput };
@@ -114,10 +114,30 @@ public class EditorViewModelTests
         _viewModel.SelectedAction = action;
 
         // Act
-        _viewModel.SelectedActionDisplayText = "⌫asd↵asd⇥\\";
+        _viewModel.SelectedActionDisplayText = "first line\nsecond line\t\\";
 
         // Assert
-        action.Text.Should().Be("\basd\rasd\t\\");
+        action.Text.Should().Be("first line\nsecond line\t\\");
+    }
+
+    [Fact]
+    public void TextInputAcceptsReturn_WhenSelectedActionIsTextInput_ReturnsTrue()
+    {
+        var action = new EditorAction { Type = EditorActionType.TextInput };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+
+        _viewModel.TextInputAcceptsReturn.Should().BeTrue();
+    }
+
+    [Fact]
+    public void TextInputAcceptsReturn_WhenSelectedActionIsNonTextPayload_ReturnsFalse()
+    {
+        var action = new EditorAction { Type = EditorActionType.MouseClick };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+
+        _viewModel.TextInputAcceptsReturn.Should().BeFalse();
     }
 
     [Fact]
@@ -138,7 +158,7 @@ public class EditorViewModelTests
 
         // Assert
         changed.Should().Contain(nameof(EditorViewModel.SelectedActionDisplayText));
-        _viewModel.SelectedActionDisplayText.Should().Be("⌫");
+        _viewModel.SelectedActionDisplayText.Should().Be("\b");
     }
 
     [Fact]

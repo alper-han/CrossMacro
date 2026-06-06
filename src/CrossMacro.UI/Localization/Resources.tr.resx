@@ -1183,7 +1183,7 @@
     <value>Bu adım yapısal alanlara eşlenemedi ve olduğu gibi kaydedilecektir.</value>
   </data>
   <data name="Editor_TextToTypeHint" xml:space="preserve">
-    <value>Her karakter ayrı bir tuş basımı olarak yazılır (en fazla {0} karakter)</value>
+    <value>Metin tuş basımları olarak yazılır; satır sonları Enter olarak gönderilir.</value>
   </data>
   <data name="Editor_StatusAddedAction" xml:space="preserve">
     <value>{0} eklendi</value>

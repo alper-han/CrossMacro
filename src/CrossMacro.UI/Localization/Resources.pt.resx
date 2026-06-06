@@ -1183,7 +1183,7 @@
     <value>Esta etapa não pôde ser mapeada para campos estruturados e será salva como está.</value>
   </data>
   <data name="Editor_TextToTypeHint" xml:space="preserve">
-    <value>Cada caractere é digitado pressionando uma tecla separada (máximo de {0} caracteres)</value>
+    <value>O texto é digitado como pressionamentos de tecla; quebras de linha são enviadas como Enter.</value>
   </data>
   <data name="Editor_StatusAddedAction" xml:space="preserve">
     <value>Adicionado {0}</value>

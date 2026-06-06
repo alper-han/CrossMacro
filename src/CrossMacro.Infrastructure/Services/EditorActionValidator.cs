@@ -14,11 +14,6 @@ public class EditorActionValidator : IEditorActionValidator
 {
     private readonly IEditorActionConverter _validationConverter;
 
-    /// <summary>
-    /// Maximum allowed length for TextInput content.
-    /// </summary>
-    public const int MaxTextInputLength = EditorActionValidationLimits.MaxTextInputLength;
-
     public EditorActionValidator(IEditorActionConverter validationConverter)
     {
         _validationConverter = validationConverter ?? throw new ArgumentNullException(nameof(validationConverter));
@@ -205,10 +200,7 @@ public class EditorActionValidator : IEditorActionValidator
     {
         if (string.IsNullOrEmpty(action.Text))
             return (false, ValidationMessages.TextInputRequired);
-        
-        if (action.Text.Length > MaxTextInputLength)
-            return (false, ValidationMessages.TextInputTooLong);
-        
+
         return (true, null);
     }
 

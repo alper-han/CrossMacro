@@ -122,6 +122,30 @@ public class EditorActionTests
     }
 
     [Fact]
+    public void IsValid_WhenTextInputContainsOnlyWhitespaceOrLineBreaks_ReturnsTrue()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.TextInput,
+            Text = " \n\t"
+        };
+
+        action.IsValid().Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsValid_WhenTextInputIsEmpty_ReturnsFalse()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.TextInput,
+            Text = string.Empty
+        };
+
+        action.IsValid().Should().BeFalse();
+    }
+
+    [Fact]
     public void IsValid_WhenScriptVariableReferencesUseDollarPrefix_ReturnsTrue()
     {
         // Arrange

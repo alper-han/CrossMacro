@@ -511,9 +511,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public bool ShowTextInput => SelectedAction?.Type is EditorActionType.TextInput or EditorActionType.RawScriptStep;
     public string SelectedActionDisplayText
     {
-        get => SelectedAction?.Type == EditorActionType.TextInput
-            ? TextInputControlCharacterFormatter.Escape(SelectedAction.Text)
-            : SelectedAction?.Text ?? string.Empty;
+        get => SelectedAction?.Text ?? string.Empty;
         set
         {
             if (SelectedAction == null)
@@ -521,9 +519,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                 return;
             }
 
-            var text = SelectedAction.Type == EditorActionType.TextInput
-                ? TextInputControlCharacterFormatter.Unescape(value)
-                : value;
+            var text = value;
             if (SelectedAction.Text == text)
             {
                 return;
@@ -622,12 +618,9 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         : Localize("Editor_EnterTextToType");
     public string TextInputHint => SelectedAction?.Type == EditorActionType.RawScriptStep
         ? Localize("Editor_RawScriptHint")
-        : string.Format(
-            _localizationService.CurrentCulture,
-            Localize("Editor_TextToTypeHint"),
-            EditorActionValidationLimits.MaxTextInputLength);
+        : Localize("Editor_TextToTypeHint");
 
-    public bool TextInputAcceptsReturn => SelectedAction?.Type == EditorActionType.RawScriptStep;
+    public bool TextInputAcceptsReturn => SelectedAction?.Type is EditorActionType.TextInput or EditorActionType.RawScriptStep;
 
     #endregion
 

@@ -1183,7 +1183,7 @@
     <value>Cette étape n'a pas pu être mappée aux champs structurés et sera enregistrée telle quelle.</value>
   </data>
   <data name="Editor_TextToTypeHint" xml:space="preserve">
-    <value>Chaque caractère est saisi en appuyant sur une touche distincte (max {0} caractères)</value>
+    <value>Le texte est saisi sous forme d'appuis sur les touches ; les sauts de ligne sont envoyés avec Entrée.</value>
   </data>
   <data name="Editor_StatusAddedAction" xml:space="preserve">
     <value>Ajouté {0}</value>

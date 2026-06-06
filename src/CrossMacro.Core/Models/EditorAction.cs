@@ -829,7 +829,7 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.KeyPress or EditorActionType.KeyDown or EditorActionType.KeyUp => KeyCode > 0,
             EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal => ScrollAmount != 0,
             EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp when UseCurrentPosition => !IsAbsolute,
-            EditorActionType.TextInput => !string.IsNullOrWhiteSpace(Text),
+            EditorActionType.TextInput => !string.IsNullOrEmpty(Text),
             EditorActionType.SetVariable => UseLegacyScriptTextDisplay || ValidateSetVariableFields(),
             EditorActionType.IncrementVariable or EditorActionType.DecrementVariable => UseLegacyScriptTextDisplay || ValidateIncDecFields(),
             EditorActionType.RepeatBlockStart => UseLegacyScriptTextDisplay || ValidateRepeatFields(),

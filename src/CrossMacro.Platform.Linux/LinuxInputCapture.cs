@@ -195,9 +195,9 @@ public class LinuxInputCapture : IInputCapture
     {
         return eventType switch
         {
-            InputEventType.Key => _captureKeyboard,
+            InputEventType.Key => _captureKeyboard || _captureGamepad,
             InputEventType.MouseButton => _captureMouse,
-            InputEventType.MouseMove => _captureMouse,
+            InputEventType.MouseMove => _captureMouse || _captureGamepad,
             InputEventType.MouseScroll => _captureMouse,
             InputEventType.Sync => _captureMouse,
             _ => false
@@ -211,7 +211,7 @@ public class LinuxInputCapture : IInputCapture
             return false;
         }
 
-        return (_captureMouse && device.IsMouse) || (_captureKeyboard && device.IsKeyboard);
+        return (_captureMouse && device.IsMouse) || (_captureKeyboard && device.IsKeyboard) || (_captureGamepad && device.IsGamepad);
     }
     
 

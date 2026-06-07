@@ -18,6 +18,7 @@ TRIGGER_KEYS = {
     "merge_group",
 }
 RELEASE_WORKFLOW = "release.yml"
+PAGES_WORKFLOW = "pages.yml"
 RELEASE_WRITE_JOB = "create-release"
 PUBLISH_JOB_GATES = {
     "update-aur": "publish_aur",
@@ -109,7 +110,11 @@ def extract_on_triggers(lines: list[str]) -> set[str]:
 
 
 def top_level_permissions(lines: list[str]) -> tuple[dict[str, str], bool]:
-    block = find_block(lines, "permissions", 0)
+    return permissions_at_indent(lines, 0)
+
+
+def permissions_at_indent(lines: list[str], base_indent: int) -> tuple[dict[str, str], bool]:
+    block = find_block(lines, "permissions", base_indent)
     if not block:
         return {}, False
     start, end, block_indent = block
@@ -208,6 +213,19 @@ def job_is_release_write_job(path: pathlib.Path, job_name: str, job_text: str, t
     )
 
 
+def job_is_pages_deploy_job(path: pathlib.Path, job_name: str, job_text: str, triggers: set[str]) -> bool:
+    lines = job_text.splitlines()
+    job_indent = indent(strip_comments(lines[0]).rstrip()) if lines else 0
+    permissions, has_permissions = permissions_at_indent(lines, job_indent + 2)
+    return (
+        path.name == PAGES_WORKFLOW
+        and job_name == "deploy"
+        and "workflow_dispatch" in triggers
+        and has_permissions
+        and permissions == {"contents": "read", "pages": "write", "id-token": "write"}
+    )
+
+
 def job_is_secret_publish_job(path: pathlib.Path, job_name: str, job_text: str, triggers: set[str]) -> bool:
     if path.name != RELEASE_WORKFLOW or "workflow_dispatch" not in triggers:
         return False
@@ -243,8 +261,9 @@ def validate_workflow(path: pathlib.Path) -> list[str]:
     for job_name, _, _, block_lines in job_blocks(lines):
         job_text = "\n".join(block_lines)
         release_write_job = job_is_release_write_job(path, job_name, job_text, triggers)
+        pages_deploy_job = job_is_pages_deploy_job(path, job_name, job_text, triggers)
         secret_publish_job = job_is_secret_publish_job(path, job_name, job_text, triggers)
-        if has_write_permission(job_text) and not release_write_job:
+        if has_write_permission(job_text) and not release_write_job and not pages_deploy_job:
             errors.append(f"{path}: job '{job_name}' requests write permissions outside the gated create-release job")
         if "secrets." in job_text and not secret_publish_job:
             errors.append(f"{path}: job '{job_name}' uses secrets outside a gated manual release/publish job")

@@ -240,6 +240,7 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.astro/
 
 ##########################
 # Build Scripts Output
@@ -277,6 +278,8 @@ TestResults/
 # Backup files
 *.backup
 *.orig
+.omo/
+.sisyphus/
 
 # Patch files
 *.patch

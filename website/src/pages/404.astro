@@ -1,0 +1,21 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const metadata = {
+  title: 'Page Not Found | CrossMacro',
+  description: 'The requested CrossMacro website page could not be found.',
+  route: '/404.html',
+};
+---
+
+<BaseLayout metadata={metadata}>
+  <section class="hero not-found">
+    <div class="hero__content">
+      <h1>Page not found.</h1>
+      <p>The page you are looking for does not exist.</p>
+      <div class="actions hero__actions">
+        <a class="text-link" href="/CrossMacro/">Go home</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

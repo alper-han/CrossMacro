@@ -1,0 +1,104 @@
+---
+import '../styles/global.css';
+import logoImage from '../../../src/CrossMacro.UI/Assets/mouse-icon.png';
+import recordingImage from '../../../screenshots/recording-tab.png';
+
+type Props = {
+  metadata: {
+    title: string;
+    description: string;
+    route: string;
+  };
+};
+
+const siteOrigin = 'https://alper-han.github.io';
+const basePath = '/CrossMacro';
+const siteUrl = `${siteOrigin}${basePath}/`;
+const siteName = 'CrossMacro';
+const githubUrl = 'https://github.com/alper-han/CrossMacro';
+const releasesUrl = `${githubUrl}/releases`;
+
+function withBasePath(path: string): string {
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${basePath}${normalizedPath}`;
+}
+
+function absoluteUrl(path = '/'): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return new URL(`${basePath}${normalizedPath}`, siteOrigin).toString();
+}
+
+const { metadata } = Astro.props;
+const homeRoute = withBasePath('/');
+const canonicalUrl = absoluteUrl(metadata.route);
+const imageUrl = new URL(recordingImage.src, siteOrigin).toString();
+const navigation = [
+  { label: 'Features', href: `${homeRoute}#features` },
+  { label: 'Screenshots', href: `${homeRoute}#screenshots` },
+  { label: 'GitHub', href: githubUrl },
+  { label: 'Download', href: releasesUrl },
+];
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: siteName,
+  description: 'Cross-platform desktop automation app for recording, editing, scheduling, and replaying mouse and keyboard workflows.',
+  applicationCategory: 'UtilitiesApplication',
+  operatingSystem: ['Linux', 'Windows', 'macOS'],
+  url: siteUrl,
+  downloadUrl: releasesUrl,
+  license: 'https://www.gnu.org/licenses/gpl-3.0.en.html',
+};
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{metadata.title}</title>
+    <meta name="description" content={metadata.description} />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href={canonicalUrl} />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={metadata.title} />
+    <meta property="og:description" content={metadata.description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content={imageUrl} />
+    <meta property="og:image:alt" content="CrossMacro recording interface preview." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={metadata.title} />
+    <meta name="twitter:description" content={metadata.description} />
+    <meta name="twitter:image" content={imageUrl} />
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  </head>
+  <body>
+    <header class="site-header nav" aria-label="Site header">
+      <a class="brand" href={homeRoute} aria-label="CrossMacro home">
+        <span class="brand__mark" aria-hidden="true"><img src={logoImage.src} alt="" decoding="async" /></span>
+        <span>CrossMacro</span>
+      </a>
+      <nav class="primary-nav" aria-label="Primary navigation">
+        {navigation.map((item) => <a href={item.href} target={item.href.startsWith('https://') ? '_blank' : undefined} rel={item.href.startsWith('https://') ? 'noreferrer' : undefined}>{item.label}</a>)}
+      </nav>
+    </header>
+    <main class="page-shell">
+      <slot />
+    </main>
+    <footer class="site-footer footer">
+      <div>
+        <p>CrossMacro - Desktop automation for Linux, Windows, and macOS.</p>
+      </div>
+      <nav class="footer__links" aria-label="Footer navigation">
+        <a href={githubUrl} target="_blank" rel="noreferrer">GitHub</a>
+        <a href={`${githubUrl}/issues`} target="_blank" rel="noreferrer">Issues</a>
+        <a href="https://discord.gg/QUBuND5TvM" target="_blank" rel="noreferrer">Discord</a>
+      </nav>
+    </footer>
+  </body>
+</html>

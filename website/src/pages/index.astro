@@ -1,0 +1,167 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import editorImage from '../../../screenshots/editor-tab.png';
+import playbackImage from '../../../screenshots/playback-tab.png';
+import recordingImage from '../../../screenshots/recording-tab.png';
+import scheduleImage from '../../../screenshots/schedule-tab.png';
+import settingsImage from '../../../screenshots/settings-tab.png';
+import shortcutsImage from '../../../screenshots/shortcuts-tab.png';
+import textExpansionImage from '../../../screenshots/text-expansion-tab.png';
+
+const githubUrl = 'https://github.com/alper-han/CrossMacro';
+const releasesUrl = 'https://github.com/alper-han/CrossMacro/releases';
+const metadata = {
+  title: 'CrossMacro',
+  description: 'Record, edit, and replay mouse and keyboard macros on Linux, Windows, and macOS.',
+  route: '/',
+};
+
+const screenshots = [
+  {
+    src: playbackImage.src,
+    alt: 'CrossMacro playback tab with macro playback settings.',
+    label: 'Playback',
+  },
+  {
+    src: textExpansionImage.src,
+    alt: 'CrossMacro text expansion tab with shortcut entries.',
+    label: 'Text Expansion',
+  },
+  {
+    src: shortcutsImage.src,
+    alt: 'CrossMacro shortcuts tab with keyboard shortcut bindings.',
+    label: 'Shortcuts',
+  },
+  {
+    src: scheduleImage.src,
+    alt: 'CrossMacro scheduled tasks tab with automation schedules.',
+    label: 'Scheduled Tasks',
+  },
+  {
+    src: editorImage.src,
+    alt: 'CrossMacro editor tab for editing macro actions.',
+    label: 'Editor',
+  },
+  {
+    src: settingsImage.src,
+    alt: 'CrossMacro settings tab with app preferences.',
+    label: 'Settings',
+  },
+];
+
+const features = [
+  {
+    title: 'Record and replay',
+    text: 'Capture clicks, movement, scrolling, and keyboard input for mouse clicker workflows, playback, loops, and repeat delays.',
+  },
+  {
+    title: 'Edit and organize',
+    text: 'Load, save, sequence, and edit macros with undo/redo, filters, variables, loops, conditionals, and delays.',
+  },
+  {
+    title: 'Shortcuts and schedules',
+    text: 'Run macros from global hotkeys, keyboard shortcuts, hold-to-run bindings, intervals, weekly plans, or one-time tasks.',
+  },
+  {
+    title: 'CLI and runtime',
+    text: 'Play, record, validate, inspect, configure, schedule, and run inline steps from scripts or a GUI-less desktop runtime.',
+  },
+  {
+    title: 'Text expansion',
+    text: 'Create text shortcuts with per-entry enablement and insertion-mode controls for desktop writing workflows.',
+  },
+  {
+    title: 'Desktop polish',
+    text: 'Use tray controls where available, switch themes, select language, tune logging, and manage update checks.',
+  },
+];
+
+const downloadCards = [
+  {
+    title: 'GitHub Releases',
+    text: 'All platforms',
+    href: releasesUrl,
+    label: 'Release builds',
+  },
+  {
+    title: 'Flathub',
+    text: 'Linux Flatpak',
+    href: 'https://flathub.org/en/apps/io.github.alper_han.crossmacro',
+    label: 'Linux',
+  },
+  {
+    title: 'Microsoft Store',
+    text: 'Windows',
+    href: 'https://apps.microsoft.com/detail/9n1qp1d6js70',
+    label: 'Windows',
+  },
+];
+---
+
+<BaseLayout metadata={metadata}>
+  <section class="hero">
+    <div class="hero__content">
+      <h1>Mouse & Keyboard Automation</h1>
+      <p class="hero__lede">Record, edit, and replay mouse and keyboard macros.</p>
+      <ul class="platform-list" aria-label="Supported platforms">
+        <li>Linux Wayland/X11</li>
+        <li>Windows</li>
+        <li>macOS Intel/Apple Silicon</li>
+      </ul>
+      <div class="actions hero__actions">
+        <a class="button primary-cta" href={releasesUrl} target="_blank" rel="noreferrer">Download</a>
+        <a class="button button--secondary" href={githubUrl} target="_blank" rel="noreferrer">View on GitHub</a>
+      </div>
+    </div>
+    <div class="hero__visual">
+      <img class="hero__image" src={recordingImage.src} alt="CrossMacro recording interface preview." decoding="async" />
+    </div>
+  </section>
+
+  <section id="features" class="section features-section">
+    <div class="section__intro">
+      <h2>What it does</h2>
+    </div>
+    <div class="card-grid cards">
+      {features.map((feature) => (
+        <article class="card feature-card">
+          <h3>{feature.title}</h3>
+          <p>{feature.text}</p>
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <section id="screenshots" class="section screenshot-section">
+    <div class="section__intro">
+      <h2>See it in action</h2>
+    </div>
+    <div class="screenshot-gallery">
+      {screenshots.map((shot, index) => (
+        <figure class="screenshot-card">
+          <div class="screenshot-card__frame">
+            <img src={shot.src} alt={shot.alt} loading={index === 0 ? 'eager' : 'lazy'} decoding="async" />
+          </div>
+          <figcaption>
+            <strong>{shot.label}</strong>
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+  </section>
+
+  <section class="section downloads-section">
+    <div class="section__intro">
+      <h2>Get CrossMacro</h2>
+    </div>
+    <div class="link-grid cards">
+      {downloadCards.map((card) => (
+        <a class="card link-card" href={card.href} target="_blank" rel="noreferrer">
+          <span class="link-card__meta">{card.label}</span>
+          <strong>{card.title}</strong>
+          <span>{card.text}</span>
+        </a>
+      ))}
+    </div>
+  </section>
+</BaseLayout>

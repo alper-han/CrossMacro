@@ -49,6 +49,15 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.2.1" date="2026-06-09">
+      <description>
+        <p>Version 1.2.1 - Multiline text expansion editing and updated GNOME Shell integration metadata.</p>
+        <ul>
+          <li>Added multiline text input and expansion support for text expansion entries and editor text actions.</li>
+          <li>Added GNOME Shell 50 and 51 extension metadata support for newer GNOME environments.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.2.0" date="2026-05-18">
       <description>
         <p>Version 1.2.0 - Linux coordinate playback, diagnostics, input reliability, and package runtime improvements.</p>

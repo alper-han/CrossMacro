@@ -92,6 +92,15 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.2.1" date="2026-06-09">
+      <description>
+        <p>CrossMacro 1.2.1 improves text expansion editing and updates GNOME Shell integration metadata.</p>
+        <ul>
+          <li>Added multiline text input and expansion support for text expansion entries and editor text actions.</li>
+          <li>Added GNOME Shell 50 and 51 extension metadata support for newer GNOME environments.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.2.0" date="2026-05-18">
       <description>
         <p>CrossMacro 1.2.0 improves Linux coordinate recording and playback, diagnostics, input reliability, and package runtime behavior.</p>

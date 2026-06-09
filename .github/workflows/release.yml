@@ -522,9 +522,9 @@ jobs:
         grep -q '/usr/bin/[$]pkgname' PKGBUILD
         
         # Update .SRCINFO
-        useradd builduser
+        useradd --create-home builduser
         chown -R builduser:builduser .
-        su builduser -c "makepkg --printsrcinfo" > .SRCINFO
+        su builduser -c "DOTNET_CLI_HOME=/home/builduser makepkg --printsrcinfo" > .SRCINFO
         grep -q '^[[:space:]]*install = crossmacro\.install$' .SRCINFO
 
     - name: Build and smoke AUR package
@@ -533,7 +533,7 @@ jobs:
         cd aur-repo
 
         chown -R builduser:builduser .
-        su builduser -c "makepkg --cleanbuild --force --noconfirm"
+        su builduser -c "DOTNET_CLI_HOME=/home/builduser makepkg --cleanbuild --force --noconfirm"
 
         pkg_file="$(find "$PWD" -maxdepth 1 -type f -name 'crossmacro-*.pkg.tar.zst' | sort | head -n 1)"
         test -n "$pkg_file"
@@ -649,12 +649,8 @@ jobs:
 
           Invoke-CheckedNative .\wingetcreate.exe update AlperHan.CrossMacro `
             --version "$env:PACKAGE_VERSION" `
-            --urls "$x64InstallerUrl|x64" `
+            --urls "$x64InstallerUrl|x64" "$arm64InstallerUrl|arm64" `
             --out "$manifestDirectory"
-
-          $arm64Installer = Join-Path $env:RUNNER_TEMP "CrossMacro-$env:PACKAGE_VERSION-win-arm64.exe"
-          Invoke-WebRequest -Uri $arm64InstallerUrl -OutFile $arm64Installer
-          $arm64Sha256 = (Get-FileHash -LiteralPath $arm64Installer -Algorithm SHA256).Hash.ToUpperInvariant()
 
           $installerManifest = Get-ChildItem -Path $manifestDirectory -Recurse -Filter 'AlperHan.CrossMacro.installer.yaml' | Select-Object -First 1
           if ($null -eq $installerManifest) {
@@ -666,21 +662,9 @@ jobs:
           if ($installerText -notmatch '(?im)^-[ \t]*Architecture:[ \t]*x64[ \t\r]*$') {
             throw 'Generated WinGet installer manifest does not contain the expected x64 installer node.'
           }
-          if ($installerText -match '(?im)^-[ \t]*Architecture:[ \t]*arm64[ \t\r]*$') {
-            throw 'Generated WinGet installer manifest already contains an arm64 installer node; update this workflow to pass both URLs directly to wingetcreate update.'
+          if ($installerText -notmatch '(?im)^-[ \t]*Architecture:[ \t]*arm64[ \t\r]*$') {
+            throw 'Generated WinGet installer manifest does not contain the expected arm64 installer node.'
           }
-
-          $arm64Node = @(
-            '- Architecture: arm64'
-            "  InstallerUrl: $arm64InstallerUrl"
-            "  InstallerSha256: $arm64Sha256"
-          ) -join "`n"
-          $manifestTypePattern = '(?im)^ManifestType:[ \t]*installer[ \t\r]*$'
-          if ($installerText -notmatch $manifestTypePattern) {
-            throw 'Generated WinGet installer manifest does not contain ManifestType: installer.'
-          }
-          $installerText = $installerText -replace $manifestTypePattern, "$arm64Node`nManifestType: installer"
-          Set-Content -LiteralPath $installerManifest.FullName -Value $installerText -NoNewline
 
           $manifestFiles = Get-ChildItem -Path $versionManifestDirectory -Filter 'AlperHan.CrossMacro.*.yaml'
           if ($manifestFiles.Count -eq 0) {

@@ -82,13 +82,7 @@
 
                 <!-- Countdown -->
                 <StackPanel Spacing="8">
-                     <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Grid.Column="0" Classes="label" Text="{localization:Loc Playback_CountdownSec}"/>
-                        <TextBlock Grid.Column="1" Text="{Binding CountdownSeconds}"
-                                  FontWeight="Medium"
-                                  FontSize="16"
-                                  Foreground="{DynamicResource PrimaryBrush}"/>
-                    </Grid>
+                    <TextBlock Classes="label" Text="{localization:Loc Playback_CountdownSec}"/>
                     <NumericUpDown Minimum="0" Maximum="2147483647" Value="{Binding CountdownSeconds, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}"
                             Increment="1" FormatString="0" IsEnabled="{Binding !IsPlaying}"/>
                 </StackPanel>

@@ -321,6 +321,24 @@ public class ScheduleViewModelTests
     }
 
     [Fact]
+    public async Task TaskEnabledChangedCommand_WhenToggleChanges_PersistsTasks()
+    {
+        // Arrange
+        var task = new ScheduledTask
+        {
+            MacroFilePath = "/tmp/sample.macro",
+            IsEnabled = true
+        };
+
+        // Act
+        await _viewModel.TaskEnabledChangedCommand.ExecuteAsync(task);
+
+        // Assert
+        _schedulerService.Received(1).SetTaskEnabled(task.Id, true);
+        await _schedulerService.Received(1).SaveAsync();
+    }
+
+    [Fact]
     public void ScheduledDateAndTime_WhenChanged_UpdatesSelectedTaskDateTime()
     {
         // Arrange

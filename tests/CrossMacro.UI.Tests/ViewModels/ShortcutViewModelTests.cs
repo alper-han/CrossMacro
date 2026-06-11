@@ -218,6 +218,25 @@ public class ShortcutViewModelTests
     }
 
     [Fact]
+    public async Task TaskEnabledChangedCommand_WhenToggleChanges_PersistsTasks()
+    {
+        // Arrange
+        var task = new ShortcutTask
+        {
+            MacroFilePath = "/tmp/sample.macro",
+            HotkeyString = "F9",
+            IsEnabled = true
+        };
+
+        // Act
+        await _viewModel.TaskEnabledChangedCommand.ExecuteAsync(task);
+
+        // Assert
+        _shortcutService.Received(1).SetTaskEnabled(task.Id, true);
+        await _shortcutService.Received(1).SaveAsync();
+    }
+
+    [Fact]
     public async Task BrowseMacro_WhenCancelled_KeepsCurrentPath()
     {
         // Arrange

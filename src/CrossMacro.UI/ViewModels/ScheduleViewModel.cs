@@ -565,6 +565,13 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
 
         _schedulerService.SetTaskEnabled(task.Id, task.IsEnabled);
     }
+
+    [RelayCommand]
+    private async Task TaskEnabledChangedAsync(ScheduledTask task)
+    {
+        OnTaskEnabledChanged(task);
+        await SaveChangesAsync(showSuccessStatus: false);
+    }
     
     private void OnTaskStarting(object? sender, ScheduledTask task)
     {

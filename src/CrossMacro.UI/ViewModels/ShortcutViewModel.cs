@@ -248,6 +248,13 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     {
         SelectedHotkeyString = newHotkey;
     }
+
+    [RelayCommand]
+    private async Task TaskEnabledChangedAsync(ShortcutTask task)
+    {
+        _shortcutService.SetTaskEnabled(task.Id, task.IsEnabled);
+        await SaveChangesAsync(showSuccessStatus: false);
+    }
     
     private void OnShortcutStarting(object? sender, ShortcutTask task)
     {

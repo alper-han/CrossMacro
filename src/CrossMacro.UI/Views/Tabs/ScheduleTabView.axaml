@@ -84,6 +84,8 @@
                                         <ToggleSwitch Grid.Column="1"
                                                      IsChecked="{Binding IsEnabled}"
                                                      IsEnabled="{Binding CanBeEnabled}"
+                                                     Command="{Binding #TaskListBorder.((vm:ScheduleViewModel)DataContext).TaskEnabledChangedCommand}"
+                                                     CommandParameter="{Binding}"
                                                      OnContent="" OffContent=""
                                                      VerticalAlignment="Center"
                                                      Margin="0,0,4,0"/>

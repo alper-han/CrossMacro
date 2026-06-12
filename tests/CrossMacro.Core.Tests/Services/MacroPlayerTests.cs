@@ -643,7 +643,7 @@ public class MacroPlayerTests
     }
 
     [Fact]
-    public async Task PlayAsync_WhenFirstDelayOverruns_ShouldCompensateBySkippingSubsequentWaits()
+    public async Task PlayAsync_WhenFirstDelayOverruns_ShouldResetTimelineInsteadOfBurstingSubsequentEvents()
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
@@ -681,8 +681,56 @@ public class MacroPlayerTests
         await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
 
         // Assert
-        timing.WaitCalls.Should().ContainSingle();
-        timing.WaitCalls[0].Should().BeGreaterThan(0);
+        timing.WaitCalls.Should().HaveCount(2);
+        timing.WaitCalls.Should().OnlyContain(delay => delay > 0);
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenHighSpeedPlaybackHasSmallDrift_ShouldPreserveCatchUpPacing()
+    {
+        // Arrange
+        var simulator = Substitute.For<IInputSimulator>();
+        simulator.ProviderName.Returns("MockSimulator");
+        var clock = new ManualPlaybackClock();
+        var timing = new ControlledTimingService
+        {
+            OnWaitAsync = (callIndex, delayMs, _, _) =>
+            {
+                if (callIndex == 1)
+                {
+                    clock.AdvanceBy(delayMs + 12);
+                }
+                else
+                {
+                    clock.AdvanceBy(delayMs);
+                }
+
+                return Task.CompletedTask;
+            }
+        };
+
+        var player = CreatePlayer(
+            inputSimulatorFactory: () => simulator,
+            timingService: timing,
+            playbackElapsedMillisecondsFactory: clock.CreateElapsedMillisecondsProviderFactory());
+
+        var macro = new MacroSequence
+        {
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 },
+                new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 100 },
+                new() { Type = EventType.MouseMove, X = 30, Y = 30, DelayMs = 100 }
+            }
+        };
+
+        // Act
+        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 5.0 });
+
+        // Assert
+        timing.WaitCalls.Should().HaveCount(2);
+        timing.WaitCalls[0].Should().Be(33);
+        timing.WaitCalls[1].Should().Be(21);
     }
 
     [Fact]
@@ -1414,6 +1462,161 @@ public class MacroPlayerTests
         await player.PlayAsync(macro);
 
         simulator.Operations.Should().Equal("abs:1000,1000", "rel:3,3");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenStallExactlyMatchesDriftThreshold_ShouldResetTimeline()
+    {
+        // Regression: guard used strict < so a stall exactly on the boundary was skipped.
+        // 10x, 50ms source → adj=5ms, allowedDrift=Max(30,10)=30ms, stall=35ms → remaining=-30 → must reset.
+        var simulator = Substitute.For<IInputSimulator>();
+        simulator.ProviderName.Returns("MockSimulator");
+        var clock = new ManualPlaybackClock();
+        var timing = new ControlledTimingService
+        {
+            OnWaitAsync = (callIndex, delayMs, _, _) =>
+            {
+                clock.AdvanceBy(callIndex == 1 ? 35 : delayMs);
+                return Task.CompletedTask;
+            }
+        };
+
+        var player = CreatePlayer(
+            inputSimulatorFactory: () => simulator,
+            timingService: timing,
+            playbackElapsedMillisecondsFactory: clock.CreateElapsedMillisecondsProviderFactory());
+
+        var macro = new MacroSequence
+        {
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 1, Y = 1, DelayMs = 0 },
+                new() { Type = EventType.MouseMove, X = 2, Y = 2, DelayMs = 50 },
+                new() { Type = EventType.MouseMove, X = 3, Y = 3, DelayMs = 50 },
+                new() { Type = EventType.MouseMove, X = 4, Y = 4, DelayMs = 50 }
+            }
+        };
+
+        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 10.0 });
+
+        timing.WaitCalls.Should().OnlyContain(d => d > 0);
+    }
+
+    [Theory]
+    [InlineData(0.1, 100, 2200)]
+    [InlineData(0.5, 100, 410)]
+    [InlineData(1.0, 100, 310)]
+    [InlineData(2.0, 100, 160)]
+    [InlineData(5.0, 100, 100)]
+    [InlineData(10.0, 100, 50)]
+    public async Task PlayAsync_WhenStallExceedsDriftThreshold_ShouldNotBurstAtAnySpeed(
+        double speed, int sourceDelayMs, int stallMs)
+    {
+        var simulator = Substitute.For<IInputSimulator>();
+        simulator.ProviderName.Returns("MockSimulator");
+        var clock = new ManualPlaybackClock();
+        var timing = new ControlledTimingService
+        {
+            OnWaitAsync = (callIndex, delayMs, _, _) =>
+            {
+                clock.AdvanceBy(callIndex == 1 ? stallMs : delayMs);
+                return Task.CompletedTask;
+            }
+        };
+
+        var player = CreatePlayer(
+            inputSimulatorFactory: () => simulator,
+            timingService: timing,
+            playbackElapsedMillisecondsFactory: clock.CreateElapsedMillisecondsProviderFactory());
+
+        var events = new List<MacroEvent>
+        {
+            new() { Type = EventType.MouseMove, X = 0, Y = 0, DelayMs = 0 }
+        };
+        for (int i = 1; i <= 4; i++)
+            events.Add(new MacroEvent { Type = EventType.MouseMove, X = i * 10, Y = i * 10, DelayMs = sourceDelayMs });
+
+        var macro = new MacroSequence { Events = events };
+
+        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = speed });
+
+        timing.WaitCalls.Skip(1).Should().OnlyContain(d => d > 0,
+            $"at {speed}x with {stallMs}ms stall, subsequent events must not burst");
+    }
+
+    [Theory]
+    [InlineData(1.0, 100, 30)]
+    [InlineData(2.0, 100, 40)]
+    [InlineData(5.0, 100, 12)]
+    [InlineData(10.0, 50, 15)]
+    public async Task PlayAsync_WhenDriftIsBelowThreshold_ShouldPreserveCatchUpPacingWithoutFalseReset(
+        double speed, int sourceDelayMs, int extraDriftMs)
+    {
+        var simulator = Substitute.For<IInputSimulator>();
+        simulator.ProviderName.Returns("MockSimulator");
+        var clock = new ManualPlaybackClock();
+        var timing = new ControlledTimingService
+        {
+            OnWaitAsync = (callIndex, delayMs, _, _) =>
+            {
+                clock.AdvanceBy(delayMs + extraDriftMs);
+                return Task.CompletedTask;
+            }
+        };
+
+        var player = CreatePlayer(
+            inputSimulatorFactory: () => simulator,
+            timingService: timing,
+            playbackElapsedMillisecondsFactory: clock.CreateElapsedMillisecondsProviderFactory());
+
+        var events = new List<MacroEvent>
+        {
+            new() { Type = EventType.MouseMove, X = 0, Y = 0, DelayMs = 0 }
+        };
+        for (int i = 1; i <= 4; i++)
+            events.Add(new MacroEvent { Type = EventType.MouseMove, X = i * 10, Y = i * 10, DelayMs = sourceDelayMs });
+
+        await player.PlayAsync(new MacroSequence { Events = events }, new PlaybackOptions { SpeedMultiplier = speed });
+
+        timing.WaitCalls.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenMultipleStallsOccurWithinOneMacroPlay_ShouldResetTimelineAfterEachExcessiveStall()
+    {
+        var simulator = Substitute.For<IInputSimulator>();
+        simulator.ProviderName.Returns("MockSimulator");
+        var clock = new ManualPlaybackClock();
+        var timing = new ControlledTimingService
+        {
+            OnWaitAsync = (callIndex, delayMs, _, _) =>
+            {
+                clock.AdvanceBy(callIndex == 1 || callIndex == 3 ? 310 : delayMs);
+                return Task.CompletedTask;
+            }
+        };
+
+        var player = CreatePlayer(
+            inputSimulatorFactory: () => simulator,
+            timingService: timing,
+            playbackElapsedMillisecondsFactory: clock.CreateElapsedMillisecondsProviderFactory());
+
+        var macro = new MacroSequence
+        {
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 0, Y = 0, DelayMs = 0 },
+                new() { Type = EventType.MouseMove, X = 1, Y = 1, DelayMs = 100 },
+                new() { Type = EventType.MouseMove, X = 2, Y = 2, DelayMs = 100 },
+                new() { Type = EventType.MouseMove, X = 3, Y = 3, DelayMs = 100 },
+                new() { Type = EventType.MouseMove, X = 4, Y = 4, DelayMs = 100 },
+                new() { Type = EventType.MouseMove, X = 5, Y = 5, DelayMs = 100 }
+            }
+        };
+
+        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
+
+        timing.WaitCalls.Should().OnlyContain(d => d > 0);
     }
 
     private sealed class RecordingTimingService : IPlaybackTimingService

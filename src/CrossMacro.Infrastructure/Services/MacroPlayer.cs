@@ -53,6 +53,8 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
     private const double MaxInitialSpeedMultiplier = 3.0;
     private const int YieldInterval = 50;
     private const int IterationYieldInterval = 50;
+    private const double MinCatchUpResetDriftMs = 30.0;
+    private const double CatchUpResetDelayMultiplier = 2.0;
     private static readonly int[] RestorableModifierKeys =
     [
         InputEventCode.KEY_LEFTCTRL,
@@ -447,6 +449,17 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
                 {
                     await _timingService.WaitAsync(delayToWait, this, cancellationToken);
                     waitedForDelay = true;
+
+                    elapsedSinceAnchorMs = playbackElapsedMilliseconds() - timelineAnchorElapsedMs;
+                    remainingDelayMs = scheduledElapsedMs - elapsedSinceAnchorMs;
+                    if (ShouldResetPlaybackTimeline(remainingDelayMs, adjustedDelay))
+                    {
+                        scheduledElapsedMs = elapsedSinceAnchorMs;
+                    }
+                }
+                else if (ShouldResetPlaybackTimeline(remainingDelayMs, adjustedDelay))
+                {
+                    scheduledElapsedMs = elapsedSinceAnchorMs;
                 }
             }
 
@@ -504,6 +517,12 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
         }
 
         return Math.Max(0, options.RepeatDelayMs);
+    }
+
+    private static bool ShouldResetPlaybackTimeline(double remainingDelayMs, double adjustedDelayMs)
+    {
+        double allowedDriftMs = Math.Max(MinCatchUpResetDriftMs, adjustedDelayMs * CatchUpResetDelayMultiplier);
+        return remainingDelayMs <= -allowedDriftMs;
     }
 
     private int ResolveDelayMs(int fixedDelayMs, bool hasRandomDelay, int randomDelayMinMs, int randomDelayMaxMs)

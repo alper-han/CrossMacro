@@ -270,6 +270,19 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         }
     }
 
+    public void RefreshProfileData()
+    {
+        SelectedTask = Tasks.FirstOrDefault();
+        OnPropertyChanged(nameof(Tasks));
+        OnPropertyChanged(nameof(TaskCountText));
+        OnPropertyChanged(nameof(SelectedTask));
+        OnPropertyChanged(nameof(SelectedMacroFileName));
+        OnPropertyChanged(nameof(SelectedIntervalUnit));
+        OnPropertyChanged(nameof(SelectedWeeklyPreset));
+        OnWeeklyDaySelectionChanged();
+        OnSelectedTaskStatusChanged();
+    }
+
     private async Task InitializeCoreAsync()
     {
         try

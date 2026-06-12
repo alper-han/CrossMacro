@@ -69,6 +69,8 @@ public interface IGlobalHotkeyService : IDisposable
 
     void UpdateHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey);
 
+    void ApplyHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey);
+
     Task<string> CaptureNextKeyAsync(CancellationToken cancellationToken = default);
 
     void SetPlaybackPauseHotkeysEnabled(bool enabled);

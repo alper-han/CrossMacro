@@ -64,15 +64,23 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
     private async Task LoadExpansionsAsync()
     {
         var loadedExpansions = await _storageService.LoadAsync();
-        
-        // Ensure UI update happens on UI thread (though usually ViewModels are on UI thread anyway)
+        Expansions.Clear();
         foreach (var expansion in loadedExpansions)
         {
-            _expansions.Add(expansion);
+            Expansions.Add(expansion);
         }
 
         OnPropertyChanged(nameof(HasExpansions));
         OnPropertyChanged(nameof(ExpansionCountText));
+    }
+
+    public async Task RefreshProfileDataAsync()
+    {
+        TriggerInput = string.Empty;
+        ReplacementInput = string.Empty;
+        SelectedInsertionMode = TextInsertionMode.Paste;
+        SelectedPasteMethod = PasteMethod.CtrlV;
+        await LoadExpansionsAsync();
     }
 
     private PasteMethod _selectedPasteMethod = PasteMethod.CtrlV;

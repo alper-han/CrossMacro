@@ -27,6 +27,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IExternalUrlOpener _externalUrlOpener;
     private readonly ILocalizationService _localizationService;
     private readonly MainWindowNavigationCatalog _navigationCatalog;
+    private readonly IProfileManager? _profileManager;
     private readonly IExtensionStatusNotifier? _extensionNotifier;
     private readonly IUpdateService? _updateService;
     private readonly IEnumerable<IPlatformStartupNotificationProvider> _platformStartupNotificationProviders;
@@ -186,7 +187,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         ILocalizationService localizationService,
         IExtensionStatusNotifier? extensionNotifier = null,
         IUpdateService? updateService = null,
-        IEnumerable<IPlatformStartupNotificationProvider>? platformStartupNotificationProviders = null)
+        IEnumerable<IPlatformStartupNotificationProvider>? platformStartupNotificationProviders = null,
+        IProfileManager? profileManager = null)
     {
         Recording = recording;
         Playback = playback;
@@ -201,6 +203,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _externalUrlOpener = externalUrlOpener;
         _localizationService = localizationService ?? new LocalizationService();
         _navigationCatalog = new MainWindowNavigationCatalog(_localizationService);
+        _profileManager = profileManager;
         _extensionNotifier = extensionNotifier;
         _updateService = updateService;
         _platformStartupNotificationProviders = platformStartupNotificationProviders ?? Array.Empty<IPlatformStartupNotificationProvider>();
@@ -224,6 +227,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         
         // Subscribe to global hotkey errors
         _hotkeyService.ErrorOccurred += OnGlobalHotkeyError;
+        if (_profileManager != null)
+        {
+            _profileManager.ProfileChanged += OnProfileChanged;
+        }
         
         // Check for existing errors (in case service started before we subscribed)
         if (!string.IsNullOrEmpty(_hotkeyService.LastError))
@@ -547,6 +554,26 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             _suppressRecordingStatusForwarding = false;
         }
+    }
+
+    private void OnProfileChanged(object? sender, ProfileInfo profile)
+    {
+        void RefreshProfileBackedViewModels()
+        {
+            Playback.RefreshProfileSettings();
+            Recording.RefreshProfileSettings();
+            _ = TextExpansion.RefreshProfileDataAsync();
+            Schedule.RefreshProfileData();
+            Shortcuts.RefreshProfileData();
+        }
+
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            RefreshProfileBackedViewModels();
+            return;
+        }
+
+        Dispatcher.UIThread.Post(RefreshProfileBackedViewModels);
     }
 
     private void SetGlobalStatusThreadSafe(string status)
@@ -954,6 +981,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _hotkeyService.TogglePlaybackRequested -= OnTogglePlaybackRequested;
         _hotkeyService.TogglePauseRequested -= OnTogglePauseRequested;
         _hotkeyService.ErrorOccurred -= OnGlobalHotkeyError;
+        if (_profileManager != null)
+        {
+            _profileManager.ProfileChanged -= OnProfileChanged;
+        }
         
         // Unsubscribe from extension status events
         if (_extensionNotifier != null)
@@ -965,6 +996,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         Recording.Dispose();
         Schedule.Dispose();
         Shortcuts.Dispose();
+        Settings.Dispose();
     }
 
     private enum AppNotificationSeverity

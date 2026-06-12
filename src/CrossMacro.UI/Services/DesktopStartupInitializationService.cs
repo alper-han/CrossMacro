@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using CrossMacro.Core.Logging;
 using CrossMacro.Core.Services;
 using CrossMacro.UI.Localization;
@@ -13,6 +14,7 @@ internal sealed class DesktopStartupInitializationService
     private readonly Func<IThemeService> _getThemeService;
     private readonly Func<LocalizationService> _getLocalizationService;
     private readonly Func<EditorActionDisplayFormatter> _getEditorActionDisplayFormatter;
+    private readonly IProfileManager _profileManager;
     private readonly GuiStartupOptions _startupOptions;
 
     public DesktopStartupInitializationService(
@@ -20,17 +22,21 @@ internal sealed class DesktopStartupInitializationService
         Func<IThemeService> getThemeService,
         Func<LocalizationService> getLocalizationService,
         Func<EditorActionDisplayFormatter> getEditorActionDisplayFormatter,
+        IProfileManager profileManager,
         GuiStartupOptions startupOptions)
     {
         _getSettingsService = getSettingsService ?? throw new ArgumentNullException(nameof(getSettingsService));
         _getThemeService = getThemeService ?? throw new ArgumentNullException(nameof(getThemeService));
         _getLocalizationService = getLocalizationService ?? throw new ArgumentNullException(nameof(getLocalizationService));
         _getEditorActionDisplayFormatter = getEditorActionDisplayFormatter ?? throw new ArgumentNullException(nameof(getEditorActionDisplayFormatter));
+        _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
         _startupOptions = startupOptions ?? throw new ArgumentNullException(nameof(startupOptions));
     }
 
-    public DesktopStartupPreferences Initialize()
+    public async Task<DesktopStartupPreferences> InitializeAsync()
     {
+        await _profileManager.InitializeAsync().ConfigureAwait(false);
+
         var settingsService = _getSettingsService();
         settingsService.Load();
 

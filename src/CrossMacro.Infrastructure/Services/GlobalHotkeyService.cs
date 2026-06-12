@@ -130,6 +130,11 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         UpdateHotkeys(recordingHotkey, playbackHotkey, pauseHotkey, save: true);
     }
 
+    public void ApplyHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey)
+    {
+        UpdateHotkeys(recordingHotkey, playbackHotkey, pauseHotkey, save: false);
+    }
+
     private void UpdateHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey, bool save)
     {
         using (_lock.EnterScope())

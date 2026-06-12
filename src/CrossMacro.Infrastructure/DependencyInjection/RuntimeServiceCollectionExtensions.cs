@@ -48,6 +48,7 @@ public static class RuntimeServiceCollectionExtensions
         RegisterSchedulingAndShortcutServices(services);
         RegisterTextExpansionServices(services);
         RegisterEditorAndCaptureServices(services);
+        RegisterProfileManagementServices(services);
 
         return services;
     }
@@ -180,6 +181,27 @@ public static class RuntimeServiceCollectionExtensions
             var positionProvider = sp.GetRequiredService<IMousePositionProvider>();
             var captureFactory = sp.GetService<Func<IInputCapture>>();
             return new CoordinateCaptureService(positionProvider, captureFactory);
+        });
+    }
+
+    private static void RegisterProfileManagementServices(IServiceCollection services)
+    {
+        services.AddSingleton<IProfileManager>(sp =>
+        {
+            var hasKeyboardLayout = sp.GetService<IKeyboardLayoutService>() != null;
+            var hasInputCaptureFactory = sp.GetService<Func<IInputCapture>>() != null;
+
+            return new ProfileManager(
+                configRootPath: null,
+                sp.GetRequiredService<ISettingsService>(),
+                sp.GetRequiredService<IHotkeyConfigurationService>(),
+                sp.GetRequiredService<HotkeySettings>(),
+                hasKeyboardLayout ? sp.GetRequiredService<IGlobalHotkeyService>() : null,
+                hasKeyboardLayout ? sp.GetRequiredService<IShortcutService>() : null,
+                sp.GetRequiredService<ISchedulerService>(),
+                hasInputCaptureFactory ? sp.GetRequiredService<ITextExpansionService>() : null,
+                sp.GetRequiredService<IScheduledTaskRepository>(),
+                sp.GetRequiredService<ITextExpansionStorageService>());
         });
     }
 }

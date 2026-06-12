@@ -151,6 +151,17 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
             RaiseStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_StatusInitFailed"], ex.Message));
         }
     }
+
+    public void RefreshProfileData()
+    {
+        SelectedTask = Tasks.FirstOrDefault();
+        OnPropertyChanged(nameof(Tasks));
+        OnPropertyChanged(nameof(TaskCountText));
+        OnPropertyChanged(nameof(SelectedTask));
+        OnPropertyChanged(nameof(SelectedMacroFileName));
+        OnPropertyChanged(nameof(SelectedHotkeyString));
+        OnSelectedTaskStatusChanged();
+    }
     
     [RelayCommand]
     private void AddTask()

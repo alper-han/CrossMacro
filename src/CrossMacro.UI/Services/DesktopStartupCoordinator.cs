@@ -28,7 +28,7 @@ internal sealed class DesktopStartupCoordinator : IDesktopStartupCoordinator
     {
         ArgumentNullException.ThrowIfNull(desktop);
 
-        var startupPreferences = _initializationService.Initialize();
+        var startupPreferences = await _initializationService.InitializeAsync();
         var permissionGateResult = await _permissionGateService.TryHandleAsync(desktop);
 
         if (permissionGateResult.Handled)

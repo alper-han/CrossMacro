@@ -98,6 +98,33 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         _statusUpdateTimer.Tick += OnStatusUpdateTimerTick;
     }
 
+    public void RefreshProfileSettings()
+    {
+        if (IsPlaying)
+        {
+            return;
+        }
+
+        _playbackSpeed = _settingsService.Current.PlaybackSpeed;
+        _isLooping = _settingsService.Current.IsLooping;
+        _loopCount = _settingsService.Current.LoopCount;
+        _loopDelayMs = _settingsService.Current.LoopDelayMs;
+        _useRandomLoopDelay = _settingsService.Current.UseRandomLoopDelay;
+        _loopDelayMinMs = _settingsService.Current.LoopDelayMinMs;
+        _loopDelayMaxMs = _settingsService.Current.LoopDelayMaxMs;
+        _countdownSeconds = _settingsService.Current.CountdownSeconds;
+
+        OnPropertyChanged(nameof(PlaybackSpeed));
+        OnPropertyChanged(nameof(IsLooping));
+        OnPropertyChanged(nameof(LoopCount));
+        OnPropertyChanged(nameof(LoopDelayMs));
+        OnPropertyChanged(nameof(UseRandomLoopDelay));
+        OnPropertyChanged(nameof(LoopDelayMinMs));
+        OnPropertyChanged(nameof(LoopDelayMaxMs));
+        OnPropertyChanged(nameof(CountdownSeconds));
+        OnPropertyChanged(nameof(CanPlayMacro));
+    }
+
     private void OnStatusUpdateTimerTick(object? sender, EventArgs e)
     {
         if (IsPlaying && !IsPaused && !_stopRequested)

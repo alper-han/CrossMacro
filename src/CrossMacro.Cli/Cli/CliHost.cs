@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Cli.DependencyInjection;
+using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Logging;
 using CrossMacro.Platform.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,6 +33,7 @@ public sealed class CliHost
             services.AddCliServices();
 
             await using var provider = services.BuildServiceProvider();
+            await InitializeProfilesAsync(provider).ConfigureAwait(false);
             var commandExecutor = provider.GetRequiredService<CliCommandExecutor>();
 
             using var cancellation = new CancellationTokenSource();
@@ -89,6 +91,13 @@ public sealed class CliHost
         return options is HeadlessCliOptions
             ? CliRuntimeProfile.Persistent
             : CliRuntimeProfile.OneShot;
+    }
+
+    private static async Task InitializeProfilesAsync(IServiceProvider provider)
+    {
+        await provider.GetRequiredService<IProfileManager>()
+            .InitializeAsync()
+            .ConfigureAwait(false);
     }
 
     private static void ConfigureDirectHostLogging(CliCommandOptions options)

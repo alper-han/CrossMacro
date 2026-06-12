@@ -69,7 +69,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         _runtimeContext = runtimeContext;
         _localizationService.CultureChanged += OnCultureChanged;
         _recordingStatus = BuildRecordingStatus(RecordingStatusKind.Ready);
-        
+        _isMouseRecordingEnabled = _settingsService.Current.IsMouseRecordingEnabled;
         _isKeyboardRecordingEnabled = _settingsService.Current.IsKeyboardRecordingEnabled;
         
         _forceRelativeCoordinates = IsForceRelativeSupported && _settingsService.Current.ForceRelativeCoordinates;
@@ -77,6 +77,27 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         _skipInitialZeroZero = _settingsService.Current.SkipInitialZeroZero;
         
         _recorder.EventRecorded += OnEventRecorded;
+    }
+
+    public void RefreshProfileSettings()
+    {
+        if (IsRecording)
+        {
+            return;
+        }
+
+        _isMouseRecordingEnabled = _settingsService.Current.IsMouseRecordingEnabled;
+        _isKeyboardRecordingEnabled = _settingsService.Current.IsKeyboardRecordingEnabled;
+        _forceRelativeCoordinates = IsForceRelativeSupported && _settingsService.Current.ForceRelativeCoordinates;
+        _skipInitialZeroZero = _settingsService.Current.SkipInitialZeroZero;
+
+        OnPropertyChanged(nameof(IsMouseRecordingEnabled));
+        OnPropertyChanged(nameof(IsKeyboardRecordingEnabled));
+        OnPropertyChanged(nameof(ForceRelativeCoordinates));
+        OnPropertyChanged(nameof(SkipInitialZeroZero));
+        OnPropertyChanged(nameof(ShowSkipZeroZeroOption));
+        OnPropertyChanged(nameof(CanStartRecording));
+        OnCanToggleRecordingChanged();
     }
     
     public bool IsRecording

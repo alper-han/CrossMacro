@@ -13,7 +13,7 @@ namespace CrossMacro.Infrastructure.Services;
 
 public class JsonScheduledTaskRepository : IScheduledTaskRepository
 {
-    private readonly string _scheduleFilePath;
+    private string _scheduleFilePath;
 
     public JsonScheduledTaskRepository() : this(PathHelper.GetConfigFilePath(ConfigFileNames.Schedules))
     {
@@ -41,6 +41,12 @@ public class JsonScheduledTaskRepository : IScheduledTaskRepository
             Log.Warning(ex, "Failed to load scheduled tasks from {Path}", _scheduleFilePath);
             return new List<ScheduledTask>();
         }
+    }
+
+    public Task ReloadAsync(string profileConfigDirectory)
+    {
+        _scheduleFilePath = Path.Combine(profileConfigDirectory, ConfigFileNames.Schedules);
+        return LoadAsync();
     }
 
     public async Task SaveAsync(IEnumerable<ScheduledTask> tasks)

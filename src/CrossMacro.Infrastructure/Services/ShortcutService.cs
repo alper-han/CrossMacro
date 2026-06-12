@@ -26,7 +26,7 @@ public class ShortcutService : IShortcutService
     private bool _isListening;
     private bool _disposed;
     
-    private readonly string _shortcutsFilePath;
+    private string _shortcutsFilePath;
     
     // Debounce tracking
     private readonly Dictionary<Guid, DateTime> _lastTriggerTimes = new();
@@ -453,6 +453,35 @@ public class ShortcutService : IShortcutService
         {
             Log.Warning(ex, "Failed to load shortcut tasks from {Path}", _shortcutsFilePath);
         }
+    }
+
+    public async Task ReloadAsync(string profileConfigDirectory)
+    {
+        var shortcutsFilePath = Path.Combine(profileConfigDirectory, ConfigFileNames.Shortcuts);
+
+        lock (_lock)
+        {
+            _shortcutsFilePath = shortcutsFilePath;
+        }
+
+        void ClearCollection(object? state)
+        {
+            lock (_lock)
+            {
+                Tasks.Clear();
+            }
+        }
+
+        if (_syncContext != null)
+        {
+            _syncContext.Post(ClearCollection, null);
+        }
+        else
+        {
+            ClearCollection(null);
+        }
+
+        await LoadAsync().ConfigureAwait(false);
     }
     
     public void Dispose()

@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
+using CrossMacro.Infrastructure;
 using CrossMacro.Infrastructure.Services;
 using FluentAssertions;
 using Xunit;
@@ -11,6 +12,12 @@ using Xunit;
 public class SettingsServiceTests : IDisposable
 {
     private readonly string _tempPath;
+
+    private string DefaultProfileSettingsPath => Path.Combine(
+        _tempPath,
+        ConfigFileNames.ProfilesDirectory,
+        "default",
+        ConfigFileNames.Settings);
 
     public SettingsServiceTests()
     {
@@ -145,7 +152,8 @@ public class SettingsServiceTests : IDisposable
               "loopDelayMaxMs": 10
             }
             """;
-        File.WriteAllText(Path.Combine(_tempPath, "settings.json"), rawJson);
+        Directory.CreateDirectory(Path.GetDirectoryName(DefaultProfileSettingsPath)!);
+        File.WriteAllText(DefaultProfileSettingsPath, rawJson);
 
         // Act
         var result = service.Load();
@@ -162,14 +170,15 @@ public class SettingsServiceTests : IDisposable
     {
         // Arrange
         var service = new SettingsService(_tempPath);
-        var settingsPath = Path.Combine(_tempPath, "settings.json");
+        var globalSettingsPath = Path.Combine(_tempPath, ConfigFileNames.GlobalSettings);
 
         // Act
         var result = service.Load();
 
         // Assert
         result.Should().NotBeNull();
-        File.Exists(settingsPath).Should().BeTrue();
+        File.Exists(globalSettingsPath).Should().BeTrue();
+        File.Exists(DefaultProfileSettingsPath).Should().BeTrue();
     }
 
     [Fact]
@@ -200,7 +209,8 @@ public class SettingsServiceTests : IDisposable
         var service = new SettingsService(_tempPath);
         // Ensure file exists but with garbage content
         Directory.CreateDirectory(_tempPath);
-        File.WriteAllText(Path.Combine(_tempPath, "settings.json"), "{ invalid_json }");
+        Directory.CreateDirectory(Path.GetDirectoryName(DefaultProfileSettingsPath)!);
+        File.WriteAllText(DefaultProfileSettingsPath, "{ invalid_json }");
 
         // Act
         var result = service.Load();
@@ -217,7 +227,8 @@ public class SettingsServiceTests : IDisposable
         // Arrange
         var service = new SettingsService(_tempPath);
         Directory.CreateDirectory(_tempPath);
-        await File.WriteAllTextAsync(Path.Combine(_tempPath, "settings.json"), "NOT JSON AT ALL");
+        Directory.CreateDirectory(Path.GetDirectoryName(DefaultProfileSettingsPath)!);
+        await File.WriteAllTextAsync(DefaultProfileSettingsPath, "NOT JSON AT ALL");
 
         // Act
         var result = await service.LoadAsync();

@@ -30,4 +30,19 @@ public static class ConfigFileNames
     /// Hotkey configuration file.
     /// </summary>
     public const string Hotkeys = "hotkeys.json";
+
+    /// <summary>
+    /// Profile registry file tracking available profiles and active profile.
+    /// </summary>
+    public const string ProfileRegistry = "profile-registry.json";
+
+    /// <summary>
+    /// Global settings file (theme, language, log level, tray — shared across profiles).
+    /// </summary>
+    public const string GlobalSettings = "global-settings.json";
+
+    /// <summary>
+    /// Subdirectory containing per-profile configuration folders.
+    /// </summary>
+    public const string ProfilesDirectory = "profiles";
 }

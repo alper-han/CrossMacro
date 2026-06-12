@@ -27,6 +27,11 @@ public interface ISettingsService
     /// Saves current settings to disk
     /// </summary>
     Task SaveAsync();
+
+    /// <summary>
+    /// Reloads profile-specific settings from a profile configuration directory.
+    /// </summary>
+    Task ReloadAsync(string profileConfigDirectory) => Task.CompletedTask;
     
     /// <summary>
     /// Saves current settings to disk synchronously

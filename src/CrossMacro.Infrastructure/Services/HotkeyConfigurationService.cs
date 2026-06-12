@@ -11,7 +11,7 @@ namespace CrossMacro.Infrastructure.Services;
 
 public class HotkeyConfigurationService : IHotkeyConfigurationService
 {
-    private readonly string _configPath;
+    private string _configPath;
 
     public HotkeyConfigurationService() : this(null)
     {
@@ -80,6 +80,12 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
 
         Log.Information("Using default hotkey configuration");
         return new HotkeySettings();
+    }
+
+    public Task ReloadAsync(string profileConfigDirectory)
+    {
+        _configPath = Path.Combine(profileConfigDirectory, ConfigFileNames.Hotkeys);
+        return LoadAsync();
     }
 
     public void Save(HotkeySettings settings)

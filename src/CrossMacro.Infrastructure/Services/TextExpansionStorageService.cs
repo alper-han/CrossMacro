@@ -18,7 +18,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService
 
 {
     private const string ExpansionsFileName = ConfigFileNames.TextExpansions;
-    private readonly string _filePath;
+    private string _filePath;
     private List<Core.Models.TextExpansion> _expansions = new();
     private readonly Lock _lock = new();
 
@@ -97,6 +97,17 @@ public class TextExpansionStorageService : ITextExpansionStorageService
             lock (_lock) { _expansions = []; }
             return [];
         }
+    }
+
+    public async Task ReloadAsync(string profileConfigDirectory)
+    {
+        lock (_lock)
+        {
+            _filePath = Path.Combine(profileConfigDirectory, ConfigFileNames.TextExpansions);
+            _expansions = [];
+        }
+
+        await LoadAsync().ConfigureAwait(false);
     }
 
     /// <summary>

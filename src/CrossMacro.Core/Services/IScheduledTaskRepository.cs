@@ -15,6 +15,11 @@ public interface IScheduledTaskRepository
     Task<List<ScheduledTask>> LoadAsync();
 
     /// <summary>
+    /// Reloads all scheduled tasks from the supplied profile configuration directory.
+    /// </summary>
+    Task ReloadAsync(string profileConfigDirectory) => LoadAsync();
+
+    /// <summary>
     /// Saves all scheduled tasks to storage
     /// </summary>
     Task SaveAsync(IEnumerable<ScheduledTask> tasks);

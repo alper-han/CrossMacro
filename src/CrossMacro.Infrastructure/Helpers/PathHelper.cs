@@ -46,4 +46,20 @@ public static class PathHelper
     {
         return Path.Combine(GetConfigDirectory(), fileName);
     }
+
+    /// <summary>
+    /// Returns the root profiles directory (e.g. ~/.config/crossmacro/profiles).
+    /// </summary>
+    public static string GetProfilesDirectory()
+    {
+        return Path.Combine(GetConfigDirectory(), ConfigFileNames.ProfilesDirectory);
+    }
+
+    /// <summary>
+    /// Returns the config directory for a specific profile (e.g. ~/.config/crossmacro/profiles/default).
+    /// </summary>
+    public static string GetProfileDirectory(string profileId)
+    {
+        return Path.Combine(GetProfilesDirectory(), profileId);
+    }
 }

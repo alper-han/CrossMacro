@@ -234,7 +234,13 @@ Thanks to everyone who contributes to CrossMacro.
 
 ## Star History
 
-[![Star History Chart](https://starchart.cc/alper-han/CrossMacro.svg)](https://starchart.cc/alper-han/CrossMacro)
+<a href="https://www.star-history.com/?repos=alper-han%2Fcrossmacro&type=date&legend=bottom-right">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=alper-han/crossmacro&type=date&theme=dark&legend=bottom-right" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=alper-han/crossmacro&type=date&legend=bottom-right" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=alper-han/crossmacro&type=date&legend=bottom-right" />
+ </picture>
+</a>
 
 ## License
 

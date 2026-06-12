@@ -120,6 +120,42 @@
   <data name="Settings_LanguageDescription" xml:space="preserve">
     <value>Escolha o idioma do aplicativo</value>
   </data>
+  <data name="Settings_Profiles" xml:space="preserve">
+    <value>Perfis</value>
+  </data>
+  <data name="Settings_ProfileSwitch" xml:space="preserve">
+    <value>Alternar</value>
+  </data>
+  <data name="Settings_ProfileDelete" xml:space="preserve">
+    <value>Excluir</value>
+  </data>
+  <data name="Settings_ProfileNamePlaceholder" xml:space="preserve">
+    <value>Nome do perfil</value>
+  </data>
+  <data name="Settings_ProfileNew" xml:space="preserve">
+    <value>Novo</value>
+  </data>
+  <data name="Settings_ProfileRename" xml:space="preserve">
+    <value>Renomear</value>
+  </data>
+  <data name="Settings_ProfileDeleteTitle" xml:space="preserve">
+    <value>Excluir perfil</value>
+  </data>
+  <data name="Settings_ProfileDeleteMessage" xml:space="preserve">
+    <value>Excluir o perfil '{0}'? Isso removerá permanentemente suas configurações.</value>
+  </data>
+  <data name="Settings_ProfileCreateFailed" xml:space="preserve">
+    <value>Falha ao criar perfil</value>
+  </data>
+  <data name="Settings_ProfileRenameFailed" xml:space="preserve">
+    <value>Falha ao renomear perfil</value>
+  </data>
+  <data name="Settings_ProfileDeleteFailed" xml:space="preserve">
+    <value>Falha ao excluir perfil</value>
+  </data>
+  <data name="Settings_ProfileSwitchFailed" xml:space="preserve">
+    <value>Falha ao alternar perfil</value>
+  </data>
   <data name="Settings_SupportTitle" xml:space="preserve">
     <value>Apoie o CrossMacro</value>
   </data>

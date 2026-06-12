@@ -120,6 +120,42 @@
   <data name="Settings_LanguageDescription" xml:space="preserve">
     <value>اختر لغة التطبيق</value>
   </data>
+  <data name="Settings_Profiles" xml:space="preserve">
+    <value>الملفات الشخصية</value>
+  </data>
+  <data name="Settings_ProfileSwitch" xml:space="preserve">
+    <value>تبديل</value>
+  </data>
+  <data name="Settings_ProfileDelete" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="Settings_ProfileNamePlaceholder" xml:space="preserve">
+    <value>اسم الملف الشخصي</value>
+  </data>
+  <data name="Settings_ProfileNew" xml:space="preserve">
+    <value>جديد</value>
+  </data>
+  <data name="Settings_ProfileRename" xml:space="preserve">
+    <value>إعادة تسمية</value>
+  </data>
+  <data name="Settings_ProfileDeleteTitle" xml:space="preserve">
+    <value>حذف الملف الشخصي</value>
+  </data>
+  <data name="Settings_ProfileDeleteMessage" xml:space="preserve">
+    <value>هل تريد حذف الملف الشخصي '{0}'؟ سيؤدي هذا إلى إزالة إعداداته نهائيًا.</value>
+  </data>
+  <data name="Settings_ProfileCreateFailed" xml:space="preserve">
+    <value>فشل إنشاء الملف الشخصي</value>
+  </data>
+  <data name="Settings_ProfileRenameFailed" xml:space="preserve">
+    <value>فشل إعادة تسمية الملف الشخصي</value>
+  </data>
+  <data name="Settings_ProfileDeleteFailed" xml:space="preserve">
+    <value>فشل حذف الملف الشخصي</value>
+  </data>
+  <data name="Settings_ProfileSwitchFailed" xml:space="preserve">
+    <value>فشل تبديل الملف الشخصي</value>
+  </data>
   <data name="Settings_SupportTitle" xml:space="preserve">
     <value>دعم كروسماكرو</value>
   </data>

@@ -120,6 +120,42 @@
   <data name="Settings_LanguageDescription" xml:space="preserve">
     <value>アプリケーション言語を選択してください</value>
   </data>
+  <data name="Settings_Profiles" xml:space="preserve">
+    <value>プロファイル</value>
+  </data>
+  <data name="Settings_ProfileSwitch" xml:space="preserve">
+    <value>切り替え</value>
+  </data>
+  <data name="Settings_ProfileDelete" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="Settings_ProfileNamePlaceholder" xml:space="preserve">
+    <value>プロファイル名</value>
+  </data>
+  <data name="Settings_ProfileNew" xml:space="preserve">
+    <value>新規</value>
+  </data>
+  <data name="Settings_ProfileRename" xml:space="preserve">
+    <value>名前変更</value>
+  </data>
+  <data name="Settings_ProfileDeleteTitle" xml:space="preserve">
+    <value>プロファイルを削除</value>
+  </data>
+  <data name="Settings_ProfileDeleteMessage" xml:space="preserve">
+    <value>プロファイル「{0}」を削除しますか? プロファイル設定は完全に削除されます。</value>
+  </data>
+  <data name="Settings_ProfileCreateFailed" xml:space="preserve">
+    <value>プロファイルの作成に失敗しました</value>
+  </data>
+  <data name="Settings_ProfileRenameFailed" xml:space="preserve">
+    <value>プロファイル名の変更に失敗しました</value>
+  </data>
+  <data name="Settings_ProfileDeleteFailed" xml:space="preserve">
+    <value>プロファイルの削除に失敗しました</value>
+  </data>
+  <data name="Settings_ProfileSwitchFailed" xml:space="preserve">
+    <value>プロファイルの切り替えに失敗しました</value>
+  </data>
   <data name="Settings_SupportTitle" xml:space="preserve">
     <value>クロスマクロのサポート</value>
   </data>

@@ -120,6 +120,42 @@
   <data name="Settings_LanguageDescription" xml:space="preserve">
     <value>Выберите язык приложения</value>
   </data>
+  <data name="Settings_Profiles" xml:space="preserve">
+    <value>Профили</value>
+  </data>
+  <data name="Settings_ProfileSwitch" xml:space="preserve">
+    <value>Переключить</value>
+  </data>
+  <data name="Settings_ProfileDelete" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Settings_ProfileNamePlaceholder" xml:space="preserve">
+    <value>Имя профиля</value>
+  </data>
+  <data name="Settings_ProfileNew" xml:space="preserve">
+    <value>Создать</value>
+  </data>
+  <data name="Settings_ProfileRename" xml:space="preserve">
+    <value>Переименовать</value>
+  </data>
+  <data name="Settings_ProfileDeleteTitle" xml:space="preserve">
+    <value>Удалить профиль</value>
+  </data>
+  <data name="Settings_ProfileDeleteMessage" xml:space="preserve">
+    <value>Удалить профиль «{0}»? Его настройки будут удалены безвозвратно.</value>
+  </data>
+  <data name="Settings_ProfileCreateFailed" xml:space="preserve">
+    <value>Не удалось создать профиль</value>
+  </data>
+  <data name="Settings_ProfileRenameFailed" xml:space="preserve">
+    <value>Не удалось переименовать профиль</value>
+  </data>
+  <data name="Settings_ProfileDeleteFailed" xml:space="preserve">
+    <value>Не удалось удалить профиль</value>
+  </data>
+  <data name="Settings_ProfileSwitchFailed" xml:space="preserve">
+    <value>Не удалось переключить профиль</value>
+  </data>
   <data name="Settings_SupportTitle" xml:space="preserve">
     <value>Поддержать CrossMacro</value>
   </data>

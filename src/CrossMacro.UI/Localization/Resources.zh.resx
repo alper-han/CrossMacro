@@ -120,6 +120,42 @@
   <data name="Settings_LanguageDescription" xml:space="preserve">
     <value>选择应用程序语言</value>
   </data>
+  <data name="Settings_Profiles" xml:space="preserve">
+    <value>配置文件</value>
+  </data>
+  <data name="Settings_ProfileSwitch" xml:space="preserve">
+    <value>切换</value>
+  </data>
+  <data name="Settings_ProfileDelete" xml:space="preserve">
+    <value>删除</value>
+  </data>
+  <data name="Settings_ProfileNamePlaceholder" xml:space="preserve">
+    <value>配置文件名称</value>
+  </data>
+  <data name="Settings_ProfileNew" xml:space="preserve">
+    <value>新建</value>
+  </data>
+  <data name="Settings_ProfileRename" xml:space="preserve">
+    <value>重命名</value>
+  </data>
+  <data name="Settings_ProfileDeleteTitle" xml:space="preserve">
+    <value>删除配置文件</value>
+  </data>
+  <data name="Settings_ProfileDeleteMessage" xml:space="preserve">
+    <value>要删除配置文件“{0}”吗？这会永久删除其配置文件设置。</value>
+  </data>
+  <data name="Settings_ProfileCreateFailed" xml:space="preserve">
+    <value>创建配置文件失败</value>
+  </data>
+  <data name="Settings_ProfileRenameFailed" xml:space="preserve">
+    <value>重命名配置文件失败</value>
+  </data>
+  <data name="Settings_ProfileDeleteFailed" xml:space="preserve">
+    <value>删除配置文件失败</value>
+  </data>
+  <data name="Settings_ProfileSwitchFailed" xml:space="preserve">
+    <value>切换配置文件失败</value>
+  </data>
   <data name="Settings_SupportTitle" xml:space="preserve">
     <value>支持 CrossMacro</value>
   </data>

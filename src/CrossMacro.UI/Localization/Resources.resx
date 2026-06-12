@@ -120,6 +120,42 @@
   <data name="Settings_LanguageDescription" xml:space="preserve">
     <value>Choose application language</value>
   </data>
+  <data name="Settings_Profiles" xml:space="preserve">
+    <value>Profiles</value>
+  </data>
+  <data name="Settings_ProfileSwitch" xml:space="preserve">
+    <value>Switch</value>
+  </data>
+  <data name="Settings_ProfileDelete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Settings_ProfileNamePlaceholder" xml:space="preserve">
+    <value>Profile name</value>
+  </data>
+  <data name="Settings_ProfileNew" xml:space="preserve">
+    <value>New</value>
+  </data>
+  <data name="Settings_ProfileRename" xml:space="preserve">
+    <value>Rename</value>
+  </data>
+  <data name="Settings_ProfileDeleteTitle" xml:space="preserve">
+    <value>Delete Profile</value>
+  </data>
+  <data name="Settings_ProfileDeleteMessage" xml:space="preserve">
+    <value>Delete profile '{0}'? This permanently removes its profile settings.</value>
+  </data>
+  <data name="Settings_ProfileCreateFailed" xml:space="preserve">
+    <value>Failed to create profile</value>
+  </data>
+  <data name="Settings_ProfileRenameFailed" xml:space="preserve">
+    <value>Failed to rename profile</value>
+  </data>
+  <data name="Settings_ProfileDeleteFailed" xml:space="preserve">
+    <value>Failed to delete profile</value>
+  </data>
+  <data name="Settings_ProfileSwitchFailed" xml:space="preserve">
+    <value>Failed to switch profile</value>
+  </data>
   <data name="Settings_SupportTitle" xml:space="preserve">
     <value>Support CrossMacro</value>
   </data>

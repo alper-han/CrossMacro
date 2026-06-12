@@ -13,6 +13,7 @@ public partial class SettingsTabView : UserControl
     private HotkeyCapture? _recordingHotkeyCapture;
     private HotkeyCapture? _playbackHotkeyCapture;
     private HotkeyCapture? _pauseHotkeyCapture;
+    private SettingsViewModel? _profileToastViewModel;
     private Border? _toastNotification;
     private TextBlock? _toastMessage;
     private CancellationTokenSource? _toastCts;
@@ -38,7 +39,18 @@ public partial class SettingsTabView : UserControl
         _toastMessage = this.FindControl<TextBlock>("ToastMessage");
         ResetToastState();
 
+        if (_profileToastViewModel != null)
+        {
+            _profileToastViewModel.ProfileOperationFailed -= OnProfileOperationFailed;
+            _profileToastViewModel = null;
+        }
+
         var viewModel = DataContext as SettingsViewModel;
+        if (viewModel != null)
+        {
+            _profileToastViewModel = viewModel;
+            _profileToastViewModel.ProfileOperationFailed += OnProfileOperationFailed;
+        }
 
         if (_recordingHotkeyCapture != null && viewModel != null)
         {
@@ -97,8 +109,19 @@ public partial class SettingsTabView : UserControl
     
     private void OnUnloaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
+        if (_profileToastViewModel != null)
+        {
+            _profileToastViewModel.ProfileOperationFailed -= OnProfileOperationFailed;
+            _profileToastViewModel = null;
+        }
+
         CancelToastTimer();
         ResetToastState();
+    }
+
+    private void OnProfileOperationFailed(object? sender, string message)
+    {
+        ShowToast(message);
     }
 
     private async void ShowToast(string message)

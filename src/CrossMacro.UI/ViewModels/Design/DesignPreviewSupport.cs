@@ -391,6 +391,10 @@ internal sealed class DesignGlobalHotkeyService : IGlobalHotkeyService
     {
     }
 
+    public void ApplyHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey)
+    {
+    }
+
     public Task<string> CaptureNextKeyAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult("Ctrl+Alt+R");

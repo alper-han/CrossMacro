@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
+using Avalonia.Threading;
 using CrossMacro.Core.Diagnostics;
 using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
@@ -15,7 +17,7 @@ namespace CrossMacro.UI.ViewModels;
 /// <summary>
 /// ViewModel for the Settings tab - handles hotkey and application settings
 /// </summary>
-public class SettingsViewModel : ViewModelBase
+public class SettingsViewModel : ViewModelBase, IDisposable
 {
     internal static readonly IReadOnlyList<SupportedLanguageDescriptor> SupportedLanguages =
     [
@@ -43,6 +45,8 @@ public class SettingsViewModel : ViewModelBase
     private readonly IRuntimeLogLevelService _runtimeLogLevelService;
     private readonly IThemeService _themeService;
     private readonly ILocalizationService _localizationService;
+    private readonly IProfileManager? _profileManager;
+    private readonly IDialogService? _dialogService;
     
     private string _recordingHotkey;
     private string _playbackHotkey;
@@ -52,11 +56,18 @@ public class SettingsViewModel : ViewModelBase
     private string _selectedLogLevel;
     private string _selectedLanguage;
     private IReadOnlyList<LanguageOption> _availableLanguages;
+    private IReadOnlyList<ProfileInfo> _availableProfiles = [];
+    private ProfileInfo? _selectedProfile;
+    private bool _isProfileOperationInProgress;
+    private string _newProfileName = string.Empty;
+    private bool _disposed;
     
     /// <summary>
     /// Event fired when tray icon setting changes
     /// </summary>
     public event EventHandler<bool>? TrayIconEnabledChanged;
+
+    public event EventHandler<string>? ProfileOperationFailed;
     
     public SettingsViewModel(
         IGlobalHotkeyService hotkeyService,
@@ -67,7 +78,9 @@ public class SettingsViewModel : ViewModelBase
         IRuntimeLogLevelService runtimeLogLevelService,
         IThemeService themeService,
         ILocalizationService? localizationService = null,
-        IRuntimeContext? runtimeContext = null)
+        IRuntimeContext? runtimeContext = null,
+        IProfileManager? profileManager = null,
+        IDialogService? dialogService = null)
     {
         ArgumentNullException.ThrowIfNull(runtimeLogLevelService);
         ArgumentNullException.ThrowIfNull(themeService);
@@ -81,6 +94,8 @@ public class SettingsViewModel : ViewModelBase
         _runtimeLogLevelService = runtimeLogLevelService;
         _themeService = themeService;
         _localizationService = localizationService ?? new LocalizationService();
+        _profileManager = profileManager;
+        _dialogService = dialogService;
         
         // Initialize hotkey properties
         _recordingHotkey = _hotkeySettings.RecordingHotkey;
@@ -107,6 +122,12 @@ public class SettingsViewModel : ViewModelBase
 
         // Hide tray settings if tray is not supported (Flatpak sandbox blocks D-Bus StatusNotifierItem)
         IsTraySettingsVisible = TrayIconService.IsTraySupported(_runtimeContext);
+
+        RefreshProfileState();
+        if (_profileManager != null)
+        {
+            _profileManager.ProfileChanged += OnProfileChanged;
+        }
     }
 
     public SettingsViewModel(
@@ -136,6 +157,30 @@ public class SettingsViewModel : ViewModelBase
     public IGlobalHotkeyService GlobalHotkeyService => _hotkeyService;
 
     public ILocalizationService LocalizationService => _localizationService;
+
+    public IReadOnlyList<ProfileInfo> AvailableProfiles
+    {
+        get => _availableProfiles;
+        private set => SetProperty(ref _availableProfiles, value);
+    }
+
+    public ProfileInfo? SelectedProfile
+    {
+        get => _selectedProfile;
+        set => SetProperty(ref _selectedProfile, value);
+    }
+
+    public bool IsProfileOperationInProgress
+    {
+        get => _isProfileOperationInProgress;
+        private set => SetProperty(ref _isProfileOperationInProgress, value);
+    }
+
+    public string NewProfileName
+    {
+        get => _newProfileName;
+        set => SetProperty(ref _newProfileName, value);
+    }
 
     /// <summary>
     /// Tray icon settings are hidden in Flatpak where StatusNotifierItem is not supported
@@ -516,6 +561,98 @@ public class SettingsViewModel : ViewModelBase
 
     public IEnumerable<string> AvailableThemes => _themeService.AvailableThemes;
 
+    public async Task CreateProfileAsync()
+    {
+        var profileName = NewProfileName.Trim();
+        if (_profileManager is null || profileName.Length == 0)
+        {
+            return;
+        }
+
+        await RunProfileOperationAsync(async () =>
+        {
+            var createdProfile = await _profileManager.CreateProfileAsync(profileName);
+            RefreshProfileState(createdProfile.Id);
+            NewProfileName = string.Empty;
+        }, _localizationService["Settings_ProfileCreateFailed"]);
+    }
+
+    public Task CreateProfile() => CreateProfileAsync();
+
+    public async Task RenameSelectedProfileAsync()
+    {
+        var profileName = NewProfileName.Trim();
+        var selectedProfile = SelectedProfile;
+        if (_profileManager is null || selectedProfile is null || profileName.Length == 0)
+        {
+            return;
+        }
+
+        await RunProfileOperationAsync(async () =>
+        {
+            await _profileManager.RenameProfileAsync(selectedProfile.Id, profileName);
+            RefreshProfileState(selectedProfile.Id);
+            NewProfileName = string.Empty;
+        }, _localizationService["Settings_ProfileRenameFailed"]);
+    }
+
+    public Task RenameSelectedProfile() => RenameSelectedProfileAsync();
+
+    public async Task DeleteSelectedProfileAsync()
+    {
+        var selectedProfile = SelectedProfile;
+        if (_profileManager is null || selectedProfile is null)
+        {
+            return;
+        }
+
+        if (IsProfileOperationInProgress)
+        {
+            return;
+        }
+
+        if (_dialogService != null)
+        {
+            var confirmed = await _dialogService.ShowConfirmationAsync(
+                _localizationService["Settings_ProfileDeleteTitle"],
+                string.Format(
+                    _localizationService.CurrentCulture,
+                    _localizationService["Settings_ProfileDeleteMessage"],
+                    selectedProfile.Name));
+
+            if (!confirmed)
+            {
+                return;
+            }
+        }
+
+        await RunProfileOperationAsync(async () =>
+        {
+            await _profileManager.DeleteProfileAsync(selectedProfile.Id);
+            RefreshProfileState();
+        }, _localizationService["Settings_ProfileDeleteFailed"]);
+    }
+
+    public Task DeleteSelectedProfile() => DeleteSelectedProfileAsync();
+
+    public async Task SwitchProfileAsync()
+    {
+        var selectedProfile = SelectedProfile;
+        if (_profileManager is null || selectedProfile is null)
+        {
+            return;
+        }
+
+        await RunProfileOperationAsync(async () =>
+        {
+            await _profileManager.SwitchProfileAsync(selectedProfile.Id);
+            RefreshProfileState(selectedProfile.Id);
+            RefreshProfileSpecificSettings();
+        }, _localizationService["Settings_ProfileSwitchFailed"]);
+    }
+
+    public Task SwitchProfile() => SwitchProfileAsync();
+
     private void RestoreStartupPreferences(bool trayIconEnabled, bool startMinimized)
     {
         _enableTrayIcon = trayIconEnabled;
@@ -524,7 +661,103 @@ public class SettingsViewModel : ViewModelBase
         _settingsService.Current.StartMinimized = startMinimized;
     }
 
-    
+    public void RefreshProfileState(string? selectedProfileId = null)
+    {
+        void Refresh()
+        {
+            if (_profileManager is null)
+            {
+                AvailableProfiles = [];
+                SelectedProfile = null;
+                return;
+            }
+
+            AvailableProfiles = _profileManager.Profiles.ToArray();
+            var effectiveSelectedProfileId = selectedProfileId ?? _profileManager.ActiveProfile.Id;
+            SelectedProfile = AvailableProfiles.FirstOrDefault(profile =>
+                                  string.Equals(profile.Id, effectiveSelectedProfileId, StringComparison.Ordinal))
+                              ?? _profileManager.ActiveProfile;
+        }
+
+        RaiseOnUiThread(Refresh);
+    }
+
+    public void RefreshProfileSpecificSettings()
+    {
+        void Refresh()
+        {
+            _recordingHotkey = _hotkeySettings.RecordingHotkey;
+            _playbackHotkey = _hotkeySettings.PlaybackHotkey;
+            _pauseHotkey = _hotkeySettings.PauseHotkey;
+
+            OnPropertyChanged(nameof(RecordingHotkey));
+            OnPropertyChanged(nameof(PlaybackHotkey));
+            OnPropertyChanged(nameof(PauseHotkey));
+            OnPropertyChanged(nameof(EnableTextExpansion));
+            OnPropertyChanged(nameof(CheckForUpdates));
+        }
+
+        RaiseOnUiThread(Refresh);
+    }
+
+    private async Task RunProfileOperationAsync(Func<Task> operation, string failureMessage)
+    {
+        if (IsProfileOperationInProgress)
+        {
+            return;
+        }
+
+        try
+        {
+            IsProfileOperationInProgress = true;
+            await operation();
+        }
+        catch (Exception ex)
+        {
+            var message = string.IsNullOrWhiteSpace(ex.Message)
+                ? failureMessage
+                : $"{failureMessage}: {ex.Message}";
+            Log.Warning(ex, "{FailureMessage}: {Error}", failureMessage, ex.Message);
+            RaiseOnUiThread(() => ProfileOperationFailed?.Invoke(this, message));
+        }
+        finally
+        {
+            IsProfileOperationInProgress = false;
+        }
+    }
+
+    private void OnProfileChanged(object? sender, ProfileInfo profile)
+    {
+        RefreshProfileState(profile.Id);
+        RefreshProfileSpecificSettings();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        if (_profileManager != null)
+        {
+            _profileManager.ProfileChanged -= OnProfileChanged;
+        }
+    }
+
+    private static void RaiseOnUiThread(Action action)
+    {
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        Dispatcher.UIThread.Post(action);
+    }
+
     private void UpdateHotkeys()
     {
         try

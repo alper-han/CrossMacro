@@ -120,6 +120,42 @@
   <data name="Settings_LanguageDescription" xml:space="preserve">
     <value>Choisir la langue de l'application</value>
   </data>
+  <data name="Settings_Profiles" xml:space="preserve">
+    <value>Profils</value>
+  </data>
+  <data name="Settings_ProfileSwitch" xml:space="preserve">
+    <value>Basculer</value>
+  </data>
+  <data name="Settings_ProfileDelete" xml:space="preserve">
+    <value>Supprimer</value>
+  </data>
+  <data name="Settings_ProfileNamePlaceholder" xml:space="preserve">
+    <value>Nom du profil</value>
+  </data>
+  <data name="Settings_ProfileNew" xml:space="preserve">
+    <value>Nouveau</value>
+  </data>
+  <data name="Settings_ProfileRename" xml:space="preserve">
+    <value>Renommer</value>
+  </data>
+  <data name="Settings_ProfileDeleteTitle" xml:space="preserve">
+    <value>Supprimer le profil</value>
+  </data>
+  <data name="Settings_ProfileDeleteMessage" xml:space="preserve">
+    <value>Supprimer le profil « {0} » ? Cela supprimera définitivement ses paramètres.</value>
+  </data>
+  <data name="Settings_ProfileCreateFailed" xml:space="preserve">
+    <value>Échec de la création du profil</value>
+  </data>
+  <data name="Settings_ProfileRenameFailed" xml:space="preserve">
+    <value>Échec du renommage du profil</value>
+  </data>
+  <data name="Settings_ProfileDeleteFailed" xml:space="preserve">
+    <value>Échec de la suppression du profil</value>
+  </data>
+  <data name="Settings_ProfileSwitchFailed" xml:space="preserve">
+    <value>Échec du changement de profil</value>
+  </data>
   <data name="Settings_SupportTitle" xml:space="preserve">
     <value>Soutenir CrossMacro</value>
   </data>

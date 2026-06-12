@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
@@ -471,6 +472,222 @@ public class SettingsViewModelTests
     }
 
     [Fact]
+    public async Task ProfileCommands_WhenManagerProvided_ManageProfilesAndRefreshSelection()
+    {
+        var defaultProfile = new ProfileInfo { Id = "default", Name = "Default" };
+        var workProfile = new ProfileInfo { Id = "work", Name = "Work" };
+        var profiles = new List<ProfileInfo> { defaultProfile };
+        var profileManager = Substitute.For<IProfileManager>();
+        profileManager.Profiles.Returns(_ => profiles.ToArray());
+        profileManager.ActiveProfile.Returns(_ => defaultProfile);
+        profileManager.CreateProfileAsync("Work").Returns(_ =>
+        {
+            profiles.Add(workProfile);
+            return Task.FromResult(workProfile);
+        });
+
+        var vm = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            _runtimeLogLevelService,
+            _themeService,
+            profileManager: profileManager);
+
+        vm.AvailableProfiles.Should().ContainSingle().Which.Name.Should().Be("Default");
+        vm.SelectedProfile.Should().Be(defaultProfile);
+
+        vm.NewProfileName = " Work ";
+        await vm.CreateProfileAsync();
+
+        await profileManager.Received(1).CreateProfileAsync("Work");
+        vm.AvailableProfiles.Select(profile => profile.Name).Should().Equal("Default", "Work");
+        vm.SelectedProfile.Should().Be(workProfile);
+        vm.NewProfileName.Should().BeEmpty();
+
+        vm.NewProfileName = "Renamed Work";
+        await vm.RenameSelectedProfileAsync();
+
+        await profileManager.Received(1).RenameProfileAsync("work", "Renamed Work");
+        vm.NewProfileName.Should().BeEmpty();
+
+        await vm.SwitchProfileAsync();
+
+        await profileManager.Received(1).SwitchProfileAsync("work");
+
+        await vm.DeleteSelectedProfileAsync();
+
+        await profileManager.Received(1).DeleteProfileAsync("work");
+    }
+
+    [Fact]
+    public async Task DeleteSelectedProfileAsync_WhenConfirmationDeclined_DoesNotDeleteProfile()
+    {
+        var defaultProfile = new ProfileInfo { Id = "default", Name = "Default" };
+        var workProfile = new ProfileInfo { Id = "work", Name = "Work" };
+        var profileManager = Substitute.For<IProfileManager>();
+        profileManager.Profiles.Returns([defaultProfile, workProfile]);
+        profileManager.ActiveProfile.Returns(defaultProfile);
+        var dialogService = Substitute.For<IDialogService>();
+        var localizationService = CreateProfileLocalizationService();
+        dialogService.ShowConfirmationAsync("Delete Profile", "Delete profile 'Work'?", "Yes", "No")
+            .Returns(false);
+
+        var vm = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            _runtimeLogLevelService,
+            _themeService,
+            localizationService,
+            profileManager: profileManager,
+            dialogService: dialogService)
+        {
+            SelectedProfile = workProfile
+        };
+
+        await vm.DeleteSelectedProfileAsync();
+
+        await dialogService.Received(1).ShowConfirmationAsync("Delete Profile", "Delete profile 'Work'?", "Yes", "No");
+        await profileManager.DidNotReceive().DeleteProfileAsync(Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task DeleteSelectedProfileAsync_WhenConfirmationAccepted_DeletesProfile()
+    {
+        var defaultProfile = new ProfileInfo { Id = "default", Name = "Default" };
+        var workProfile = new ProfileInfo { Id = "work", Name = "Work" };
+        var profiles = new List<ProfileInfo> { defaultProfile, workProfile };
+        var profileManager = Substitute.For<IProfileManager>();
+        profileManager.Profiles.Returns(_ => profiles.ToArray());
+        profileManager.ActiveProfile.Returns(defaultProfile);
+        profileManager.DeleteProfileAsync("work").Returns(_ =>
+        {
+            profiles.Remove(workProfile);
+            return Task.CompletedTask;
+        });
+        var dialogService = Substitute.For<IDialogService>();
+        var localizationService = CreateProfileLocalizationService();
+        dialogService.ShowConfirmationAsync("Delete Profile", "Delete profile 'Work'?", "Yes", "No")
+            .Returns(true);
+
+        var vm = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            _runtimeLogLevelService,
+            _themeService,
+            localizationService,
+            profileManager: profileManager,
+            dialogService: dialogService)
+        {
+            SelectedProfile = workProfile
+        };
+
+        await vm.DeleteSelectedProfileAsync();
+
+        await profileManager.Received(1).DeleteProfileAsync("work");
+        vm.AvailableProfiles.Should().ContainSingle().Which.Should().Be(defaultProfile);
+        vm.SelectedProfile.Should().Be(defaultProfile);
+    }
+
+    [Fact]
+    public void Dispose_UnsubscribesFromProfileChanged()
+    {
+        var defaultProfile = new ProfileInfo { Id = "default", Name = "Default" };
+        var workProfile = new ProfileInfo { Id = "work", Name = "Work" };
+        var profileManager = Substitute.For<IProfileManager>();
+        profileManager.Profiles.Returns([defaultProfile, workProfile]);
+        profileManager.ActiveProfile.Returns(defaultProfile);
+
+        var vm = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            _runtimeLogLevelService,
+            _themeService,
+            profileManager: profileManager);
+
+        vm.Dispose();
+        profileManager.ActiveProfile.Returns(workProfile);
+        profileManager.ProfileChanged += Raise.Event<EventHandler<ProfileInfo>>(profileManager, workProfile);
+
+        vm.SelectedProfile.Should().Be(defaultProfile);
+    }
+
+    [Fact]
+    public async Task ProfileOperation_WhenManagerRejects_RaisesFailureAndResetsProgress()
+    {
+        var defaultProfile = new ProfileInfo { Id = "default", Name = "Default" };
+        var profileManager = Substitute.For<IProfileManager>();
+        profileManager.Profiles.Returns([defaultProfile]);
+        profileManager.ActiveProfile.Returns(defaultProfile);
+        profileManager.DeleteProfileAsync("default").Returns<Task>(_ => throw new InvalidOperationException("Cannot delete default profile."));
+
+        var vm = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            _runtimeLogLevelService,
+            _themeService,
+            profileManager: profileManager);
+        string? failureMessage = null;
+        vm.ProfileOperationFailed += (_, message) => failureMessage = message;
+
+        await vm.DeleteSelectedProfileAsync();
+
+        failureMessage.Should().Be("Failed to delete profile: Cannot delete default profile.");
+        vm.IsProfileOperationInProgress.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ProfileChanged_RefreshesHotkeysAndProfileSpecificSettingsOnly()
+    {
+        var defaultProfile = new ProfileInfo { Id = "default", Name = "Default" };
+        var workProfile = new ProfileInfo { Id = "work", Name = "Work" };
+        var profileManager = Substitute.For<IProfileManager>();
+        profileManager.Profiles.Returns([defaultProfile, workProfile]);
+        profileManager.ActiveProfile.Returns(_ => workProfile);
+
+        _settingsService.Current.EnableTextExpansion = true;
+        _settingsService.Current.CheckForUpdates = true;
+        _settingsService.Current.Theme = "Classic";
+        _hotkeySettings.RecordingHotkey = "Ctrl+Alt+R";
+        _hotkeySettings.PlaybackHotkey = "Ctrl+Alt+P";
+        _hotkeySettings.PauseHotkey = "Ctrl+Alt+Space";
+
+        var vm = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            _runtimeLogLevelService,
+            _themeService,
+            profileManager: profileManager);
+
+        profileManager.ProfileChanged += Raise.Event<EventHandler<ProfileInfo>>(profileManager, workProfile);
+
+        vm.SelectedProfile.Should().Be(workProfile);
+        vm.RecordingHotkey.Should().Be("Ctrl+Alt+R");
+        vm.PlaybackHotkey.Should().Be("Ctrl+Alt+P");
+        vm.PauseHotkey.Should().Be("Ctrl+Alt+Space");
+        vm.EnableTextExpansion.Should().BeTrue();
+        vm.CheckForUpdates.Should().BeTrue();
+        vm.SelectedTheme.Should().Be("Classic");
+    }
+
+    [Fact]
     public void OpenGitHub_UsesExternalUrlOpener()
     {
         // Act
@@ -478,6 +695,17 @@ public class SettingsViewModelTests
 
         // Assert
         _externalUrlOpener.Received(1).Open("https://github.com/alper-han/CrossMacro");
+    }
+
+    private static ILocalizationService CreateProfileLocalizationService()
+    {
+        var localizationService = Substitute.For<ILocalizationService>();
+        localizationService.CurrentCulture.Returns(CultureInfo.InvariantCulture);
+        localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>());
+        localizationService["Settings_ProfileDeleteTitle"].Returns("Delete Profile");
+        localizationService["Settings_ProfileDeleteMessage"].Returns("Delete profile '{0}'?");
+        localizationService["Settings_ProfileDeleteFailed"].Returns("Failed to delete profile");
+        return localizationService;
     }
 
     [Fact]

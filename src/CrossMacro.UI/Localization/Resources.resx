@@ -213,6 +213,9 @@
   <data name="Recording_Keyboard" xml:space="preserve">
     <value>Keyboard</value>
   </data>
+  <data name="Recording_Gamepad" xml:space="preserve">
+    <value>Gamepad</value>
+  </data>
   <data name="Recording_ForceRelativeCoordinates" xml:space="preserve">
     <value>Force Relative Coordinates</value>
   </data>

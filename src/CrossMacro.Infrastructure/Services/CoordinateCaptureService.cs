@@ -55,7 +55,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
             }
             
             using var capture = _inputCaptureFactory();
-            capture.Configure(captureMouse: true, captureKeyboard: true);
+            capture.Configure(captureMouse: true, captureKeyboard: true, captureGamepad: true);
             
             var tcs = new TaskCompletionSource<(int X, int Y)?>(TaskCreationOptions.RunContinuationsAsynchronously);
             
@@ -132,7 +132,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
             }
             
             using var capture = _inputCaptureFactory();
-            capture.Configure(captureMouse: false, captureKeyboard: true);
+            capture.Configure(captureMouse: false, captureKeyboard: true, captureGamepad: true);
             
             var tcs = new TaskCompletionSource<int?>(TaskCreationOptions.RunContinuationsAsynchronously);
             

@@ -30,14 +30,14 @@ public class InputCaptureManager : IInputCaptureManager
         _readerFactory = readerFactory ?? throw new ArgumentNullException(nameof(readerFactory));
     }
 
-    public CaptureStartResult StartCapture(bool captureMouse, bool captureKeyboard, Action<UInputNative.input_event> onEvent)
+    public CaptureStartResult StartCapture(bool captureMouse, bool captureKeyboard, bool captureGamepad, Action<UInputNative.input_event> onEvent)
     {
         lock (_lock)
         {
             StopCapture(); // Clear existing
 
             var devices = _deviceEnumerator();
-            var targetDevices = devices.Where(d => ShouldCaptureDevice(d, captureMouse, captureKeyboard)).ToList();
+            var targetDevices = devices.Where(d => ShouldCaptureDevice(d, captureMouse, captureKeyboard, captureGamepad)).ToList();
             
             Log.Information("[InputCaptureManager] Starting capture on {Count} devices", targetDevices.Count);
 
@@ -58,7 +58,7 @@ public class InputCaptureManager : IInputCaptureManager
                         // Callback must handle synchronization.
                         try 
                         {
-                            if (ShouldForwardEvent(e, captureMouse, captureKeyboard))
+                            if (ShouldForwardEvent(e, captureMouse, captureKeyboard, captureGamepad))
                             {
                                 onEvent(e);
                             }
@@ -107,27 +107,28 @@ public class InputCaptureManager : IInputCaptureManager
         StopCapture();
     }
 
-    private static bool ShouldForwardEvent(UInputNative.input_event inputEvent, bool captureMouse, bool captureKeyboard)
+    private static bool ShouldForwardEvent(UInputNative.input_event inputEvent, bool captureMouse, bool captureKeyboard, bool captureGamepad)
     {
         return inputEvent.type switch
         {
             UInputNative.EV_KEY when UInputNative.IsMouseButton(inputEvent.code) => captureMouse,
+            UInputNative.EV_KEY when UInputNative.IsGamepadButton(inputEvent.code) => captureGamepad,
             UInputNative.EV_KEY => captureKeyboard,
             UInputNative.EV_REL => captureMouse,
-            UInputNative.EV_ABS when inputEvent.code == UInputNative.ABS_X || inputEvent.code == UInputNative.ABS_Y => captureMouse,
+            UInputNative.EV_ABS when inputEvent.code == UInputNative.ABS_X || inputEvent.code == UInputNative.ABS_Y => captureMouse || captureGamepad,
             UInputNative.EV_SYN => captureMouse,
             _ => false
         };
     }
 
-    private static bool ShouldCaptureDevice(InputDeviceHelper.InputDevice device, bool captureMouse, bool captureKeyboard)
+    private static bool ShouldCaptureDevice(InputDeviceHelper.InputDevice device, bool captureMouse, bool captureKeyboard, bool captureGamepad)
     {
         if (VirtualDeviceConstants.IsCrossMacroVirtualDevice(device.Name, device.VendorId, device.ProductId))
         {
             return false;
         }
 
-        return (captureMouse && device.IsMouse) || (captureKeyboard && device.IsKeyboard);
+        return (captureMouse && device.IsMouse) || (captureKeyboard && device.IsKeyboard) || (captureGamepad && device.IsGamepad);
     }
 
     internal interface ILinuxCaptureReader : IDisposable

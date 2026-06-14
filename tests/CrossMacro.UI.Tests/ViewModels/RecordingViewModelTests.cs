@@ -74,6 +74,7 @@ public class RecordingViewModelTests
         await _recorder.Received(1).StartRecordingAsync(
             Arg.Any<bool>(), 
             Arg.Any<bool>(), 
+            Arg.Any<bool>(), 
             Arg.Any<int[]>());
         _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(false);
     }
@@ -90,6 +91,7 @@ public class RecordingViewModelTests
         // Assert
         Assert.False(_viewModel.IsRecording);
         await _recorder.DidNotReceive().StartRecordingAsync(
+            Arg.Any<bool>(), 
             Arg.Any<bool>(), 
             Arg.Any<bool>(), 
             Arg.Any<int[]>());
@@ -283,6 +285,7 @@ public class RecordingViewModelTests
         _recorder.StartRecordingAsync(
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
+                Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
@@ -312,6 +315,7 @@ public class RecordingViewModelTests
 
         // Assert
         await _recorder.Received(1).StartRecordingAsync(
+            Arg.Any<bool>(),
             Arg.Any<bool>(),
             Arg.Any<bool>(),
             Arg.Any<IEnumerable<int>>(),

@@ -94,6 +94,7 @@ public sealed class RecordExecutionService : IRecordExecutionService
             startTask = _macroRecorder.StartRecordingAsync(
                 request.RecordMouse,
                 request.RecordKeyboard,
+                request.RecordGamepad,
                 ignoredKeys: null,
                 forceRelative: forceRelative,
                 skipInitialZero: skipInitialZero,

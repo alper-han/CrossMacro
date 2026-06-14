@@ -17,6 +17,7 @@ public class LinuxIpcInputCapture : IInputCapture
         Task? PendingStartTask,
         bool CaptureMouse,
         bool CaptureKeyboard,
+        bool CaptureGamepad,
         int StartupConfigurationVersion,
         CancellationTokenSource? PendingStartLifetimeCts);
 
@@ -25,6 +26,7 @@ public class LinuxIpcInputCapture : IInputCapture
         bool ShouldApplyDeferredConfiguration,
         bool DeferredCaptureMouse,
         bool DeferredCaptureKeyboard,
+        bool DeferredCaptureGamepad,
         int DeferredConfigurationVersion,
         CancellationTokenSource? StartupStateToDispose,
         TaskCompletionSource<bool>? StartupCompletion);
@@ -36,6 +38,7 @@ public class LinuxIpcInputCapture : IInputCapture
     private readonly Lock _stateLock = new();
     private bool _captureMouse = true;
     private bool _captureKeyboard = true;
+    private bool _captureGamepad = true;
     private int _configurationVersion;
     private bool _started;
     private bool _startPending;
@@ -64,7 +67,7 @@ public class LinuxIpcInputCapture : IInputCapture
         _client.ErrorOccurred += OnClientErrorOccurred;
     }
 
-    public void Configure(bool captureMouse, bool captureKeyboard)
+    public void Configure(bool captureMouse, bool captureKeyboard, bool captureGamepad)
     {
         bool needsUpdate;
 
@@ -72,9 +75,10 @@ public class LinuxIpcInputCapture : IInputCapture
         {
             ThrowIfDisposed();
 
-            var configurationChanged = _captureMouse != captureMouse || _captureKeyboard != captureKeyboard;
+            var configurationChanged = _captureMouse != captureMouse || _captureKeyboard != captureKeyboard || _captureGamepad != captureGamepad;
             _captureMouse = captureMouse;
             _captureKeyboard = captureKeyboard;
+            _captureGamepad = captureGamepad;
 
             if (configurationChanged)
             {
@@ -86,7 +90,7 @@ public class LinuxIpcInputCapture : IInputCapture
 
         if (needsUpdate)
         {
-            _client.StartCapture(_consumerId, captureMouse, captureKeyboard);
+            _client.StartCapture(_consumerId, captureMouse, captureKeyboard, captureGamepad);
         }
     }
 
@@ -116,6 +120,7 @@ public class LinuxIpcInputCapture : IInputCapture
             await StartCaptureWithStartupPolicyAsync(
                 startupAttempt.CaptureMouse,
                 startupAttempt.CaptureKeyboard,
+                startupAttempt.CaptureGamepad,
                 startLifetimeCts.Token);
         }
         catch (OperationCanceledException ex)
@@ -157,7 +162,8 @@ public class LinuxIpcInputCapture : IInputCapture
                 ApplyDeferredConfigurationIfCurrent(
                     startupCommit.DeferredConfigurationVersion,
                     startupCommit.DeferredCaptureMouse,
-                    startupCommit.DeferredCaptureKeyboard);
+                    startupCommit.DeferredCaptureKeyboard,
+                    startupCommit.DeferredCaptureGamepad);
             }
 
             Log.Information("[LinuxIpcInputCapture] Started capture via daemon");
@@ -250,7 +256,8 @@ public class LinuxIpcInputCapture : IInputCapture
     private void ApplyDeferredConfigurationIfCurrent(
         int expectedConfigurationVersion,
         bool captureMouse,
-        bool captureKeyboard)
+        bool captureKeyboard,
+        bool captureGamepad)
     {
         lock (_stateLock)
         {
@@ -263,7 +270,7 @@ public class LinuxIpcInputCapture : IInputCapture
             }
         }
 
-        _client.StartCapture(_consumerId, captureMouse, captureKeyboard);
+        _client.StartCapture(_consumerId, captureMouse, captureKeyboard, captureGamepad);
     }
 
     private StartupAttempt BeginStartupAttempt()
@@ -273,6 +280,7 @@ public class LinuxIpcInputCapture : IInputCapture
             ThrowIfDisposed();
             var captureMouse = _captureMouse;
             var captureKeyboard = _captureKeyboard;
+            var captureGamepad = _captureGamepad;
             var startupConfigurationVersion = _configurationVersion;
 
             if (_started)
@@ -282,6 +290,7 @@ public class LinuxIpcInputCapture : IInputCapture
                     PendingStartTask: null,
                     CaptureMouse: captureMouse,
                     CaptureKeyboard: captureKeyboard,
+                    CaptureGamepad: captureGamepad,
                     StartupConfigurationVersion: startupConfigurationVersion,
                     PendingStartLifetimeCts: null);
             }
@@ -293,6 +302,7 @@ public class LinuxIpcInputCapture : IInputCapture
                     PendingStartTask: _pendingStartCompletion?.Task ?? Task.CompletedTask,
                     CaptureMouse: captureMouse,
                     CaptureKeyboard: captureKeyboard,
+                    CaptureGamepad: captureGamepad,
                     StartupConfigurationVersion: startupConfigurationVersion,
                     PendingStartLifetimeCts: null);
             }
@@ -309,6 +319,7 @@ public class LinuxIpcInputCapture : IInputCapture
                 PendingStartTask: null,
                 CaptureMouse: captureMouse,
                 CaptureKeyboard: captureKeyboard,
+                CaptureGamepad: captureGamepad,
                 StartupConfigurationVersion: startupConfigurationVersion,
                 PendingStartLifetimeCts: _pendingStartLifetimeCts);
         }
@@ -317,6 +328,7 @@ public class LinuxIpcInputCapture : IInputCapture
     private async Task StartCaptureWithStartupPolicyAsync(
         bool captureMouse,
         bool captureKeyboard,
+        bool captureGamepad,
         CancellationToken token)
     {
         if (!_client.IsConnected)
@@ -339,7 +351,7 @@ public class LinuxIpcInputCapture : IInputCapture
         {
             try
             {
-                await _client.StartCaptureAsync(_consumerId, captureMouse, captureKeyboard, token);
+                await _client.StartCaptureAsync(_consumerId, captureMouse, captureKeyboard, captureGamepad, token);
                 return;
             }
             catch (OperationCanceledException)
@@ -375,6 +387,7 @@ public class LinuxIpcInputCapture : IInputCapture
             cancellationToken.IsCancellationRequested;
         var deferredCaptureMouse = _captureMouse;
         var deferredCaptureKeyboard = _captureKeyboard;
+        var deferredCaptureGamepad = _captureGamepad;
         var deferredConfigurationVersion = _configurationVersion;
         var shouldApplyDeferredConfiguration =
             !shouldStopImmediately &&
@@ -391,6 +404,7 @@ public class LinuxIpcInputCapture : IInputCapture
             ShouldApplyDeferredConfiguration: shouldApplyDeferredConfiguration,
             DeferredCaptureMouse: deferredCaptureMouse,
             DeferredCaptureKeyboard: deferredCaptureKeyboard,
+            DeferredCaptureGamepad: deferredCaptureGamepad,
             DeferredConfigurationVersion: deferredConfigurationVersion,
             StartupStateToDispose: startupStateToDispose,
             StartupCompletion: startupCompletion);

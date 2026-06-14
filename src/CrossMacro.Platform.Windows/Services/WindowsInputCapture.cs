@@ -25,6 +25,7 @@ public class WindowsInputCapture : IInputCapture
 
     private bool _captureMouse;
     private bool _captureKeyboard;
+    private bool _captureGamepad;
     
     private int _lastX;
     private int _lastY;
@@ -45,10 +46,11 @@ public class WindowsInputCapture : IInputCapture
     
 
 
-    public void Configure(bool captureMouse, bool captureKeyboard)
+    public void Configure(bool captureMouse, bool captureKeyboard, bool captureGamepad)
     {
         _captureMouse = captureMouse;
         _captureKeyboard = captureKeyboard;
+        _captureGamepad = captureGamepad;
     }
 
 

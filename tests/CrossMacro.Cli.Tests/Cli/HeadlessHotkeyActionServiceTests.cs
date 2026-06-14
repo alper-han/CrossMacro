@@ -33,6 +33,7 @@ public class HeadlessHotkeyActionServiceTests
         recorder.StartRecordingAsync(
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
+                Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
@@ -74,6 +75,8 @@ public class HeadlessHotkeyActionServiceTests
         _ = recorder.Received(1).StartRecordingAsync(
             Arg.Any<bool>(),
             Arg.Any<bool>(),
+                Arg.Any<bool>(),
+            
             Arg.Any<IEnumerable<int>>(),
             Arg.Any<bool>(),
             Arg.Any<bool>(),
@@ -135,6 +138,7 @@ public class HeadlessHotkeyActionServiceTests
         var runtimeContext = CreateRuntimeContext();
         recorder.IsRecording.Returns(_ => isRecording);
         recorder.StartRecordingAsync(
+                Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
@@ -201,6 +205,7 @@ public class HeadlessHotkeyActionServiceTests
         var runtimeContext = CreateRuntimeContext();
         recorder.IsRecording.Returns(_ => isRecording);
         recorder.StartRecordingAsync(
+                Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
@@ -294,6 +299,7 @@ public class HeadlessHotkeyActionServiceTests
         recorder.StartRecordingAsync(
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
+                Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
@@ -378,6 +384,7 @@ public class HeadlessHotkeyActionServiceTests
         recorder.StartRecordingAsync(
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
+                Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
@@ -443,6 +450,7 @@ public class HeadlessHotkeyActionServiceTests
         var runtimeContext = CreateRuntimeContext();
         recorder.IsRecording.Returns(_ => isRecording);
         recorder.StartRecordingAsync(
+                Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
@@ -526,6 +534,7 @@ public class HeadlessHotkeyActionServiceTests
         await recorder.Received(1).StartRecordingAsync(
             Arg.Any<bool>(),
             Arg.Any<bool>(),
+                Arg.Any<bool>(),
             Arg.Any<IEnumerable<int>>(),
             false,
             false,
@@ -558,6 +567,7 @@ public class HeadlessHotkeyActionServiceTests
         await Task.Yield();
 
         await recorder.Received(1).StartRecordingAsync(
+            Arg.Any<bool>(),
             Arg.Any<bool>(),
             Arg.Any<bool>(),
             Arg.Any<IEnumerable<int>>(),

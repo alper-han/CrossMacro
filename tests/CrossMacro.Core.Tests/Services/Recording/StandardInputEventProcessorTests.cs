@@ -18,7 +18,7 @@ public class StandardInputEventProcessorTests
         _processor = new StandardInputEventProcessor(_strategy);
         
         // Default configuration: record both mouse and keyboard
-        _processor.Configure(recordMouse: true, recordKeyboard: true, ignoredKeys: null);
+        _processor.Configure(recordMouse: true, recordKeyboard: true, recordGamepad:true, ignoredKeys: null);
     }
 
     #region Mouse Move Tests
@@ -46,7 +46,7 @@ public class StandardInputEventProcessorTests
     public void Process_MouseMove_ShouldStampCoordinateModeFromRecordingSession(bool isAbsoluteCoordinates, MouseCoordinateMode expectedMode)
     {
         // Arrange
-        _processor.Configure(recordMouse: true, recordKeyboard: true, ignoredKeys: null, isAbsoluteCoordinates: isAbsoluteCoordinates);
+        _processor.Configure(recordMouse: true, recordKeyboard: true, recordGamepad: true, ignoredKeys: null, isAbsoluteCoordinates: isAbsoluteCoordinates);
         _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((10, 20));
         var args = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
 
@@ -62,7 +62,7 @@ public class StandardInputEventProcessorTests
     public void Process_MouseMove_ShouldReturnNull_WhenNotRecordingMouse()
     {
         // Arrange
-        _processor.Configure(recordMouse: false, recordKeyboard: true, ignoredKeys: null);
+        _processor.Configure(recordMouse: false, recordKeyboard: true, recordGamepad: true, ignoredKeys: null);
         _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((10, 20));
         var args = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
 
@@ -110,7 +110,7 @@ public class StandardInputEventProcessorTests
     public void Process_KeyEvent_ShouldReturnNull_WhenNotRecordingKeyboard()
     {
         // Arrange
-        _processor.Configure(recordMouse: true, recordKeyboard: false, ignoredKeys: null);
+        _processor.Configure(recordMouse: true, recordKeyboard: false, recordGamepad:true, ignoredKeys: null);
         var args = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 30, Value = 1 };
 
         // Act
@@ -125,7 +125,7 @@ public class StandardInputEventProcessorTests
     {
         // Arrange
         var ignoredKeys = new HashSet<int> { 30 }; // Ignore KEY_A
-        _processor.Configure(recordMouse: true, recordKeyboard: true, ignoredKeys: ignoredKeys);
+        _processor.Configure(recordMouse: true, recordKeyboard: true, recordGamepad:true, ignoredKeys: ignoredKeys);
         var args = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 30, Value = 1 };
 
         // Act
@@ -188,7 +188,7 @@ public class StandardInputEventProcessorTests
     public void Process_MouseButton_ShouldStampCoordinateModeFromRecordingSession(bool isAbsoluteCoordinates, MouseCoordinateMode expectedMode)
     {
         // Arrange
-        _processor.Configure(recordMouse: true, recordKeyboard: true, ignoredKeys: null, isAbsoluteCoordinates: isAbsoluteCoordinates);
+        _processor.Configure(recordMouse: true, recordKeyboard: true, recordGamepad: true, ignoredKeys: null, isAbsoluteCoordinates: isAbsoluteCoordinates);
         _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((100, 100));
         var args = new InputCaptureEventArgs { Type = InputEventType.MouseButton, Code = InputEventCode.BTN_LEFT, Value = 1 };
 
@@ -291,7 +291,7 @@ public class StandardInputEventProcessorTests
     public void Process_Sync_ShouldStampCoordinateModeFromRecordingSession(bool isAbsoluteCoordinates, MouseCoordinateMode expectedMode)
     {
         // Arrange
-        _processor.Configure(recordMouse: true, recordKeyboard: true, ignoredKeys: null, isAbsoluteCoordinates: isAbsoluteCoordinates);
+        _processor.Configure(recordMouse: true, recordKeyboard: true, recordGamepad:true, ignoredKeys: null, isAbsoluteCoordinates: isAbsoluteCoordinates);
         _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((15, 25));
         var args = new InputCaptureEventArgs { Type = InputEventType.Sync, Code = 0, Value = 0 };
 

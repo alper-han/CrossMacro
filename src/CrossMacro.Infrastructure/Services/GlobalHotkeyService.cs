@@ -400,6 +400,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             _inputCaptureFactory!,
             captureMouse: true,
             captureKeyboard: true,
+            captureGamepad: true,
             OnInputReceived,
             OnInputCaptureError,
             OnCaptureStarted,

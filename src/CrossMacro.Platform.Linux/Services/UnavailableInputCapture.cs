@@ -28,7 +28,7 @@ public sealed class UnavailableInputCapture : IInputCapture
 
     public event EventHandler<string>? Error;
 
-    public void Configure(bool captureMouse, bool captureKeyboard)
+    public void Configure(bool captureMouse, bool captureKeyboard, bool captureGamepad)
     {
     }
 

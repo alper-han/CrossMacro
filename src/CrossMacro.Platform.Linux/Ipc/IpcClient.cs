@@ -485,12 +485,12 @@ public class IpcClient : IDisposable
         _captureCommandGate.Release();
     }
 
-    public void StartCapture(bool mouse, bool keyboard)
+    public void StartCapture(bool mouse, bool keyboard, bool gamepad)
     {
-        StartCapture(DefaultConsumerId, mouse, keyboard);
+        StartCapture(DefaultConsumerId, mouse, keyboard, gamepad);
     }
 
-    public void StartCapture(string consumerId, bool mouse, bool keyboard)
+    public void StartCapture(string consumerId, bool mouse, bool keyboard, bool gamepad)
     {
         if (string.IsNullOrWhiteSpace(consumerId))
         {
@@ -506,7 +506,7 @@ public class IpcClient : IDisposable
         {
             lock (_captureLock)
             {
-                _captureCoordinator.SetSubscription(consumerId, mouse, keyboard);
+                _captureCoordinator.SetSubscription(consumerId, mouse, keyboard, gamepad);
 
                 if (_pendingCaptureStarts.TryGetPendingTask() != null)
                 {
@@ -570,12 +570,12 @@ public class IpcClient : IDisposable
         }
     }
 
-    public Task StartCaptureAsync(bool mouse, bool keyboard, CancellationToken token = default)
+    public Task StartCaptureAsync(bool mouse, bool keyboard, bool gamepad, CancellationToken token = default)
     {
-        return StartCaptureAsync(DefaultConsumerId, mouse, keyboard, token);
+        return StartCaptureAsync(DefaultConsumerId, mouse, keyboard, gamepad, token);
     }
 
-    public async Task StartCaptureAsync(string consumerId, bool mouse, bool keyboard, CancellationToken token = default)
+    public async Task StartCaptureAsync(string consumerId, bool mouse, bool keyboard, bool gamepad, CancellationToken token = default)
     {
         if (string.IsNullOrWhiteSpace(consumerId))
         {
@@ -589,6 +589,7 @@ public class IpcClient : IDisposable
         bool hadPreviousSubscription = false;
         bool previousCaptureMouse = false;
         bool previousCaptureKeyboard = false;
+        bool previousCaptureGamepad= false;
 
         while (true)
         {
@@ -607,8 +608,9 @@ public class IpcClient : IDisposable
                         hadPreviousSubscription = _captureCoordinator.TryGetSubscription(
                             consumerId,
                             out previousCaptureMouse,
-                            out previousCaptureKeyboard);
-                        _captureCoordinator.SetSubscription(consumerId, mouse, keyboard);
+                            out previousCaptureKeyboard,
+                            out previousCaptureGamepad);
+                        _captureCoordinator.SetSubscription(consumerId, mouse, keyboard, gamepad);
                         subscriptionRegistered = true;
                     }
 
@@ -645,7 +647,8 @@ public class IpcClient : IDisposable
                             consumerId,
                             hadPreviousSubscription,
                             previousCaptureMouse,
-                            previousCaptureKeyboard);
+                            previousCaptureKeyboard,
+                            previousCaptureGamepad);
                         joinedExistingPendingStart = true;
                     }
                 }
@@ -667,7 +670,8 @@ public class IpcClient : IDisposable
                                 consumerId,
                                 hadPreviousSubscription,
                                 previousCaptureMouse,
-                                previousCaptureKeyboard);
+                                previousCaptureKeyboard,
+                                previousCaptureGamepad);
                             _captureCoordinator.MarkTransportStopped();
                         }
 
@@ -700,7 +704,8 @@ public class IpcClient : IDisposable
                 joinedExistingPendingStart,
                 consumerId,
                 mouse,
-                keyboard))
+                keyboard,
+                gamepad))
             {
                 continue;
             }
@@ -1319,7 +1324,8 @@ public class IpcClient : IDisposable
         bool joinedExistingPendingStart,
         string consumerId,
         bool mouse,
-        bool keyboard)
+        bool keyboard,
+        bool gamepad)
     {
         if (!joinedExistingPendingStart || exception is not InvalidOperationException)
         {
@@ -1331,9 +1337,11 @@ public class IpcClient : IDisposable
             return _captureCoordinator.TryGetSubscription(
                 consumerId,
                 out var currentCaptureMouse,
-                out var currentCaptureKeyboard) &&
+                out var currentCaptureKeyboard,
+                out var currentCaptureGamepad) &&
                 currentCaptureMouse == mouse &&
-                currentCaptureKeyboard == keyboard;
+                currentCaptureKeyboard == keyboard &&
+                currentCaptureGamepad == gamepad;
         }
     }
 
@@ -1462,7 +1470,8 @@ public class IpcClient : IDisposable
                     participant.ConsumerId,
                     participant.HadPreviousSubscription,
                     participant.PreviousCaptureMouse,
-                    participant.PreviousCaptureKeyboard);
+                    participant.PreviousCaptureKeyboard,
+                    participant.PreviousCaptureGamepad);
             }
 
             var currentRequiredCommand = _captureCoordinator.GetRequiredCommand();
@@ -1548,12 +1557,14 @@ public class IpcClient : IDisposable
         string consumerId,
         bool hadPreviousSubscription,
         bool previousCaptureMouse,
-        bool previousCaptureKeyboard)
+        bool previousCaptureKeyboard,
+        bool previousCaptureGamepad)
     {
         var hasCurrentSubscription = _captureCoordinator.TryGetSubscription(
             consumerId,
             out var currentCaptureMouse,
-            out var currentCaptureKeyboard);
+            out var currentCaptureKeyboard,
+            out var currentCaptureGamepad);
 
         if (hadPreviousSubscription)
         {
@@ -1564,7 +1575,7 @@ public class IpcClient : IDisposable
                 return false;
             }
 
-            _captureCoordinator.SetSubscription(consumerId, previousCaptureMouse, previousCaptureKeyboard);
+            _captureCoordinator.SetSubscription(consumerId, previousCaptureMouse, previousCaptureKeyboard, previousCaptureGamepad);
             return true;
         }
 

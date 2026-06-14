@@ -26,6 +26,7 @@ namespace CrossMacro.Platform.Linux.Services
         
         protected bool _captureMouse;
         protected bool _captureKeyboard;
+        protected bool _captureGamepad;
 
         public abstract string ProviderName { get; }
 
@@ -55,10 +56,11 @@ namespace CrossMacro.Platform.Linux.Services
         public event EventHandler<InputCaptureEventArgs>? InputReceived;
         public event EventHandler<string>? Error;
 
-        public void Configure(bool captureMouse, bool captureKeyboard)
+        public void Configure(bool captureMouse, bool captureKeyboard, bool captureGamepad)
         {
             _captureMouse = captureMouse;
             _captureKeyboard = captureKeyboard;
+            _captureGamepad = captureGamepad;
         }
 
         public Task StartAsync(CancellationToken ct)

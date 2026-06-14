@@ -300,7 +300,7 @@ public class CliHostTests
         public event EventHandler<InputCaptureEventArgs>? InputReceived;
         public event EventHandler<string>? Error;
 #pragma warning restore CS0067
-        public void Configure(bool captureMouse, bool captureKeyboard) { }
+        public void Configure(bool captureMouse, bool captureKeyboard, bool captureGamepad) { }
         public Task StartAsync(CancellationToken ct) => Task.CompletedTask;
         public void Stop() { }
         public void Dispose() { }

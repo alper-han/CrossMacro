@@ -46,7 +46,7 @@ public class InputCaptureManagerTests
             _ => reader);
 
         var received = new List<UInputNative.input_event>();
-        var result = manager.StartCapture(captureMouse: true, captureKeyboard: false, received.Add);
+        var result = manager.StartCapture(captureMouse: true, captureKeyboard: false, captureGamepad: false, received.Add);
 
         Assert.True(result.Success);
 
@@ -75,7 +75,7 @@ public class InputCaptureManagerTests
             _ => reader);
 
         var received = new List<UInputNative.input_event>();
-        var result = manager.StartCapture(captureMouse: false, captureKeyboard: true, received.Add);
+        var result = manager.StartCapture(captureMouse: false, captureKeyboard: true, captureGamepad: false, received.Add);
 
         Assert.True(result.Success);
 
@@ -103,7 +103,7 @@ public class InputCaptureManagerTests
             _ => reader);
 
         var received = new List<UInputNative.input_event>();
-        var result = manager.StartCapture(captureMouse: true, captureKeyboard: false, received.Add);
+        var result = manager.StartCapture(captureMouse: true, captureKeyboard: false, captureGamepad: false, received.Add);
 
         Assert.True(result.Success);
 
@@ -146,7 +146,7 @@ public class InputCaptureManagerTests
             });
 
         var received = new List<UInputNative.input_event>();
-        var result = manager.StartCapture(captureMouse: false, captureKeyboard: true, received.Add);
+        var result = manager.StartCapture(captureMouse: false, captureKeyboard: true, captureGamepad: false, received.Add);
 
         Assert.True(result.Success);
         Assert.Equal(1, result.StartedDeviceCount);
@@ -173,7 +173,7 @@ public class InputCaptureManagerTests
             _ => reader);
 
         var received = new List<UInputNative.input_event>();
-        var result = manager.StartCapture(captureMouse: false, captureKeyboard: true, received.Add);
+        var result = manager.StartCapture(captureMouse: false, captureKeyboard: true, captureGamepad: false, received.Add);
 
         Assert.True(result.Success);
         Assert.Equal(1, result.StartedDeviceCount);
@@ -200,7 +200,7 @@ public class InputCaptureManagerTests
             _ => virtualKeyboardReader);
 
         var received = new List<UInputNative.input_event>();
-        var result = manager.StartCapture(captureMouse: false, captureKeyboard: true, received.Add);
+        var result = manager.StartCapture(captureMouse: false, captureKeyboard: true, captureGamepad: false, received.Add);
 
         Assert.True(result.Success);
         Assert.Equal(1, result.StartedDeviceCount);

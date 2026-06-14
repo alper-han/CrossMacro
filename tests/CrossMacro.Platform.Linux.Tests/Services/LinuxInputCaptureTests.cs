@@ -88,7 +88,7 @@ public class LinuxInputCaptureTests
         var reader = new FakeLinuxInputReader();
 
         using var capture = new LinuxInputCapture(() => devices, _ => reader);
-        capture.Configure(captureMouse: true, captureKeyboard: false);
+        capture.Configure(captureMouse: true, captureKeyboard: false, captureGamepad: false);
         await capture.StartAsync(CancellationToken.None);
 
         InputCaptureEventArgs? received = null;
@@ -118,7 +118,7 @@ public class LinuxInputCaptureTests
         var reader = new FakeLinuxInputReader();
 
         using var capture = new LinuxInputCapture(() => devices, _ => reader);
-        capture.Configure(captureMouse: false, captureKeyboard: true);
+        capture.Configure(captureMouse: false, captureKeyboard: true, captureGamepad: false);
         await capture.StartAsync(CancellationToken.None);
 
         InputCaptureEventArgs? received = null;
@@ -147,7 +147,7 @@ public class LinuxInputCaptureTests
         var reader = new FakeLinuxInputReader();
 
         using var capture = new LinuxInputCapture(() => devices, _ => reader);
-        capture.Configure(captureMouse: true, captureKeyboard: false);
+        capture.Configure(captureMouse: true, captureKeyboard: false, captureGamepad: false);
         await capture.StartAsync(CancellationToken.None);
 
         InputCaptureEventArgs? received = null;
@@ -175,7 +175,7 @@ public class LinuxInputCaptureTests
         var reader = new FakeLinuxInputReader();
 
         using var capture = new LinuxInputCapture(() => devices, _ => reader);
-        capture.Configure(captureMouse: true, captureKeyboard: false);
+        capture.Configure(captureMouse: true, captureKeyboard: false, captureGamepad: false);
         await capture.StartAsync(CancellationToken.None);
 
         InputCaptureEventArgs? received = null;
@@ -247,7 +247,7 @@ public class LinuxInputCaptureTests
         };
 
         using var capture = new LinuxInputCapture(() => devices, _ => reader);
-        capture.Configure(captureMouse: false, captureKeyboard: true);
+        capture.Configure(captureMouse: false, captureKeyboard: true, captureGamepad: false);
 
         await capture.StartAsync(CancellationToken.None);
 
@@ -272,7 +272,7 @@ public class LinuxInputCaptureTests
         };
 
         using var capture = new LinuxInputCapture(() => devices, _ => virtualKeyboardReader);
-        capture.Configure(captureMouse: false, captureKeyboard: true);
+        capture.Configure(captureMouse: false, captureKeyboard: true, captureGamepad: false);
 
         await capture.StartAsync(CancellationToken.None);
 

@@ -58,7 +58,7 @@ public class TextExpansionServiceTests
         // Assert
         Assert.True(_service.IsRunning);
         _storageService.Received(1).Load();
-        _inputCapture.Received(1).Configure(false, true);
+        _inputCapture.Received(1).Configure(false, true, true);
         await _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
         
         _inputProcessor.Received(1).Reset();
@@ -73,7 +73,7 @@ public class TextExpansionServiceTests
         _service.Start();
 
         _storageService.Received(1).Load();
-        _inputCapture.Received(1).Configure(false, true);
+        _inputCapture.Received(1).Configure(false, true, true);
         await _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
         _inputProcessor.Received(1).Reset();
         _bufferState.Received(1).Clear();

@@ -90,6 +90,7 @@ public sealed class EmojiAppIcon : Image
             AppIcon.Clipboard => "clipboard",
             AppIcon.Cancel => "cancel",
             AppIcon.Warning => "warning",
+            AppIcon.Gamepad => "gamepad",
             _ => null
         };
     }

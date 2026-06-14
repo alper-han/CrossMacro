@@ -18,6 +18,7 @@ public class InputDeviceHelper
         public string Name { get; set; } = string.Empty;
         public bool IsMouse { get; set; }
         public bool IsKeyboard { get; set; }
+        public bool IsGamepad { get; set; }
         public bool IsVirtual { get; set; }
         public ushort VendorId { get; set; }
         public ushort ProductId { get; set; }
@@ -38,6 +39,7 @@ public class InputDeviceHelper
                 return "Other";
             }
         }
+
 
         public override string ToString() =>
             $"{Name} ({Path}) [{DeviceType}] VID:0x{VendorId:X4} PID:0x{ProductId:X4}";
@@ -79,7 +81,7 @@ public class InputDeviceHelper
             {
                 var device = GetDeviceInfo(file, procDevicesContent);
 
-                if (device.IsMouse || device.IsKeyboard)
+                if (device.IsMouse || device.IsKeyboard || device.IsGamepad)
                 {
                     var (canOpen, errno) = CanOpenForReading(file);
                     if (canOpen)
@@ -215,6 +217,9 @@ public class InputDeviceHelper
 
             bool isKeyboard = CheckIsKeyboard(fd) ||
                               HasKernelHandler(devicePath, name, procDevicesContent, "kbd");
+            
+            bool isGamepad = CheckIsGamepad(fd) ||
+                              HasKernelHandler(devicePath, name, procDevicesContent, "js");
 
             var device = new InputDevice
             {
@@ -222,6 +227,7 @@ public class InputDeviceHelper
                 Name = string.IsNullOrWhiteSpace(name) ? "Unknown Device" : name,
                 IsMouse = isMouse,
                 IsKeyboard = isKeyboard,
+                IsGamepad = isGamepad,
                 IsVirtual = isVirtual,
                 BusType = busType,
                 VendorId = vendorId,
@@ -328,9 +334,18 @@ public class InputDeviceHelper
 
                 if (line.StartsWith("H: Handlers=") && line.Contains(eventName))
                 {
-                    hasHandler = handlerType == "mouse"
-                        ? MouseHandlerRegex.IsMatch(line)
-                        : line.Contains("kbd", StringComparison.Ordinal);
+                    if (handlerType == "mouse")
+                    {
+                        hasHandler = MouseHandlerRegex.IsMatch(line);
+                    }
+                    else if(handlerType == "kbd")
+                    {
+                        hasHandler = line.Contains("kbd", StringComparison.Ordinal);
+                    }
+                    else if (handlerType == "js")
+                    {
+                        hasHandler = line.Contains("js", StringComparison.Ordinal);
+                    }
                 }
             }
 
@@ -387,6 +402,20 @@ public class InputDeviceHelper
         if (!hasEscOrEnter) return false;
 
         for (int keyCode = 30; keyCode <= 44; keyCode++)
+        {
+            if (HasCapability(fd, UInputNative.EV_KEY, keyCode))
+                return true;
+        }
+
+        return false;
+    }
+    
+    private static bool CheckIsGamepad(int fd)
+    {
+        if (!HasCapability(fd, UInputNative.EV_SYN, UInputNative.EV_KEY))
+            return false;
+
+        for (int keyCode = 288; keyCode <= 318; keyCode++)
         {
             if (HasCapability(fd, UInputNative.EV_KEY, keyCode))
                 return true;

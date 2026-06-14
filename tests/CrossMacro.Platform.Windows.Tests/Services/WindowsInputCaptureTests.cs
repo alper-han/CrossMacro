@@ -36,7 +36,7 @@ public class WindowsInputCaptureTests
     public async Task StartAsync_WhenMouseHookInstallFails_ThrowsInvalidOperationException()
     {
         using var capture = new FailingWindowsInputCapture(failMouse: true, failKeyboard: false);
-        capture.Configure(captureMouse: true, captureKeyboard: false);
+        capture.Configure(captureMouse: true, captureKeyboard: false, captureGamepad: false);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => capture.StartAsync(CancellationToken.None));
 
@@ -47,7 +47,7 @@ public class WindowsInputCaptureTests
     public async Task StartAsync_WhenKeyboardHookInstallFails_ThrowsInvalidOperationException()
     {
         using var capture = new FailingWindowsInputCapture(failMouse: false, failKeyboard: true);
-        capture.Configure(captureMouse: false, captureKeyboard: true);
+        capture.Configure(captureMouse: false, captureKeyboard: true, captureGamepad: false);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => capture.StartAsync(CancellationToken.None));
 
@@ -59,7 +59,7 @@ public class WindowsInputCaptureTests
     {
         using var cts = new CancellationTokenSource();
         using var capture = new BlockingWindowsInputCapture();
-        capture.Configure(captureMouse: true, captureKeyboard: false);
+        capture.Configure(captureMouse: true, captureKeyboard: false, captureGamepad: false);
 
         var startTask = capture.StartAsync(cts.Token);
         await capture.HookInstallStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));

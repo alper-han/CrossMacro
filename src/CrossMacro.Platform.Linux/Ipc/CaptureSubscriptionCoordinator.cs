@@ -13,11 +13,12 @@ internal enum CaptureCommandType
 internal readonly record struct CaptureCommand(
     CaptureCommandType Type,
     bool CaptureMouse = false,
-    bool CaptureKeyboard = false);
+    bool CaptureKeyboard = false,
+    bool CaptureGamepad = false);
 
 internal sealed class CaptureSubscriptionCoordinator
 {
-    private readonly Dictionary<string, (bool Mouse, bool Keyboard)> _subscriptions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (bool Mouse, bool Keyboard, bool Gamepad)> _subscriptions = new(StringComparer.Ordinal);
 
     private bool _transportCaptureActive;
     private bool _transportCaptureMouse;
@@ -25,7 +26,7 @@ internal sealed class CaptureSubscriptionCoordinator
 
     public bool HasSubscriptions => _subscriptions.Count > 0;
 
-    public void SetSubscription(string consumerId, bool captureMouse, bool captureKeyboard)
+    public void SetSubscription(string consumerId, bool captureMouse, bool captureKeyboard, bool captureGamepad)
     {
         if (string.IsNullOrWhiteSpace(consumerId))
         {
@@ -34,7 +35,7 @@ internal sealed class CaptureSubscriptionCoordinator
 
         if (captureMouse || captureKeyboard)
         {
-            _subscriptions[consumerId] = (captureMouse, captureKeyboard);
+            _subscriptions[consumerId] = (captureMouse, captureKeyboard, captureGamepad);
         }
         else
         {
@@ -52,10 +53,11 @@ internal sealed class CaptureSubscriptionCoordinator
         _subscriptions.Remove(consumerId);
     }
 
-    public bool TryGetSubscription(string consumerId, out bool captureMouse, out bool captureKeyboard)
+    public bool TryGetSubscription(string consumerId, out bool captureMouse, out bool captureKeyboard, out bool captureGamepad)
     {
         captureMouse = false;
         captureKeyboard = false;
+        captureGamepad = false;
 
         if (string.IsNullOrWhiteSpace(consumerId))
         {
@@ -69,6 +71,7 @@ internal sealed class CaptureSubscriptionCoordinator
 
         captureMouse = subscription.Mouse;
         captureKeyboard = subscription.Keyboard;
+        captureGamepad = subscription.Gamepad;
         return true;
     }
 

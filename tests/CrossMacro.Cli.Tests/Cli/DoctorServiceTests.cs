@@ -61,7 +61,8 @@ public class DoctorServiceTests
         IPermissionChecker? permissionChecker = null,
         Func<string, string?>? readAllTextIfExists = null,
         Func<string, bool>? canOpenForRead = null,
-        Func<string[]>? getInputEventCandidates = null)
+        Func<string[]>? getInputEventCandidates = null,
+        Func<bool>? hasUsableReadableInputDevices = null)
     {
         var simulatorInstance = simulator ?? CreateInputSimulator();
         var captureInstance = capture ?? CreateInputCapture();
@@ -85,7 +86,8 @@ public class DoctorServiceTests
             daemonHandshakeProbe,
             daemonSocketAccessProbe,
             daemonHandshakeDiagnosticProbe,
-            readAllTextIfExists ?? (_ => null));
+            readAllTextIfExists ?? (_ => null),
+            hasUsableReadableInputDevices);
     }
 
     private static string? GetDetailsString(DoctorCheck check, string propertyName)
@@ -210,6 +212,32 @@ public class DoctorServiceTests
         Assert.Equal(DoctorCheckStatus.Fail, readiness.Status);
         Assert.False(GetDetailsBool(readiness, "directFallbackAvailable"));
     }
+
+    [Fact]
+    public async Task RunAsync_WhenWaylandHasRawReadableEventButNoUsableInputDevice_InputReadinessFails()
+    {
+        _displaySessionService.IsSessionSupported(out Arg.Any<string>()).Returns(x =>
+        {
+            x[0] = string.Empty;
+            return true;
+        });
+
+        var service = CreateService(
+            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
+            path => path is "/dev/uinput" or "/dev/input/event0",
+            path => path == "/dev/uinput",
+            canOpenForRead: path => path == "/dev/input/event0",
+            getInputEventCandidates: () => ["/dev/input/event0"],
+            hasUsableReadableInputDevices: () => false,
+            isLinux: () => true);
+
+        var report = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        var readiness = Assert.Single(report.Checks, x => x.Name == "linux-input-readiness");
+        Assert.Equal(DoctorCheckStatus.Fail, readiness.Status);
+        Assert.False(GetDetailsBool(readiness, "directFallbackAvailable"));
+    }
+
 
     [Fact]
     public async Task RunAsync_WhenWaylandWithoutDaemonAndUInput_InputReadinessFails()

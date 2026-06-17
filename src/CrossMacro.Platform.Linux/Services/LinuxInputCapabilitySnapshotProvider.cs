@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using CrossMacro.Daemon.Contracts.Ipc;
+using CrossMacro.Infrastructure.Linux.Native.Evdev;
 using CrossMacro.Platform.Abstractions.Diagnostics;
 
 namespace CrossMacro.Platform.Linux.Services;
@@ -9,15 +10,14 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
 {
     private readonly Func<string, bool> _fileExists;
     private readonly Func<string, bool> _canOpenForWrite;
-    private readonly Func<string, bool> _canOpenForRead;
+    private readonly ILinuxInputDeviceAccessProbe _inputDeviceAccessProbe;
     private readonly Func<string, TimeSpan, LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> _daemonHandshakeProbe;
-    private readonly Func<string[]> _getInputEventCandidates;
 
     public LinuxInputCapabilitySnapshotProvider()
         : this(
             File.Exists,
             LinuxInputProbeUtilities.CanOpenForWrite,
-            LinuxInputProbeUtilities.CanOpenForRead,
+            new LinuxInputDeviceAccessProbe(),
             LinuxInputCapabilityDetector.ProbeDaemonHandshakeWithinBudget,
             LinuxInputProbeUtilities.GetInputEventCandidates)
     {
@@ -29,12 +29,43 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
         Func<string, bool> canOpenForRead,
         Func<string, TimeSpan, LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> daemonHandshakeProbe,
         Func<string[]> getInputEventCandidates)
+        : this(
+            fileExists,
+            canOpenForWrite,
+            new LinuxInputDeviceAccessProbe(() => LinuxInputProbeUtilities.HasReadableInputEventAccess(canOpenForRead, getInputEventCandidates)),
+            daemonHandshakeProbe,
+            getInputEventCandidates)
+    {
+    }
+
+    internal LinuxInputCapabilitySnapshotProvider(
+        Func<string, bool> fileExists,
+        Func<string, bool> canOpenForWrite,
+        Func<string, bool> canOpenForRead,
+        Func<bool> hasUsableReadableInputDevices,
+        Func<string, TimeSpan, LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> daemonHandshakeProbe,
+        Func<string[]> getInputEventCandidates)
+        : this(
+            fileExists,
+            canOpenForWrite,
+            new LinuxInputDeviceAccessProbe(hasUsableReadableInputDevices),
+            daemonHandshakeProbe,
+            getInputEventCandidates)
+    {
+    }
+
+    internal LinuxInputCapabilitySnapshotProvider(
+        Func<string, bool> fileExists,
+        Func<string, bool> canOpenForWrite,
+        ILinuxInputDeviceAccessProbe inputDeviceAccessProbe,
+        Func<string, TimeSpan, LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> daemonHandshakeProbe,
+        Func<string[]> getInputEventCandidates)
     {
         _fileExists = fileExists ?? throw new ArgumentNullException(nameof(fileExists));
         _canOpenForWrite = canOpenForWrite ?? throw new ArgumentNullException(nameof(canOpenForWrite));
-        _canOpenForRead = canOpenForRead ?? throw new ArgumentNullException(nameof(canOpenForRead));
+        _inputDeviceAccessProbe = inputDeviceAccessProbe ?? throw new ArgumentNullException(nameof(inputDeviceAccessProbe));
         _daemonHandshakeProbe = daemonHandshakeProbe ?? throw new ArgumentNullException(nameof(daemonHandshakeProbe));
-        _getInputEventCandidates = getInputEventCandidates ?? throw new ArgumentNullException(nameof(getInputEventCandidates));
+        ArgumentNullException.ThrowIfNull(getInputEventCandidates);
     }
 
     public LinuxInputCapabilitySnapshot CaptureSnapshot(TimeSpan daemonHandshakeBudget)
@@ -59,7 +90,7 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
         bool canReadInputEvents;
         try
         {
-            canReadInputEvents = LinuxInputProbeUtilities.HasReadableInputEventAccess(_canOpenForRead, _getInputEventCandidates);
+            canReadInputEvents = _inputDeviceAccessProbe.HasUsableReadableInputDevices();
         }
         catch
         {

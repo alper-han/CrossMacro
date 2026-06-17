@@ -277,6 +277,27 @@ public class LinuxInputCapabilityDetectorTests
     }
 
     [LinuxFact]
+    public void DetermineMode_WhenRawEventReadableButNoUsableInputDevice_ReturnsLegacyButDirectFallbackUnavailable()
+    {
+        var detector = new LinuxInputCapabilityDetector(
+            fileExists: path => path == LinuxConstants.UInputDevicePath,
+            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
+            canOpenForRead: path => path == "/dev/input/event0",
+            hasUsableReadableInputDevices: () => false,
+            daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(LinuxDaemonHandshakeStatus.MissingSocket),
+            getInputEventCandidates: () => ["/dev/input/event0"],
+            utcNow: () => DateTime.UtcNow);
+
+        var mode = detector.DetermineMode();
+        var snapshot = detector.GetSnapshot();
+
+        Assert.Equal(InputProviderMode.Legacy, mode);
+        Assert.True(detector.CanUseDirectUInput);
+        Assert.False(detector.CanReadInputEvents);
+        Assert.False(snapshot.HasDirectInputAccess);
+    }
+
+    [LinuxFact]
     public void DetermineMode_WhenDaemonHandshakeFailsBecausePermissionDenied_UsesLegacyFallback()
     {
         var detector = new LinuxInputCapabilityDetector(

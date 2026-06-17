@@ -224,6 +224,29 @@ public sealed class LinuxDisplaySessionServiceTests
     }
 
     [LinuxFact]
+    public void IsSessionSupported_WhenFlatpakWaylandDirectModeHasRawEventButNoUsableDevice_ShouldReturnFalse()
+    {
+        using var env = new TemporaryEnvironment()
+            .Set("FLATPAK_ID", "io.github.alper_han.crossmacro")
+            .Set("XDG_SESSION_TYPE", "wayland")
+            .Set("CROSSMACRO_USE_DAEMON", "0");
+
+        var service = CreateService(
+            fileExists: _ => false,
+            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
+            canOpenForRead: path => path == "/dev/input/event0",
+            hasUsableReadableInputDevices: () => false,
+            daemonHandshakeProbe: (_, _) => LinuxDisplaySessionService.DaemonHandshakeProbeResult.Failed(),
+            getInputEventCandidates: () => ["/dev/input/event0"]);
+
+        var supported = service.IsSessionSupported(out var reason);
+
+        Assert.False(supported);
+        Assert.Contains("/dev/input/event*", reason, StringComparison.Ordinal);
+    }
+
+
+    [LinuxFact]
     public void IsSessionSupported_WhenDirectProbeThrows_ShouldReturnFalse()
     {
         var service = CreateService(
@@ -606,11 +629,49 @@ public sealed class LinuxDisplaySessionServiceTests
         Func<string, TimeSpan, LinuxDisplaySessionService.DaemonHandshakeProbeResult> daemonHandshakeProbe,
         Func<string[]> getInputEventCandidates)
     {
+        return CreateService(
+            environmentVariables,
+            fileExists,
+            canOpenForWrite,
+            canOpenForRead,
+            () => LinuxInputProbeUtilities.HasReadableInputEventAccess(canOpenForRead, getInputEventCandidates),
+            daemonHandshakeProbe,
+            getInputEventCandidates);
+    }
+
+    private static LinuxDisplaySessionService CreateService(
+        Func<string, bool> fileExists,
+        Func<string, bool> canOpenForWrite,
+        Func<string, bool> canOpenForRead,
+        Func<bool> hasUsableReadableInputDevices,
+        Func<string, TimeSpan, LinuxDisplaySessionService.DaemonHandshakeProbeResult> daemonHandshakeProbe,
+        Func<string[]> getInputEventCandidates)
+    {
+        return CreateService(
+            new LinuxEnvironmentVariables(),
+            fileExists,
+            canOpenForWrite,
+            canOpenForRead,
+            hasUsableReadableInputDevices,
+            daemonHandshakeProbe,
+            getInputEventCandidates);
+    }
+
+    private static LinuxDisplaySessionService CreateService(
+        ILinuxEnvironmentVariables environmentVariables,
+        Func<string, bool> fileExists,
+        Func<string, bool> canOpenForWrite,
+        Func<string, bool> canOpenForRead,
+        Func<bool> hasUsableReadableInputDevices,
+        Func<string, TimeSpan, LinuxDisplaySessionService.DaemonHandshakeProbeResult> daemonHandshakeProbe,
+        Func<string[]> getInputEventCandidates)
+    {
         return new LinuxDisplaySessionService(
             new LinuxInputCapabilitySnapshotProvider(
                 fileExists,
                 canOpenForWrite,
                 canOpenForRead,
+                hasUsableReadableInputDevices,
                 (socketPath, timeout) => MapProbeResult(daemonHandshakeProbe(socketPath, timeout)),
                 getInputEventCandidates),
             environmentVariables);

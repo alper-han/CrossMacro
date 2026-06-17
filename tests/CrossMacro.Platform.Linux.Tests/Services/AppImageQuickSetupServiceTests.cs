@@ -76,6 +76,28 @@ public sealed class AppImageQuickSetupServiceTests
     }
 
     [Fact]
+    public void ShouldPrompt_WhenLegacyModeButNoUsableInputDevices_ShouldReturnTrue()
+    {
+        var env = new Dictionary<string, string?>
+        {
+            ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
+            ["FLATPAK_ID"] = null,
+            ["XDG_SESSION_TYPE"] = "wayland"
+        };
+
+        var service = CreateService(
+            env,
+            InputProviderMode.Legacy,
+            canReadInputEvents: false,
+            userName: "alice",
+            effectiveUid: 1000,
+            (_, _) => Task.FromResult((0, string.Empty, string.Empty)));
+
+        Assert.True(service.ShouldPrompt());
+    }
+
+
+    [Fact]
     public async Task RunAsync_WhenPkexecMissing_ShouldFailWithoutRunningCommand()
     {
         var env = new Dictionary<string, string?>

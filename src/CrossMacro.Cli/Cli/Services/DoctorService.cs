@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Helpers;
+using CrossMacro.Infrastructure.Linux.Native.Evdev;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Abstractions.Diagnostics;
 
@@ -24,8 +25,7 @@ public sealed partial class DoctorService : IDoctorService
     private readonly Func<string, bool> _fileExists;
     private readonly Func<string, string?> _readAllTextIfExists;
     private readonly Func<string, bool> _canOpenForWrite;
-    private readonly Func<string, bool> _canOpenForRead;
-    private readonly Func<string[]> _getInputEventCandidates;
+    private readonly ILinuxInputDeviceAccessProbe _inputDeviceAccessProbe;
     private readonly Func<bool> _isLinux;
     private readonly Func<bool> _isWindows;
     private readonly Func<bool> _isMacOS;
@@ -83,6 +83,48 @@ public sealed partial class DoctorService : IDoctorService
         Func<string, bool>? daemonHandshakeProbe = null,
         Func<string, LinuxDaemonSocketAccessResult>? daemonSocketAccessProbe = null,
         Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null,
+        Func<string, string?>? readAllTextIfExists = null,
+        Func<bool>? hasUsableReadableInputDevices = null)
+        : this(
+            environmentInfoProvider,
+            displaySessionService,
+            getEnvironmentVariable,
+            fileExists,
+            canOpenForWrite,
+            new LinuxInputDeviceAccessProbe(hasUsableReadableInputDevices ?? (() => HasReadableInputEventAccess(canOpenForRead ?? CanOpenForRead, getInputEventCandidates ?? GetInputEventCandidates))),
+            getInputEventCandidates ?? GetInputEventCandidates,
+            inputSimulatorFactory,
+            inputCaptureFactory,
+            mousePositionProvider,
+            permissionChecker,
+            isLinux,
+            isWindows,
+            isMacOS,
+            daemonHandshakeProbe,
+            daemonSocketAccessProbe,
+            daemonHandshakeDiagnosticProbe,
+            readAllTextIfExists)
+    {
+    }
+
+    internal DoctorService(
+        IEnvironmentInfoProvider environmentInfoProvider,
+        IDisplaySessionService displaySessionService,
+        Func<string, string?> getEnvironmentVariable,
+        Func<string, bool> fileExists,
+        Func<string, bool> canOpenForWrite,
+        ILinuxInputDeviceAccessProbe inputDeviceAccessProbe,
+        Func<string[]>? getInputEventCandidates,
+        Func<IInputSimulator> inputSimulatorFactory,
+        Func<IInputCapture> inputCaptureFactory,
+        IMousePositionProvider mousePositionProvider,
+        IPermissionChecker? permissionChecker = null,
+        Func<bool>? isLinux = null,
+        Func<bool>? isWindows = null,
+        Func<bool>? isMacOS = null,
+        Func<string, bool>? daemonHandshakeProbe = null,
+        Func<string, LinuxDaemonSocketAccessResult>? daemonSocketAccessProbe = null,
+        Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null,
         Func<string, string?>? readAllTextIfExists = null)
     {
         _environmentInfoProvider = environmentInfoProvider ?? throw new ArgumentNullException(nameof(environmentInfoProvider));
@@ -91,8 +133,8 @@ public sealed partial class DoctorService : IDoctorService
         _fileExists = fileExists ?? throw new ArgumentNullException(nameof(fileExists));
         _readAllTextIfExists = readAllTextIfExists ?? ReadAllTextIfExists;
         _canOpenForWrite = canOpenForWrite ?? throw new ArgumentNullException(nameof(canOpenForWrite));
-        _canOpenForRead = canOpenForRead ?? CanOpenForRead;
-        _getInputEventCandidates = getInputEventCandidates ?? GetInputEventCandidates;
+        _inputDeviceAccessProbe = inputDeviceAccessProbe ?? throw new ArgumentNullException(nameof(inputDeviceAccessProbe));
+        ArgumentNullException.ThrowIfNull(getInputEventCandidates);
         _inputSimulatorFactory = inputSimulatorFactory ?? throw new ArgumentNullException(nameof(inputSimulatorFactory));
         _inputCaptureFactory = inputCaptureFactory ?? throw new ArgumentNullException(nameof(inputCaptureFactory));
         _mousePositionProvider = mousePositionProvider ?? throw new ArgumentNullException(nameof(mousePositionProvider));
@@ -103,6 +145,12 @@ public sealed partial class DoctorService : IDoctorService
         _daemonHandshakeProbe = daemonHandshakeProbe ?? ProbeDaemonHandshake;
         _daemonSocketAccessProbe = daemonSocketAccessProbe ?? ProbeDaemonSocketAccess;
         _daemonHandshakeDiagnosticProbe = daemonHandshakeDiagnosticProbe ?? ProbeDaemonHandshakeDiagnostic;
+    }
+
+    private static bool HasReadableInputEventAccess(Func<string, bool> canOpenForRead, Func<string[]> getInputEventCandidates)
+    {
+        var eventDevices = getInputEventCandidates();
+        return eventDevices.Length > 0 && eventDevices.Any(canOpenForRead);
     }
 
     public Task<DoctorReport> RunAsync(bool verbose, CancellationToken cancellationToken)

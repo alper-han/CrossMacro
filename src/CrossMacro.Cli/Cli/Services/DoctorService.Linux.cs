@@ -364,8 +364,7 @@ public sealed partial class DoctorService
 
     private bool HasReadableInputEventAccess()
     {
-        var eventDevices = _getInputEventCandidates();
-        return eventDevices.Length > 0 && eventDevices.Any(_canOpenForRead);
+        return _inputDeviceAccessProbe.HasUsableReadableInputDevices();
     }
 
     private string? ResolveAvailableSocketPath()

@@ -55,7 +55,10 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable
             {
                 await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length);
                 Log.Debug("Inserting expansion using direct typing mode");
-                await _directTypingInserter.InsertAsync(inputSimulator, expansion.Replacement);
+                await _directTypingInserter.InsertAsync(
+                    inputSimulator,
+                    expansion.Replacement,
+                    expansion.DirectTypingMethod);
                 return;
             }
 
@@ -83,7 +86,10 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable
             }
 
             await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length);
-            await _directTypingInserter.InsertAsync(inputSimulator, expansion.Replacement);
+            await _directTypingInserter.InsertAsync(
+                inputSimulator,
+                expansion.Replacement,
+                expansion.DirectTypingMethod);
         }
         catch (Exception ex)
         {

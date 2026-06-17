@@ -31,6 +31,11 @@ public class TextExpansion
     public TextInsertionMode InsertionMode { get; set; } = TextInsertionMode.Paste;
 
     /// <summary>
+    /// The direct typing method used when <see cref="InsertionMode"/> is <see cref="TextInsertionMode.DirectTyping"/>.
+    /// </summary>
+    public DirectTypingMethod DirectTypingMethod { get; set; } = DirectTypingMethod.FastBatch;
+
+    /// <summary>
     /// Creates a new text expansion
     /// </summary>
     public TextExpansion()
@@ -45,13 +50,15 @@ public class TextExpansion
         string replacement,
         bool isEnabled = true,
         PasteMethod method = PasteMethod.CtrlV,
-        TextInsertionMode insertionMode = TextInsertionMode.Paste)
+        TextInsertionMode insertionMode = TextInsertionMode.Paste,
+        DirectTypingMethod directTypingMethod = DirectTypingMethod.FastBatch)
     {
         Trigger = trigger;
         Replacement = replacement;
         IsEnabled = isEnabled;
         Method = method;
         InsertionMode = insertionMode;
+        DirectTypingMethod = directTypingMethod;
     }
 }
 
@@ -69,6 +76,22 @@ public enum TextInsertionMode
     /// Insert by simulating direct typing without using the clipboard
     /// </summary>
     DirectTyping
+}
+
+/// <summary>
+/// Defines how direct typing should inject keyboard input.
+/// </summary>
+public enum DirectTypingMethod
+{
+    /// <summary>
+    /// Prefer the fast batched input path when supported.
+    /// </summary>
+    FastBatch,
+
+    /// <summary>
+    /// Send each key separately for better compatibility on sensitive input stacks.
+    /// </summary>
+    CompatibleKeyByKey
 }
 
 /// <summary>

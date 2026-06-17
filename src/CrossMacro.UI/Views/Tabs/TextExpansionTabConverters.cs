@@ -36,8 +36,26 @@ public static class TextExpansionConverters
         });
 
     /// <summary>
+    /// Returns a user-facing label for a direct typing method.
+    /// </summary>
+    public static readonly IValueConverter DirectTypingMethodDisplayText =
+        new FuncValueConverter<DirectTypingMethod, string>(method => method switch
+        {
+            DirectTypingMethod.CompatibleKeyByKey => GetLocalizedText(
+                "TextExpansion_DirectTypingMethodCompatible",
+                "Compatible (key-by-key)"),
+            _ => GetLocalizedText("TextExpansion_DirectTypingMethodFast", "Fast (batched)")
+        });
+
+    /// <summary>
     /// Returns true when the insertion mode uses clipboard paste.
     /// </summary>
     public static readonly IValueConverter IsPasteMode =
         new FuncValueConverter<TextInsertionMode, bool>(mode => mode == TextInsertionMode.Paste);
+
+    /// <summary>
+    /// Returns true when the insertion mode uses direct typing.
+    /// </summary>
+    public static readonly IValueConverter IsDirectTypingMode =
+        new FuncValueConverter<TextInsertionMode, bool>(mode => mode == TextInsertionMode.DirectTyping);
 }

@@ -28,7 +28,7 @@
                                    FontWeight="Bold"
                                    Foreground="{DynamicResource TextSecondaryBrush}"/>
 
-                        <Grid ColumnDefinitions="*,Auto,*" RowDefinitions="Auto,Auto,Auto">
+                        <Grid ColumnDefinitions="*,Auto,*" RowDefinitions="Auto,Auto,Auto,Auto">
                             <!-- Trigger -->
                             <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6">
                                 <TextBlock Text="{localization:Loc TextExpansion_Trigger}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -87,6 +87,22 @@
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding Converter={x:Static tabs:TextExpansionConverters.PasteMethodDisplayText}}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <!-- Direct Typing Method -->
+                            <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Spacing="6" Margin="0,12,0,0"
+                                        IsVisible="{Binding IsDirectTypingMethodSelectorVisible}">
+                                <TextBlock Text="{localization:Loc TextExpansion_DirectTypingMethod}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <ComboBox ItemsSource="{Binding DirectTypingMethods}"
+                                          SelectedItem="{Binding SelectedDirectTypingMethod}"
+                                          HorizontalAlignment="Stretch"
+                                          CornerRadius="6">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={x:Static tabs:TextExpansionConverters.DirectTypingMethodDisplayText}}"/>
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
@@ -169,12 +185,18 @@
                                                                FontSize="14"
                                                                TextWrapping="Wrap"/>
                                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                                        <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="4" Padding="4,2" HorizontalAlignment="Left">
-                                                            <TextBlock Text="{Binding InsertionMode, Converter={x:Static tabs:TextExpansionConverters.InsertionModeDisplayText}}"
-                                                                       FontSize="10"
-                                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                                        </Border>
-                                                        <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="4" Padding="4,2" HorizontalAlignment="Left">
+                                                         <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="4" Padding="4,2" HorizontalAlignment="Left">
+                                                             <TextBlock Text="{Binding InsertionMode, Converter={x:Static tabs:TextExpansionConverters.InsertionModeDisplayText}}"
+                                                                        FontSize="10"
+                                                                        Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                         </Border>
+                                                         <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="4" Padding="4,2" HorizontalAlignment="Left"
+                                                                 IsVisible="{Binding InsertionMode, Converter={x:Static tabs:TextExpansionConverters.IsDirectTypingMode}, FallbackValue=False}">
+                                                             <TextBlock Text="{Binding DirectTypingMethod, Converter={x:Static tabs:TextExpansionConverters.DirectTypingMethodDisplayText}}"
+                                                                        FontSize="10"
+                                                                        Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                         </Border>
+                                                         <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="4" Padding="4,2" HorizontalAlignment="Left">
                                                             <Border.IsVisible>
                                                                 <MultiBinding Converter="{x:Static BoolConverters.And}">
                                                                     <Binding Path="InsertionMode" Converter="{x:Static tabs:TextExpansionConverters.IsPasteMode}" FallbackValue="False"/>

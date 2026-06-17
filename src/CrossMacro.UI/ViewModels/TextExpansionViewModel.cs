@@ -51,6 +51,9 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
     public bool IsPasteMethodSelectorVisible =>
         IsPasteMethodVisible && SelectedInsertionMode == TextInsertionMode.Paste;
 
+    public bool IsDirectTypingMethodSelectorVisible =>
+        SelectedInsertionMode == TextInsertionMode.DirectTyping;
+
     private static bool IsLinuxEnvironment(DisplayEnvironment env)
     {
         return env == DisplayEnvironment.LinuxX11 ||
@@ -80,13 +83,16 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
         ReplacementInput = string.Empty;
         SelectedInsertionMode = TextInsertionMode.Paste;
         SelectedPasteMethod = PasteMethod.CtrlV;
+        SelectedDirectTypingMethod = DirectTypingMethod.FastBatch;
         await LoadExpansionsAsync();
     }
 
     private PasteMethod _selectedPasteMethod = PasteMethod.CtrlV;
     private TextInsertionMode _selectedInsertionMode = TextInsertionMode.Paste;
+    private DirectTypingMethod _selectedDirectTypingMethod = DirectTypingMethod.FastBatch;
     private IReadOnlyList<TextInsertionMode> _insertionModes = Enum.GetValues<TextInsertionMode>();
     private IReadOnlyList<PasteMethod> _pasteMethods = Enum.GetValues<PasteMethod>();
+    private IReadOnlyList<DirectTypingMethod> _directTypingMethods = Enum.GetValues<DirectTypingMethod>();
 
     public TextInsertionMode SelectedInsertionMode
     {
@@ -96,6 +102,7 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
             if (SetProperty(ref _selectedInsertionMode, value))
             {
                 OnPropertyChanged(nameof(IsPasteMethodSelectorVisible));
+                OnPropertyChanged(nameof(IsDirectTypingMethodSelectorVisible));
             }
         }
     }
@@ -106,18 +113,28 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
         set => SetProperty(ref _selectedPasteMethod, value);
     }
 
+    public DirectTypingMethod SelectedDirectTypingMethod
+    {
+        get => _selectedDirectTypingMethod;
+        set => SetProperty(ref _selectedDirectTypingMethod, value);
+    }
+
     public IEnumerable<TextInsertionMode> InsertionModes => _insertionModes;
     
     // Expose enum values for UI
     public IEnumerable<PasteMethod> PasteMethods => _pasteMethods;
 
+    public IEnumerable<DirectTypingMethod> DirectTypingMethods => _directTypingMethods;
+
     private void OnCultureChanged(object? sender, EventArgs e)
     {
         _insertionModes = Enum.GetValues<TextInsertionMode>();
         _pasteMethods = Enum.GetValues<PasteMethod>();
+        _directTypingMethods = Enum.GetValues<DirectTypingMethod>();
         OnPropertyChanged(nameof(ExpansionCountText));
         OnPropertyChanged(nameof(InsertionModes));
         OnPropertyChanged(nameof(PasteMethods));
+        OnPropertyChanged(nameof(DirectTypingMethods));
     }
 
     public string TriggerInput
@@ -173,7 +190,8 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
             ReplacementInput,
             true,
             SelectedPasteMethod,
-            SelectedInsertionMode);
+            SelectedInsertionMode,
+            SelectedDirectTypingMethod);
         
         // Add to UI collection
         Expansions.Insert(0, newExpansion);
@@ -190,7 +208,8 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
         ReplacementInput = string.Empty;
         SelectedInsertionMode = TextInsertionMode.Paste;
         // Reset method to default
-        SelectedPasteMethod = PasteMethod.CtrlV; 
+        SelectedPasteMethod = PasteMethod.CtrlV;
+        SelectedDirectTypingMethod = DirectTypingMethod.FastBatch;
     }
 
 

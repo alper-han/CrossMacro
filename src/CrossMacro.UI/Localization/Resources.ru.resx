@@ -390,6 +390,15 @@
   <data name="TextExpansion_PasteMethod" xml:space="preserve">
     <value>Метод вставки</value>
   </data>
+  <data name="TextExpansion_DirectTypingMethod" xml:space="preserve">
+    <value>Direct Typing Method</value>
+  </data>
+  <data name="TextExpansion_DirectTypingMethodFast" xml:space="preserve">
+    <value>Fast (batched)</value>
+  </data>
+  <data name="TextExpansion_DirectTypingMethodCompatible" xml:space="preserve">
+    <value>Compatible (key-by-key)</value>
+  </data>
   <data name="TextExpansion_Add" xml:space="preserve">
     <value>+ Добавить</value>
   </data>

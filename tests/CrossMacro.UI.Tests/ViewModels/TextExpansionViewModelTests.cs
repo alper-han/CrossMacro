@@ -234,6 +234,16 @@ public class TextExpansionViewModelTests
     }
 
     [Fact]
+    public void IsDirectTypingMethodSelectorVisible_ShowsOnlyWhenDirectTypingIsSelected()
+    {
+        _viewModel.IsDirectTypingMethodSelectorVisible.Should().BeFalse();
+
+        _viewModel.SelectedInsertionMode = TextInsertionMode.DirectTyping;
+
+        _viewModel.IsDirectTypingMethodSelectorVisible.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task AddExpansion_ResetsSelectedPasteMethodToDefault()
     {
         // Arrange
@@ -253,6 +263,7 @@ public class TextExpansionViewModelTests
     {
         // Arrange
         _viewModel.SelectedInsertionMode = TextInsertionMode.DirectTyping;
+        _viewModel.SelectedDirectTypingMethod = DirectTypingMethod.CompatibleKeyByKey;
         _viewModel.TriggerInput = ":typed";
         _viewModel.ReplacementInput = "value";
 
@@ -262,7 +273,9 @@ public class TextExpansionViewModelTests
         // Assert
         _viewModel.Expansions.Should().ContainSingle();
         _viewModel.Expansions[0].InsertionMode.Should().Be(TextInsertionMode.DirectTyping);
+        _viewModel.Expansions[0].DirectTypingMethod.Should().Be(DirectTypingMethod.CompatibleKeyByKey);
         _viewModel.SelectedInsertionMode.Should().Be(TextInsertionMode.Paste);
+        _viewModel.SelectedDirectTypingMethod.Should().Be(DirectTypingMethod.FastBatch);
     }
 
     [Fact]
@@ -290,6 +303,7 @@ public class TextExpansionViewModelTests
         changedProperties.Should().Contain(nameof(TextExpansionViewModel.ExpansionCountText));
         changedProperties.Should().Contain(nameof(TextExpansionViewModel.InsertionModes));
         changedProperties.Should().Contain(nameof(TextExpansionViewModel.PasteMethods));
+        changedProperties.Should().Contain(nameof(TextExpansionViewModel.DirectTypingMethods));
     }
 
     [Fact]
@@ -297,11 +311,13 @@ public class TextExpansionViewModelTests
     {
         var originalInsertionModes = _viewModel.InsertionModes;
         var originalPasteMethods = _viewModel.PasteMethods;
+        var originalDirectTypingMethods = _viewModel.DirectTypingMethods;
 
         _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
 
         _viewModel.InsertionModes.Should().NotBeSameAs(originalInsertionModes);
         _viewModel.PasteMethods.Should().NotBeSameAs(originalPasteMethods);
+        _viewModel.DirectTypingMethods.Should().NotBeSameAs(originalDirectTypingMethods);
     }
 
     [Theory]
@@ -343,11 +359,39 @@ public class TextExpansionViewModelTests
     }
 
     [Theory]
+    [InlineData(DirectTypingMethod.FastBatch, "Fast (batched)")]
+    [InlineData(DirectTypingMethod.CompatibleKeyByKey, "Compatible (key-by-key)")]
+    public void DirectTypingMethodDisplayText_ReturnsExpectedLabel(DirectTypingMethod method, string expected)
+    {
+        var result = TextExpansionConverters.DirectTypingMethodDisplayText.Convert(
+            method,
+            typeof(string),
+            null,
+            CultureInfo.InvariantCulture);
+
+        result.Should().Be(expected);
+    }
+
+    [Theory]
     [InlineData(TextInsertionMode.Paste, true)]
     [InlineData(TextInsertionMode.DirectTyping, false)]
     public void IsPasteMode_ReturnsWhetherModeUsesClipboard(TextInsertionMode mode, bool expected)
     {
         var result = TextExpansionConverters.IsPasteMode.Convert(
+            mode,
+            typeof(bool),
+            null,
+            CultureInfo.InvariantCulture);
+
+        result.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(TextInsertionMode.Paste, false)]
+    [InlineData(TextInsertionMode.DirectTyping, true)]
+    public void IsDirectTypingMode_ReturnsWhetherModeUsesDirectTyping(TextInsertionMode mode, bool expected)
+    {
+        var result = TextExpansionConverters.IsDirectTypingMode.Convert(
             mode,
             typeof(bool),
             null,

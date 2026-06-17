@@ -5,6 +5,7 @@ using System.Runtime.Versioning;
 using System.Threading.Tasks;
 using CrossMacro.Core.Services;
 using CrossMacro.Core.Logging;
+using CrossMacro.Core.Models;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services.TextExpansion;
@@ -55,13 +56,19 @@ internal sealed class TextExpansionDirectTypingInserter
         }
     }
 
-    public async Task InsertAsync(IInputSimulator inputSimulator, string text)
+    public async Task InsertAsync(
+        IInputSimulator inputSimulator,
+        string text,
+        DirectTypingMethod method = DirectTypingMethod.FastBatch)
     {
         ArgumentNullException.ThrowIfNull(inputSimulator);
         ArgumentNullException.ThrowIfNull(text);
 
-        Log.Information("Typing replacement directly (length={Length})", text.Length);
-        if (TryInsertBatch(inputSimulator, text))
+        Log.Information(
+            "Typing replacement directly (length={Length}, method={Method})",
+            text.Length,
+            method);
+        if (method == DirectTypingMethod.FastBatch && TryInsertBatch(inputSimulator, text))
         {
             return;
         }

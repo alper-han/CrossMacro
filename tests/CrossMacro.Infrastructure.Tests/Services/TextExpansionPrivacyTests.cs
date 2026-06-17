@@ -710,6 +710,41 @@ public class TextExpansionPrivacyTests
     }
 
     [Fact]
+    public async Task ExpandAsync_WhenDirectTypingMethodIsCompatible_SkipsBatchAndTypesKeyByKey()
+    {
+        var clipboardService = Substitute.For<IClipboardService>();
+        clipboardService.IsSupported.Returns(false);
+
+        var keyboardLayoutService = Substitute.For<IKeyboardLayoutService>();
+        keyboardLayoutService.GetInputForChar(Arg.Any<char>())
+            .Returns(callInfo => callInfo.Arg<char>() switch
+            {
+                'a' => (30, false, false),
+                'B' => (48, true, false),
+                _ => default((int KeyCode, bool Shift, bool AltGr)?)
+            });
+
+        var inputSimulator = new BatchedTestInputSimulator();
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            keyboardLayoutService,
+            () => inputSimulator);
+
+        var expansion = new TextExpansion(
+            ":abbr",
+            "aB",
+            insertionMode: TextInsertionMode.DirectTyping,
+            directTypingMethod: DirectTypingMethod.CompatibleKeyByKey);
+
+        await executor.ExpandAsync(expansion);
+
+        Assert.Empty(inputSimulator.Batches);
+        Assert.Contains(30, inputSimulator.PressedKeys);
+        Assert.Contains(42, inputSimulator.PressedKeys);
+        Assert.Contains(48, inputSimulator.PressedKeys);
+    }
+
+    [Fact]
     public async Task ExpandAsync_WhenBatchWouldExceedIpcLimit_FallsBackToPerKeyTyping()
     {
         var clipboardService = Substitute.For<IClipboardService>();

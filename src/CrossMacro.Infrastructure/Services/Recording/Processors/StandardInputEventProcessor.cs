@@ -9,6 +9,7 @@ public class StandardInputEventProcessor : IInputEventProcessor
     private readonly ICoordinateStrategy _coordinateStrategy;
     private bool _recordMouse;
     private bool _recordKeyboard;
+    private bool _recordGamepad;
     private HashSet<int>? _ignoredKeys;
     private bool _isAbsoluteCoordinates;
     private int _lastEmittedX = int.MinValue;
@@ -19,10 +20,11 @@ public class StandardInputEventProcessor : IInputEventProcessor
         _coordinateStrategy = coordinateStrategy;
     }
 
-    public void Configure(bool recordMouse, bool recordKeyboard, HashSet<int>? ignoredKeys, bool isAbsoluteCoordinates = false)
+    public void Configure(bool recordMouse, bool recordKeyboard, bool recordGamepad, HashSet<int>? ignoredKeys, bool isAbsoluteCoordinates = false)
     {
         _recordMouse = recordMouse;
         _recordKeyboard = recordKeyboard;
+        _recordGamepad = recordGamepad;
         _ignoredKeys = ignoredKeys;
         _isAbsoluteCoordinates = isAbsoluteCoordinates;
         _lastEmittedX = int.MinValue;

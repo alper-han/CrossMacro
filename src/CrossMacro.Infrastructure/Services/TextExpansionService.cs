@@ -79,6 +79,7 @@ public class TextExpansionService : ITextExpansionService
                     _inputCaptureFactory,
                     captureMouse: false,
                     captureKeyboard: true,
+                    captureGamepad: false,
                     OnInputReceived,
                     OnInputCaptureError,
                     OnCaptureStarted,

@@ -39,6 +39,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     private string _recordingStatus;
     private bool _isMouseRecordingEnabled = true;
     private bool _isKeyboardRecordingEnabled = true;
+    private bool _isGamepadRecordingEnabled = true;
     private bool _forceRelativeCoordinates;
     private bool _skipInitialZeroZero;
     private RecordingStatusKind _recordingStatusKind = RecordingStatusKind.Ready;
@@ -221,6 +222,32 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         }
     }
     
+    public bool IsGamepadRecordingEnabled
+    {
+        get => _isGamepadRecordingEnabled;
+        set
+        {
+            if (_isGamepadRecordingEnabled != value)
+            {
+                var previousValue = _isGamepadRecordingEnabled;
+                _isGamepadRecordingEnabled = value;
+                _settingsService.Current.IsGamepadRecordingEnabled = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CanStartRecording));
+                OnCanToggleRecordingChanged();
+                TryPersistSettingChange(
+                    () =>
+                    {
+                        _isGamepadRecordingEnabled = previousValue;
+                        _settingsService.Current.IsGamepadRecordingEnabled = previousValue;
+                    },
+                    nameof(IsGamepadRecordingEnabled),
+                    nameof(CanStartRecording),
+                    nameof(CanToggleRecording));
+            }
+        }
+    }
+    
     public bool ForceRelativeCoordinates
     {
         get => _forceRelativeCoordinates;
@@ -339,6 +366,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             await _recorder.StartRecordingAsync(
                 IsMouseRecordingEnabled, 
                 IsKeyboardRecordingEnabled, 
+                IsGamepadRecordingEnabled, 
                 ignoredKeys,
                 forceRelative: ForceRelativeCoordinates,
                 skipInitialZero: SkipInitialZeroZero);

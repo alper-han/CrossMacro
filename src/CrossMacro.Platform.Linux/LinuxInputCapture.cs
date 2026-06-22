@@ -20,6 +20,7 @@ public class LinuxInputCapture : IInputCapture
     
     private bool _captureMouse = true;
     private bool _captureKeyboard = true;
+    private bool _captureGamepad = true;
     
     public string ProviderName => "Linux Evdev";
     
@@ -57,10 +58,12 @@ public class LinuxInputCapture : IInputCapture
         _readerFactory = readerFactory;
     }
     
-    public void Configure(bool captureMouse, bool captureKeyboard)
+    public void Configure(bool captureMouse, bool captureKeyboard, bool captureGamepad)
     {
         _captureMouse = captureMouse;
         _captureKeyboard = captureKeyboard;
+        _captureGamepad = captureGamepad;
+        
         Log.Information("[LinuxInputCapture] Configured: Mouse={Mouse}, Keyboard={Keyboard}", captureMouse, captureKeyboard);
     }
     
@@ -192,9 +195,9 @@ public class LinuxInputCapture : IInputCapture
     {
         return eventType switch
         {
-            InputEventType.Key => _captureKeyboard,
+            InputEventType.Key => _captureKeyboard || _captureGamepad,
             InputEventType.MouseButton => _captureMouse,
-            InputEventType.MouseMove => _captureMouse,
+            InputEventType.MouseMove => _captureMouse || _captureGamepad,
             InputEventType.MouseScroll => _captureMouse,
             InputEventType.Sync => _captureMouse,
             _ => false
@@ -208,7 +211,7 @@ public class LinuxInputCapture : IInputCapture
             return false;
         }
 
-        return (_captureMouse && device.IsMouse) || (_captureKeyboard && device.IsKeyboard);
+        return (_captureMouse && device.IsMouse) || (_captureKeyboard && device.IsKeyboard) || (_captureGamepad && device.IsGamepad);
     }
     
 

@@ -24,6 +24,7 @@ internal readonly record struct PendingAsyncParticipantSnapshot(
     bool HadPreviousSubscription,
     bool PreviousCaptureMouse,
     bool PreviousCaptureKeyboard,
+    bool PreviousCaptureGamepad,
     bool ShouldRestoreOnFailure);
 
 internal sealed class PendingCaptureStartRegistry
@@ -40,7 +41,8 @@ internal sealed class PendingCaptureStartRegistry
         string? originConsumerId = null,
         bool originHadPreviousSubscription = false,
         bool originCaptureMouse = false,
-        bool originCaptureKeyboard = false)
+        bool originCaptureKeyboard = false,
+        bool originCaptureGamepad = false)
     {
         lock (_lock)
         {
@@ -60,7 +62,8 @@ internal sealed class PendingCaptureStartRegistry
                 originConsumerId,
                 originHadPreviousSubscription,
                 originCaptureMouse,
-                originCaptureKeyboard);
+                originCaptureKeyboard,
+                originCaptureGamepad);
             return new PendingCaptureStartRegistration(_pending.RequestId, _pending.Completion);
         }
     }
@@ -69,7 +72,8 @@ internal sealed class PendingCaptureStartRegistry
         string consumerId,
         bool hadPreviousSubscription,
         bool previousCaptureMouse,
-        bool previousCaptureKeyboard)
+        bool previousCaptureKeyboard,
+        bool previousCaptureGamepad)
     {
         lock (_lock)
         {
@@ -80,6 +84,7 @@ internal sealed class PendingCaptureStartRegistry
                     hadPreviousSubscription,
                     previousCaptureMouse,
                     previousCaptureKeyboard,
+                    previousCaptureGamepad,
                     shouldRestoreOnFailure: false);
             }
         }
@@ -266,6 +271,7 @@ internal sealed class PendingCaptureStartRegistry
             bool hadPreviousSubscription,
             bool previousCaptureMouse,
             bool previousCaptureKeyboard,
+            bool previousCaptureGamepad,
             bool shouldRestoreOnFailure = true)
         {
             if (string.IsNullOrWhiteSpace(consumerId))
@@ -293,6 +299,7 @@ internal sealed class PendingCaptureStartRegistry
                 hadPreviousSubscription,
                 previousCaptureMouse,
                 previousCaptureKeyboard,
+                previousCaptureGamepad,
                 shouldRestoreOnFailure);
         }
 

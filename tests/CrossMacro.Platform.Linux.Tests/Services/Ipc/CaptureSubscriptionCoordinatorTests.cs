@@ -10,9 +10,10 @@ public class CaptureSubscriptionCoordinatorTests
         CaptureSubscriptionCoordinator coordinator,
         string consumerId,
         bool captureMouse,
-        bool captureKeyboard)
+        bool captureKeyboard,
+        bool captureGamepad)
     {
-        coordinator.SetSubscription(consumerId, captureMouse, captureKeyboard);
+        coordinator.SetSubscription(consumerId, captureMouse, captureKeyboard, captureGamepad);
         var command = coordinator.GetRequiredCommand();
         if (command.Type != CaptureCommandType.None)
         {
@@ -64,7 +65,7 @@ public class CaptureSubscriptionCoordinatorTests
     {
         var coordinator = new CaptureSubscriptionCoordinator();
 
-        var command = SetSubscription(coordinator, "hotkeys", captureMouse: true, captureKeyboard: false);
+        var command = SetSubscription(coordinator, "hotkeys", captureMouse: true, captureKeyboard: false, captureGamepad: false);
 
         Assert.Equal(CaptureCommandType.Start, command.Type);
         Assert.True(command.CaptureMouse);
@@ -75,9 +76,9 @@ public class CaptureSubscriptionCoordinatorTests
     public void SetSubscription_WhenAggregateChanges_ShouldRequestStartWithMergedFlags()
     {
         var coordinator = new CaptureSubscriptionCoordinator();
-        _ = SetSubscription(coordinator, "hotkeys", captureMouse: true, captureKeyboard: false);
+        _ = SetSubscription(coordinator, "hotkeys", captureMouse: true, captureKeyboard: false, captureGamepad: false);
 
-        var command = SetSubscription(coordinator, "text-expansion", captureMouse: false, captureKeyboard: true);
+        var command = SetSubscription(coordinator, "text-expansion", captureMouse: false, captureKeyboard: true, captureGamepad: false);
 
         Assert.Equal(CaptureCommandType.Start, command.Type);
         Assert.True(command.CaptureMouse);
@@ -88,9 +89,9 @@ public class CaptureSubscriptionCoordinatorTests
     public void SetSubscription_WhenAggregateUnchanged_ShouldReturnNone()
     {
         var coordinator = new CaptureSubscriptionCoordinator();
-        _ = SetSubscription(coordinator, "hotkeys", captureMouse: true, captureKeyboard: true);
+        _ = SetSubscription(coordinator, "hotkeys", captureMouse: true, captureKeyboard: true, captureGamepad: true);
 
-        coordinator.SetSubscription("recorder", captureMouse: true, captureKeyboard: true);
+        coordinator.SetSubscription("recorder", captureMouse: true, captureKeyboard: true, captureGamepad: true);
         var command = coordinator.GetRequiredCommand();
 
         Assert.Equal(CaptureCommandType.None, command.Type);
@@ -100,8 +101,8 @@ public class CaptureSubscriptionCoordinatorTests
     public void RemoveSubscription_WhenRemainingAggregateChanges_ShouldRequestUpdatedStart()
     {
         var coordinator = new CaptureSubscriptionCoordinator();
-        _ = SetSubscription(coordinator, "hotkeys", captureMouse: true, captureKeyboard: false);
-        _ = SetSubscription(coordinator, "recorder", captureMouse: false, captureKeyboard: true);
+        _ = SetSubscription(coordinator, "hotkeys", captureMouse: true, captureKeyboard: false, captureGamepad: false);
+        _ = SetSubscription(coordinator, "recorder", captureMouse: false, captureKeyboard: true, captureGamepad: false);
 
         var command = RemoveSubscription(coordinator, "recorder");
 
@@ -114,7 +115,7 @@ public class CaptureSubscriptionCoordinatorTests
     public void RemoveSubscription_WhenLastConsumerRemoved_ShouldRequestStop()
     {
         var coordinator = new CaptureSubscriptionCoordinator();
-        _ = SetSubscription(coordinator, "hotkeys", captureMouse: false, captureKeyboard: true);
+        _ = SetSubscription(coordinator, "hotkeys", captureMouse: false, captureKeyboard: true, captureGamepad: false);
 
         var command = RemoveSubscription(coordinator, "hotkeys");
 
@@ -125,7 +126,7 @@ public class CaptureSubscriptionCoordinatorTests
     public void ResetTransportStateAndGetCommand_WhenSubscriptionsExist_ShouldReissueStart()
     {
         var coordinator = new CaptureSubscriptionCoordinator();
-        _ = SetSubscription(coordinator, "hotkeys", captureMouse: true, captureKeyboard: true);
+        _ = SetSubscription(coordinator, "hotkeys", captureMouse: true, captureKeyboard: true, captureGamepad: true);
 
         var command = ResetTransportStateAndGetCommand(coordinator);
 
@@ -140,9 +141,9 @@ public class CaptureSubscriptionCoordinatorTests
         var coordinator = new CaptureSubscriptionCoordinator();
 
         var sent = RecordCommands(
-            SetSubscription(coordinator, "global-hotkeys", captureMouse: false, captureKeyboard: true),
-            SetSubscription(coordinator, "macro-recorder", captureMouse: true, captureKeyboard: true),
-            SetSubscription(coordinator, "text-expansion", captureMouse: false, captureKeyboard: true),
+            SetSubscription(coordinator, "global-hotkeys", captureMouse: false, captureKeyboard: true, captureGamepad: false),
+            SetSubscription(coordinator, "macro-recorder", captureMouse: true, captureKeyboard: true, captureGamepad: true),
+            SetSubscription(coordinator, "text-expansion", captureMouse: false, captureKeyboard: true, captureGamepad: false),
             RemoveSubscription(coordinator, "text-expansion"),
             RemoveSubscription(coordinator, "macro-recorder"),
             RemoveSubscription(coordinator, "global-hotkeys"));
@@ -170,8 +171,8 @@ public class CaptureSubscriptionCoordinatorTests
         var coordinator = new CaptureSubscriptionCoordinator();
 
         var sent = RecordCommands(
-            SetSubscription(coordinator, "global-hotkeys", captureMouse: false, captureKeyboard: true),
-            SetSubscription(coordinator, "macro-recorder", captureMouse: true, captureKeyboard: true),
+            SetSubscription(coordinator, "global-hotkeys", captureMouse: false, captureKeyboard: true, captureGamepad: false),
+            SetSubscription(coordinator, "macro-recorder", captureMouse: true, captureKeyboard: true, captureGamepad: false),
             ResetTransportStateAndGetCommand(coordinator),
             RemoveSubscription(coordinator, "macro-recorder"),
             ResetTransportStateAndGetCommand(coordinator),

@@ -250,6 +250,7 @@ public class SessionHandler : ISessionHandler
             var requestId = _session.Reader.ReadInt32();
             var captureMouse = _session.Reader.ReadBoolean();
             var captureKb = _session.Reader.ReadBoolean();
+            var captureGamepad = _session.Reader.ReadBoolean();
             _security.LogCaptureStart(uid, pid, captureMouse, captureKb);
 
             var requestGeneration = _session.CaptureForwarding.BeginPendingGeneration();
@@ -260,6 +261,7 @@ public class SessionHandler : ISessionHandler
                 result = _inputCapture.StartCapture(
                     captureMouse,
                     captureKb,
+                    captureGamepad,
                     _session.CaptureForwarding.CreateEventForwarder(requestGeneration, _session));
             }
             catch (Exception ex)

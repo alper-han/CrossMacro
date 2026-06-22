@@ -43,6 +43,53 @@ public static class UInputNative
     public const ushort BTN_TOUCH = 0x14a;
     public const ushort BTN_TOOL_FINGER = 0x145;
 
+    public const ushort BTN_MISC = 0x100;
+    public const ushort BTN_0 = 0x100;
+    public const ushort BTN_1 = 0x101;
+    public const ushort BTN_2 = 0x102;
+    public const ushort BTN_3 = 0x103;
+    public const ushort BTN_4 = 0x104;
+    public const ushort BTN_5 = 0x105;
+    public const ushort BTN_6 = 0x106;
+    public const ushort BTN_7 = 0x107;
+    public const ushort BTN_8 = 0x108;
+    public const ushort BTN_9 = 0x109;
+
+    public const ushort BTN_JOYSTICK = 0x120;
+    public const ushort BTN_TRIGGER = 0x120;
+    public const ushort BTN_THUMB = 0x121;
+    public const ushort BTN_THUMB2 = 0x122;
+    public const ushort BTN_TOP = 0x123;
+    public const ushort BTN_TOP2 = 0x124;
+    public const ushort BTN_PINKIE = 0x125;
+    public const ushort BTN_BASE = 0x126;
+    public const ushort BTN_BASE2 = 0x127;
+    public const ushort BTN_BASE3 = 0x128;
+    public const ushort BTN_BASE4 = 0x129;
+    public const ushort BTN_BASE5 = 0x12a;
+    public const ushort BTN_BASE6 = 0x12b;
+    public const ushort BTN_DEAD = 0x12f;
+    public const ushort BTN_GAMEPAD = 0x130;
+    public const ushort BTN_SOUTH = 0x130;
+    public const ushort BTN_A = 0x130;
+    public const ushort BTN_EAST = 0x131;
+    public const ushort BTN_B = 0x131;
+    public const ushort BTN_C = 0x132;
+    public const ushort BTN_NORTH = 0x133;
+    public const ushort BTN_X = 0x133;
+    public const ushort BTN_WEST = 0x134;
+    public const ushort BTN_Y = 0x134;
+    public const ushort BTN_Z = 0x135;
+    public const ushort BTN_TL = 0x136;
+    public const ushort BTN_TR = 0x137;
+    public const ushort BTN_TL2 = 0x138;
+    public const ushort BTN_TR2 = 0x139;
+    public const ushort BTN_SELECT = 0x13a;
+    public const ushort BTN_START = 0x13b;
+    public const ushort BTN_MODE = 0x13c;
+    public const ushort BTN_THUMBL = 0x13d;
+    public const ushort BTN_THUMBR = 0x13e;
+    
     public const ushort ABS_MT_SLOT = 0x2f;
     public const ushort ABS_MT_POSITION_X = 0x35;
     public const ushort ABS_MT_POSITION_Y = 0x36;
@@ -128,5 +175,10 @@ public static class UInputNative
     public static bool IsMouseButton(ushort code)
     {
         return code >= BTN_LEFT && code <= BTN_TASK;
+    }
+    
+    public static bool IsGamepadButton(ushort code)
+    {
+        return code >= BTN_JOYSTICK && code <= BTN_THUMBR;
     }
 }

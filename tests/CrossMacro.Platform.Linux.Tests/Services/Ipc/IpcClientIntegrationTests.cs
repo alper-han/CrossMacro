@@ -90,7 +90,7 @@ public class IpcClientIntegrationTests
         try
         {
             await client.ConnectAsync(CancellationToken.None);
-            client.StartCapture("global-hotkeys", mouse: true, keyboard: false);
+            client.StartCapture("global-hotkeys", mouse: true, keyboard: false, gamepad: false);
             await daemon1.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
 
             await daemon1.DisposeAsync();
@@ -128,7 +128,7 @@ public class IpcClientIntegrationTests
             client.ErrorOccurred += (_, message) => errors.Enqueue(message);
 
             await client.ConnectAsync(CancellationToken.None);
-            client.StartCapture("global-hotkeys", mouse: true, keyboard: false);
+            client.StartCapture("global-hotkeys", mouse: true, keyboard: false, gamepad: false);
             await daemon1.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
 
             await daemon1.DisposeAsync();
@@ -162,7 +162,7 @@ public class IpcClientIntegrationTests
         try
         {
             await client.ConnectAsync(CancellationToken.None);
-            client.StartCapture("global-hotkeys", mouse: true, keyboard: false);
+            client.StartCapture("global-hotkeys", mouse: true, keyboard: false, gamepad: false);
             await daemon1.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
 
             await daemon1.DisposeAsync();
@@ -195,11 +195,11 @@ public class IpcClientIntegrationTests
         try
         {
             await client.ConnectAsync(CancellationToken.None);
-            await client.StartCaptureAsync("consumer-a", mouse: false, keyboard: true)
+            await client.StartCaptureAsync("consumer-a", mouse: false, keyboard: true, gamepad: false)
                 .WaitAsync(AsyncOperationTimeout);
             await daemon.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
 
-            client.StartCapture("consumer-b", mouse: true, keyboard: true);
+            client.StartCapture("consumer-b", mouse: true, keyboard: true, gamepad: true);
             await daemon.WaitForCommandCountAsync(expected: 2, timeout: TimeSpan.FromSeconds(2));
 
             var captureGateField = typeof(IpcClient).GetField(
@@ -247,13 +247,13 @@ public class IpcClientIntegrationTests
 
         await client.ConnectAsync(CancellationToken.None);
 
-        client.StartCapture("global-hotkeys", mouse: false, keyboard: true);
+        client.StartCapture("global-hotkeys", mouse: false, keyboard: true, gamepad: true);
         await daemon.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
 
-        client.StartCapture("macro-recorder", mouse: true, keyboard: true);
+        client.StartCapture("macro-recorder", mouse: true, keyboard: true, gamepad: true);
         await daemon.WaitForCommandCountAsync(expected: 2, timeout: TimeSpan.FromSeconds(2));
 
-        client.StartCapture("text-expansion", mouse: false, keyboard: true);
+        client.StartCapture("text-expansion", mouse: false, keyboard: true, gamepad: false);
         client.StopCapture("text-expansion");
         client.StopCapture("macro-recorder");
         await daemon.WaitForCommandCountAsync(expected: 3, timeout: TimeSpan.FromSeconds(2));
@@ -290,11 +290,11 @@ public class IpcClientIntegrationTests
         using var client = new IpcClient(() => socketPath, autoReconnect: false);
 
         await client.ConnectAsync(CancellationToken.None);
-        await client.StartCaptureAsync("consumer-b", mouse: true, keyboard: false)
+        await client.StartCaptureAsync("consumer-b", mouse: true, keyboard: false, gamepad: false)
             .WaitAsync(AsyncOperationTimeout);
         await daemon.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
 
-        var pendingStartTask = client.StartCaptureAsync("consumer-a", mouse: false, keyboard: true);
+        var pendingStartTask = client.StartCaptureAsync("consumer-a", mouse: false, keyboard: true, gamepad: false);
         await daemon.WaitForCommandCountAsync(expected: 2, timeout: TimeSpan.FromSeconds(2));
 
         client.StopCapture("consumer-b");
@@ -323,14 +323,14 @@ public class IpcClientIntegrationTests
 
         await client.ConnectAsync(CancellationToken.None);
 
-        await client.StartCaptureAsync("consumer-a", mouse: false, keyboard: true)
+        await client.StartCaptureAsync("consumer-a", mouse: false, keyboard: true, gamepad: false)
             .WaitAsync(AsyncOperationTimeout);
         await daemon.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
 
-        client.StartCapture("consumer-b", mouse: false, keyboard: true);
+        client.StartCapture("consumer-b", mouse: false, keyboard: true, gamepad: false);
         Assert.Single(daemon.GetCommandsSnapshot());
 
-        var pendingStartTask = client.StartCaptureAsync("consumer-a", mouse: true, keyboard: true);
+        var pendingStartTask = client.StartCaptureAsync("consumer-a", mouse: true, keyboard: true, gamepad: false);
         await daemon.WaitForCommandCountAsync(expected: 2, timeout: TimeSpan.FromSeconds(2));
 
         client.StopCapture("consumer-b");
@@ -368,14 +368,14 @@ public class IpcClientIntegrationTests
 
         await client.ConnectAsync(CancellationToken.None);
 
-        await client.StartCaptureAsync("consumer-a", mouse: false, keyboard: true)
+        await client.StartCaptureAsync("consumer-a", mouse: false, keyboard: true, gamepad: false)
             .WaitAsync(AsyncOperationTimeout);
         await daemon.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
 
-        var pendingStartTask = client.StartCaptureAsync("consumer-a", mouse: true, keyboard: true);
+        var pendingStartTask = client.StartCaptureAsync("consumer-a", mouse: true, keyboard: true, gamepad: false);
         await daemon.WaitForCommandCountAsync(expected: 2, timeout: TimeSpan.FromSeconds(2));
 
-        client.StartCapture("consumer-sync", mouse: true, keyboard: true);
+        client.StartCapture("consumer-sync", mouse: true, keyboard: true, gamepad: false);
         Assert.Equal(2, daemon.GetCommandsSnapshot().Length);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -400,7 +400,7 @@ public class IpcClientIntegrationTests
         using var client = new IpcClient(() => socketPath, autoReconnect: false);
 
         await client.ConnectAsync(CancellationToken.None);
-        var pendingStartTask = client.StartCaptureAsync("consumer-a", mouse: true, keyboard: true);
+        var pendingStartTask = client.StartCaptureAsync("consumer-a", mouse: true, keyboard: true, gamepad: false);
         await daemon.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
 
         var errorObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -415,7 +415,7 @@ public class IpcClientIntegrationTests
             errorObserved.TrySetResult();
         };
 
-        client.StartCapture("consumer-sync", mouse: true, keyboard: true);
+        client.StartCapture("consumer-sync", mouse: true, keyboard: true, gamepad: false);
 
         _ = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             pendingStartTask.WaitAsync(AsyncOperationTimeout));
@@ -435,8 +435,8 @@ public class IpcClientIntegrationTests
 
         await client.ConnectAsync(CancellationToken.None);
 
-        var firstStart = client.StartCaptureAsync("shared-consumer", mouse: true, keyboard: true);
-        var secondStart = client.StartCaptureAsync("shared-consumer", mouse: true, keyboard: true);
+        var firstStart = client.StartCaptureAsync("shared-consumer", mouse: true, keyboard: true, gamepad: true);
+        var secondStart = client.StartCaptureAsync("shared-consumer", mouse: true, keyboard: true, gamepad: true);
 
         await daemon.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
         Assert.Single(daemon.GetCommandsSnapshot());
@@ -461,14 +461,14 @@ public class IpcClientIntegrationTests
 
         await client.ConnectAsync(CancellationToken.None);
 
-        await client.StartCaptureAsync("shared-consumer", mouse: false, keyboard: true)
+        await client.StartCaptureAsync("shared-consumer", mouse: false, keyboard: true, gamepad: true)
             .WaitAsync(AsyncOperationTimeout);
         await daemon.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
 
-        var firstStart = client.StartCaptureAsync("shared-consumer", mouse: true, keyboard: true);
+        var firstStart = client.StartCaptureAsync("shared-consumer", mouse: true, keyboard: true, gamepad: true);
         await daemon.WaitForCommandCountAsync(expected: 2, timeout: TimeSpan.FromSeconds(2));
 
-        var secondStart = client.StartCaptureAsync("shared-consumer", mouse: true, keyboard: true);
+        var secondStart = client.StartCaptureAsync("shared-consumer", mouse: true, keyboard: true, gamepad: true);
 
         var firstException = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             firstStart.WaitAsync(AsyncOperationTimeout));
@@ -493,7 +493,7 @@ public class IpcClientIntegrationTests
         var socketPath = GetUniqueSocketPath();
         using var client = new IpcClient(() => socketPath);
 
-        client.StartCapture("global-hotkeys", mouse: true, keyboard: false);
+        client.StartCapture("global-hotkeys", mouse: true, keyboard: false, gamepad: false);
 
         var exception = await Assert.ThrowsAsync<IpcClientException>(() =>
             client.ConnectAsync(CancellationToken.None));
@@ -517,10 +517,10 @@ public class IpcClientIntegrationTests
         var socketPath = GetUniqueSocketPath();
         using var client = new IpcClient(() => socketPath, autoReconnect: false);
 
-        client.StartCapture("global-hotkeys", mouse: true, keyboard: false);
+        client.StartCapture("global-hotkeys", mouse: true, keyboard: false, gamepad: true);
         var stalePending = CreatePendingCaptureStart(
             client,
-            new CaptureCommand(CaptureCommandType.Start, CaptureMouse: true, CaptureKeyboard: false));
+            new CaptureCommand(CaptureCommandType.Start, CaptureMouse: true, CaptureKeyboard: false, CaptureGamepad: true));
 
         await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
 
@@ -607,7 +607,7 @@ public class IpcClientIntegrationTests
         using var client = new IpcClient(() => socketPath, autoReconnect: true);
         await client.ConnectAsync(CancellationToken.None);
         using var capture = new LinuxIpcInputCapture(client, "reconnect-startup-capture");
-        capture.Configure(captureMouse: true, captureKeyboard: false);
+        capture.Configure(captureMouse: true, captureKeyboard: false, captureGamepad: false);
 
         var startTask = capture.StartAsync(CancellationToken.None);
         await daemon1.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
@@ -640,7 +640,7 @@ public class IpcClientIntegrationTests
         await client.ConnectAsync(CancellationToken.None);
 
         using var capture = new LinuxIpcInputCapture(client, "integration-capture");
-        capture.Configure(captureMouse: true, captureKeyboard: false);
+        capture.Configure(captureMouse: true, captureKeyboard: false, captureGamepad: false);
         using var cts = new CancellationTokenSource();
 
         await capture.StartAsync(cts.Token).WaitAsync(AsyncOperationTimeout);
@@ -667,7 +667,7 @@ public class IpcClientIntegrationTests
         await client.ConnectAsync(CancellationToken.None);
 
         using var capture = new LinuxIpcInputCapture(client, "integration-capture-overlap");
-        capture.Configure(captureMouse: true, captureKeyboard: true);
+        capture.Configure(captureMouse: true, captureKeyboard: true, captureGamepad: true);
 
         var firstStart = capture.StartAsync(CancellationToken.None);
         var secondStart = capture.StartAsync(CancellationToken.None);

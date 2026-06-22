@@ -1295,8 +1295,9 @@ public sealed class SessionHandlerTests
         public int StopCaptureCalls { get; private set; }
         public bool LastCaptureMouse { get; private set; }
         public bool LastCaptureKeyboard { get; private set; }
+        public bool LastCaptureGamepad { get; private set; }
 
-        public CaptureStartResult StartCapture(bool captureMouse, bool captureKeyboard, Action<UInputNative.input_event> onEvent)
+        public CaptureStartResult StartCapture(bool captureMouse, bool captureKeyboard, bool captureGamepad, Action<UInputNative.input_event> onEvent)
         {
             if (_startException != null)
             {
@@ -1308,6 +1309,7 @@ public sealed class SessionHandlerTests
             StartCaptureCalls++;
             LastCaptureMouse = captureMouse;
             LastCaptureKeyboard = captureKeyboard;
+            LastCaptureGamepad = captureGamepad;
             var previousOnEvent = _onEvent;
             _onEvent = onEvent;
             if (_emitDuringStart)

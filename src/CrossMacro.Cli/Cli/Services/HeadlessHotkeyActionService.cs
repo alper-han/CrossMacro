@@ -346,6 +346,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
             var startTask = _macroRecorder.StartRecordingAsync(
                 settings.IsMouseRecordingEnabled,
                 settings.IsKeyboardRecordingEnabled,
+                settings.IsGamepadRecordingEnabled,
                 ignoredKeys,
                 forceRelative: forceRelative,
                 skipInitialZero: skipInitialZero,

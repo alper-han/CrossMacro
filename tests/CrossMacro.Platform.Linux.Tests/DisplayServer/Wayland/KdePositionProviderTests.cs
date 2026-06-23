@@ -21,6 +21,19 @@ public class KdePositionProviderTests
     }
 
     [LinuxFact]
+    public async Task GetAbsolutePositionAsync_ShouldWaitForFirstHandlerState()
+    {
+        using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
+
+        var positionTask = provider.GetAbsolutePositionAsync();
+        provider.ApplyPositionUpdate(320, 640);
+
+        var position = await positionTask;
+
+        Assert.Equal((320, 640), position);
+    }
+
+    [LinuxFact]
     public async Task GetScreenResolutionAsync_ShouldReturnResolutionAfterInitializationCallback()
     {
         using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
@@ -82,6 +95,44 @@ public class KdePositionProviderTests
             _ => Task.CompletedTask);
 
         Assert.Null(resolution);
+    }
+
+    [LinuxFact]
+    public async Task AwaitPositionAsync_ShouldReturnPositionWhenInitializationSucceeds()
+    {
+        var completedPosition = Task.FromResult((X: 320, Y: 640));
+
+        var position = await KdePositionProvider.AwaitPositionAsync(
+            completedPosition,
+            TimeSpan.FromSeconds(1),
+            _ => Task.CompletedTask);
+
+        Assert.Equal((320, 640), position);
+    }
+
+    [LinuxFact]
+    public async Task AwaitPositionAsync_ShouldReturnNullWhenTimeoutWins()
+    {
+        var pendingPosition = new TaskCompletionSource<(int X, int Y)>();
+
+        var position = await KdePositionProvider.AwaitPositionAsync(
+            pendingPosition.Task,
+            TimeSpan.FromMilliseconds(10),
+            _ => Task.CompletedTask);
+
+        Assert.Null(position);
+    }
+
+    [LinuxFact]
+    public void BuildTrackerScriptContent_ShouldUseTimerBasedCursorPolling()
+    {
+        var script = KdePositionProvider.BuildTrackerScriptContent();
+
+        Assert.Contains("var timer = new QTimer();", script, StringComparison.Ordinal);
+        Assert.Contains("timer.timeout.connect(function()", script, StringComparison.Ordinal);
+        Assert.Contains("timer.start();", script, StringComparison.Ordinal);
+        Assert.Contains("callDBus(dbusService, dbusPath, dbusInterface, 'UpdatePosition'", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("cursorPosChanged", script, StringComparison.Ordinal);
     }
 
     [LinuxFact]

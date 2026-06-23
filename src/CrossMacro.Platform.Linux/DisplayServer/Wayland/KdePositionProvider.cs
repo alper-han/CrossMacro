@@ -16,6 +16,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
             "crossmacro", "scripts");
 
         private static readonly TimeSpan ResolutionTimeout = TimeSpan.FromSeconds(2);
+        private static readonly TimeSpan PositionTimeout = TimeSpan.FromSeconds(2);
 
         private string? _scriptId;
         private string? _tempJsFile;
@@ -23,7 +24,8 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
         private int _currentY;
         private bool _hasPosition;
         private readonly Lock _lock = new();
-        private readonly TaskCompletionSource<(int Width, int Height)> _resolutionTcs = new();
+        private readonly TaskCompletionSource<(int X, int Y)> _positionTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<(int Width, int Height)> _resolutionTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly CancellationTokenSource _cts = new();
         private Task? _initializationTask;
         
@@ -52,6 +54,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
             }
             else if (!IsSupported)
             {
+                _positionTcs.TrySetResult((0, 0));
                 _resolutionTcs.TrySetResult((0, 0));
             }
         }
@@ -74,6 +77,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
                 {
                     Log.Error(ex, "[KdePositionProvider] Failed to initialize tracking");
                     IsSupported = false;
+                    _positionTcs.TrySetResult((0, 0));
                     _resolutionTcs.TrySetResult((0, 0));
                 }
             });
@@ -100,6 +104,8 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
                 _currentY = y;
                 _hasPosition = true;
             }
+
+            _positionTcs.TrySetResult((x, y));
         }
 
         internal void ApplyResolutionUpdate(int width, int height)
@@ -127,6 +133,21 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
                 {
                     return resolution;
                 }
+            }
+
+            return null;
+        }
+
+        internal static async Task<(int X, int Y)?> AwaitPositionAsync(
+            Task<(int X, int Y)> positionTask,
+            TimeSpan timeout,
+            Func<TimeSpan, Task> delayAsync)
+        {
+            var completedTask = await Task.WhenAny(positionTask, delayAsync(timeout)).ConfigureAwait(false);
+
+            if (completedTask == positionTask)
+            {
+                return await positionTask.ConfigureAwait(false);
             }
 
             return null;
@@ -225,53 +246,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
                 // 2. Create KWin script with DBus calls
                 _tempJsFile = GetSafeScriptPath($"kde_tracker_{Guid.NewGuid()}.js");
                 
-                var scriptContent = @"
-var dbusService = 'io.github.alper_han.crossmacro.Tracker';
-var dbusPath = '__TRACKER_OBJECT_PATH__';
-var dbusInterface = 'io.github.alper_han.crossmacro.Tracker';
-
-console.error('[CrossMacro] Script started, attempting DBus connection...');
-
-// Send Resolution
-try {
-    console.error('[CrossMacro] Sending resolution: ' + workspace.virtualScreenGeometry.width + 'x' + workspace.virtualScreenGeometry.height);
-    callDBus(dbusService, dbusPath, dbusInterface, 'UpdateResolution', 
-             workspace.virtualScreenGeometry.width, 
-             workspace.virtualScreenGeometry.height);
-    console.error('[CrossMacro] Resolution sent successfully');
-} catch (e) {
-    console.error('[CrossMacro] DBus Error (Res): ' + e);
-}
-
-// Start cursor tracking
-var timer = new QTimer();
-timer.interval = 1;  // 1ms interval for 1000Hz mouse support
-var lastX = -1;
-var lastY = -1;
-var errorCount = 0;
-
-timer.timeout.connect(function() {
-    try {
-        var x = workspace.cursorPos.x;
-        var y = workspace.cursorPos.y;
-        
-        // Only send update if position changed
-        if (x !== lastX || y !== lastY) {
-            callDBus(dbusService, dbusPath, dbusInterface, 'UpdatePosition', x, y);
-            lastX = x;
-            lastY = y;
-            errorCount = 0;
-        }
-    } catch (e) {
-        errorCount++;
-        if (errorCount <= 3) {
-            console.error('[CrossMacro] DBus Error (Pos #' + errorCount + '): ' + e);
-        }
-    }
-});
-timer.start();
-console.error('[CrossMacro] Position tracking started');
-";
+                var scriptContent = BuildTrackerScriptContent();
                 scriptContent = scriptContent.Replace("__TRACKER_OBJECT_PATH__", KdeTrackerService.TrackerObjectPath, StringComparison.Ordinal);
                 await File.WriteAllTextAsync(_tempJsFile, scriptContent, ct);
                 ThrowIfDisposedOrCanceled(ct);
@@ -297,6 +272,7 @@ console.error('[CrossMacro] Position tracking started');
                     {
                          Log.Error("[KdePositionProvider] Failed to load KWin script. Invalid ID: '{ScriptId}'", _scriptId);
                          IsSupported = false;
+                         _positionTcs.TrySetResult((0, 0));
                          _resolutionTcs.TrySetResult((0, 0));
                          return;
                     }
@@ -324,21 +300,100 @@ console.error('[CrossMacro] Position tracking started');
             {
                 Log.Error(ex, "[KdePositionProvider] Initialization failed");
                 IsSupported = false;
+                _positionTcs.TrySetResult((0, 0));
                 _resolutionTcs.TrySetResult((0, 0));
             }
         }
 
-        public Task<(int X, int Y)?> GetAbsolutePositionAsync()
+        internal static string BuildTrackerScriptContent()
         {
-            if (!IsSupported)
-                return Task.FromResult<(int X, int Y)?>(null);
+            return @"
+var dbusService = 'io.github.alper_han.crossmacro.Tracker';
+var dbusPath = '__TRACKER_OBJECT_PATH__';
+var dbusInterface = 'io.github.alper_han.crossmacro.Tracker';
+
+console.error('[CrossMacro] Script started, attempting DBus connection...');
+
+var lastX = -1;
+var lastY = -1;
+var errorCount = 0;
+
+// Send initial cursor position before any other startup calls so short-lived
+// CLI commands such as `pixelcolor rel 0 0` have a cached position immediately.
+try {
+    var initialPos = workspace.cursorPos;
+    callDBus(dbusService, dbusPath, dbusInterface, 'UpdatePosition', initialPos.x, initialPos.y);
+    lastX = initialPos.x;
+    lastY = initialPos.y;
+} catch (e) {
+    console.error('[CrossMacro] DBus Error (Initial Pos): ' + e);
+}
+
+// Send Resolution
+try {
+    console.error('[CrossMacro] Sending resolution: ' + workspace.virtualScreenGeometry.width + 'x' + workspace.virtualScreenGeometry.height);
+    callDBus(dbusService, dbusPath, dbusInterface, 'UpdateResolution',
+             workspace.virtualScreenGeometry.width,
+             workspace.virtualScreenGeometry.height);
+    console.error('[CrossMacro] Resolution sent successfully');
+} catch (e) {
+    console.error('[CrossMacro] DBus Error (Res): ' + e);
+}
+
+// Start cursor tracking. KWin scripting reliably exposes QTimer here; do not
+// depend on cursor-position change signals that are not available everywhere.
+var timer = new QTimer();
+timer.interval = 1;  // 1ms interval for 1000Hz mouse support
+
+timer.timeout.connect(function() {
+    try {
+        var x = workspace.cursorPos.x;
+        var y = workspace.cursorPos.y;
+
+        // Only send update if position changed
+        if (x !== lastX || y !== lastY) {
+            callDBus(dbusService, dbusPath, dbusInterface, 'UpdatePosition', x, y);
+            lastX = x;
+            lastY = y;
+            errorCount = 0;
+        }
+    } catch (e) {
+        errorCount++;
+        if (errorCount <= 3) {
+            console.error('[CrossMacro] DBus Error (Pos #' + errorCount + '): ' + e);
+        }
+    }
+});
+timer.start();
+console.error('[CrossMacro] Position tracking started');
+";
+        }
+
+        public async Task<(int X, int Y)?> GetAbsolutePositionAsync()
+        {
+            if (!IsSupported || IsDisposed)
+                return null;
 
             lock (_lock)
             {
-                if (!_hasPosition)
-                    return Task.FromResult<(int X, int Y)?>(null);
-                    
-                return Task.FromResult<(int X, int Y)?>( (_currentX, _currentY) );
+                if (_hasPosition)
+                {
+                    return (_currentX, _currentY);
+                }
+            }
+
+            var position = await AwaitPositionAsync(
+                _positionTcs.Task,
+                PositionTimeout,
+                timeout => Task.Delay(timeout)).ConfigureAwait(false);
+            if (position == null || !IsSupported || IsDisposed)
+            {
+                return null;
+            }
+
+            lock (_lock)
+            {
+                return _hasPosition ? (_currentX, _currentY) : null;
             }
         }
 

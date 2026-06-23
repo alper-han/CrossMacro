@@ -9,6 +9,8 @@ namespace CrossMacro.Platform.Linux.Native.X11
     public static class X11Native
     {
         private const string LibX11 = "libX11.so.6";
+        public const int ZPixmap = 2;
+        public static readonly UIntPtr AllPlanes = new(ulong.MaxValue);
         
         static X11Native()
         {
@@ -62,6 +64,21 @@ namespace CrossMacro.Platform.Linux.Native.X11
         /// </summary>
         [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
         public static extern int XCloseDisplay(IntPtr display);
+
+        /// <summary>
+        /// Returns drawable geometry including width, height, and depth.
+        /// </summary>
+        [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int XGetGeometry(
+            IntPtr display,
+            IntPtr drawable,
+            out IntPtr root_return,
+            out int x_return,
+            out int y_return,
+            out uint width_return,
+            out uint height_return,
+            out uint border_width_return,
+            out uint depth_return);
 
         /// <summary>
         /// Returns the root window for the default screen
@@ -159,6 +176,23 @@ namespace CrossMacro.Platform.Linux.Native.X11
         public static extern int XFlush(IntPtr display);
 
         [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr XGetImage(
+            IntPtr display,
+            IntPtr drawable,
+            int x,
+            int y,
+            uint width,
+            uint height,
+            UIntPtr plane_mask,
+            int format);
+
+        [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
+        public static extern UIntPtr XGetPixel(IntPtr ximage, int x, int y);
+
+        [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int XDestroyImage(IntPtr ximage);
+
+        [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
         public static extern int XPending(IntPtr display);
 
         [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
@@ -197,5 +231,32 @@ namespace CrossMacro.Platform.Linux.Native.X11
 
         [DllImport(LibXi, CallingConvention = CallingConvention.Cdecl)]
         public static extern int XISelectEvents(IntPtr display, IntPtr window, ref XIEventMask masks, int num_masks);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct XImage
+    {
+        public int Width;
+        public int Height;
+        public int XOffset;
+        public int Format;
+        public IntPtr Data;
+        public int ByteOrder;
+        public int BitmapUnit;
+        public int BitmapBitOrder;
+        public int BitmapPad;
+        public int Depth;
+        public int BytesPerLine;
+        public int BitsPerPixel;
+        public UIntPtr RedMask;
+        public UIntPtr GreenMask;
+        public UIntPtr BlueMask;
+        public IntPtr ObData;
+        public IntPtr CreateImage;
+        public IntPtr DestroyImage;
+        public IntPtr GetPixel;
+        public IntPtr PutPixel;
+        public IntPtr SubImage;
+        public IntPtr AddPixel;
     }
 }

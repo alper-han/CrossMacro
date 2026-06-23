@@ -33,6 +33,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     
     private bool _disposed;
     private bool _isRecording;
+    private bool _isStartingRecording;
     private int _eventCount;
     private int _mouseEventCount;
     private int _keyboardEventCount;
@@ -274,7 +275,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     
     public bool ShowSkipZeroZeroOption => ForceRelativeCoordinates;
     
-    public bool CanStartRecording => !IsRecording && CanStartRecordingExternal && (IsMouseRecordingEnabled || IsKeyboardRecordingEnabled);
+    public bool CanStartRecording => !IsRecording && !_isStartingRecording && CanStartRecordingExternal && (IsMouseRecordingEnabled || IsKeyboardRecordingEnabled);
     
     /// <summary>
     /// Returns true if the toggle button should be enabled (can start OR can stop)
@@ -322,10 +323,8 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             
         try
         {
-            ActivateLiveCounterUpdates();
-            IsRecording = true;
-            ClearEventCounters();
-            
+            SetRecordingStartupInProgress(true);
+
             // Disable playback and pause hotkeys during recording so they can be recorded
             _hotkeyService.SetPlaybackPauseHotkeysEnabled(false);
             
@@ -342,15 +341,23 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
                 ignoredKeys,
                 forceRelative: ForceRelativeCoordinates,
                 skipInitialZero: SkipInitialZeroZero);
+
+            IsRecording = true;
+            ClearEventCounters();
+            ActivateLiveCounterUpdates();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             DeactivateLiveCounterUpdates();
-            RecordingStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Recording_StatusError"], ex.Message);
+            SetRecordingStatusKind(RecordingStatusKind.Ready);
             IsRecording = false;
             
             // Re-enable hotkeys on error
             _hotkeyService.SetPlaybackPauseHotkeysEnabled(true);
+        }
+        finally
+        {
+            SetRecordingStartupInProgress(false);
         }
     }
     
@@ -515,6 +522,18 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     {
         _recordingStatusKind = statusKind;
         RecordingStatus = BuildRecordingStatus(statusKind);
+    }
+
+    private void SetRecordingStartupInProgress(bool value)
+    {
+        if (_isStartingRecording == value)
+        {
+            return;
+        }
+
+        _isStartingRecording = value;
+        OnPropertyChanged(nameof(CanStartRecording));
+        OnCanToggleRecordingChanged();
     }
 
     private void ActivateLiveCounterUpdates()

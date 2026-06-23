@@ -60,22 +60,118 @@ public class RecordingViewModelTests
     }
 
     [Fact]
-    public async Task StartRecordingAsync_WhenCanStart_StartsRecording()
+    public async Task StartRecordingAsync_WhileRecorderStartIsPending_DefersRecordingState()
     {
         // Arrange
         _viewModel.CanStartRecordingExternal = true;
+        var startCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _recorder.StartRecordingAsync(
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<IEnumerable<int>>(),
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
+            .Returns(startCompletion.Task);
+
+        var recordingStateChangedCount = 0;
+        var recordingStateChangedValue = false;
+        _viewModel.RecordingStateChanged += (_, isRecording) =>
+        {
+            recordingStateChangedCount++;
+            recordingStateChangedValue = isRecording;
+        };
 
         // Act
-        await _viewModel.StartRecordingAsync();
+        var startTask = _viewModel.StartRecordingAsync();
+
+        // Assert while pending
+        Assert.False(startTask.IsCompleted);
+        Assert.False(_viewModel.IsRecording);
+        Assert.Equal("[Recording_StatusReady]", _viewModel.RecordingStatus);
+        Assert.False(_viewModel.CanStartRecording);
+        Assert.False(_viewModel.CanToggleRecording);
+        Assert.Equal(0, recordingStateChangedCount);
+        Assert.Equal(0L, GetPrivateField<long>(_viewModel, "_activeCounterUpdateSessionId"));
+
+        InvokeNonPublicMethod(_viewModel, "ApplyLiveCounterUpdate", 1L, new MacroEvent { Type = EventType.MouseMove });
+        Assert.Equal(0, _viewModel.EventCount);
+        Assert.Equal(0, _viewModel.MouseEventCount);
+        Assert.Equal(0, _viewModel.KeyboardEventCount);
+
+        startCompletion.SetResult(true);
+        await startTask;
 
         // Assert
         Assert.True(_viewModel.IsRecording);
         Assert.Equal("[Recording_StatusRecording]", _viewModel.RecordingStatus);
+        Assert.True(_viewModel.CanToggleRecording);
+        Assert.NotEqual(0L, GetPrivateField<long>(_viewModel, "_activeCounterUpdateSessionId"));
+        Assert.Equal(1, recordingStateChangedCount);
+        Assert.True(recordingStateChangedValue);
+
+        InvokeNonPublicMethod(_viewModel, "ApplyLiveCounterUpdate", GetPrivateField<long>(_viewModel, "_activeCounterUpdateSessionId"), new MacroEvent { Type = EventType.MouseMove });
+        Assert.Equal(1, _viewModel.EventCount);
+        Assert.Equal(1, _viewModel.MouseEventCount);
+        Assert.Equal(0, _viewModel.KeyboardEventCount);
+
         await _recorder.Received(1).StartRecordingAsync(
-            Arg.Any<bool>(), 
-            Arg.Any<bool>(), 
-            Arg.Any<int[]>());
+            Arg.Any<bool>(),
+            Arg.Any<bool>(),
+            Arg.Any<IEnumerable<int>>(),
+            Arg.Any<bool>(),
+            Arg.Any<bool>(),
+            Arg.Any<CancellationToken>());
         _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(false);
+        _hotkeyService.DidNotReceive().SetPlaybackPauseHotkeysEnabled(true);
+    }
+
+    [Fact]
+    public async Task StartRecordingAsync_WhenRecorderStartCompletes_SetsRecordingStateAndActivatesLiveCounters()
+    {
+        // Arrange
+        _viewModel.CanStartRecordingExternal = true;
+        var startCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _recorder.StartRecordingAsync(
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<IEnumerable<int>>(),
+                Arg.Any<bool>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
+            .Returns(startCompletion.Task);
+
+        var recordingStateChangedCount = 0;
+        _viewModel.RecordingStateChanged += (_, isRecording) =>
+        {
+            if (isRecording)
+            {
+                recordingStateChangedCount++;
+            }
+        };
+
+        // Act
+        var startTask = _viewModel.StartRecordingAsync();
+        startCompletion.SetResult(true);
+        await startTask;
+
+        // Assert
+        Assert.True(_viewModel.IsRecording);
+        Assert.Equal("[Recording_StatusRecording]", _viewModel.RecordingStatus);
+        Assert.False(_viewModel.CanStartRecording);
+        Assert.True(_viewModel.CanToggleRecording);
+        Assert.Equal(1, recordingStateChangedCount);
+        Assert.NotEqual(0L, GetPrivateField<long>(_viewModel, "_activeCounterUpdateSessionId"));
+
+        await _recorder.Received(1).StartRecordingAsync(
+            Arg.Any<bool>(),
+            Arg.Any<bool>(),
+            Arg.Any<IEnumerable<int>>(),
+            Arg.Any<bool>(),
+            Arg.Any<bool>(),
+            Arg.Any<CancellationToken>());
+        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(false);
+        _hotkeyService.DidNotReceive().SetPlaybackPauseHotkeysEnabled(true);
     }
 
     [Fact]
@@ -280,6 +376,7 @@ public class RecordingViewModelTests
     {
         // Arrange
         _viewModel.CanStartRecordingExternal = true;
+        var startCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         _recorder.StartRecordingAsync(
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
@@ -287,14 +384,25 @@ public class RecordingViewModelTests
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new InvalidOperationException("start failed")));
+            .Returns(startCompletion.Task);
 
         // Act
-        await _viewModel.StartRecordingAsync();
+        var startTask = _viewModel.StartRecordingAsync();
+
+        Assert.False(_viewModel.IsRecording);
+        Assert.Equal("[Recording_StatusReady]", _viewModel.RecordingStatus);
+        Assert.False(_viewModel.CanStartRecording);
+        Assert.False(_viewModel.CanToggleRecording);
+
+        startCompletion.SetException(new InvalidOperationException("start failed"));
+        await startTask;
 
         // Assert
         Assert.False(_viewModel.IsRecording);
         Assert.Equal("[Recording_StatusReady]", _viewModel.RecordingStatus);
+        Assert.True(_viewModel.CanStartRecording);
+        Assert.True(_viewModel.CanToggleRecording);
+        Assert.Equal(0L, GetPrivateField<long>(_viewModel, "_activeCounterUpdateSessionId"));
         _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(false);
         _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(true);
     }

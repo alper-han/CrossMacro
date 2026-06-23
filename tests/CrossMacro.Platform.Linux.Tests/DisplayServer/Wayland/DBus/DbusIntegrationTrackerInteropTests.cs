@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 using CrossMacro.TestInfrastructure;
@@ -18,8 +19,9 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         var position = (X: 0, Y: 0);
         var resolution = (Width: 0, Height: 0);
 
-        using var serviceConnection = CreateSessionConnection();
-        using var clientConnection = CreateSessionConnection();
+        await using var bus = await CreatePrivateSessionBusAsync();
+        using var serviceConnection = bus.CreateConnection();
+        using var clientConnection = bus.CreateConnection();
 
         await serviceConnection.ConnectAsync();
         await clientConnection.ConnectAsync().AsTask().WaitAsync(SessionBusTimeout);
@@ -49,9 +51,9 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
             {
                 serviceException = await serviceDisconnectedTask.WaitAsync(SessionBusTimeout);
             }
-            catch
+            catch (Exception waitFailure)
             {
-                // Keep the original failure if the service-side disconnect reason never arrives.
+                Debug.WriteLine(waitFailure);
             }
 
             if (serviceException is not null)
@@ -73,8 +75,9 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
     {
         var position = (X: 0, Y: 0);
 
-        using var serviceConnection = CreateSessionConnection();
-        using var clientConnection = CreateSessionConnection();
+        await using var bus = await CreatePrivateSessionBusAsync();
+        using var serviceConnection = bus.CreateConnection();
+        using var clientConnection = bus.CreateConnection();
 
         await serviceConnection.ConnectAsync();
         await clientConnection.ConnectAsync().AsTask().WaitAsync(SessionBusTimeout);
@@ -111,8 +114,9 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
     {
         var position = (X: 0, Y: 0);
 
-        using var serviceConnection = CreateSessionConnection();
-        using var clientConnection = CreateSessionConnection();
+        await using var bus = await CreatePrivateSessionBusAsync();
+        using var serviceConnection = bus.CreateConnection();
+        using var clientConnection = bus.CreateConnection();
 
         await serviceConnection.ConnectAsync();
         await clientConnection.ConnectAsync().AsTask().WaitAsync(SessionBusTimeout);
@@ -149,8 +153,9 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         const string expectedUuid = "crossmacro@zynix.net";
         string? receivedUuid = null;
 
-        using var serviceConnection = CreateSessionConnection();
-        using var clientConnection = CreateSessionConnection();
+        await using var bus = await CreatePrivateSessionBusAsync();
+        using var serviceConnection = bus.CreateConnection();
+        using var clientConnection = bus.CreateConnection();
 
         await serviceConnection.ConnectAsync();
         await clientConnection.ConnectAsync().AsTask().WaitAsync(SessionBusTimeout);
@@ -188,8 +193,9 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         const string expectedScriptName = "42";
         string? receivedScriptName = null;
 
-        using var serviceConnection = CreateSessionConnection();
-        using var clientConnection = CreateSessionConnection();
+        await using var bus = await CreatePrivateSessionBusAsync();
+        using var serviceConnection = bus.CreateConnection();
+        using var clientConnection = bus.CreateConnection();
 
         await serviceConnection.ConnectAsync();
         await clientConnection.ConnectAsync().AsTask().WaitAsync(SessionBusTimeout);

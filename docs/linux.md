@@ -129,6 +129,25 @@ done
 
 If `setfacl` is missing, install your distro's `acl` package first.
 
+## Linux screen reading
+
+Screen-reading commands are supported on native X11 and Wayland desktop
+sessions. On Wayland, CrossMacro uses the best available desktop capture path for
+the current session. Flatpak and other sandboxed runs may show a desktop capture
+permission prompt.
+
+On portal-based desktops such as GNOME, select every monitor that contains pixels
+or regions the macro will read. The desktop portal owns this picker, so
+CrossMacro cannot silently force a specific monitor or force all monitors to be
+selected. If playback asks for a pixel outside the selected monitor coverage,
+CrossMacro reports the selected bounds and requested coordinates so the capture
+source can be reselected intentionally.
+
+On KDE Wayland, packaged installs include the desktop-entry permission required
+for KWin screen capture. If doctor reports KWin ScreenShot2 permission denied,
+verify the installed CrossMacro `.desktop` file and restart CrossMacro from the
+packaged launcher.
+
 ## AppImage
 
 AppImage does not install the packaged daemon-backed service. On X11, CrossMacro

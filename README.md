@@ -75,7 +75,8 @@ runtime in one app.
 - Language selection, runtime log-level control, and update-check settings
 
 Some features require platform permissions, such as Linux input device or daemon
-access, macOS Input Monitoring/Accessibility, or desktop-session tray support.
+access, macOS Input Monitoring, Accessibility, Screen Recording, or
+desktop-session tray support.
 
 ## Why CrossMacro?
 
@@ -151,9 +152,10 @@ Download page for all release binaries:
   users.
 - **Windows:** Store and winget are the easiest update paths. Portable EXE users
   run the downloaded binary directly unless they add it to `PATH`.
-- **macOS:** requires macOS 10.15 or newer. Grant permissions when prompted; if
-  macOS blocks a GitHub DMG on first launch after dragging the app to
-  Applications, run `xattr -cr /Applications/CrossMacro.app`.
+- **macOS:** requires macOS 10.15 or newer. Grant Input Monitoring,
+  Accessibility, and Screen Recording permissions when prompted; if macOS blocks
+  a GitHub DMG on first launch after dragging the app to Applications, run
+  `xattr -cr /Applications/CrossMacro.app`.
 
 ### Platform-specific setup
 
@@ -161,7 +163,8 @@ Download page for all release binaries:
   troubleshooting: [docs/linux.md](docs/linux.md)
 - Windows Store and winget provide managed updates. GitHub Releases include MSIX
   packages and self-contained portable EXE files for `x64` and `arm64`.
-- macOS install, Gatekeeper, Input Monitoring, and Accessibility setup:
+- macOS install, Gatekeeper, Input Monitoring, Accessibility, and Screen
+  Recording setup:
   [docs/macos.md](docs/macos.md)
 
 ## CLI Usage

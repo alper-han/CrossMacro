@@ -39,6 +39,9 @@ CrossMacro needs two macOS privacy permissions for normal macro use:
 - **Accessibility** lets CrossMacro play macros back by sending keyboard and
   mouse events.
 
+Macros that read pixels from the screen also need **Screen Recording**. This is
+required for commands such as `pixelcolor`, `waitcolor`, and `pixelsearch`.
+
 CrossMacro opens the relevant System Settings page when possible and asks macOS
 to add the current app to the permission list. In most cases, you only need to
 turn on the CrossMacro toggle and return to the app.
@@ -75,6 +78,16 @@ In **System Settings > Privacy & Security > Accessibility**, enable
 
 Accessibility covers playback and input injection. If a permission is visible as
 enabled but CrossMacro still reports it missing, quit and reopen CrossMacro.
+
+## Screen Recording
+
+Screen reading commands need macOS Screen Recording permission before CrossMacro
+can sample pixels from the desktop. In **System Settings > Privacy & Security >
+Screen & System Audio Recording** (or **Screen Recording** on older macOS
+versions), enable **CrossMacro**.
+
+If you grant Screen Recording while CrossMacro is running, quit and reopen the
+app before testing `pixelcolor`, `waitcolor`, or `pixelsearch` again.
 
 ## Troubleshooting
 

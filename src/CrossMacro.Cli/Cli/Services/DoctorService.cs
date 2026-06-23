@@ -32,6 +32,8 @@ public sealed partial class DoctorService : IDoctorService
     private readonly Func<string, bool> _daemonHandshakeProbe;
     private readonly Func<string, LinuxDaemonSocketAccessResult> _daemonSocketAccessProbe;
     private readonly Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult> _daemonHandshakeDiagnosticProbe;
+    private readonly IScreenReadingDiagnosticProvider? _screenReadingDiagnosticProvider;
+    private readonly IMacOSScreenRecordingPermissionProbe? _macOSScreenRecordingPermissionProbe;
 
     public DoctorService(
         IEnvironmentInfoProvider environmentInfoProvider,
@@ -42,7 +44,9 @@ public sealed partial class DoctorService : IDoctorService
         IPermissionChecker? permissionChecker = null,
         Func<string, bool>? daemonHandshakeProbe = null,
         Func<string, LinuxDaemonSocketAccessResult>? daemonSocketAccessProbe = null,
-        Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null)
+        Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null,
+        IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
+        IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null)
         : this(
             environmentInfoProvider,
             displaySessionService,
@@ -61,7 +65,10 @@ public sealed partial class DoctorService : IDoctorService
             daemonHandshakeProbe,
             daemonSocketAccessProbe,
             daemonHandshakeDiagnosticProbe,
-            ReadAllTextIfExists)
+            ReadAllTextIfExists,
+            null,
+            screenReadingDiagnosticProvider,
+            macOSScreenRecordingPermissionProbe)
     {
     }
 
@@ -84,7 +91,9 @@ public sealed partial class DoctorService : IDoctorService
         Func<string, LinuxDaemonSocketAccessResult>? daemonSocketAccessProbe = null,
         Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null,
         Func<string, string?>? readAllTextIfExists = null,
-        Func<bool>? hasUsableReadableInputDevices = null)
+        Func<bool>? hasUsableReadableInputDevices = null,
+        IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
+        IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null)
         : this(
             environmentInfoProvider,
             displaySessionService,
@@ -103,7 +112,9 @@ public sealed partial class DoctorService : IDoctorService
             daemonHandshakeProbe,
             daemonSocketAccessProbe,
             daemonHandshakeDiagnosticProbe,
-            readAllTextIfExists)
+            readAllTextIfExists,
+            screenReadingDiagnosticProvider,
+            macOSScreenRecordingPermissionProbe)
     {
     }
 
@@ -125,7 +136,9 @@ public sealed partial class DoctorService : IDoctorService
         Func<string, bool>? daemonHandshakeProbe = null,
         Func<string, LinuxDaemonSocketAccessResult>? daemonSocketAccessProbe = null,
         Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null,
-        Func<string, string?>? readAllTextIfExists = null)
+        Func<string, string?>? readAllTextIfExists = null,
+        IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
+        IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null)
     {
         _environmentInfoProvider = environmentInfoProvider ?? throw new ArgumentNullException(nameof(environmentInfoProvider));
         _displaySessionService = displaySessionService ?? throw new ArgumentNullException(nameof(displaySessionService));
@@ -145,6 +158,8 @@ public sealed partial class DoctorService : IDoctorService
         _daemonHandshakeProbe = daemonHandshakeProbe ?? ProbeDaemonHandshake;
         _daemonSocketAccessProbe = daemonSocketAccessProbe ?? ProbeDaemonSocketAccess;
         _daemonHandshakeDiagnosticProbe = daemonHandshakeDiagnosticProbe ?? ProbeDaemonHandshakeDiagnostic;
+        _screenReadingDiagnosticProvider = screenReadingDiagnosticProvider;
+        _macOSScreenRecordingPermissionProbe = macOSScreenRecordingPermissionProbe;
     }
 
     private static bool HasReadableInputEventAccess(Func<string, bool> canOpenForRead, Func<string[]> getInputEventCandidates)
@@ -184,6 +199,10 @@ public sealed partial class DoctorService : IDoctorService
             checks.Add(BuildLinuxUInputCheck(linuxState, verbose));
             checks.Add(BuildLinuxInputReadinessCheck(linuxState, verbose));
             checks.Add(BuildLinuxGsrCompatibilityCheck(linuxState, verbose));
+            if (_screenReadingDiagnosticProvider is not null)
+            {
+                checks.Add(BuildLinuxScreenReadingCheck(verbose));
+            }
         }
 
         return Task.FromResult(new DoctorReport
@@ -382,6 +401,7 @@ public sealed partial class DoctorService : IDoctorService
 
         if (_permissionChecker is null || !_permissionChecker.IsSupported)
         {
+            checks.Add(BuildMacOSScreenRecordingCheck(verbose));
             checks.Add(new DoctorCheck
             {
                 Name = "macos-input-monitoring",
@@ -395,6 +415,7 @@ public sealed partial class DoctorService : IDoctorService
 
         if (_permissionChecker is not IMacOSPermissionChecker macOSPermissionChecker)
         {
+            checks.Add(BuildMacOSScreenRecordingCheck(verbose));
             checks.Add(new DoctorCheck
             {
                 Name = "macos-input-monitoring",
@@ -432,6 +453,8 @@ public sealed partial class DoctorService : IDoctorService
             checks.Add(BuildMacOSAccessibilityCheck(trusted, verbose));
             return checks;
         }
+
+        checks.Add(BuildMacOSScreenRecordingCheck(verbose));
 
         MacOSPermissionStatus status;
         try
@@ -485,6 +508,68 @@ public sealed partial class DoctorService : IDoctorService
 
         checks.Add(BuildMacOSAccessibilityCheck(status.AccessibilityGranted, verbose));
         return checks;
+    }
+
+    private DoctorCheck BuildMacOSScreenRecordingCheck(bool verbose)
+    {
+        if (_macOSScreenRecordingPermissionProbe is null)
+        {
+            return new DoctorCheck
+            {
+                Name = "macos-screen-recording",
+                Status = DoctorCheckStatus.Warn,
+                Message = "macOS Screen Recording status is unavailable from this platform backend.",
+                Details = verbose ? new { probeAvailable = false } : null
+            };
+        }
+
+        try
+        {
+            var preflightAvailable = _macOSScreenRecordingPermissionProbe.IsPreflightAvailable;
+            if (!preflightAvailable)
+            {
+                return new DoctorCheck
+                {
+                    Name = "macos-screen-recording",
+                    Status = DoctorCheckStatus.Warn,
+                    Message = "macOS Screen Recording preflight API is unavailable; screen-reading permission status cannot be checked.",
+                    Details = verbose
+                        ? new
+                        {
+                            probeAvailable = true,
+                            preflightApiAvailable = false
+                        }
+                        : null
+                };
+            }
+
+            var granted = _macOSScreenRecordingPermissionProbe.IsGranted();
+            return new DoctorCheck
+            {
+                Name = "macos-screen-recording",
+                Status = granted ? DoctorCheckStatus.Pass : DoctorCheckStatus.Fail,
+                Message = granted
+                    ? "macOS Screen Recording permission is granted for screen reading."
+                    : "macOS Screen Recording permission is missing. Grant CrossMacro access in System Settings > Privacy & Security > Screen Recording, then restart CrossMacro.",
+                Details = verbose
+                    ? new
+                    {
+                        screenRecordingGranted = granted,
+                        preflightApiAvailable = true
+                    }
+                    : null
+            };
+        }
+        catch (Exception ex)
+        {
+            return new DoctorCheck
+            {
+                Name = "macos-screen-recording",
+                Status = DoctorCheckStatus.Warn,
+                Message = "macOS Screen Recording status probe failed.",
+                Details = verbose ? new { error = ex.Message } : null
+            };
+        }
     }
 
     private static DoctorCheck BuildMacOSAccessibilityCheck(bool trusted, bool verbose)

@@ -43,6 +43,40 @@ public class RunCommandHandlerTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WhenRunOptionsContainScreenReadingExamples_ForwardsExactSteps()
+    {
+        _runService.ExecuteAsync(Arg.Any<RunExecutionRequest>(), Arg.Any<CancellationToken>())
+            .Returns(new MacroExecutionResult
+            {
+                Success = true,
+                ExitCode = CliExitCode.Success,
+                Message = "Run script execution complete."
+            });
+
+        var result = await _handler.ExecuteAsync(
+            new RunCliOptions(
+                [
+                    "pixelcolor 500 300 mycolor",
+                    "pixelcolor rel 0 0 underCursor",
+                    "waitcolor 500 300 00FF00 5000",
+                    "pixelsearch 0 0 1920 1080 FF0000 found_x found_y"
+                ],
+                DryRun: true),
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        await _runService.Received(1).ExecuteAsync(
+            Arg.Is<RunExecutionRequest>(x =>
+                x.DryRun
+                && x.Steps.Count == 4
+                && x.Steps[0] == "pixelcolor 500 300 mycolor"
+                && x.Steps[1] == "pixelcolor rel 0 0 underCursor"
+                && x.Steps[2] == "waitcolor 500 300 00FF00 5000"
+                && x.Steps[3] == "pixelsearch 0 0 1920 1080 FF0000 found_x found_y"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WhenDryRun_SkipsPreflight()
     {
         _preflightService.CheckAsync(Arg.Any<CliPreflightTarget>(), Arg.Any<CancellationToken>())

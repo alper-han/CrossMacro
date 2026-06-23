@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Core.Services.Playback;
+using CrossMacro.Infrastructure.Services.Playback;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Cli.Services;
@@ -71,7 +73,10 @@ internal sealed class RunSequenceExecutor
             });
 
             await player.PlayAsync(sequence, playbackOptions, cancellationToken);
-            return RunSequenceExecutionResult.Succeeded();
+            var runtimeVariables = player is IRunScriptRuntimeVariableSource variableSource
+                ? variableSource.RuntimeVariables
+                : null;
+            return RunSequenceExecutionResult.Succeeded(runtimeVariables);
         }
         catch (OperationCanceledException)
         {
@@ -133,12 +138,16 @@ internal sealed class RunSequenceExecutionResult
     public bool IsAbsolutePlaybackUnsupported { get; private init; }
     public bool IsInputInjectionPermissionRequired { get; private init; }
     public string? ErrorMessage { get; private init; }
+    public IReadOnlyDictionary<string, string> RuntimeVariables { get; private init; } = new Dictionary<string, string>();
 
-    public static RunSequenceExecutionResult Succeeded()
+    public static RunSequenceExecutionResult Succeeded(IReadOnlyDictionary<string, string>? runtimeVariables = null)
     {
         return new RunSequenceExecutionResult
         {
-            Success = true
+            Success = true,
+            RuntimeVariables = runtimeVariables is null
+                ? new Dictionary<string, string>()
+                : new Dictionary<string, string>(runtimeVariables, StringComparer.OrdinalIgnoreCase)
         };
     }
 

@@ -511,6 +511,57 @@ public class CliCommandRouterTests
     }
 
     [Fact]
+    public void Parse_WhenRunWithInlineScreenReadingSteps_ReturnsRunOptions()
+    {
+        var result = _router.Parse([
+            "run",
+            "pixelcolor", "1", "2", "sampled",
+            "waitcolor", "3", "4", "00FF00", "100", "wait_ok",
+            "pixelsearch", "0", "0", "10", "10", "FF0000", "found", "found_x", "found_y", "tolerance", "26",
+            "click", "left"
+        ]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<RunCliOptions>(result.Options);
+        Assert.Equal("pixelcolor 1 2 sampled", options.Steps[0]);
+        Assert.Equal("waitcolor 3 4 00FF00 100 wait_ok", options.Steps[1]);
+        Assert.Equal("pixelsearch 0 0 10 10 FF0000 found found_x found_y tolerance 26", options.Steps[2]);
+        Assert.Equal("click left", options.Steps[3]);
+    }
+
+    [Fact]
+    public void Parse_WhenRunWithInlineScreenReadingOptionalForms_ReturnsRunOptions()
+    {
+        var result = _router.Parse([
+            "run",
+            "pixelcolor", "rel", "-1", "2",
+            "pixelcolor", "rel", "-3", "4", "relativeSampled",
+            "waitcolor", "3", "4", "00FF00",
+            "pixelsearch", "0", "0", "10", "10", "FF0000", "tolerance", "26",
+            "pixelsearch", "1", "2", "11", "12", "00FF00", "found_x", "found_y", "tolerance", "7",
+            "click", "left"
+        ]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<RunCliOptions>(result.Options);
+        Assert.Equal("pixelcolor rel -1 2", options.Steps[0]);
+        Assert.Equal("pixelcolor rel -3 4 relativeSampled", options.Steps[1]);
+        Assert.Equal("waitcolor 3 4 00FF00", options.Steps[2]);
+        Assert.Equal("pixelsearch 0 0 10 10 FF0000 tolerance 26", options.Steps[3]);
+        Assert.Equal("pixelsearch 1 2 11 12 00FF00 found_x found_y tolerance 7", options.Steps[4]);
+        Assert.Equal("click left", options.Steps[5]);
+    }
+
+    [Fact]
+    public void Parse_WhenRunWithInlineMalformedScreenReadingPrefix_ReturnsError()
+    {
+        var result = _router.Parse(["run", "pixelcolorful", "1", "2", "sampled"]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("Unknown inline run step command: pixelcolorful", result.ErrorMessage);
+    }
+
+    [Fact]
     public void Parse_WhenRunWithInlineRepeatMissingBrace_ReturnsError()
     {
         var result = _router.Parse([
@@ -569,6 +620,17 @@ public class CliCommandRouterTests
 
         Assert.True(result.ShowHelp);
         Assert.Equal("run", result.HelpTopic);
+    }
+
+    [Fact]
+    public void GetUsage_WhenRunHelp_IncludesScreenReadingSteps()
+    {
+        var usage = _router.GetUsage("run");
+
+        Assert.Contains("pixelcolor <x> <y> [var]", usage);
+        Assert.Contains("pixelcolor rel <dx> <dy> [var]", usage);
+        Assert.Contains("waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var]", usage);
+        Assert.Contains("pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [tolerance <0..255>]", usage);
     }
 
     [Fact]

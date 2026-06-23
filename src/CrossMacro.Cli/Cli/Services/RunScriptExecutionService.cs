@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
@@ -12,15 +13,20 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
 {
     private readonly RunStepCompiler _runStepCompiler;
     private readonly RunSequenceExecutor _runSequenceExecutor;
-    private static readonly PlaybackValidator Validator = new(new NullMousePositionProvider("CLI Run Validation Provider"));
+    private readonly PlaybackValidator _validator;
 
     public RunScriptExecutionService(
         Func<IMacroPlayer> macroPlayerFactory,
         IKeyCodeMapper keyCodeMapper,
         Func<TimeSpan, CancellationToken, Task>? delayAsync = null)
     {
+        ArgumentNullException.ThrowIfNull(keyCodeMapper);
+
         _runStepCompiler = new RunStepCompiler(keyCodeMapper);
         _runSequenceExecutor = new RunSequenceExecutor(macroPlayerFactory, delayAsync);
+        _validator = new PlaybackValidator(
+            keyCodeMapper,
+            new NullMousePositionProvider("CLI Run Validation Provider"));
     }
 
     public async Task<MacroExecutionResult> ExecuteAsync(RunExecutionRequest request, CancellationToken cancellationToken)
@@ -59,7 +65,7 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
         }
 
         var sequence = compileResult.Sequence!;
-        var validation = Validator.Validate(sequence);
+        var validation = _validator.Validate(sequence);
         if (!validation.IsValid)
         {
             return new MacroExecutionResult
@@ -121,7 +127,8 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
                     compileResult.InitialDelayMs,
                     compileResult.InitialHasRandomDelay,
                     compileResult.InitialRandomDelayMinMs,
-                    compileResult.InitialRandomDelayMaxMs)
+                    compileResult.InitialRandomDelayMaxMs,
+                    executionResult.RuntimeVariables)
             };
         }
 
@@ -196,7 +203,8 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
         int initialDelayMs,
         bool initialHasRandomDelay,
         int initialRandomDelayMinMs,
-        int initialRandomDelayMaxMs)
+        int initialRandomDelayMaxMs,
+        IReadOnlyDictionary<string, string>? runtimeVariables = null)
     {
         var coordinateMode = MacroPositionSemantics.GetCoordinateModeSummary(sequence) switch
         {
@@ -216,7 +224,8 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
             initialRandomDelayMinMs,
             initialRandomDelayMaxMs,
             trailingDelayMs = sequence.TrailingDelayMs,
-            coordinateMode
+            coordinateMode,
+            runtimeVariables = runtimeVariables ?? new Dictionary<string, string>()
         };
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Services;
+using CrossMacro.Infrastructure.Services.ScreenReading;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Cli.Services;
@@ -16,6 +17,7 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
     private readonly IShortcutService _shortcutService;
     private readonly ITextExpansionService _textExpansionService;
     private readonly IHeadlessHotkeyActionService _headlessHotkeyActionService;
+    private readonly IScreenReadingWarmupService? _screenReadingWarmupService;
 
     public HeadlessRuntimeService(
         IDisplaySessionService displaySessionService,
@@ -24,7 +26,8 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
         ISchedulerService schedulerService,
         IShortcutService shortcutService,
         ITextExpansionService textExpansionService,
-        IHeadlessHotkeyActionService headlessHotkeyActionService)
+        IHeadlessHotkeyActionService headlessHotkeyActionService,
+        IScreenReadingWarmupService? screenReadingWarmupService = null)
     {
         _displaySessionService = displaySessionService;
         _settingsService = settingsService;
@@ -33,6 +36,7 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
         _shortcutService = shortcutService;
         _textExpansionService = textExpansionService;
         _headlessHotkeyActionService = headlessHotkeyActionService;
+        _screenReadingWarmupService = screenReadingWarmupService;
     }
 
     public async Task<HeadlessRuntimeResult> RunAsync(CancellationToken cancellationToken)
@@ -72,6 +76,11 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
 
             _headlessHotkeyActionService.Start();
             hotkeyActionsStarted = _headlessHotkeyActionService.IsRunning;
+
+            if (_screenReadingWarmupService != null)
+            {
+                await _screenReadingWarmupService.WarmUpPortalSessionAsync(cancellationToken).ConfigureAwait(false);
+            }
 
             var data = new
             {

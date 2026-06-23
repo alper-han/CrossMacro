@@ -2,6 +2,7 @@ using System;
 using CrossMacro.Core.Services;
 using CrossMacro.Cli.Commands;
 using CrossMacro.Cli.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Abstractions.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -41,7 +42,9 @@ public static class CliServiceCollectionExtensions
                 sp.GetService<IPermissionChecker>(),
                 daemonHandshakeProbe,
                 daemonSocketAccessProbe,
-                daemonHandshakeDiagnosticProbe);
+                daemonHandshakeDiagnosticProbe,
+                sp.GetService<IScreenReadingDiagnosticProvider>(),
+                sp.GetService<IMacOSScreenRecordingPermissionProbe>());
         });
         services.AddSingleton<ICliPreflightService, CliPreflightService>();
         services.AddSingleton<ISettingsCliService, SettingsCliService>();

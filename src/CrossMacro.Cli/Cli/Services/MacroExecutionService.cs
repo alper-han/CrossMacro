@@ -7,6 +7,7 @@ using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Core.Services.Playback;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Cli.Services;
 
@@ -14,12 +15,18 @@ public sealed class MacroExecutionService : IMacroExecutionService
 {
     private readonly IMacroFileManager _macroFileManager;
     private readonly Func<IMacroPlayer> _macroPlayerFactory;
-    private static readonly PlaybackValidator Validator = new(new NullMousePositionProvider("CLI Validation Provider"));
+    private readonly PlaybackValidator _validator;
 
-    public MacroExecutionService(IMacroFileManager macroFileManager, Func<IMacroPlayer> macroPlayerFactory)
+    public MacroExecutionService(
+        IMacroFileManager macroFileManager,
+        Func<IMacroPlayer> macroPlayerFactory,
+        IKeyCodeMapper keyCodeMapper)
     {
-        _macroFileManager = macroFileManager;
-        _macroPlayerFactory = macroPlayerFactory;
+        _macroFileManager = macroFileManager ?? throw new ArgumentNullException(nameof(macroFileManager));
+        _macroPlayerFactory = macroPlayerFactory ?? throw new ArgumentNullException(nameof(macroPlayerFactory));
+        _validator = new PlaybackValidator(
+            keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper)),
+            new NullMousePositionProvider("CLI Validation Provider"));
     }
 
     public Task<MacroExecutionResult> ValidateAsync(string macroFilePath, CancellationToken cancellationToken)
@@ -68,7 +75,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
             };
         }
 
-        var validation = Validator.Validate(macro);
+        var validation = _validator.Validate(macro);
         var data = BuildInfoData(macroFilePath, macro);
         var message = validation.IsValid
             ? "Macro info loaded."
@@ -163,7 +170,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
             };
         }
 
-        var validation = Validator.Validate(macro);
+        var validation = _validator.Validate(macro);
         if (!validation.IsValid)
         {
             return new MacroExecutionResult

@@ -409,7 +409,11 @@ public sealed class CliCommandRouter
                 "  while <left> <op> <right> { ... }\n" +
                 "  for <var> from <start> to <end> [step <n>] { ... }\n" +
                 "  break | continue\n" +
-                "  type <text>\n\n" +
+                "  type <text>\n" +
+                "  pixelcolor <x> <y> [var]\n" +
+                "  pixelcolor rel <dx> <dy> [var]\n" +
+                "  waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var]\n" +
+                "  pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [tolerance <0..255>]\n\n" +
                 "Examples:\n" +
                 "  crossmacro run --step \"move abs 500 300\" --step \"click left\" --dry-run\n" +
                 "  crossmacro run move rel 100 0 delay 40 click left\n" +
@@ -417,6 +421,10 @@ public sealed class CliCommandRouter
                 "  crossmacro run --step \"repeat 3 {\" --step \"click left\" --step \"delay random 40 90\" --step \"}\"\n" +
                 "  crossmacro run --step \"set i=0\" --step \"while $i < 3 {\" --step \"click left\" --step \"inc i\" --step \"}\"\n" +
                 "  crossmacro run --step \"delay random 40..90\" --step \"click left\"\n" +
+                "  crossmacro run --step \"pixelcolor 500 300 sampled\"\n" +
+                "  crossmacro run --step \"waitcolor 500 300 00FF00 5000\"\n" +
+                "  crossmacro run --step 'pixelcolor 500 300 sampled' --step 'waitcolor 500 300 $sampled 5000'\n" +
+                "  crossmacro run --step \"pixelsearch 0 0 1920 1080 FF0000 found_x found_y tolerance 26\"\n" +
                 "  crossmacro run --file ./steps.txt --json\n";
         }
 

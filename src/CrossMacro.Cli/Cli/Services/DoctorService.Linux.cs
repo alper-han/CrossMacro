@@ -13,6 +13,39 @@ public sealed partial class DoctorService
     private const string LinuxDaemonRequiredGroup = "crossmacro";
     private static readonly TimeSpan LinuxDaemonHandshakeTimeout = TimeSpan.FromSeconds(2);
 
+    private DoctorCheck BuildLinuxScreenReadingCheck(bool verbose)
+    {
+        var display = _screenReadingDiagnosticProvider!.GetSnapshot().ToDisplay();
+
+        return new DoctorCheck
+        {
+            Name = "linux-screen-reading",
+            Status = display.HasSelectedBackend ? DoctorCheckStatus.Pass : DoctorCheckStatus.Warn,
+            Message = display.Message,
+            Details = verbose
+                ? new
+                {
+                    supportedSession = display.IsSupportedSession,
+                    sessionKind = display.SessionKind,
+                    policyName = display.PolicyName,
+                    policyOrder = display.PolicyOrder,
+                    selectedBackend = display.SelectedBackend,
+                    failureBackend = display.FailureBackend,
+                    failureKind = display.FailureKind,
+                    failureMessage = display.FailureMessage,
+                    remediation = display.Remediation,
+                    backends = display.Backends.Select(backend => new
+                    {
+                        backend = backend.Backend,
+                        available = backend.IsAvailable,
+                        errorKind = backend.ErrorKind,
+                        errorMessage = backend.ErrorMessage
+                    }).ToArray()
+                }
+                : null
+        };
+    }
+
     private DoctorCheck BuildLinuxDisplayVariablesCheck(bool verbose)
     {
         var xdgSessionType = _getEnvironmentVariable("XDG_SESSION_TYPE");

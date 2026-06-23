@@ -3,6 +3,7 @@ using CrossMacro.Core.Services;
 using CrossMacro.Core.Services.Playback;
 using CrossMacro.Cli;
 using CrossMacro.Cli.Services;
+using CrossMacro.Infrastructure.Services.Playback;
 using CrossMacro.Platform.Abstractions;
 using NSubstitute;
 using System.IO;
@@ -47,6 +48,21 @@ public class RunScriptExecutionServiceTests
         var payload = JsonSerializer.SerializeToElement(result.Data);
         Assert.Equal("absolute", payload.GetProperty("coordinateMode").GetString());
         await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenScreenReadingScriptUsesRuntimeMappedKey_ReturnsSuccess()
+    {
+        _keyCodeMapper.GetKeyCode("Backspace").Returns(InputEventCode.KEY_BACKSPACE);
+
+        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps = ["pixelcolor 1 2 sampled", "tap Backspace"],
+            DryRun = true
+        }, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal(CliExitCode.Success, result.ExitCode);
     }
 
     [Fact]
@@ -871,5 +887,67 @@ public class RunScriptExecutionServiceTests
         Assert.Equal(CliExitCode.EnvironmentError, result.ExitCode);
         Assert.Equal("Playback permission is missing.", result.Message);
         Assert.Contains("permission missing", result.Errors[0], StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenPlayerReportsRuntimeVariables_IncludesThemInData()
+    {
+        var player = new RuntimeVariablePlayer(new Dictionary<string, string>
+        {
+            ["sampled"] = "ABCDEF",
+            ["found_x"] = "42"
+        });
+        var service = new RunScriptExecutionService(() => player, _keyCodeMapper);
+
+        var result = await service.ExecuteAsync(new RunExecutionRequest
+        {
+            Steps = ["click left"]
+        }, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var payload = JsonSerializer.SerializeToElement(result.Data);
+        var variables = payload.GetProperty("runtimeVariables");
+        Assert.Equal("ABCDEF", variables.GetProperty("sampled").GetString());
+        Assert.Equal("42", variables.GetProperty("found_x").GetString());
+    }
+
+    private sealed class RuntimeVariablePlayer : IMacroPlayer, IRunScriptRuntimeVariableSource
+    {
+        public RuntimeVariablePlayer(IReadOnlyDictionary<string, string> runtimeVariables)
+        {
+            RuntimeVariables = runtimeVariables;
+        }
+
+        public bool IsPaused => false;
+
+        public int CurrentLoop => 0;
+
+        public int TotalLoops => 0;
+
+        public bool IsWaitingBetweenLoops => false;
+
+        public IReadOnlyDictionary<string, string> RuntimeVariables { get; }
+
+        public Task PlayAsync(MacroSequence macro, PlaybackOptions? options = null, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public void Stop()
+        {
+        }
+
+        public void Pause()
+        {
+        }
+
+        public void Resume()
+        {
+        }
+
+        public void Dispose()
+        {
+        }
     }
 }

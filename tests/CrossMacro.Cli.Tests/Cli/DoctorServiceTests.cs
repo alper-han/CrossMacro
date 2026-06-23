@@ -1,10 +1,12 @@
 using CrossMacro.Core.Services;
 using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Cli.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Abstractions.Diagnostics;
 using FluentAssertions;
 using NSubstitute;
 using System.Reflection;
+using System.Text.Json;
 
 namespace CrossMacro.Cli.Tests;
 
@@ -62,7 +64,9 @@ public class DoctorServiceTests
         Func<string, string?>? readAllTextIfExists = null,
         Func<string, bool>? canOpenForRead = null,
         Func<string[]>? getInputEventCandidates = null,
-        Func<bool>? hasUsableReadableInputDevices = null)
+        Func<bool>? hasUsableReadableInputDevices = null,
+        IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
+        IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null)
     {
         var simulatorInstance = simulator ?? CreateInputSimulator();
         var captureInstance = capture ?? CreateInputCapture();
@@ -87,7 +91,9 @@ public class DoctorServiceTests
             daemonSocketAccessProbe,
             daemonHandshakeDiagnosticProbe,
             readAllTextIfExists ?? (_ => null),
-            hasUsableReadableInputDevices);
+            hasUsableReadableInputDevices,
+            screenReadingDiagnosticProvider,
+            macOSScreenRecordingPermissionProbe);
     }
 
     private static string? GetDetailsString(DoctorCheck check, string propertyName)
@@ -122,6 +128,16 @@ public class DoctorServiceTests
         var value = property!.GetValue(check.Details);
         value.Should().BeAssignableTo<IEnumerable<int>>($"details should expose {propertyName} as integer collection");
         return ((IEnumerable<int>)value!).ToArray();
+    }
+
+    private static string[] GetDetailsStringArray(DoctorCheck check, string propertyName)
+    {
+        check.Details.Should().NotBeNull();
+        var property = check.Details!.GetType().GetProperty(propertyName);
+        property.Should().NotBeNull($"details should expose {propertyName}");
+        var value = property!.GetValue(check.Details);
+        value.Should().BeAssignableTo<IEnumerable<string>>($"details should expose {propertyName} as string collection");
+        return ((IEnumerable<string>)value!).ToArray();
     }
 
     [Fact]
@@ -476,6 +492,181 @@ public class DoctorServiceTests
     }
 
     [Fact]
+    public async Task RunAsync_WhenLinuxScreenReadingBackendSelected_ReportsPolicyAndSelectedBackend()
+    {
+        _displaySessionService.IsSessionSupported(out Arg.Any<string>()).Returns(x =>
+        {
+            x[0] = string.Empty;
+            return true;
+        });
+
+        var service = CreateService(
+            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
+            path => path is "/dev/uinput" or "/dev/input/event0",
+            path => path == "/dev/uinput",
+            isLinux: () => true,
+            canOpenForRead: path => path == "/dev/input/event0",
+            getInputEventCandidates: () => ["/dev/input/event0"],
+            screenReadingDiagnosticProvider: new TestScreenReadingDiagnosticProvider(new ScreenReadingDiagnosticSnapshot(
+                IsSupportedSession: true,
+                SessionKind: "Other",
+                PolicyName: "Native",
+                PolicyOrder: ["ExtImageCopy", "WlrScreencopy", "Portal"],
+                SelectedBackend: "WlrScreencopy",
+                Backends:
+                [
+                    new ScreenReadingBackendDiagnostic("ExtImageCopy", false, ScreenReadErrorKind.BackendUnavailable, "ext unavailable"),
+                    new ScreenReadingBackendDiagnostic("WlrScreencopy", true, null, null),
+                    new ScreenReadingBackendDiagnostic("Portal", false, ScreenReadErrorKind.BackendUnavailable, "portal not needed")
+                ],
+                FailureBackend: null,
+                FailureKind: null,
+                FailureMessage: null,
+                Remediation: null)));
+
+        var report = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        var screenReading = Assert.Single(report.Checks, x => x.Name == "linux-screen-reading");
+        Assert.Equal(DoctorCheckStatus.Pass, screenReading.Status);
+        Assert.Contains("WlrScreencopy", screenReading.Message);
+        Assert.Contains("Native", screenReading.Message);
+        Assert.Equal("WlrScreencopy", GetDetailsString(screenReading, "selectedBackend"));
+        Assert.Equal(["ExtImageCopy", "WlrScreencopy", "Portal"], GetDetailsStringArray(screenReading, "policyOrder"));
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenLinuxScreenReadingPortalDenied_ReportsActionablePermissionWarning()
+    {
+        _displaySessionService.IsSessionSupported(out Arg.Any<string>()).Returns(x =>
+        {
+            x[0] = string.Empty;
+            return true;
+        });
+
+        var service = CreateService(
+            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
+            _ => false,
+            _ => false,
+            canOpenForRead: _ => false,
+            getInputEventCandidates: () => [],
+            isLinux: () => true,
+            screenReadingDiagnosticProvider: new TestScreenReadingDiagnosticProvider(new ScreenReadingDiagnosticSnapshot(
+                IsSupportedSession: true,
+                SessionKind: "Other",
+                PolicyName: "Flatpak",
+                PolicyOrder: ["Portal", "ExtImageCopy", "WlrScreencopy"],
+                SelectedBackend: null,
+                Backends:
+                [
+                    new ScreenReadingBackendDiagnostic("Portal", false, ScreenReadErrorKind.PermissionDenied, "portal denied by user"),
+                    new ScreenReadingBackendDiagnostic("ExtImageCopy", false, ScreenReadErrorKind.BackendUnavailable, "ext unavailable"),
+                    new ScreenReadingBackendDiagnostic("WlrScreencopy", false, ScreenReadErrorKind.BackendUnavailable, "wlr unavailable")
+                ],
+                FailureBackend: "Portal",
+                FailureKind: ScreenReadErrorKind.PermissionDenied,
+                FailureMessage: "portal denied by user",
+                Remediation: "Grant ScreenCast permission in the desktop portal prompt, or reset portal permissions and retry.")));
+
+        var report = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        var screenReading = Assert.Single(report.Checks, x => x.Name == "linux-screen-reading");
+        Assert.Equal(DoctorCheckStatus.Warn, screenReading.Status);
+        Assert.Contains("permission denied", screenReading.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ScreenCast permission", screenReading.Message);
+        Assert.Equal("Portal", GetDetailsString(screenReading, "failureBackend"));
+        Assert.Equal("PermissionDenied", GetDetailsString(screenReading, "failureKind"));
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenLinuxScreenReadingKWinDenied_KeepsBackendNameAndDesktopEntryRemediation()
+    {
+        _displaySessionService.IsSessionSupported(out Arg.Any<string>()).Returns(x =>
+        {
+            x[0] = string.Empty;
+            return true;
+        });
+
+        var service = CreateService(
+            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
+            _ => false,
+            _ => false,
+            canOpenForRead: _ => false,
+            getInputEventCandidates: () => [],
+            isLinux: () => true,
+            screenReadingDiagnosticProvider: new TestScreenReadingDiagnosticProvider(new ScreenReadingDiagnosticSnapshot(
+                IsSupportedSession: true,
+                SessionKind: "KDE",
+                PolicyName: "NativeKDE",
+                PolicyOrder: ["KWinScreenShot2", "ExtImageCopy", "WlrScreencopy", "Portal"],
+                SelectedBackend: null,
+                Backends:
+                [
+                    new ScreenReadingBackendDiagnostic("KWinScreenShot2", false, ScreenReadErrorKind.PermissionDenied, "KWin ScreenShot2 permission denied."),
+                    new ScreenReadingBackendDiagnostic("ExtImageCopy", false, ScreenReadErrorKind.BackendUnavailable, "ext unavailable"),
+                    new ScreenReadingBackendDiagnostic("WlrScreencopy", false, ScreenReadErrorKind.BackendUnavailable, "wlr unavailable"),
+                    new ScreenReadingBackendDiagnostic("Portal", false, ScreenReadErrorKind.BackendUnavailable, "portal unavailable")
+                ],
+                FailureBackend: "KWinScreenShot2",
+                FailureKind: ScreenReadErrorKind.PermissionDenied,
+                FailureMessage: "KWin ScreenShot2 permission denied.",
+                Remediation: "Install a KDE desktop entry for CrossMacro that includes X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2, then restart the app.")));
+
+        var report = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        var screenReading = Assert.Single(report.Checks, x => x.Name == "linux-screen-reading");
+        Assert.Equal(DoctorCheckStatus.Warn, screenReading.Status);
+        Assert.Contains("KWinScreenShot2", screenReading.Message);
+        Assert.Contains("X-KDE-DBUS-Restricted-Interfaces", screenReading.Message);
+        Assert.Equal("KWinScreenShot2", GetDetailsString(screenReading, "failureBackend"));
+        Assert.Equal(["KWinScreenShot2", "ExtImageCopy", "WlrScreencopy", "Portal"], GetDetailsStringArray(screenReading, "policyOrder"));
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenLinuxScreenReadingDiagnosticsContainCapturedContent_RedactsPrivateDetails()
+    {
+        _displaySessionService.IsSessionSupported(out Arg.Any<string>()).Returns(x =>
+        {
+            x[0] = string.Empty;
+            return true;
+        });
+        const string privateFailure = "portal denied after screenshot /tmp/capture.png raw RGB(255,0,0) frame bytes SECRET_SCREEN_WORD";
+
+        var service = CreateService(
+            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
+            _ => false,
+            _ => false,
+            canOpenForRead: _ => false,
+            getInputEventCandidates: () => [],
+            isLinux: () => true,
+            screenReadingDiagnosticProvider: new TestScreenReadingDiagnosticProvider(new ScreenReadingDiagnosticSnapshot(
+                IsSupportedSession: true,
+                SessionKind: "Other",
+                PolicyName: "Native",
+                PolicyOrder: ["ExtImageCopy", "WlrScreencopy", "Portal"],
+                SelectedBackend: null,
+                Backends:
+                [
+                    new ScreenReadingBackendDiagnostic("ExtImageCopy", false, ScreenReadErrorKind.CaptureFailed, privateFailure),
+                    new ScreenReadingBackendDiagnostic("WlrScreencopy", false, ScreenReadErrorKind.CaptureFailed, "frame bytes 01 02 03"),
+                    new ScreenReadingBackendDiagnostic("Portal", false, ScreenReadErrorKind.PermissionDenied, privateFailure)
+                ],
+                FailureBackend: "Portal",
+                FailureKind: ScreenReadErrorKind.PermissionDenied,
+                FailureMessage: privateFailure,
+                Remediation: "Grant ScreenCast permission in the desktop portal prompt.")));
+
+        var report = await service.RunAsync(verbose: true, CancellationToken.None);
+        var json = JsonSerializer.Serialize(report);
+
+        Assert.DoesNotContain("255,0,0", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("frame bytes", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("/tmp/capture.png", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("screenshot", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("SECRET_SCREEN_WORD", json, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Details redacted for privacy", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task RunAsync_WhenIssue44DirectFallbackAvailableScenario_WaylandReadinessPassesWithoutDaemon()
     {
         _displaySessionService.IsSessionSupported(out Arg.Any<string>()).Returns(x =>
@@ -713,6 +904,110 @@ public class DoctorServiceTests
         Assert.Contains("AX features", accessibility.Message);
     }
 
+    [Theory]
+    [InlineData(true, DoctorCheckStatus.Pass)]
+    [InlineData(false, DoctorCheckStatus.Fail)]
+    public async Task RunAsync_WhenMacOSScreenRecordingProbeAvailable_ReportsScreenRecordingCheck(
+        bool granted,
+        DoctorCheckStatus expectedStatus)
+    {
+        _environmentInfoProvider.CurrentEnvironment.Returns(DisplayEnvironment.MacOS);
+        _displaySessionService.IsSessionSupported(out Arg.Any<string>()).Returns(x =>
+        {
+            x[0] = string.Empty;
+            return true;
+        });
+
+        var permissionChecker = new TestMacOSPermissionChecker(new MacOSPermissionStatus(true, true, true));
+        var screenRecordingProbe = new TestMacOSScreenRecordingPermissionProbe(preflightAvailable: true, granted: granted);
+
+        var service = CreateService(
+            _ => null,
+            _ => false,
+            _ => false,
+            isLinux: () => false,
+            isWindows: () => false,
+            isMacOS: () => true,
+            permissionChecker: permissionChecker,
+            macOSScreenRecordingPermissionProbe: screenRecordingProbe);
+
+        var report = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        var screenRecording = Assert.Single(report.Checks, x => x.Name == "macos-screen-recording");
+        Assert.Equal(expectedStatus, screenRecording.Status);
+        Assert.Contains("Screen Recording", screenRecording.Message);
+        Assert.Equal(granted, GetDetailsBool(screenRecording, "screenRecordingGranted"));
+        Assert.True(GetDetailsBool(screenRecording, "preflightApiAvailable"));
+
+        if (!granted)
+        {
+            Assert.Contains("System Settings", screenRecording.Message);
+            Assert.Contains("restart CrossMacro", screenRecording.Message);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenMacOSScreenRecordingPreflightUnavailable_ReportsWarning()
+    {
+        _environmentInfoProvider.CurrentEnvironment.Returns(DisplayEnvironment.MacOS);
+        _displaySessionService.IsSessionSupported(out Arg.Any<string>()).Returns(x =>
+        {
+            x[0] = string.Empty;
+            return true;
+        });
+
+        var permissionChecker = new TestMacOSPermissionChecker(new MacOSPermissionStatus(true, true, true));
+        var screenRecordingProbe = new TestMacOSScreenRecordingPermissionProbe(preflightAvailable: false, granted: false);
+
+        var service = CreateService(
+            _ => null,
+            _ => false,
+            _ => false,
+            isLinux: () => false,
+            isWindows: () => false,
+            isMacOS: () => true,
+            permissionChecker: permissionChecker,
+            macOSScreenRecordingPermissionProbe: screenRecordingProbe);
+
+        var report = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        var screenRecording = Assert.Single(report.Checks, x => x.Name == "macos-screen-recording");
+        Assert.Equal(DoctorCheckStatus.Warn, screenRecording.Status);
+        Assert.Contains("preflight API is unavailable", screenRecording.Message);
+        Assert.False(GetDetailsBool(screenRecording, "preflightApiAvailable"));
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenMacOSPermissionStatusProbeFails_StillReportsScreenRecordingCheck()
+    {
+        _environmentInfoProvider.CurrentEnvironment.Returns(DisplayEnvironment.MacOS);
+        _displaySessionService.IsSessionSupported(out Arg.Any<string>()).Returns(x =>
+        {
+            x[0] = string.Empty;
+            return true;
+        });
+
+        var permissionChecker = Substitute.For<IMacOSPermissionChecker>();
+        permissionChecker.IsSupported.Returns(true);
+        permissionChecker.GetCurrentStatus().Returns(_ => throw new InvalidOperationException("status failed"));
+        var screenRecordingProbe = new TestMacOSScreenRecordingPermissionProbe(preflightAvailable: true, granted: true);
+
+        var service = CreateService(
+            _ => null,
+            _ => false,
+            _ => false,
+            isLinux: () => false,
+            isWindows: () => false,
+            isMacOS: () => true,
+            permissionChecker: permissionChecker,
+            macOSScreenRecordingPermissionProbe: screenRecordingProbe);
+
+        var report = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        Assert.Contains(report.Checks, x => x.Name == "macos-screen-recording" && x.Status == DoctorCheckStatus.Pass);
+        Assert.Contains(report.Checks, x => x.Name == "macos-input-monitoring" && x.Status == DoctorCheckStatus.Warn);
+    }
+
     [Fact]
     public async Task RunAsync_WhenMacOSPermissionCheckerDoesNotExposeSeparateStatus_ReportsUnavailableModernChecks()
     {
@@ -861,6 +1156,39 @@ public class DoctorServiceTests
 
         public void OpenInputMonitoringSettings()
         {
+        }
+    }
+
+    private sealed class TestMacOSScreenRecordingPermissionProbe : IMacOSScreenRecordingPermissionProbe
+    {
+        private readonly bool _granted;
+
+        public TestMacOSScreenRecordingPermissionProbe(bool preflightAvailable, bool granted)
+        {
+            IsPreflightAvailable = preflightAvailable;
+            _granted = granted;
+        }
+
+        public bool IsPreflightAvailable { get; }
+
+        public bool IsGranted()
+        {
+            return _granted;
+        }
+    }
+
+    private sealed class TestScreenReadingDiagnosticProvider : IScreenReadingDiagnosticProvider
+    {
+        private readonly ScreenReadingDiagnosticSnapshot _snapshot;
+
+        public TestScreenReadingDiagnosticProvider(ScreenReadingDiagnosticSnapshot snapshot)
+        {
+            _snapshot = snapshot;
+        }
+
+        public ScreenReadingDiagnosticSnapshot GetSnapshot()
+        {
+            return _snapshot;
         }
     }
 }

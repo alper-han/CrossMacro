@@ -2,6 +2,7 @@ using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Cli;
 using CrossMacro.Cli.Services;
+using CrossMacro.Infrastructure.Services.ScreenReading;
 using NSubstitute;
 
 namespace CrossMacro.Cli.Tests;
@@ -58,6 +59,44 @@ public class HeadlessRuntimeServiceTests
         textExpansion.Received(1).Stop();
         await hotkeyActions.Received(1).StopAsync(Arg.Any<CancellationToken>());
         Assert.True(hotkeyActionsStopped);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenStarted_WarmsUpScreenReadingSession()
+    {
+        var display = Substitute.For<IDisplaySessionService>();
+        display.IsSessionSupported(out Arg.Any<string>()).Returns(x =>
+        {
+            x[0] = string.Empty;
+            return true;
+        });
+
+        var settings = Substitute.For<ISettingsService>();
+        settings.Load().Returns(new AppSettings());
+
+        var hotkeys = Substitute.For<IGlobalHotkeyService>();
+        var scheduler = Substitute.For<ISchedulerService>();
+        var shortcuts = Substitute.For<IShortcutService>();
+        var textExpansion = Substitute.For<ITextExpansionService>();
+        var hotkeyActions = Substitute.For<IHeadlessHotkeyActionService>();
+        var warmup = Substitute.For<IScreenReadingWarmupService>();
+        var warmupStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        textExpansion.IsRunning.Returns(true);
+        hotkeyActions.IsRunning.Returns(true);
+        warmup.WarmUpPortalSessionAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        warmup.When(x => x.WarmUpPortalSessionAsync(Arg.Any<CancellationToken>()))
+            .Do(_ => warmupStarted.TrySetResult());
+
+        var service = new HeadlessRuntimeService(display, settings, hotkeys, scheduler, shortcuts, textExpansion, hotkeyActions, warmup);
+
+        using var cts = new CancellationTokenSource();
+        var runTask = service.RunAsync(cts.Token);
+        await warmupStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await cts.CancelAsync();
+        await runTask;
+
+        await warmup.Received(1).WarmUpPortalSessionAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]

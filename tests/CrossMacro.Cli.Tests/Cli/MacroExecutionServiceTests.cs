@@ -3,6 +3,7 @@ using CrossMacro.Core.Services;
 using CrossMacro.Core.Services.Playback;
 using CrossMacro.Cli;
 using CrossMacro.Cli.Services;
+using CrossMacro.Platform.Abstractions;
 using NSubstitute;
 using System.Text.Json;
 
@@ -12,13 +13,15 @@ public class MacroExecutionServiceTests
 {
     private readonly IMacroFileManager _fileManager;
     private readonly IMacroPlayer _player;
+    private readonly IKeyCodeMapper _keyCodeMapper;
     private readonly IMacroExecutionService _service;
 
     public MacroExecutionServiceTests()
     {
         _fileManager = Substitute.For<IMacroFileManager>();
         _player = Substitute.For<IMacroPlayer>();
-        _service = new MacroExecutionService(_fileManager, () => _player);
+        _keyCodeMapper = CreateKeyCodeMapper();
+        _service = new MacroExecutionService(_fileManager, () => _player, _keyCodeMapper);
     }
 
     [Fact]
@@ -39,6 +42,29 @@ public class MacroExecutionServiceTests
         try
         {
             _fileManager.LoadAsync(tempFile).Returns(CreateValidMacro());
+
+            var result = await _service.ValidateAsync(tempFile, CancellationToken.None);
+
+            Assert.True(result.Success);
+            Assert.Equal(CliExitCode.Success, result.ExitCode);
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task ValidateAsync_WhenScriptUsesRuntimeMappedKey_ReturnsSuccess()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            _fileManager.LoadAsync(tempFile).Returns(new MacroSequence
+            {
+                Name = "script",
+                ScriptSteps = ["pixelcolor 1 2 sampled", "tap Backspace"]
+            });
 
             var result = await _service.ValidateAsync(tempFile, CancellationToken.None);
 
@@ -190,6 +216,15 @@ public class MacroExecutionServiceTests
             Timestamp = 0
         });
         return macro;
+    }
+
+    private static IKeyCodeMapper CreateKeyCodeMapper()
+    {
+        var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
+        keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
+        keyCodeMapper.GetKeyCode("Backspace").Returns(InputEventCode.KEY_BACKSPACE);
+        keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(false);
+        return keyCodeMapper;
     }
 
     private static MacroSequence CreateMixedMacro()

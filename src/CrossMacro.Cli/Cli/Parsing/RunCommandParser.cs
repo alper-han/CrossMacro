@@ -266,6 +266,106 @@ internal static class RunCommandParser
             return true;
         }
 
+        if (string.Equals(token, "pixelcolor", StringComparison.OrdinalIgnoreCase))
+        {
+            if (index + 2 >= args.Length)
+            {
+                error = "Invalid inline step syntax for pixelcolor. Expected: pixelcolor <x> <y> [var] or pixelcolor rel <dx> <dy> [var]";
+                return false;
+            }
+
+            if (string.Equals(args[index + 1], "rel", StringComparison.OrdinalIgnoreCase))
+            {
+                if (index + 3 >= args.Length)
+                {
+                    error = "Invalid inline step syntax for pixelcolor. Expected: pixelcolor rel <dx> <dy> [var]";
+                    return false;
+                }
+
+                step = $"pixelcolor rel {args[index + 2]} {args[index + 3]}";
+                index += 3;
+            }
+            else
+            {
+                step = $"pixelcolor {args[index + 1]} {args[index + 2]}";
+                index += 2;
+            }
+
+            if (TryConsumeOptionalInlineArgument(args, ref index, out var variableName))
+            {
+                step += $" {variableName}";
+            }
+
+            return true;
+        }
+
+        if (string.Equals(token, "waitcolor", StringComparison.OrdinalIgnoreCase))
+        {
+            if (index + 3 >= args.Length)
+            {
+                error = "Invalid inline step syntax for waitcolor. Expected: waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var]";
+                return false;
+            }
+
+            step = $"waitcolor {args[index + 1]} {args[index + 2]} {args[index + 3]}";
+            index += 3;
+            if (index + 1 < args.Length && int.TryParse(args[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+            {
+                step += $" {args[index + 1]}";
+                index += 1;
+            }
+
+            if (TryConsumeOptionalInlineArgument(args, ref index, out var resultVariableName))
+            {
+                step += $" {resultVariableName}";
+            }
+
+            return true;
+        }
+
+        if (string.Equals(token, "pixelsearch", StringComparison.OrdinalIgnoreCase))
+        {
+            if (index + 5 >= args.Length)
+            {
+                error = "Invalid inline step syntax for pixelsearch. Expected: pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [tolerance <0..255>]";
+                return false;
+            }
+
+            step = $"pixelsearch {args[index + 1]} {args[index + 2]} {args[index + 3]} {args[index + 4]} {args[index + 5]}";
+            index += 5;
+
+            var optionalVariables = new List<string>();
+            while (optionalVariables.Count < 3 && TryConsumeOptionalInlineArgument(args, ref index, out var variableName))
+            {
+                if (RunScriptSyntax.IsPixelSearchToleranceKeyword(variableName))
+                {
+                    index -= 1;
+                    break;
+                }
+
+                optionalVariables.Add(variableName);
+            }
+
+            if (optionalVariables.Count is 1)
+            {
+                error = "Invalid inline step syntax for pixelsearch. Expected variable outputs as var_x var_y or found_var var_x var_y.";
+                return false;
+            }
+
+            if (optionalVariables.Count > 0)
+            {
+                step += " " + string.Join(' ', optionalVariables);
+            }
+
+            if (index + 2 < args.Length && RunScriptSyntax.IsPixelSearchToleranceKeyword(args[index + 1]))
+            {
+                step += $" {args[index + 1]} {args[index + 2]}";
+                index += 2;
+            }
+
+            return true;
+        }
+
         if (string.Equals(token, "tap", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "type", StringComparison.OrdinalIgnoreCase))
         {
@@ -424,6 +524,51 @@ internal static class RunCommandParser
 
         error = $"Unknown inline run step command: {token}";
         return false;
+    }
+
+    private static bool TryConsumeOptionalInlineArgument(string[] args, ref int index, out string value)
+    {
+        value = string.Empty;
+        if (index + 1 >= args.Length)
+        {
+            return false;
+        }
+
+        var candidate = args[index + 1];
+        if (candidate.StartsWith("-", StringComparison.Ordinal)
+            || IsInlineRunCommandToken(candidate))
+        {
+            return false;
+        }
+
+        value = candidate;
+        index += 1;
+        return true;
+    }
+
+    private static bool IsInlineRunCommandToken(string token)
+    {
+        return string.Equals(token, "move", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "down", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "up", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "click", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "scroll", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "key", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "delay", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "tap", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "type", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "set", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "inc", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "dec", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "repeat", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "if", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "while", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "else", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "for", StringComparison.OrdinalIgnoreCase)
+            || RunScriptSyntax.IsScreenReadingCommandToken(token)
+            || RunScriptSyntax.IsBreakCommand(token)
+            || RunScriptSyntax.IsContinueCommand(token)
+            || RunScriptSyntax.IsBlockEndToken(token);
     }
 
     private static bool IsVariableReferenceToken(string token)

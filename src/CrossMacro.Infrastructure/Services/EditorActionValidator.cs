@@ -4,6 +4,7 @@ using System.Linq;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Resources;
 using CrossMacro.Core.Services;
+using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
 
@@ -43,6 +44,9 @@ public class EditorActionValidator : IEditorActionValidator
             EditorActionType.RawScriptStep => string.IsNullOrWhiteSpace(action.Text)
                 ? (false, "Raw script step cannot be empty.")
                 : (true, null),
+            EditorActionType.PixelColor => ValidatePixelColor(action),
+            EditorActionType.WaitColor => ValidateWaitColor(action),
+            EditorActionType.PixelSearch => ValidatePixelSearch(action),
             EditorActionType.ElseBlockStart
                 or EditorActionType.BlockEnd
                 or EditorActionType.Break
@@ -350,6 +354,96 @@ public class EditorActionValidator : IEditorActionValidator
         }
 
         return (true, null);
+    }
+
+    private static (bool IsValid, string? Error) ValidatePixelColor(EditorAction action)
+    {
+        var payload = GetScreenReadingPayload(action);
+
+        if (payload.IsAbsolute && (payload.ScreenX < 0 || payload.ScreenY < 0))
+        {
+            return (false, "Pixel color coordinates must be non-negative.");
+        }
+
+        if (!payload.HasValidColorVariableName())
+        {
+            return (false, "Pixel color output variable name is invalid.");
+        }
+
+        return (true, null);
+    }
+
+    private static (bool IsValid, string? Error) ValidateWaitColor(EditorAction action)
+    {
+        var payload = GetScreenReadingPayload(action);
+
+        if (payload.ScreenX < 0 || payload.ScreenY < 0)
+        {
+            return (false, "Wait color coordinates must be non-negative.");
+        }
+
+        if (!payload.HasValidTargetColor())
+        {
+            return payload.ScreenTargetColorSource == EditorActionScreenTargetColorSource.Variable
+                ? (false, "Wait color target variable name is invalid.")
+                : (false, "Wait color target must be 6 hexadecimal RGB characters.");
+        }
+
+        if (payload.ScreenTimeoutMs < 0)
+        {
+            return (false, "Wait color timeout must be non-negative.");
+        }
+
+        if (!payload.HasValidColorVariableName())
+        {
+            return (false, "Wait color result variable name is invalid.");
+        }
+
+        return (true, null);
+    }
+
+    private static (bool IsValid, string? Error) ValidatePixelSearch(EditorAction action)
+    {
+        var payload = GetScreenReadingPayload(action);
+
+        if (payload.ScreenLeft < 0 || payload.ScreenTop < 0)
+        {
+            return (false, "Pixel search region origin must be non-negative.");
+        }
+
+        if (!payload.HasPositiveSearchRegion())
+        {
+            return (false, "Pixel search region size must be positive.");
+        }
+
+        if (!payload.HasValidTargetColor())
+        {
+            return payload.ScreenTargetColorSource == EditorActionScreenTargetColorSource.Variable
+                ? (false, "Pixel search target variable name is invalid.")
+                : (false, "Pixel search target must be 6 hexadecimal RGB characters.");
+        }
+
+        if (!payload.HasValidTolerance())
+        {
+            return (false, "Pixel search tolerance must be between 0 and 255.");
+        }
+
+        if (!payload.HasValidFoundVariableName() || !payload.HasValidFoundCoordinateVariableNames())
+        {
+            return (false, "Pixel search output variable names are invalid.");
+        }
+
+        return (true, null);
+    }
+
+    private static EditorActionScreenReadingPayload GetScreenReadingPayload(EditorAction action)
+    {
+        if (!action.TryGetScreenReadingPayload(out var payload))
+        {
+            throw new InvalidOperationException("Action type does not contain a screen-reading payload.");
+        }
+
+        return payload;
     }
 
     private void ValidateScriptCompilation(IReadOnlyList<EditorAction> actions, List<string> errors)

@@ -83,6 +83,11 @@ public sealed class RunScriptCompiler
             return RunScriptCompileResult.Fail(parseResult.ErrorMessage);
         }
 
+        if (ContainsScreenReadingNode(parseResult.Nodes!))
+        {
+            return CompileRuntimeScriptBackedSteps(steps, parseResult.Nodes!);
+        }
+
         var expandedSteps = new List<RunScriptStep>();
         var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var loopState = new LoopExecutionState();
@@ -98,6 +103,215 @@ public sealed class RunScriptCompiler
         }
 
         return CompileExpandedSteps(expandedSteps);
+    }
+
+    private RunScriptCompileResult CompileRuntimeScriptBackedSteps(IReadOnlyList<RunScriptStep> steps, IReadOnlyList<RunScriptNode> nodes)
+    {
+        var validation = ValidateRuntimeScriptNodes(nodes, loopDepth: 0);
+        if (!validation.Success)
+        {
+            return RunScriptCompileResult.Fail(validation.ErrorMessage);
+        }
+
+        var sequence = new MacroSequence
+        {
+            Name = "Run Script",
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            ScriptSteps = steps
+                .Select(step => step.Step.Trim())
+                .Where(step => !string.IsNullOrWhiteSpace(step))
+                .ToList()
+        };
+
+        return RunScriptCompileResult.Ok(sequence, initialDelayMs: 0);
+    }
+
+    private RunScriptCompileResult ValidateRuntimeScriptNodes(IReadOnlyList<RunScriptNode> nodes, int loopDepth)
+    {
+        foreach (var node in nodes)
+        {
+            switch (node)
+            {
+                case CommandNode command:
+                    var commandValidation = ValidateRuntimeCommand(command.Source, loopDepth);
+                    if (!commandValidation.Success)
+                    {
+                        return commandValidation;
+                    }
+                    break;
+                case RepeatNode repeat:
+                    var repeatValidation = ValidateRuntimeScriptNodes(repeat.Body, loopDepth + 1);
+                    if (!repeatValidation.Success)
+                    {
+                        return repeatValidation;
+                    }
+                    break;
+                case WhileNode whileNode:
+                    var whileValidation = ValidateRuntimeScriptNodes(whileNode.Body, loopDepth + 1);
+                    if (!whileValidation.Success)
+                    {
+                        return whileValidation;
+                    }
+                    break;
+                case ForNode forNode:
+                    var forValidation = ValidateRuntimeScriptNodes(forNode.Body, loopDepth + 1);
+                    if (!forValidation.Success)
+                    {
+                        return forValidation;
+                    }
+                    break;
+                case IfNode ifNode:
+                    var trueValidation = ValidateRuntimeScriptNodes(ifNode.TrueBody, loopDepth);
+                    if (!trueValidation.Success)
+                    {
+                        return trueValidation;
+                    }
+
+                    if (ifNode.FalseBody is not null)
+                    {
+                        var falseValidation = ValidateRuntimeScriptNodes(ifNode.FalseBody, loopDepth);
+                        if (!falseValidation.Success)
+                        {
+                            return falseValidation;
+                        }
+                    }
+                    break;
+            }
+        }
+
+        return RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
+    }
+
+    private RunScriptCompileResult ValidateRuntimeCommand(RunScriptStep step, int loopDepth)
+    {
+        var trimmed = step.Step.Trim();
+        var source = BuildSourcePrefix(step);
+
+        if (IsScreenReadingStep(trimmed))
+        {
+            return TryParseScreenReadingStep(trimmed, out var screenReadingError) && screenReadingError != null
+                ? RunScriptCompileResult.Fail($"{source}: {screenReadingError}")
+                : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
+        }
+
+        if (RunScriptSyntax.IsBreakCommand(trimmed) || RunScriptSyntax.IsContinueCommand(trimmed))
+        {
+            return loopDepth == 0
+                ? RunScriptCompileResult.Fail($"{source}: {trimmed} can only be used inside repeat/while/for blocks.")
+                : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
+        }
+
+        if (IsRuntimeDelayCommand(trimmed)
+            || IsRuntimeVariableCommand(trimmed))
+        {
+            return RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
+        }
+
+        var compileResult = CompileExpandedSteps([step]);
+        return compileResult.Success
+            ? RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0)
+            : RunScriptCompileResult.Fail(compileResult.ErrorMessage);
+    }
+
+    private static bool IsRuntimeVariableCommand(string step)
+    {
+        if (step.StartsWith("set ", StringComparison.OrdinalIgnoreCase))
+        {
+            var payload = step[4..].Trim();
+            var equalIndex = payload.IndexOf('=');
+            if (equalIndex >= 0)
+            {
+                return EditorActionScriptTokens.IsValidVariableName(payload[..equalIndex].Trim());
+            }
+
+            var parts = payload.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return parts.Length == 2 && EditorActionScriptTokens.IsValidVariableName(parts[0]);
+        }
+
+        if (step.StartsWith("inc ", StringComparison.OrdinalIgnoreCase)
+            || step.StartsWith("dec ", StringComparison.OrdinalIgnoreCase))
+        {
+            var payload = step[4..].Trim();
+            var parts = payload.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return parts.Length is 1 or 2 && EditorActionScriptTokens.IsValidVariableName(parts[0]);
+        }
+
+        return false;
+    }
+
+    private static bool IsRuntimeDelayCommand(string step)
+    {
+        var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length < 2 || !string.Equals(parts[0], "delay", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (parts.Length == 2)
+        {
+            if (parts[1].Contains("..", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            return IsRuntimeIntegerToken(parts[1]);
+        }
+
+        if (parts.Length is 3 or 4 && string.Equals(parts[1], "random", StringComparison.OrdinalIgnoreCase))
+        {
+            if (parts.Length == 3)
+            {
+                var range = parts[2].Split("..", 2, StringSplitOptions.TrimEntries);
+                return range.Length == 2
+                    && IsRuntimeIntegerToken(range[0])
+                    && IsRuntimeIntegerToken(range[1]);
+            }
+
+            return IsRuntimeIntegerToken(parts[2]) && IsRuntimeIntegerToken(parts[3]);
+        }
+
+        return false;
+    }
+
+    private static bool IsRuntimeIntegerToken(string token)
+    {
+        if (int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var literal))
+        {
+            return literal >= 0;
+        }
+
+        return token.StartsWith('$')
+            && token.Length > 1
+            && EditorActionScriptTokens.IsValidVariableName(token[1..]);
+    }
+
+    private static bool ContainsScreenReadingNode(IReadOnlyList<RunScriptNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            switch (node)
+            {
+                case CommandNode commandNode when IsScreenReadingStep(commandNode.Source.Step):
+                    return true;
+                case RepeatNode repeatNode when ContainsScreenReadingNode(repeatNode.Body):
+                    return true;
+                case IfNode ifNode when ContainsScreenReadingNode(ifNode.TrueBody)
+                    || (ifNode.FalseBody != null && ContainsScreenReadingNode(ifNode.FalseBody)):
+                    return true;
+                case WhileNode whileNode when ContainsScreenReadingNode(whileNode.Body):
+                    return true;
+                case ForNode forNode when ContainsScreenReadingNode(forNode.Body):
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsScreenReadingStep(string step)
+    {
+        return RunScriptSyntax.IsScreenReadingStep(step);
     }
 
     private RunScriptCompileResult CompileExpandedSteps(IReadOnlyList<RunScriptStep> expandedSteps)
@@ -119,6 +333,7 @@ public sealed class RunScriptCompiler
         var initialRandomDelayMinMs = 0;
         var initialRandomDelayMaxMs = 0;
         var hasEvents = false;
+        var hasScreenReadingSteps = false;
         MouseCoordinateMode? currentMoveMode = null;
         var hasAbsoluteCursorPosition = false;
         var absoluteCursorX = 0;
@@ -321,6 +536,17 @@ public sealed class RunScriptCompiler
                     continue;
                 }
 
+                if (TryParseScreenReadingStep(step, out var screenReadingError))
+                {
+                    if (screenReadingError != null)
+                    {
+                        return RunScriptCompileResult.Fail($"{stepPrefix}: {screenReadingError}");
+                    }
+
+                    hasScreenReadingSteps = true;
+                    continue;
+                }
+
                 if (TryParseKey(step, out var isKeyDown, out var keyToken))
                 {
                     var keyCode = ResolveKeyCode(keyToken);
@@ -366,10 +592,18 @@ public sealed class RunScriptCompiler
             }
         }
 
-        if (!hasEvents)
+        if (!hasEvents && !hasScreenReadingSteps)
         {
             return RunScriptCompileResult.Fail(
                 "Run script did not produce any executable events. Add at least one runtime step (move/click/down/up/scroll/key/tap/type).");
+        }
+
+        if (hasScreenReadingSteps)
+        {
+            sequence.ScriptSteps = expandedSteps
+                .Select(step => step.Step.Trim())
+                .Where(step => !string.IsNullOrWhiteSpace(step))
+                .ToList();
         }
 
         sequence.IsAbsoluteCoordinates = MacroPositionSemantics.GetCoordinateModeSummary(sequence) == CoordinateModeSummary.Absolute;
@@ -1751,6 +1985,11 @@ public sealed class RunScriptCompiler
         }
 
         return true;
+    }
+
+    private static bool TryParseScreenReadingStep(string step, out string? error)
+    {
+        return RunScriptScreenReadingStepParser.TryValidateStep(step, out error);
     }
 
     private static bool TryResolveButton(string token, out MouseButton button)

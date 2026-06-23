@@ -2,6 +2,7 @@ namespace CrossMacro.Core.Tests.Services;
 
 using CrossMacro.Core.Models;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Platform.Abstractions;
 using FluentAssertions;
 using NSubstitute;
 
@@ -11,7 +12,7 @@ public class PlaybackValidatorTests
 
     public PlaybackValidatorTests()
     {
-        _validator = new PlaybackValidator();
+        _validator = new PlaybackValidator(CreateKeyCodeMapper());
     }
 
     [Fact]
@@ -23,6 +24,36 @@ public class PlaybackValidatorTests
         // Assert
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain("Macro is empty or null");
+    }
+
+    [Fact]
+    public void Validate_WhenHiddenScreenReadScriptContainsUnsupportedStep_ReturnsError()
+    {
+        var macro = new MacroSequence
+        {
+            ScriptSteps = ["pixelcolor 1 2 sampled", "bogus"]
+        };
+
+        var result = _validator.Validate(macro);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(error => error.Contains("Macro script steps are invalid", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("tap Backspace")]
+    [InlineData("tap F13")]
+    [InlineData("tap NumpadPlus")]
+    public void Validate_WhenScriptUsesRuntimeMappedKey_ReturnsNoErrors(string scriptStep)
+    {
+        var macro = new MacroSequence
+        {
+            ScriptSteps = ["pixelcolor 1 2 sampled", scriptStep]
+        };
+
+        var result = _validator.Validate(macro);
+
+        result.Errors.Should().BeEmpty();
     }
 
     [Fact]
@@ -248,7 +279,7 @@ public class PlaybackValidatorTests
         positionProvider.IsSupported.Returns(false);
         positionProvider.ProviderName.Returns("MockProvider");
 
-        var validator = new PlaybackValidator(positionProvider);
+        var validator = new PlaybackValidator(CreateKeyCodeMapper(), positionProvider);
         var macro = new MacroSequence
         {
             Events = new List<MacroEvent>
@@ -269,7 +300,7 @@ public class PlaybackValidatorTests
     public void Validate_WithNullPositionProvider_ReturnsWarning()
     {
         // Arrange
-        var validator = new PlaybackValidator(null);
+        var validator = new PlaybackValidator(CreateKeyCodeMapper());
         var macro = new MacroSequence
         {
             Events = new List<MacroEvent>
@@ -307,5 +338,40 @@ public class PlaybackValidatorTests
         // Assert
         result.IsValid.Should().BeFalse();
         result.Errors.Should().HaveCount(1);
+    }
+
+    private static IKeyCodeMapper CreateKeyCodeMapper()
+    {
+        return new KeyCodeMapper(new TestKeyboardLayoutService());
+    }
+
+    private sealed class TestKeyboardLayoutService : IKeyboardLayoutService
+    {
+        public string GetKeyName(int keyCode)
+        {
+            return keyCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        public int GetKeyCode(string keyName)
+        {
+            return -1;
+        }
+
+        public char? GetCharFromKeyCode(
+            int keyCode,
+            bool leftShift,
+            bool rightShift,
+            bool rightAlt,
+            bool leftAlt,
+            bool leftCtrl,
+            bool capsLock)
+        {
+            return null;
+        }
+
+        public (int KeyCode, bool Shift, bool AltGr)? GetInputForChar(char c)
+        {
+            return null;
+        }
     }
 }

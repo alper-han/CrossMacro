@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.Json;
@@ -7,6 +8,7 @@ using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Serialization;
+using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
 
@@ -17,11 +19,23 @@ public class MacroFileManager : IMacroFileManager
 {
     private const string TrailingDelayHeader = "# TrailingDelayMs: ";
     private const string TrailingRandomDelayHeader = "# TrailingRandomDelayMs: ";
-    private const string ScriptStepHeader = "# ScriptStepBase64: ";
     private const string TextInputBoundaryHeader = "# TextInputBoundaryBase64: ";
+    private const string ReadableFormatHeader = "# Format: CrossMacroFormatV2";
+    private const string ScriptSectionHeader = "[Script]";
+    private const string EventsSectionHeader = "[Events]";
+    private const string ScriptContinuationPrefix = "| ";
+    private readonly IKeyCodeMapper _keyCodeMapper;
 
-    public MacroFileManager()
+    private enum MacroFileReadSection
     {
+        Header,
+        Script,
+        Events
+    }
+
+    public MacroFileManager(IKeyCodeMapper keyCodeMapper)
+    {
+        _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
     }
     
     /// <summary>
@@ -37,6 +51,8 @@ public class MacroFileManager : IMacroFileManager
         
         if (!macro.IsValid())
             throw new InvalidOperationException("Cannot save invalid macro sequence");
+
+        ValidateScriptStepsBeforeSave(macro);
         
         // Ensure directory exists
         var directory = Path.GetDirectoryName(filePath);
@@ -64,16 +80,6 @@ public class MacroFileManager : IMacroFileManager
         {
             await writer.WriteLineAsync($"{TrailingRandomDelayHeader}{macro.TrailingDelayMinMs},{macro.TrailingDelayMaxMs}");
         }
-        foreach (var scriptStep in macro.ScriptSteps)
-        {
-            if (string.IsNullOrWhiteSpace(scriptStep))
-            {
-                continue;
-            }
-
-            var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(scriptStep));
-            await writer.WriteLineAsync($"{ScriptStepHeader}{encoded}");
-        }
         foreach (var boundary in macro.TextInputBoundaries)
         {
             if (boundary.EventCount <= 0 || boundary.StartEventIndex < 0)
@@ -85,7 +91,20 @@ public class MacroFileManager : IMacroFileManager
             var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
             await writer.WriteLineAsync($"{TextInputBoundaryHeader}{encoded}");
         }
-        await writer.WriteLineAsync("# Format: Cmd,Args...");
+
+        await writer.WriteLineAsync(ReadableFormatHeader);
+        await writer.WriteLineAsync(ScriptSectionHeader);
+        foreach (var scriptStep in macro.ScriptSteps)
+        {
+            if (string.IsNullOrWhiteSpace(scriptStep))
+            {
+                continue;
+            }
+
+            await WriteScriptStepAsync(writer, scriptStep);
+        }
+
+        await writer.WriteLineAsync(EventsSectionHeader);
         
         // Write Events
         foreach (var ev in macro.Events)
@@ -180,7 +199,50 @@ public class MacroFileManager : IMacroFileManager
     {
         return mode == MouseCoordinateMode.Absolute ? "abs" : "rel";
     }
-    
+
+    private void ValidateScriptStepsBeforeSave(MacroSequence macro)
+    {
+        if (macro.ScriptSteps == null)
+        {
+            return;
+        }
+
+        var steps = new List<RunScriptStep>(macro.ScriptSteps.Count);
+        for (var index = 0; index < macro.ScriptSteps.Count; index++)
+        {
+            var step = macro.ScriptSteps[index];
+            if (string.IsNullOrWhiteSpace(step))
+            {
+                continue;
+            }
+
+            steps.Add(new RunScriptStep(step, SourceIndex: index));
+        }
+
+        if (steps.Count == 0)
+        {
+            return;
+        }
+
+        var compiler = new RunScriptCompiler(_keyCodeMapper);
+        var result = compiler.Compile(steps);
+        if (!result.Success)
+        {
+            throw new InvalidOperationException($"Cannot save invalid macro script steps: {result.ErrorMessage}");
+        }
+    }
+
+    private static async Task WriteScriptStepAsync(TextWriter writer, string scriptStep)
+    {
+        var normalized = scriptStep.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\r", "\n", StringComparison.Ordinal);
+        var lines = normalized.Split('\n');
+        await writer.WriteLineAsync(lines[0]);
+        for (var index = 1; index < lines.Length; index++)
+        {
+            await writer.WriteLineAsync($"{ScriptContinuationPrefix}{lines[index]}");
+        }
+    }
+
     /// <summary>
     /// Loads a macro sequence from a custom text file (.macro)
     /// </summary>
@@ -199,13 +261,69 @@ public class MacroFileManager : IMacroFileManager
         bool currentHasRandomDelay = false;
         int currentRandomDelayMinMs = 0;
         int currentRandomDelayMaxMs = 0;
+        var section = MacroFileReadSection.Header;
+        string? pendingScriptStep = null;
+
+        void CommitPendingScriptStep()
+        {
+            if (!string.IsNullOrWhiteSpace(pendingScriptStep))
+            {
+                macro.ScriptSteps.Add(pendingScriptStep);
+            }
+
+            pendingScriptStep = null;
+        }
         
         foreach (var line in lines)
         {
-            if (string.IsNullOrWhiteSpace(line)) continue;
-            
-            if (line.StartsWith("#"))
+            var trimmed = line.Trim();
+            if (string.IsNullOrWhiteSpace(trimmed)) continue;
+
+            if (string.Equals(trimmed, ScriptSectionHeader, StringComparison.Ordinal))
             {
+                CommitPendingScriptStep();
+                section = MacroFileReadSection.Script;
+                continue;
+            }
+
+            if (string.Equals(trimmed, EventsSectionHeader, StringComparison.Ordinal))
+            {
+                CommitPendingScriptStep();
+                section = MacroFileReadSection.Events;
+                continue;
+            }
+
+            if (section == MacroFileReadSection.Script)
+            {
+                if (trimmed.StartsWith("#", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (line.StartsWith(ScriptContinuationPrefix, StringComparison.Ordinal))
+                {
+                    if (pendingScriptStep is null)
+                    {
+                        Log.Warning("Ignoring orphan script continuation line: {Line}", line);
+                        continue;
+                    }
+
+                    pendingScriptStep += "\n" + line[ScriptContinuationPrefix.Length..];
+                    continue;
+                }
+
+                CommitPendingScriptStep();
+                pendingScriptStep = line;
+                continue;
+            }
+
+            if (trimmed.StartsWith("#", StringComparison.Ordinal))
+            {
+                if (section != MacroFileReadSection.Header)
+                {
+                    continue;
+                }
+
                 // Parse Header
                 if (line.StartsWith("# Name: "))
                     macro.Name = line.Substring(8).Trim();
@@ -232,26 +350,6 @@ public class MacroFileManager : IMacroFileManager
                         macro.TrailingDelayMaxMs = trailingRandomMax;
                     }
                 }
-                else if (line.StartsWith(ScriptStepHeader, StringComparison.Ordinal))
-                {
-                    var encoded = line.Substring(ScriptStepHeader.Length).Trim();
-                    if (encoded.Length > 0)
-                    {
-                        try
-                        {
-                            var scriptStepBytes = Convert.FromBase64String(encoded);
-                            var scriptStep = Encoding.UTF8.GetString(scriptStepBytes);
-                            if (!string.IsNullOrWhiteSpace(scriptStep))
-                            {
-                                macro.ScriptSteps.Add(scriptStep);
-                            }
-                        }
-                        catch (FormatException ex)
-                        {
-                            Log.Warning(ex, "Ignoring malformed script step metadata");
-                        }
-                    }
-                }
                 else if (line.StartsWith(TextInputBoundaryHeader, StringComparison.Ordinal))
                 {
                     var encoded = line.Substring(TextInputBoundaryHeader.Length).Trim();
@@ -274,6 +372,11 @@ public class MacroFileManager : IMacroFileManager
                     }
                 }
                 
+                continue;
+            }
+
+            if (section == MacroFileReadSection.Script)
+            {
                 continue;
             }
             
@@ -433,6 +536,8 @@ public class MacroFileManager : IMacroFileManager
                 currentRandomDelayMaxMs = 0;
             }
         }
+
+        CommitPendingScriptStep();
 
         MarkLegacyCurrentPositionEvents(macro);
         

@@ -194,4 +194,104 @@ public class RunScriptCompilerTests
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("cannot map character '?' for type command");
     }
+
+    [Theory]
+    [InlineData("pixelcolor 1 2")]
+    [InlineData("pixelcolor 1 2 mycolor")]
+    [InlineData("pixelcolor rel -1 2")]
+    [InlineData("pixelcolor rel 1 2 underCursor")]
+    [InlineData("waitcolor 1 2 FF0000")]
+    [InlineData("waitcolor 1 2 FF0000 1000")]
+    [InlineData("waitcolor 1 2 FF0000 1000 wait_ok")]
+    [InlineData("waitcolor 1 2 $sampled 100 wait_ok")]
+    [InlineData("pixelsearch 0 0 10 10 123456")]
+    [InlineData("pixelsearch 0 0 10 10 123456 found_x found_y")]
+    [InlineData("pixelsearch 0 0 10 10 123456 found found_x found_y")]
+    [InlineData("pixelsearch 0 0 10 10 123456 tolerance 10")]
+    [InlineData("pixelsearch 0 0 10 10 123456 found found_x found_y tolerance 26")]
+    [InlineData("pixelsearch 0 0 10 10 $sampled found found_x found_y tolerance 10")]
+    public void Compile_WhenScreenReadingStepIsWellFormed_PreservesScriptStep(string step)
+    {
+        var result = _compiler.Compile([new RunScriptStep(step)]);
+
+        result.Success.Should().BeTrue(result.ErrorMessage);
+        result.Sequence.Should().NotBeNull();
+        result.Sequence!.Events.Should().BeEmpty();
+        result.Sequence.ScriptSteps.Should().Equal(step);
+    }
+
+    [Theory]
+    [InlineData("pixelcolor 1 2 #FF0000", "Invalid variable name")]
+    [InlineData("waitcolor 1 2 GG0000", "Invalid color")]
+    [InlineData("waitcolor 1 2 $1bad 100 wait_ok", "Invalid variable name")]
+    [InlineData("pixelcolor 1", "Invalid pixelcolor syntax")]
+    [InlineData("pixelcolor one 2 mycolor", "Invalid pixelcolor coordinate")]
+    [InlineData("pixelsearch 0 0 ten 10 123456 found_x found_y", "Invalid pixelsearch bounds")]
+    [InlineData("pixelsearch 0 0 10 10 123456 found_x found_y tolerance 256", "Invalid pixelsearch tolerance")]
+    [InlineData("pixelsearch 0 0 10 10 123456 tolerance -1", "Invalid pixelsearch tolerance")]
+    [InlineData("pixelsearch 0 0 10 10 123456 variation 10", "Invalid variable name")]
+    [InlineData("pixelcolorful 1 2 sampled", "unsupported step syntax")]
+    [InlineData("waitcolorful 1 2 FF0000", "unsupported step syntax")]
+    [InlineData("pixelsearchful 0 0 10 10 123456 found_x found_y", "unsupported step syntax")]
+    public void Compile_WhenScreenReadingStepIsMalformed_ReturnsFailure(string step, string expectedError)
+    {
+        var result = _compiler.Compile([new RunScriptStep(step)]);
+
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain(expectedError);
+    }
+
+    [Fact]
+    public void Compile_WhenScreenReadingScriptContainsUnsupportedCommand_ReturnsFailure()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("pixelcolor 1 2 sampled"),
+            new RunScriptStep("bogus")
+        ]);
+
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("unsupported step syntax");
+    }
+
+    [Fact]
+    public void Compile_WhenScreenReadingScriptContainsTopLevelBreak_ReturnsFailure()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("pixelcolor 1 2 sampled"),
+            new RunScriptStep("break")
+        ]);
+
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("inside repeat/while/for blocks");
+    }
+
+    [Fact]
+    public void Compile_WhenScreenReadingScriptUsesRuntimeDelayVariable_PreservesScriptSteps()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("set wait_ms 5"),
+            new RunScriptStep("pixelcolor 1 2 sampled"),
+            new RunScriptStep("delay $wait_ms")
+        ]);
+
+        result.Success.Should().BeTrue(result.ErrorMessage);
+        result.Sequence.Should().NotBeNull();
+        result.Sequence!.ScriptSteps.Should().Equal("set wait_ms 5", "pixelcolor 1 2 sampled", "delay $wait_ms");
+    }
+
+    [Fact]
+    public void Compile_WhenScreenReadingScriptUsesMalformedRuntimeDelay_ReturnsFailure()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("pixelcolor 1 2 sampled"),
+            new RunScriptStep("delay nope")
+        ]);
+
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("Invalid delay value");
+    }
 }

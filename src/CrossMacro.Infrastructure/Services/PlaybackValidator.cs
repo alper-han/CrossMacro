@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CrossMacro.Core.Models;
+using CrossMacro.Core.Services;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
@@ -19,9 +20,11 @@ public class ValidationResult
 public class PlaybackValidator
 {
     private readonly IMousePositionProvider? _provider;
+    private readonly IKeyCodeMapper _keyCodeMapper;
 
-    public PlaybackValidator(IMousePositionProvider? provider = null)
+    public PlaybackValidator(IKeyCodeMapper keyCodeMapper, IMousePositionProvider? provider = null)
     {
+        _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
         _provider = provider;
     }
 
@@ -29,7 +32,7 @@ public class PlaybackValidator
     {
         var result = new ValidationResult();
 
-        if (macro == null || macro.Events.Count == 0)
+        if (macro == null || (macro.Events.Count == 0 && !HasScreenReadScriptSteps(macro)))
         {
             result.AddError("Macro is empty or null");
             return result;
@@ -44,6 +47,8 @@ public class PlaybackValidator
         {
             result.AddError("Macro contains invalid/undefined EventType values");
         }
+
+        ValidateScriptSteps(macro, result);
 
 
         if (_provider == null)
@@ -128,4 +133,29 @@ public class PlaybackValidator
             and not MouseButton.ScrollLeft
             and not MouseButton.ScrollRight;
     }
+
+    private static bool HasScreenReadScriptSteps(MacroSequence macro)
+    {
+        return macro.ScriptSteps.Any(RunScriptSyntax.IsScreenReadingStep);
+    }
+
+    private void ValidateScriptSteps(MacroSequence macro, ValidationResult result)
+    {
+        var scriptSteps = macro.ScriptSteps
+            .Where(step => !string.IsNullOrWhiteSpace(step))
+            .Select((step, index) => new RunScriptStep(step, SourceIndex: index))
+            .ToList();
+        if (scriptSteps.Count == 0)
+        {
+            return;
+        }
+
+        var compiler = new RunScriptCompiler(_keyCodeMapper);
+        var compileResult = compiler.Compile(scriptSteps);
+        if (!compileResult.Success)
+        {
+            result.AddError($"Macro script steps are invalid: {compileResult.ErrorMessage}");
+        }
+    }
+
 }

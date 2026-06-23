@@ -512,7 +512,7 @@ public class EditorActionConverterTests
     {
         ConfigureTextInputTyping();
         _keyCodeMapper.GetKeyCode("Enter").Returns(InputEventCode.KEY_ENTER);
-        var fileManager = new MacroFileManager();
+        var fileManager = new MacroFileManager(_keyCodeMapper);
         var filePath = Path.Combine(Path.GetTempPath(), $"crossmacro_converter_{Guid.NewGuid():N}.macro");
         var text = "first line\nprice $10";
 
@@ -1056,7 +1056,7 @@ public class EditorActionConverterTests
     public async Task ToMacroSequence_SaveLoadAndRestore_WhenActionsUseMixedModes_PreservesEventModesAndCurrentPosition()
     {
         // Arrange
-        var fileManager = new MacroFileManager();
+        var fileManager = new MacroFileManager(_keyCodeMapper);
         var filePath = Path.Combine(Path.GetTempPath(), $"mixed_editor_roundtrip_{Guid.NewGuid()}.macro");
         var actions = new[]
         {
@@ -2345,6 +2345,182 @@ public class EditorActionConverterTests
     }
 
     [Fact]
+    public void FromMacroSequenceWithDiagnostics_WhenScreenReadingStepsPresent_RestoresStructuredActions()
+    {
+        // Arrange
+        var sequence = new MacroSequence
+        {
+            ScriptSteps =
+            [
+                "pixelcolor 10 20 color",
+                "pixelcolor rel -1 2 relativeColor",
+                "waitcolor 11 22 00FFAA 2500 wait_ok",
+                "pixelsearch 0 0 3 3 123456 found x y tolerance 5"
+            ]
+        };
+
+        // Act
+        var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
+
+        // Assert
+        result.RestoredFromScriptSteps.Should().BeTrue();
+        result.Warnings.Should().BeEmpty();
+        result.Actions.Should().HaveCount(4);
+        result.Actions[0].Type.Should().Be(EditorActionType.PixelColor);
+        result.Actions[0].ScreenX.Should().Be(10);
+        result.Actions[0].ScreenY.Should().Be(20);
+        result.Actions[0].ScreenColorVariableName.Should().Be("color");
+        result.Actions[1].Type.Should().Be(EditorActionType.PixelColor);
+        result.Actions[1].IsAbsolute.Should().BeFalse();
+        result.Actions[1].ScreenX.Should().Be(-1);
+        result.Actions[1].ScreenY.Should().Be(2);
+        result.Actions[1].ScreenColorVariableName.Should().Be("relativeColor");
+        result.Actions[2].Type.Should().Be(EditorActionType.WaitColor);
+        result.Actions[2].ScreenX.Should().Be(11);
+        result.Actions[2].ScreenY.Should().Be(22);
+        result.Actions[2].ScreenColorHex.Should().Be("00FFAA");
+        result.Actions[2].ScreenTimeoutMs.Should().Be(2500);
+        result.Actions[2].ScreenColorVariableName.Should().Be("wait_ok");
+        result.Actions[3].Type.Should().Be(EditorActionType.PixelSearch);
+        result.Actions[3].ScreenLeft.Should().Be(0);
+        result.Actions[3].ScreenTop.Should().Be(0);
+        result.Actions[3].ScreenWidth.Should().Be(3);
+        result.Actions[3].ScreenHeight.Should().Be(3);
+        result.Actions[3].ScreenColorHex.Should().Be("123456");
+        result.Actions[3].ScreenFoundVariableName.Should().Be("found");
+        result.Actions[3].ScreenFoundXVariableName.Should().Be("x");
+        result.Actions[3].ScreenFoundYVariableName.Should().Be("y");
+        result.Actions[3].ScreenTolerance.Should().Be(5);
+    }
+
+    [Fact]
+    public void ToMacroSequence_WhenScreenReadingActionsPresent_SerializesStructuredPayloads()
+    {
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.PixelColor,
+                IsAbsolute = true,
+                ScreenX = 10,
+                ScreenY = 20,
+                ScreenColorVariableName = "color"
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.PixelColor,
+                IsAbsolute = false,
+                ScreenX = -1,
+                ScreenY = 2,
+                ScreenColorVariableName = "relativeColor"
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.WaitColor,
+                ScreenX = 11,
+                ScreenY = 22,
+                ScreenColorHex = "00ffaa",
+                ScreenTimeoutMs = 2500,
+                ScreenColorVariableName = "wait_ok"
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.PixelSearch,
+                ScreenLeft = 0,
+                ScreenTop = 0,
+                ScreenWidth = 3,
+                ScreenHeight = 3,
+                ScreenColorHex = "123456",
+                ScreenFoundVariableName = "found",
+                ScreenFoundXVariableName = "x",
+                ScreenFoundYVariableName = "y",
+                ScreenTolerance = 5
+            }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Screen Reading", isAbsolute: true);
+
+        sequence.ScriptSteps.Should().Equal(
+            "pixelcolor 10 20 color",
+            "pixelcolor rel -1 2 relativeColor",
+            "waitcolor 11 22 00FFAA 2500 wait_ok",
+            "pixelsearch 0 0 3 3 123456 found x y tolerance 5");
+    }
+
+    [Fact]
+    public void ToAndFromMacroSequence_WhenScreenReadingActionsUseVariableTargetColors_PreservesVariableTargetColorMetadata()
+    {
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.WaitColor,
+                ScreenX = 11,
+                ScreenY = 22,
+                ScreenTargetColorSource = EditorActionScreenTargetColorSource.Variable,
+                ScreenTargetColorVariableName = "sampled",
+                ScreenTimeoutMs = 2500,
+                ScreenColorVariableName = "wait_ok"
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.PixelSearch,
+                ScreenLeft = 0,
+                ScreenTop = 0,
+                ScreenWidth = 3,
+                ScreenHeight = 3,
+                ScreenTargetColorSource = EditorActionScreenTargetColorSource.Variable,
+                ScreenTargetColorVariableName = "sampled",
+                ScreenFoundVariableName = "found",
+                ScreenFoundXVariableName = "x",
+                ScreenFoundYVariableName = "y",
+                ScreenTolerance = 5
+            }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Screen Reading Variables", isAbsolute: true);
+
+        sequence.ScriptSteps.Should().Equal(
+            "waitcolor 11 22 $sampled 2500 wait_ok",
+            "pixelsearch 0 0 3 3 $sampled found x y tolerance 5");
+
+        var restored = _converter.FromMacroSequenceWithDiagnostics(sequence);
+
+        restored.RestoredFromScriptSteps.Should().BeTrue();
+        restored.Warnings.Should().BeEmpty();
+        restored.Actions.Should().HaveCount(2);
+
+        AssertScreenTargetColor(restored.Actions[0], EditorActionType.WaitColor, "sampled");
+        AssertScreenTargetColor(restored.Actions[1], EditorActionType.PixelSearch, "sampled");
+    }
+
+    [Theory]
+    [InlineData("pixelcolor 10 20")]
+    [InlineData("pixelcolor rel 1 2")]
+    [InlineData("waitcolor 11 22 00FFAA")]
+    [InlineData("pixelsearch 0 0 3 3 123456")]
+    [InlineData("pixelsearch 0 0 3 3 123456 tolerance 10")]
+    public void FromMacroSequenceWithDiagnostics_WhenScreenReadingCompilerOnlyShapePresent_RestoresRawActionAndWarning(string step)
+    {
+        // Arrange
+        var sequence = new MacroSequence
+        {
+            ScriptSteps = [step]
+        };
+
+        // Act
+        var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
+
+        // Assert
+        result.RestoredFromScriptSteps.Should().BeTrue();
+        result.Warnings.Should().ContainSingle();
+        result.Warnings[0].Step.Should().Be(step);
+        result.Actions.Should().ContainSingle();
+        result.Actions[0].Type.Should().Be(EditorActionType.RawScriptStep);
+        result.Actions[0].Text.Should().Be(step);
+    }
+
+    [Fact]
     public void ToMacroSequence_WhenRawScriptStepPresent_PreservesRawStepAndCompiles()
     {
         // Arrange
@@ -2405,5 +2581,13 @@ public class EditorActionConverterTests
         _keyCodeMapper.GetCharacterForKeyCode(Arg.Any<int>(), Arg.Any<bool>()).Returns(call => (char)(call.Arg<int>() - 1_000));
         _keyCodeMapper.RequiresShift(Arg.Any<char>()).Returns(false);
         _keyCodeMapper.RequiresAltGr(Arg.Any<char>()).Returns(false);
+    }
+
+    private static void AssertScreenTargetColor(EditorAction action, EditorActionType expectedType, string expectedVariableName)
+    {
+        action.Type.Should().Be(expectedType);
+        action.TryGetScreenReadingPayload(out var payload).Should().BeTrue();
+        payload.ScreenTargetColorSource.Should().Be(EditorActionScreenTargetColorSource.Variable);
+        payload.ScreenTargetColorVariableName.Should().Be(expectedVariableName);
     }
 }

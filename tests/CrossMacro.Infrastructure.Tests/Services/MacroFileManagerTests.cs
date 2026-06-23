@@ -2,6 +2,7 @@ namespace CrossMacro.Infrastructure.Tests.Services;
 
 using CrossMacro.Core.Models;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Platform.Abstractions;
 using FluentAssertions;
 
 public class MacroFileManagerTests : IDisposable
@@ -11,7 +12,7 @@ public class MacroFileManagerTests : IDisposable
 
     public MacroFileManagerTests()
     {
-        _manager = new MacroFileManager();
+        _manager = CreateManager();
     }
 
     public void Dispose()
@@ -32,6 +33,11 @@ public class MacroFileManagerTests : IDisposable
         var path = Path.Combine(Path.GetTempPath(), $"test_macro_{Guid.NewGuid()}.macro");
         _tempFiles.Add(path);
         return path;
+    }
+
+    private static MacroFileManager CreateManager()
+    {
+        return new MacroFileManager(new KeyCodeMapper(new TestKeyboardLayoutService()));
     }
 
     private MacroSequence CreateValidMacro(string name = "Test Macro")
@@ -179,7 +185,7 @@ public class MacroFileManagerTests : IDisposable
     }
 
     [Fact]
-    public async Task SaveAndLoad_RoundTrip_PreservesEventCount()
+    public async Task SaveAndLoad_RoundTrip_PreservesEventOnlyMacro()
     {
         // Arrange
         var macro = CreateValidMacro();
@@ -187,9 +193,12 @@ public class MacroFileManagerTests : IDisposable
 
         // Act
         await _manager.SaveAsync(macro, filePath);
+        var saved = await File.ReadAllTextAsync(filePath);
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
+        saved.Should().Contain("# Format: CrossMacroFormatV2");
+        saved.Should().Contain("[Events]");
         loaded.Should().NotBeNull();
         loaded!.Events.Should().HaveCount(macro.Events.Count);
     }
@@ -353,7 +362,8 @@ public class MacroFileManagerTests : IDisposable
 # Created: 2024-01-01T00:00:00Z
 # DurationMs: 1000
 # IsAbsolute: True
-# Format: Cmd,Args...
+# Format: CrossMacroFormatV2
+[Events]
 M,0,0
 W,500
 M,100,100";
@@ -369,6 +379,35 @@ M,100,100";
     }
 
     [Fact]
+    public async Task Load_WhenEventLinesHaveNoSections_StillParsesLegacyEventLines()
+    {
+        // Arrange
+        var filePath = GetTempFilePath();
+        var content = """
+# Name: Sectionless Events
+# Created: 2024-01-01T00:00:00Z
+# DurationMs: 1000
+# IsAbsolute: True
+M,0,0
+W,500
+KP,65
+""";
+
+        await File.WriteAllTextAsync(filePath, content);
+
+        // Act
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.ScriptSteps.Should().BeEmpty();
+        loaded.Events.Should().HaveCount(2);
+        loaded.Events[0].Type.Should().Be(EventType.MouseMove);
+        loaded.Events[1].Type.Should().Be(EventType.KeyPress);
+        loaded.Events[1].DelayMs.Should().Be(500);
+    }
+
+    [Fact]
     public async Task Load_WhenMalformedEventAppears_DoesNotLeakDelayToNextValidEvent()
     {
         // Arrange
@@ -377,7 +416,8 @@ M,100,100";
 # Created: 2024-01-01T00:00:00Z
 # DurationMs: 1000
 # IsAbsolute: True
-# Format: Cmd,Args...
+# Format: CrossMacroFormatV2
+[Events]
 M,0,0
 W,500
 P,invalid,10,Left
@@ -405,7 +445,8 @@ M,100,100";
 # DurationMs: 0
 # IsAbsolute: False
 # SkipInitialZero: True
-# Format: Cmd,Args...
+# Format: CrossMacroFormatV2
+[Events]
 C,0,0,Left";
 
         await File.WriteAllTextAsync(filePath, content);
@@ -429,7 +470,8 @@ C,0,0,Left";
 # DurationMs: 0
 # IsAbsolute: False
 # SkipInitialZero: True
-# Format: Cmd,Args...
+# Format: CrossMacroFormatV2
+[Events]
 C,0,0,Left
 M,15,5
 C,0,0,Left";
@@ -457,7 +499,8 @@ C,0,0,Left";
 # DurationMs: 0
 # IsAbsolute: False
 # SkipInitialZero: True
-# Format: Cmd,Args...
+# Format: CrossMacroFormatV2
+[Events]
 C,rel,0,0,Left";
 
         await File.WriteAllTextAsync(filePath, content);
@@ -547,7 +590,8 @@ C,rel,0,0,Left";
 # Created: 2024-01-01T00:00:00Z
 # DurationMs: 1000
 # IsAbsolute: True
-# Format: Cmd,Args...
+# Format: CrossMacroFormatV2
+[Events]
 M,0,0
 WR,100,250
 M,100,100";
@@ -589,11 +633,213 @@ M,100,100";
 
         // Act
         await _manager.SaveAsync(macro, filePath);
+        var saved = await File.ReadAllTextAsync(filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        saved.Should().Contain("# Format: CrossMacroFormatV2");
+        saved.Should().Contain("[Script]");
+        saved.Should().Contain("set i 0");
+        saved.Should().Contain("for i from 1 to 10 {");
+        saved.Should().Contain("click left");
+        saved.Should().Contain("}");
+        saved.Should().Contain("[Events]");
+        loaded.Should().NotBeNull();
+        loaded!.Events.Should().HaveCount(1);
+        loaded.Events[0].Type.Should().Be(EventType.Click);
+        loaded!.ScriptSteps.Should().Equal(macro.ScriptSteps);
+    }
+
+    [Fact]
+    public async Task Load_WhenReadableScriptSectionPresent_RestoresScriptSteps()
+    {
+        // Arrange
+        var filePath = GetTempFilePath();
+        var content = """
+# Name: Readable Script Step Macro
+# Created: 2024-01-01T00:00:00Z
+# DurationMs: 0
+# IsAbsolute: True
+# Format: CrossMacroFormatV2
+[Script]
+pixelcolor 10 20 color
+waitcolor 11 22 00FFAA 2500 wait_ok
+pixelsearch 0 0 3 3 123456 found x y
+[Events]
+""";
+
+        await File.WriteAllTextAsync(filePath, content);
+
+        // Act
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
         loaded.Should().NotBeNull();
+        loaded!.Events.Should().BeEmpty();
+        loaded.ScriptSteps.Should().Equal(
+            "pixelcolor 10 20 color",
+            "waitcolor 11 22 00FFAA 2500 wait_ok",
+            "pixelsearch 0 0 3 3 123456 found x y");
+    }
+
+    [Fact]
+    public async Task Load_IgnoresBlankAndCommentLines_InReadableSections()
+    {
+        // Arrange
+        var filePath = GetTempFilePath();
+        var content = """
+# Name: Readable Section Noise
+# Format: CrossMacroFormatV2
+[Script]
+
+# ignore me
+pixelcolor 10 20 color
+
+# another comment
+click left
+[Events]
+
+# comment in events
+M,10,20
+
+KP,65
+""";
+
+        await File.WriteAllTextAsync(filePath, content);
+
+        // Act
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.ScriptSteps.Should().Equal("pixelcolor 10 20 color", "click left");
+        loaded.Events.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_WhenScriptStepContainsEmbeddedNewline_PreservesContinuationPrefix()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Embedded Newline Script Step Round Trip",
+            ScriptSteps = ["type first line\npath C:\\Users\\me"]
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        await _manager.SaveAsync(macro, filePath);
+        var savedLines = await File.ReadAllLinesAsync(filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        savedLines.Should().ContainInOrder(
+            "# Format: CrossMacroFormatV2",
+            "[Script]",
+            "type first line",
+            "| path C:\\Users\\me");
+        loaded.Should().NotBeNull();
         loaded!.ScriptSteps.Should().Equal(macro.ScriptSteps);
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_RoundTrip_PreservesScriptOnlyMacro()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Script Only Round Trip",
+            ScriptSteps =
+            [
+                "pixelcolor 10 20 color",
+                "pixelsearch 0 0 3 3 123456 x y"
+            ]
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        await _manager.SaveAsync(macro, filePath);
+        var saved = await File.ReadAllTextAsync(filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        saved.Should().Contain("# Format: CrossMacroFormatV2");
+        saved.Should().Contain("[Script]");
+        saved.Should().Contain("pixelcolor 10 20 color");
+        saved.Should().Contain("pixelsearch 0 0 3 3 123456 x y");
+        loaded.Should().NotBeNull();
+        loaded!.Events.Should().BeEmpty();
+        loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_RoundTrip_PreservesScriptSpecialCharacters()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Script Special Characters Round Trip",
+            ScriptSteps =
+            [
+                "type [demo], #1, C:\\Temp\\macro.txt"
+            ]
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        await _manager.SaveAsync(macro, filePath);
+        var saved = await File.ReadAllTextAsync(filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        saved.Should().Contain("type [demo], #1, C:\\Temp\\macro.txt");
+        saved.Should().Contain("# Format: CrossMacroFormatV2");
+        loaded.Should().NotBeNull();
+        loaded!.Events.Should().BeEmpty();
+        loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenScriptOnlyMacroHasInvalidScript_ThrowsAndDoesNotCreateFile()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Invalid Script Step Macro",
+            ScriptSteps = ["pixelcolor 1"]
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        var act = async () => await _manager.SaveAsync(macro, filePath);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*Invalid pixelcolor syntax*");
+        File.Exists(filePath).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("tap Backspace")]
+    [InlineData("tap F13")]
+    [InlineData("tap NumpadPlus")]
+    public async Task SaveAndLoad_WhenScriptUsesRuntimeMappedKey_PreservesScriptStep(string scriptStep)
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Runtime Mapped Key Script",
+            ScriptSteps = [scriptStep]
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        await _manager.SaveAsync(macro, filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.ScriptSteps.Should().Equal(scriptStep);
     }
 
     [Fact]
@@ -620,9 +866,13 @@ M,100,100";
 
         // Act
         await _manager.SaveAsync(macro, filePath);
+        var saved = await File.ReadAllTextAsync(filePath);
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
+        saved.Should().Contain("# Format: CrossMacroFormatV2");
+        saved.Should().Contain("# TextInputBoundaryBase64:");
+        saved.Should().Contain("[Events]");
         loaded.Should().NotBeNull();
         loaded!.TextInputBoundaries.Should().Equal(macro.TextInputBoundaries);
     }
@@ -634,7 +884,8 @@ M,100,100";
         var filePath = GetTempFilePath();
         var content = @"# Name: Legacy Absolute
 # IsAbsolute: True
-# Format: Cmd,Args...
+# Format: CrossMacroFormatV2
+[Events]
 M,10,20
 P,10,20,Left";
 
@@ -663,7 +914,8 @@ P,10,20,Left";
         var content = @"# Name: Legacy Relative
 # IsAbsolute: False
 # SkipInitialZero: False
-# Format: Cmd,Args...
+# Format: CrossMacroFormatV2
+[Events]
 M,5,6
 C,5,6,Right";
 
@@ -867,7 +1119,8 @@ C,5,6,Right";
         var filePath = GetTempFilePath();
         var content = @"# Name: Invalid Mode
 # IsAbsolute: True
-# Format: Cmd,Args...
+# Format: CrossMacroFormatV2
+[Events]
 M,foo,1,2
 P,bar,3,4,Left
 M,abs,10,20";
@@ -895,7 +1148,8 @@ M,abs,10,20";
         [
             "# Name: Malformed Boundary",
             "# TextInputBoundaryBase64: not-base64",
-            "# Format: Cmd,Args...",
+            "# Format: CrossMacroFormatV2",
+            "[Events]",
             "KP,65",
             "KR,65"
         ]);
@@ -920,7 +1174,8 @@ M,abs,10,20";
         [
             "# Name: Legacy Boundary",
             $"# TextInputBoundaryBase64: {encodedBoundary}",
-            "# Format: Cmd,Args...",
+            "# Format: CrossMacroFormatV2",
+            "[Events]",
             "KP,65",
             "KR,65"
         ]);
@@ -932,5 +1187,35 @@ M,abs,10,20";
         loaded.Should().NotBeNull();
         loaded!.TextInputBoundaries.Should().Equal(new TextInputBoundary(0, 2, "legacy text"));
         loaded.Events.Should().HaveCount(2);
+    }
+
+    private sealed class TestKeyboardLayoutService : IKeyboardLayoutService
+    {
+        public string GetKeyName(int keyCode)
+        {
+            return keyCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        public int GetKeyCode(string keyName)
+        {
+            return -1;
+        }
+
+        public char? GetCharFromKeyCode(
+            int keyCode,
+            bool leftShift,
+            bool rightShift,
+            bool rightAlt,
+            bool leftAlt,
+            bool leftCtrl,
+            bool capsLock)
+        {
+            return keyCode is >= char.MinValue and <= char.MaxValue ? (char)keyCode : null;
+        }
+
+        public (int KeyCode, bool Shift, bool AltGr)? GetInputForChar(char c)
+        {
+            return (char.ToUpperInvariant(c), char.IsUpper(c), false);
+        }
     }
 }

@@ -1,3 +1,5 @@
+using System;
+using System.Reflection;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Resources;
 using CrossMacro.Infrastructure.Services;
@@ -98,6 +100,182 @@ public class EditorActionValidatorTests
         // Assert
         result.IsValid.Should().BeFalse();
         result.Error.Should().Contain("maximum");
+    }
+
+    [Fact]
+    public void Validate_WaitColorWithInvalidResultVariable_ReturnsInvalid()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.WaitColor,
+            ScreenX = 1,
+            ScreenY = 2,
+            ScreenColorHex = "00FF00",
+            ScreenTimeoutMs = 100,
+            ScreenColorVariableName = "1invalid"
+        };
+
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("result variable");
+    }
+
+    [Fact]
+    public void Validate_PixelSearchWithInvalidFoundVariable_ReturnsInvalid()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.PixelSearch,
+            ScreenLeft = 0,
+            ScreenTop = 0,
+            ScreenWidth = 10,
+            ScreenHeight = 10,
+            ScreenColorHex = "00FF00",
+            ScreenTolerance = 0,
+            ScreenFoundVariableName = "1invalid",
+            ScreenFoundXVariableName = "found_x",
+            ScreenFoundYVariableName = "found_y"
+        };
+
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("output variable");
+    }
+
+    [Theory]
+    [MemberData(nameof(ValidScreenReadingActions))]
+    public void Validate_ScreenReadingActionsWithStructuredPayload_ReturnsValid(EditorAction action)
+    {
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeTrue();
+        result.Error.Should().BeNull();
+    }
+
+    public static IEnumerable<object[]> ValidScreenReadingActions()
+    {
+        yield return
+        [
+            new EditorAction
+            {
+                Type = EditorActionType.PixelColor,
+                IsAbsolute = false,
+                ScreenX = -5,
+                ScreenY = 8,
+                ScreenColorVariableName = "sample_color"
+            }
+        ];
+
+        yield return
+        [
+            new EditorAction
+            {
+                Type = EditorActionType.WaitColor,
+                ScreenX = 5,
+                ScreenY = 8,
+                ScreenColorHex = "00FF00",
+                ScreenTimeoutMs = 100,
+                ScreenColorVariableName = "wait_ok"
+            }
+        ];
+
+        yield return
+        [
+            new EditorAction
+            {
+                Type = EditorActionType.PixelSearch,
+                ScreenLeft = 0,
+                ScreenTop = 0,
+                ScreenWidth = 10,
+                ScreenHeight = 10,
+                ScreenColorHex = "00FF00",
+                ScreenTolerance = 255,
+                ScreenFoundVariableName = "found",
+                ScreenFoundXVariableName = "found_x",
+                ScreenFoundYVariableName = "found_y"
+            }
+        ];
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.WaitColor)]
+    [InlineData(EditorActionType.PixelSearch)]
+    public void Validate_TargetColorSource_WhenManualModeAndHexIsInvalid_ReturnsInvalid(EditorActionType actionType)
+    {
+        var action = CreateScreenReadingAction(actionType);
+        SetRequiredEnumPropertyValue(action, "ScreenTargetColorSource", "Manual");
+        action.ScreenColorHex = "00GG00";
+
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("target");
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.WaitColor)]
+    [InlineData(EditorActionType.PixelSearch)]
+    public void Validate_TargetColorSource_WhenVariableModeAndNameIsInvalid_ReturnsInvalid(EditorActionType actionType)
+    {
+        var action = CreateScreenReadingAction(actionType);
+        SetRequiredEnumPropertyValue(action, "ScreenTargetColorSource", "Variable");
+        SetRequiredPropertyValue(action, "ScreenTargetColorVariableName", "1invalid");
+        action.ScreenColorHex = "00FF00";
+
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("variable");
+    }
+
+    private static EditorAction CreateScreenReadingAction(EditorActionType actionType)
+    {
+        return actionType switch
+        {
+            EditorActionType.WaitColor => new EditorAction
+            {
+                Type = EditorActionType.WaitColor,
+                ScreenX = 1,
+                ScreenY = 2,
+                ScreenColorHex = "00FF00",
+                ScreenTimeoutMs = 100,
+                ScreenColorVariableName = "result"
+            },
+            EditorActionType.PixelSearch => new EditorAction
+            {
+                Type = EditorActionType.PixelSearch,
+                ScreenLeft = 0,
+                ScreenTop = 0,
+                ScreenWidth = 10,
+                ScreenHeight = 10,
+                ScreenColorHex = "00FF00",
+                ScreenTolerance = 0,
+                ScreenFoundVariableName = "found",
+                ScreenFoundXVariableName = "found_x",
+                ScreenFoundYVariableName = "found_y"
+            },
+            _ => throw new ArgumentOutOfRangeException(nameof(actionType), actionType, null)
+        };
+    }
+
+    private static PropertyInfo GetRequiredProperty(object target, string propertyName)
+    {
+        return target.GetType().GetProperty(propertyName)
+            ?? throw new InvalidOperationException($"Expected property '{propertyName}' on {target.GetType().Name}.");
+    }
+
+    private static void SetRequiredPropertyValue(object target, string propertyName, object? value)
+    {
+        GetRequiredProperty(target, propertyName).SetValue(target, value);
+    }
+
+    private static void SetRequiredEnumPropertyValue(object target, string propertyName, string enumName)
+    {
+        var property = GetRequiredProperty(target, propertyName);
+        var value = Enum.Parse(property.PropertyType, enumName, ignoreCase: false);
+        property.SetValue(target, value);
     }
 
     [Fact]

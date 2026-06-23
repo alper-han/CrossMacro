@@ -704,6 +704,18 @@ public class EditorActionConverter : IEditorActionConverter
                 yield return BuildForStep(action);
                 yield break;
 
+            case EditorActionType.PixelColor:
+                yield return BuildPixelColorStep(action);
+                yield break;
+
+            case EditorActionType.WaitColor:
+                yield return BuildWaitColorStep(action);
+                yield break;
+
+            case EditorActionType.PixelSearch:
+                yield return BuildPixelSearchStep(action);
+                yield break;
+
             case EditorActionType.Break:
                 yield return RunScriptSyntax.BreakCommand;
                 yield break;
@@ -723,6 +735,41 @@ public class EditorActionConverter : IEditorActionConverter
             default:
                 yield break;
         }
+    }
+
+    private static string BuildPixelColorStep(EditorAction action)
+    {
+        var payload = GetScreenReadingPayload(action);
+        var variableName = payload.NormalizeColorVariableToken();
+        return payload.IsAbsolute
+            ? $"pixelcolor {payload.ScreenX} {payload.ScreenY} {variableName}"
+            : $"pixelcolor rel {payload.ScreenX} {payload.ScreenY} {variableName}";
+    }
+
+    private static string BuildWaitColorStep(EditorAction action)
+    {
+        var payload = GetScreenReadingPayload(action);
+        var resultVariableName = payload.NormalizeColorVariableToken();
+        return $"waitcolor {payload.ScreenX} {payload.ScreenY} {payload.FormatTargetColorToken()} {payload.ScreenTimeoutMs} {resultVariableName}";
+    }
+
+    private static string BuildPixelSearchStep(EditorAction action)
+    {
+        var payload = GetScreenReadingPayload(action);
+        var foundVariableName = payload.NormalizeFoundVariableToken();
+        var xVariableName = payload.NormalizeFoundXVariableToken();
+        var yVariableName = payload.NormalizeFoundYVariableToken();
+        return $"pixelsearch {payload.ScreenLeft} {payload.ScreenTop} {payload.ScreenRight} {payload.ScreenBottom} {payload.FormatTargetColorToken()} {foundVariableName} {xVariableName} {yVariableName} tolerance {payload.ScreenTolerance}";
+    }
+
+    private static EditorActionScreenReadingPayload GetScreenReadingPayload(EditorAction action)
+    {
+        if (!action.TryGetScreenReadingPayload(out var payload))
+        {
+            throw new InvalidOperationException("Action type does not contain a screen-reading payload.");
+        }
+
+        return payload;
     }
 
     private static string ToButtonToken(MouseButton button)
@@ -1241,6 +1288,12 @@ public class EditorActionConverter : IEditorActionConverter
                 continue;
             }
 
+            if (TryParseScreenReadingStep(step, out var screenReadingAction))
+            {
+                actions.Add(screenReadingAction);
+                continue;
+            }
+
             if (TryParseIncDecStep(step, "inc", EditorActionType.IncrementVariable, out var incrementAction))
             {
                 actions.Add(incrementAction);
@@ -1717,6 +1770,174 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         return true;
+    }
+
+    private static bool TryParseScreenReadingStep(string step, out EditorAction action)
+    {
+        return TryParsePixelColorStep(step, out action)
+            || TryParseWaitColorStep(step, out action)
+            || TryParsePixelSearchStep(step, out action);
+    }
+
+    private static bool TryParsePixelColorStep(string step, out EditorAction action)
+    {
+        action = new EditorAction();
+        if (!RunScriptScreenReadingStepParser.TryParseCommand(step, out var command, out var tokens)
+            || command != RunScriptScreenReadingCommand.PixelColor)
+        {
+            return false;
+        }
+
+        if (tokens.Length == 4)
+        {
+            if (!TryParseInteger(tokens[1], out var x)
+                || !TryParseInteger(tokens[2], out var y)
+                || !TryNormalizeVariableName(tokens[3], out var variableName))
+            {
+                return false;
+            }
+
+            action = new EditorAction();
+            action.ApplyScreenReadingPayload(EditorActionScreenReadingPayload.ForPixelColor(true, x, y, variableName));
+            return true;
+        }
+
+        if (tokens.Length == 5 && tokens[1].Equals("rel", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TryParseInteger(tokens[2], out var x)
+                || !TryParseInteger(tokens[3], out var y)
+                || !TryNormalizeVariableName(tokens[4], out var variableName))
+            {
+                return false;
+            }
+
+            action = new EditorAction();
+            action.ApplyScreenReadingPayload(EditorActionScreenReadingPayload.ForPixelColor(false, x, y, variableName));
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseWaitColorStep(string step, out EditorAction action)
+    {
+        action = new EditorAction();
+        if (!RunScriptScreenReadingStepParser.TryParseCommand(step, out var command, out var tokens)
+            || command != RunScriptScreenReadingCommand.WaitColor
+            || tokens.Length is not (5 or 6))
+        {
+            return false;
+        }
+
+        if (!TryParseInteger(tokens[1], out var x)
+            || !TryParseInteger(tokens[2], out var y)
+            || !TryParseTargetColorToken(tokens[3], out var colorSource, out var colorHex, out var targetColorVariableName)
+            || !TryParseInteger(tokens[4], out var timeoutMs))
+        {
+            return false;
+        }
+
+        var variableName = tokens.Length == 6 && TryNormalizeVariableName(tokens[5], out var resultVariableName)
+            ? resultVariableName
+            : EditorActionScreenReadingPayload.DefaultColorVariableName;
+        action = new EditorAction();
+        action.ApplyScreenReadingPayload(EditorActionScreenReadingPayload.ForWaitColor(x, y, colorHex, timeoutMs, variableName));
+        action.ScreenTargetColorSource = colorSource;
+        action.ScreenTargetColorVariableName = targetColorVariableName;
+        return true;
+    }
+
+    private static bool TryParsePixelSearchStep(string step, out EditorAction action)
+    {
+        action = new EditorAction();
+        if (!RunScriptScreenReadingStepParser.TryParseCommand(step, out var command, out var tokens)
+            || command != RunScriptScreenReadingCommand.PixelSearch
+            || tokens.Length is not (8 or 9 or 10 or 11))
+        {
+            return false;
+        }
+
+        var hasFoundVariable = tokens.Length is 9 or 11;
+        var xVariableIndex = hasFoundVariable ? 7 : 6;
+        var yVariableIndex = hasFoundVariable ? 8 : 7;
+        var toleranceKeywordIndex = hasFoundVariable ? 9 : 8;
+
+        if (!TryParseInteger(tokens[1], out var x1)
+            || !TryParseInteger(tokens[2], out var y1)
+            || !TryParseInteger(tokens[3], out var x2)
+            || !TryParseInteger(tokens[4], out var y2)
+            || !TryParseTargetColorToken(tokens[5], out var colorSource, out var colorHex, out var targetColorVariableName)
+            || (hasFoundVariable && !TryNormalizeVariableName(tokens[6], out _))
+            || !TryNormalizeVariableName(tokens[xVariableIndex], out var xVariableName)
+            || !TryNormalizeVariableName(tokens[yVariableIndex], out var yVariableName)
+            || x2 <= x1
+            || y2 <= y1)
+        {
+            return false;
+        }
+
+        var tolerance = 0;
+        if (tokens.Length is 10 or 11)
+        {
+            if (!RunScriptScreenReadingStepParser.IsPixelSearchToleranceKeyword(tokens[toleranceKeywordIndex]))
+            {
+                return false;
+            }
+
+            if (!TryParseInteger(tokens[toleranceKeywordIndex + 1], out tolerance) || tolerance is < 0 or > byte.MaxValue)
+            {
+                return false;
+            }
+        }
+
+        var foundName = hasFoundVariable && TryNormalizeVariableName(tokens[6], out var foundVariableName)
+            ? foundVariableName
+            : EditorActionScreenReadingPayload.DefaultFoundVariableName;
+        action = new EditorAction();
+        action.ApplyScreenReadingPayload(EditorActionScreenReadingPayload.ForPixelSearch(
+            x1,
+            y1,
+            x2 - x1,
+            y2 - y1,
+            colorHex,
+            foundName,
+            xVariableName,
+            yVariableName,
+            tolerance));
+        action.ScreenTargetColorSource = colorSource;
+        action.ScreenTargetColorVariableName = targetColorVariableName;
+        return true;
+    }
+
+    private static bool TryParseTargetColorToken(
+        string token,
+        out EditorActionScreenTargetColorSource colorSource,
+        out string colorHex,
+        out string variableName)
+    {
+        colorSource = EditorActionScreenTargetColorSource.ManualHex;
+        colorHex = EditorActionScreenReadingPayload.DefaultColorHex;
+        variableName = EditorActionScreenReadingPayload.DefaultTargetColorVariableName;
+
+        if (ScreenPixelColor.TryParse(token, out var color))
+        {
+            colorHex = color.ToString();
+            return true;
+        }
+
+        if (!token.StartsWith("$", StringComparison.Ordinal)
+            || !TryNormalizeVariableName(token, out variableName))
+        {
+            return false;
+        }
+
+        colorSource = EditorActionScreenTargetColorSource.Variable;
+        return true;
+    }
+
+    private static bool TryParseInteger(string value, out int result)
+    {
+        return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
     }
 
     private static bool TryParseIncDecStep(string step, string keyword, EditorActionType actionType, out EditorAction action)

@@ -46,6 +46,21 @@ public class EditorAction : INotifyPropertyChanged
     private bool _forHasStep;
     private ScriptNumericSourceType _forStepType = ScriptNumericSourceType.Number;
     private string _forStepValue = "1";
+    private int _screenX;
+    private int _screenY;
+    private int _screenLeft;
+    private int _screenTop;
+    private int _screenWidth = 1920;
+    private int _screenHeight = 1080;
+    private string _screenColorHex = "FFFFFF";
+    private EditorActionScreenTargetColorSource _screenTargetColorSource = EditorActionScreenTargetColorSource.ManualHex;
+    private string _screenTargetColorVariableName = EditorActionScreenReadingPayload.DefaultTargetColorVariableName;
+    private string _screenColorVariableName = "color";
+    private int _screenTimeoutMs = 5000;
+    private int _screenTolerance;
+    private string _screenFoundVariableName = "found";
+    private string _screenFoundXVariableName = "found_x";
+    private string _screenFoundYVariableName = "found_y";
     private bool _preferLegacyScriptText;
     private List<MacroEvent>? _preservedTextInputEvents;
     private string? _preservedTextInputText;
@@ -744,6 +759,127 @@ public class EditorAction : INotifyPropertyChanged
             OnPropertyChanged(nameof(DisplayName));
         }
     }
+
+    public int ScreenX
+    {
+        get => _screenX;
+        set => SetScreenField(ref _screenX, value);
+    }
+
+    public int ScreenY
+    {
+        get => _screenY;
+        set => SetScreenField(ref _screenY, value);
+    }
+
+    public int ScreenLeft
+    {
+        get => _screenLeft;
+        set => SetScreenField(ref _screenLeft, value);
+    }
+
+    public int ScreenTop
+    {
+        get => _screenTop;
+        set => SetScreenField(ref _screenTop, value);
+    }
+
+    public int ScreenWidth
+    {
+        get => _screenWidth;
+        set => SetScreenField(ref _screenWidth, value);
+    }
+
+    public int ScreenHeight
+    {
+        get => _screenHeight;
+        set => SetScreenField(ref _screenHeight, value);
+    }
+
+    public string ScreenColorHex
+    {
+        get => _screenColorHex;
+        set => SetScreenField(ref _screenColorHex, NormalizeColorHex(value));
+    }
+
+    public EditorActionScreenTargetColorSource ScreenTargetColorSource
+    {
+        get => _screenTargetColorSource;
+        set => SetScreenField(ref _screenTargetColorSource, value);
+    }
+
+    public string ScreenTargetColorVariableName
+    {
+        get => _screenTargetColorVariableName;
+        set => SetScreenField(ref _screenTargetColorVariableName, value?.Trim() ?? string.Empty);
+    }
+
+    public string ScreenColorVariableName
+    {
+        get => _screenColorVariableName;
+        set => SetScreenField(ref _screenColorVariableName, value?.Trim() ?? string.Empty);
+    }
+
+    public int ScreenTimeoutMs
+    {
+        get => _screenTimeoutMs;
+        set => SetScreenField(ref _screenTimeoutMs, value);
+    }
+
+    public int ScreenTolerance
+    {
+        get => _screenTolerance;
+        set => SetScreenField(ref _screenTolerance, value);
+    }
+
+    public string ScreenFoundVariableName
+    {
+        get => _screenFoundVariableName;
+        set => SetScreenField(ref _screenFoundVariableName, value?.Trim() ?? string.Empty);
+    }
+
+    public string ScreenFoundXVariableName
+    {
+        get => _screenFoundXVariableName;
+        set => SetScreenField(ref _screenFoundXVariableName, value?.Trim() ?? string.Empty);
+    }
+
+    public string ScreenFoundYVariableName
+    {
+        get => _screenFoundYVariableName;
+        set => SetScreenField(ref _screenFoundYVariableName, value?.Trim() ?? string.Empty);
+    }
+
+    public bool TryGetScreenReadingPayload(out EditorActionScreenReadingPayload payload)
+    {
+        return EditorActionScreenReadingPayload.TryCreate(this, out payload);
+    }
+
+    public void ApplyScreenReadingPayload(EditorActionScreenReadingPayload payload)
+    {
+        if (!EditorActionScreenReadingPayload.IsScreenReadingAction(payload.Type))
+        {
+            throw new ArgumentException("Payload type must be a screen-reading action.", nameof(payload));
+        }
+
+        Type = payload.Type;
+        IsAbsolute = payload.IsAbsolute;
+        ScreenX = payload.ScreenX;
+        ScreenY = payload.ScreenY;
+        ScreenLeft = payload.ScreenLeft;
+        ScreenTop = payload.ScreenTop;
+        ScreenWidth = payload.ScreenWidth;
+        ScreenHeight = payload.ScreenHeight;
+        ScreenColorHex = payload.ScreenColorHex;
+        ScreenTargetColorSource = payload.ScreenTargetColorSource;
+        ScreenTargetColorVariableName = payload.ScreenTargetColorVariableName;
+        ScreenColorVariableName = payload.ScreenColorVariableName;
+        ScreenTimeoutMs = payload.ScreenTimeoutMs;
+        ScreenTolerance = payload.ScreenTolerance;
+        ScreenFoundVariableName = payload.ScreenFoundVariableName;
+        ScreenFoundXVariableName = payload.ScreenFoundXVariableName;
+        ScreenFoundYVariableName = payload.ScreenFoundYVariableName;
+    }
     
     /// <summary>
     /// Gets a human-readable description of this action.
@@ -803,6 +939,9 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.ForBlockStart => UseLegacyScriptTextDisplay
                 ? $"For ({Text})"
                 : BuildForPreview(),
+            EditorActionType.PixelColor => BuildPixelColorDisplayName(GetScreenReadingPayload()),
+            EditorActionType.WaitColor => BuildWaitColorDisplayName(GetScreenReadingPayload()),
+            EditorActionType.PixelSearch => BuildPixelSearchDisplayName(GetScreenReadingPayload()),
             EditorActionType.Break => "Break",
             EditorActionType.Continue => "Continue",
             EditorActionType.BlockEnd => "End Block",
@@ -835,6 +974,9 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.RepeatBlockStart => UseLegacyScriptTextDisplay || ValidateRepeatFields(),
             EditorActionType.IfBlockStart or EditorActionType.WhileBlockStart => UseLegacyScriptTextDisplay || ValidateConditionFields(),
             EditorActionType.ForBlockStart => UseLegacyScriptTextDisplay || ValidateForFields(),
+            EditorActionType.PixelColor => ValidatePixelColorFields(),
+            EditorActionType.WaitColor => ValidateWaitColorFields(),
+            EditorActionType.PixelSearch => ValidatePixelSearchFields(),
             EditorActionType.RawScriptStep => !string.IsNullOrWhiteSpace(Text),
             EditorActionType.ElseBlockStart or EditorActionType.BlockEnd or EditorActionType.Break or EditorActionType.Continue => true,
             _ => true
@@ -843,7 +985,7 @@ public class EditorAction : INotifyPropertyChanged
     
     public EditorAction Clone()
     {
-        return new EditorAction
+        var clone = new EditorAction
         {
             _id = Guid.NewGuid(), // New ID for clone
             _type = Type,
@@ -882,6 +1024,32 @@ public class EditorAction : INotifyPropertyChanged
             _preservedTextInputText = _preservedTextInputText,
             _preservedTextInputEvents = _preservedTextInputEvents?.ToList()
         };
+
+        if (TryGetScreenReadingPayload(out var screenReadingPayload))
+        {
+            clone.ApplyScreenReadingPayload(screenReadingPayload);
+            clone._preferLegacyScriptText = PreferLegacyScriptText;
+        }
+        else
+        {
+            clone._screenX = ScreenX;
+            clone._screenY = ScreenY;
+            clone._screenLeft = ScreenLeft;
+            clone._screenTop = ScreenTop;
+            clone._screenWidth = ScreenWidth;
+            clone._screenHeight = ScreenHeight;
+            clone._screenColorHex = ScreenColorHex;
+            clone._screenTargetColorSource = ScreenTargetColorSource;
+            clone._screenTargetColorVariableName = ScreenTargetColorVariableName;
+            clone._screenColorVariableName = ScreenColorVariableName;
+            clone._screenTimeoutMs = ScreenTimeoutMs;
+            clone._screenTolerance = ScreenTolerance;
+            clone._screenFoundVariableName = ScreenFoundVariableName;
+            clone._screenFoundXVariableName = ScreenFoundXVariableName;
+            clone._screenFoundYVariableName = ScreenFoundYVariableName;
+        }
+
+        return clone;
     }
 
     private bool UseLegacyScriptTextDisplay => PreferLegacyScriptText && !string.IsNullOrWhiteSpace(Text);
@@ -909,7 +1077,10 @@ public class EditorAction : INotifyPropertyChanged
             or EditorActionType.RepeatBlockStart
             or EditorActionType.IfBlockStart
             or EditorActionType.WhileBlockStart
-            or EditorActionType.ForBlockStart;
+            or EditorActionType.ForBlockStart
+            or EditorActionType.PixelColor
+            or EditorActionType.WaitColor
+            or EditorActionType.PixelSearch;
     }
 
     private string BuildSetValueToken()
@@ -998,4 +1169,71 @@ public class EditorAction : INotifyPropertyChanged
 
         return !ForHasStep || EditorActionScriptTokens.ValidateNumericToken(ForStepType, ForStepValue);
     }
+
+    private bool ValidatePixelColorFields()
+    {
+        return TryGetScreenReadingPayload(out var payload) && payload.HasValidColorVariableName();
+    }
+
+    private bool ValidateWaitColorFields()
+    {
+        return TryGetScreenReadingPayload(out var payload)
+            && payload.HasValidTargetColor()
+            && payload.ScreenTimeoutMs >= 0;
+    }
+
+    private bool ValidatePixelSearchFields()
+    {
+        return TryGetScreenReadingPayload(out var payload)
+            && payload.HasValidTargetColor()
+            && payload.HasPositiveSearchRegion()
+            && payload.HasValidTolerance()
+            && payload.HasValidFoundCoordinateVariableNames();
+    }
+
+    private EditorActionScreenReadingPayload GetScreenReadingPayload()
+    {
+        if (!TryGetScreenReadingPayload(out var payload))
+        {
+            throw new InvalidOperationException("Action type does not contain a screen-reading payload.");
+        }
+
+        return payload;
+    }
+
+    private static string BuildPixelColorDisplayName(EditorActionScreenReadingPayload payload)
+    {
+        return payload.IsAbsolute
+            ? $"Pixel color ({payload.ScreenX}, {payload.ScreenY}) -> {payload.ScreenColorVariableName}"
+            : $"Pixel color rel ({payload.ScreenX:+#;-#;0}, {payload.ScreenY:+#;-#;0}) -> {payload.ScreenColorVariableName}";
+    }
+
+    private static string BuildWaitColorDisplayName(EditorActionScreenReadingPayload payload)
+    {
+        return $"Wait color {payload.FormatTargetColorToken()} at ({payload.ScreenX}, {payload.ScreenY}) -> {payload.ScreenColorVariableName}";
+    }
+
+    private static string BuildPixelSearchDisplayName(EditorActionScreenReadingPayload payload)
+    {
+        return $"Pixel search {payload.FormatTargetColorToken()} in ({payload.ScreenLeft}, {payload.ScreenTop}, {payload.ScreenWidth}x{payload.ScreenHeight}) -> {payload.ScreenFoundVariableName}, {payload.ScreenFoundXVariableName}, {payload.ScreenFoundYVariableName}";
+    }
+
+    private void SetScreenField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value))
+        {
+            return;
+        }
+
+        field = value;
+        MarkStructuredScriptEdited();
+        OnPropertyChanged(propertyName);
+        OnPropertyChanged(nameof(DisplayName));
+    }
+
+    private static string NormalizeColorHex(string? value)
+    {
+        return (value ?? string.Empty).Trim().ToUpperInvariant();
+    }
+
 }

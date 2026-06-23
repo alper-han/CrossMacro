@@ -114,10 +114,10 @@ public class MacroSequence
     /// <returns>True if valid, false otherwise</returns>
     public bool IsValid()
     {
-        if (Events == null || Events.Count == 0)
+        if ((Events == null || Events.Count == 0) && !HasScriptSteps())
             return false;
-            
-        if (!Events.All(IsEventTimingValid))
+
+        if (Events != null && !Events.All(IsEventTimingValid))
             return false;
 
         return !HasTrailingRandomDelay
@@ -133,6 +133,11 @@ public class MacroSequence
             return true;
 
         return ev.RandomDelayMinMs >= 0 && ev.RandomDelayMaxMs >= ev.RandomDelayMinMs;
+    }
+
+    private bool HasScriptSteps()
+    {
+        return ScriptSteps != null && ScriptSteps.Any(step => !string.IsNullOrWhiteSpace(step));
     }
     
     /// <summary>

@@ -21,6 +21,54 @@ public class MacroSequenceTests
     }
 
     [Fact]
+    public void IsValid_WithScriptStepsAndEmptyEvents_ReturnsTrue()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            ScriptSteps = new List<string> { "pixelcolor 10 20 color" }
+        };
+
+        // Act
+        var result = macro.IsValid();
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsValid_WithMalformedScriptStepsAndEmptyEvents_ReturnsTrueForStructuralValidationOnly()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            ScriptSteps = new List<string> { "pixelcolor 1" }
+        };
+
+        // Act
+        var result = macro.IsValid();
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsValid_WithOnlyBlankScriptStepsAndEmptyEvents_ReturnsFalse()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            ScriptSteps = new List<string> { " ", "" }
+        };
+
+        // Act
+        var result = macro.IsValid();
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Fact]
     public void IsValid_NullEvents_ReturnsFalse()
     {
         // Arrange

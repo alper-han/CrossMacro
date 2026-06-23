@@ -118,6 +118,21 @@ public enum EditorActionType
     Continue,
 
     /// <summary>
+    /// Reads one screen pixel color into a script variable.
+    /// </summary>
+    PixelColor,
+
+    /// <summary>
+    /// Waits until one screen pixel matches a target color.
+    /// </summary>
+    WaitColor,
+
+    /// <summary>
+    /// Searches a screen region for a target color.
+    /// </summary>
+    PixelSearch,
+
+    /// <summary>
     /// Raw run-script line that could not be mapped to a structured editor action.
     /// Preserved to avoid data loss during round-trip save.
     /// </summary>

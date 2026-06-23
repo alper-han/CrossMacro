@@ -23,7 +23,10 @@ public static class EditorActionScriptClassifier
         return actionType is
             EditorActionType.SetVariable
             or EditorActionType.IncrementVariable
-            or EditorActionType.DecrementVariable;
+            or EditorActionType.DecrementVariable
+            or EditorActionType.PixelColor
+            or EditorActionType.WaitColor
+            or EditorActionType.PixelSearch;
     }
 
     public static bool IsOpaqueScriptAction(EditorActionType actionType)

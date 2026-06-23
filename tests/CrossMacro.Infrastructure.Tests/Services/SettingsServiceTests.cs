@@ -121,6 +121,7 @@ public class SettingsServiceTests : IDisposable
         service.Current.LoopDelayMinMs = 100;
         service.Current.LoopDelayMaxMs = 250;
         service.Current.StartMinimized = true;
+        service.Current.PortalScreenCastRestoreToken = "portal-token-1";
 
         // Act
         service.Save();
@@ -137,6 +138,7 @@ public class SettingsServiceTests : IDisposable
         loaded.LoopDelayMinMs.Should().Be(100);
         loaded.LoopDelayMaxMs.Should().Be(250);
         loaded.StartMinimized.Should().BeTrue();
+        loaded.PortalScreenCastRestoreToken.Should().Be("portal-token-1");
     }
 
     [Fact]

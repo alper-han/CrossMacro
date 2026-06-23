@@ -4,6 +4,7 @@ using CrossMacro.Infrastructure.DependencyInjection;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Packaging.Abstractions;
 using CrossMacro.Platform.Abstractions;
+using CrossMacro.Platform.Abstractions.Diagnostics;
 using CrossMacro.UI.Startup;
 using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
@@ -91,6 +92,11 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<EditorActionDisplayFormatter>();
             services.AddSingleton<ITrayIconService, TrayIconService>();
             services.AddSingleton<IDialogService, DialogService>();
+            services.AddSingleton<IPortalScreenReadingGuidanceService>(sp =>
+                new PortalScreenReadingGuidanceService(
+                    sp.GetRequiredService<IDialogService>(),
+                    sp.GetRequiredService<ISettingsService>(),
+                    sp.GetService<IScreenReadingDiagnosticProvider>()));
             services.AddSingleton<IUpdateService, GitHubUpdateService>();
             services.AddSingleton<IExternalUrlOpener, ExternalUrlOpener>();
             services.AddSingleton<IThemeService, ThemeService>();

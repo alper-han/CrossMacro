@@ -31,4 +31,9 @@ public class GlobalSettings
     /// Current UI language (en, tr, zh, ja, es, ar, fr, pt, ru).
     /// </summary>
     public string Language { get; set; } = "en";
+
+    /// <summary>
+    /// XDG Desktop Portal ScreenCast restore token shared across profiles.
+    /// </summary>
+    public string? PortalScreenCastRestoreToken { get; set; }
 }

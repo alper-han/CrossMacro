@@ -1,10 +1,12 @@
 using System;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using CrossMacro.Core.Logging;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Infrastructure.Services.ScreenReading;
 using CrossMacro.UI.Startup;
 using CrossMacro.UI.ViewModels;
 using CrossMacro.UI.Views;
@@ -29,6 +31,8 @@ internal sealed class DesktopStartupRuntimeService
     private readonly Func<IMousePositionProvider?> _getPositionProvider;
     private readonly IDesktopLifetimeContext _desktopLifetimeContext;
     private readonly InputSimulatorWarmupService _inputSimulatorWarmupService;
+    private readonly IScreenReadingWarmupService? _screenReadingWarmupService;
+    private readonly IPortalScreenReadingGuidanceService? _portalScreenReadingGuidanceService;
 
     public DesktopStartupRuntimeService(
         Func<MainWindow> getMainWindow,
@@ -38,7 +42,9 @@ internal sealed class DesktopStartupRuntimeService
         Func<InputSimulatorPool?> getInputSimulatorPool,
         Func<IMousePositionProvider?> getPositionProvider,
         IDesktopLifetimeContext desktopLifetimeContext,
-        InputSimulatorWarmupService inputSimulatorWarmupService)
+        InputSimulatorWarmupService inputSimulatorWarmupService,
+        IScreenReadingWarmupService? screenReadingWarmupService = null,
+        IPortalScreenReadingGuidanceService? portalScreenReadingGuidanceService = null)
     {
         _getMainWindow = getMainWindow ?? throw new ArgumentNullException(nameof(getMainWindow));
         _getTrayIconService = getTrayIconService ?? throw new ArgumentNullException(nameof(getTrayIconService));
@@ -48,6 +54,8 @@ internal sealed class DesktopStartupRuntimeService
         _getPositionProvider = getPositionProvider ?? throw new ArgumentNullException(nameof(getPositionProvider));
         _desktopLifetimeContext = desktopLifetimeContext ?? throw new ArgumentNullException(nameof(desktopLifetimeContext));
         _inputSimulatorWarmupService = inputSimulatorWarmupService ?? throw new ArgumentNullException(nameof(inputSimulatorWarmupService));
+        _screenReadingWarmupService = screenReadingWarmupService;
+        _portalScreenReadingGuidanceService = portalScreenReadingGuidanceService;
     }
 
     public void Start(
@@ -76,6 +84,40 @@ internal sealed class DesktopStartupRuntimeService
 
         var displayMode = ConfigureMainWindow(desktop, mainWindow, startupPreferences, trayIconService);
         ShowWindowForStartup(mainWindow, displayMode);
+
+        if (_screenReadingWarmupService != null)
+        {
+            _ = RunScreenReadingWarmupAsync();
+        }
+    }
+
+    internal async Task RunScreenReadingWarmupAsync()
+    {
+        if (_screenReadingWarmupService == null)
+        {
+            return;
+        }
+
+        if (_portalScreenReadingGuidanceService != null)
+        {
+            try
+            {
+                await _portalScreenReadingGuidanceService.ShowBeforePortalWarmupAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[DesktopStartupRuntimeService] Portal screen-reading guidance failed; continuing warm-up");
+            }
+        }
+
+        try
+        {
+            await _screenReadingWarmupService.WarmUpPortalSessionAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[DesktopStartupRuntimeService] Portal screen-reading warm-up failed");
+        }
     }
 
     internal void PublishMainWindow(IClassicDesktopStyleApplicationLifetime desktop, Window mainWindow)

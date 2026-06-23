@@ -39,6 +39,13 @@ public static class UIStrings
     public const string MacOSAccessibilityApprovalPendingMessage =
         "macOS still does not report Accessibility permission for CrossMacro.\n\n" +
         "If you already approved it, quit and reopen CrossMacro so macOS can apply the new permission.";
+
+    public const string PortalScreenReadingGuidanceTitle = "Screen Reading Source Required";
+
+    public const string PortalScreenReadingGuidanceMessage =
+        "CrossMacro will open the system screen-sharing portal dialog next so it can read screen pixels for screen-reading macros.\n\n" +
+        "In the portal dialog, choose monitor or screen sources and select every monitor the macro needs. CrossMacro cannot choose or force those sources for you.\n\n" +
+        "After you approve the portal dialog, your saved permission may be reused on future starts.";
     
     /// <summary>
     /// Open settings button text.

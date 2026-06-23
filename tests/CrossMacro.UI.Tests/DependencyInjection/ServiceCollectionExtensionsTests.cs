@@ -26,6 +26,7 @@ public class ServiceCollectionExtensionsTests
 
         Assert.DoesNotContain(services, sd => sd.ServiceType == typeof(ITrayIconService));
         Assert.DoesNotContain(services, sd => sd.ServiceType == typeof(IDialogService));
+        Assert.DoesNotContain(services, sd => sd.ServiceType == typeof(IPortalScreenReadingGuidanceService));
         Assert.DoesNotContain(services, sd => sd.ServiceType == typeof(IUpdateService));
         Assert.DoesNotContain(services, sd => sd.ServiceType == typeof(IExternalUrlOpener));
         Assert.DoesNotContain(services, sd => sd.ServiceType == typeof(IThemeService));
@@ -40,6 +41,7 @@ public class ServiceCollectionExtensionsTests
 
         Assert.Contains(services, sd => sd.ServiceType == typeof(ITrayIconService));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IDialogService));
+        Assert.Contains(services, sd => sd.ServiceType == typeof(IPortalScreenReadingGuidanceService));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IUpdateService));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IExternalUrlOpener));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IThemeService));
@@ -58,6 +60,7 @@ public class ServiceCollectionExtensionsTests
 
         Assert.Same(provider.GetRequiredService<IGlobalHotkeyService>(), viewModel.GlobalHotkeyService);
         Assert.Same(provider.GetRequiredService<ILocalizationService>(), viewModel.LocalizationService);
+        Assert.IsType<MacroFileManager>(provider.GetRequiredService<IMacroFileManager>());
     }
 
     [Fact]

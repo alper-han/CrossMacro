@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using CrossMacro.Core.Services;
+using CrossMacro.Infrastructure.Services.ScreenReading;
 using CrossMacro.UI.Services;
 using CrossMacro.UI.Startup;
 using NSubstitute;
@@ -101,13 +102,66 @@ public sealed class DesktopStartupRuntimeServiceTests
         desktop.Received().MainWindow = mainWindow;
     }
 
+    [Fact]
+    public async Task RunScreenReadingWarmupAsync_WhenGuidanceRegistered_AwaitsGuidanceBeforeWarmup()
+    {
+        var events = new List<string>();
+        var guidance = new RecordingGuidanceService(events);
+        var warmup = new RecordingWarmupService(events);
+        var service = CreateService(screenReadingWarmupService: warmup, portalScreenReadingGuidanceService: guidance);
+
+        await service.RunScreenReadingWarmupAsync();
+
+        Assert.Equal(["guidance-start", "guidance-end", "warmup"], events);
+    }
+
+    [Fact]
+    public async Task RunScreenReadingWarmupAsync_WhenGuidanceThrows_StillRunsWarmup()
+    {
+        var events = new List<string>();
+        var guidance = new RecordingGuidanceService(events) { ThrowOnShow = true };
+        var warmup = new RecordingWarmupService(events);
+        var service = CreateService(screenReadingWarmupService: warmup, portalScreenReadingGuidanceService: guidance);
+
+        await service.RunScreenReadingWarmupAsync();
+
+        Assert.Equal(["guidance-start", "warmup"], events);
+    }
+
+    [Fact]
+    public async Task RunScreenReadingWarmupAsync_WhenNoGuidanceRegistered_StillRunsWarmup()
+    {
+        var events = new List<string>();
+        var warmup = new RecordingWarmupService(events);
+        var service = CreateService(screenReadingWarmupService: warmup);
+
+        await service.RunScreenReadingWarmupAsync();
+
+        Assert.Equal(["warmup"], events);
+    }
+
+    [Fact]
+    public async Task RunScreenReadingWarmupAsync_WhenWarmupThrows_CompletesWithoutThrowing()
+    {
+        var events = new List<string>();
+        var warmup = new RecordingWarmupService(events) { ThrowOnWarmup = true };
+        var service = CreateService(screenReadingWarmupService: warmup);
+
+        await service.RunScreenReadingWarmupAsync();
+
+        Assert.Equal(["warmup"], events);
+    }
+
     private static Window CreateWindowReferenceOnly()
     {
         // The test only verifies lifetime reference synchronization; constructing an Avalonia Window requires a windowing platform.
         return (Window)RuntimeHelpers.GetUninitializedObject(typeof(Window));
     }
 
-    private static DesktopStartupRuntimeService CreateService(IDesktopLifetimeContext? desktopLifetimeContext = null)
+    private static DesktopStartupRuntimeService CreateService(
+        IDesktopLifetimeContext? desktopLifetimeContext = null,
+        IScreenReadingWarmupService? screenReadingWarmupService = null,
+        IPortalScreenReadingGuidanceService? portalScreenReadingGuidanceService = null)
     {
         return new DesktopStartupRuntimeService(
             getMainWindow: () => throw new NotSupportedException(),
@@ -117,7 +171,57 @@ public sealed class DesktopStartupRuntimeServiceTests
             getInputSimulatorPool: () => null,
             getPositionProvider: () => null,
             desktopLifetimeContext: desktopLifetimeContext ?? Substitute.For<IDesktopLifetimeContext>(),
-            inputSimulatorWarmupService: new InputSimulatorWarmupService());
+            inputSimulatorWarmupService: new InputSimulatorWarmupService(),
+            screenReadingWarmupService: screenReadingWarmupService,
+            portalScreenReadingGuidanceService: portalScreenReadingGuidanceService);
+    }
+
+    private sealed class RecordingGuidanceService : IPortalScreenReadingGuidanceService
+    {
+        private readonly List<string> _events;
+
+        public RecordingGuidanceService(List<string> events)
+        {
+            _events = events;
+        }
+
+        public bool ThrowOnShow { get; init; }
+
+        public Task ShowBeforePortalWarmupAsync()
+        {
+            _events.Add("guidance-start");
+
+            if (ThrowOnShow)
+            {
+                throw new InvalidOperationException("guidance failed");
+            }
+
+            _events.Add("guidance-end");
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingWarmupService : IScreenReadingWarmupService
+    {
+        private readonly List<string> _events;
+
+        public RecordingWarmupService(List<string> events)
+        {
+            _events = events;
+        }
+
+        public bool ThrowOnWarmup { get; init; }
+
+        public Task WarmUpPortalSessionAsync(CancellationToken cancellationToken = default)
+        {
+            _events.Add("warmup");
+            if (ThrowOnWarmup)
+            {
+                throw new InvalidOperationException("warmup failed");
+            }
+
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeTrayIconService : ITrayIconService

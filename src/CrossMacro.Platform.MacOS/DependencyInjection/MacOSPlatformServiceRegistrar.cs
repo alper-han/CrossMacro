@@ -4,6 +4,7 @@ using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.MacOS.Services;
+using CrossMacro.Platform.MacOS.Services.ScreenReading;
 using CrossMacro.Platform.MacOS.Strategies;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -21,6 +22,8 @@ public sealed class MacOSPlatformServiceRegistrar : IPlatformServiceRegistrar
         services.AddSingleton<IPlaybackBehaviorPolicy>(
             _ => new PlaybackBehaviorPolicy(useHybridAbsoluteDragMovement: false));
         services.AddSingleton<IMousePositionProvider, MacOSMousePositionProvider>();
+        services.AddSingleton<IScreenFrameProvider, MacOSScreenFrameProvider>();
+        services.AddSingleton<IMacOSScreenRecordingPermissionProbe, CoreGraphicsScreenRecordingPermissionProbe>();
         services.AddSingleton<IPermissionChecker, MacOSPermissionCheckerService>();
 
 #pragma warning disable CS8634 // Intentionally nullable for optional service

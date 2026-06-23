@@ -14,6 +14,8 @@ internal static class CoreGraphics
     private static readonly OptionalPermissionAccessFunction RequestListenEventAccess = new("CGRequestListenEventAccess");
     private static readonly OptionalPermissionAccessFunction PreflightPostEventAccess = new("CGPreflightPostEventAccess");
     private static readonly OptionalPermissionAccessFunction RequestPostEventAccess = new("CGRequestPostEventAccess");
+    private static readonly OptionalPermissionAccessFunction PreflightScreenCaptureAccess = new("CGPreflightScreenCaptureAccess");
+    private static readonly OptionalPermissionAccessFunction RequestScreenCaptureAccess = new("CGRequestScreenCaptureAccess");
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate IntPtr CGEventTapCallBack(
@@ -66,6 +68,16 @@ internal static class CoreGraphics
         return RequestPostEventAccess.IsAvailable;
     }
 
+    public static bool IsCGPreflightScreenCaptureAccessAvailable()
+    {
+        return PreflightScreenCaptureAccess.IsAvailable;
+    }
+
+    public static bool IsCGRequestScreenCaptureAccessAvailable()
+    {
+        return RequestScreenCaptureAccess.IsAvailable;
+    }
+
     public static bool CGPreflightListenEventAccess()
     {
         return PreflightListenEventAccess.Invoke();
@@ -84,6 +96,16 @@ internal static class CoreGraphics
     public static bool CGRequestPostEventAccess()
     {
         return RequestPostEventAccess.Invoke();
+    }
+
+    public static bool CGPreflightScreenCaptureAccess()
+    {
+        return PreflightScreenCaptureAccess.Invoke();
+    }
+
+    public static bool CGRequestScreenCaptureAccess()
+    {
+        return RequestScreenCaptureAccess.Invoke();
     }
 
     [DllImport(CoreGraphicsLib)]
@@ -333,6 +355,68 @@ internal static class CoreGraphics
     
     [DllImport(CoreGraphicsLib)]
     public static extern CGRect CGDisplayBounds(uint display);
+
+    [DllImport(CoreGraphicsLib)]
+    public static extern CGError CGGetOnlineDisplayList(uint maxDisplays, [Out] uint[]? onlineDisplays, out uint displayCount);
+
+    [DllImport(CoreGraphicsLib)]
+    public static extern CGError CGGetActiveDisplayList(uint maxDisplays, [Out] uint[]? activeDisplays, out uint displayCount);
+
+    [DllImport(CoreGraphicsLib)]
+    public static extern CGError CGGetDisplaysWithRect(CGRect rect, uint maxDisplays, [Out] uint[]? displays, out uint displayCount);
+
+    [DllImport(CoreGraphicsLib)]
+    public static extern IntPtr CGDisplayCreateImageForRect(uint display, CGRect rect);
+
+    [DllImport(CoreGraphicsLib)]
+    public static extern void CGImageRelease(IntPtr image);
+
+    [DllImport(CoreGraphicsLib)]
+    public static extern IntPtr CGImageGetDataProvider(IntPtr image);
+
+    [DllImport(CoreGraphicsLib)]
+    public static extern IntPtr CGDataProviderCopyData(IntPtr provider);
+
+    [DllImport(CoreGraphicsLib)]
+    public static extern nuint CGImageGetWidth(IntPtr image);
+
+    [DllImport(CoreGraphicsLib)]
+    public static extern nuint CGImageGetHeight(IntPtr image);
+
+    [DllImport(CoreGraphicsLib)]
+    public static extern nuint CGImageGetBitsPerComponent(IntPtr image);
+
+    [DllImport(CoreGraphicsLib)]
+    public static extern nuint CGImageGetBitsPerPixel(IntPtr image);
+
+    [DllImport(CoreGraphicsLib)]
+    public static extern nuint CGImageGetBytesPerRow(IntPtr image);
+
+    [DllImport(CoreGraphicsLib)]
+    public static extern CGBitmapInfo CGImageGetBitmapInfo(IntPtr image);
+
+    public const uint kCGBitmapAlphaInfoMask = 0x1F;
+    public const uint kCGBitmapByteOrderMask = 0x7000;
+    public const uint kCGBitmapByteOrder32Little = 0x2000;
+    public const uint kCGBitmapByteOrder32Big = 0x4000;
+
+    public enum CGError : int
+    {
+        Success = 0
+    }
+
+    [Flags]
+    public enum CGBitmapInfo : uint
+    {
+        AlphaPremultipliedLast = 1,
+        AlphaPremultipliedFirst = 2,
+        AlphaLast = 3,
+        AlphaFirst = 4,
+        AlphaNoneSkipLast = 5,
+        AlphaNoneSkipFirst = 6,
+        ByteOrder32Little = kCGBitmapByteOrder32Little,
+        ByteOrder32Big = kCGBitmapByteOrder32Big
+    }
 
     private sealed class OptionalPermissionAccessFunction
     {

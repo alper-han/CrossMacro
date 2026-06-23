@@ -35,6 +35,9 @@ internal static class CoreFoundation
     public static extern IntPtr CFDataGetBytePtr(IntPtr cfData);
 
     [DllImport(CoreFoundationLib)]
+    public static extern nint CFDataGetLength(IntPtr cfData);
+
+    [DllImport(CoreFoundationLib)]
     public static extern IntPtr CFDictionaryCreate(
         IntPtr allocator,
         IntPtr[] keys,

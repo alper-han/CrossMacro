@@ -6,6 +6,7 @@ using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.MacOS.DependencyInjection;
 using CrossMacro.Platform.MacOS.Services;
+using CrossMacro.Platform.MacOS.Services.ScreenReading;
 using CrossMacro.Platform.MacOS.Strategies;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -25,6 +26,8 @@ public class MacOSPlatformServiceRegistrarTests
         Assert.Equal(typeof(MacKeyboardLayoutService), services.Last(s => s.ServiceType == typeof(IKeyboardLayoutService)).ImplementationType);
         Assert.Equal(typeof(MacOSEnvironmentInfoProvider), services.Last(s => s.ServiceType == typeof(IEnvironmentInfoProvider)).ImplementationType);
         Assert.Equal(typeof(MacOSMousePositionProvider), services.Last(s => s.ServiceType == typeof(IMousePositionProvider)).ImplementationType);
+        Assert.Equal(typeof(MacOSScreenFrameProvider), services.Last(s => s.ServiceType == typeof(IScreenFrameProvider)).ImplementationType);
+        Assert.Equal(typeof(CoreGraphicsScreenRecordingPermissionProbe), services.Last(s => s.ServiceType == typeof(IMacOSScreenRecordingPermissionProbe)).ImplementationType);
         Assert.Equal(typeof(MacOSPermissionCheckerService), services.Last(s => s.ServiceType == typeof(IPermissionChecker)).ImplementationType);
     }
 

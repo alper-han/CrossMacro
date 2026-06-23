@@ -175,9 +175,24 @@ Supported steps:
 \fBkey down|up\fR, \fBtap\fR, \fBdelay\fR, \fBtype\fR,
 \fBset\fR variables, \fBinc\fR/\fBdec\fR counters,
 \fBrepeat\fR blocks, \fBif\fR/\fBelse\fR, \fBwhile\fR, and \fBfor\fR blocks,
+screen-reading steps \fBpixelcolor\fR, \fBwaitcolor\fR, and \fBpixelsearch\fR,
 plus loop control with \fBbreak\fR and \fBcontinue\fR.
 Randomized timing is supported with
 \fBdelay random <min> <max>\fR or \fBdelay random <min>..<max>\fR.
+.PP
+Screen-reading syntax:
+.br
+\fBpixelcolor <x> <y> [var]\fR
+.br
+\fBpixelcolor rel <dx> <dy> [var]\fR
+.br
+\fBwaitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var]\fR
+.br
+\fBpixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [tolerance <0..255>]\fR
+.PP
+Use \fBRRGGBB\fR for a literal target color, or \fB$var\fR to reuse a color
+previously written by \fBpixelcolor\fR. Bare variable names are not accepted as
+target colors.
 .TP
 .B headless
 Run background services without GUI (hotkeys, scheduler, shortcuts, text expansion)

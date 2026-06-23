@@ -3,12 +3,14 @@ using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Logging;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Infrastructure.Services.ScreenReading;
 using CrossMacro.Infrastructure.Services.Recording.Processors;
 using CrossMacro.Infrastructure.Services.Recording.Strategies;
 using CrossMacro.Infrastructure.Services.TextExpansion;
 using CrossMacro.Core.Services.TextExpansion;
 using CrossMacro.Platform.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CrossMacro.Infrastructure.DependencyInjection;
 
@@ -44,6 +46,8 @@ public static class RuntimeServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(simulatorPoolResolver);
 
         RegisterInputRuntimePrimitiveServices(services);
+        RegisterPostPlatformPersistenceServices(services);
+        RegisterScreenReadingServices(services);
         RegisterPlaybackAndHotkeyOrchestrationServices(services, simulatorPoolResolver);
         RegisterSchedulingAndShortcutServices(services);
         RegisterTextExpansionServices(services);
@@ -60,7 +64,6 @@ public static class RuntimeServiceCollectionExtensions
         services.AddSingleton<ISettingsService, SettingsService>();
         services.AddSingleton<HotkeySettings>(sp =>
             sp.GetRequiredService<IHotkeyConfigurationService>().Load());
-        services.AddSingleton<IMacroFileManager, MacroFileManager>();
     }
 
     private static void RegisterRuntimePrimitiveServices(IServiceCollection services)
@@ -105,6 +108,19 @@ public static class RuntimeServiceCollectionExtensions
         services.AddSingleton<IHotkeyMatcher, HotkeyMatcher>();
     }
 
+    private static void RegisterPostPlatformPersistenceServices(IServiceCollection services)
+    {
+        // Macro saving validates script key names with the platform-aware mapper.
+        services.AddSingleton<IMacroFileManager, MacroFileManager>();
+    }
+
+    private static void RegisterScreenReadingServices(IServiceCollection services)
+    {
+        services.TryAddSingleton<IScreenFrameProvider, UnsupportedScreenFrameProvider>();
+        services.TryAddSingleton<IScreenPixelReader, ScreenPixelReader>();
+        services.TryAddSingleton<IScreenReadingWarmupService, ScreenReadingWarmupService>();
+    }
+
     private static void RegisterPlaybackAndHotkeyOrchestrationServices(
         IServiceCollection services,
         Func<IServiceProvider, InputSimulatorPool?> simulatorPoolResolver)
@@ -146,7 +162,9 @@ public static class RuntimeServiceCollectionExtensions
                 validator,
                 inputSimulatorFactory: factory,
                 simulatorPool: pool,
-                playbackBehaviorPolicy: playbackBehaviorPolicy);
+                playbackBehaviorPolicy: playbackBehaviorPolicy,
+                screenPixelReader: sp.GetRequiredService<IScreenPixelReader>(),
+                keyCodeMapper: sp.GetRequiredService<IKeyCodeMapper>());
         });
 
         services.AddSingleton<Func<IMacroPlayer>>(sp => () => sp.GetRequiredService<IMacroPlayer>());

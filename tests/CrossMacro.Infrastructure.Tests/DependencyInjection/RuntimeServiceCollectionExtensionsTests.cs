@@ -37,7 +37,6 @@ public class RuntimeServiceCollectionExtensionsTests
         AssertImplementationRegistration<ISettingsService, SettingsService>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<HotkeySettings>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ITimeProvider, SystemTimeProvider>(services, ServiceLifetime.Singleton);
-        AssertImplementationRegistration<IMacroFileManager, MacroFileManager>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<Func<ICoordinateStrategy, IInputEventProcessor>>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IMacroRecorder>(services, ServiceLifetime.Transient);
     }
@@ -50,6 +49,7 @@ public class RuntimeServiceCollectionExtensionsTests
         services.AddCrossMacroSharedPostPlatformRuntimeServices(_ => null);
 
         AssertImplementationRegistration<IKeyCodeMapper, KeyCodeMapper>(services, ServiceLifetime.Singleton);
+        AssertImplementationRegistration<IMacroFileManager, MacroFileManager>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IMouseButtonMapper, MouseButtonMapper>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IModifierStateTracker, ModifierStateTracker>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IHotkeyParser, HotkeyParser>(services, ServiceLifetime.Singleton);

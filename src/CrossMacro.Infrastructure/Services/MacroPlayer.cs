@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -13,9 +14,10 @@ using CrossMacro.Platform.Abstractions;
 namespace CrossMacro.Infrastructure.Services;
 
 
-public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
+public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunScriptRuntimeVariableSource
 {
     private readonly IMousePositionProvider? _positionProvider;
+    private readonly IScreenPixelReader? _screenPixelReader;
     private readonly PlaybackValidator _validator;
     private readonly Func<IInputSimulator>? _inputSimulatorFactory;
     private readonly InputSimulatorPool? _simulatorPool;
@@ -27,6 +29,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
     private readonly Func<IKeyStateTracker> _keyTrackerFactory;
     private readonly IPlaybackMouseButtonMapper _buttonMapper;
     private readonly IPlaybackBehaviorPolicy _playbackBehaviorPolicy;
+    private readonly IKeyCodeMapper _keyCodeMapper;
 
     private IInputSimulator? _inputSimulator;
     private IEventExecutor? _eventExecutor;
@@ -45,6 +48,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
 
     private int _errorCount;
     private readonly Random _random = Random.Shared;
+    private readonly Dictionary<string, string> _runtimeVariables = new(StringComparer.OrdinalIgnoreCase);
 
     private const int VirtualDeviceCreationDelayMs = 50;
     private const double MinEnforcedDelayMs = 1.0;
@@ -55,6 +59,34 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
     private const int IterationYieldInterval = 50;
     private const double MinCatchUpResetDriftMs = 30.0;
     private const double CatchUpResetDelayMultiplier = 2.0;
+
+    private sealed class PlaybackRunState
+    {
+        public int EventCount;
+        public bool IsFirstEvent = true;
+        public double ScheduledElapsedMs;
+        public double TimelineAnchorElapsedMs;
+        public bool HasTimelineAnchor;
+        public int ObservedPauseResumeVersion;
+    }
+
+    private sealed class RuntimeFallbackKeyCodeMapper : IKeyCodeMapper
+    {
+        public int GetKeyCode(string keyName) => -1;
+
+        public string GetKeyName(int keyCode) => keyCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        public int GetKeyCodeForCharacter(char character) => -1;
+
+        public char? GetCharacterForKeyCode(int keyCode, bool withShift = false) => null;
+
+        public bool RequiresShift(char character) => false;
+
+        public bool RequiresAltGr(char character) => false;
+
+        public bool IsModifierKeyCode(int keyCode) => false;
+    }
+
     private static readonly int[] RestorableModifierKeys =
     [
         InputEventCode.KEY_LEFTCTRL,
@@ -79,6 +111,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
     public int TotalLoops { get; private set; }
     public bool IsWaitingBetweenLoops { get; private set; }
     public bool IsPaused => _isPaused;
+    public IReadOnlyDictionary<string, string> RuntimeVariables => _runtimeVariables;
 
     /// <summary>
     /// Creates a new MacroPlayer with full DI support.
@@ -95,9 +128,12 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
         IPlaybackMouseButtonMapper? buttonMapper = null,
         Func<IInputSimulator>? inputSimulatorFactory = null,
         InputSimulatorPool? simulatorPool = null,
-        IPlaybackBehaviorPolicy? playbackBehaviorPolicy = null)
+        IPlaybackBehaviorPolicy? playbackBehaviorPolicy = null,
+        IScreenPixelReader? screenPixelReader = null,
+        IKeyCodeMapper? keyCodeMapper = null)
     {
         _positionProvider = positionProvider;
+        _screenPixelReader = screenPixelReader;
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
         _inputSimulatorFactory = inputSimulatorFactory;
         _simulatorPool = simulatorPool;
@@ -112,6 +148,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
         _buttonTrackerFactory = buttonTrackerFactory ?? (() => new ButtonStateTracker());
         _keyTrackerFactory = keyTrackerFactory ?? (() => new KeyStateTracker());
         _buttonMapper = buttonMapper ?? new DefaultPlaybackMouseButtonMapper();
+        _keyCodeMapper = keyCodeMapper ?? new RuntimeFallbackKeyCodeMapper();
 
         if (_positionProvider != null)
         {
@@ -180,11 +217,24 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
         _pauseResumeVersion = 0;
         _pauseEvent.Set();
         _errorCount = 0;
+        _runtimeVariables.Clear();
 
         Log.Information("[MacroPlayer] ========== PLAYBACK STARTED ==========");
 
         try
         {
+            if (macro.Events.Count == 0 && HasOnlyScreenReadScriptSteps(macro))
+            {
+                await PlayRuntimeScriptOnlyLoopAsync(macro, options, normalizedSpeed, repeatCount, infiniteLoop, _cts.Token);
+                return;
+            }
+
+            if (macro.Events.Count == 0 && !HasScreenReadScriptSteps(macro))
+            {
+                await ExecuteScreenReadScriptStepsAsync(macro, _cts.Token);
+                return;
+            }
+
             await CacheResolutionAsync();
             await AcquireSimulatorAsync(macro);
             EnsureAbsolutePlaybackSupported(macro);
@@ -195,6 +245,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
 
             // Stabilization delay
             await _playbackWaitAsync(TimeSpan.FromMilliseconds(50), _cts.Token);
+            _cts.Token.ThrowIfCancellationRequested();
 
             int iteration = 0;
             while ((infiniteLoop || iteration < repeatCount) && !_cts.Token.IsCancellationRequested)
@@ -208,7 +259,14 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
                         _cachedScreenWidth, _cachedScreenHeight, _cts.Token);
                 }
 
-                await PlayOnceAsync(macro, normalizedSpeed, _cts.Token);
+                if (HasScreenReadScriptSteps(macro))
+                {
+                    await PlayOnceRuntimeScriptAsync(macro, normalizedSpeed, _cts.Token);
+                }
+                else
+                {
+                    await PlayOnceAsync(macro, normalizedSpeed, _cts.Token);
+                }
 
                 // Apply trailing delay after the macro completes (before next iteration or end)
                 int trailingDelaySource = ResolveDelayMs(
@@ -248,7 +306,10 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
         }
         catch (OperationCanceledException)
         {
-            // Normal cancellation
+            if (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
         }
         finally
         {
@@ -291,7 +352,8 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
 
     private async Task AcquireSimulatorAsync(MacroSequence macro)
     {
-        bool needsAbsoluteDevice = MacroPositionSemantics.HasAnyAbsoluteCoordinateEvents(macro);
+        bool needsAbsoluteDevice = MacroPositionSemantics.HasAnyAbsoluteCoordinateEvents(macro)
+            || HasAbsoluteRuntimeScriptSteps(macro);
         bool canCreateAbsoluteDevice = needsAbsoluteDevice && _resolutionCached;
         int deviceWidth = canCreateAbsoluteDevice ? _cachedScreenWidth : 0;
         int deviceHeight = canCreateAbsoluteDevice ? _cachedScreenHeight : 0;
@@ -362,151 +424,351 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken
     private async Task PlayOnceAsync(MacroSequence macro, double speedMultiplier, CancellationToken cancellationToken)
     {
         bool useLegacyCurrentPositionInterpretation = MacroPositionSemantics.IsLegacyCurrentPositionMacro(macro);
-        int eventCount = 0;
+        var state = new PlaybackRunState
+        {
+            ObservedPauseResumeVersion = Volatile.Read(ref _pauseResumeVersion)
+        };
         int totalEvents = macro.Events.Count;
-        bool isFirstEvent = true;
         var playbackElapsedMilliseconds = _playbackElapsedMillisecondsFactory();
-        double scheduledElapsedMs = 0;
-        double timelineAnchorElapsedMs = 0;
-        bool hasTimelineAnchor = false;
-        int observedPauseResumeVersion = Volatile.Read(ref _pauseResumeVersion);
 
         Log.Debug("[MacroPlayer] Starting playback of {Total} events at {Speed}x speed", totalEvents, speedMultiplier);
 
         foreach (var ev in macro.Events)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (_isPaused)
-            {
-                Log.Debug("[MacroPlayer] Paused at event {Current}/{Total}", eventCount, totalEvents);
-                var pausedStartMs = playbackElapsedMilliseconds();
-                await Task.Run(() => _pauseEvent.Wait(cancellationToken), cancellationToken);
-                var pausedDurationMs = playbackElapsedMilliseconds() - pausedStartMs;
-                if (hasTimelineAnchor)
-                {
-                    // Exclude paused duration from elapsed timeline.
-                    timelineAnchorElapsedMs += pausedDurationMs;
-                }
-                Log.Debug("[MacroPlayer] Resumed playback");
-            }
-
-            int currentPauseResumeVersion = Volatile.Read(ref _pauseResumeVersion);
-            if (currentPauseResumeVersion != observedPauseResumeVersion)
-            {
-                observedPauseResumeVersion = currentPauseResumeVersion;
-                if (hasTimelineAnchor)
-                {
-                    // After explicit resume, restart delay pacing from "now"
-                    // to avoid catch-up bursts caused by prior drift.
-                    var elapsedSinceAnchorMs = playbackElapsedMilliseconds() - timelineAnchorElapsedMs;
-                    scheduledElapsedMs = elapsedSinceAnchorMs;
-                }
-            }
-
-            eventCount++;
-            if (eventCount % YieldInterval == 0)
-            {
-                await Task.Yield();
-            }
-
-            int eventDelaySource = ResolveDelayMs(
-                ev.DelayMs,
-                ev.HasRandomDelay,
-                ev.RandomDelayMinMs,
-                ev.RandomDelayMaxMs);
-
-            var waitedForDelay = false;
-            if (eventDelaySource > 0)
-            {
-                double effectiveSpeed = speedMultiplier;
-
-                // Limit speed for initial events
-                if (eventCount <= StabilizationEventCount && speedMultiplier > MaxInitialSpeedMultiplier)
-                {
-                    effectiveSpeed = MaxInitialSpeedMultiplier;
-                }
-
-                double adjustedDelay = eventDelaySource / effectiveSpeed;
-
-                if (_eventExecutor!.IsMouseButtonPressed && adjustedDelay < MinEnforcedDelayMs)
-                {
-                    adjustedDelay = MinEnforcedDelayMs;
-                }
-
-                if (!hasTimelineAnchor)
-                {
-                    timelineAnchorElapsedMs = playbackElapsedMilliseconds();
-                    hasTimelineAnchor = true;
-                }
-
-                scheduledElapsedMs += adjustedDelay;
-                var elapsedSinceAnchorMs = playbackElapsedMilliseconds() - timelineAnchorElapsedMs;
-                var remainingDelayMs = scheduledElapsedMs - elapsedSinceAnchorMs;
-                int delayToWait = (int)Math.Floor(remainingDelayMs);
-
-                if (delayToWait > 0)
-                {
-                    await _timingService.WaitAsync(delayToWait, this, cancellationToken);
-                    waitedForDelay = true;
-
-                    elapsedSinceAnchorMs = playbackElapsedMilliseconds() - timelineAnchorElapsedMs;
-                    remainingDelayMs = scheduledElapsedMs - elapsedSinceAnchorMs;
-                    if (ShouldResetPlaybackTimeline(remainingDelayMs, adjustedDelay))
-                    {
-                        scheduledElapsedMs = elapsedSinceAnchorMs;
-                    }
-                }
-                else if (ShouldResetPlaybackTimeline(remainingDelayMs, adjustedDelay))
-                {
-                    scheduledElapsedMs = elapsedSinceAnchorMs;
-                }
-            }
-
-            if (!waitedForDelay && speedMultiplier > 5.0 && !isFirstEvent)
-            {
-                await Task.Yield();
-            }
-
-            try
-            {
-                Log.Debug("[MacroPlayer] Executing {Current}/{Total}: {Type} | X={X} Y={Y} | Key={Key} Button={Button}",
-                    eventCount, totalEvents, ev.Type, ev.X, ev.Y, ev.KeyCode, ev.Button);
-
-                bool usesCurrentPosition = MacroPositionSemantics.UsesCurrentPosition(ev, useLegacyCurrentPositionInterpretation);
-                var eventToExecute = ev;
-                if (usesCurrentPosition)
-                {
-                    eventToExecute.UseCurrentPosition = true;
-                    eventToExecute.X = 0;
-                    eventToExecute.Y = 0;
-                }
-
-                var coordinateMode = MacroPositionSemantics.ResolveCoordinateMode(eventToExecute, macro.IsAbsoluteCoordinates);
-                _eventExecutor!.Execute(eventToExecute, coordinateMode);
-            }
-            catch (AbsolutePlaybackUnsupportedException)
-            {
-                throw;
-            }
-            catch (InputInjectionPermissionRequiredException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "[MacroPlayer] Error executing event {Current}/{Total}: {Type}", eventCount, totalEvents, ev.Type);
-                if (++_errorCount > MaxPlaybackErrors)
-                {
-                    Log.Fatal("[MacroPlayer] Too many errors ({Count}), aborting", _errorCount);
-                    throw new InvalidOperationException($"Playback aborted after {_errorCount} errors", ex);
-                }
-            }
-
-            isFirstEvent = false;
+            await ExecutePlaybackEventAsync(macro, ev, speedMultiplier, playbackElapsedMilliseconds, state, useLegacyCurrentPositionInterpretation, totalEvents, cancellationToken);
         }
 
         Log.Debug("[MacroPlayer] Completed playback of {Total} events", totalEvents);
+    }
+
+    private async Task PlayOnceRuntimeScriptAsync(MacroSequence macro, double speedMultiplier, CancellationToken cancellationToken)
+    {
+        bool useLegacyCurrentPositionInterpretation = MacroPositionSemantics.IsLegacyCurrentPositionMacro(macro);
+        var state = new PlaybackRunState
+        {
+            ObservedPauseResumeVersion = Volatile.Read(ref _pauseResumeVersion)
+        };
+        var playbackElapsedMilliseconds = _playbackElapsedMillisecondsFactory();
+        var screenReadExecutor = new RunScriptScreenReadExecutor(_screenPixelReader!, _positionProvider);
+        var runtimeExecutor = new RunScriptRuntimeExecutor(
+            _keyCodeMapper,
+            _timingService,
+            this,
+            _runtimeVariables,
+            screenReadExecutor);
+        var executionRequest = new RunScriptRuntimeExecutionRequest(
+            macro.ScriptSteps,
+            speedMultiplier,
+            (ev, token) => ExecutePlaybackEventAsync(
+                macro,
+                ev,
+                speedMultiplier,
+                playbackElapsedMilliseconds,
+                state,
+                useLegacyCurrentPositionInterpretation,
+                macro.Events.Count,
+                token),
+            ResolveDelayMs);
+
+        await runtimeExecutor.ExecuteAsync(executionRequest, cancellationToken);
+    }
+
+    private async Task PlayOnceWithScriptStepsAsync(MacroSequence macro, double speedMultiplier, CancellationToken cancellationToken)
+    {
+        bool useLegacyCurrentPositionInterpretation = MacroPositionSemantics.IsLegacyCurrentPositionMacro(macro);
+        var state = new PlaybackRunState
+        {
+            ObservedPauseResumeVersion = Volatile.Read(ref _pauseResumeVersion)
+        };
+        int totalEvents = macro.Events.Count;
+        int eventIndex = 0;
+        var playbackElapsedMilliseconds = _playbackElapsedMillisecondsFactory();
+        var screenReadExecutor = new RunScriptScreenReadExecutor(_screenPixelReader!, _positionProvider);
+
+        Log.Debug("[MacroPlayer] Starting playback of {Total} events at {Speed}x speed", totalEvents, speedMultiplier);
+
+        for (var scriptStepIndex = 0; scriptStepIndex < macro.ScriptSteps.Count; scriptStepIndex++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var step = macro.ScriptSteps[scriptStepIndex];
+            if (string.IsNullOrWhiteSpace(step))
+            {
+                continue;
+            }
+
+            if (RunScriptScreenReadExecutor.IsScreenReadingStep(step))
+            {
+                await screenReadExecutor.ExecuteStepAsync(step, scriptStepIndex + 1, _runtimeVariables, cancellationToken);
+                continue;
+            }
+
+            if (step.TrimStart().StartsWith("delay ", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (eventIndex >= macro.Events.Count)
+            {
+                throw new InvalidOperationException("Run script playback became out of sync with compiled events.");
+            }
+
+            await ExecutePlaybackEventAsync(
+                macro,
+                macro.Events[eventIndex],
+                speedMultiplier,
+                playbackElapsedMilliseconds,
+                state,
+                useLegacyCurrentPositionInterpretation,
+                totalEvents,
+                cancellationToken);
+            eventIndex++;
+        }
+
+        if (eventIndex != macro.Events.Count)
+        {
+            throw new InvalidOperationException("Run script playback did not execute all compiled input events.");
+        }
+
+        Log.Debug("[MacroPlayer] Completed playback of {Total} events", totalEvents);
+    }
+
+    private async Task ExecutePlaybackEventAsync(
+        MacroSequence macro,
+        MacroEvent ev,
+        double speedMultiplier,
+        Func<double> playbackElapsedMilliseconds,
+        PlaybackRunState state,
+        bool useLegacyCurrentPositionInterpretation,
+        int totalEvents,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (_isPaused)
+        {
+            Log.Debug("[MacroPlayer] Paused at event {Current}/{Total}", state.EventCount, totalEvents);
+            var pausedStartMs = playbackElapsedMilliseconds();
+            await Task.Run(() => _pauseEvent.Wait(cancellationToken), cancellationToken);
+            var pausedDurationMs = playbackElapsedMilliseconds() - pausedStartMs;
+            if (state.HasTimelineAnchor)
+            {
+                state.TimelineAnchorElapsedMs += pausedDurationMs;
+            }
+            Log.Debug("[MacroPlayer] Resumed playback");
+        }
+
+        int currentPauseResumeVersion = Volatile.Read(ref _pauseResumeVersion);
+        if (currentPauseResumeVersion != state.ObservedPauseResumeVersion)
+        {
+            state.ObservedPauseResumeVersion = currentPauseResumeVersion;
+            if (state.HasTimelineAnchor)
+            {
+                var elapsedSinceAnchorMs = playbackElapsedMilliseconds() - state.TimelineAnchorElapsedMs;
+                state.ScheduledElapsedMs = elapsedSinceAnchorMs;
+            }
+        }
+
+        state.EventCount++;
+        if (state.EventCount % YieldInterval == 0)
+        {
+            await Task.Yield();
+        }
+
+        int eventDelaySource = ResolveDelayMs(
+            ev.DelayMs,
+            ev.HasRandomDelay,
+            ev.RandomDelayMinMs,
+            ev.RandomDelayMaxMs);
+
+        var waitedForDelay = false;
+        if (eventDelaySource > 0)
+        {
+            double effectiveSpeed = speedMultiplier;
+
+            if (state.EventCount <= StabilizationEventCount && speedMultiplier > MaxInitialSpeedMultiplier)
+            {
+                effectiveSpeed = MaxInitialSpeedMultiplier;
+            }
+
+            double adjustedDelay = eventDelaySource / effectiveSpeed;
+
+            if (_eventExecutor!.IsMouseButtonPressed && adjustedDelay < MinEnforcedDelayMs)
+            {
+                adjustedDelay = MinEnforcedDelayMs;
+            }
+
+            if (!state.HasTimelineAnchor)
+            {
+                state.TimelineAnchorElapsedMs = playbackElapsedMilliseconds();
+                state.HasTimelineAnchor = true;
+            }
+
+            state.ScheduledElapsedMs += adjustedDelay;
+            var elapsedSinceAnchorMs = playbackElapsedMilliseconds() - state.TimelineAnchorElapsedMs;
+            var remainingDelayMs = state.ScheduledElapsedMs - elapsedSinceAnchorMs;
+            int delayToWait = (int)Math.Floor(remainingDelayMs);
+
+            if (delayToWait > 0)
+            {
+                await _timingService.WaitAsync(delayToWait, this, cancellationToken);
+                waitedForDelay = true;
+
+                elapsedSinceAnchorMs = playbackElapsedMilliseconds() - state.TimelineAnchorElapsedMs;
+                remainingDelayMs = state.ScheduledElapsedMs - elapsedSinceAnchorMs;
+                if (ShouldResetPlaybackTimeline(remainingDelayMs, adjustedDelay))
+                {
+                    state.ScheduledElapsedMs = elapsedSinceAnchorMs;
+                }
+            }
+            else if (ShouldResetPlaybackTimeline(remainingDelayMs, adjustedDelay))
+            {
+                state.ScheduledElapsedMs = elapsedSinceAnchorMs;
+            }
+        }
+
+        if (!waitedForDelay && speedMultiplier > 5.0 && !state.IsFirstEvent)
+        {
+            await Task.Yield();
+        }
+
+        try
+        {
+            Log.Debug("[MacroPlayer] Executing {Current}/{Total}: {Type} | X={X} Y={Y} | Key={Key} Button={Button}",
+                state.EventCount, totalEvents, ev.Type, ev.X, ev.Y, ev.KeyCode, ev.Button);
+
+            bool usesCurrentPosition = MacroPositionSemantics.UsesCurrentPosition(ev, useLegacyCurrentPositionInterpretation);
+            var eventToExecute = ev;
+            if (usesCurrentPosition)
+            {
+                eventToExecute.UseCurrentPosition = true;
+                eventToExecute.X = 0;
+                eventToExecute.Y = 0;
+            }
+
+            var coordinateMode = MacroPositionSemantics.ResolveCoordinateMode(eventToExecute, macro.IsAbsoluteCoordinates);
+            _eventExecutor!.Execute(eventToExecute, coordinateMode);
+        }
+        catch (AbsolutePlaybackUnsupportedException)
+        {
+            throw;
+        }
+        catch (InputInjectionPermissionRequiredException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[MacroPlayer] Error executing event {Current}/{Total}: {Type}", state.EventCount, totalEvents, ev.Type);
+            if (++_errorCount > MaxPlaybackErrors)
+            {
+                Log.Fatal("[MacroPlayer] Too many errors ({Count}), aborting", _errorCount);
+                throw new InvalidOperationException($"Playback aborted after {_errorCount} errors", ex);
+            }
+        }
+
+        state.IsFirstEvent = false;
+    }
+
+    private async Task ExecuteScreenReadScriptStepsAsync(MacroSequence macro, CancellationToken cancellationToken)
+    {
+        if (macro.ScriptSteps.Count == 0 || !HasScreenReadScriptSteps(macro))
+        {
+            return;
+        }
+
+        if (_screenPixelReader is null)
+        {
+            throw new InvalidOperationException("Screen-reading script steps require an IScreenPixelReader runtime service.");
+        }
+
+        var executor = new RunScriptScreenReadExecutor(_screenPixelReader, _positionProvider);
+        await executor.ExecuteAsync(macro, _runtimeVariables, cancellationToken);
+    }
+
+    private async Task PlayRuntimeScriptOnlyLoopAsync(
+        MacroSequence macro,
+        PlaybackOptions options,
+        double normalizedSpeed,
+        int repeatCount,
+        bool infiniteLoop,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (_screenPixelReader is null)
+        {
+            throw new InvalidOperationException("Screen-reading script steps require an IScreenPixelReader runtime service.");
+        }
+
+        Log.Information("[MacroPlayer] Loop settings: Loop={Loop}, RepeatCount={Count}, Infinite={Infinite}",
+            options.Loop, repeatCount, infiniteLoop);
+
+        var iteration = 0;
+        while ((infiniteLoop || iteration < repeatCount) && !cancellationToken.IsCancellationRequested)
+        {
+            CurrentLoop = iteration + 1;
+            await PlayOnceRuntimeScriptAsync(macro, normalizedSpeed, cancellationToken);
+
+            var trailingDelaySource = ResolveDelayMs(
+                macro.TrailingDelayMs,
+                macro.HasTrailingRandomDelay,
+                macro.TrailingDelayMinMs,
+                macro.TrailingDelayMaxMs);
+
+            if (trailingDelaySource > 0 && !cancellationToken.IsCancellationRequested)
+            {
+                var trailingDelay = (int)(trailingDelaySource / normalizedSpeed);
+                if (trailingDelay > 0)
+                {
+                    await _timingService.WaitAsync(trailingDelay, this, cancellationToken);
+                }
+            }
+
+            var hasNextIteration = infiniteLoop || iteration < repeatCount - 1;
+            if (hasNextIteration && !cancellationToken.IsCancellationRequested)
+            {
+                var delayMs = ResolveRepeatDelayMs(options);
+                if (delayMs > 0)
+                {
+                    IsWaitingBetweenLoops = true;
+                    await _timingService.WaitAsync(delayMs, this, cancellationToken);
+                    IsWaitingBetweenLoops = false;
+                }
+                else if ((iteration + 1) % IterationYieldInterval == 0)
+                {
+                    await Task.Yield();
+                }
+            }
+
+            iteration++;
+        }
+    }
+
+    private static bool HasScreenReadScriptSteps(MacroSequence macro)
+    {
+        return macro.ScriptSteps.Any(step =>
+        {
+            return RunScriptScreenReadExecutor.IsScreenReadingStep(step);
+        });
+    }
+
+    private static bool HasOnlyScreenReadScriptSteps(MacroSequence macro)
+    {
+        return macro.ScriptSteps.Count > 0
+            && macro.ScriptSteps
+                .Where(step => !string.IsNullOrWhiteSpace(step))
+                .All(RunScriptScreenReadExecutor.IsScreenReadingStep);
+    }
+
+    private static bool HasAbsoluteRuntimeScriptSteps(MacroSequence macro)
+    {
+        return macro.ScriptSteps.Any(step =>
+        {
+            var trimmed = step.TrimStart();
+            return trimmed.StartsWith("move abs ", StringComparison.OrdinalIgnoreCase)
+                || trimmed.StartsWith("move absolute ", StringComparison.OrdinalIgnoreCase);
+        });
     }
 
     private int ResolveRepeatDelayMs(PlaybackOptions options)

@@ -17,6 +17,7 @@ public class MacroPlayerTests
 {
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(2);
     private readonly IMousePositionProvider _positionProvider;
+    private readonly IKeyCodeMapper _keyCodeMapper;
     private readonly PlaybackValidator _validator;
 
     public MacroPlayerTests()
@@ -24,7 +25,8 @@ public class MacroPlayerTests
         _positionProvider = Substitute.For<IMousePositionProvider>();
         _positionProvider.IsSupported.Returns(true);
         _positionProvider.GetScreenResolutionAsync().Returns(Task.FromResult<(int Width, int Height)?>((1920, 1080)));
-        _validator = new PlaybackValidator(_positionProvider);
+        _keyCodeMapper = CreateKeyCodeMapper();
+        _validator = new PlaybackValidator(_keyCodeMapper, _positionProvider);
     }
 
     private MacroPlayer CreatePlayer(
@@ -39,7 +41,17 @@ public class MacroPlayerTests
             timingService: timingService,
             playbackWaitAsync: playbackWaitAsync ?? ((_, _) => Task.CompletedTask),
             playbackElapsedMillisecondsFactory: playbackElapsedMillisecondsFactory,
-            inputSimulatorFactory: inputSimulatorFactory);
+            inputSimulatorFactory: inputSimulatorFactory,
+            keyCodeMapper: _keyCodeMapper);
+    }
+
+    private static IKeyCodeMapper CreateKeyCodeMapper()
+    {
+        var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
+        keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
+        keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(false);
+        keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(-1);
+        return keyCodeMapper;
     }
 
     [Fact]
@@ -1266,8 +1278,9 @@ public class MacroPlayerTests
         var simulator = new TrackingInputSimulator();
         var player = new MacroPlayer(
             resolutionOnlyProvider,
-            new PlaybackValidator(resolutionOnlyProvider),
-            inputSimulatorFactory: () => simulator);
+            new PlaybackValidator(_keyCodeMapper, resolutionOnlyProvider),
+            inputSimulatorFactory: () => simulator,
+            keyCodeMapper: _keyCodeMapper);
 
         var macro = new MacroSequence
         {
@@ -1303,8 +1316,9 @@ public class MacroPlayerTests
         var simulator = new TrackingInputSimulator(forceRelativeOnly: true);
         var player = new MacroPlayer(
             resolutionOnlyProvider,
-            new PlaybackValidator(resolutionOnlyProvider),
-            inputSimulatorFactory: () => simulator);
+            new PlaybackValidator(_keyCodeMapper, resolutionOnlyProvider),
+            inputSimulatorFactory: () => simulator,
+            keyCodeMapper: _keyCodeMapper);
 
         var macro = new MacroSequence
         {

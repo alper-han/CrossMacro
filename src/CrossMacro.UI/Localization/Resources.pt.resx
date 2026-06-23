@@ -1071,6 +1071,50 @@
   <data name="Editor_ScrollHint" xml:space="preserve">
     <value>(+) para cima/direita, (-) para baixo/esquerda</value>
   </data>
+  <data name="Editor_PixelColorAction" xml:space="preserve"><value>Pixel Color:</value></data>
+  <data name="Editor_WaitColorAction" xml:space="preserve"><value>Wait Color:</value></data>
+  <data name="Editor_PixelSearchAction" xml:space="preserve"><value>Pixel Search:</value></data>
+  <data name="Editor_ScreenPoint" xml:space="preserve"><value>Screen Point</value></data>
+  <data name="Editor_SearchRegion" xml:space="preserve"><value>Search Region</value></data>
+  <data name="Editor_TargetColorHex" xml:space="preserve"><value>Target Color (RRGGBB)</value></data>
+  <data name="Editor_TargetColorSource" xml:space="preserve"><value>Target color source</value></data>
+  <data name="Editor_TargetColorSourceManualHex" xml:space="preserve"><value>Manual hex</value></data>
+  <data name="Editor_TargetColorSourceVariable" xml:space="preserve"><value>Variable</value></data>
+  <data name="Editor_TargetColorVariable" xml:space="preserve"><value>Target color variable</value></data>
+  <data name="Editor_ColorVariableNamePlaceholder" xml:space="preserve"><value>Color variable name</value></data>
+  <data name="Editor_TimeoutMs" xml:space="preserve"><value>Timeout (ms)</value></data>
+  <data name="Editor_Left" xml:space="preserve"><value>Left</value></data>
+  <data name="Editor_Top" xml:space="preserve"><value>Top</value></data>
+  <data name="Editor_Width" xml:space="preserve"><value>Width</value></data>
+  <data name="Editor_Height" xml:space="preserve"><value>Height</value></data>
+  <data name="Editor_FoundVariables" xml:space="preserve"><value>Found Position Variables</value></data>
+  <data name="Editor_FoundVariableName" xml:space="preserve"><value>Found variable (true/false)</value></data>
+  <data name="Editor_FoundXVariableNamePlaceholder" xml:space="preserve"><value>Found X variable</value></data>
+  <data name="Editor_FoundYVariableNamePlaceholder" xml:space="preserve"><value>Found Y variable</value></data>
+  <data name="Editor_Tolerance" xml:space="preserve"><value>Tolerance</value></data>
+  <data name="Editor_Operator" xml:space="preserve"><value>Operator</value></data>
+  <data name="Editor_ConditionColorHint" xml:space="preserve"><value>For color checks, set the right operand type to Text / Color (RRGGBB), then enter a 6-digit color such as 00FF00.</value></data>
+  <data name="Editor_RawScreenReadingHint_PixelColor" xml:space="preserve"><value>pixelcolor: stores the pixel color in a variable. Use 'pixelcolor rel dx dy var' for cursor-relative reads.</value></data>
+  <data name="Editor_RawScreenReadingHint_WaitColor" xml:space="preserve"><value>waitcolor: waits for x/y to match RRGGBB or $variable before continuing.</value></data>
+  <data name="Editor_RawScreenReadingHint_PixelSearch" xml:space="preserve"><value>pixelsearch: searches a region for RRGGBB or $variable; tolerance accepts 0-255 per RGB channel.</value></data>
+  <data name="Editor_ScriptOperand_VariableReference" xml:space="preserve"><value>Variable</value></data>
+  <data name="Editor_ScriptOperand_Number" xml:space="preserve"><value>Number</value></data>
+  <data name="Editor_ScriptOperand_Text" xml:space="preserve"><value>Text / Color (RRGGBB)</value></data>
+  <data name="Editor_ScriptOperand_Boolean" xml:space="preserve"><value>True / False</value></data>
+  <data name="Editor_ScriptConditionOperator_Equals" xml:space="preserve"><value>Equals (=)</value></data>
+  <data name="Editor_ScriptConditionOperator_NotEquals" xml:space="preserve"><value>Not equals (!=)</value></data>
+  <data name="Editor_ScriptConditionOperator_GreaterThan" xml:space="preserve"><value>Greater than (&gt;)</value></data>
+  <data name="Editor_ScriptConditionOperator_GreaterThanOrEqual" xml:space="preserve"><value>Greater than or equal (&gt;=)</value></data>
+  <data name="Editor_ScriptConditionOperator_LessThan" xml:space="preserve"><value>Less than (&lt;)</value></data>
+  <data name="Editor_ScriptConditionOperator_LessThanOrEqual" xml:space="preserve"><value>Less than or equal (&lt;=)</value></data>
+  <data name="Editor_Action_PixelColorAbsolute" xml:space="preserve"><value>Pixel color at ({0}, {1}) -> {2}</value></data>
+  <data name="Editor_Action_PixelColorRelative" xml:space="preserve"><value>Pixel color rel ({0:+#;-#;0}, {1:+#;-#;0}) -> {2}</value></data>
+  <data name="Editor_Action_WaitColor" xml:space="preserve"><value>Wait color {2} at ({0}, {1}) -> {3}</value></data>
+  <data name="Editor_Action_PixelSearch" xml:space="preserve"><value>Pixel search {4} in ({0}, {1}, {2}x{3}) -> {5}, {6}, {7}</value></data>
+  <data name="Editor_ResultVariableName" xml:space="preserve"><value>Result variable name</value></data>
+  <data name="Editor_ActionType_PixelColor" xml:space="preserve"><value>Pixel Color</value></data>
+  <data name="Editor_ActionType_WaitColor" xml:space="preserve"><value>Wait Color</value></data>
+  <data name="Editor_ActionType_PixelSearch" xml:space="preserve"><value>Pixel Search</value></data>
   <data name="Editor_SetVariable" xml:space="preserve">
     <value>Definir variável:</value>
   </data>

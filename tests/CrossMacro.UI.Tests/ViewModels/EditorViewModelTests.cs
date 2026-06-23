@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Reflection;
 using Avalonia.Controls;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
@@ -15,6 +16,47 @@ namespace CrossMacro.UI.Tests.ViewModels;
 
 public class EditorViewModelTests
 {
+    public static TheoryData<string> Task7BindingMembers => new()
+    {
+        nameof(EditorViewModel.ShowPixelColorFields),
+        nameof(EditorViewModel.ShowWaitColorFields),
+        nameof(EditorViewModel.ShowPixelSearchFields),
+        nameof(EditorViewModel.ShowScreenReadingFields),
+        nameof(EditorViewModel.ShowScreenReadingColorFields),
+        nameof(EditorViewModel.ShowScreenReadingPointFields),
+        nameof(EditorViewModel.ShowScreenReadingRawAssistance),
+        nameof(EditorViewModel.ScreenReadingRawHint),
+        nameof(EditorViewModel.ShowScreenReadingColorPreview),
+        nameof(EditorViewModel.ScreenReadingColorPreviewHex),
+        nameof(EditorViewModel.ScreenTargetColorSources),
+        nameof(EditorViewModel.AvailableColorVariableNames),
+        nameof(EditorViewModel.HasAvailableColorVariableNames),
+        nameof(EditorViewModel.SelectedScreenTargetColorVariableSuggestion),
+        nameof(EditorViewModel.ShowScreenTargetColorHexInput),
+        nameof(EditorViewModel.ShowScreenTargetColorVariableInput),
+        nameof(EditorViewModel.ShowScreenTargetColorVariablePicker),
+        nameof(EditorViewModel.AvailableVariableNames),
+        nameof(EditorViewModel.HasAvailableVariableNames),
+        nameof(EditorViewModel.SelectedSetVariableSuggestion),
+        nameof(EditorViewModel.SelectedIncDecVariableSuggestion),
+        nameof(EditorViewModel.SelectedConditionLeftVariableSuggestion),
+        nameof(EditorViewModel.SelectedConditionRightVariableSuggestion),
+        nameof(EditorViewModel.SelectedForVariableSuggestion),
+        nameof(EditorViewModel.ShowSetVariablePicker),
+        nameof(EditorViewModel.ShowIncDecVariablePicker),
+        nameof(EditorViewModel.ShowConditionLeftVariablePicker),
+        nameof(EditorViewModel.ShowConditionLeftOperandTextBox),
+        nameof(EditorViewModel.ShowConditionRightVariablePicker),
+        nameof(EditorViewModel.ShowConditionRightOperandTextBox),
+        nameof(EditorViewModel.ShowForVariablePicker),
+        nameof(EditorViewModel.ScriptConditionOperators),
+        nameof(EditorViewModel.ConditionRightOperandHint),
+        nameof(EditorViewModel.CanUndo),
+        nameof(EditorViewModel.CanRedo),
+        nameof(EditorViewModel.CaptureMouseAsync),
+        nameof(EditorViewModel.CancelCapture)
+    };
+
     private readonly IEditorActionConverter _converter;
     private readonly IEditorActionValidator _validator;
     private readonly ICoordinateCaptureService _captureService;
@@ -87,6 +129,16 @@ public class EditorViewModelTests
             _keyCodeMapper,
             _localizationService,
             new EditorActionDisplayFormatter(_localizationService));
+    }
+
+    [Theory]
+    [MemberData(nameof(Task7BindingMembers))]
+    public void Task7BindingMembers_RemainPublic(string memberName)
+    {
+        typeof(EditorViewModel)
+            .GetMember(memberName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
+            .Should()
+            .NotBeEmpty();
     }
 
     [Fact]
@@ -174,6 +226,268 @@ public class EditorViewModelTests
         _viewModel.Status.Should().Contain("[Editor_StatusAddedAction]");
     }
 
+    [Theory]
+    [InlineData(EditorActionType.PixelColor)]
+    [InlineData(EditorActionType.WaitColor)]
+    [InlineData(EditorActionType.PixelSearch)]
+    public void AddAction_ForScreenReadingActions_InitializesStructuredFields(EditorActionType actionType)
+    {
+        _viewModel.NewActionType = actionType;
+
+        _viewModel.AddAction();
+
+        var action = _viewModel.Actions.Should().ContainSingle().Subject;
+        action.Type.Should().Be(actionType);
+        action.ScreenColorHex.Should().Be("FFFFFF");
+        action.ScreenColorVariableName.Should().Be(actionType == EditorActionType.WaitColor ? "wait_ok" : "color");
+        action.ScreenFoundXVariableName.Should().Be("found_x");
+        action.ScreenFoundYVariableName.Should().Be("found_y");
+        action.ScreenTimeoutMs.Should().Be(5000);
+        action.ScreenTolerance.Should().Be(0);
+        action.ScreenWidth.Should().Be(actionType == EditorActionType.PixelSearch ? 1920 : 1);
+        action.ScreenHeight.Should().Be(actionType == EditorActionType.PixelSearch ? 1080 : 1);
+        _viewModel.SelectedAction.Should().BeSameAs(action);
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.WaitColor)]
+    [InlineData(EditorActionType.PixelSearch)]
+    public void AddAction_ForTargetColorActions_DefaultsTargetColorSourceToManualAndKeepsDefaultHex(EditorActionType actionType)
+    {
+        _viewModel.NewActionType = actionType;
+
+        _viewModel.AddAction();
+
+        var action = _viewModel.Actions.Should().ContainSingle().Subject;
+        action.ScreenColorHex.Should().Be("FFFFFF");
+        action.ScreenTargetColorSource.Should().Be(EditorActionScreenTargetColorSource.ManualHex);
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.PixelColor, true, false, false, true, false, true)]
+    [InlineData(EditorActionType.WaitColor, false, true, false, true, true, true)]
+    [InlineData(EditorActionType.PixelSearch, false, false, true, true, true, false)]
+    public void SelectedAction_ForScreenReadingActions_ExposesMatchingEditorPanel(
+        EditorActionType actionType,
+        bool showPixelColor,
+        bool showWaitColor,
+        bool showPixelSearch,
+        bool showScreenReadingFields,
+        bool showScreenReadingColorFields,
+        bool showScreenReadingPointFields)
+    {
+        var action = new EditorAction { Type = actionType, ScreenColorHex = "A1B2C3" };
+        _viewModel.Actions.Add(action);
+
+        _viewModel.SelectedAction = action;
+
+        _viewModel.ShowPixelColorFields.Should().Be(showPixelColor);
+        _viewModel.ShowWaitColorFields.Should().Be(showWaitColor);
+        _viewModel.ShowPixelSearchFields.Should().Be(showPixelSearch);
+        _viewModel.ShowScreenReadingFields.Should().Be(showScreenReadingFields);
+        _viewModel.ShowScreenReadingColorFields.Should().Be(showScreenReadingColorFields);
+        _viewModel.ShowScreenReadingPointFields.Should().Be(showScreenReadingPointFields);
+        _viewModel.ShowScreenReadingColorPreview.Should().Be(actionType is EditorActionType.WaitColor or EditorActionType.PixelSearch);
+        _viewModel.ScreenReadingColorPreviewHex.Should().Be(actionType == EditorActionType.PixelColor ? string.Empty : "A1B2C3");
+        _viewModel.ShowScreenReadingRawAssistance.Should().BeFalse();
+        _viewModel.ScreenReadingRawHint.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ScreenReadingFields_WhenSelectedActionIsNotScreenReading_AreHidden()
+    {
+        var action = new EditorAction { Type = EditorActionType.TextInput };
+        _viewModel.Actions.Add(action);
+
+        _viewModel.SelectedAction = action;
+
+        _viewModel.ShowScreenReadingFields.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ScreenReadingColorPreview_WhenSelectedColorChanges_NormalizesAndNotifies()
+    {
+        var action = new EditorAction { Type = EditorActionType.WaitColor, ScreenColorHex = "ffffff" };
+        var changed = new List<string?>();
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        _viewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+
+        action.ScreenColorHex = "12abef";
+
+        _viewModel.ScreenReadingColorPreviewHex.Should().Be("12ABEF");
+        _viewModel.ShowScreenReadingColorPreview.Should().BeTrue();
+        changed.Should().Contain(nameof(EditorViewModel.ScreenReadingColorPreviewHex));
+        changed.Should().Contain(nameof(EditorViewModel.ShowScreenReadingColorPreview));
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.WaitColor)]
+    [InlineData(EditorActionType.PixelSearch)]
+    public void ScreenTargetColorSource_WhenVariableOrManualChanges_TogglesHexAndVariableVisibility(EditorActionType actionType)
+    {
+        var action = new EditorAction
+        {
+            Type = actionType,
+            ScreenColorHex = "FFFFFF"
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+
+        action.ScreenTargetColorSource = EditorActionScreenTargetColorSource.Variable;
+
+        _viewModel.ShowScreenTargetColorHexInput.Should().BeFalse();
+        _viewModel.ShowScreenTargetColorVariableInput.Should().BeTrue();
+        _viewModel.ShowScreenReadingColorPreview.Should().BeFalse();
+
+        action.ScreenTargetColorSource = EditorActionScreenTargetColorSource.ManualHex;
+
+        _viewModel.ShowScreenTargetColorHexInput.Should().BeTrue();
+        _viewModel.ShowScreenTargetColorVariableInput.Should().BeFalse();
+        _viewModel.ShowScreenReadingColorPreview.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("pixelcolor rel 1 2 sampled", "Editor_RawScreenReadingHint_PixelColor", "localized pixelcolor hint")]
+    [InlineData("waitcolor 10 20 00FF00 1000 wait_ok", "Editor_RawScreenReadingHint_WaitColor", "localized waitcolor hint")]
+    [InlineData("pixelsearch 0 0 100 100 00FF00 found", "Editor_RawScreenReadingHint_PixelSearch", "localized pixelsearch hint")]
+    public void ScreenReadingRawHint_ForScreenReadingRawScript_UsesLocalizedHint(
+        string rawStep,
+        string resourceKey,
+        string expectedHint)
+    {
+        _localizationService[resourceKey].Returns(expectedHint);
+        var action = new EditorAction
+        {
+            Type = EditorActionType.RawScriptStep,
+            Text = rawStep
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+
+        _viewModel.ShowScreenReadingRawAssistance.Should().BeTrue();
+        _viewModel.ScreenReadingRawHint.Should().Be(expectedHint);
+    }
+
+    [Fact]
+    public void ScriptConditionOperators_WhenOperandsAreText_FiltersToEqualityOperatorsAndNormalizesSelection()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.VariableReference,
+            ScriptLeftOperand = "color",
+            ScriptConditionOperator = ScriptConditionOperator.GreaterThan,
+            ScriptRightOperandType = ScriptOperandType.Number,
+            ScriptRightOperand = "10"
+        };
+        _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.PixelColor, ScreenColorVariableName = "color" });
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        _localizationService["Editor_ConditionColorHint"].Returns("Use RRGGBB color text.");
+
+        action.ScriptRightOperandType = ScriptOperandType.Text;
+
+        action.ScriptConditionOperator.Should().Be(ScriptConditionOperator.Equals);
+        _viewModel.ScriptConditionOperators.Should().Equal(
+            ScriptConditionOperator.Equals,
+            ScriptConditionOperator.NotEquals);
+        _viewModel.ConditionRightOperandHint.Should().Contain("RRGGBB");
+    }
+
+    [Fact]
+    public void ScriptConditionOperators_WhenVariableCanBeNumeric_AllowsNumericOperators()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.VariableReference,
+            ScriptLeftOperand = "found_x",
+            ScriptConditionOperator = ScriptConditionOperator.GreaterThan,
+            ScriptRightOperandType = ScriptOperandType.Number,
+            ScriptRightOperand = "10"
+        };
+        _viewModel.Actions.Add(new EditorAction
+        {
+            Type = EditorActionType.PixelSearch,
+            ScreenFoundVariableName = "found",
+            ScreenFoundXVariableName = "found_x",
+            ScreenFoundYVariableName = "found_y"
+        });
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+
+        _viewModel.ScriptConditionOperators.Should().Contain(ScriptConditionOperator.GreaterThan);
+        action.ScriptConditionOperator.Should().Be(ScriptConditionOperator.GreaterThan);
+    }
+
+    [Fact]
+    public void ScriptConditionOperators_WhenBooleanVariableSelected_FiltersToEqualityOperators()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.VariableReference,
+            ScriptLeftOperand = "found",
+            ScriptConditionOperator = ScriptConditionOperator.GreaterThan,
+            ScriptRightOperandType = ScriptOperandType.Boolean,
+            ScriptRightOperand = "true"
+        };
+        _viewModel.Actions.Add(new EditorAction
+        {
+            Type = EditorActionType.PixelSearch,
+            ScreenFoundVariableName = "found",
+            ScreenFoundXVariableName = "found_x",
+            ScreenFoundYVariableName = "found_y"
+        });
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+
+        action.ScriptConditionOperator.Should().Be(ScriptConditionOperator.Equals);
+        _viewModel.ScriptConditionOperators.Should().Equal(
+            ScriptConditionOperator.Equals,
+            ScriptConditionOperator.NotEquals);
+    }
+
+    [Fact]
+    public void ConditionOperandTextBoxes_WhenVariablePickerIsAvailable_AreHiddenForVariableOperands()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.VariableReference,
+            ScriptLeftOperand = "color",
+            ScriptRightOperandType = ScriptOperandType.VariableReference
+        };
+        _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.PixelColor, ScreenColorVariableName = "color" });
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+
+        _viewModel.ShowConditionLeftVariablePicker.Should().BeTrue();
+        _viewModel.ShowConditionLeftOperandTextBox.Should().BeFalse();
+        _viewModel.SelectedConditionLeftVariableSuggestion.Should().Be("color");
+        _viewModel.ShowConditionRightVariablePicker.Should().BeTrue();
+        _viewModel.ShowConditionRightOperandTextBox.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ConditionOperandTextBoxes_WhenNoVariablesExist_RemainVisibleForManualVariableEntry()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.VariableReference,
+            ScriptRightOperandType = ScriptOperandType.VariableReference
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+
+        _viewModel.ShowConditionLeftVariablePicker.Should().BeFalse();
+        _viewModel.ShowConditionLeftOperandTextBox.Should().BeTrue();
+        _viewModel.ShowConditionRightVariablePicker.Should().BeFalse();
+        _viewModel.ShowConditionRightOperandTextBox.Should().BeTrue();
+    }
+
     [Fact]
     public void CultureChanged_RefreshesLocalizedComputedPropertiesAndActionListPresentation()
     {
@@ -193,6 +507,51 @@ public class EditorViewModelTests
         _viewModel.TextInputWatermark.Should().Be("[Editor_EnterTextToType:updated]");
         _viewModel.TextInputHint.Should().Contain("[Editor_TextToTypeHint:updated]");
         _viewModel.ActionListItems[1].DisplayName.Should().Be("End IfTokenUpdated");
+    }
+
+    [Fact]
+    public void CultureChanged_RefreshesLocalizedRawScreenReadingHint()
+    {
+        var rawAction = new EditorAction
+        {
+            Type = EditorActionType.RawScriptStep,
+            Text = "waitcolor 10 20 00FF00 1000 wait_ok"
+        };
+        _localizationService["Editor_RawScreenReadingHint_WaitColor"].Returns("initial raw hint");
+        _viewModel.Actions.Add(rawAction);
+        _viewModel.SelectedAction = rawAction;
+        _viewModel.ScreenReadingRawHint.Should().Be("initial raw hint");
+        var changed = new List<string?>();
+        _viewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+
+        _localizationService["Editor_RawScreenReadingHint_WaitColor"].Returns("updated raw hint");
+        _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
+
+        _viewModel.ScreenReadingRawHint.Should().Be("updated raw hint");
+        changed.Should().Contain(nameof(EditorViewModel.ScreenReadingRawHint));
+
+    }
+
+    [Fact]
+    public void CultureChanged_RefreshesLocalizedConditionHintNotification()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.Number,
+            ScriptRightOperandType = ScriptOperandType.Number
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        action.ScriptRightOperandType = ScriptOperandType.Text;
+        _localizationService["Editor_ConditionColorHint"].Returns("updated condition hint");
+        var changed = new List<string?>();
+        _viewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+
+        _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
+
+        _viewModel.ConditionRightOperandHint.Should().Be("updated condition hint");
+        changed.Should().Contain(nameof(EditorViewModel.ConditionRightOperandHint));
     }
 
     [Fact]
@@ -821,7 +1180,7 @@ public class EditorViewModelTests
     {
         var action = new EditorAction { Type = EditorActionType.MouseClick, X = 1, Y = 1 };
         var row = CreateActionListItem(action, representsSourceAction: true);
-        var listBox = new ListBox { SelectionMode = SelectionMode.Multiple, ItemsSource = new[] { row } };
+        var listBox = new ListBox { SelectionMode = SelectionMode.Multiple };
         listBox.SelectedItems!.Add(row);
 
         var removed = ListBoxSelectedActionIndices.TryDeselectSelectedSourceAction(listBox, row);
@@ -835,13 +1194,88 @@ public class EditorViewModelTests
     {
         var action = new EditorAction { Type = EditorActionType.MouseClick, X = 1, Y = 1 };
         var row = CreateActionListItem(action, representsSourceAction: false);
-        var listBox = new ListBox { SelectionMode = SelectionMode.Multiple, ItemsSource = new[] { row } };
+        var listBox = new ListBox { SelectionMode = SelectionMode.Multiple };
         listBox.SelectedItems!.Add(row);
 
         var removed = ListBoxSelectedActionIndices.TryDeselectSelectedSourceAction(listBox, row);
 
         removed.Should().BeFalse();
         listBox.SelectedItems!.Cast<object>().Should().ContainSingle().Which.Should().BeSameAs(row);
+    }
+
+    [Fact]
+    public void SelectedActionUnderlyingIndices_WhenSelectedActionEditRebuildsRows_PreservesSelectedAction()
+    {
+        var first = new EditorAction { Type = EditorActionType.MouseMove, X = 1, Y = 1 };
+        var selected = new EditorAction { Type = EditorActionType.MouseClick, X = 2, Y = 2 };
+        var third = new EditorAction { Type = EditorActionType.Delay, DelayMs = 20 };
+        _viewModel.Actions.Add(first);
+        _viewModel.Actions.Add(selected);
+        _viewModel.Actions.Add(third);
+        _viewModel.ReplaceSelectedActionUnderlyingIndices(new[] { 1 });
+        var previousSelectedRow = _viewModel.ActionListItems[1];
+
+        selected.X = 25;
+        var currentSelectedRow = _viewModel.ActionListItems[1];
+
+        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(1);
+        _viewModel.SelectedAction.Should().BeSameAs(selected);
+        _viewModel.SelectedActionListItem.Should().BeSameAs(currentSelectedRow);
+        _viewModel.SelectedActionListItem.Should().NotBeSameAs(previousSelectedRow);
+    }
+
+    [Fact]
+    public void SelectedActionUnderlyingIndices_WhenMultipleSelectedRowsRebuild_PreservesSelections()
+    {
+        var first = new EditorAction { Type = EditorActionType.MouseClick, X = 1, Y = 1 };
+        var second = new EditorAction { Type = EditorActionType.Delay, DelayMs = 20 };
+        var third = new EditorAction { Type = EditorActionType.MouseClick, X = 3, Y = 3 };
+        _viewModel.Actions.Add(first);
+        _viewModel.Actions.Add(second);
+        _viewModel.Actions.Add(third);
+        _viewModel.ReplaceSelectedActionUnderlyingIndices(new[] { 0, 2 });
+
+        first.X = 11;
+
+        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 2);
+        _viewModel.SelectedAction.Should().BeSameAs(first);
+        _viewModel.ActionListItems.Select(item => item.UnderlyingIndex).Should().Equal(0, 1, 2);
+        _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[0]);
+    }
+
+    [Fact]
+    public void ReplaceSelectedActionUnderlyingIndices_WhenVisibleRowRemovedFromListSelection_WritesBackSubsetSelection()
+    {
+        var first = new EditorAction { Type = EditorActionType.MouseClick, X = 1, Y = 1 };
+        var second = new EditorAction { Type = EditorActionType.Delay, DelayMs = 20 };
+        var third = new EditorAction { Type = EditorActionType.MouseClick, X = 3, Y = 3 };
+        _viewModel.Actions.Add(first);
+        _viewModel.Actions.Add(second);
+        _viewModel.Actions.Add(third);
+        _viewModel.ReplaceSelectedActionUnderlyingIndices(new[] { 0, 2 });
+
+        _viewModel.ReplaceSelectedActionUnderlyingIndices(new[] { 0 });
+
+        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0);
+        _viewModel.SelectedAction.Should().BeSameAs(first);
+        _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[0]);
+    }
+
+    [Fact]
+    public void SelectedActionUnderlyingIndices_WhenSelectedRowsAreHidden_DoesNotClearUnderlyingSelection()
+    {
+        var hiddenMove = new EditorAction { Type = EditorActionType.MouseMove, X = 1, Y = 1 };
+        var visibleClick = new EditorAction { Type = EditorActionType.MouseClick, X = 2, Y = 2 };
+        _viewModel.Actions.Add(hiddenMove);
+        _viewModel.Actions.Add(visibleClick);
+        _viewModel.ReplaceSelectedActionUnderlyingIndices(new[] { 0 });
+
+        _viewModel.HideMouseMoves = true;
+
+        _viewModel.ActionListItems.Should().ContainSingle().Which.Action.Should().BeSameAs(visibleClick);
+        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0);
+        _viewModel.SelectedAction.Should().BeNull();
+        _viewModel.SelectedActionListItem.Should().BeNull();
     }
 
     [Fact]
@@ -1806,6 +2240,8 @@ public class EditorViewModelTests
         _viewModel.AddAction();
         _viewModel.AddAction();
         _viewModel.Actions.Should().HaveCount(2);
+        _viewModel.CanUndo.Should().BeTrue();
+        _viewModel.CanRedo.Should().BeFalse();
 
         // Act
         _viewModel.Undo();
@@ -1813,6 +2249,8 @@ public class EditorViewModelTests
         // Assert
         _viewModel.Actions.Should().HaveCount(1);
         _viewModel.Status.Should().Be("[Editor_StatusUndone]");
+        _viewModel.CanUndo.Should().BeTrue();
+        _viewModel.CanRedo.Should().BeTrue();
 
         // Act
         _viewModel.Redo();
@@ -1820,6 +2258,8 @@ public class EditorViewModelTests
         // Assert
         _viewModel.Actions.Should().HaveCount(2);
         _viewModel.Status.Should().Be("[Editor_StatusRedone]");
+        _viewModel.CanUndo.Should().BeTrue();
+        _viewModel.CanRedo.Should().BeFalse();
     }
 
     [Fact]
@@ -1836,6 +2276,74 @@ public class EditorViewModelTests
         // Assert
         _viewModel.SelectedAction.Should().NotBeNull();
         _viewModel.SelectedAction!.DelayMs.Should().Be(0);
+    }
+
+    [Fact]
+    public void Undo_AfterScreenReadingPropertyEdit_RestoresPreviousValue()
+    {
+        _viewModel.NewActionType = EditorActionType.PixelSearch;
+        _viewModel.AddAction();
+        var action = _viewModel.SelectedAction!;
+        action.ScreenColorHex = "00FF00";
+        action.ScreenFoundVariableName = "found";
+        action.ScreenFoundXVariableName = "found_x";
+        action.ScreenFoundYVariableName = "found_y";
+
+        action.ScreenFoundVariableName = "is_found";
+        _viewModel.Undo();
+
+        _viewModel.SelectedAction.Should().NotBeNull();
+        _viewModel.SelectedAction!.ScreenFoundVariableName.Should().Be("found");
+    }
+
+    [Fact]
+    public void Undo_AfterScreenReadingCoordinateEdit_RestoresPreviousValue()
+    {
+        _viewModel.NewActionType = EditorActionType.PixelColor;
+        _viewModel.AddAction();
+        var action = _viewModel.SelectedAction!;
+        action.ScreenX = 10;
+        action.ScreenY = 20;
+
+        action.ScreenX = 30;
+        _viewModel.Undo();
+
+        _viewModel.SelectedAction.Should().NotBeNull();
+        _viewModel.SelectedAction!.ScreenX.Should().Be(10);
+        _viewModel.SelectedAction.ScreenY.Should().Be(20);
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.PixelColor)]
+    [InlineData(EditorActionType.WaitColor)]
+    [InlineData(EditorActionType.PixelSearch)]
+    public void EditorActionClone_ForScreenReadingActions_CopiesPayload(EditorActionType actionType)
+    {
+        var action = new EditorAction
+        {
+            Type = actionType,
+            IsAbsolute = false,
+            ScreenX = -3,
+            ScreenY = 4,
+            ScreenLeft = 5,
+            ScreenTop = 6,
+            ScreenWidth = 7,
+            ScreenHeight = 8,
+            ScreenColorHex = "00aaee",
+            ScreenColorVariableName = "sample_color",
+            ScreenTimeoutMs = 1234,
+            ScreenTolerance = 9,
+            ScreenFoundVariableName = "found",
+            ScreenFoundXVariableName = "found_x",
+            ScreenFoundYVariableName = "found_y"
+        };
+
+        var clone = action.Clone();
+
+        clone.Id.Should().NotBe(action.Id);
+        clone.TryGetScreenReadingPayload(out var clonePayload).Should().BeTrue();
+        action.TryGetScreenReadingPayload(out var originalPayload).Should().BeTrue();
+        clonePayload.Should().Be(originalPayload);
     }
 
     [Fact]
@@ -1925,6 +2433,62 @@ public class EditorViewModelTests
         action.IsAbsolute.Should().BeTrue();
         action.X.Should().Be(640);
         action.Y.Should().Be(480);
+    }
+
+    [Fact]
+    public async Task CaptureMouseAsync_WhenSelectedActionIsPixelColor_StoresCapturedPositionAsAbsoluteScreenPoint()
+    {
+        // Arrange
+        var action = new EditorAction
+        {
+            Type = EditorActionType.PixelColor,
+            IsAbsolute = false,
+            X = 3,
+            Y = -2,
+            ScreenX = 10,
+            ScreenY = 20
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<(int X, int Y)?>((640, 480)));
+
+        // Act
+        await _viewModel.CaptureMouseAsync();
+
+        // Assert
+        action.IsAbsolute.Should().BeTrue();
+        action.ScreenX.Should().Be(640);
+        action.ScreenY.Should().Be(480);
+        action.X.Should().Be(3);
+        action.Y.Should().Be(-2);
+    }
+
+    [Fact]
+    public async Task CaptureMouseAsync_WhenSelectedActionIsWaitColor_StoresCapturedPositionAsScreenPoint()
+    {
+        // Arrange
+        var action = new EditorAction
+        {
+            Type = EditorActionType.WaitColor,
+            X = 3,
+            Y = -2,
+            ScreenX = 10,
+            ScreenY = 20
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<(int X, int Y)?>((640, 480)));
+
+        // Act
+        await _viewModel.CaptureMouseAsync();
+
+        // Assert
+        action.ScreenX.Should().Be(640);
+        action.ScreenY.Should().Be(480);
+        action.X.Should().Be(3);
+        action.Y.Should().Be(-2);
     }
 
     [Fact]
@@ -2244,6 +2808,42 @@ public class EditorViewModelTests
     }
 
     [Fact]
+    public void AvailableColorVariableNames_WhenScreenReadingActionsExist_ReturnsOnlyPixelColorOutputs()
+    {
+        var pixelColor = new EditorAction
+        {
+            Type = EditorActionType.PixelColor,
+            ScreenColorVariableName = "sample_color"
+        };
+        var waitColor = new EditorAction
+        {
+            Type = EditorActionType.WaitColor,
+            ScreenColorVariableName = "wait_ok"
+        };
+        var pixelSearch = new EditorAction
+        {
+            Type = EditorActionType.PixelSearch,
+            ScreenFoundVariableName = "found",
+            ScreenFoundXVariableName = "found_x",
+            ScreenFoundYVariableName = "found_y"
+        };
+
+        _viewModel.Actions.Add(pixelColor);
+        _viewModel.Actions.Add(waitColor);
+        _viewModel.Actions.Add(pixelSearch);
+        _viewModel.NewActionType = EditorActionType.TextInput;
+        _viewModel.AddAction();
+
+        var names = _viewModel.AvailableColorVariableNames;
+
+        names.Should().Contain("sample_color");
+        names.Should().NotContain("wait_ok");
+        names.Should().NotContain("found");
+        names.Should().NotContain("found_x");
+        names.Should().NotContain("found_y");
+    }
+
+    [Fact]
     public void SetVariableSuggestions_WhenSelectingSecondAction_DoesNotMutateFirstAction()
     {
         // Arrange
@@ -2265,6 +2865,123 @@ public class EditorViewModelTests
         // Assert
         first.ScriptVariableName.Should().Be("alpha");
         second.ScriptVariableName.Should().Be("alpha");
+    }
+
+    [Fact]
+    public void VariableSuggestionBindings_ForScriptFields_WriteBackToSelectedActions()
+    {
+        // Arrange
+        _viewModel.NewActionType = EditorActionType.SetVariable;
+        _viewModel.AddAction();
+        _viewModel.SelectedAction!.ScriptVariableName = "shared";
+
+        _viewModel.NewActionType = EditorActionType.IncrementVariable;
+        _viewModel.AddAction();
+        var incrementAction = _viewModel.SelectedAction!;
+
+        _viewModel.NewActionType = EditorActionType.IfBlockStart;
+        _viewModel.AddAction();
+        var conditionAction = _viewModel.SelectedAction!;
+        conditionAction.ScriptLeftOperandType = ScriptOperandType.VariableReference;
+        conditionAction.ScriptRightOperandType = ScriptOperandType.VariableReference;
+
+        _viewModel.NewActionType = EditorActionType.ForBlockStart;
+        _viewModel.AddAction();
+        var forAction = _viewModel.SelectedAction!;
+
+        // Act / Assert
+        _viewModel.SelectedAction = incrementAction;
+        _viewModel.ShowIncDecVariablePicker.Should().BeTrue();
+        _viewModel.SelectedIncDecVariableSuggestion = "shared";
+        _viewModel.SelectedIncDecVariableSuggestion.Should().BeNull();
+        incrementAction.ScriptVariableName.Should().Be("shared");
+
+        _viewModel.SelectedAction = conditionAction;
+        _viewModel.ShowConditionLeftVariablePicker.Should().BeTrue();
+        _viewModel.ShowConditionLeftOperandTextBox.Should().BeFalse();
+        _viewModel.ShowConditionRightVariablePicker.Should().BeTrue();
+        _viewModel.ShowConditionRightOperandTextBox.Should().BeFalse();
+        _viewModel.SelectedConditionLeftVariableSuggestion = "shared";
+        _viewModel.SelectedConditionRightVariableSuggestion = "shared";
+        _viewModel.SelectedConditionLeftVariableSuggestion.Should().Be("shared");
+        _viewModel.SelectedConditionRightVariableSuggestion.Should().Be("shared");
+        conditionAction.ScriptLeftOperand.Should().Be("shared");
+        conditionAction.ScriptRightOperand.Should().Be("shared");
+
+        _viewModel.SelectedAction = forAction;
+        _viewModel.ShowForVariablePicker.Should().BeTrue();
+        _viewModel.SelectedForVariableSuggestion = "shared";
+        _viewModel.SelectedForVariableSuggestion.Should().BeNull();
+        forAction.ForVariableName.Should().Be("shared");
+
+        _viewModel.AvailableVariableNames.Should().Contain("shared");
+        _viewModel.HasAvailableVariableNames.Should().BeTrue();
+    }
+
+    [Fact]
+    public void AvailableVariableNames_WhenPixelSearchFoundVariableChanges_RefreshesSuggestions()
+    {
+        var pixelSearch = new EditorAction
+        {
+            Type = EditorActionType.PixelSearch,
+            ScreenFoundVariableName = "found",
+            ScreenFoundXVariableName = "found_x",
+            ScreenFoundYVariableName = "found_y"
+        };
+        _viewModel.Actions.Add(pixelSearch);
+
+        _viewModel.AvailableVariableNames.Should().Contain("found");
+
+        pixelSearch.ScreenFoundVariableName = "located";
+
+        _viewModel.AvailableVariableNames.Should().Contain("located");
+        _viewModel.AvailableVariableNames.Should().NotContain("found");
+    }
+
+    [Fact]
+    public void AvailableColorVariableNames_WhenPixelColorVariableChanges_RefreshesSuggestions()
+    {
+        var pixelColor = new EditorAction
+        {
+            Type = EditorActionType.PixelColor,
+            ScreenColorVariableName = "sample_color"
+        };
+        _viewModel.Actions.Add(pixelColor);
+        _viewModel.NewActionType = EditorActionType.TextInput;
+        _viewModel.AddAction();
+
+        _viewModel.AvailableColorVariableNames
+            .Should()
+            .Contain("sample_color");
+
+        pixelColor.ScreenColorVariableName = "sample_color_next";
+
+        var names = _viewModel.AvailableColorVariableNames;
+
+        names.Should().Contain("sample_color_next");
+        names.Should().NotContain("sample_color");
+    }
+
+    [Fact]
+    public void SelectedScreenTargetColorVariableSuggestion_WritesBackToSelectedAction()
+    {
+        var pixelColor = new EditorAction
+        {
+            Type = EditorActionType.PixelColor,
+            ScreenColorVariableName = "sample_color"
+        };
+        _viewModel.Actions.Add(pixelColor);
+
+        _viewModel.NewActionType = EditorActionType.WaitColor;
+        _viewModel.AddAction();
+        var action = _viewModel.SelectedAction!;
+
+        action.ScreenTargetColorSource = EditorActionScreenTargetColorSource.Variable;
+
+        _viewModel.SelectedScreenTargetColorVariableSuggestion = "sample_color";
+
+        action.ScreenTargetColorVariableName.Should().Be("sample_color");
+        _viewModel.SelectedScreenTargetColorVariableSuggestion.Should().BeNull();
     }
 
     [Fact]
@@ -2713,6 +3430,29 @@ public class EditorViewModelTests
         // Assert
         moveAction.IsAbsolute.Should().BeTrue();
         clickAction.IsAbsolute.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SelectedActionCoordinateModeProperties_IgnoreRadioUncheckWritesAndPersistCheckedModeAcrossSelectionChanges()
+    {
+        // Arrange
+        var moveAction = new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = true, X = 10, Y = 20 };
+        var clickAction = new EditorAction { Type = EditorActionType.MouseClick, IsAbsolute = true, X = 30, Y = 40 };
+        _viewModel.Actions.Add(moveAction);
+        _viewModel.Actions.Add(clickAction);
+        _viewModel.SelectedAction = moveAction;
+
+        // Act: Avalonia first checks the relative radio, then may uncheck the absolute radio during rebind.
+        _viewModel.SelectedActionIsRelative = true;
+        _viewModel.SelectedActionIsAbsolute = false;
+        _viewModel.SelectedAction = clickAction;
+        _viewModel.SelectedAction = moveAction;
+
+        // Assert
+        moveAction.IsAbsolute.Should().BeFalse();
+        clickAction.IsAbsolute.Should().BeTrue();
+        _viewModel.SelectedActionIsRelative.Should().BeTrue();
+        _viewModel.SelectedActionIsAbsolute.Should().BeFalse();
     }
 
     [Fact]

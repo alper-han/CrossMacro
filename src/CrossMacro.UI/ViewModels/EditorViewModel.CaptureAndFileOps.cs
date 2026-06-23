@@ -55,10 +55,24 @@ public partial class EditorViewModel
                     return;
                 }
 
-                targetAction.UseCurrentPosition = false;
-                targetAction.IsAbsolute = true;
-                targetAction.X = result.Value.X;
-                targetAction.Y = result.Value.Y;
+                if (targetAction.Type is EditorActionType.PixelColor or EditorActionType.WaitColor)
+                {
+                    if (targetAction.Type == EditorActionType.PixelColor)
+                    {
+                        targetAction.IsAbsolute = true;
+                    }
+
+                    targetAction.ScreenX = result.Value.X;
+                    targetAction.ScreenY = result.Value.Y;
+                }
+                else
+                {
+                    targetAction.UseCurrentPosition = false;
+                    targetAction.IsAbsolute = true;
+                    targetAction.X = result.Value.X;
+                    targetAction.Y = result.Value.Y;
+                }
+
                 Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCapturedPosition"), result.Value.X, result.Value.Y);
             });
         }

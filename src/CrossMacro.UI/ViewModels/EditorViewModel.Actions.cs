@@ -68,6 +68,21 @@ public partial class EditorViewModel
             && left.ForHasStep == right.ForHasStep
             && left.ForStepType == right.ForStepType
             && string.Equals(left.ForStepValue, right.ForStepValue, StringComparison.Ordinal)
+            && left.ScreenX == right.ScreenX
+            && left.ScreenY == right.ScreenY
+            && string.Equals(left.ScreenColorHex, right.ScreenColorHex, StringComparison.Ordinal)
+            && left.ScreenTargetColorSource == right.ScreenTargetColorSource
+            && string.Equals(left.ScreenTargetColorVariableName, right.ScreenTargetColorVariableName, StringComparison.Ordinal)
+            && string.Equals(left.ScreenColorVariableName, right.ScreenColorVariableName, StringComparison.Ordinal)
+            && left.ScreenTimeoutMs == right.ScreenTimeoutMs
+            && left.ScreenTolerance == right.ScreenTolerance
+            && left.ScreenLeft == right.ScreenLeft
+            && left.ScreenTop == right.ScreenTop
+            && left.ScreenWidth == right.ScreenWidth
+            && left.ScreenHeight == right.ScreenHeight
+            && string.Equals(left.ScreenFoundVariableName, right.ScreenFoundVariableName, StringComparison.Ordinal)
+            && string.Equals(left.ScreenFoundXVariableName, right.ScreenFoundXVariableName, StringComparison.Ordinal)
+            && string.Equals(left.ScreenFoundYVariableName, right.ScreenFoundYVariableName, StringComparison.Ordinal)
             && left.PreferLegacyScriptText == right.PreferLegacyScriptText;
     }
 
@@ -190,7 +205,13 @@ public partial class EditorViewModel
         }
 
         if (sender is EditorAction selectedAction
-            && e.PropertyName is nameof(EditorAction.Type) or nameof(EditorAction.UseRandomDelay) or nameof(EditorAction.UseCurrentPosition))
+            && e.PropertyName is nameof(EditorAction.Type)
+                or nameof(EditorAction.UseRandomDelay)
+                or nameof(EditorAction.UseCurrentPosition)
+                or nameof(EditorAction.ScriptLeftOperandType)
+                or nameof(EditorAction.ScriptRightOperandType)
+                or nameof(EditorAction.ScriptLeftOperand)
+                or nameof(EditorAction.ScriptRightOperand))
         {
             NormalizeSelectedActionState(selectedAction);
         }
@@ -198,16 +219,26 @@ public partial class EditorViewModel
         if (e.PropertyName == nameof(EditorAction.Type)
             || e.PropertyName == nameof(EditorAction.UseRandomDelay)
             || e.PropertyName == nameof(EditorAction.UseCurrentPosition)
+            || e.PropertyName == nameof(EditorAction.ScreenTargetColorSource)
             || e.PropertyName == nameof(EditorAction.ForHasStep)
             || e.PropertyName == nameof(EditorAction.ScriptValueType)
             || e.PropertyName == nameof(EditorAction.ScriptNumericSourceType)
             || e.PropertyName == nameof(EditorAction.ScriptLeftOperandType)
             || e.PropertyName == nameof(EditorAction.ScriptRightOperandType)
+            || e.PropertyName == nameof(EditorAction.ScriptLeftOperand)
+            || e.PropertyName == nameof(EditorAction.ScriptRightOperand)
             || e.PropertyName == nameof(EditorAction.ForStartType)
             || e.PropertyName == nameof(EditorAction.ForEndType)
             || e.PropertyName == nameof(EditorAction.ForStepType))
         {
             NotifyVisibilityChanged();
+        }
+
+        if (e.PropertyName is nameof(EditorAction.ScreenColorHex)
+            or nameof(EditorAction.ScreenTargetColorSource)
+            or nameof(EditorAction.ScreenTargetColorVariableName))
+        {
+            NotifyScreenReadingComputedPropertiesChanged();
         }
 
         if (e.PropertyName is nameof(EditorAction.Type)
@@ -220,7 +251,11 @@ public partial class EditorViewModel
             or nameof(EditorAction.ScriptRightOperand)
             or nameof(EditorAction.ForStartValue)
             or nameof(EditorAction.ForEndValue)
-            or nameof(EditorAction.ForStepValue))
+            or nameof(EditorAction.ForStepValue)
+            or nameof(EditorAction.ScreenColorVariableName)
+            or nameof(EditorAction.ScreenFoundVariableName)
+            or nameof(EditorAction.ScreenFoundXVariableName)
+            or nameof(EditorAction.ScreenFoundYVariableName))
         {
             RefreshAvailableVariableNames();
         }
@@ -249,6 +284,8 @@ public partial class EditorViewModel
         if (e.PropertyName == nameof(EditorAction.IsAbsolute) && sender is EditorAction coordAction)
         {
             NormalizeCoordinateAction(coordAction);
+            OnPropertyChanged(nameof(SelectedActionIsAbsolute));
+            OnPropertyChanged(nameof(SelectedActionIsRelative));
             RefreshCurrentPositionConfiguration();
         }
 
@@ -277,10 +314,22 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(ShowConditionFields));
         OnPropertyChanged(nameof(ShowForFields));
         OnPropertyChanged(nameof(ShowForStepFields));
+        OnPropertyChanged(nameof(ShowPixelColorFields));
+        OnPropertyChanged(nameof(ShowWaitColorFields));
+        OnPropertyChanged(nameof(ShowPixelSearchFields));
+        OnPropertyChanged(nameof(ShowScreenReadingColorFields));
+        OnPropertyChanged(nameof(ShowScreenReadingPointFields));
+        OnPropertyChanged(nameof(ScreenTargetColorSources));
         OnPropertyChanged(nameof(ShowSetVariablePicker));
         OnPropertyChanged(nameof(ShowIncDecVariablePicker));
         OnPropertyChanged(nameof(ShowConditionLeftVariablePicker));
+        OnPropertyChanged(nameof(ShowConditionLeftOperandTextBox));
+        OnPropertyChanged(nameof(SelectedConditionLeftVariableSuggestion));
         OnPropertyChanged(nameof(ShowConditionRightVariablePicker));
+        OnPropertyChanged(nameof(ShowConditionRightOperandTextBox));
+        OnPropertyChanged(nameof(SelectedConditionRightVariableSuggestion));
+        OnPropertyChanged(nameof(ScriptConditionOperators));
+        OnPropertyChanged(nameof(ConditionRightOperandHint));
         OnPropertyChanged(nameof(ShowForVariablePicker));
         OnPropertyChanged(nameof(TextInputLabel));
         OnPropertyChanged(nameof(TextInputWatermark));
@@ -290,7 +339,18 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(RequiresSkipInitialZeroZero));
         OnPropertyChanged(nameof(CanEditSkipInitialZeroZero));
         OnPropertyChanged(nameof(CanRemoveBlock));
+        NotifyScreenReadingComputedPropertiesChanged();
         RefreshAvailableVariableNames();
+    }
+
+    private void SetSelectedActionCoordinateMode(bool isAbsolute)
+    {
+        if (SelectedAction == null || SelectedAction.IsAbsolute == isAbsolute)
+        {
+            return;
+        }
+
+        SelectedAction.IsAbsolute = isAbsolute;
     }
 
     private void RefreshCurrentPositionConfiguration()
@@ -338,6 +398,12 @@ public partial class EditorViewModel
                 && action.UseCurrentPosition)
             {
                 NormalizeCurrentPositionMouseButtonAction(action);
+            }
+
+            if (action.Type is EditorActionType.IfBlockStart or EditorActionType.WhileBlockStart
+                && !IsOperatorValidForOperands(action))
+            {
+                action.ScriptConditionOperator = ScriptConditionOperator.Equals;
             }
         }
         finally
@@ -415,8 +481,24 @@ public partial class EditorViewModel
             UseRandomDelay = false,
             RandomDelayMinMs = 50,
             RandomDelayMaxMs = 150,
-            ScrollAmount = NewActionType is EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal ? 1 : 0
+            ScrollAmount = NewActionType is EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal ? 1 : 0,
+            ScreenWidth = EditorActionScreenReadingPayload.DefaultPointScreenWidth,
+            ScreenHeight = EditorActionScreenReadingPayload.DefaultPointScreenHeight,
+            ScreenColorHex = EditorActionScreenReadingPayload.DefaultColorHex,
+            ScreenTargetColorSource = EditorActionScreenTargetColorSource.ManualHex,
+            ScreenTargetColorVariableName = EditorActionScreenReadingPayload.DefaultTargetColorVariableName,
+            ScreenColorVariableName = EditorActionScreenReadingPayload.DefaultColorVariableName,
+            ScreenFoundVariableName = EditorActionScreenReadingPayload.DefaultFoundVariableName,
+            ScreenFoundXVariableName = EditorActionScreenReadingPayload.DefaultFoundXVariableName,
+            ScreenFoundYVariableName = EditorActionScreenReadingPayload.DefaultFoundYVariableName,
+            ScreenTimeoutMs = EditorActionScreenReadingPayload.DefaultTimeoutMs,
+            ScreenTolerance = EditorActionScreenReadingPayload.DefaultTolerance
         };
+
+        if (EditorActionScreenReadingPayload.TryCreateDefault(NewActionType, out var screenReadingPayload))
+        {
+            action.ApplyScreenReadingPayload(screenReadingPayload);
+        }
 
         Actions.Insert(insertionIndex, action);
         if (IsAutoManagedBlockStartAction(NewActionType))

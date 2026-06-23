@@ -1,7 +1,9 @@
 using System;
 using System.Globalization;
 using Avalonia;
+using Avalonia.Data;
 using Avalonia.Data.Converters;
+using Avalonia.Media;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.UI.Localization;
@@ -98,6 +100,90 @@ public static class ScheduleTaskConverters
 
 }
 
+public static class EditorScriptDisplayConverters
+{
+    private static ILocalizationService? _localizationService;
+
+    public static void Configure(ILocalizationService localizationService)
+    {
+        _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
+    }
+
+    public static string FormatOperandType(ScriptOperandType operandType)
+    {
+        return operandType switch
+        {
+            ScriptOperandType.VariableReference => Localize("Editor_ScriptOperand_VariableReference", "Variable"),
+            ScriptOperandType.Number => Localize("Editor_ScriptOperand_Number", "Number"),
+            ScriptOperandType.Text => Localize("Editor_ScriptOperand_Text", "Text / Color (RRGGBB)"),
+            ScriptOperandType.Boolean => Localize("Editor_ScriptOperand_Boolean", "True / False"),
+            _ => operandType.ToString()
+        };
+    }
+
+    public static string FormatConditionOperator(ScriptConditionOperator conditionOperator)
+    {
+        return conditionOperator switch
+        {
+            ScriptConditionOperator.Equals => Localize("Editor_ScriptConditionOperator_Equals", "Equals (=)"),
+            ScriptConditionOperator.NotEquals => Localize("Editor_ScriptConditionOperator_NotEquals", "Not equals (!=)"),
+            ScriptConditionOperator.GreaterThan => Localize("Editor_ScriptConditionOperator_GreaterThan", "Greater than (>)"),
+            ScriptConditionOperator.GreaterThanOrEqual => Localize("Editor_ScriptConditionOperator_GreaterThanOrEqual", "Greater than or equal (>=)"),
+            ScriptConditionOperator.LessThan => Localize("Editor_ScriptConditionOperator_LessThan", "Less than (<)"),
+            ScriptConditionOperator.LessThanOrEqual => Localize("Editor_ScriptConditionOperator_LessThanOrEqual", "Less than or equal (<=)"),
+            _ => conditionOperator.ToString()
+        };
+    }
+
+    private static string Localize(string key, string fallback)
+    {
+        var localized = _localizationService?[key];
+        return string.IsNullOrWhiteSpace(localized) ? fallback : localized;
+    }
+}
+
+public static class EditorScreenTargetColorSourceDisplayConverters
+{
+    private static ILocalizationService? _localizationService;
+
+    public static void Configure(ILocalizationService localizationService)
+    {
+        _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
+    }
+
+    public static string FormatSource(EditorActionScreenTargetColorSource source)
+    {
+        return source switch
+        {
+            EditorActionScreenTargetColorSource.Variable => Localize("Editor_TargetColorSourceVariable", "Variable"),
+            _ => Localize("Editor_TargetColorSourceManualHex", "Manual hex")
+        };
+    }
+
+    private static string Localize(string key, string fallback)
+    {
+        var localized = _localizationService?[key];
+        return string.IsNullOrWhiteSpace(localized) ? fallback : localized;
+    }
+}
+
+public class ScreenTargetColorSourceDisplayConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return value switch
+        {
+            EditorActionScreenTargetColorSource source => EditorScreenTargetColorSourceDisplayConverters.FormatSource(source),
+            _ => value?.ToString() ?? string.Empty
+        };
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotSupportedException();
+    }
+}
+
 /// <summary>
 /// Converter to get index of item in list.
 /// </summary>
@@ -152,6 +238,64 @@ public class NullableIntConverter : IValueConverter
             return Avalonia.Data.BindingOperations.DoNothing;
         }
         return Avalonia.Data.BindingOperations.DoNothing;
+    }
+}
+
+public class HexColorBrushConverter : IValueConverter
+{
+    public static readonly HexColorBrushConverter Instance = new();
+
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        var text = value?.ToString()?.Trim();
+        if (text is { Length: 6 } && uint.TryParse(text, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgb))
+        {
+            var red = (byte)((rgb >> 16) & 0xFF);
+            var green = (byte)((rgb >> 8) & 0xFF);
+            var blue = (byte)(rgb & 0xFF);
+            return new SolidColorBrush(Color.FromRgb(red, green, blue));
+        }
+
+        return Brushes.Transparent;
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotSupportedException();
+    }
+}
+
+public class ScriptOperandTypeDisplayConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return value switch
+        {
+            ScriptOperandType operandType => EditorScriptDisplayConverters.FormatOperandType(operandType),
+            _ => value?.ToString() ?? string.Empty
+        };
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotSupportedException();
+    }
+}
+
+public class ScriptConditionOperatorDisplayConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return value switch
+        {
+            ScriptConditionOperator conditionOperator => EditorScriptDisplayConverters.FormatConditionOperator(conditionOperator),
+            _ => value?.ToString() ?? string.Empty
+        };
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotSupportedException();
     }
 }
 

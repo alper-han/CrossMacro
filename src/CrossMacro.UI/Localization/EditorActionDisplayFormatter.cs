@@ -43,6 +43,9 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             EditorActionType.ElseBlockStart => localizationService["Editor_Action_ElseBlockShort"],
             EditorActionType.WhileBlockStart => localizationService["Editor_Action_WhileBlockShort"],
             EditorActionType.ForBlockStart => localizationService["Editor_Action_ForBlockShort"],
+            EditorActionType.PixelColor => FormatPixelColor(GetScreenReadingPayload(action)),
+            EditorActionType.WaitColor => FormatWaitColor(GetScreenReadingPayload(action)),
+            EditorActionType.PixelSearch => FormatPixelSearch(GetScreenReadingPayload(action)),
             EditorActionType.Break => localizationService["Editor_Action_BreakShort"],
             EditorActionType.Continue => localizationService["Editor_Action_ContinueShort"],
             EditorActionType.BlockEnd => localizationService["Editor_Action_EndBlockShort"],
@@ -79,6 +82,9 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             EditorActionType.BlockEnd => localizationService["Editor_ActionType_BlockEnd"],
             EditorActionType.Break => localizationService["Editor_ActionType_Break"],
             EditorActionType.Continue => localizationService["Editor_ActionType_Continue"],
+            EditorActionType.PixelColor => localizationService["Editor_ActionType_PixelColor"],
+            EditorActionType.WaitColor => localizationService["Editor_ActionType_WaitColor"],
+            EditorActionType.PixelSearch => localizationService["Editor_ActionType_PixelSearch"],
             EditorActionType.RawScriptStep => localizationService["Editor_ActionType_RawScriptStep"],
             _ => actionType.ToString()
         };
@@ -110,6 +116,55 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             MouseButton.ScrollRight => localizationService["MouseButton_ScrollRight"],
             _ => button.ToString()
         };
+    }
+
+    private string FormatPixelColor(EditorActionScreenReadingPayload payload)
+    {
+        var key = payload.IsAbsolute ? "Editor_Action_PixelColorAbsolute" : "Editor_Action_PixelColorRelative";
+        return string.Format(
+            localizationService.CurrentCulture,
+            localizationService[key],
+            payload.ScreenX,
+            payload.ScreenY,
+            payload.ScreenColorVariableName);
+    }
+
+    private string FormatWaitColor(EditorActionScreenReadingPayload payload)
+    {
+        return string.Format(
+            localizationService.CurrentCulture,
+            localizationService["Editor_Action_WaitColor"],
+            payload.FormatTargetColorToken(),
+            payload.ScreenX,
+            payload.ScreenY,
+            payload.ScreenTimeoutMs,
+            payload.ScreenColorVariableName);
+    }
+
+    private string FormatPixelSearch(EditorActionScreenReadingPayload payload)
+    {
+        return string.Format(
+            localizationService.CurrentCulture,
+            localizationService["Editor_Action_PixelSearch"],
+            payload.FormatTargetColorToken(),
+            payload.ScreenLeft,
+            payload.ScreenTop,
+            payload.ScreenWidth,
+            payload.ScreenHeight,
+            payload.ScreenFoundVariableName,
+            payload.ScreenFoundXVariableName,
+            payload.ScreenFoundYVariableName,
+            payload.ScreenTolerance);
+    }
+
+    private static EditorActionScreenReadingPayload GetScreenReadingPayload(EditorAction action)
+    {
+        if (!action.TryGetScreenReadingPayload(out var payload))
+        {
+            throw new InvalidOperationException("Action type does not contain a screen-reading payload.");
+        }
+
+        return payload;
     }
 
     private static string Truncate(string value, int maxLength)

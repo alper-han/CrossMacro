@@ -2,6 +2,7 @@ namespace CrossMacro.UI.Tests.Views.Tabs;
 
 using System.Globalization;
 using Avalonia.Data;
+using Avalonia.Media;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.UI.Localization;
@@ -53,6 +54,60 @@ public class EditorTabConvertersTests
         Assert.Equal(17, converter.ConvertBack("17", typeof(int), null, culture));
         Assert.Same(BindingOperations.DoNothing, converter.ConvertBack("abc", typeof(int), null, culture));
         Assert.Same(BindingOperations.DoNothing, converter.ConvertBack(99, typeof(int), null, culture));
+    }
+
+    [Theory]
+    [InlineData("12ABEF", 0x12, 0xAB, 0xEF)]
+    [InlineData("12abef", 0x12, 0xAB, 0xEF)]
+    [InlineData(" 0055AA ", 0x00, 0x55, 0xAA)]
+    public void HexColorBrushConverter_ForValidRgbHex_ReturnsMatchingBrush(string hex, byte red, byte green, byte blue)
+    {
+        var converter = new HexColorBrushConverter();
+
+        var result = converter.Convert(hex, typeof(IBrush), null, CultureInfo.InvariantCulture);
+
+        var brush = Assert.IsType<SolidColorBrush>(result);
+        Assert.Equal(Color.FromRgb(red, green, blue), brush.Color);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("12345")]
+    [InlineData("GGGGGG")]
+    public void HexColorBrushConverter_ForInvalidHex_ReturnsTransparentBrush(string? hex)
+    {
+        var converter = new HexColorBrushConverter();
+
+        var result = converter.Convert(hex, typeof(IBrush), null, CultureInfo.InvariantCulture);
+
+        Assert.Same(Brushes.Transparent, result);
+    }
+
+    [Fact]
+    public void ScriptOperandTypeDisplayConverter_ShouldExplainTextAsColorOperand()
+    {
+        var localizationService = Substitute.For<ILocalizationService>();
+        localizationService["Editor_ScriptOperand_Text"].Returns("[Editor_ScriptOperand_Text]");
+        EditorScriptDisplayConverters.Configure(localizationService);
+        var converter = new ScriptOperandTypeDisplayConverter();
+
+        var result = converter.Convert(ScriptOperandType.Text, typeof(string), null, CultureInfo.InvariantCulture);
+
+        Assert.Equal("[Editor_ScriptOperand_Text]", result);
+    }
+
+    [Fact]
+    public void ScriptConditionOperatorDisplayConverter_ShouldUseFriendlyLabels()
+    {
+        var localizationService = Substitute.For<ILocalizationService>();
+        localizationService["Editor_ScriptConditionOperator_GreaterThanOrEqual"].Returns("[Editor_ScriptConditionOperator_GreaterThanOrEqual]");
+        EditorScriptDisplayConverters.Configure(localizationService);
+        var converter = new ScriptConditionOperatorDisplayConverter();
+
+        var result = converter.Convert(ScriptConditionOperator.GreaterThanOrEqual, typeof(string), null, CultureInfo.InvariantCulture);
+
+        Assert.Equal("[Editor_ScriptConditionOperator_GreaterThanOrEqual]", result);
     }
 
     [Fact]

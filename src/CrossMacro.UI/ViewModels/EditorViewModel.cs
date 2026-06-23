@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
-using System.Text.RegularExpressions;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.UI.Localization;
@@ -22,6 +21,15 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     {
         Ready,
         Other
+    }
+
+    private enum ScriptVariableKind
+    {
+        Unknown,
+        Number,
+        Text,
+        Boolean,
+        Color
     }
 
     private const int UndoStackLimit = 50;
@@ -63,11 +71,13 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private EditorStatusKind _statusKind = EditorStatusKind.Ready;
     private List<EditorAction> _lastKnownState = new();
     private IReadOnlyList<string> _availableVariableNames = Array.Empty<string>();
+    private IReadOnlyList<string> _availableColorVariableNames = Array.Empty<string>();
     private string? _selectedSetVariableSuggestion;
     private string? _selectedIncDecVariableSuggestion;
     private string? _selectedConditionLeftVariableSuggestion;
     private string? _selectedConditionRightVariableSuggestion;
     private string? _selectedForVariableSuggestion;
+    private string? _selectedScreenTargetColorVariableSuggestion;
     private Guid? _linkedLoadedMacroSessionId;
     private DateTimeOffset _lastPropertyEditUndoAt = DateTimeOffset.MinValue;
     private EditorAction? _lastPropertyEditAction;
@@ -77,6 +87,12 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         .GetValues<EditorActionType>()
         .Where(IsUserAddableActionType)
         .ToArray();
+    private static readonly IReadOnlyList<EditorActionScreenTargetColorSource> EditorScreenTargetColorSources =
+        new[]
+        {
+            EditorActionScreenTargetColorSource.ManualHex,
+            EditorActionScreenTargetColorSource.Variable
+        };
 
     /// <summary>
     /// Event fired when a macro is created/saved.
@@ -152,10 +168,13 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             if (_selectedAction != null)
             {
                 _selectedAction.PropertyChanged += OnSelectedActionPropertyChanged;
+                NormalizeSelectedActionState(_selectedAction);
             }
 
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasSelectedAction));
+            OnPropertyChanged(nameof(SelectedActionIsAbsolute));
+            OnPropertyChanged(nameof(SelectedActionIsRelative));
             NotifyVisibilityChanged();
             OnPropertyChanged(nameof(SelectedActionDisplayText));
             ResetPropertyEditUndoCoalescing();
@@ -196,6 +215,30 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             finally
             {
                 _isSelectingFromActionList = false;
+            }
+        }
+    }
+
+    public bool SelectedActionIsAbsolute
+    {
+        get => SelectedAction?.IsAbsolute ?? false;
+        set
+        {
+            if (value)
+            {
+                SetSelectedActionCoordinateMode(isAbsolute: true);
+            }
+        }
+    }
+
+    public bool SelectedActionIsRelative
+    {
+        get => SelectedAction is { IsAbsolute: false };
+        set
+        {
+            if (value)
+            {
+                SetSelectedActionCoordinateMode(isAbsolute: false);
             }
         }
     }
@@ -430,10 +473,6 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public IEnumerable<ScriptValueType> ScriptValueTypes => Enum.GetValues<ScriptValueType>();
     public IEnumerable<ScriptNumericSourceType> ScriptNumericSourceTypes => Enum.GetValues<ScriptNumericSourceType>();
     public IEnumerable<ScriptOperandType> ScriptOperandTypes => Enum.GetValues<ScriptOperandType>();
-    public IEnumerable<ScriptConditionOperator> ScriptConditionOperators => Enum.GetValues<ScriptConditionOperator>();
-    public IReadOnlyList<string> AvailableVariableNames => _availableVariableNames;
-    public bool HasAvailableVariableNames => AvailableVariableNames.Count > 0;
-
     #endregion
 
     #region Visibility Properties
@@ -534,81 +573,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public bool ShowConditionFields => SelectedAction?.Type is EditorActionType.IfBlockStart or EditorActionType.WhileBlockStart;
     public bool ShowForFields => SelectedAction?.Type == EditorActionType.ForBlockStart;
     public bool ShowForStepFields => ShowForFields && SelectedAction?.ForHasStep == true;
-    public bool ShowSetVariablePicker => ShowSetVariableFields && HasAvailableVariableNames;
-    public bool ShowIncDecVariablePicker => ShowIncDecFields && HasAvailableVariableNames;
-    public bool ShowConditionLeftVariablePicker =>
-        ShowConditionFields
-        && HasAvailableVariableNames
-        && SelectedAction?.ScriptLeftOperandType == ScriptOperandType.VariableReference;
-    public bool ShowConditionRightVariablePicker =>
-        ShowConditionFields
-        && HasAvailableVariableNames
-        && SelectedAction?.ScriptRightOperandType == ScriptOperandType.VariableReference;
-    public bool ShowForVariablePicker => ShowForFields && HasAvailableVariableNames;
     public bool CanInsertElseBlock => CanInsertElseForSelection();
     public bool CanRemoveBlock => CanRemoveSelectedBlock();
-
-    public string? SelectedSetVariableSuggestion
-    {
-        get => _selectedSetVariableSuggestion;
-        set => ApplyVariableSuggestion(ref _selectedSetVariableSuggestion, value, nameof(SelectedSetVariableSuggestion), suggestion =>
-        {
-            if (SelectedAction?.Type == EditorActionType.SetVariable)
-            {
-                SelectedAction.ScriptVariableName = suggestion;
-            }
-        });
-    }
-
-    public string? SelectedIncDecVariableSuggestion
-    {
-        get => _selectedIncDecVariableSuggestion;
-        set => ApplyVariableSuggestion(ref _selectedIncDecVariableSuggestion, value, nameof(SelectedIncDecVariableSuggestion), suggestion =>
-        {
-            if (SelectedAction?.Type is EditorActionType.IncrementVariable or EditorActionType.DecrementVariable)
-            {
-                SelectedAction.ScriptVariableName = suggestion;
-            }
-        });
-    }
-
-    public string? SelectedConditionLeftVariableSuggestion
-    {
-        get => _selectedConditionLeftVariableSuggestion;
-        set => ApplyVariableSuggestion(ref _selectedConditionLeftVariableSuggestion, value, nameof(SelectedConditionLeftVariableSuggestion), suggestion =>
-        {
-            if (SelectedAction?.Type is EditorActionType.IfBlockStart or EditorActionType.WhileBlockStart
-                && SelectedAction.ScriptLeftOperandType == ScriptOperandType.VariableReference)
-            {
-                SelectedAction.ScriptLeftOperand = suggestion;
-            }
-        });
-    }
-
-    public string? SelectedConditionRightVariableSuggestion
-    {
-        get => _selectedConditionRightVariableSuggestion;
-        set => ApplyVariableSuggestion(ref _selectedConditionRightVariableSuggestion, value, nameof(SelectedConditionRightVariableSuggestion), suggestion =>
-        {
-            if (SelectedAction?.Type is EditorActionType.IfBlockStart or EditorActionType.WhileBlockStart
-                && SelectedAction.ScriptRightOperandType == ScriptOperandType.VariableReference)
-            {
-                SelectedAction.ScriptRightOperand = suggestion;
-            }
-        });
-    }
-
-    public string? SelectedForVariableSuggestion
-    {
-        get => _selectedForVariableSuggestion;
-        set => ApplyVariableSuggestion(ref _selectedForVariableSuggestion, value, nameof(SelectedForVariableSuggestion), suggestion =>
-        {
-            if (SelectedAction?.Type == EditorActionType.ForBlockStart)
-            {
-                SelectedAction.ForVariableName = suggestion;
-            }
-        });
-    }
 
     public string TextInputLabel => SelectedAction?.Type == EditorActionType.RawScriptStep
         ? Localize("Editor_RawScriptStep")
@@ -692,6 +658,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(SelectedActionListItem));
         OnPropertyChanged(nameof(CanInsertElseBlock));
         OnPropertyChanged(nameof(CanRemoveBlock));
+        OnPropertyChanged(nameof(ConditionRightOperandHint));
+        NotifyScreenReadingComputedPropertiesChanged();
     }
 
     private void SetStatusKind(EditorStatusKind statusKind)
@@ -879,12 +847,18 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             or nameof(EditorAction.ScriptRightOperand)
             or nameof(EditorAction.ForStartValue)
             or nameof(EditorAction.ForEndValue)
-            or nameof(EditorAction.ForStepValue)))
+            or nameof(EditorAction.ForStepValue)
+            or nameof(EditorAction.ScreenColorVariableName)
+            or nameof(EditorAction.ScreenFoundVariableName)
+            or nameof(EditorAction.ScreenFoundXVariableName)
+            or nameof(EditorAction.ScreenFoundYVariableName)))
         {
+            NotifyScreenReadingComputedPropertiesChanged();
             return;
         }
 
         RefreshAvailableVariableNames();
+        NotifyScreenReadingComputedPropertiesChanged();
     }
 
     private void OnLoadWarningsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -1100,6 +1074,9 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             EditorActionType.SetVariable
                 or EditorActionType.IncrementVariable
                 or EditorActionType.DecrementVariable => EditorActionVisualKind.Variable,
+            EditorActionType.PixelColor
+                or EditorActionType.WaitColor
+                or EditorActionType.PixelSearch => EditorActionVisualKind.Raw,
             EditorActionType.RepeatBlockStart
                 or EditorActionType.IfBlockStart
                 or EditorActionType.ElseBlockStart
@@ -1356,159 +1333,4 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         return isDragging;
     }
 
-    private IReadOnlyList<string> BuildAvailableVariableNames()
-    {
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        for (var index = 0; index < Actions.Count; index++)
-        {
-            var action = Actions[index];
-            switch (action.Type)
-            {
-                case EditorActionType.SetVariable:
-                    AddIfValidVariableName(names, action.ScriptVariableName);
-                    if (action.PreferLegacyScriptText)
-                    {
-                        TryAddLegacySetVariableName(names, action.Text);
-                    }
-                    break;
-                case EditorActionType.ForBlockStart:
-                    AddIfValidVariableName(names, action.ForVariableName);
-                    break;
-            }
-        }
-
-        if (SelectedAction != null)
-        {
-            AddIfValidVariableName(names, SelectedAction.ScriptVariableName);
-            AddIfValidVariableName(names, SelectedAction.ForVariableName);
-            AddIfValidVariableName(names, SelectedAction.ScriptValue);
-            AddIfValidVariableName(names, SelectedAction.ScriptNumericValue);
-            AddIfValidVariableName(names, SelectedAction.ScriptLeftOperand);
-            AddIfValidVariableName(names, SelectedAction.ScriptRightOperand);
-            AddIfValidVariableName(names, SelectedAction.ForStartValue);
-            AddIfValidVariableName(names, SelectedAction.ForEndValue);
-            AddIfValidVariableName(names, SelectedAction.ForStepValue);
-        }
-
-        return names.OrderBy(name => name, StringComparer.Ordinal).ToArray();
-    }
-
-    private void RefreshAvailableVariableNames()
-    {
-        var next = BuildAvailableVariableNames();
-        if (_availableVariableNames.SequenceEqual(next, StringComparer.Ordinal))
-        {
-            OnPropertyChanged(nameof(CanInsertElseBlock));
-            OnPropertyChanged(nameof(CanRemoveBlock));
-            OnPropertyChanged(nameof(ShowSetVariablePicker));
-            OnPropertyChanged(nameof(ShowIncDecVariablePicker));
-            OnPropertyChanged(nameof(ShowConditionLeftVariablePicker));
-            OnPropertyChanged(nameof(ShowConditionRightVariablePicker));
-            OnPropertyChanged(nameof(ShowForVariablePicker));
-            ClearVariableSuggestionSelections();
-            return;
-        }
-
-        _availableVariableNames = next;
-        OnPropertyChanged(nameof(AvailableVariableNames));
-        OnPropertyChanged(nameof(HasAvailableVariableNames));
-        OnPropertyChanged(nameof(CanInsertElseBlock));
-        OnPropertyChanged(nameof(CanRemoveBlock));
-        OnPropertyChanged(nameof(ShowSetVariablePicker));
-        OnPropertyChanged(nameof(ShowIncDecVariablePicker));
-        OnPropertyChanged(nameof(ShowConditionLeftVariablePicker));
-        OnPropertyChanged(nameof(ShowConditionRightVariablePicker));
-        OnPropertyChanged(nameof(ShowForVariablePicker));
-        ClearVariableSuggestionSelections();
-    }
-
-    private void ClearVariableSuggestionSelections()
-    {
-        SetSuggestionValue(ref _selectedSetVariableSuggestion, nameof(SelectedSetVariableSuggestion), null);
-        SetSuggestionValue(ref _selectedIncDecVariableSuggestion, nameof(SelectedIncDecVariableSuggestion), null);
-        SetSuggestionValue(ref _selectedConditionLeftVariableSuggestion, nameof(SelectedConditionLeftVariableSuggestion), null);
-        SetSuggestionValue(ref _selectedConditionRightVariableSuggestion, nameof(SelectedConditionRightVariableSuggestion), null);
-        SetSuggestionValue(ref _selectedForVariableSuggestion, nameof(SelectedForVariableSuggestion), null);
-    }
-
-    private void SetSuggestionValue(ref string? targetField, string propertyName, string? value)
-    {
-        if (string.Equals(targetField, value, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        targetField = value;
-        OnPropertyChanged(propertyName);
-    }
-
-    private void ApplyVariableSuggestion(
-        ref string? field,
-        string? value,
-        string propertyName,
-        Action<string> applyAction)
-    {
-        if (string.Equals(field, value, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        field = value;
-        OnPropertyChanged(propertyName);
-
-        if (_isApplyingVariableSuggestion || string.IsNullOrWhiteSpace(value))
-        {
-            return;
-        }
-
-        _isApplyingVariableSuggestion = true;
-        try
-        {
-            applyAction(value);
-            field = null;
-            OnPropertyChanged(propertyName);
-        }
-        finally
-        {
-            _isApplyingVariableSuggestion = false;
-        }
-    }
-
-    private static void TryAddLegacySetVariableName(ISet<string> target, string legacyText)
-    {
-        if (string.IsNullOrWhiteSpace(legacyText))
-        {
-            return;
-        }
-
-        var text = legacyText.Trim();
-        var equalIndex = text.IndexOf('=');
-        if (equalIndex > 0)
-        {
-            AddIfValidVariableName(target, text[..equalIndex]);
-            return;
-        }
-
-        var firstPart = text.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
-        AddIfValidVariableName(target, firstPart ?? string.Empty);
-    }
-
-    private static void AddIfValidVariableName(ISet<string> target, string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return;
-        }
-
-        var token = value.Trim();
-        if (token.StartsWith("$", StringComparison.Ordinal))
-        {
-            token = token[1..];
-        }
-
-        if (Regex.IsMatch(token, @"^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant))
-        {
-            target.Add(token);
-        }
-    }
 }

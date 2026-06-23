@@ -55,6 +55,7 @@ internal sealed class DesktopStartupInitializationService
         localizationService.SetCulture(settingsService.Current.Language);
         ActionTypeConverters.Configure(_getEditorActionDisplayFormatter());
         ScheduleTaskConverters.Configure(localizationService);
+        EditorScriptDisplayConverters.Configure(localizationService);
     }
 
     private void ApplyTheme(ISettingsService settingsService)

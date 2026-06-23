@@ -24,6 +24,21 @@ public static class ListBoxSelectedActionIndices
             "BoundSelectionChangedHandler",
             typeof(ListBoxSelectedActionIndices));
 
+    private static readonly AttachedProperty<NotifyCollectionChangedEventHandler?> BoundItemsChangedHandlerProperty =
+        AvaloniaProperty.RegisterAttached<ListBox, NotifyCollectionChangedEventHandler?>(
+            "BoundItemsChangedHandler",
+            typeof(ListBoxSelectedActionIndices));
+
+    private static readonly AttachedProperty<bool> IsWritingExplicitEmptySelectionProperty =
+        AvaloniaProperty.RegisterAttached<ListBox, bool>(
+            "IsWritingExplicitEmptySelection",
+            typeof(ListBoxSelectedActionIndices));
+
+    private static readonly AttachedProperty<bool> IsWritingUserSelectionProperty =
+        AvaloniaProperty.RegisterAttached<ListBox, bool>(
+            "IsWritingUserSelection",
+            typeof(ListBoxSelectedActionIndices));
+
     public static readonly AttachedProperty<IList<int>?> SelectedUnderlyingIndicesProperty =
         AvaloniaProperty.RegisterAttached<ListBox, IList<int>?>(
             "SelectedUnderlyingIndices",
@@ -59,6 +74,13 @@ public static class ListBoxSelectedActionIndices
                 newCollection.CollectionChanged += newHandler;
             }
 
+            if (listBox.Items is INotifyCollectionChanged itemsCollection)
+            {
+                NotifyCollectionChangedEventHandler itemsHandler = (_, _) => SyncListBoxSelection(listBox);
+                listBox.SetValue(BoundItemsChangedHandlerProperty, itemsHandler);
+                itemsCollection.CollectionChanged += itemsHandler;
+            }
+
             listBox.SelectionChanged += OnSelectionChanged;
             listBox.AddHandler(InputElement.PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
             listBox.DetachedFromVisualTree += OnDetachedFromVisualTree;
@@ -80,7 +102,7 @@ public static class ListBoxSelectedActionIndices
         }
 
         var point = e.GetCurrentPoint(listBox);
-        if (!point.Properties.IsLeftButtonPressed || e.KeyModifiers != KeyModifiers.None)
+        if (!point.Properties.IsLeftButtonPressed)
         {
             return;
         }
@@ -91,12 +113,29 @@ public static class ListBoxSelectedActionIndices
             return;
         }
 
+        MarkSelectionChangeAsUserInitiated(listBox);
+
+        if (e.KeyModifiers != KeyModifiers.None)
+        {
+            return;
+        }
+
         if (!TryDeselectSelectedSourceAction(listBox, actionItem))
         {
             return;
         }
 
-        SyncSelectionToViewModel(listBox);
+        listBox.SetValue(IsWritingExplicitEmptySelectionProperty, true);
+        try
+        {
+            SyncSelectionToViewModel(listBox);
+        }
+        finally
+        {
+            listBox.SetValue(IsWritingExplicitEmptySelectionProperty, false);
+            listBox.SetValue(IsWritingUserSelectionProperty, false);
+        }
+
         e.Handled = true;
     }
 
@@ -112,6 +151,28 @@ public static class ListBoxSelectedActionIndices
 
         listBox.SelectedItems.Remove(actionItem);
         return true;
+    }
+
+    internal static void MarkSelectionChangeAsUserInitiated(ListBox listBox)
+    {
+        ArgumentNullException.ThrowIfNull(listBox);
+        listBox.SetValue(IsWritingUserSelectionProperty, true);
+    }
+
+    internal static IReadOnlyList<EditorActionListItem> GetVisibleSelectedSourceItems(
+        IEnumerable<object?> items,
+        IEnumerable<int> selectedUnderlyingIndices)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(selectedUnderlyingIndices);
+
+        var targetSet = selectedUnderlyingIndices.ToHashSet();
+        return items
+            .OfType<EditorActionListItem>()
+            .Where(item => item.RepresentsSourceAction && targetSet.Contains(item.UnderlyingIndex))
+            .GroupBy(item => item.UnderlyingIndex)
+            .Select(group => group.First())
+            .ToArray();
     }
 
     private static void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
@@ -134,14 +195,28 @@ public static class ListBoxSelectedActionIndices
             oldCollection.CollectionChanged -= oldHandler;
         }
 
+        var oldItemsHandler = listBox.GetValue(BoundItemsChangedHandlerProperty);
+        if (listBox.Items is INotifyCollectionChanged itemsCollection && oldItemsHandler != null)
+        {
+            itemsCollection.CollectionChanged -= oldItemsHandler;
+        }
+
         listBox.SetValue(BoundSelectionChangedHandlerProperty, null);
+        listBox.SetValue(BoundItemsChangedHandlerProperty, null);
     }
 
     private static void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (sender is ListBox listBox && !listBox.GetValue(IsSynchronizingSelectionProperty))
         {
-            SyncSelectionToViewModel(listBox);
+            try
+            {
+                SyncSelectionToViewModel(listBox);
+            }
+            finally
+            {
+                listBox.SetValue(IsWritingUserSelectionProperty, false);
+            }
         }
     }
 
@@ -160,7 +235,6 @@ public static class ListBoxSelectedActionIndices
         }
 
         var selectedIndices = new List<int>();
-        var hasVisibleSourceActions = false;
         foreach (var selectedItem in listBox.SelectedItems)
         {
             if (selectedItem is EditorActionListItem actionItem && actionItem.RepresentsSourceAction)
@@ -169,28 +243,35 @@ public static class ListBoxSelectedActionIndices
             }
         }
 
-        foreach (var item in listBox.Items)
+        var normalizedSelectedIndices = selectedIndices
+            .Distinct()
+            .OrderBy(index => index)
+            .ToArray();
+
+        if (normalizedSelectedIndices.Length == 0
+            && target.Count > 0
+            && !listBox.GetValue(IsWritingUserSelectionProperty)
+            && !listBox.GetValue(IsWritingExplicitEmptySelectionProperty))
         {
-            if (item is EditorActionListItem { RepresentsSourceAction: true })
-            {
-                hasVisibleSourceActions = true;
-                break;
-            }
+            return;
         }
 
-        if (selectedIndices.Count == 0 && target.Count > 0 && !hasVisibleSourceActions)
+        if (normalizedSelectedIndices.Length > 0
+            && target.Count > normalizedSelectedIndices.Length
+            && !listBox.GetValue(IsWritingUserSelectionProperty)
+            && normalizedSelectedIndices.All(target.Contains))
         {
             return;
         }
 
         if (listBox.DataContext is EditorViewModel editorViewModel)
         {
-            editorViewModel.ReplaceSelectedActionUnderlyingIndices(selectedIndices);
+            editorViewModel.ReplaceSelectedActionUnderlyingIndices(normalizedSelectedIndices);
             return;
         }
 
         target.Clear();
-        foreach (var selectedIndex in selectedIndices)
+        foreach (var selectedIndex in normalizedSelectedIndices)
         {
             target.Add(selectedIndex);
         }
@@ -205,17 +286,34 @@ public static class ListBoxSelectedActionIndices
         }
 
         var targetSet = target.ToHashSet();
+        var desiredActionItems = GetVisibleSelectedSourceItems(listBox.Items.Cast<object?>(), targetSet);
+
+        listBox.SetValue(IsWritingUserSelectionProperty, false);
         listBox.SetValue(IsSynchronizingSelectionProperty, true);
         try
         {
-            listBox.SelectedItems.Clear();
-            foreach (var item in listBox.Items)
+            var desiredItems = desiredActionItems
+                .Cast<object>()
+                .ToArray();
+            foreach (var selectedItem in listBox.SelectedItems.Cast<object>().ToArray())
             {
-                if (item is EditorActionListItem actionItem
-                    && actionItem.RepresentsSourceAction
-                    && targetSet.Contains(actionItem.UnderlyingIndex))
+                listBox.SelectedItems.Remove(selectedItem);
+            }
+
+            foreach (var item in desiredItems)
+            {
+                listBox.SelectedItems.Add(item);
+            }
+
+            var seenSelectedItems = new HashSet<object>();
+            var seenUnderlyingIndices = new HashSet<int>();
+            foreach (var selectedItem in listBox.SelectedItems.Cast<object>().ToArray())
+            {
+                var duplicateSourceIndex = selectedItem is EditorActionListItem actionItem
+                    && !seenUnderlyingIndices.Add(actionItem.UnderlyingIndex);
+                if (!seenSelectedItems.Add(selectedItem) || duplicateSourceIndex)
                 {
-                    listBox.SelectedItems.Add(actionItem);
+                    listBox.SelectedItems.Remove(selectedItem);
                 }
             }
         }

@@ -10,3 +10,4 @@ Categories=Utility;Accessibility;
 Terminal=false
 StartupNotify=true
 StartupWMClass=CrossMacro
+X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2

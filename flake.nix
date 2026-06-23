@@ -70,6 +70,9 @@
             # Wayland support
             wayland
             libxkbcommon
+
+            # Wayland screen reading backend
+            pipewire
           ];
 
           # Runtime libraries
@@ -175,7 +178,7 @@
               # Runtime dependencies for Avalonia/SkiaSharp
               runtimeDeps = runtimeLibs;
 
-              nativeBuildInputs = [ pkgs.installShellFiles ];
+              nativeBuildInputs = [ pkgs.installShellFiles pkgs.makeWrapper ];
 
               postInstall = ''
                 installManPage docs/man/crossmacro.1
@@ -184,10 +187,8 @@
                 if pkgs.stdenv.isLinux then
                   ''
                     install -Dm644 scripts/assets/CrossMacro.desktop $out/share/applications/crossmacro.desktop
-
-                    # Create lowercase alias for compatibility (and desktop file support)
-                    mkdir -p $out/bin
-                    ln -s $out/bin/CrossMacro.UI $out/bin/crossmacro
+                    substituteInPlace $out/share/applications/crossmacro.desktop \
+                      --replace-fail "Exec=crossmacro" "Exec=$out/lib/crossmacro/CrossMacro.UI"
 
                     ${pkgs.lib.concatMapStringsSep "\n"
                       (size: ''
@@ -212,6 +213,29 @@
                   # For now, we leave it empty for raw binary output
                   ""
               );
+
+              # Keep desktop Exec aligned with /proc/<pid>/exe for KWin's
+              # restricted screenshot permission checks.
+              postFixup = pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+                # Move the real ELF binary to .CrossMacro.UI-wrapped
+                mv $out/lib/crossmacro/CrossMacro.UI \
+                   $out/lib/crossmacro/.CrossMacro.UI-wrapped
+
+                # Move the buildDotnetModule wrapper from bin/ into lib/ so
+                # its path matches what KWin resolves after unwrapping.
+                mv $out/bin/CrossMacro.UI $out/lib/crossmacro/CrossMacro.UI
+
+                # Update the wrapper's exec target to the renamed binary
+                substituteInPlace $out/lib/crossmacro/CrossMacro.UI \
+                  --replace-fail \
+                    "\"$out/lib/crossmacro/CrossMacro.UI\"" \
+                    "\"$out/lib/crossmacro/.CrossMacro.UI-wrapped\""
+
+                # Point bin/ entries at the lib/ wrapper
+                rm -f $out/bin/crossmacro
+                ln -s $out/lib/crossmacro/CrossMacro.UI $out/bin/CrossMacro.UI
+                ln -s $out/bin/CrossMacro.UI $out/bin/crossmacro
+              '';
 
               meta = with pkgs.lib; {
                 description = "Cross-platform mouse and keyboard macro recorder and player";

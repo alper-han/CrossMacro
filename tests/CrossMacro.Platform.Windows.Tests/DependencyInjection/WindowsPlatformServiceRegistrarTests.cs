@@ -5,6 +5,7 @@ using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Windows.DependencyInjection;
 using CrossMacro.Platform.Windows.Services;
+using CrossMacro.Platform.Windows.Services.ScreenReading;
 using CrossMacro.Platform.Windows.Strategies;
 using CrossMacro.TestInfrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +37,18 @@ public class WindowsPlatformServiceRegistrarTests
         var descriptor = services.LastOrDefault(s => s.ServiceType == typeof(IMousePositionProvider));
         Assert.NotNull(descriptor);
         Assert.Equal(typeof(WindowsMousePositionProvider), descriptor!.ImplementationType);
+    }
+
+    [Fact]
+    public void RegisterPlatformServices_RegistersScreenFrameProvider()
+    {
+        var services = new ServiceCollection();
+
+        new WindowsPlatformServiceRegistrar().RegisterPlatformServices(services);
+
+        var descriptor = services.LastOrDefault(s => s.ServiceType == typeof(IScreenFrameProvider));
+        Assert.NotNull(descriptor);
+        Assert.Equal(typeof(WindowsScreenFrameProvider), descriptor!.ImplementationType);
     }
 
     [WindowsFact]

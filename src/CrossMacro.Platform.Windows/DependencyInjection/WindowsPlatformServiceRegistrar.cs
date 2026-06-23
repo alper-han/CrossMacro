@@ -3,6 +3,7 @@ using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Windows.Services;
+using CrossMacro.Platform.Windows.Services.ScreenReading;
 using CrossMacro.Platform.Windows.Strategies;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -16,6 +17,7 @@ public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
         services.AddSingleton<IKeyboardLayoutService, WindowsKeyboardLayoutService>();
         services.AddSingleton<IMousePositionProvider, WindowsMousePositionProvider>();
+        services.AddSingleton<IScreenFrameProvider, WindowsScreenFrameProvider>();
         services.AddSingleton<IEnvironmentInfoProvider, WindowsEnvironmentInfoProvider>();
         services.AddSingleton<IPlaybackBehaviorPolicy>(
             _ => new PlaybackBehaviorPolicy(useHybridAbsoluteDragMovement: false));

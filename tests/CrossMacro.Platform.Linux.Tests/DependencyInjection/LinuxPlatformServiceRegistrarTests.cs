@@ -7,6 +7,8 @@ using CrossMacro.Packaging.Abstractions;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Abstractions.Diagnostics;
 using CrossMacro.Platform.Linux.DependencyInjection;
+using CrossMacro.Platform.Linux.DisplayServer.Wayland;
+using CrossMacro.Platform.Linux.DisplayServer.X11;
 using CrossMacro.Platform.Linux.Services;
 using CrossMacro.Platform.Linux.Services.Factories;
 using CrossMacro.Platform.Linux.Services.Factories.Selectors;
@@ -46,6 +48,10 @@ public class LinuxPlatformServiceRegistrarTests
         Assert.Contains(services, d => d.ServiceType == typeof(DirectPkexecHostCommandLauncher) && d.ImplementationType == typeof(DirectPkexecHostCommandLauncher));
         Assert.Contains(services, d => d.ServiceType == typeof(IFlatpakQuickSetupService) && d.ImplementationFactory != null);
         Assert.Contains(services, d => d.ServiceType == typeof(IAppImageQuickSetupService) && d.ImplementationFactory != null);
+        Assert.Contains(services, d => d.ServiceType == typeof(IPortalScreenCastRestoreTokenStore) && d.ImplementationType == typeof(PortalScreenCastRestoreTokenStore));
+        Assert.Contains(services, d => d.ServiceType == typeof(IPortalScreenCastSessionFactory) && d.ImplementationFactory != null);
+        Assert.Contains(services, d => d.ServiceType == typeof(IX11ScreenCaptureSupportProbe) && d.ImplementationFactory != null);
+        Assert.Contains(services, d => d.ServiceType == typeof(IX11ScreenCapture) && d.ImplementationType == typeof(X11ScreenCapture));
         Assert.Contains(services, d => d.ServiceType == typeof(InputSimulatorPool));
         Assert.Contains(services, d => d.ServiceType == typeof(Func<IInputSimulator>));
         Assert.Contains(services, d => d.ServiceType == typeof(Func<IInputCapture>));
@@ -93,5 +99,50 @@ public class LinuxPlatformServiceRegistrarTests
         Assert.True(policy.UseHybridAbsoluteDragMovement);
         Assert.NotNull(simulatorFactory);
         Assert.NotNull(captureFactory);
+    }
+
+    [Fact]
+    public void RegisterPlatformServices_RegistersNativeWlrScreencopyCapture()
+    {
+        var services = new ServiceCollection();
+        new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services);
+
+        using var provider = services.BuildServiceProvider();
+        var probe = provider.GetRequiredService<IWlrScreencopySupportProbe>();
+        var capture = provider.GetRequiredService<IWlrScreencopyCapture>();
+
+        Assert.IsType<WlrScreencopyCapture>(probe);
+        Assert.IsType<WlrScreencopyCapture>(capture);
+        Assert.NotSame(probe, capture);
+    }
+
+    [Fact]
+    public void RegisterPlatformServices_RegistersKWinScreenShot2Capture()
+    {
+        var services = new ServiceCollection();
+        new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services);
+
+        using var provider = services.BuildServiceProvider();
+        var probe = provider.GetRequiredService<IKWinScreenShotSupportProbe>();
+        var capture = provider.GetRequiredService<IKWinScreenShotCapture>();
+
+        Assert.IsType<KWinScreenShotCapture>(probe);
+        Assert.IsType<KWinScreenShotCapture>(capture);
+        Assert.NotSame(probe, capture);
+    }
+
+    [Fact]
+    public void RegisterPlatformServices_RegistersX11ScreenCapture()
+    {
+        var services = new ServiceCollection();
+        new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services);
+
+        using var provider = services.BuildServiceProvider();
+        var probe = provider.GetRequiredService<IX11ScreenCaptureSupportProbe>();
+        var capture = provider.GetRequiredService<IX11ScreenCapture>();
+
+        Assert.IsType<X11ScreenCaptureSupportProbe>(probe);
+        Assert.IsType<X11ScreenCapture>(capture);
+        Assert.NotSame(probe, capture);
     }
 }

@@ -4,12 +4,15 @@ using CrossMacro.Infrastructure.Services;
 using CrossMacro.Infrastructure.Services.Recording.Strategies;
 using CrossMacro.Packaging.Abstractions;
 using CrossMacro.Platform.Abstractions.Diagnostics;
+using CrossMacro.Platform.Linux.DisplayServer.Wayland;
+using CrossMacro.Platform.Linux.DisplayServer.X11;
 using CrossMacro.Platform.Linux.Ipc;
 using CrossMacro.Platform.Linux.Services;
 using CrossMacro.Platform.Linux.Services.Factories;
 using CrossMacro.Platform.Linux.Services.Factories.Selectors;
 using CrossMacro.Platform.Linux.Services.Keyboard;
 using CrossMacro.Platform.Linux.Services.QuickSetup;
+using CrossMacro.Platform.Linux.Services.ScreenReading;
 using CrossMacro.Platform.Linux.Strategies;
 using CrossMacro.Platform.Linux.Strategies.Selectors;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,6 +36,26 @@ internal static class LinuxPlatformServiceCollectionExtensions
         services.AddSingleton<ILinuxDaemonSocketAccessProbe, LinuxDaemonSocketAccessProbe>();
         services.AddSingleton<ILinuxInputCapabilitySnapshotProvider, LinuxInputCapabilitySnapshotProvider>();
         services.AddSingleton<ILinuxInputCapabilityDetector, LinuxInputCapabilityDetector>();
+        services.AddSingleton<IExtImageCopySupportProbe>(_ => WaylandExtImageCopySupportProbe.Instance);
+        services.AddTransient<IExtImageCopyCapture, ExtImageCopyCapture>();
+        services.AddSingleton<IKWinScreenShotSupportProbe, KWinScreenShotCapture>();
+        services.AddTransient<IKWinScreenShotCapture, KWinScreenShotCapture>();
+        services.AddSingleton<IWlrScreencopySupportProbe, WlrScreencopyCapture>();
+        services.AddTransient<IWlrScreencopyCapture, WlrScreencopyCapture>();
+        services.AddSingleton<IPortalScreenCastSupportProbe>(_ => PortalScreenCastSupportProbe.Instance);
+        services.AddSingleton<IPortalScreenCastRestoreTokenStore, PortalScreenCastRestoreTokenStore>();
+        services.AddSingleton<IPortalScreenCastSessionFactory>(sp =>
+            new PortalScreenCastDbusSessionFactory(sp.GetRequiredService<IPortalScreenCastRestoreTokenStore>()));
+        services.AddSingleton<IPortalPipeWireFrameCaptureFactory>(_ => PortalPipeWireFrameCaptureFactory.Instance);
+        services.AddTransient<IPortalScreenCastCapture, PortalScreenCastCapture>();
+        services.AddSingleton<IX11ScreenCaptureSupportProbe>(_ => X11ScreenCaptureSupportProbe.Instance);
+        services.AddTransient<IX11ScreenCapture, X11ScreenCapture>();
+        services.AddSingleton<ILinuxScreenReaderCapabilityDetector>(sp => new LinuxScreenReaderCapabilityDetector(
+            sp.GetRequiredService<IExtImageCopySupportProbe>(),
+            sp.GetRequiredService<IWlrScreencopySupportProbe>(),
+            sp.GetRequiredService<IPortalScreenCastSupportProbe>(),
+            sp.GetRequiredService<IKWinScreenShotSupportProbe>()));
+        services.AddSingleton<IScreenReadingDiagnosticProvider, LinuxScreenReadingDiagnosticProvider>();
         services.AddSingleton<IPlatformStartupNotificationProvider, GsrCompatibilityService>();
         services.AddSingleton<LinuxQuickSetupIdentityResolver>();
         services.AddSingleton<LinuxQuickSetupScriptBuilder>();
@@ -126,6 +149,18 @@ internal static class LinuxPlatformServiceCollectionExtensions
             sp.GetRequiredService<Func<LinuxInputCapture>>(),
             sp.GetRequiredService<Func<LinuxIpcInputCapture>>(),
             sp.GetRequiredService<Func<X11InputCapture>>()));
+
+        services.AddSingleton<LinuxScreenFrameProviderFactory>(sp => new LinuxScreenFrameProviderFactory(
+            sp.GetRequiredService<ILinuxEnvironmentDetector>(),
+            sp.GetRequiredService<IRuntimeContext>(),
+            sp.GetRequiredService<ILinuxScreenReaderCapabilityDetector>(),
+            support => new ExtImageCopyScreenFrameProvider(sp.GetRequiredService<IExtImageCopyCapture>(), support),
+            support => new WlrScreencopyScreenFrameProvider(sp.GetRequiredService<IWlrScreencopyCapture>(), support),
+            support => new PortalScreenCastScreenFrameProvider(sp.GetRequiredService<IPortalScreenCastCapture>(), support),
+            support => new KWinScreenShotScreenFrameProvider(sp.GetRequiredService<IKWinScreenShotCapture>(), support),
+            sp.GetRequiredService<IX11ScreenCaptureSupportProbe>(),
+            support => new X11ScreenFrameProvider(sp.GetRequiredService<IX11ScreenCapture>(), support)));
+        services.AddSingleton<IScreenFrameProvider>(sp => sp.GetRequiredService<LinuxScreenFrameProviderFactory>().Create());
     }
 
     internal static void AddLinuxInputFactories(this IServiceCollection services)

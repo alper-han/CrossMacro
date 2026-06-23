@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
@@ -18,12 +17,8 @@ public sealed class LinuxDisplaySessionServiceTests
     [LinuxFact]
     public void IsSessionSupported_WhenNotFlatpak_ShouldReturnTrue()
     {
-        using var env = new TemporaryEnvironment()
-            .Set("FLATPAK_ID", null)
-            .Set("XDG_SESSION_TYPE", "wayland")
-            .Set("CROSSMACRO_USE_DAEMON", "0");
-
         var service = CreateService(
+            Snapshot(sessionType: "wayland", useDaemon: "0"),
             fileExists: _ => true,
             canOpenForWrite: _ => false,
             canOpenForRead: _ => false,
@@ -39,12 +34,8 @@ public sealed class LinuxDisplaySessionServiceTests
     [LinuxFact]
     public void IsSessionSupported_WhenFlatpakAndUnsupportedSession_ShouldReturnFalseWithReason()
     {
-        using var env = new TemporaryEnvironment()
-            .Set("FLATPAK_ID", "io.github.alper_han.crossmacro")
-            .Set("XDG_SESSION_TYPE", "tty")
-            .Set("CROSSMACRO_USE_DAEMON", "0");
-
         var service = CreateService(
+            Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "tty", useDaemon: "0"),
             fileExists: _ => true,
             canOpenForWrite: _ => false,
             canOpenForRead: _ => false,
@@ -77,12 +68,8 @@ public sealed class LinuxDisplaySessionServiceTests
     [LinuxFact]
     public void IsSessionSupported_WhenFlatpakWaylandWithDaemonSocket_ShouldReturnTrue()
     {
-        using var env = new TemporaryEnvironment()
-            .Set("FLATPAK_ID", "io.github.alper_han.crossmacro")
-            .Set("XDG_SESSION_TYPE", "wayland")
-            .Set("CROSSMACRO_USE_DAEMON", "1");
-
         var service = CreateService(
+            Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "1"),
             fileExists: _ => true,
             canOpenForWrite: _ => false,
             canOpenForRead: _ => false,
@@ -97,12 +84,8 @@ public sealed class LinuxDisplaySessionServiceTests
     [LinuxFact]
     public void IsSessionSupported_WhenFlatpakWaylandDaemonModeWithoutSocket_ShouldReturnFalse()
     {
-        using var env = new TemporaryEnvironment()
-            .Set("FLATPAK_ID", "io.github.alper_han.crossmacro")
-            .Set("XDG_SESSION_TYPE", "wayland")
-            .Set("CROSSMACRO_USE_DAEMON", "1");
-
         var service = CreateService(
+            Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "1"),
             fileExists: _ => false,
             canOpenForWrite: _ => false,
             canOpenForRead: _ => false,
@@ -118,12 +101,8 @@ public sealed class LinuxDisplaySessionServiceTests
     [LinuxFact]
     public void IsSessionSupported_WhenFlatpakWaylandDirectModeWithoutUInput_ShouldReturnFalse()
     {
-        using var env = new TemporaryEnvironment()
-            .Set("FLATPAK_ID", "io.github.alper_han.crossmacro")
-            .Set("XDG_SESSION_TYPE", "wayland")
-            .Set("CROSSMACRO_USE_DAEMON", "0");
-
         var service = CreateService(
+            Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "0"),
             fileExists: _ => false,
             canOpenForWrite: _ => false,
             canOpenForRead: _ => true,
@@ -139,12 +118,8 @@ public sealed class LinuxDisplaySessionServiceTests
     [LinuxFact]
     public void IsSessionSupported_WhenFlatpakWaylandDirectModeWithUInput_ShouldReturnTrue()
     {
-        using var env = new TemporaryEnvironment()
-            .Set("FLATPAK_ID", "io.github.alper_han.crossmacro")
-            .Set("XDG_SESSION_TYPE", "wayland")
-            .Set("CROSSMACRO_USE_DAEMON", "0");
-
         var service = CreateService(
+            Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "0"),
             fileExists: _ => false,
             canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
             canOpenForRead: path => path == "/dev/input/event0",
@@ -205,12 +180,8 @@ public sealed class LinuxDisplaySessionServiceTests
     [LinuxFact]
     public void IsSessionSupported_WhenFlatpakWaylandDirectModeWithUInputButNoEventRead_ShouldReturnFalse()
     {
-        using var env = new TemporaryEnvironment()
-            .Set("FLATPAK_ID", "io.github.alper_han.crossmacro")
-            .Set("XDG_SESSION_TYPE", "wayland")
-            .Set("CROSSMACRO_USE_DAEMON", "0");
-
         var service = CreateService(
+            Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "0"),
             fileExists: _ => false,
             canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
             canOpenForRead: _ => false,
@@ -226,12 +197,8 @@ public sealed class LinuxDisplaySessionServiceTests
     [LinuxFact]
     public void IsSessionSupported_WhenFlatpakWaylandDirectModeHasRawEventButNoUsableDevice_ShouldReturnFalse()
     {
-        using var env = new TemporaryEnvironment()
-            .Set("FLATPAK_ID", "io.github.alper_han.crossmacro")
-            .Set("XDG_SESSION_TYPE", "wayland")
-            .Set("CROSSMACRO_USE_DAEMON", "0");
-
         var service = CreateService(
+            Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "0"),
             fileExists: _ => false,
             canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
             canOpenForRead: path => path == "/dev/input/event0",
@@ -283,12 +250,8 @@ public sealed class LinuxDisplaySessionServiceTests
     [LinuxFact]
     public void IsSessionSupported_WhenFlatpakWaylandDaemonSocketExistsButHandshakeFails_ShouldReturnFalse()
     {
-        using var env = new TemporaryEnvironment()
-            .Set("FLATPAK_ID", "io.github.alper_han.crossmacro")
-            .Set("XDG_SESSION_TYPE", "wayland")
-            .Set("CROSSMACRO_USE_DAEMON", "1");
-
         var service = CreateService(
+            Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "1"),
             fileExists: _ => true,
             canOpenForWrite: _ => false,
             canOpenForRead: _ => false,
@@ -304,12 +267,8 @@ public sealed class LinuxDisplaySessionServiceTests
     [LinuxFact]
     public void IsSessionSupported_WhenFlatpakWaylandDaemonHandshakeFailsButDirectReady_ShouldReturnTrue()
     {
-        using var env = new TemporaryEnvironment()
-            .Set("FLATPAK_ID", "io.github.alper_han.crossmacro")
-            .Set("XDG_SESSION_TYPE", "wayland")
-            .Set("CROSSMACRO_USE_DAEMON", "1");
-
         var service = CreateService(
+            Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "1"),
             fileExists: _ => true,
             canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
             canOpenForRead: path => path == "/dev/input/event0",
@@ -325,12 +284,8 @@ public sealed class LinuxDisplaySessionServiceTests
     [LinuxFact]
     public void IsSessionSupported_WhenFlatpakX11Session_ShouldReturnTrue()
     {
-        using var env = new TemporaryEnvironment()
-            .Set("FLATPAK_ID", "io.github.alper_han.crossmacro")
-            .Set("XDG_SESSION_TYPE", "x11")
-            .Set("CROSSMACRO_USE_DAEMON", "0");
-
         var service = CreateService(
+            Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "x11", useDaemon: "0"),
             fileExists: _ => false,
             canOpenForWrite: _ => false,
             canOpenForRead: _ => false,
@@ -370,14 +325,10 @@ public sealed class LinuxDisplaySessionServiceTests
     [LinuxFact]
     public void IsSessionSupported_WhenFlatpakWaylandDaemonTimesOutButDirectReady_ShouldReturnTrue()
     {
-        using var env = new TemporaryEnvironment()
-            .Set("FLATPAK_ID", "io.github.alper_han.crossmacro")
-            .Set("XDG_SESSION_TYPE", "wayland")
-            .Set("CROSSMACRO_USE_DAEMON", "1");
-
         TimeSpan? requestedTimeout = null;
 
         var service = CreateService(
+            Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "1"),
             fileExists: _ => true,
             canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
             canOpenForRead: path => path == "/dev/input/event0",
@@ -399,14 +350,10 @@ public sealed class LinuxDisplaySessionServiceTests
     [LinuxFact]
     public void IsSessionSupported_WhenFlatpakWaylandDaemonTimesOutAndDirectUnavailable_ShouldReturnFalse()
     {
-        using var env = new TemporaryEnvironment()
-            .Set("FLATPAK_ID", "io.github.alper_han.crossmacro")
-            .Set("XDG_SESSION_TYPE", "wayland")
-            .Set("CROSSMACRO_USE_DAEMON", "1");
-
         TimeSpan? requestedTimeout = null;
 
         var service = CreateService(
+            Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "1"),
             fileExists: _ => true,
             canOpenForWrite: _ => false,
             canOpenForRead: _ => false,
@@ -428,14 +375,10 @@ public sealed class LinuxDisplaySessionServiceTests
     [LinuxFact]
     public void IsSessionSupported_WhenFlatpakWaylandDaemonFailsButDirectReady_ProbesHandshakeOnlyOnce()
     {
-        using var env = new TemporaryEnvironment()
-            .Set("FLATPAK_ID", "io.github.alper_han.crossmacro")
-            .Set("XDG_SESSION_TYPE", "wayland")
-            .Set("CROSSMACRO_USE_DAEMON", "1");
-
         var probeCount = 0;
 
         var service = CreateService(
+            Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "1"),
             fileExists: _ => true,
             canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
             canOpenForRead: path => path == "/dev/input/event0",
@@ -478,12 +421,8 @@ public sealed class LinuxDisplaySessionServiceTests
     [LinuxFact]
     public void IsSessionSupported_WhenFlatpakWaylandDaemonPermissionDeniedAndDirectUnavailable_ShouldReturnFalse()
     {
-        using var env = new TemporaryEnvironment()
-            .Set("FLATPAK_ID", "io.github.alper_han.crossmacro")
-            .Set("XDG_SESSION_TYPE", "wayland")
-            .Set("CROSSMACRO_USE_DAEMON", "1");
-
         var service = CreateService(
+            Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "1"),
             fileExists: _ => true,
             canOpenForWrite: _ => false,
             canOpenForRead: _ => false,
@@ -499,14 +438,10 @@ public sealed class LinuxDisplaySessionServiceTests
     [LinuxFact]
     public void IsSessionSupported_WhenDaemonHandshakeProbeReturnsAfterDelay_ShouldWaitForProbeResult()
     {
-        using var env = new TemporaryEnvironment()
-            .Set("FLATPAK_ID", "io.github.alper_han.crossmacro")
-            .Set("XDG_SESSION_TYPE", "wayland")
-            .Set("CROSSMACRO_USE_DAEMON", "1");
-
         TimeSpan? requestedTimeout = null;
 
         var service = CreateService(
+            Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "1"),
             fileExists: _ => true,
             canOpenForWrite: _ => false,
             canOpenForRead: _ => false,
@@ -640,6 +575,25 @@ public sealed class LinuxDisplaySessionServiceTests
     }
 
     private static LinuxDisplaySessionService CreateService(
+        LinuxEnvironmentSnapshot environment,
+        Func<string, bool> fileExists,
+        Func<string, bool> canOpenForWrite,
+        Func<string, bool> canOpenForRead,
+        Func<bool> hasUsableReadableInputDevices,
+        Func<string, TimeSpan, LinuxDisplaySessionService.DaemonHandshakeProbeResult> daemonHandshakeProbe,
+        Func<string[]> getInputEventCandidates)
+    {
+        return CreateService(
+            new FixedEnvironmentVariables(environment),
+            fileExists,
+            canOpenForWrite,
+            canOpenForRead,
+            hasUsableReadableInputDevices,
+            daemonHandshakeProbe,
+            getInputEventCandidates);
+    }
+
+    private static LinuxDisplaySessionService CreateService(
         Func<string, bool> fileExists,
         Func<string, bool> canOpenForWrite,
         Func<string, bool> canOpenForRead,
@@ -731,27 +685,4 @@ public sealed class LinuxDisplaySessionServiceTests
         }
     }
 
-    private sealed class TemporaryEnvironment : IDisposable
-    {
-        private readonly Dictionary<string, string?> _originalValues = new(StringComparer.Ordinal);
-
-        public TemporaryEnvironment Set(string key, string? value)
-        {
-            if (!_originalValues.ContainsKey(key))
-            {
-                _originalValues[key] = Environment.GetEnvironmentVariable(key);
-            }
-
-            Environment.SetEnvironmentVariable(key, value);
-            return this;
-        }
-
-        public void Dispose()
-        {
-            foreach (var pair in _originalValues)
-            {
-                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
-            }
-        }
-    }
 }

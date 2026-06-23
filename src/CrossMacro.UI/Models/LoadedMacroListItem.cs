@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.UI.Localization;
+using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.Models;
 
@@ -69,7 +70,7 @@ public sealed class LoadedMacroListItem : ObservableObject
         }
     }
 
-    public int EventCount => Macro.Events?.Count ?? 0;
+    public int EventCount => MacroPlayableActionCounter.CountPlayableActions(Macro);
 
     public string SourceDescription => string.IsNullOrWhiteSpace(SourcePath)
         ? GetString("Files_SourceSession", "Session")

@@ -52,7 +52,7 @@ internal static class PlaybackExecutionPlanner
 
     public static bool HasPlayableEvents(MacroSequence? macro)
     {
-        return (macro?.Events?.Count ?? 0) > 0;
+        return MacroPlayableActionCounter.HasPlayableActions(macro);
     }
 
     private static PlaybackExecutionPlan CreateSingleMacroPlan(LoadedMacroPlaybackMode mode, MacroSequence? activeMacro)

@@ -587,6 +587,26 @@ public class MainWindowViewModelTests
     }
 
     [Fact]
+    public void EditorMacroCreated_WhenMacroHasOnlyScreenReadingScriptSteps_ReportsActionCount()
+    {
+        var macro = new MacroSequence
+        {
+            Name = "Screen Reading Macro",
+            ScriptSteps =
+            [
+                "pixelcolor 10 20 color",
+                "waitcolor 11 22 00FFAA 2500",
+                "pixelsearch 0 0 3 3 123456 x y"
+            ]
+        };
+
+        RaiseEditorMacroCreated(macro);
+
+        _viewModel.GlobalStatus.Should().Be("[Status_CreatedMacro] Screen Reading Macro (3)");
+        _filesViewModel.SelectedMacroItem!.EventCount.Should().Be(3);
+    }
+
+    [Fact]
     public async Task StopPlayback_WhenSequenceCleanupStillRunning_KeepsFilesLockedUntilPlaybackTaskFinishes()
     {
         var first = CreateMacro("First", EventType.MouseMove);

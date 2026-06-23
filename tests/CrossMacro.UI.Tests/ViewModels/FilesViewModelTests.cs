@@ -83,6 +83,22 @@ public class FilesViewModelTests
     }
 
     [Fact]
+    public void SetMacro_WhenOnlyScreenReadingScriptSteps_AllowsSave()
+    {
+        var macro = new MacroSequence
+        {
+            Name = "Screen Reading Macro",
+            ScriptSteps = ["pixelcolor 10 20 color"]
+        };
+
+        _viewModel.SetMacro(macro);
+
+        _viewModel.HasRecordedMacro.Should().BeTrue();
+        _viewModel.CanSaveMacro.Should().BeTrue();
+        _viewModel.SelectedMacroItem!.EventCount.Should().Be(1);
+    }
+
+    [Fact]
     public void SetMacro_WhenRecorderUsesDefaultPlaceholder_AppliesCurrentMacroName()
     {
         _viewModel.MacroName = "Recorded Macro";

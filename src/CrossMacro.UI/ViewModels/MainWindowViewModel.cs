@@ -519,7 +519,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 _localizationService.CurrentCulture,
                 _localizationService["Status_CreatedMacro"],
                 e.Macro.Name,
-                e.Macro.EventCount));
+                MacroPlayableActionCounter.CountPlayableActions(e.Macro)));
         };
         
         // Forward status changes

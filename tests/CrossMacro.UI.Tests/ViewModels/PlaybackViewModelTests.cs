@@ -131,6 +131,30 @@ public class PlaybackViewModelTests
     }
 
     [Fact]
+    public async Task PlayMacroAsync_WhenMacroHasOnlyScreenReadingScriptSteps_StartsPlayback()
+    {
+        var macro = new MacroSequence
+        {
+            Name = "Screen Reading Macro",
+            ScriptSteps =
+            [
+                "pixelcolor 10 20 color",
+                "waitcolor 11 22 00FFAA 2500",
+                "pixelsearch 0 0 3 3 123456 x y"
+            ]
+        };
+        _viewModel.SetMacro(macro);
+        _viewModel.CanPlayMacroExternal = true;
+
+        _viewModel.HasMacro.Should().BeTrue();
+        _viewModel.CanPlayMacro.Should().BeTrue();
+
+        await _viewModel.PlayMacroAsync();
+
+        await _player.Received(1).PlayAsync(macro, Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task PlayMacroAsync_WhenRandomLoopDelayEnabled_ForwardsRandomDelayOptions()
     {
         var macro = CreateMacro();
@@ -260,6 +284,33 @@ public class PlaybackViewModelTests
         _viewModel.IsPlaying.Should().BeFalse();
         _viewModel.PlaybackStatus.Should().Contain("Broken");
         _viewModel.PlaybackStatus.Should().Contain("has no events");
+    }
+
+    [Fact]
+    public async Task PlayMacroAsync_WhenSequentialCycleContainsScreenReadingScriptOnlyMacro_AllowsPlayback()
+    {
+        var first = _loadedMacroSession.AddMacro(CreateMacro("First"));
+        var scriptOnly = _loadedMacroSession.AddMacro(new MacroSequence
+        {
+            Name = "Screen Reading Macro",
+            ScriptSteps = ["waitcolor 11 22 00FFAA 2500"]
+        });
+        _loadedMacroSession.SelectedMacroItem = first;
+        _loadedMacroSession.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
+
+        var playedMacros = new List<MacroSequence>();
+        _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                playedMacros.Add(callInfo.ArgAt<MacroSequence>(0));
+                return Task.CompletedTask;
+            });
+
+        await _viewModel.PlayMacroAsync();
+
+        playedMacros.Select(macro => macro.Name).Should().ContainInOrder("First", "Screen Reading Macro");
+        _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(first);
+        scriptOnly.EventCount.Should().Be(1);
     }
 
     [Fact]

@@ -531,7 +531,7 @@ public partial class FilesViewModel : ViewModelBase
             _macroName = DefaultMacroName;
         }
 
-        HasRecordedMacro = (currentMacro?.Events?.Count ?? 0) > 0;
+        HasRecordedMacro = MacroPlayableActionCounter.HasPlayableActions(currentMacro);
         OnPropertyChanged(nameof(LoadedMacros));
         OnPropertyChanged(nameof(SelectedMacroItem));
         OnPropertyChanged(nameof(SelectedSequenceRepeatCount));

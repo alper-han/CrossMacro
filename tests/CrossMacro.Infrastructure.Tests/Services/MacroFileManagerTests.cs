@@ -37,7 +37,34 @@ public class MacroFileManagerTests : IDisposable
 
     private static MacroFileManager CreateManager()
     {
-        return new MacroFileManager(new KeyCodeMapper(new TestKeyboardLayoutService()));
+        return new MacroFileManager(() => new KeyCodeMapper(new TestKeyboardLayoutService()));
+    }
+
+    [Fact]
+    public async Task LoadAsync_DoesNotResolveKeyCodeMapperFactory()
+    {
+        // Arrange
+        var manager = new MacroFileManager(() =>
+            throw new InvalidOperationException("Key mapper should not be resolved while loading."));
+        var filePath = GetTempFilePath();
+        var content = """
+# Name: Load Without Key Mapper
+# Created: 2024-01-01T00:00:00Z
+# DurationMs: 0
+# IsAbsolute: True
+# Format: CrossMacroFormatV2
+[Events]
+M,0,0
+""";
+
+        await File.WriteAllTextAsync(filePath, content);
+
+        // Act
+        var loaded = await manager.LoadAsync(filePath);
+
+        // Assert
+        loaded.Should().NotBeNull();
+        loaded!.Events.Should().ContainSingle();
     }
 
     private MacroSequence CreateValidMacro(string name = "Test Macro")

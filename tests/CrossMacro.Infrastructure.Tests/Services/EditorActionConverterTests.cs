@@ -512,7 +512,7 @@ public class EditorActionConverterTests
     {
         ConfigureTextInputTyping();
         _keyCodeMapper.GetKeyCode("Enter").Returns(InputEventCode.KEY_ENTER);
-        var fileManager = new MacroFileManager(_keyCodeMapper);
+        var fileManager = new MacroFileManager(() => _keyCodeMapper);
         var filePath = Path.Combine(Path.GetTempPath(), $"crossmacro_converter_{Guid.NewGuid():N}.macro");
         var text = "first line\nprice $10";
 
@@ -1056,7 +1056,7 @@ public class EditorActionConverterTests
     public async Task ToMacroSequence_SaveLoadAndRestore_WhenActionsUseMixedModes_PreservesEventModesAndCurrentPosition()
     {
         // Arrange
-        var fileManager = new MacroFileManager(_keyCodeMapper);
+        var fileManager = new MacroFileManager(() => _keyCodeMapper);
         var filePath = Path.Combine(Path.GetTempPath(), $"mixed_editor_roundtrip_{Guid.NewGuid()}.macro");
         var actions = new[]
         {

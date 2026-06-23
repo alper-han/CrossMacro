@@ -101,6 +101,7 @@ public static class RuntimeServiceCollectionExtensions
         // Shared input parsing and mapping implementations that depend on the
         // moved platform/runtime contract allow-list rather than Core ownership.
         services.AddSingleton<IKeyCodeMapper, KeyCodeMapper>();
+        services.AddSingleton<Func<IKeyCodeMapper>>(sp => sp.GetRequiredService<IKeyCodeMapper>);
         services.AddSingleton<IMouseButtonMapper, MouseButtonMapper>();
         services.AddSingleton<IModifierStateTracker, ModifierStateTracker>();
         services.AddSingleton<IHotkeyParser, HotkeyParser>();

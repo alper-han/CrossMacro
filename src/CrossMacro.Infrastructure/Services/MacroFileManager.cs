@@ -24,7 +24,7 @@ public class MacroFileManager : IMacroFileManager
     private const string ScriptSectionHeader = "[Script]";
     private const string EventsSectionHeader = "[Events]";
     private const string ScriptContinuationPrefix = "| ";
-    private readonly IKeyCodeMapper _keyCodeMapper;
+    private readonly Func<IKeyCodeMapper> _keyCodeMapperFactory;
 
     private enum MacroFileReadSection
     {
@@ -33,9 +33,9 @@ public class MacroFileManager : IMacroFileManager
         Events
     }
 
-    public MacroFileManager(IKeyCodeMapper keyCodeMapper)
+    public MacroFileManager(Func<IKeyCodeMapper> keyCodeMapperFactory)
     {
-        _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
+        _keyCodeMapperFactory = keyCodeMapperFactory ?? throw new ArgumentNullException(nameof(keyCodeMapperFactory));
     }
     
     /// <summary>
@@ -224,7 +224,7 @@ public class MacroFileManager : IMacroFileManager
             return;
         }
 
-        var compiler = new RunScriptCompiler(_keyCodeMapper);
+        var compiler = new RunScriptCompiler(_keyCodeMapperFactory());
         var result = compiler.Compile(steps);
         if (!result.Success)
         {

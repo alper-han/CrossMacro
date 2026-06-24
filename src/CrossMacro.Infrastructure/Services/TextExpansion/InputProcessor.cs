@@ -28,8 +28,12 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
         private long _lastPressTime;
         private const long DebounceTicks = 20 * 10000; // 20ms in ticks
 
+        private volatile bool _isSuspended;
+
         public event Action<char>? CharacterReceived;
         public event Action<int>? SpecialKeyReceived;
+
+        public bool IsSuspended => _isSuspended;
 
         public bool AreModifiersPressed
         {
@@ -61,6 +65,17 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
         {
             // Only process key events
             if (e.Type != InputEventType.Key) return;
+
+            // Skip character/special-key processing while an expansion is in progress
+            if (_isSuspended)
+            {
+                lock (_stateLock)
+                {
+                    UpdateModifiers(e);
+                    UpdatePressedKeys(e);
+                }
+                return;
+            }
 
             char? receivedCharacter = null;
             int? receivedSpecialKey = null;
@@ -190,6 +205,16 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
                 _lastKey = 0;
                 _lastPressTime = 0;
             }
+        }
+
+        public void Suspend()
+        {
+            _isSuspended = true;
+        }
+
+        public void Resume()
+        {
+            _isSuspended = false;
         }
     }
 }

@@ -73,6 +73,11 @@ internal sealed class TextExpansionDirectTypingInserter
             return;
         }
 
+        if (method == DirectTypingMethod.CompatibleKeyByKey && TryInsertCompatibleBatch(inputSimulator, text))
+        {
+            return;
+        }
+
         var unicodeTextInput = inputSimulator as IUnicodeTextInputSimulator;
         var preferNativeUnicodeInjection = SupportsNativeUnicodeTextInput(unicodeTextInput);
 
@@ -131,6 +136,66 @@ internal sealed class TextExpansionDirectTypingInserter
         return true;
     }
 
+    private bool TryInsertCompatibleBatch(IInputSimulator inputSimulator, string text)
+    {
+        if (inputSimulator is not IBatchedInputSimulator { SupportsBatchedInput: true } batchedInputSimulator)
+        {
+            return false;
+        }
+
+        if (!TryBuildCompatibleBatchSteps(text, out var steps))
+        {
+            return false;
+        }
+
+        if (steps.Count > MaxBatchedInputEvents)
+        {
+            Log.Debug(
+                "Compatible batch skipped because event count {EventCount} exceeds IPC batch limit {MaxEventCount}",
+                steps.Count,
+                MaxBatchedInputEvents);
+            return false;
+        }
+
+        Log.Debug("Typing replacement using compatible batched input (events={EventCount})", steps.Count);
+        batchedInputSimulator.SimulateBatch(CollectionsMarshal.AsSpan(steps));
+        return true;
+    }
+
+    private bool TryBuildCompatibleBatchSteps(string text, out List<InputSimulationStep> steps)
+    {
+        steps = [];
+        foreach (var element in TextExpansionTextElements.Enumerate(text))
+        {
+            if (element.IsNewLine)
+            {
+                AddKeyPressSteps(
+                    steps,
+                    InputEventCode.KEY_ENTER,
+                    keyPressReleaseDelay: TextExpansionExecutionTimings.CompatibleKeyPressReleaseDelay,
+                    delayAfterKeyUp: TextExpansionExecutionTimings.CompatibleInterElementDelay);
+                continue;
+            }
+
+            var keyboardLayoutCharacter = element.KeyboardLayoutCharacter;
+            if (!keyboardLayoutCharacter.HasValue || !TryResolveKeyboardLayoutInput(keyboardLayoutCharacter.Value, out var input))
+            {
+                return false;
+            }
+
+            AddKeyPressSteps(
+                steps,
+                input.KeyCode,
+                input.Shift,
+                input.AltGr,
+                keyPressReleaseDelay: TextExpansionExecutionTimings.CompatibleKeyPressReleaseDelay,
+                delayAfterKeyUp: TextExpansionExecutionTimings.CompatibleInterElementDelay,
+                modifierSettleDelay: TextExpansionExecutionTimings.CompatibleModifierSettleDelay);
+        }
+
+        return true;
+    }
+
     private bool TryBuildBatchSteps(string text, out List<InputSimulationStep> steps)
     {
         steps = [];
@@ -171,8 +236,11 @@ internal sealed class TextExpansionDirectTypingInserter
         bool altGr = false,
         bool ctrl = false,
         TimeSpan keyPressReleaseDelay = default,
-        TimeSpan delayAfterKeyUp = default)
+        TimeSpan delayAfterKeyUp = default,
+        TimeSpan modifierSettleDelay = default)
     {
+        bool hasModifier = ctrl || shift || altGr;
+
         if (ctrl)
         {
             AddKeyStateSteps(steps, InputEventCode.KEY_LEFTCTRL, pressed: true);
@@ -186,6 +254,11 @@ internal sealed class TextExpansionDirectTypingInserter
         if (altGr)
         {
             AddKeyStateSteps(steps, InputEventCode.KEY_RIGHTALT, pressed: true);
+        }
+
+        if (hasModifier && modifierSettleDelay > TimeSpan.Zero)
+        {
+            AddDelayStep(steps, modifierSettleDelay);
         }
 
         AddKeyStateSteps(steps, keyCode, pressed: true, delayAfter: keyPressReleaseDelay);
@@ -215,6 +288,11 @@ internal sealed class TextExpansionDirectTypingInserter
     {
         steps.Add(new InputSimulationStep(EV_KEY, (ushort)keyCode, pressed ? 1 : 0));
         steps.Add(new InputSimulationStep(EV_SYN, SYN_REPORT, 0, ToDelayMilliseconds(delayAfter)));
+    }
+
+    private static void AddDelayStep(List<InputSimulationStep> steps, TimeSpan delay)
+    {
+        steps.Add(new InputSimulationStep(EV_SYN, SYN_REPORT, 0, ToDelayMilliseconds(delay)));
     }
 
     private static int ToDelayMilliseconds(TimeSpan delay)

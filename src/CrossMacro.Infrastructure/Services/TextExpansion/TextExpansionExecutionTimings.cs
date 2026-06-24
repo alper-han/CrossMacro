@@ -14,6 +14,10 @@ internal static class TextExpansionExecutionTimings
     public static readonly TimeSpan DirectTypingInterElementDelay = TimeSpan.FromMilliseconds(1);
     public static readonly TimeSpan BatchedDirectTypingInterElementDelay = TimeSpan.Zero;
     public static readonly TimeSpan BatchedKeyPressReleaseDelay = TimeSpan.FromMilliseconds(1);
+    public static readonly TimeSpan CompatibleKeyPressReleaseDelay = TimeSpan.FromMilliseconds(2);
+    public static readonly TimeSpan CompatibleInterElementDelay = TimeSpan.FromMilliseconds(2);
+    public static readonly TimeSpan CompatibleModifierSettleDelay = TimeSpan.FromMilliseconds(2);
+    public static readonly TimeSpan TriggerBackspaceSettleDelay = TimeSpan.FromMilliseconds(5);
     public static readonly TimeSpan TriggerKeyReleaseWaitTimeout = TimeSpan.FromMilliseconds(100);
     public static readonly TimeSpan LinuxUnicodeComposeActivationDelay = TimeSpan.FromMilliseconds(1);
     public static readonly TimeSpan LinuxUnicodeComposeInterKeyDelay = TimeSpan.FromMilliseconds(1);

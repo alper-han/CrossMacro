@@ -9,6 +9,8 @@ public interface IInputProcessor
 
     bool IsKeyPressed(int keyCode);
 
+    bool IsSuspended { get; }
+
     event Action<char> CharacterReceived;
 
     event Action<int> SpecialKeyReceived;
@@ -16,4 +18,8 @@ public interface IInputProcessor
     void ProcessEvent(InputCaptureEventArgs e);
 
     void Reset();
+
+    void Suspend();
+
+    void Resume();
 }

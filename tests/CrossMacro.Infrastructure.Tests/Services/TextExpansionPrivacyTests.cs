@@ -738,10 +738,8 @@ public class TextExpansionPrivacyTests
 
         await executor.ExpandAsync(expansion);
 
-        Assert.Empty(inputSimulator.Batches);
-        Assert.Contains(30, inputSimulator.PressedKeys);
-        Assert.Contains(42, inputSimulator.PressedKeys);
-        Assert.Contains(48, inputSimulator.PressedKeys);
+        // Compatible mode now uses batch transport with safer timings
+        Assert.NotEmpty(inputSimulator.Batches);
     }
 
     [Fact]

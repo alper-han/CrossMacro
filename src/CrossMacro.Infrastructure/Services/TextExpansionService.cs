@@ -253,7 +253,15 @@ public class TextExpansionService : ITextExpansionService
                 expansion.Trigger.Length,
                 expansion.Replacement.Length);
 
-            await _startExecutor.ExpandAsync(expansion);
+            _inputProcessor.Suspend();
+            try
+            {
+                await _startExecutor.ExpandAsync(expansion);
+            }
+            finally
+            {
+                _inputProcessor.Resume();
+            }
 
             Log.Debug(
                 "[TextExpansionService] Expansion completed (triggerLength={TriggerLength})",

@@ -54,6 +54,7 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable
             if (expansion.InsertionMode == TextInsertionMode.DirectTyping)
             {
                 await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length);
+                await Task.Delay(TextExpansionExecutionTimings.TriggerBackspaceSettleDelay);
                 Log.Debug("Inserting expansion using direct typing mode");
                 await _directTypingInserter.InsertAsync(
                     inputSimulator,
@@ -68,6 +69,7 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable
                 try
                 {
                     await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length);
+                    await Task.Delay(TextExpansionExecutionTimings.TriggerBackspaceSettleDelay);
                     await _clipboardInserter.CommitAsync(inputSimulator, preparedPaste, expansion.Method);
                 }
                 finally
@@ -86,6 +88,7 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable
             }
 
             await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length);
+            await Task.Delay(TextExpansionExecutionTimings.TriggerBackspaceSettleDelay);
             await _directTypingInserter.InsertAsync(
                 inputSimulator,
                 expansion.Replacement,

@@ -581,6 +581,44 @@ public class EditorActionValidatorTests
     }
 
     [Fact]
+    public void Validate_ConditionWithColorOperand_ReturnsValid()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.VariableReference,
+            ScriptLeftOperand = "color",
+            ScriptConditionOperator = ScriptConditionOperator.Equals,
+            ScriptRightOperandType = ScriptOperandType.Color,
+            ScriptRightOperand = "1c1c1c"
+        };
+
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeTrue();
+        result.Error.Should().BeNull();
+    }
+
+    [Fact]
+    public void Validate_ConditionWithInvalidColorOperand_ReturnsInvalid()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.VariableReference,
+            ScriptLeftOperand = "color",
+            ScriptConditionOperator = ScriptConditionOperator.Equals,
+            ScriptRightOperandType = ScriptOperandType.Color,
+            ScriptRightOperand = "GGGGGG"
+        };
+
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("Right operand");
+    }
+
+    [Fact]
     public void ValidateAll_WhenElseNotAfterIfBlock_ReturnsError()
     {
         // Arrange

@@ -2042,10 +2042,15 @@ public class EditorActionConverter : IEditorActionConverter
 
         if (RunScriptConditionParser.TryParse(condition, out var parsedCondition, out _)
             && parsedCondition != null
-            && TryParseOperandToken(parsedCondition.LeftToken, out var leftType, out var leftValue)
-            && TryParseOperandToken(parsedCondition.RightToken, out var rightType, out var rightValue)
             && TryMapConditionOperatorToken(parsedCondition.OperatorToken, out var conditionOperator))
         {
+            var preferColor = conditionOperator is ScriptConditionOperator.Equals or ScriptConditionOperator.NotEquals;
+            if (!TryParseOperandToken(parsedCondition.LeftToken, out var leftType, out var leftValue, preferColor)
+                || !TryParseOperandToken(parsedCondition.RightToken, out var rightType, out var rightValue, preferColor))
+            {
+                return false;
+            }
+
             action = new EditorAction
             {
                 Type = actionType,
@@ -2199,7 +2204,11 @@ public class EditorActionConverter : IEditorActionConverter
         return true;
     }
 
-    private static bool TryParseOperandToken(string rawToken, out ScriptOperandType operandType, out string tokenValue)
+    private static bool TryParseOperandToken(
+        string rawToken,
+        out ScriptOperandType operandType,
+        out string tokenValue,
+        bool preferColor = false)
     {
         operandType = ScriptOperandType.Text;
         tokenValue = string.Empty;
@@ -2213,7 +2222,7 @@ public class EditorActionConverter : IEditorActionConverter
         if (token.StartsWith("$$", StringComparison.Ordinal))
         {
             operandType = ScriptOperandType.Text;
-        tokenValue = EditorActionScriptTokens.UnescapeLiteralDollar(token);
+            tokenValue = EditorActionScriptTokens.UnescapeLiteralDollar(token);
             return true;
         }
 
@@ -2226,6 +2235,13 @@ public class EditorActionConverter : IEditorActionConverter
             }
 
             operandType = ScriptOperandType.VariableReference;
+            return true;
+        }
+
+        if (preferColor && ScreenPixelColor.TryParse(token, out var color))
+        {
+            operandType = ScriptOperandType.Color;
+            tokenValue = color.ToString();
             return true;
         }
 
@@ -2243,8 +2259,15 @@ public class EditorActionConverter : IEditorActionConverter
             return true;
         }
 
+        if (ScreenPixelColor.TryParse(token, out color))
+        {
+            operandType = ScriptOperandType.Color;
+            tokenValue = color.ToString();
+            return true;
+        }
+
         operandType = ScriptOperandType.Text;
-            tokenValue = EditorActionScriptTokens.UnescapeLiteralDollar(token);
+        tokenValue = EditorActionScriptTokens.UnescapeLiteralDollar(token);
         return true;
     }
 

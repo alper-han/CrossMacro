@@ -1460,6 +1460,47 @@ public class EditorActionConverterTests
     }
 
     [Fact]
+    public void ToMacroSequence_WhenStructuredConditionUsesColorOperand_EmitsUppercaseBareHex()
+    {
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.PixelColor,
+                IsAbsolute = true,
+                ScreenX = 1,
+                ScreenY = 2,
+                ScreenColorVariableName = "color"
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.IfBlockStart,
+                ScriptLeftOperandType = ScriptOperandType.VariableReference,
+                ScriptLeftOperand = "color",
+                ScriptConditionOperator = ScriptConditionOperator.Equals,
+                ScriptRightOperandType = ScriptOperandType.Color,
+                ScriptRightOperand = "1c1c1c"
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.MouseClick,
+                Button = MouseButton.Left,
+                UseCurrentPosition = true,
+                IsAbsolute = false
+            },
+            new EditorAction { Type = EditorActionType.BlockEnd }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Condition Color", isAbsolute: false);
+
+        sequence.ScriptSteps.Should().Equal(
+            "pixelcolor 1 2 color",
+            "if $color == 1C1C1C {",
+            "click current left",
+            "}");
+    }
+
+    [Fact]
     public void ToMacroSequence_WhenLegacyScriptTextExistsAndStructuredFieldsAreEdited_PrefersStructuredSerialization()
     {
         // Arrange
@@ -2573,6 +2614,70 @@ public class EditorActionConverterTests
         actions[0].ScriptLeftOperand.Should().Be("mode");
         actions[0].ScriptRightOperandType.Should().Be(ScriptOperandType.Text);
         actions[0].ScriptRightOperand.Should().Be("a>=b");
+    }
+
+    [Fact]
+    public void FromMacroSequence_WhenConditionUsesBareHexColor_LoadsColorOperand()
+    {
+        var sequence = new MacroSequence
+        {
+            ScriptSteps =
+            [
+                "if $color == 1c1c1c {",
+                "click left",
+                "}"
+            ]
+        };
+
+        var actions = _converter.FromMacroSequence(sequence);
+
+        actions.Should().HaveCount(3);
+        actions[0].Type.Should().Be(EditorActionType.IfBlockStart);
+        actions[0].ScriptLeftOperandType.Should().Be(ScriptOperandType.VariableReference);
+        actions[0].ScriptLeftOperand.Should().Be("color");
+        actions[0].ScriptRightOperandType.Should().Be(ScriptOperandType.Color);
+        actions[0].ScriptRightOperand.Should().Be("1C1C1C");
+    }
+
+    [Fact]
+    public void FromMacroSequence_WhenConditionUsesNumericOnlyBareHexColor_LoadsColorOperand()
+    {
+        var sequence = new MacroSequence
+        {
+            ScriptSteps =
+            [
+                "if $color == 000000 {",
+                "click left",
+                "}"
+            ]
+        };
+
+        var actions = _converter.FromMacroSequence(sequence);
+
+        actions.Should().HaveCount(3);
+        actions[0].ScriptRightOperandType.Should().Be(ScriptOperandType.Color);
+        actions[0].ScriptRightOperand.Should().Be("000000");
+    }
+
+    [Fact]
+    public void FromMacroSequence_WhenNumericComparisonUsesSixDigitNumber_KeepsNumberOperand()
+    {
+        var sequence = new MacroSequence
+        {
+            ScriptSteps =
+            [
+                "if $count > 100000 {",
+                "click left",
+                "}"
+            ]
+        };
+
+        var actions = _converter.FromMacroSequence(sequence);
+
+        actions.Should().HaveCount(3);
+        actions[0].ScriptConditionOperator.Should().Be(ScriptConditionOperator.GreaterThan);
+        actions[0].ScriptRightOperandType.Should().Be(ScriptOperandType.Number);
+        actions[0].ScriptRightOperand.Should().Be("100000");
     }
 
     private void ConfigureTextInputTyping()

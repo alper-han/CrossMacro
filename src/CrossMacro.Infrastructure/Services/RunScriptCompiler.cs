@@ -1270,6 +1270,12 @@ public sealed class RunScriptCompiler
 
     private static bool ValuesEqual(string left, string right)
     {
+        if (ScreenPixelColor.TryParse(left, out var leftColor)
+            && ScreenPixelColor.TryParse(right, out var rightColor))
+        {
+            return leftColor.Equals(rightColor);
+        }
+
         if (int.TryParse(left, NumberStyles.Integer, CultureInfo.InvariantCulture, out var leftInt)
             && int.TryParse(right, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rightInt))
         {

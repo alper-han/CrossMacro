@@ -554,6 +554,12 @@ internal sealed class RunScriptRuntimeExecutor
 
     private static bool ValuesEqual(string left, string right)
     {
+        if (ScreenPixelColor.TryParse(left, out var leftColor)
+            && ScreenPixelColor.TryParse(right, out var rightColor))
+        {
+            return leftColor.Equals(rightColor);
+        }
+
         if (int.TryParse(left, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var leftInt)
             && int.TryParse(right, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var rightInt))
         {

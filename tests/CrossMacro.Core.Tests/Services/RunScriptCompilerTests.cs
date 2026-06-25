@@ -185,6 +185,27 @@ public class RunScriptCompilerTests
     }
 
     [Fact]
+    public void Compile_WhenColorConditionUsesDifferentHexCasing_ExecutesMatchingBranch()
+    {
+        var steps = new[]
+        {
+            new RunScriptStep("set color 1C1C1C"),
+            new RunScriptStep("if $color == 1c1c1c {"),
+            new RunScriptStep("click current left"),
+            new RunScriptStep("}")
+        };
+
+        var result = _compiler.Compile(steps);
+
+        result.Success.Should().BeTrue(result.ErrorMessage);
+        result.Sequence.Should().NotBeNull();
+        result.Sequence!.Events.Should().ContainSingle();
+        result.Sequence.Events[0].Type.Should().Be(EventType.Click);
+        result.Sequence.Events[0].Button.Should().Be(MouseButton.Left);
+        result.Sequence.Events[0].UseCurrentPosition.Should().BeTrue();
+    }
+
+    [Fact]
     public void Compile_WhenTypeCharacterCannotBeMapped_ReturnsDetailedFailure()
     {
         _keyCodeMapper.GetKeyCodeForCharacter('?').Returns(-1);

@@ -249,6 +249,35 @@ public sealed class RunScriptScreenReadRuntimeTests
     }
 
     [Fact]
+    public async Task PlayAsync_WhenPixelColorFeedsLowercaseHexWhileCondition_ExecutesMatchingRuntimeBranch()
+    {
+        var activity = new List<string>();
+        var screenReader = new RecordingScreenPixelReader(activity)
+        {
+            PixelColor = new ScreenPixelColor(0x1C, 0x1C, 0x1C)
+        };
+        var inputSimulator = new RecordingInputSimulator(activity);
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader, inputSimulator);
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            [
+                "pixelcolor 1 2 sampled",
+                "while $sampled == 1c1c1c {",
+                "click left",
+                "break",
+                "}"
+            ]
+        };
+
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        activity.Should().Equal(
+            "screen:pixelcolor:1,2",
+            "input:click:left");
+    }
+
+    [Fact]
     public async Task PlayAsync_WhenRuntimeVariablesUseSetIncDec_PreservesCaseInsensitiveDictionaryAndValues()
     {
         var activity = new List<string>();
@@ -1009,6 +1038,8 @@ public sealed class RunScriptScreenReadRuntimeTests
 
         public bool IsSupported => true;
 
+        public ScreenPixelColor PixelColor { get; init; } = new(0x12, 0x34, 0x56);
+
         public ScreenReadResult<ScreenPixelColor>? WaitResult { get; init; }
 
         public ScreenReadResult<ScreenPixelSearchMatch>? SearchResult { get; init; }
@@ -1017,7 +1048,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         {
             options.CancellationToken.ThrowIfCancellationRequested();
             _activity.Add($"screen:pixelcolor:{point.X},{point.Y}");
-            return Task.FromResult(ScreenReadResult<ScreenPixelColor>.Success(new ScreenPixelColor(0x12, 0x34, 0x56)));
+            return Task.FromResult(ScreenReadResult<ScreenPixelColor>.Success(PixelColor));
         }
 
         public Task<ScreenReadResult<ScreenPixelColor>> WaitForPixelAsync(

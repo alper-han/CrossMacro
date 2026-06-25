@@ -59,6 +59,7 @@ public static class EditorActionScriptTokens
             ScriptOperandType.VariableReference => IsValidVariableName(token),
             ScriptOperandType.Number => int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _),
             ScriptOperandType.Boolean => bool.TryParse(token, out _),
+            ScriptOperandType.Color => TryFormatRgbHexColor(token, out _),
             ScriptOperandType.Text => !string.IsNullOrWhiteSpace(token),
             _ => false
         };
@@ -79,6 +80,7 @@ public static class EditorActionScriptTokens
         {
             ScriptOperandType.VariableReference => $"${NormalizeVariableToken(token)}",
             ScriptOperandType.Text => EscapeLiteralDollar(token),
+            ScriptOperandType.Color => TryFormatRgbHexColor(token, out var color) ? color : token,
             _ => token
         };
     }
@@ -128,5 +130,27 @@ public static class EditorActionScriptTokens
     public static bool IsVariableNamePart(char ch)
     {
         return ch == '_' || char.IsLetterOrDigit(ch);
+    }
+
+    private static bool TryFormatRgbHexColor(string value, out string color)
+    {
+        var token = value.Trim();
+        if (token.Length != 6)
+        {
+            color = string.Empty;
+            return false;
+        }
+
+        foreach (var ch in token)
+        {
+            if (!Uri.IsHexDigit(ch))
+            {
+                color = string.Empty;
+                return false;
+            }
+        }
+
+        color = token.ToUpperInvariant();
+        return true;
     }
 }

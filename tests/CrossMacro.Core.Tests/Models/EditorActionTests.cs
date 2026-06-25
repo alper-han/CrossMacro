@@ -204,6 +204,31 @@ public class EditorActionTests
         action.DisplayName.Should().Contain("$$foo == $bar");
     }
 
+    [Theory]
+    [InlineData("1c1c1c")]
+    [InlineData("1C1C1C")]
+    [InlineData("00ff00")]
+    public void ValidateOperandToken_WhenColorIsValidRgbHex_ReturnsTrue(string value)
+    {
+        EditorActionScriptTokens.ValidateOperandToken(ScriptOperandType.Color, value).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("1C1C1")]
+    [InlineData("1C1C1C1")]
+    [InlineData("GGGGGG")]
+    [InlineData("")]
+    public void ValidateOperandToken_WhenColorIsInvalidRgbHex_ReturnsFalse(string value)
+    {
+        EditorActionScriptTokens.ValidateOperandToken(ScriptOperandType.Color, value).Should().BeFalse();
+    }
+
+    [Fact]
+    public void FormatOperandToken_WhenColorUsesLowercaseHex_ReturnsUppercaseRgbHex()
+    {
+        EditorActionScriptTokens.FormatOperandToken(ScriptOperandType.Color, "1c2d3e").Should().Be("1C2D3E");
+    }
+
     [Fact]
     public void IsValid_WhenNumericVariableReferenceUsesDollarPrefix_ReturnsTrue()
     {

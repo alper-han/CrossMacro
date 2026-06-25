@@ -324,9 +324,11 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(ShowIncDecVariablePicker));
         OnPropertyChanged(nameof(ShowConditionLeftVariablePicker));
         OnPropertyChanged(nameof(ShowConditionLeftOperandTextBox));
+        OnPropertyChanged(nameof(ShowConditionLeftColorPicker));
         OnPropertyChanged(nameof(SelectedConditionLeftVariableSuggestion));
         OnPropertyChanged(nameof(ShowConditionRightVariablePicker));
         OnPropertyChanged(nameof(ShowConditionRightOperandTextBox));
+        OnPropertyChanged(nameof(ShowConditionRightColorPicker));
         OnPropertyChanged(nameof(SelectedConditionRightVariableSuggestion));
         OnPropertyChanged(nameof(ScriptConditionOperators));
         OnPropertyChanged(nameof(ConditionRightOperandHint));

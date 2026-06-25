@@ -4,6 +4,7 @@ using System.Reflection;
 using Avalonia.Controls;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.UI.Views.Tabs;
 using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
@@ -46,14 +47,21 @@ public class EditorViewModelTests
         nameof(EditorViewModel.ShowIncDecVariablePicker),
         nameof(EditorViewModel.ShowConditionLeftVariablePicker),
         nameof(EditorViewModel.ShowConditionLeftOperandTextBox),
+        nameof(EditorViewModel.ShowConditionLeftColorPicker),
         nameof(EditorViewModel.ShowConditionRightVariablePicker),
         nameof(EditorViewModel.ShowConditionRightOperandTextBox),
+        nameof(EditorViewModel.ShowConditionRightColorPicker),
         nameof(EditorViewModel.ShowForVariablePicker),
         nameof(EditorViewModel.ScriptConditionOperators),
         nameof(EditorViewModel.ConditionRightOperandHint),
         nameof(EditorViewModel.CanUndo),
         nameof(EditorViewModel.CanRedo),
         nameof(EditorViewModel.CaptureMouseAsync),
+        nameof(EditorViewModel.CaptureTargetColorAsync),
+        nameof(EditorViewModel.CaptureConditionLeftColorAsync),
+        nameof(EditorViewModel.CaptureConditionRightColorAsync),
+        nameof(EditorViewModel.CapturePixelSearchTopLeftAsync),
+        nameof(EditorViewModel.CapturePixelSearchBottomRightAsync),
         nameof(EditorViewModel.CancelCapture)
     };
 
@@ -64,6 +72,7 @@ public class EditorViewModelTests
     private readonly IDialogService _dialogService;
     private readonly IKeyCodeMapper _keyCodeMapper;
     private readonly ILocalizationService _localizationService;
+    private readonly IScreenPixelReader _screenPixelReader;
     private readonly EditorViewModel _viewModel;
 
     public EditorViewModelTests()
@@ -75,7 +84,9 @@ public class EditorViewModelTests
         _dialogService = Substitute.For<IDialogService>();
         _keyCodeMapper = Substitute.For<IKeyCodeMapper>();
         _localizationService = Substitute.For<ILocalizationService>();
+        _screenPixelReader = Substitute.For<IScreenPixelReader>();
         _keyCodeMapper.GetKeyName(Arg.Any<int>()).Returns("A");
+        _screenPixelReader.IsSupported.Returns(true);
         _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.InvariantCulture);
         _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
         {
@@ -95,6 +106,13 @@ public class EditorViewModelTests
             "Editor_StatusCaptureSelectionChanged" => "[Editor_StatusCaptureSelectionChanged]",
             "Editor_StatusInsertedElseBlock" => "[Editor_StatusInsertedElseBlock]",
             "Editor_StatusOperationBlocked" => "[Editor_StatusOperationBlocked]",
+            "Editor_StatusPixelReaderUnavailable" => "[Editor_StatusPixelReaderUnavailable]",
+            "Editor_StatusCaptureColorPrompt" => "[Editor_StatusCaptureColorPrompt]",
+            "Editor_StatusCaptureColorFailed" => "[Editor_StatusCaptureColorFailed] {0}",
+            "Editor_StatusCapturedColor" => "[Editor_StatusCapturedColor] {0} {1} {2}",
+            "Editor_StatusCapturedRegionTopLeft" => "[Editor_StatusCapturedRegionTopLeft] {0} {1}",
+            "Editor_StatusCapturedRegionBottomRight" => "[Editor_StatusCapturedRegionBottomRight] {0} {1}",
+            "Editor_StatusCaptureRegionInvalidBottomRight" => "[Editor_StatusCaptureRegionInvalidBottomRight]",
             "Editor_StatusRemovedBlock" => "[Editor_StatusRemovedBlock]",
             "Editor_StatusValidationFailed" => "[Editor_StatusValidationFailed]",
             "Editor_DialogTitleNoActions" => "[Editor_DialogTitleNoActions]",
@@ -128,7 +146,8 @@ public class EditorViewModelTests
             _dialogService,
             _keyCodeMapper,
             _localizationService,
-            new EditorActionDisplayFormatter(_localizationService));
+            new EditorActionDisplayFormatter(_localizationService),
+            _screenPixelReader);
     }
 
     [Theory]
@@ -370,7 +389,7 @@ public class EditorViewModelTests
     }
 
     [Fact]
-    public void ScriptConditionOperators_WhenOperandsAreText_FiltersToEqualityOperatorsAndNormalizesSelection()
+    public void ScriptConditionOperators_WhenOperandIsColor_FiltersToEqualityOperatorsAndNormalizesSelection()
     {
         var action = new EditorAction
         {
@@ -384,15 +403,15 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.PixelColor, ScreenColorVariableName = "color" });
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _localizationService["Editor_ConditionColorHint"].Returns("Use RRGGBB color text.");
+        _localizationService["Editor_ConditionColorHint"].Returns("Use Color operand.");
 
-        action.ScriptRightOperandType = ScriptOperandType.Text;
+        action.ScriptRightOperandType = ScriptOperandType.Color;
 
         action.ScriptConditionOperator.Should().Be(ScriptConditionOperator.Equals);
         _viewModel.ScriptConditionOperators.Should().Equal(
             ScriptConditionOperator.Equals,
             ScriptConditionOperator.NotEquals);
-        _viewModel.ConditionRightOperandHint.Should().Contain("RRGGBB");
+        _viewModel.ConditionRightOperandHint.Should().Contain("Color");
     }
 
     [Fact]
@@ -489,6 +508,40 @@ public class EditorViewModelTests
     }
 
     [Fact]
+    public void ConditionColorPickers_WhenColorOperandsSelected_AreVisibleWithManualTextBoxes()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.Color,
+            ScriptRightOperandType = ScriptOperandType.Color
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+
+        _viewModel.ShowConditionLeftOperandTextBox.Should().BeTrue();
+        _viewModel.ShowConditionRightOperandTextBox.Should().BeTrue();
+        _viewModel.ShowConditionLeftColorPicker.Should().BeTrue();
+        _viewModel.ShowConditionRightColorPicker.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ConditionColorPickers_WhenOperandsAreNotColor_AreHidden()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.Text,
+            ScriptRightOperandType = ScriptOperandType.VariableReference
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+
+        _viewModel.ShowConditionLeftColorPicker.Should().BeFalse();
+        _viewModel.ShowConditionRightColorPicker.Should().BeFalse();
+    }
+
+    [Fact]
     public void CultureChanged_RefreshesLocalizedComputedPropertiesAndActionListPresentation()
     {
         _viewModel.NewActionType = EditorActionType.IfBlockStart;
@@ -543,7 +596,7 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        action.ScriptRightOperandType = ScriptOperandType.Text;
+        action.ScriptRightOperandType = ScriptOperandType.Color;
         _localizationService["Editor_ConditionColorHint"].Returns("updated condition hint");
         var changed = new List<string?>();
         _viewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
@@ -2489,6 +2542,264 @@ public class EditorViewModelTests
         action.ScreenY.Should().Be(480);
         action.X.Should().Be(3);
         action.Y.Should().Be(-2);
+    }
+
+    [Fact]
+    public async Task CaptureTargetColorAsync_WhenSelectedActionIsWaitColor_StoresCapturedPixelColor()
+    {
+        // Arrange
+        var action = new EditorAction { Type = EditorActionType.WaitColor, ScreenColorHex = "000000" };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<(int X, int Y)?>((10, 20)));
+        _screenPixelReader.GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>())
+            .Returns(Task.FromResult(ScreenReadResult<ScreenPixelColor>.Success(new ScreenPixelColor(0x12, 0xAB, 0xEF))));
+
+        // Act
+        await _viewModel.CaptureTargetColorAsync();
+
+        // Assert
+        action.ScreenColorHex.Should().Be("12ABEF");
+        _ = _screenPixelReader.Received(1).GetPixelAsync(
+            Arg.Is<ScreenPoint>(point => point.X == 10 && point.Y == 20),
+            Arg.Any<ScreenReadOptions>());
+        _viewModel.Status.Should().Be("[Editor_StatusCapturedColor] 12ABEF 10 20");
+    }
+
+    [Fact]
+    public async Task CaptureTargetColorAsync_WhenSelectedActionIsPixelSearch_StoresCapturedPixelColor()
+    {
+        // Arrange
+        var action = new EditorAction { Type = EditorActionType.PixelSearch, ScreenColorHex = "000000" };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<(int X, int Y)?>((30, 40)));
+        _screenPixelReader.GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>())
+            .Returns(Task.FromResult(ScreenReadResult<ScreenPixelColor>.Success(new ScreenPixelColor(0x01, 0x23, 0x45))));
+
+        // Act
+        await _viewModel.CaptureTargetColorAsync();
+
+        // Assert
+        action.ScreenColorHex.Should().Be("012345");
+        _ = _screenPixelReader.Received(1).GetPixelAsync(
+            Arg.Is<ScreenPoint>(point => point.X == 30 && point.Y == 40),
+            Arg.Any<ScreenReadOptions>());
+    }
+
+    [Fact]
+    public async Task CaptureTargetColorAsync_WhenSelectionChanges_DoesNotMutateColor()
+    {
+        // Arrange
+        var firstAction = new EditorAction { Type = EditorActionType.WaitColor, ScreenColorHex = "111111" };
+        var secondAction = new EditorAction { Type = EditorActionType.WaitColor, ScreenColorHex = "222222" };
+        _viewModel.Actions.Add(firstAction);
+        _viewModel.Actions.Add(secondAction);
+        _viewModel.SelectedAction = firstAction;
+
+        var captureResult = new TaskCompletionSource<(int X, int Y)?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>()).Returns(_ => captureResult.Task);
+
+        // Act
+        var captureTask = _viewModel.CaptureTargetColorAsync();
+        _viewModel.SelectedAction = secondAction;
+        captureResult.SetResult((50, 60));
+        await captureTask;
+
+        // Assert
+        firstAction.ScreenColorHex.Should().Be("111111");
+        secondAction.ScreenColorHex.Should().Be("222222");
+        _viewModel.Status.Should().Be("[Editor_StatusCaptureSelectionChanged]");
+        _ = _screenPixelReader.DidNotReceive().GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>());
+    }
+
+    [Fact]
+    public async Task CaptureTargetColorAsync_WhenSelectedActionDoesNotUseTargetColor_BlocksCapture()
+    {
+        // Arrange
+        var action = new EditorAction { Type = EditorActionType.PixelColor, ScreenColorHex = "111111" };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+
+        // Act
+        await _viewModel.CaptureTargetColorAsync();
+
+        // Assert
+        action.ScreenColorHex.Should().Be("111111");
+        _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
+        _ = _captureService.DidNotReceive().CaptureMousePositionAsync(Arg.Any<CancellationToken>());
+        _ = _screenPixelReader.DidNotReceive().GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>());
+    }
+
+    [Fact]
+    public async Task CaptureConditionRightColorAsync_WhenRightOperandIsColor_StoresCapturedPixelColor()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptRightOperandType = ScriptOperandType.Color,
+            ScriptRightOperand = "000000"
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<(int X, int Y)?>((70, 80)));
+        _screenPixelReader.GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>())
+            .Returns(Task.FromResult(ScreenReadResult<ScreenPixelColor>.Success(new ScreenPixelColor(0xDE, 0xAD, 0xBE))));
+
+        await _viewModel.CaptureConditionRightColorAsync();
+
+        action.ScriptRightOperand.Should().Be("DEADBE");
+        _ = _screenPixelReader.Received(1).GetPixelAsync(
+            Arg.Is<ScreenPoint>(point => point.X == 70 && point.Y == 80),
+            Arg.Any<ScreenReadOptions>());
+        _viewModel.Status.Should().Be("[Editor_StatusCapturedColor] DEADBE 70 80");
+    }
+
+    [Fact]
+    public async Task CaptureConditionLeftColorAsync_WhenLeftOperandIsColor_StoresCapturedPixelColor()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.WhileBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.Color,
+            ScriptLeftOperand = "000000"
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<(int X, int Y)?>((71, 81)));
+        _screenPixelReader.GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>())
+            .Returns(Task.FromResult(ScreenReadResult<ScreenPixelColor>.Success(new ScreenPixelColor(0x12, 0x34, 0x56))));
+
+        await _viewModel.CaptureConditionLeftColorAsync();
+
+        action.ScriptLeftOperand.Should().Be("123456");
+    }
+
+    [Fact]
+    public async Task CaptureConditionRightColorAsync_WhenOperandTypeChanges_DoesNotMutateOperand()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptRightOperandType = ScriptOperandType.Color,
+            ScriptRightOperand = "111111"
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+
+        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            action.ScriptRightOperandType = ScriptOperandType.Text;
+            return Task.FromResult<(int X, int Y)?>((73, 83));
+        });
+
+        await _viewModel.CaptureConditionRightColorAsync();
+
+        action.ScriptRightOperand.Should().Be("111111");
+        _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
+        _ = _screenPixelReader.DidNotReceive().GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>());
+    }
+
+    [Fact]
+    public async Task CapturePixelSearchTopLeftAsync_PreservesExistingBottomRightWhenPossible()
+    {
+        // Arrange
+        var action = new EditorAction
+        {
+            Type = EditorActionType.PixelSearch,
+            ScreenLeft = 10,
+            ScreenTop = 20,
+            ScreenWidth = 11,
+            ScreenHeight = 21
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<(int X, int Y)?>((15, 25)));
+
+        // Act
+        await _viewModel.CapturePixelSearchTopLeftAsync();
+
+        // Assert
+        action.ScreenLeft.Should().Be(15);
+        action.ScreenTop.Should().Be(25);
+        action.ScreenWidth.Should().Be(6);
+        action.ScreenHeight.Should().Be(16);
+        _viewModel.Status.Should().Be("[Editor_StatusCapturedRegionTopLeft] 15 25");
+    }
+
+    [Fact]
+    public async Task CapturePixelSearchBottomRightAsync_StoresInclusiveRegionDimensions()
+    {
+        // Arrange
+        var action = new EditorAction
+        {
+            Type = EditorActionType.PixelSearch,
+            ScreenLeft = 10,
+            ScreenTop = 20,
+            ScreenWidth = 1,
+            ScreenHeight = 1
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<(int X, int Y)?>((14, 24)));
+
+        // Act
+        await _viewModel.CapturePixelSearchBottomRightAsync();
+
+        // Assert
+        action.ScreenWidth.Should().Be(5);
+        action.ScreenHeight.Should().Be(5);
+        _viewModel.Status.Should().Be("[Editor_StatusCapturedRegionBottomRight] 14 24");
+    }
+
+    [Fact]
+    public async Task CapturePixelSearchBottomRightAsync_WhenCapturedPointIsInvalid_PreservesDimensionsAndSetsStatus()
+    {
+        // Arrange
+        var action = new EditorAction
+        {
+            Type = EditorActionType.PixelSearch,
+            ScreenLeft = 10,
+            ScreenTop = 20,
+            ScreenWidth = 7,
+            ScreenHeight = 8
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<(int X, int Y)?>((9, 25)));
+
+        // Act
+        await _viewModel.CapturePixelSearchBottomRightAsync();
+
+        // Assert
+        action.ScreenWidth.Should().Be(7);
+        action.ScreenHeight.Should().Be(8);
+        _viewModel.Status.Should().Be("[Editor_StatusCaptureRegionInvalidBottomRight]");
+    }
+
+    [Fact]
+    public async Task CapturePixelSearchTopLeftAsync_WhenSelectedActionIsNotPixelSearch_BlocksCapture()
+    {
+        // Arrange
+        var action = new EditorAction { Type = EditorActionType.WaitColor, ScreenLeft = 10, ScreenTop = 20 };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+
+        // Act
+        await _viewModel.CapturePixelSearchTopLeftAsync();
+
+        // Assert
+        action.ScreenLeft.Should().Be(10);
+        action.ScreenTop.Should().Be(20);
+        _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
+        _ = _captureService.DidNotReceive().CaptureMousePositionAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]

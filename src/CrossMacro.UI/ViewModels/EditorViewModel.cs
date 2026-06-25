@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Linq;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
 
@@ -44,6 +45,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private readonly IKeyCodeMapper _keyCodeMapper;
     private readonly ILocalizationService _localizationService;
     private readonly EditorActionDisplayFormatter _actionDisplayFormatter;
+    private readonly IScreenPixelReader? _screenPixelReader;
 
     private readonly Stack<List<EditorAction>> _undoStack = new(UndoStackLimit);
     private readonly Stack<List<EditorAction>> _redoStack = new(UndoStackLimit);
@@ -113,7 +115,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         IDialogService dialogService,
         IKeyCodeMapper keyCodeMapper,
         ILocalizationService? localizationService = null,
-        EditorActionDisplayFormatter? actionDisplayFormatter = null)
+        EditorActionDisplayFormatter? actionDisplayFormatter = null,
+        IScreenPixelReader? screenPixelReader = null)
     {
         _converter = converter ?? throw new ArgumentNullException(nameof(converter));
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
@@ -123,6 +126,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
         _localizationService = localizationService ?? new LocalizationService();
         _actionDisplayFormatter = actionDisplayFormatter ?? new EditorActionDisplayFormatter(_localizationService);
+        _screenPixelReader = screenPixelReader;
         _macroName = _localizationService["Editor_DefaultMacroName"];
         _status = BuildStatus(EditorStatusKind.Ready);
 
@@ -379,6 +383,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
             _isCapturing = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(ShowConditionLeftColorPicker));
+            OnPropertyChanged(nameof(ShowConditionRightColorPicker));
         }
     }
 

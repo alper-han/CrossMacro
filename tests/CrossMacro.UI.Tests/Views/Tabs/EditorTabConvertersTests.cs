@@ -85,16 +85,19 @@ public class EditorTabConvertersTests
     }
 
     [Fact]
-    public void ScriptOperandTypeDisplayConverter_ShouldExplainTextAsColorOperand()
+    public void ScriptOperandTypeDisplayConverter_ShouldUseSeparateTextAndColorLabels()
     {
         var localizationService = Substitute.For<ILocalizationService>();
         localizationService["Editor_ScriptOperand_Text"].Returns("[Editor_ScriptOperand_Text]");
+        localizationService["Editor_ScriptOperand_Color"].Returns("[Editor_ScriptOperand_Color]");
         EditorScriptDisplayConverters.Configure(localizationService);
         var converter = new ScriptOperandTypeDisplayConverter();
 
-        var result = converter.Convert(ScriptOperandType.Text, typeof(string), null, CultureInfo.InvariantCulture);
+        var textResult = converter.Convert(ScriptOperandType.Text, typeof(string), null, CultureInfo.InvariantCulture);
+        var colorResult = converter.Convert(ScriptOperandType.Color, typeof(string), null, CultureInfo.InvariantCulture);
 
-        Assert.Equal("[Editor_ScriptOperand_Text]", result);
+        Assert.Equal("[Editor_ScriptOperand_Text]", textResult);
+        Assert.Equal("[Editor_ScriptOperand_Color]", colorResult);
     }
 
     [Fact]

@@ -479,15 +479,23 @@
                                             </DataTemplate>
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
-                                    <TextBox Grid.Column="2"
-                                             Text="{Binding SelectedAction.ScriptLeftOperand, UpdateSourceTrigger=PropertyChanged}"
-                                             IsVisible="{Binding ShowConditionLeftOperandTextBox}"
-                                             PlaceholderText="{localization:Loc Editor_LeftValue}"
-                                             Background="{DynamicResource SurfaceHoverBrush}"
-                                             Foreground="{DynamicResource TextPrimaryBrush}"
-                                             BorderThickness="0"
-                                             CornerRadius="4"
-                                             Padding="8,6"/>
+                                    <Grid Grid.Column="2" ColumnDefinitions="*,8,Auto" IsVisible="{Binding ShowConditionLeftOperandTextBox}">
+                                        <TextBox Text="{Binding SelectedAction.ScriptLeftOperand, UpdateSourceTrigger=PropertyChanged}"
+                                                 PlaceholderText="{localization:Loc Editor_LeftValue}"
+                                                 Background="{DynamicResource SurfaceHoverBrush}"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderThickness="0"
+                                                 CornerRadius="4"
+                                                 Padding="8,6"/>
+                                        <Button Grid.Column="2"
+                                                Command="{Binding CaptureConditionLeftColorAsync}"
+                                                Classes="primary compact"
+                                                IsVisible="{Binding ShowConditionLeftColorPicker}"
+                                                ToolTip.Tip="{localization:Loc Editor_CaptureTargetColor}"
+                                                HorizontalContentAlignment="Center">
+                                            <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
+                                        </Button>
+                                    </Grid>
                                     <ComboBox Grid.Column="2"
                                               ItemsSource="{Binding AvailableVariableNames}"
                                               SelectedItem="{Binding SelectedConditionLeftVariableSuggestion}"
@@ -520,15 +528,23 @@
                                             </DataTemplate>
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
-                                    <TextBox Grid.Column="2"
-                                             Text="{Binding SelectedAction.ScriptRightOperand, UpdateSourceTrigger=PropertyChanged}"
-                                             IsVisible="{Binding ShowConditionRightOperandTextBox}"
-                                             PlaceholderText="{localization:Loc Editor_RightValue}"
-                                             Background="{DynamicResource SurfaceHoverBrush}"
-                                             Foreground="{DynamicResource TextPrimaryBrush}"
-                                             BorderThickness="0"
-                                             CornerRadius="4"
-                                             Padding="8,6"/>
+                                    <Grid Grid.Column="2" ColumnDefinitions="*,8,Auto" IsVisible="{Binding ShowConditionRightOperandTextBox}">
+                                        <TextBox Text="{Binding SelectedAction.ScriptRightOperand, UpdateSourceTrigger=PropertyChanged}"
+                                                 PlaceholderText="{localization:Loc Editor_RightValue}"
+                                                 Background="{DynamicResource SurfaceHoverBrush}"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderThickness="0"
+                                                 CornerRadius="4"
+                                                 Padding="8,6"/>
+                                        <Button Grid.Column="2"
+                                                Command="{Binding CaptureConditionRightColorAsync}"
+                                                Classes="primary compact"
+                                                IsVisible="{Binding ShowConditionRightColorPicker}"
+                                                ToolTip.Tip="{localization:Loc Editor_CaptureTargetColor}"
+                                                HorizontalContentAlignment="Center">
+                                            <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
+                                        </Button>
+                                    </Grid>
                                     <ComboBox Grid.Column="2"
                                               ItemsSource="{Binding AvailableVariableNames}"
                                               SelectedItem="{Binding SelectedConditionRightVariableSuggestion}"

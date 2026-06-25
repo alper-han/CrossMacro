@@ -53,6 +53,7 @@ public partial class EditorViewModel
             ScriptOperandType.Number => ScriptVariableKind.Number,
             ScriptOperandType.Text => ScriptVariableKind.Text,
             ScriptOperandType.Boolean => ScriptVariableKind.Boolean,
+            ScriptOperandType.Color => ScriptVariableKind.Color,
             ScriptOperandType.VariableReference => InferVariableKind(operand, selectedAction),
             _ => ScriptVariableKind.Unknown
         };

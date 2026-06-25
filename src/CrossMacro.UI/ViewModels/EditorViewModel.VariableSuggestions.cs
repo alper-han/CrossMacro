@@ -81,8 +81,10 @@ public partial class EditorViewModel
             OnPropertyChanged(nameof(ShowIncDecVariablePicker));
             OnPropertyChanged(nameof(ShowConditionLeftVariablePicker));
             OnPropertyChanged(nameof(ShowConditionLeftOperandTextBox));
+            OnPropertyChanged(nameof(ShowConditionLeftColorPicker));
             OnPropertyChanged(nameof(ShowConditionRightVariablePicker));
             OnPropertyChanged(nameof(ShowConditionRightOperandTextBox));
+            OnPropertyChanged(nameof(ShowConditionRightColorPicker));
             OnPropertyChanged(nameof(ShowForVariablePicker));
             ClearVariableSuggestionSelections();
             return;
@@ -108,8 +110,10 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(ShowIncDecVariablePicker));
         OnPropertyChanged(nameof(ShowConditionLeftVariablePicker));
         OnPropertyChanged(nameof(ShowConditionLeftOperandTextBox));
+        OnPropertyChanged(nameof(ShowConditionLeftColorPicker));
         OnPropertyChanged(nameof(ShowConditionRightVariablePicker));
         OnPropertyChanged(nameof(ShowConditionRightOperandTextBox));
+        OnPropertyChanged(nameof(ShowConditionRightColorPicker));
         OnPropertyChanged(nameof(ShowForVariablePicker));
         NotifyScreenReadingComputedPropertiesChanged();
         ClearVariableSuggestionSelections();

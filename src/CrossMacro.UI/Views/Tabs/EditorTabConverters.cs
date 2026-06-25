@@ -115,8 +115,9 @@ public static class EditorScriptDisplayConverters
         {
             ScriptOperandType.VariableReference => Localize("Editor_ScriptOperand_VariableReference", "Variable"),
             ScriptOperandType.Number => Localize("Editor_ScriptOperand_Number", "Number"),
-            ScriptOperandType.Text => Localize("Editor_ScriptOperand_Text", "Text / Color (RRGGBB)"),
+            ScriptOperandType.Text => Localize("Editor_ScriptOperand_Text", "Text"),
             ScriptOperandType.Boolean => Localize("Editor_ScriptOperand_Boolean", "True / False"),
+            ScriptOperandType.Color => Localize("Editor_ScriptOperand_Color", "Color (RRGGBB)"),
             _ => operandType.ToString()
         };
     }

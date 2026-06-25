@@ -924,6 +924,27 @@
   <data name="Editor_StatusCapturedKey" xml:space="preserve">
     <value>Captured: {0} (code: {1})</value>
   </data>
+  <data name="Editor_StatusPixelReaderUnavailable" xml:space="preserve">
+    <value>Screen pixel reader is unavailable</value>
+  </data>
+  <data name="Editor_StatusCaptureColorPrompt" xml:space="preserve">
+    <value>Click a screen pixel to capture its color (Esc to cancel)...</value>
+  </data>
+  <data name="Editor_StatusCaptureColorFailed" xml:space="preserve">
+    <value>Color capture failed: {0}</value>
+  </data>
+  <data name="Editor_StatusCapturedColor" xml:space="preserve">
+    <value>Captured color {0} at ({1}, {2})</value>
+  </data>
+  <data name="Editor_StatusCapturedRegionTopLeft" xml:space="preserve">
+    <value>Captured search region top-left: ({0}, {1})</value>
+  </data>
+  <data name="Editor_StatusCapturedRegionBottomRight" xml:space="preserve">
+    <value>Captured search region bottom-right: ({0}, {1})</value>
+  </data>
+  <data name="Editor_StatusCaptureRegionInvalidBottomRight" xml:space="preserve">
+    <value>Bottom-right must be below and to the right of the search region top-left</value>
+  </data>
   <data name="Editor_StatusValidationFailed" xml:space="preserve">
     <value>Validation failed: {0} error(s)</value>
   </data>
@@ -1016,6 +1037,15 @@
   </data>
   <data name="Editor_CapturePosition" xml:space="preserve">
     <value>Capture Position</value>
+  </data>
+  <data name="Editor_CaptureTargetColor" xml:space="preserve">
+    <value>Pick Color</value>
+  </data>
+  <data name="Editor_CaptureRegionTopLeft" xml:space="preserve">
+    <value>Top-Left</value>
+  </data>
+  <data name="Editor_CaptureRegionBottomRight" xml:space="preserve">
+    <value>Bottom-Right</value>
   </data>
   <data name="Editor_CancelCapture" xml:space="preserve">
     <value>Cancel Capture</value>
@@ -1177,7 +1207,7 @@
     <value>Right Operand</value>
   </data>
   <data name="Editor_ConditionColorHint" xml:space="preserve">
-    <value>For color checks, set the right operand type to Text / Color (RRGGBB), then enter a 6-digit color such as 00FF00.</value>
+    <value>For color checks, set the operand type to Color (RRGGBB), then enter a 6-digit color such as 00FF00.</value>
   </data>
   <data name="Editor_RawScreenReadingHint_PixelColor" xml:space="preserve">
     <value>pixelcolor: stores the pixel color in a variable. Use 'pixelcolor rel dx dy var' for cursor-relative reads.</value>
@@ -1195,7 +1225,10 @@
     <value>Number</value>
   </data>
   <data name="Editor_ScriptOperand_Text" xml:space="preserve">
-    <value>Text / Color (RRGGBB)</value>
+    <value>Text</value>
+  </data>
+  <data name="Editor_ScriptOperand_Color" xml:space="preserve">
+    <value>Color (RRGGBB)</value>
   </data>
   <data name="Editor_ScriptOperand_Boolean" xml:space="preserve">
     <value>True / False</value>

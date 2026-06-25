@@ -136,24 +136,34 @@
                 </ComboBox.ItemTemplate>
             </ComboBox>
             <TextBlock Text="{localization:Loc Editor_TargetColorHex}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" IsVisible="{Binding ShowScreenTargetColorHexInput}"/>
-             <Grid ColumnDefinitions="Auto,8,*" IsVisible="{Binding ShowScreenTargetColorHexInput}">
-                  <Border Width="32"
-                         Height="32"
+             <Grid ColumnDefinitions="Auto,8,*,8,Auto" IsVisible="{Binding ShowScreenTargetColorHexInput}">
+                   <Border Width="32"
+                          Height="32"
                         CornerRadius="4"
                         Background="{Binding ScreenReadingColorPreviewHex, Converter={StaticResource HexColorBrushConverter}}"
                         BorderBrush="{DynamicResource TextSecondaryBrush}"
                         BorderThickness="1"
                         IsVisible="{Binding ShowScreenReadingColorPreview}"/>
                 <TextBox Grid.Column="2"
-                         Text="{Binding SelectedAction.ScreenColorHex, UpdateSourceTrigger=PropertyChanged}"
-                         PlaceholderText="RRGGBB"
+                          Text="{Binding SelectedAction.ScreenColorHex, UpdateSourceTrigger=PropertyChanged}"
+                          PlaceholderText="RRGGBB"
                          Background="{DynamicResource SurfaceHoverBrush}"
                          Foreground="{DynamicResource TextPrimaryBrush}"
                          BorderThickness="0"
                          CornerRadius="4"
                           Padding="8,6"
                           MaxLength="6"/>
-             </Grid>
+                <Button Grid.Column="4"
+                        Command="{Binding CaptureTargetColorAsync}"
+                        Classes="primary compact"
+                        IsVisible="{Binding !IsCapturing}"
+                        HorizontalContentAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                        <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
+                        <TextBlock Text="{localization:Loc Editor_CaptureTargetColor}"/>
+                    </StackPanel>
+                </Button>
+              </Grid>
             <TextBlock Text="{localization:Loc Editor_TargetColorVariable}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" IsVisible="{Binding ShowScreenTargetColorVariableInput}"/>
             <TextBox Text="{Binding SelectedAction.ScreenTargetColorVariableName, UpdateSourceTrigger=PropertyChanged}"
                      PlaceholderText="{localization:Loc Editor_ColorVariableNamePlaceholder}"
@@ -169,13 +179,16 @@
                       Background="{DynamicResource SurfaceHoverBrush}"
                       Foreground="{DynamicResource TextPrimaryBrush}"
                       HorizontalAlignment="Stretch"/>
-            <TextBox Text="{Binding SelectedAction.ScreenTimeoutMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
-                     PlaceholderText="{localization:Loc Editor_TimeoutMs}"
-                     Background="{DynamicResource SurfaceHoverBrush}"
-                     Foreground="{DynamicResource TextPrimaryBrush}"
-                     BorderThickness="0"
-                     CornerRadius="4"
-                     Padding="8,6"/>
+            <StackPanel Spacing="3">
+                <TextBlock Text="{localization:Loc Editor_TimeoutMs}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+                <TextBox Text="{Binding SelectedAction.ScreenTimeoutMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
+                         PlaceholderText="5000"
+                         Background="{DynamicResource SurfaceHoverBrush}"
+                         Foreground="{DynamicResource TextPrimaryBrush}"
+                         BorderThickness="0"
+                         CornerRadius="4"
+                         Padding="8,6"/>
+            </StackPanel>
             <TextBlock Text="{localization:Loc Editor_ResultVariableName}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
             <TextBox Text="{Binding SelectedAction.ScreenColorVariableName, UpdateSourceTrigger=PropertyChanged}"
                      PlaceholderText="wait_ok"
@@ -190,7 +203,7 @@
         <StackPanel Spacing="6" IsVisible="{Binding ShowPixelSearchFields}">
             <TextBlock Text="{localization:Loc Editor_PixelSearchAction}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
             <TextBlock Text="{localization:Loc Editor_SearchRegion}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
-            <Grid ColumnDefinitions="*,8,*">
+             <Grid ColumnDefinitions="*,8,*">
                 <StackPanel Spacing="3">
                     <TextBlock Text="{localization:Loc Editor_Left}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
                     <TextBox Text="{Binding SelectedAction.ScreenLeft, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
@@ -233,7 +246,40 @@
                              CornerRadius="4"
                              Padding="8,6"/>
                 </StackPanel>
+             </Grid>
+            <Grid ColumnDefinitions="*,8,*">
+                <Button Command="{Binding CapturePixelSearchTopLeftAsync}"
+                        Classes="primary compact"
+                        IsVisible="{Binding !IsCapturing}"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                        <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
+                        <TextBlock Text="{localization:Loc Editor_CaptureRegionTopLeft}"/>
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="2"
+                        Command="{Binding CapturePixelSearchBottomRightAsync}"
+                        Classes="primary compact"
+                        IsVisible="{Binding !IsCapturing}"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                        <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
+                        <TextBlock Text="{localization:Loc Editor_CaptureRegionBottomRight}"/>
+                    </StackPanel>
+                </Button>
             </Grid>
+            <Button Command="{Binding CancelCapture}"
+                    Classes="danger compact"
+                    IsVisible="{Binding IsCapturing}"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                    <icons:EmojiAppIcon Icon="Cancel" Width="16" Height="16"/>
+                    <TextBlock Text="{localization:Loc Editor_CancelCapture}"/>
+                </StackPanel>
+            </Button>
             <TextBlock Text="{localization:Loc Editor_TargetColorSource}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
             <ComboBox ItemsSource="{Binding ScreenTargetColorSources}"
                       SelectedItem="{Binding SelectedAction.ScreenTargetColorSource}"
@@ -247,7 +293,7 @@
                 </ComboBox.ItemTemplate>
             </ComboBox>
             <TextBlock Text="{localization:Loc Editor_TargetColorHex}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" IsVisible="{Binding ShowScreenTargetColorHexInput}"/>
-            <Grid ColumnDefinitions="Auto,8,*" IsVisible="{Binding ShowScreenTargetColorHexInput}">
+            <Grid ColumnDefinitions="Auto,8,*,8,Auto" IsVisible="{Binding ShowScreenTargetColorHexInput}">
                 <Border Width="32"
                         Height="32"
                         CornerRadius="4"
@@ -256,7 +302,7 @@
                         BorderThickness="1"
                         IsVisible="{Binding ShowScreenReadingColorPreview}"/>
                 <TextBox Grid.Column="2"
-                         Text="{Binding SelectedAction.ScreenColorHex, UpdateSourceTrigger=PropertyChanged}"
+                          Text="{Binding SelectedAction.ScreenColorHex, UpdateSourceTrigger=PropertyChanged}"
                          PlaceholderText="RRGGBB"
                          Background="{DynamicResource SurfaceHoverBrush}"
                          Foreground="{DynamicResource TextPrimaryBrush}"
@@ -264,6 +310,16 @@
                          CornerRadius="4"
                           Padding="8,6"
                           MaxLength="6"/>
+                <Button Grid.Column="4"
+                        Command="{Binding CaptureTargetColorAsync}"
+                        Classes="primary compact"
+                        IsVisible="{Binding !IsCapturing}"
+                        HorizontalContentAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                        <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
+                        <TextBlock Text="{localization:Loc Editor_CaptureTargetColor}"/>
+                    </StackPanel>
+                </Button>
             </Grid>
             <TextBlock Text="{localization:Loc Editor_TargetColorVariable}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" IsVisible="{Binding ShowScreenTargetColorVariableInput}"/>
             <TextBox Text="{Binding SelectedAction.ScreenTargetColorVariableName, UpdateSourceTrigger=PropertyChanged}"

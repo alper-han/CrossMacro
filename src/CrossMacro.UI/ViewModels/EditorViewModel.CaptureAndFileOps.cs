@@ -7,6 +7,7 @@ using Avalonia;
 using Avalonia.Threading;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.ViewModels;
@@ -120,6 +121,307 @@ public partial class EditorViewModel
                 targetAction.KeyCode = result.Value;
                 targetAction.KeyName = _keyCodeMapper.GetKeyName(result.Value);
                 Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCapturedKey"), targetAction.KeyName, result.Value);
+            });
+        }
+        catch (Exception ex)
+        {
+            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message);
+        }
+        finally
+        {
+            IsCapturing = false;
+        }
+    }
+
+    public async Task CaptureTargetColorAsync()
+    {
+        var targetAction = SelectedAction;
+        if (targetAction == null)
+        {
+            Status = Localize("Editor_StatusSelectActionFirst");
+            return;
+        }
+
+        if (targetAction.Type is not (EditorActionType.WaitColor or EditorActionType.PixelSearch))
+        {
+            Status = Localize("Editor_StatusOperationBlocked");
+            return;
+        }
+
+        if (_screenPixelReader is not { IsSupported: true } screenPixelReader)
+        {
+            Status = Localize("Editor_StatusPixelReaderUnavailable");
+            return;
+        }
+
+        IsCapturing = true;
+        Status = Localize("Editor_StatusCaptureColorPrompt");
+
+        try
+        {
+            using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var positionResult = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token);
+
+            if (!positionResult.HasValue)
+            {
+                await RunOnUiThreadAsync(() => Status = Localize("Editor_StatusCaptureCancelled"));
+                return;
+            }
+
+            var selectionChanged = false;
+            await RunOnUiThreadAsync(() =>
+            {
+                selectionChanged = !ReferenceEquals(SelectedAction, targetAction);
+                if (selectionChanged)
+                {
+                    Status = Localize("Editor_StatusCaptureSelectionChanged");
+                }
+            });
+
+            if (selectionChanged)
+            {
+                return;
+            }
+
+            var point = new ScreenPoint(positionResult.Value.X, positionResult.Value.Y);
+            var pixelResult = await screenPixelReader.GetPixelAsync(point, new ScreenReadOptions(cancellationToken: cancellationTokenSource.Token));
+
+            await RunOnUiThreadAsync(() =>
+            {
+                if (!ReferenceEquals(SelectedAction, targetAction))
+                {
+                    Status = Localize("Editor_StatusCaptureSelectionChanged");
+                    return;
+                }
+
+                if (!pixelResult.IsSuccess)
+                {
+                    Status = string.Format(
+                        _localizationService.CurrentCulture,
+                        Localize("Editor_StatusCaptureColorFailed"),
+                        pixelResult.ErrorMessage ?? Localize("Editor_StatusPixelReaderUnavailable"));
+                    return;
+                }
+
+                var color = pixelResult.Value;
+                targetAction.ScreenColorHex = color.ToString();
+                Status = string.Format(
+                    _localizationService.CurrentCulture,
+                    Localize("Editor_StatusCapturedColor"),
+                    targetAction.ScreenColorHex,
+                    positionResult.Value.X,
+                    positionResult.Value.Y);
+            });
+        }
+        catch (Exception ex)
+        {
+            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message);
+        }
+        finally
+        {
+            IsCapturing = false;
+        }
+    }
+
+    public Task CaptureConditionLeftColorAsync()
+    {
+        return CaptureConditionColorAsync(
+            action => action.ScriptLeftOperandType,
+            (action, color) => action.ScriptLeftOperand = color);
+    }
+
+    public Task CaptureConditionRightColorAsync()
+    {
+        return CaptureConditionColorAsync(
+            action => action.ScriptRightOperandType,
+            (action, color) => action.ScriptRightOperand = color);
+    }
+
+    private async Task CaptureConditionColorAsync(
+        Func<EditorAction, ScriptOperandType> getOperandType,
+        Action<EditorAction, string> setOperand)
+    {
+        var targetAction = SelectedAction;
+        if (targetAction == null)
+        {
+            Status = Localize("Editor_StatusSelectActionFirst");
+            return;
+        }
+
+        if (!IsConditionColorTarget(targetAction, getOperandType))
+        {
+            Status = Localize("Editor_StatusOperationBlocked");
+            return;
+        }
+
+        if (_screenPixelReader is not { IsSupported: true } screenPixelReader)
+        {
+            Status = Localize("Editor_StatusPixelReaderUnavailable");
+            return;
+        }
+
+        IsCapturing = true;
+        Status = Localize("Editor_StatusCaptureColorPrompt");
+
+        try
+        {
+            using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var positionResult = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token);
+
+            if (!positionResult.HasValue)
+            {
+                await RunOnUiThreadAsync(() => Status = Localize("Editor_StatusCaptureCancelled"));
+                return;
+            }
+
+            var canReadPixel = false;
+            await RunOnUiThreadAsync(() =>
+            {
+                if (!ReferenceEquals(SelectedAction, targetAction))
+                {
+                    Status = Localize("Editor_StatusCaptureSelectionChanged");
+                    return;
+                }
+
+                if (!IsConditionColorTarget(targetAction, getOperandType))
+                {
+                    Status = Localize("Editor_StatusOperationBlocked");
+                    return;
+                }
+
+                canReadPixel = true;
+            });
+
+            if (!canReadPixel)
+            {
+                return;
+            }
+
+            var point = new ScreenPoint(positionResult.Value.X, positionResult.Value.Y);
+            var pixelResult = await screenPixelReader.GetPixelAsync(point, new ScreenReadOptions(cancellationToken: cancellationTokenSource.Token));
+
+            await RunOnUiThreadAsync(() =>
+            {
+                if (!ReferenceEquals(SelectedAction, targetAction))
+                {
+                    Status = Localize("Editor_StatusCaptureSelectionChanged");
+                    return;
+                }
+
+                if (!IsConditionColorTarget(targetAction, getOperandType))
+                {
+                    Status = Localize("Editor_StatusOperationBlocked");
+                    return;
+                }
+
+                if (!pixelResult.IsSuccess)
+                {
+                    Status = string.Format(
+                        _localizationService.CurrentCulture,
+                        Localize("Editor_StatusCaptureColorFailed"),
+                        pixelResult.ErrorMessage ?? Localize("Editor_StatusPixelReaderUnavailable"));
+                    return;
+                }
+
+                var color = pixelResult.Value.ToString();
+                setOperand(targetAction, color);
+                Status = string.Format(
+                    _localizationService.CurrentCulture,
+                    Localize("Editor_StatusCapturedColor"),
+                    color,
+                    positionResult.Value.X,
+                    positionResult.Value.Y);
+            });
+        }
+        catch (Exception ex)
+        {
+            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message);
+        }
+        finally
+        {
+            IsCapturing = false;
+        }
+    }
+
+    private static bool IsConditionColorTarget(EditorAction action, Func<EditorAction, ScriptOperandType> getOperandType)
+    {
+        return action.Type is EditorActionType.IfBlockStart or EditorActionType.WhileBlockStart
+            && getOperandType(action) == ScriptOperandType.Color;
+    }
+
+    public Task CapturePixelSearchTopLeftAsync()
+    {
+        return CapturePixelSearchRegionPointAsync((action, x, y) =>
+        {
+            var existingRight = action.ScreenLeft + Math.Max(1, action.ScreenWidth) - 1;
+            var existingBottom = action.ScreenTop + Math.Max(1, action.ScreenHeight) - 1;
+            var previousWidth = Math.Max(1, action.ScreenWidth);
+            var previousHeight = Math.Max(1, action.ScreenHeight);
+
+            action.ScreenLeft = x;
+            action.ScreenTop = y;
+            action.ScreenWidth = existingRight >= x ? existingRight - x + 1 : previousWidth;
+            action.ScreenHeight = existingBottom >= y ? existingBottom - y + 1 : previousHeight;
+            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCapturedRegionTopLeft"), x, y);
+        });
+    }
+
+    public Task CapturePixelSearchBottomRightAsync()
+    {
+        return CapturePixelSearchRegionPointAsync((action, x, y) =>
+        {
+            var width = x - action.ScreenLeft + 1;
+            var height = y - action.ScreenTop + 1;
+            if (width <= 0 || height <= 0)
+            {
+                Status = Localize("Editor_StatusCaptureRegionInvalidBottomRight");
+                return;
+            }
+
+            action.ScreenWidth = width;
+            action.ScreenHeight = height;
+            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCapturedRegionBottomRight"), x, y);
+        });
+    }
+
+    private async Task CapturePixelSearchRegionPointAsync(Action<EditorAction, int, int> applyPoint)
+    {
+        var targetAction = SelectedAction;
+        if (targetAction == null)
+        {
+            Status = Localize("Editor_StatusSelectActionFirst");
+            return;
+        }
+
+        if (targetAction.Type != EditorActionType.PixelSearch)
+        {
+            Status = Localize("Editor_StatusOperationBlocked");
+            return;
+        }
+
+        IsCapturing = true;
+        Status = Localize("Editor_StatusCaptureMousePrompt");
+
+        try
+        {
+            using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var result = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token);
+
+            await RunOnUiThreadAsync(() =>
+            {
+                if (!result.HasValue)
+                {
+                    Status = Localize("Editor_StatusCaptureCancelled");
+                    return;
+                }
+
+                if (!ReferenceEquals(SelectedAction, targetAction))
+                {
+                    Status = Localize("Editor_StatusCaptureSelectionChanged");
+                    return;
+                }
+
+                applyPoint(targetAction, result.Value.X, result.Value.Y);
             });
         }
         catch (Exception ex)

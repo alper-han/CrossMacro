@@ -10,7 +10,8 @@ public partial class EditorViewModel
     public IReadOnlyList<string> AvailableVariableNames => _availableVariableNames;
     public bool HasAvailableVariableNames => AvailableVariableNames.Count > 0;
     public IEnumerable<ScriptConditionOperator> ScriptConditionOperators => GetConditionOperatorsForSelectedAction();
-    public string ConditionRightOperandHint => SelectedAction?.ScriptRightOperandType == ScriptOperandType.Text
+    public string ConditionRightOperandHint => SelectedAction?.ScriptLeftOperandType == ScriptOperandType.Color
+        || SelectedAction?.ScriptRightOperandType == ScriptOperandType.Color
         ? Localize("Editor_ConditionColorHint")
         : string.Empty;
 
@@ -91,6 +92,11 @@ public partial class EditorViewModel
     public bool ShowConditionLeftOperandTextBox =>
         ShowConditionFields
         && (SelectedAction?.ScriptLeftOperandType != ScriptOperandType.VariableReference || !ShowConditionLeftVariablePicker);
+    public bool ShowConditionLeftColorPicker =>
+        ShowConditionFields
+        && !IsCapturing
+        && _screenPixelReader?.IsSupported == true
+        && SelectedAction?.ScriptLeftOperandType == ScriptOperandType.Color;
     public bool ShowConditionRightVariablePicker =>
         ShowConditionFields
         && HasAvailableVariableNames
@@ -98,6 +104,11 @@ public partial class EditorViewModel
     public bool ShowConditionRightOperandTextBox =>
         ShowConditionFields
         && (SelectedAction?.ScriptRightOperandType != ScriptOperandType.VariableReference || !ShowConditionRightVariablePicker);
+    public bool ShowConditionRightColorPicker =>
+        ShowConditionFields
+        && !IsCapturing
+        && _screenPixelReader?.IsSupported == true
+        && SelectedAction?.ScriptRightOperandType == ScriptOperandType.Color;
     public bool ShowForVariablePicker => ShowForFields && HasAvailableVariableNames;
 
     private string? GetSelectedConditionVariableSuggestion(

@@ -93,17 +93,24 @@ public class TextExpansionLogicTests
         var expansion = new Core.Models.TextExpansion("abc", "expanded");
         _storageService.GetCurrent().Returns(new List<Core.Models.TextExpansion> { expansion });
         var expansionCount = 0;
+        var firstExpansionStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var firstExpansionAllowedToFinish = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var secondExpansionTriggered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        
         _executor
             .ExpandAsync(expansion)
-            .Returns(_ =>
+            .Returns(async _ =>
             {
                 var currentCount = Interlocked.Increment(ref expansionCount);
-                if (currentCount == 2)
+                if (currentCount == 1)
+                {
+                    firstExpansionStarted.TrySetResult(true);
+                    await firstExpansionAllowedToFinish.Task;
+                }
+                else if (currentCount == 2)
                 {
                     secondExpansionTriggered.TrySetResult(true);
                 }
-                return Task.CompletedTask;
             });
         
         SetupKey(30, 'a');
@@ -115,6 +122,13 @@ public class TextExpansionLogicTests
         RaiseKey(30);
         RaiseKey(48);
         RaiseKey(46);
+
+        // Wait for first expansion to start
+        await firstExpansionStarted.Task.WaitAsync(TestTimeout);
+
+        // Allow it to finish and yield to let background thread execute the finally block (Resume capture)
+        firstExpansionAllowedToFinish.TrySetResult(true);
+        await Task.Delay(50);
 
         RaiseKey(32);
         RaiseKey(30);

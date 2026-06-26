@@ -9,22 +9,27 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
     private readonly IWlrScreencopySupportProbe _wlrScreencopyProbe;
     private readonly IPortalScreenCastSupportProbe _portalScreenCastProbe;
     private readonly IKWinScreenShotSupportProbe _kWinScreenShotProbe;
+    private readonly GnomePositionProvider _gnomePositionProvider;
 
-    public LinuxScreenReaderCapabilityDetector()
+    public LinuxScreenReaderCapabilityDetector(GnomePositionProvider gnomePositionProvider)
         : this(
             WaylandExtImageCopySupportProbe.Instance,
             new WlrScreencopyCapture(),
             PortalScreenCastSupportProbe.Instance,
-            new KWinScreenShotCapture())
+            new KWinScreenShotCapture(),
+            gnomePositionProvider)
     {
     }
 
-    public LinuxScreenReaderCapabilityDetector(IExtImageCopySupportProbe extImageCopyProbe)
+    public LinuxScreenReaderCapabilityDetector(
+        IExtImageCopySupportProbe extImageCopyProbe,
+        GnomePositionProvider gnomePositionProvider)
         : this(
             extImageCopyProbe,
             new WlrScreencopyCapture(),
             PortalScreenCastSupportProbe.Instance,
-            new KWinScreenShotCapture())
+            new KWinScreenShotCapture(),
+            gnomePositionProvider)
     {
     }
 
@@ -33,11 +38,22 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
         IWlrScreencopySupportProbe wlrScreencopyProbe,
         IPortalScreenCastSupportProbe portalScreenCastProbe,
         IKWinScreenShotSupportProbe kWinScreenShotProbe)
+        : this(extImageCopyProbe, wlrScreencopyProbe, portalScreenCastProbe, kWinScreenShotProbe, new GnomePositionProvider())
+    {
+    }
+
+    public LinuxScreenReaderCapabilityDetector(
+        IExtImageCopySupportProbe extImageCopyProbe,
+        IWlrScreencopySupportProbe wlrScreencopyProbe,
+        IPortalScreenCastSupportProbe portalScreenCastProbe,
+        IKWinScreenShotSupportProbe kWinScreenShotProbe,
+        GnomePositionProvider gnomePositionProvider)
     {
         _extImageCopyProbe = extImageCopyProbe ?? throw new ArgumentNullException(nameof(extImageCopyProbe));
         _wlrScreencopyProbe = wlrScreencopyProbe ?? throw new ArgumentNullException(nameof(wlrScreencopyProbe));
         _portalScreenCastProbe = portalScreenCastProbe ?? throw new ArgumentNullException(nameof(portalScreenCastProbe));
         _kWinScreenShotProbe = kWinScreenShotProbe ?? throw new ArgumentNullException(nameof(kWinScreenShotProbe));
+        _gnomePositionProvider = gnomePositionProvider ?? throw new ArgumentNullException(nameof(gnomePositionProvider));
     }
 
     public LinuxScreenReaderCapabilitySnapshot GetSnapshot()
@@ -46,6 +62,9 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
         var wlrSupport = _wlrScreencopyProbe.ProbeSupport();
         var portalSupport = _portalScreenCastProbe.ProbeSupport();
         var kWinSupport = _kWinScreenShotProbe.ProbeSupport();
+        var isGnomeExtensionAvailable = _gnomePositionProvider.IsSupported && 
+            _gnomePositionProvider.CurrentExtensionStatus?.Code == CrossMacro.Core.Services.ExtensionStatusCode.Enabled;
+
         return new LinuxScreenReaderCapabilitySnapshot(
             kWinSupport.IsSupported
                 ? LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.KWinScreenShot2)
@@ -70,6 +89,12 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
                 : LinuxScreenReaderBackendCapability.Unavailable(
                     LinuxScreenReaderBackend.Portal,
                     portalSupport.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
-                    portalSupport.ErrorMessage ?? "XDG Desktop Portal ScreenCast is unavailable."));
+                    portalSupport.ErrorMessage ?? "XDG Desktop Portal ScreenCast is unavailable."),
+            isGnomeExtensionAvailable
+                ? LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.GnomeExtension)
+                : LinuxScreenReaderBackendCapability.Unavailable(
+                    LinuxScreenReaderBackend.GnomeExtension,
+                    ScreenReadErrorKind.BackendUnavailable,
+                    "GNOME Shell extension backend is unavailable or not enabled."));
     }
 }

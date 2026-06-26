@@ -6,34 +6,37 @@ namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
 internal sealed class LinuxRequestAwareScreenFrameProvider : IScreenFrameProvider
 {
-    private readonly LinuxScreenReaderCapabilitySnapshot _snapshot;
+    private readonly ILinuxScreenReaderCapabilityDetector _capabilityDetector;
     private readonly IReadOnlyList<LinuxScreenReaderBackend> _order;
     private readonly Func<ExtImageCopySupportResult, IScreenFrameProvider> _extFactory;
     private readonly Func<WlrScreencopySupportResult, IScreenFrameProvider> _wlrFactory;
     private readonly Func<PortalScreenCastSupportResult, IScreenFrameProvider> _portalFactory;
     private readonly Func<KWinScreenShotSupportResult, IScreenFrameProvider> _kWinFactory;
+    private readonly Func<GnomeExtensionSupportResult, IScreenFrameProvider> _gnomeFactory;
     private readonly Dictionary<LinuxScreenReaderBackend, IScreenFrameProvider> _providers = [];
     private bool _disposed;
 
     public LinuxRequestAwareScreenFrameProvider(
-        LinuxScreenReaderCapabilitySnapshot snapshot,
+        ILinuxScreenReaderCapabilityDetector capabilityDetector,
         IReadOnlyList<LinuxScreenReaderBackend> order,
         Func<ExtImageCopySupportResult, IScreenFrameProvider> extFactory,
         Func<WlrScreencopySupportResult, IScreenFrameProvider> wlrFactory,
         Func<PortalScreenCastSupportResult, IScreenFrameProvider> portalFactory,
-        Func<KWinScreenShotSupportResult, IScreenFrameProvider> kWinFactory)
+        Func<KWinScreenShotSupportResult, IScreenFrameProvider> kWinFactory,
+        Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory)
     {
-        _snapshot = snapshot;
+        _capabilityDetector = capabilityDetector ?? throw new ArgumentNullException(nameof(capabilityDetector));
         _order = order ?? throw new ArgumentNullException(nameof(order));
         _extFactory = extFactory ?? throw new ArgumentNullException(nameof(extFactory));
         _wlrFactory = wlrFactory ?? throw new ArgumentNullException(nameof(wlrFactory));
         _portalFactory = portalFactory ?? throw new ArgumentNullException(nameof(portalFactory));
         _kWinFactory = kWinFactory ?? throw new ArgumentNullException(nameof(kWinFactory));
+        _gnomeFactory = gnomeFactory ?? throw new ArgumentNullException(nameof(gnomeFactory));
     }
 
     public string ProviderName => GetProvider(SelectFirstAvailable()).ProviderName;
 
-    public bool IsSupported => _order.Any(backend => _snapshot.GetCapability(backend).IsAvailable);
+    public bool IsSupported => _order.Any(backend => _capabilityDetector.GetSnapshot().GetCapability(backend).IsAvailable);
 
     public Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
     {
@@ -41,10 +44,11 @@ internal sealed class LinuxRequestAwareScreenFrameProvider : IScreenFrameProvide
 
         var isFullFrameRequest = region is null;
         var firstIncompatible = default(LinuxScreenReaderBackendCapability?);
+        var snapshot = _capabilityDetector.GetSnapshot();
 
         foreach (var backend in _order)
         {
-            var capability = _snapshot.GetCapability(backend);
+            var capability = snapshot.GetCapability(backend);
             if (!capability.IsAvailable)
             {
                 continue;
@@ -87,9 +91,10 @@ internal sealed class LinuxRequestAwareScreenFrameProvider : IScreenFrameProvide
 
     private LinuxScreenReaderBackendCapability SelectFirstAvailable()
     {
+        var snapshot = _capabilityDetector.GetSnapshot();
         foreach (var backend in _order)
         {
-            var capability = _snapshot.GetCapability(backend);
+            var capability = snapshot.GetCapability(backend);
             if (capability.IsAvailable)
             {
                 return capability;
@@ -111,7 +116,8 @@ internal sealed class LinuxRequestAwareScreenFrameProvider : IScreenFrameProvide
             _extFactory,
             _wlrFactory,
             _portalFactory,
-            _kWinFactory);
+            _kWinFactory,
+            _gnomeFactory);
         _providers.Add(capability.Backend, provider);
         return provider;
     }

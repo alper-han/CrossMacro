@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using CrossMacro.Core.Logging;
 using CrossMacro.Core.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
@@ -13,6 +14,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
         // Embedded GNOME Shell Extension files - auto-installed/updated when needed
         private const string EXTENSION_JS = @"import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
@@ -26,6 +28,15 @@ const MouseInterface = `
     <method name=""GetResolution"">
       <arg type=""i"" direction=""out"" name=""width""/>
       <arg type=""i"" direction=""out"" name=""height""/>
+    </method>
+    <method name=""CaptureArea"">
+      <arg type=""i"" direction=""in"" name=""x""/>
+      <arg type=""i"" direction=""in"" name=""y""/>
+      <arg type=""i"" direction=""in"" name=""width""/>
+      <arg type=""i"" direction=""in"" name=""height""/>
+      <arg type=""s"" direction=""out"" name=""base64Data""/>
+      <arg type=""i"" direction=""out"" name=""stride""/>
+      <arg type=""b"" direction=""out"" name=""hasAlpha""/>
     </method>
   </interface>
 </node>`;
@@ -66,6 +77,26 @@ export default class CursorSpyExtension extends Extension {
         console.log(`CursorSpyExtension: GetResolution called, returning ${width}x${height}`);
         return [width, height];
     }
+
+    async CaptureArea(x, y, width, height) {
+        try {
+            let shooter = new Shell.Screenshot();
+            let [content, scale] = await shooter.screenshot_stage_to_content();
+            let texture = content.get_texture();
+            let stream = Gio.MemoryOutputStream.new_resizable();
+            let pixbuf = await Shell.Screenshot.composite_to_stream(
+                texture, x, y, width, height,
+                scale, null, 0, 0, 1.0, stream
+            );
+            stream.close(null);
+            let pixels = pixbuf.get_pixels();
+            let base64 = GLib.base64_encode(pixels);
+            return [base64, pixbuf.get_rowstride(), pixbuf.get_has_alpha()];
+        } catch (error) {
+            console.error('CursorSpyExtension: CaptureArea failed:', error);
+            throw error;
+        }
+    }
 }
 ";
 
@@ -98,6 +129,8 @@ export default class CursorSpyExtension extends Extension {
         public event EventHandler<string>? ExtensionStatusChanged;
 
         public ExtensionStatusChangedEventArgs? CurrentExtensionStatus => _currentExtensionStatus;
+
+        public Task<bool> InitializationTask => _initializationTcs.Task;
 
         public string ProviderName => "GNOME Shell Extension (DBus)";
         public bool IsSupported { get; private set; }
@@ -265,6 +298,7 @@ export default class CursorSpyExtension extends Extension {
             else
             {
                 Log.Debug("[GnomePositionProvider] Extension is already enabled");
+                PublishExtensionStatus(ExtensionStatusCode.Enabled, "GNOME extension is already enabled");
             }
         }
         
@@ -379,6 +413,25 @@ export default class CursorSpyExtension extends Extension {
             _cachedResolution = queryResult.CachedResolution;
             _resolutionUnavailableLogged = queryResult.ResolutionUnavailableLogged;
             return queryResult.Resolution;
+        }
+
+        public async Task<(byte[] Pixels, int Stride, ScreenPixelFormat Format)?> CaptureAreaAsync(ScreenRect region)
+        {
+            if (!IsSupported || !await EnsureInitializedAsync().ConfigureAwait(false) || _trackerClient == null)
+                return null;
+
+            try
+            {
+                var (base64, stride, hasAlpha) = await _trackerClient.CaptureAreaAsync(region.X, region.Y, region.Width, region.Height).ConfigureAwait(false);
+                var pixels = Convert.FromBase64String(base64);
+                var format = hasAlpha ? ScreenPixelFormat.Abgr8888 : ScreenPixelFormat.Rgb24;
+                return (pixels, stride, format);
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "[GnomePositionProvider] Failed to capture area via DBus extension");
+                return null;
+            }
         }
 
         internal static async Task<bool> IsExtensionEnabledAsync(Func<Task<IDictionary<string, object>>> getExtensionInfo)

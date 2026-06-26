@@ -33,6 +33,8 @@ internal sealed class ScreenReadingSelectorFixture
 
     public int KWinCreateCount { get; private set; }
 
+    public int GnomeCreateCount { get; private set; }
+
     public int X11CreateCount { get; private set; }
 
     public bool SnapshotRequested => _capabilityDetector.SnapshotCalls > 0;
@@ -49,6 +51,7 @@ internal sealed class ScreenReadingSelectorFixture
             _ => CreateProvider("wlr", () => WlrCreateCount++),
             _ => CreateProvider("portal", () => PortalCreateCount++),
             _ => CreateProvider("kwin", () => KWinCreateCount++),
+            _ => CreateProvider("gnome", () => GnomeCreateCount++),
             _x11SupportProbe,
             support => CreateProvider("x11", () => X11CreateCount++, support));
     }
@@ -58,6 +61,19 @@ internal sealed class ScreenReadingSelectorFixture
         LinuxScreenReaderBackendCapability ext,
         LinuxScreenReaderBackendCapability wlr,
         LinuxScreenReaderBackendCapability portal)
+    {
+        return Wayland(isFlatpak, ext, wlr, portal, LinuxScreenReaderBackendCapability.Unavailable(
+            LinuxScreenReaderBackend.GnomeExtension,
+            ScreenReadErrorKind.BackendUnavailable,
+            "not gnome"));
+    }
+
+    public static ScreenReadingSelectorFixture Wayland(
+        bool isFlatpak,
+        LinuxScreenReaderBackendCapability ext,
+        LinuxScreenReaderBackendCapability wlr,
+        LinuxScreenReaderBackendCapability portal,
+        LinuxScreenReaderBackendCapability gnome)
     {
         return new ScreenReadingSelectorFixture(
             new FakeLinuxEnvironmentDetector(isWayland: true, isX11: false, CompositorType.Other),
@@ -69,7 +85,8 @@ internal sealed class ScreenReadingSelectorFixture
                     "not kde"),
                 ext,
                 wlr,
-                portal)),
+                portal,
+                gnome)),
             new FakeX11ScreenCaptureSupportProbe(X11ScreenCaptureSupportResult.Unsupported("not x11")));
     }
 

@@ -18,6 +18,15 @@ internal sealed class GnomeTrackerClient : LinuxDbusClientBase
     public Task<(int width, int height)> GetResolutionAsync()
         => CallAsync("GetResolution", ReadGetResolutionReply);
 
+    public Task<(string base64Data, int stride, bool hasAlpha)> CaptureAreaAsync(int x, int y, int width, int height)
+        => CallAsync("CaptureArea", ReadCaptureAreaReply, "iiii", (ref MessageWriter writer) =>
+        {
+            writer.WriteInt32(x);
+            writer.WriteInt32(y);
+            writer.WriteInt32(width);
+            writer.WriteInt32(height);
+        });
+
     internal static (int x, int y) ReadGetPositionReply(Message message, object? _)
     {
         var reader = message.GetBodyReader();
@@ -28,5 +37,11 @@ internal sealed class GnomeTrackerClient : LinuxDbusClientBase
     {
         var reader = message.GetBodyReader();
         return (reader.ReadInt32(), reader.ReadInt32());
+    }
+
+    internal static (string base64Data, int stride, bool hasAlpha) ReadCaptureAreaReply(Message message, object? _)
+    {
+        var reader = message.GetBodyReader();
+        return (reader.ReadString(), reader.ReadInt32(), reader.ReadBool());
     }
 }

@@ -29,5 +29,10 @@ namespace CrossMacro.Platform.Abstractions
         /// </summary>
         /// <returns>Tuple of (Width, Height), or null if unavailable</returns>
         Task<(int Width, int Height)?> GetScreenResolutionAsync();
+
+        /// <summary>
+        /// Task that completes when the provider is fully initialized
+        /// </summary>
+        Task<bool> InitializationTask => Task.FromResult(true);
     }
 }

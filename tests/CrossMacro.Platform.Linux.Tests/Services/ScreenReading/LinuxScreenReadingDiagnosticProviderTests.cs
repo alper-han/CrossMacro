@@ -33,7 +33,7 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
 
         Assert.True(snapshot.IsSupportedSession);
         Assert.Equal("Native", snapshot.PolicyName);
-        Assert.Equal(["ExtImageCopy", "WlrScreencopy", "Portal"], snapshot.PolicyOrder);
+        Assert.Equal(["GnomeExtension", "ExtImageCopy", "WlrScreencopy", "Portal"], snapshot.PolicyOrder);
         Assert.Equal("WlrScreencopy", snapshot.SelectedBackend);
         Assert.Contains(snapshot.Backends, backend =>
             backend.Backend == "ExtImageCopy" &&
@@ -57,7 +57,7 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         var snapshot = provider.GetSnapshot();
 
         Assert.Equal("Flatpak", snapshot.PolicyName);
-        Assert.Equal(["Portal", "ExtImageCopy", "WlrScreencopy"], snapshot.PolicyOrder);
+        Assert.Equal(["GnomeExtension", "Portal", "ExtImageCopy", "WlrScreencopy"], snapshot.PolicyOrder);
         Assert.Equal("Portal", snapshot.SelectedBackend);
     }
 

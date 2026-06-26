@@ -168,9 +168,22 @@ public sealed partial class DoctorService : IDoctorService
         return eventDevices.Length > 0 && eventDevices.Any(canOpenForRead);
     }
 
-    public Task<DoctorReport> RunAsync(bool verbose, CancellationToken cancellationToken)
+    public async Task<DoctorReport> RunAsync(bool verbose, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
+        if (_isLinux() && _mousePositionProvider is not null)
+        {
+            try
+            {
+                // Wait up to 2 seconds for GNOME extension (or any other async provider) to initialize
+                await Task.WhenAny(_mousePositionProvider.InitializationTask, Task.Delay(2000, cancellationToken)).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Ignore initialization failures in doctor
+            }
+        }
 
         var checks = new List<DoctorCheck>
         {
@@ -205,10 +218,10 @@ public sealed partial class DoctorService : IDoctorService
             }
         }
 
-        return Task.FromResult(new DoctorReport
+        return new DoctorReport
         {
             Checks = checks
-        });
+        };
     }
 
     private DoctorCheck BuildPlatformCheck()

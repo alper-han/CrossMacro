@@ -14,6 +14,7 @@ internal static class LinuxScreenReaderBackendPolicy
 
     private static readonly LinuxScreenReaderBackend[] NativeWaylandOrder =
     [
+        LinuxScreenReaderBackend.GnomeExtension,
         LinuxScreenReaderBackend.ExtImageCopy,
         LinuxScreenReaderBackend.WlrScreencopy,
         LinuxScreenReaderBackend.Portal
@@ -21,6 +22,7 @@ internal static class LinuxScreenReaderBackendPolicy
 
     private static readonly LinuxScreenReaderBackend[] FlatpakWaylandOrder =
     [
+        LinuxScreenReaderBackend.GnomeExtension,
         LinuxScreenReaderBackend.Portal,
         LinuxScreenReaderBackend.ExtImageCopy,
         LinuxScreenReaderBackend.WlrScreencopy

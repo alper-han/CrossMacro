@@ -131,6 +131,7 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
 
         return failure.Backend switch
         {
+            LinuxScreenReaderBackend.GnomeExtension => "Install and enable the CrossMacro GNOME Shell extension, or allow fallback to another backend.",
             LinuxScreenReaderBackend.ExtImageCopy => "Use a compositor that exposes ext-image-copy-capture-v1, or allow fallback to another backend.",
             LinuxScreenReaderBackend.WlrScreencopy => "Use a compositor that exposes wlr-screencopy-unstable-v1, or allow fallback to another backend.",
             LinuxScreenReaderBackend.Portal => "Install and enable XDG Desktop Portal ScreenCast with PipeWire, or use a native Wayland backend.",

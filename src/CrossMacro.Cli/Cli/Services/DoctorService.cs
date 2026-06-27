@@ -10,6 +10,7 @@ using CrossMacro.Infrastructure.Helpers;
 using CrossMacro.Infrastructure.Linux.Native.Evdev;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Abstractions.Diagnostics;
+using System.Text.Json.Nodes;
 
 namespace CrossMacro.Cli.Services;
 
@@ -232,11 +233,11 @@ public sealed partial class DoctorService : IDoctorService
             Name = "platform",
             Status = DoctorCheckStatus.Pass,
             Message = $"Platform: {description}",
-            Details = new
+            Details = new JsonObject
             {
-                osDescription = description,
-                osArchitecture = RuntimeInformation.OSArchitecture.ToString(),
-                processArchitecture = RuntimeInformation.ProcessArchitecture.ToString()
+                ["osDescription"] = description,
+                ["osArchitecture"] = RuntimeInformation.OSArchitecture.ToString(),
+                ["processArchitecture"] = RuntimeInformation.ProcessArchitecture.ToString()
             }
         };
     }
@@ -248,10 +249,10 @@ public sealed partial class DoctorService : IDoctorService
             Name = "display-environment",
             Status = DoctorCheckStatus.Pass,
             Message = $"Detected environment: {_environmentInfoProvider.CurrentEnvironment}",
-            Details = new
+            Details = new JsonObject
             {
-                currentEnvironment = _environmentInfoProvider.CurrentEnvironment.ToString(),
-                wmHandlesCloseButton = _environmentInfoProvider.WindowManagerHandlesCloseButton
+                ["currentEnvironment"] = _environmentInfoProvider.CurrentEnvironment.ToString(),
+                ["wmHandlesCloseButton"] = _environmentInfoProvider.WindowManagerHandlesCloseButton
             }
         };
     }
@@ -272,7 +273,7 @@ public sealed partial class DoctorService : IDoctorService
                 Message = isWritable
                     ? "Config directory is writable."
                     : "Config directory is not writable.",
-                Details = new { configDirectory, writable = isWritable }
+                Details = new JsonObject { ["configDirectory"] = configDirectory, ["writable"] = isWritable }
             };
         }
         catch (Exception ex)
@@ -282,7 +283,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "config-path",
                 Status = DoctorCheckStatus.Fail,
                 Message = "Failed to access config directory.",
-                Details = new { configDirectory, error = ex.Message }
+                Details = new JsonObject { ["configDirectory"] = configDirectory, ["error"] = ex.Message }
             };
         }
     }
@@ -296,10 +297,10 @@ public sealed partial class DoctorService : IDoctorService
             Name = "display-session",
             Status = supported ? DoctorCheckStatus.Pass : DoctorCheckStatus.Fail,
             Message = supported ? "Display session is supported." : $"Display session is not supported: {reason}",
-            Details = new
+            Details = new JsonObject
             {
-                supported,
-                reason = string.IsNullOrWhiteSpace(reason) ? null : reason
+                ["supported"] = supported,
+                ["reason"] = string.IsNullOrWhiteSpace(reason) ? null : reason
             }
         };
     }
@@ -319,10 +320,10 @@ public sealed partial class DoctorService : IDoctorService
                     ? $"Input simulator backend is available ({simulator.ProviderName})."
                     : $"Input simulator backend is unavailable ({simulator.ProviderName}).",
                 Details = verbose
-                    ? new
+                    ? new JsonObject
                     {
-                        provider = simulator.ProviderName,
-                        supported = isSupported
+                        ["provider"] = simulator.ProviderName,
+                        ["supported"] = isSupported
                     }
                     : null
             };
@@ -334,7 +335,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "input-simulator",
                 Status = DoctorCheckStatus.Fail,
                 Message = "Input simulator backend probe failed.",
-                Details = verbose ? new { error = ex.Message } : null
+                Details = verbose ? new JsonObject { ["error"] = ex.Message } : null
             };
         }
     }
@@ -354,10 +355,10 @@ public sealed partial class DoctorService : IDoctorService
                     ? $"Input capture backend is available ({capture.ProviderName})."
                     : $"Input capture backend is unavailable ({capture.ProviderName}).",
                 Details = verbose
-                    ? new
+                    ? new JsonObject
                     {
-                        provider = capture.ProviderName,
-                        supported = isSupported
+                        ["provider"] = capture.ProviderName,
+                        ["supported"] = isSupported
                     }
                     : null
             };
@@ -369,7 +370,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "input-capture",
                 Status = DoctorCheckStatus.Fail,
                 Message = "Input capture backend probe failed.",
-                Details = verbose ? new { error = ex.Message } : null
+                Details = verbose ? new JsonObject { ["error"] = ex.Message } : null
             };
         }
     }
@@ -386,10 +387,10 @@ public sealed partial class DoctorService : IDoctorService
                 ? $"Position provider is available ({_mousePositionProvider.ProviderName})."
                 : $"Position provider is unavailable ({_mousePositionProvider.ProviderName}); absolute replay may downgrade to fallback mode.",
             Details = verbose
-                ? new
+                ? new JsonObject
                 {
-                    provider = _mousePositionProvider.ProviderName,
-                    supported = isSupported
+                    ["provider"] = _mousePositionProvider.ProviderName,
+                    ["supported"] = isSupported
                 }
                 : null
         };
@@ -406,7 +407,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "macos-input-monitoring",
                 Status = DoctorCheckStatus.Warn,
                 Message = "macOS Input Monitoring check was skipped outside macOS.",
-                Details = verbose ? new { skipped = true } : null
+                Details = verbose ? new JsonObject { ["skipped"] = true } : null
             });
 
             return checks;
@@ -420,7 +421,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "macos-input-monitoring",
                 Status = DoctorCheckStatus.Warn,
                 Message = "macOS permission checker is unavailable.",
-                Details = verbose ? new { checkerAvailable = false } : null
+                Details = verbose ? new JsonObject { ["checkerAvailable"] = false } : null
             });
 
             return checks;
@@ -434,7 +435,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "macos-input-monitoring",
                 Status = DoctorCheckStatus.Warn,
                 Message = "macOS Input Monitoring status is unavailable from this permission checker.",
-                Details = verbose ? new { checkerProvidesSeparateMacOSStatus = false } : null
+                Details = verbose ? new JsonObject { ["checkerProvidesSeparateMacOSStatus"] = false } : null
             });
 
             checks.Add(new DoctorCheck
@@ -442,7 +443,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "macos-event-posting",
                 Status = DoctorCheckStatus.Warn,
                 Message = "macOS event posting status is unavailable from this permission checker.",
-                Details = verbose ? new { checkerProvidesSeparateMacOSStatus = false } : null
+                Details = verbose ? new JsonObject { ["checkerProvidesSeparateMacOSStatus"] = false } : null
             });
 
             bool trusted;
@@ -457,7 +458,7 @@ public sealed partial class DoctorService : IDoctorService
                     Name = "macos-accessibility",
                     Status = DoctorCheckStatus.Warn,
                     Message = "macOS Accessibility trust probe failed.",
-                    Details = verbose ? new { error = ex.Message } : null
+                    Details = verbose ? new JsonObject { ["error"] = ex.Message } : null
                 });
 
                 return checks;
@@ -481,7 +482,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "macos-input-monitoring",
                 Status = DoctorCheckStatus.Warn,
                 Message = "macOS permission status probe failed.",
-                Details = verbose ? new { error = ex.Message } : null
+                Details = verbose ? new JsonObject { ["error"] = ex.Message } : null
             });
 
             return checks;
@@ -495,10 +496,10 @@ public sealed partial class DoctorService : IDoctorService
                 ? "macOS Input Monitoring permission is granted for capture and recording."
                 : "macOS Input Monitoring permission is missing. Grant CrossMacro access in System Settings > Privacy & Security > Input Monitoring for capture and recording.",
             Details = verbose
-                ? new
+                ? new JsonObject
                 {
-                    listenEventGranted = status.ListenEventGranted,
-                    listenEventApiAvailable = status.ListenEventApiAvailable
+                    ["listenEventGranted"] = status.ListenEventGranted,
+                    ["listenEventApiAvailable"] = status.ListenEventApiAvailable
                 }
                 : null
         });
@@ -511,10 +512,10 @@ public sealed partial class DoctorService : IDoctorService
                 ? "macOS event posting permission is granted for playback and injection."
                 : "macOS event posting permission is missing. Allow event posting for playback and injection; macOS may show this under Accessibility.",
             Details = verbose
-                ? new
+                ? new JsonObject
                 {
-                    postEventGranted = status.PostEventGranted,
-                    postEventApiAvailable = status.PostEventApiAvailable
+                    ["postEventGranted"] = status.PostEventGranted,
+                    ["postEventApiAvailable"] = status.PostEventApiAvailable
                 }
                 : null
         });
@@ -532,7 +533,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "macos-screen-recording",
                 Status = DoctorCheckStatus.Warn,
                 Message = "macOS Screen Recording status is unavailable from this platform backend.",
-                Details = verbose ? new { probeAvailable = false } : null
+                Details = verbose ? new JsonObject { ["probeAvailable"] = false } : null
             };
         }
 
@@ -547,10 +548,10 @@ public sealed partial class DoctorService : IDoctorService
                     Status = DoctorCheckStatus.Warn,
                     Message = "macOS Screen Recording preflight API is unavailable; screen-reading permission status cannot be checked.",
                     Details = verbose
-                        ? new
+                        ? new JsonObject
                         {
-                            probeAvailable = true,
-                            preflightApiAvailable = false
+                            ["probeAvailable"] = true,
+                            ["preflightApiAvailable"] = false
                         }
                         : null
                 };
@@ -565,10 +566,10 @@ public sealed partial class DoctorService : IDoctorService
                     ? "macOS Screen Recording permission is granted for screen reading."
                     : "macOS Screen Recording permission is missing. Grant CrossMacro access in System Settings > Privacy & Security > Screen Recording, then restart CrossMacro.",
                 Details = verbose
-                    ? new
+                    ? new JsonObject
                     {
-                        screenRecordingGranted = granted,
-                        preflightApiAvailable = true
+                        ["screenRecordingGranted"] = granted,
+                        ["preflightApiAvailable"] = true
                     }
                     : null
             };
@@ -580,7 +581,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "macos-screen-recording",
                 Status = DoctorCheckStatus.Warn,
                 Message = "macOS Screen Recording status probe failed.",
-                Details = verbose ? new { error = ex.Message } : null
+                Details = verbose ? new JsonObject { ["error"] = ex.Message } : null
             };
         }
     }
@@ -594,7 +595,7 @@ public sealed partial class DoctorService : IDoctorService
             Message = trusted
                 ? "macOS Accessibility trust is granted for AX features."
                 : "macOS Accessibility trust is missing for AX features. Grant CrossMacro access in System Settings > Privacy & Security > Accessibility only if AX features are needed.",
-            Details = verbose ? new { accessibilityTrusted = trusted } : null
+            Details = verbose ? new JsonObject { ["accessibilityTrusted"] = trusted } : null
         };
     }
 

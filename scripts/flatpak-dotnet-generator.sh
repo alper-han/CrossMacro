@@ -134,7 +134,7 @@ for PROJECT in "${PROJECTS[@]}"; do
             --share=network \
             --filesystem=host \
             "org.freedesktop.Sdk.Extension.dotnet${DOTNET}//${FREEDESKTOP}" \
-            -c "PATH=\"\${PATH}:/usr/lib/sdk/dotnet${DOTNET}/bin\" LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:/usr/lib/sdk/dotnet${DOTNET}/lib\" dotnet restore --packages \"$TMPDIR\" \"$PROJECT\" -r \"$RUNTIME\" -p:SelfContained=true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:PublishTrimmed=true -p:TrimMode=partial -p:PublishAot=false -p:PublishReadyToRun=false -p:DebugType=None -p:DebugSymbols=false --source https://api.nuget.org/v3/index.json --source /usr/lib/sdk/dotnet${DOTNET}/nuget/packages" \
+            -c "PATH=\"\${PATH}:/usr/lib/sdk/dotnet${DOTNET}/bin\" LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:/usr/lib/sdk/dotnet${DOTNET}/lib\" dotnet restore --packages \"$TMPDIR\" \"$PROJECT\" -r \"$RUNTIME\" -p:PublishAot=true -p:PublishReadyToRun=true -p:OptimizationPreference=Speed -p:StripSymbols=true -p:IlcTrimMetadata=true -p:DebugType=None -p:DebugSymbols=false --source https://api.nuget.org/v3/index.json --source /usr/lib/sdk/dotnet${DOTNET}/nuget/packages" \
             2>&1
     done
 done

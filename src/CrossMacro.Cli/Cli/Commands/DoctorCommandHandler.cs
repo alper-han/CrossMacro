@@ -2,6 +2,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Cli.Services;
+using CrossMacro.Cli.Serialization;
 
 namespace CrossMacro.Cli.Commands;
 
@@ -28,16 +29,14 @@ public sealed class DoctorCommandHandler : CliCommandHandlerBase<DoctorCliOption
             .Select(x => $"{x.Name}: {x.Message}")
             .ToArray();
 
-        var data = new
-        {
-            checks = report.Checks.Select(x => new
-            {
-                name = x.Name,
-                status = x.Status.ToString().ToLowerInvariant(),
-                message = x.Message,
-                details = x.Details
-            }).ToArray()
-        };
+        var data = new DoctorCommandData(
+            report.Checks.Select(x => new DoctorCheckOutput(
+                x.Name,
+                x.Status.ToString().ToLowerInvariant(),
+                x.Message,
+                x.Details
+            )).ToArray()
+        );
 
         if (report.HasFailures)
         {

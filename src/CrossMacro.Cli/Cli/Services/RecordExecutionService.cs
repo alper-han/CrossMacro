@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Cli.Serialization;
 
 namespace CrossMacro.Cli.Services;
 
@@ -218,17 +219,16 @@ public sealed class RecordExecutionService : IRecordExecutionService
                 return Fail(CliExitCode.FileError, "Failed to save recorded macro.", [ex.Message], warnings);
             }
 
-            var data = new
-            {
-                outputPath = request.OutputFilePath,
-                eventCount = sequence.Events.Count,
-                totalDurationMs = sequence.TotalDurationMs,
-                recordMouse = request.RecordMouse,
-                recordKeyboard = request.RecordKeyboard,
-                requestedMode = request.CoordinateMode.ToString().ToLowerInvariant(),
-                actualMode = sequence.IsAbsoluteCoordinates ? "absolute" : "relative",
-                skipInitialZero = sequence.SkipInitialZeroZero
-            };
+            var data = new RecordExecutionData(
+                request.OutputFilePath,
+                sequence.Events.Count,
+                sequence.TotalDurationMs,
+                request.RecordMouse,
+                request.RecordKeyboard,
+                request.CoordinateMode.ToString().ToLowerInvariant(),
+                sequence.IsAbsoluteCoordinates ? "absolute" : "relative",
+                sequence.SkipInitialZeroZero
+            );
 
             return new RecordExecutionResult
             {

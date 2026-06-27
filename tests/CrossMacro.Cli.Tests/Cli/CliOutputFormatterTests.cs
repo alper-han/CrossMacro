@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.Json.Nodes;
 using CrossMacro.Cli;
 
 namespace CrossMacro.Cli.Tests;
@@ -51,9 +52,8 @@ public class CliOutputFormatterTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var result = CliCommandExecutionResult.Ok(
-                "doctor ready",
-                data: new { remediation = "Run `sudo systemctl restart crossmacro.service`." });
+            var data = new JsonObject { ["remediation"] = "Run `sudo systemctl restart crossmacro.service`." };
+            var result = CliCommandExecutionResult.Ok("doctor ready", data: data);
 
             CliOutputFormatter.Write(result, jsonOutput: true);
 
@@ -146,19 +146,18 @@ public class CliOutputFormatterTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var result = CliCommandExecutionResult.Ok(
-                "macro info loaded",
-                data: new
+            var data = new JsonObject
+            {
+                ["macroPath"] = "/tmp/demo.macro",
+                ["eventCount"] = 12,
+                ["eventBreakdown"] = new JsonObject
                 {
-                    macroPath = "/tmp/demo.macro",
-                    eventCount = 12,
-                    eventBreakdown = new
-                    {
-                        mouseMove = 3,
-                        click = 4
-                    },
-                    tags = new[] { "demo", "smoke" }
-                });
+                    ["mouseMove"] = 3,
+                    ["click"] = 4
+                },
+                ["tags"] = new JsonArray("demo", "smoke")
+            };
+            var result = CliCommandExecutionResult.Ok("macro info loaded", data: data);
             CliOutputFormatter.Write(result, jsonOutput: false);
 
             var output = stdout.ToString();

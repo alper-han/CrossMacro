@@ -105,6 +105,7 @@ $publishArgs = @(
     '-p:PublishSingleFile=true',
     '-p:PublishTrimmed=true',
     '-p:TrimMode=partial',
+    '-p:PublishAot=false',
     '-p:IncludeNativeLibrariesForSelfExtract=true',
     '-p:EnableCompressionInSingleFile=true',
     '-p:PublishReadyToRun=false',

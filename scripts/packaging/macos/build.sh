@@ -36,11 +36,11 @@ dotnet publish "$PROJECT_ROOT/src/CrossMacro.UI.MacOS/CrossMacro.UI.MacOS.csproj
     -c Release \
     -r "$RID" \
     --self-contained true \
-    -p:PublishSingleFile=true \
-    -p:EnableCompressionInSingleFile=true \
-    -p:PublishTrimmed=true \
-    -p:TrimMode=partial \
-    -p:PublishReadyToRun=false \
+    -p:PublishAot=true \
+    -p:PublishReadyToRun=true \
+    -p:OptimizationPreference=Speed \
+    -p:StripSymbols=true \
+    -p:IlcTrimMetadata=true \
     -p:DebugType=None \
     -p:DebugSymbols=false \
     -p:Version="$VERSION" \

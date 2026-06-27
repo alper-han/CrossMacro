@@ -99,45 +99,41 @@ public class DoctorServiceTests
     private static string? GetDetailsString(DoctorCheck check, string propertyName)
     {
         check.Details.Should().NotBeNull();
-        var property = check.Details!.GetType().GetProperty(propertyName);
-        property.Should().NotBeNull($"details should expose {propertyName}");
-        return property!.GetValue(check.Details)?.ToString();
+        var node = check.Details![propertyName];
+        node.Should().NotBeNull($"details should expose {propertyName}");
+        return node!.ToString();
     }
 
     private static bool? GetDetailsBool(DoctorCheck check, string propertyName)
     {
         check.Details.Should().NotBeNull();
-        var property = check.Details!.GetType().GetProperty(propertyName);
-        property.Should().NotBeNull($"details should expose {propertyName}");
-        return property!.GetValue(check.Details) as bool?;
+        var node = check.Details![propertyName];
+        node.Should().NotBeNull($"details should expose {propertyName}");
+        return node!.GetValue<bool>();
     }
 
     private static int? GetDetailsInt(DoctorCheck check, string propertyName)
     {
         check.Details.Should().NotBeNull();
-        var property = check.Details!.GetType().GetProperty(propertyName);
-        property.Should().NotBeNull($"details should expose {propertyName}");
-        return property!.GetValue(check.Details) as int?;
+        var node = check.Details![propertyName];
+        node.Should().NotBeNull($"details should expose {propertyName}");
+        return node!.GetValue<int>();
     }
 
     private static int[] GetDetailsIntArray(DoctorCheck check, string propertyName)
     {
         check.Details.Should().NotBeNull();
-        var property = check.Details!.GetType().GetProperty(propertyName);
-        property.Should().NotBeNull($"details should expose {propertyName}");
-        var value = property!.GetValue(check.Details);
-        value.Should().BeAssignableTo<IEnumerable<int>>($"details should expose {propertyName} as integer collection");
-        return ((IEnumerable<int>)value!).ToArray();
+        var node = check.Details![propertyName];
+        node.Should().NotBeNull($"details should expose {propertyName}");
+        return node!.AsArray().Select(x => x!.GetValue<int>()).ToArray();
     }
 
     private static string[] GetDetailsStringArray(DoctorCheck check, string propertyName)
     {
         check.Details.Should().NotBeNull();
-        var property = check.Details!.GetType().GetProperty(propertyName);
-        property.Should().NotBeNull($"details should expose {propertyName}");
-        var value = property!.GetValue(check.Details);
-        value.Should().BeAssignableTo<IEnumerable<string>>($"details should expose {propertyName} as string collection");
-        return ((IEnumerable<string>)value!).ToArray();
+        var node = check.Details![propertyName];
+        node.Should().NotBeNull($"details should expose {propertyName}");
+        return node!.AsArray().Select(x => x!.GetValue<string>()).ToArray();
     }
 
     [Fact]

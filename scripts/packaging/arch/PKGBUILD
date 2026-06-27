@@ -41,11 +41,11 @@ build() {
         -c Release \
         -r "$target_rid" \
         --self-contained true \
-        -p:PublishSingleFile=true \
-        -p:EnableCompressionInSingleFile=true \
-        -p:PublishTrimmed=true \
-        -p:PublishReadyToRun=false \
-        -p:PublishAot=false \
+        -p:PublishAot=true \
+        -p:PublishReadyToRun=true \
+        -p:OptimizationPreference=Speed \
+        -p:StripSymbols=true \
+        -p:IlcTrimMetadata=true \
         -p:DebugType=None \
         -p:DebugSymbols=false \
         -o publish/

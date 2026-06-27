@@ -3,17 +3,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Cli.Serialization;
 
 namespace CrossMacro.Cli.Services;
 
 internal static class TaskCliServiceHelpers
 {
-    public static async Task<CliCommandExecutionResult> ListTasksAsync<TTask>(
+    public static async Task<CliCommandExecutionResult> ListTasksAsync<TTask, TResult>(
         string taskKind,
         CancellationToken cancellationToken,
         Func<Task> loadAsync,
         Func<IEnumerable<TTask>> getTasks,
-        Func<TTask, object> mapTask)
+        Func<TTask, TResult> mapTask)
     {
         cancellationToken.ThrowIfCancellationRequested();
         await loadAsync();
@@ -24,11 +25,7 @@ internal static class TaskCliServiceHelpers
 
         return CliCommandExecutionResult.Ok(
             $"Loaded {tasks.Length} {taskKind} task(s).",
-            data: new
-            {
-                count = tasks.Length,
-                tasks
-            });
+            data: new TaskListData<TResult>(tasks.Length, tasks));
     }
 
     public static async Task<CliCommandExecutionResult> RunTaskAsync<TTask>(

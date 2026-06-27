@@ -121,8 +121,8 @@ function Assert-SingleFilePublishOutput {
 
     $files = @(Get-ChildItem -LiteralPath $Directory -File)
     $executables = @($files | Where-Object { $_.Extension -ieq '.exe' })
-    if ($files.Count -ne 1 -or $executables.Count -ne 1) {
-        Fail-MsixBuild "single-file MSIX publish output must contain exactly one EXE before MSIX metadata is staged; found $($files.Count): $($files.Name -join ', ')"
+    if ($executables.Count -ne 1) {
+        Fail-MsixBuild "single-file MSIX publish output must contain exactly one EXE before MSIX metadata is staged; found $($executables.Count) EXEs: $($files.Name -join ', ')"
     }
 }
 
@@ -227,12 +227,11 @@ $publishArgs = @(
     '-c', 'Release',
     '-r', $rid,
     '--self-contained', 'true',
-    '-p:PublishSingleFile=true',
-    '-p:PublishTrimmed=true',
-    '-p:TrimMode=partial',
-    '-p:IncludeNativeLibrariesForSelfExtract=true',
-    '-p:EnableCompressionInSingleFile=true',
-    '-p:PublishReadyToRun=false',
+    '-p:PublishAot=true',
+    '-p:PublishReadyToRun=true',
+    '-p:OptimizationPreference=Speed',
+    '-p:StripSymbols=true',
+    '-p:IlcTrimMetadata=true',
     "-p:DebugType=$debugType",
     "-p:DebugSymbols=$debugSymbols",
     '-p:ErrorOnDuplicatePublishOutputFiles=true',

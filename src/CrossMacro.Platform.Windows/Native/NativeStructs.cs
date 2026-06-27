@@ -7,7 +7,7 @@ internal struct INPUT
 {
     public uint type;
     public InputUnion U;
-    public static int Size => Marshal.SizeOf(typeof(INPUT));
+    public static int Size => Marshal.SizeOf<INPUT>();
 }
 
 [StructLayout(LayoutKind.Explicit)]

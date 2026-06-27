@@ -6,6 +6,7 @@ using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
+using CrossMacro.Cli.Serialization;
 
 namespace CrossMacro.Cli.Services;
 
@@ -197,7 +198,7 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
         };
     }
 
-    private static object BuildData(
+    private static RunScriptExecutionData BuildData(
         MacroSequence sequence,
         int stepCount,
         int initialDelayMs,
@@ -214,18 +215,17 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
             _ => "none"
         };
 
-        return new
-        {
+        return new RunScriptExecutionData(
             stepCount,
-            eventCount = sequence.EventCount,
-            totalDurationMs = sequence.TotalDurationMs,
+            sequence.EventCount,
+            sequence.TotalDurationMs,
             initialDelayMs,
             initialHasRandomDelay,
             initialRandomDelayMinMs,
             initialRandomDelayMaxMs,
-            trailingDelayMs = sequence.TrailingDelayMs,
+            sequence.TrailingDelayMs,
             coordinateMode,
-            runtimeVariables = runtimeVariables ?? new Dictionary<string, string>()
-        };
+            runtimeVariables ?? new Dictionary<string, string>()
+        );
     }
 }

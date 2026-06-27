@@ -3,6 +3,8 @@ using System.IO;
 using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Abstractions.Diagnostics;
+using System.Linq;
+using System.Text.Json.Nodes;
 
 namespace CrossMacro.Cli.Services;
 
@@ -23,24 +25,24 @@ public sealed partial class DoctorService
             Status = display.HasSelectedBackend ? DoctorCheckStatus.Pass : DoctorCheckStatus.Warn,
             Message = display.Message,
             Details = verbose
-                ? new
+                ? new JsonObject
                 {
-                    supportedSession = display.IsSupportedSession,
-                    sessionKind = display.SessionKind,
-                    policyName = display.PolicyName,
-                    policyOrder = display.PolicyOrder,
-                    selectedBackend = display.SelectedBackend,
-                    failureBackend = display.FailureBackend,
-                    failureKind = display.FailureKind,
-                    failureMessage = display.FailureMessage,
-                    remediation = display.Remediation,
-                    backends = display.Backends.Select(backend => new
+                    ["supportedSession"] = display.IsSupportedSession,
+                    ["sessionKind"] = display.SessionKind,
+                    ["policyName"] = display.PolicyName,
+                    ["policyOrder"] = new JsonArray(display.PolicyOrder.Select(x => (JsonNode)x).ToArray()),
+                    ["selectedBackend"] = display.SelectedBackend,
+                    ["failureBackend"] = display.FailureBackend,
+                    ["failureKind"] = display.FailureKind,
+                    ["failureMessage"] = display.FailureMessage,
+                    ["remediation"] = display.Remediation,
+                    ["backends"] = new JsonArray(display.Backends.Select(backend => (JsonNode)new JsonObject
                     {
-                        backend = backend.Backend,
-                        available = backend.IsAvailable,
-                        errorKind = backend.ErrorKind,
-                        errorMessage = backend.ErrorMessage
-                    }).ToArray()
+                        ["backend"] = backend.Backend,
+                        ["available"] = backend.IsAvailable,
+                        ["errorKind"] = backend.ErrorKind,
+                        ["errorMessage"] = backend.ErrorMessage
+                    }).ToArray())
                 }
                 : null
         };
@@ -67,7 +69,7 @@ public sealed partial class DoctorService
                 ? "Linux display session variables look healthy."
                 : "Some Linux display variables are missing; remote/SSH playback may fail.",
             Details = verbose
-                ? new { xdgSessionType, display, waylandDisplay }
+                ? new JsonObject { ["xdgSessionType"] = xdgSessionType, ["display"] = display, ["waylandDisplay"] = waylandDisplay }
                 : null
         };
     }
@@ -95,15 +97,15 @@ public sealed partial class DoctorService
                     : "Daemon socket not found. Configure daemon mode or grant direct input access."
             },
             Details = verbose
-                ? new
+                ? new JsonObject
                 {
-                    defaultSocketPath = IpcProtocol.DefaultSocketPath,
-                    defaultSocketExists = state.DefaultSocketExists,
-                    socketPath = state.ResolvedSocketPath ?? IpcProtocol.DefaultSocketPath,
-                    socketStatus = state.SocketAccess.Status.ToString(),
-                    failureKind = GetSocketFailureKind(state.SocketAccess),
-                    directFallbackAvailable = state.DirectFallbackAvailable,
-                    remediation = GetSocketRemediation(state)
+                    ["defaultSocketPath"] = IpcProtocol.DefaultSocketPath,
+                    ["defaultSocketExists"] = state.DefaultSocketExists,
+                    ["socketPath"] = state.ResolvedSocketPath ?? IpcProtocol.DefaultSocketPath,
+                    ["socketStatus"] = state.SocketAccess.Status.ToString(),
+                    ["failureKind"] = GetSocketFailureKind(state.SocketAccess),
+                    ["directFallbackAvailable"] = state.DirectFallbackAvailable,
+                    ["remediation"] = GetSocketRemediation(state)
                 }
                 : null
         };
@@ -183,15 +185,15 @@ public sealed partial class DoctorService
                         ? "uinput is not writable and daemon handshake failed."
                         : "uinput is not writable and daemon socket is missing.",
             Details = verbose
-                ? new
+                ? new JsonObject
                 {
-                    uInputPrimary = LinuxUInputPrimaryPath,
-                    primaryExists = state.PrimaryUInputExists,
-                    canWritePrimary = state.CanWritePrimary,
-                    uInputAlternate = LinuxUInputAlternatePath,
-                    alternateExists = state.AlternateUInputExists,
-                    canWriteAlternate = state.CanWriteAlternate,
-                    directFallbackAvailable = state.DirectFallbackAvailable
+                    ["uInputPrimary"] = LinuxUInputPrimaryPath,
+                    ["primaryExists"] = state.PrimaryUInputExists,
+                    ["canWritePrimary"] = state.CanWritePrimary,
+                    ["uInputAlternate"] = LinuxUInputAlternatePath,
+                    ["alternateExists"] = state.AlternateUInputExists,
+                    ["canWriteAlternate"] = state.CanWriteAlternate,
+                    ["directFallbackAvailable"] = state.DirectFallbackAvailable
                 }
                 : null
         };
@@ -258,16 +260,16 @@ public sealed partial class DoctorService
             Status = status,
             Message = message,
             Details = verbose
-                ? new
+                ? new JsonObject
                 {
-                    state.SessionType,
-                    state.IsWayland,
-                    state.IsX11,
-                    state.IsFlatpak,
-                    daemonSocketExists = state.DaemonSocketExists,
-                    daemonHandshakeOk = state.DaemonHandshakeOk,
-                    uInputWritable = state.UInputWritable,
-                    directFallbackAvailable = state.DirectFallbackAvailable
+                    ["sessionType"] = state.SessionType,
+                    ["isWayland"] = state.IsWayland,
+                    ["isX11"] = state.IsX11,
+                    ["isFlatpak"] = state.IsFlatpak,
+                    ["daemonSocketExists"] = state.DaemonSocketExists,
+                    ["daemonHandshakeOk"] = state.DaemonHandshakeOk,
+                    ["uInputWritable"] = state.UInputWritable,
+                    ["directFallbackAvailable"] = state.DirectFallbackAvailable
                 }
                 : null
         };
@@ -319,11 +321,11 @@ public sealed partial class DoctorService
                 ? "GPU Screen Recorder UI virtual keyboard is active. CrossMacro can read it, but GSR-owned hotkeys may still be swallowed by GSR."
                 : "GPU Screen Recorder UI virtual keyboard was not detected.",
             Details = verbose
-                ? new
+                ? new JsonObject
                 {
-                    inputDevicesPath = LinuxGsrCompatibility.InputDevicesPath,
-                    gsrVirtualKeyboardDetected = state.GsrVirtualKeyboardDetected,
-                    matchedDeviceName = state.GsrVirtualKeyboardDetected ? LinuxGsrCompatibility.VirtualKeyboardName : null
+                    ["inputDevicesPath"] = LinuxGsrCompatibility.InputDevicesPath,
+                    ["gsrVirtualKeyboardDetected"] = state.GsrVirtualKeyboardDetected,
+                    ["matchedDeviceName"] = state.GsrVirtualKeyboardDetected ? LinuxGsrCompatibility.VirtualKeyboardName : null
                 }
                 : null
         };
@@ -453,24 +455,27 @@ public sealed partial class DoctorService
         }
     }
 
-    private static object BuildDaemonDetails(LinuxInputState state, string? failureKind)
+    private static JsonObject BuildDaemonDetails(LinuxInputState state, string? failureKind)
     {
         var membership = state.SocketAccess.GroupMembership;
-        return new
+        var processGroups = membership?.CurrentProcessGroupIds ?? Array.Empty<int>();
+        var processGroupsArray = new JsonArray(processGroups.Select(id => (JsonNode)id).ToArray());
+
+        return new JsonObject
         {
-            socketPath = state.ResolvedSocketPath ?? IpcProtocol.DefaultSocketPath,
-            socketStatus = state.SocketAccess.Status.ToString(),
-            handshakeStatus = state.Handshake.Status.ToString(),
-            failureKind,
-            requiredGroup = LinuxDaemonRequiredGroup,
-            currentUser = membership?.UserName,
-            currentUid = membership?.UserId,
-            currentProcessGroups = membership?.CurrentProcessGroupIds ?? Array.Empty<int>(),
-            groupDatabaseContainsUser = state.GroupDatabaseContainsUser,
-            currentSessionHasGroup = state.CurrentSessionHasGroup,
-            remediation = GetDaemonRemediation(state, failureKind),
-            directFallbackAvailable = state.DirectFallbackAvailable,
-            message = state.SocketAccess.Message ?? state.Handshake.Message ?? membership?.Message
+            ["socketPath"] = state.ResolvedSocketPath ?? IpcProtocol.DefaultSocketPath,
+            ["socketStatus"] = state.SocketAccess.Status.ToString(),
+            ["handshakeStatus"] = state.Handshake.Status.ToString(),
+            ["failureKind"] = failureKind,
+            ["requiredGroup"] = LinuxDaemonRequiredGroup,
+            ["currentUser"] = membership?.UserName,
+            ["currentUid"] = membership?.UserId,
+            ["currentProcessGroups"] = processGroupsArray,
+            ["groupDatabaseContainsUser"] = state.GroupDatabaseContainsUser,
+            ["currentSessionHasGroup"] = state.CurrentSessionHasGroup,
+            ["remediation"] = GetDaemonRemediation(state, failureKind),
+            ["directFallbackAvailable"] = state.DirectFallbackAvailable,
+            ["message"] = state.SocketAccess.Message ?? state.Handshake.Message ?? membership?.Message
         };
     }
 

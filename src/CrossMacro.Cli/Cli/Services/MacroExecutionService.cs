@@ -8,6 +8,7 @@ using CrossMacro.Core.Services;
 using CrossMacro.Core.Services.Playback;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
+using CrossMacro.Cli.Serialization;
 
 namespace CrossMacro.Cli.Services;
 
@@ -279,7 +280,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
         }
     }
 
-    private static object BuildSummaryData(string macroFilePath, MacroSequence macro)
+    private static MacroSummaryData BuildSummaryData(string macroFilePath, MacroSequence macro)
     {
         var coordinateMode = MacroPositionSemantics.GetCoordinateModeSummary(macro) switch
         {
@@ -289,18 +290,17 @@ public sealed class MacroExecutionService : IMacroExecutionService
             _ => "none"
         };
 
-        return new
-        {
-            macroPath = macroFilePath,
-            macroName = macro.Name,
-            eventCount = macro.EventCount,
-            totalDurationMs = macro.TotalDurationMs,
+        return new MacroSummaryData(
+            macroFilePath,
+            macro.Name,
+            macro.EventCount,
+            macro.TotalDurationMs,
             coordinateMode,
-            isAbsoluteCoordinates = macro.IsAbsoluteCoordinates
-        };
+            macro.IsAbsoluteCoordinates
+        );
     }
 
-    private static object BuildInfoData(string macroFilePath, MacroSequence macro)
+    private static MacroInfoData BuildInfoData(string macroFilePath, MacroSequence macro)
     {
         var totalDuration = macro.TotalDurationMs;
         if (totalDuration <= 0)
@@ -309,36 +309,38 @@ public sealed class MacroExecutionService : IMacroExecutionService
             totalDuration = macro.TotalDurationMs;
         }
 
-        return new
+        var coordinateMode = MacroPositionSemantics.GetCoordinateModeSummary(macro) switch
         {
-            macroPath = macroFilePath,
-            macroName = macro.Name,
-            createdAt = macro.CreatedAt,
-            eventCount = macro.EventCount,
-            totalDurationMs = totalDuration,
-            coordinateMode = MacroPositionSemantics.GetCoordinateModeSummary(macro) switch
-            {
-                CoordinateModeSummary.Absolute => "absolute",
-                CoordinateModeSummary.Relative => "relative",
-                CoordinateModeSummary.Mixed => "mixed",
-                _ => "none"
-            },
-            isAbsoluteCoordinates = macro.IsAbsoluteCoordinates,
-            skipInitialZeroZero = macro.SkipInitialZeroZero,
-            trailingDelayMs = macro.TrailingDelayMs,
-            hasTrailingRandomDelay = macro.HasTrailingRandomDelay,
-            trailingDelayMinMs = macro.TrailingDelayMinMs,
-            trailingDelayMaxMs = macro.TrailingDelayMaxMs,
-            eventBreakdown = new
-            {
-                mouseMove = macro.Events.Count(e => e.Type == EventType.MouseMove),
-                buttonPress = macro.Events.Count(e => e.Type == EventType.ButtonPress),
-                buttonRelease = macro.Events.Count(e => e.Type == EventType.ButtonRelease),
-                click = macro.Events.Count(e => e.Type == EventType.Click),
-                keyPress = macro.Events.Count(e => e.Type == EventType.KeyPress),
-                keyRelease = macro.Events.Count(e => e.Type == EventType.KeyRelease)
-            }
+            CoordinateModeSummary.Absolute => "absolute",
+            CoordinateModeSummary.Relative => "relative",
+            CoordinateModeSummary.Mixed => "mixed",
+            _ => "none"
         };
+
+        var eventBreakdown = new MacroEventBreakdownData(
+            macro.Events.Count(e => e.Type == EventType.MouseMove),
+            macro.Events.Count(e => e.Type == EventType.ButtonPress),
+            macro.Events.Count(e => e.Type == EventType.ButtonRelease),
+            macro.Events.Count(e => e.Type == EventType.Click),
+            macro.Events.Count(e => e.Type == EventType.KeyPress),
+            macro.Events.Count(e => e.Type == EventType.KeyRelease)
+        );
+
+        return new MacroInfoData(
+            macroFilePath,
+            macro.Name,
+            macro.CreatedAt,
+            macro.EventCount,
+            totalDuration,
+            coordinateMode,
+            macro.IsAbsoluteCoordinates,
+            macro.SkipInitialZeroZero,
+            macro.TrailingDelayMs,
+            macro.HasTrailingRandomDelay,
+            macro.TrailingDelayMinMs,
+            macro.TrailingDelayMaxMs,
+            eventBreakdown
+        );
     }
 
 }

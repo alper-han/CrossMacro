@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services.ScreenReading;
 using CrossMacro.Platform.Abstractions;
+using CrossMacro.Cli.Serialization;
 
 namespace CrossMacro.Cli.Services;
 
@@ -82,14 +83,13 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
                 await _screenReadingWarmupService.WarmUpPortalSessionAsync(cancellationToken).ConfigureAwait(false);
             }
 
-            var data = new
-            {
-                globalHotkeys = _globalHotkeyService.IsRunning,
-                scheduler = _schedulerService.IsRunning,
-                shortcuts = _shortcutService.IsListening,
-                textExpansion = _textExpansionService.IsRunning,
-                hotkeyActions = _headlessHotkeyActionService.IsRunning
-            };
+            var data = new HeadlessRuntimeData(
+                _globalHotkeyService.IsRunning,
+                _schedulerService.IsRunning,
+                _shortcutService.IsListening,
+                _textExpansionService.IsRunning,
+                _headlessHotkeyActionService.IsRunning
+            );
 
             try
             {

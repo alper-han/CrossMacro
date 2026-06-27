@@ -128,6 +128,8 @@
                     "-p:OptimizationPreference=Speed"
                     "-p:StripSymbols=true"
                     "-p:IlcTrimMetadata=true"
+                    "-p:DebugType=None"
+                    "-p:DebugSymbols=false"
                     "-p:Version=${crossmacroVersion}"
                   ];
 
@@ -162,23 +164,40 @@
 
               projectFile = uiHostProject;
 
-              # .NET 10 Preview support
-              dotnet-runtime = pkgs.dotnet-runtime_10;
+              # Native AOT is self-contained, no runtime needed
+              dotnet-runtime = null;
 
               executables = [ "CrossMacro.UI" ];
 
               buildType = "Release";
 
-              # Disable self-contained to use system runtime
+              # Enable self-contained build for Native AOT
+              selfContainedBuild = true;
+
               dotnetFlags = [
-                "-p:SelfContained=false"
+                "-p:PublishAot=true"
+                "-p:PublishReadyToRun=true"
+                "-p:OptimizationPreference=Speed"
+                "-p:StripSymbols=true"
+                "-p:IlcTrimMetadata=true"
+                "-p:DebugType=None"
+                "-p:DebugSymbols=false"
                 "-p:Version=${crossmacroVersion}"
               ];
 
               # Runtime dependencies for Avalonia/SkiaSharp
               runtimeDeps = runtimeLibs;
 
-              nativeBuildInputs = [ pkgs.installShellFiles pkgs.makeWrapper ];
+              buildInputs = pkgs.lib.optionals pkgs.stdenv.isLinux runtimeLibs;
+
+              nativeBuildInputs = [
+                pkgs.installShellFiles
+                pkgs.makeWrapper
+              ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+                pkgs.clang
+                pkgs.zlib
+                pkgs.autoPatchelfHook
+              ];
 
               postInstall = ''
                 installManPage docs/man/crossmacro.1

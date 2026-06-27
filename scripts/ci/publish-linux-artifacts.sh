@@ -159,11 +159,11 @@ dotnet publish "$UI_PROJECT" \
     -c Release \
     -r "$RID" \
     --self-contained true \
-    -p:PublishSingleFile=true \
-    -p:EnableCompressionInSingleFile=true \
-    -p:PublishTrimmed=true \
-    -p:PublishAot=false \
-    -p:PublishReadyToRun=false \
+    -p:PublishAot=true \
+    -p:PublishReadyToRun=true \
+    -p:OptimizationPreference=Speed \
+    -p:StripSymbols=true \
+    -p:IlcTrimMetadata=true \
     -p:DebugType=None \
     -p:DebugSymbols=false \
     -p:Version="$VERSION_VALUE" \

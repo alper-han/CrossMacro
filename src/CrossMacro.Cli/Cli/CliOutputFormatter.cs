@@ -1,24 +1,20 @@
 using System;
-using System.Diagnostics.CodeAnalysis;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
+using System.Text.Json.Nodes;
+using CrossMacro.Cli.Serialization;
 
 namespace CrossMacro.Cli;
 
-[UnconditionalSuppressMessage(
-    "Trimming",
-    "IL2026",
-    Justification = "CLI payloads are dynamic and CrossMacro.Cli is preserved as a trim root in entry projects.")]
 public static class CliOutputFormatter
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new()
+    private static readonly CliJsonContext Context = new(new JsonSerializerOptions
     {
         WriteIndented = true,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        TypeInfoResolver = new DefaultJsonTypeInfoResolver()
-    };
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    });
 
     public static void Write(CliCommandExecutionResult result, bool jsonOutput)
     {
@@ -31,10 +27,6 @@ public static class CliOutputFormatter
         WriteText(result);
     }
 
-    [UnconditionalSuppressMessage(
-        "Trimming",
-        "IL2026",
-        Justification = "CLI payloads are dynamic and CrossMacro.Cli is preserved as a trim root in entry projects.")]
     private static void WriteText(CliCommandExecutionResult result)
     {
         var writer = result.Success ? Console.Out : Console.Error;
@@ -46,7 +38,13 @@ public static class CliOutputFormatter
         if (result.Data != null)
         {
             writer.WriteLine("Data:");
-            var dataElement = JsonSerializer.SerializeToElement(result.Data, SerializerOptions);
+            var type = result.Data.GetType();
+            var typeInfo = Context.GetTypeInfo(type);
+            if (typeInfo == null)
+            {
+                throw new InvalidOperationException($"Type '{type.FullName}' is not registered in CliJsonContext.");
+            }
+            var dataElement = JsonSerializer.SerializeToElement(result.Data, typeInfo);
             WriteTextData(writer, dataElement, indentLevel: 1);
         }
 
@@ -69,23 +67,37 @@ public static class CliOutputFormatter
         }
     }
 
-    [UnconditionalSuppressMessage(
-        "Trimming",
-        "IL2026",
-        Justification = "CLI payloads are dynamic and CrossMacro.Cli is preserved as a trim root in entry projects.")]
     private static void WriteJson(CliCommandExecutionResult result)
     {
-        var envelope = new
+        JsonNode? dataNode = null;
+        if (result.Data != null)
         {
-            status = result.Success ? "ok" : "error",
-            code = result.ExitCode,
-            message = result.Message,
-            data = result.Data,
-            warnings = result.Warnings,
-            errors = result.Errors
-        };
+            if (result.Data is JsonNode node)
+            {
+                dataNode = node;
+            }
+            else
+            {
+                var type = result.Data.GetType();
+                var typeInfo = Context.GetTypeInfo(type);
+                if (typeInfo == null)
+                {
+                    throw new InvalidOperationException($"Type '{type.FullName}' is not registered in CliJsonContext.");
+                }
+                dataNode = JsonSerializer.SerializeToNode(result.Data, typeInfo);
+            }
+        }
 
-        var json = JsonSerializer.Serialize(envelope, SerializerOptions);
+        var envelope = new CliOutputEnvelope(
+            result.Success ? "ok" : "error",
+            result.ExitCode,
+            result.Message,
+            dataNode,
+            result.Warnings,
+            result.Errors
+        );
+
+        var json = JsonSerializer.Serialize(envelope, Context.CliOutputEnvelope);
 
         Console.Out.WriteLine(json);
     }

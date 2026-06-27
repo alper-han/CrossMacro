@@ -55,6 +55,7 @@ runtime in one app.
 - Files tab for loading, saving, sequencing, and replaying `.macro` files
 - Macro editor with undo/redo, coordinate capture, action reordering, filtering,
   variables, loops, conditionals, text input, and delay editing
+- Screen-reading commands (`pixelcolor`, `waitcolor`, `pixelsearch`) for color-based automation
 
 ### Automate and trigger
 
@@ -68,7 +69,8 @@ runtime in one app.
 
 ### Text expansion and desktop polish
 
-- Text expansion shortcuts with per-entry enable/disable and insertion-mode controls
+- Profile management to easily save, load, and switch between different configuration setups
+- Text expansion shortcuts with per-entry enable/disable, direct typing method selection, and insertion-mode controls
 - Optional system tray controls where the desktop session supports tray icons
 - Theme support: Classic, Latte, Mocha, Dracula, Nord, Everforest, Gruvbox,
   Solarized, Crimson

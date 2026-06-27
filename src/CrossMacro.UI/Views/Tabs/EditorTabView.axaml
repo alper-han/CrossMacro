@@ -225,7 +225,7 @@
                                 </Grid>
                                 <Button Command="{Binding CaptureMouseAsync}"
                                         Classes="primary compact"
-                                        IsVisible="{Binding !IsCapturing}"
+                                        IsVisible="{Binding !IsCapturingPosition}"
                                         HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
@@ -235,7 +235,7 @@
                                 </Button>
                                 <Button Command="{Binding CancelCapture}"
                                         Classes="danger compact"
-                                        IsVisible="{Binding IsCapturing}"
+                                        IsVisible="{Binding IsCapturingPosition}"
                                         HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
@@ -296,12 +296,22 @@
                                 </Grid>
                                 <Button Command="{Binding CaptureKeyAsync}"
                                         Classes="primary compact"
-                                        IsVisible="{Binding !IsCapturing}"
+                                        IsVisible="{Binding !IsCapturingKey}"
                                         HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                                         <icons:EmojiAppIcon Icon="Keyboard" Width="16" Height="16"/>
                                         <TextBlock Text="{localization:Loc Editor_CaptureKey}"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Command="{Binding CancelCapture}"
+                                        Classes="danger compact"
+                                        IsVisible="{Binding IsCapturingKey}"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                        <icons:EmojiAppIcon Icon="Cancel" Width="16" Height="16"/>
+                                        <TextBlock Text="{localization:Loc Editor_CancelCapture}"/>
                                     </StackPanel>
                                 </Button>
                             </StackPanel>
@@ -495,6 +505,14 @@
                                                 HorizontalContentAlignment="Center">
                                             <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
                                         </Button>
+                                        <Button Grid.Column="2"
+                                                Command="{Binding CancelCapture}"
+                                                Classes="danger compact"
+                                                IsVisible="{Binding IsCapturingConditionLeftColor}"
+                                                ToolTip.Tip="{localization:Loc Editor_CancelCapture}"
+                                                HorizontalContentAlignment="Center">
+                                            <icons:EmojiAppIcon Icon="Cancel" Width="16" Height="16"/>
+                                        </Button>
                                     </Grid>
                                     <ComboBox Grid.Column="2"
                                               ItemsSource="{Binding AvailableVariableNames}"
@@ -543,6 +561,14 @@
                                                 ToolTip.Tip="{localization:Loc Editor_CaptureTargetColor}"
                                                 HorizontalContentAlignment="Center">
                                             <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
+                                        </Button>
+                                        <Button Grid.Column="2"
+                                                Command="{Binding CancelCapture}"
+                                                Classes="danger compact"
+                                                IsVisible="{Binding IsCapturingConditionRightColor}"
+                                                ToolTip.Tip="{localization:Loc Editor_CancelCapture}"
+                                                HorizontalContentAlignment="Center">
+                                            <icons:EmojiAppIcon Icon="Cancel" Width="16" Height="16"/>
                                         </Button>
                                     </Grid>
                                     <ComboBox Grid.Column="2"

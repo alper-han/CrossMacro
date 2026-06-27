@@ -34,7 +34,7 @@ public partial class EditorViewModel
             return;
         }
 
-        IsCapturing = true;
+        CaptureMode = EditorCaptureMode.Position;
         Status = Localize("Editor_StatusCaptureMousePrompt");
 
         try
@@ -83,7 +83,7 @@ public partial class EditorViewModel
         }
         finally
         {
-            IsCapturing = false;
+            CaptureMode = EditorCaptureMode.None;
         }
     }
 
@@ -96,7 +96,7 @@ public partial class EditorViewModel
             return;
         }
 
-        IsCapturing = true;
+        CaptureMode = EditorCaptureMode.Key;
         Status = Localize("Editor_StatusCaptureKeyPrompt");
 
         try
@@ -129,7 +129,7 @@ public partial class EditorViewModel
         }
         finally
         {
-            IsCapturing = false;
+            CaptureMode = EditorCaptureMode.None;
         }
     }
 
@@ -154,7 +154,7 @@ public partial class EditorViewModel
             return;
         }
 
-        IsCapturing = true;
+        CaptureMode = EditorCaptureMode.TargetColor;
         Status = Localize("Editor_StatusCaptureColorPrompt");
 
         try
@@ -219,13 +219,14 @@ public partial class EditorViewModel
         }
         finally
         {
-            IsCapturing = false;
+            CaptureMode = EditorCaptureMode.None;
         }
     }
 
     public Task CaptureConditionLeftColorAsync()
     {
         return CaptureConditionColorAsync(
+            EditorCaptureMode.ConditionLeftColor,
             action => action.ScriptLeftOperandType,
             (action, color) => action.ScriptLeftOperand = color);
     }
@@ -233,11 +234,13 @@ public partial class EditorViewModel
     public Task CaptureConditionRightColorAsync()
     {
         return CaptureConditionColorAsync(
+            EditorCaptureMode.ConditionRightColor,
             action => action.ScriptRightOperandType,
             (action, color) => action.ScriptRightOperand = color);
     }
 
     private async Task CaptureConditionColorAsync(
+        EditorCaptureMode captureMode,
         Func<EditorAction, ScriptOperandType> getOperandType,
         Action<EditorAction, string> setOperand)
     {
@@ -260,7 +263,7 @@ public partial class EditorViewModel
             return;
         }
 
-        IsCapturing = true;
+        CaptureMode = captureMode;
         Status = Localize("Editor_StatusCaptureColorPrompt");
 
         try
@@ -339,7 +342,7 @@ public partial class EditorViewModel
         }
         finally
         {
-            IsCapturing = false;
+            CaptureMode = EditorCaptureMode.None;
         }
     }
 
@@ -351,7 +354,9 @@ public partial class EditorViewModel
 
     public Task CapturePixelSearchTopLeftAsync()
     {
-        return CapturePixelSearchRegionPointAsync((action, x, y) =>
+        return CapturePixelSearchRegionPointAsync(
+            EditorCaptureMode.PixelSearchTopLeft,
+            (action, x, y) =>
         {
             var existingRight = action.ScreenLeft + Math.Max(1, action.ScreenWidth) - 1;
             var existingBottom = action.ScreenTop + Math.Max(1, action.ScreenHeight) - 1;
@@ -368,7 +373,9 @@ public partial class EditorViewModel
 
     public Task CapturePixelSearchBottomRightAsync()
     {
-        return CapturePixelSearchRegionPointAsync((action, x, y) =>
+        return CapturePixelSearchRegionPointAsync(
+            EditorCaptureMode.PixelSearchBottomRight,
+            (action, x, y) =>
         {
             var width = x - action.ScreenLeft + 1;
             var height = y - action.ScreenTop + 1;
@@ -384,7 +391,7 @@ public partial class EditorViewModel
         });
     }
 
-    private async Task CapturePixelSearchRegionPointAsync(Action<EditorAction, int, int> applyPoint)
+    private async Task CapturePixelSearchRegionPointAsync(EditorCaptureMode mode, Action<EditorAction, int, int> applyPoint)
     {
         var targetAction = SelectedAction;
         if (targetAction == null)
@@ -399,7 +406,7 @@ public partial class EditorViewModel
             return;
         }
 
-        IsCapturing = true;
+        CaptureMode = mode;
         Status = Localize("Editor_StatusCaptureMousePrompt");
 
         try
@@ -430,14 +437,14 @@ public partial class EditorViewModel
         }
         finally
         {
-            IsCapturing = false;
+            CaptureMode = EditorCaptureMode.None;
         }
     }
 
     public void CancelCapture()
     {
         _captureService.CancelCapture();
-        IsCapturing = false;
+        CaptureMode = EditorCaptureMode.None;
         Status = Localize("Editor_StatusCaptureCancelled");
     }
 

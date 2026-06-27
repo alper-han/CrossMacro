@@ -33,6 +33,18 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         Color
     }
 
+    public enum EditorCaptureMode
+    {
+        None,
+        Position,
+        Key,
+        TargetColor,
+        ConditionLeftColor,
+        ConditionRightColor,
+        PixelSearchTopLeft,
+        PixelSearchBottomRight
+    }
+
     private const int UndoStackLimit = 50;
     private static readonly TimeSpan PropertyEditUndoCoalesceWindow = TimeSpan.FromMilliseconds(400);
     private const string MacroFileExtension = ".macro";
@@ -55,7 +67,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private EditorActionType _newActionType = EditorActionType.MouseClick;
     private string _macroName;
     private string _status;
-    private bool _isCapturing;
+    private EditorCaptureMode _captureMode;
     private bool _skipInitialZeroZero;
     private bool _skipInitialZeroZeroForcedByCurrentPosition;
     private bool _skipInitialZeroZeroBeforeCurrentPositionForce;
@@ -371,22 +383,39 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         _linkedLoadedMacroSessionId = null;
     }
 
-    public bool IsCapturing
+    public EditorCaptureMode CaptureMode
     {
-        get => _isCapturing;
+        get => _captureMode;
         private set
         {
-            if (_isCapturing == value)
+            if (_captureMode == value)
             {
                 return;
             }
 
-            _isCapturing = value;
+            _captureMode = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(IsCapturing));
+            OnPropertyChanged(nameof(IsCapturingPosition));
+            OnPropertyChanged(nameof(IsCapturingKey));
+            OnPropertyChanged(nameof(IsCapturingTargetColor));
+            OnPropertyChanged(nameof(IsCapturingConditionLeftColor));
+            OnPropertyChanged(nameof(IsCapturingConditionRightColor));
+            OnPropertyChanged(nameof(IsCapturingPixelSearchTopLeft));
+            OnPropertyChanged(nameof(IsCapturingPixelSearchBottomRight));
             OnPropertyChanged(nameof(ShowConditionLeftColorPicker));
             OnPropertyChanged(nameof(ShowConditionRightColorPicker));
         }
     }
+
+    public bool IsCapturing => _captureMode != EditorCaptureMode.None;
+    public bool IsCapturingPosition => _captureMode == EditorCaptureMode.Position;
+    public bool IsCapturingKey => _captureMode == EditorCaptureMode.Key;
+    public bool IsCapturingTargetColor => _captureMode == EditorCaptureMode.TargetColor;
+    public bool IsCapturingConditionLeftColor => _captureMode == EditorCaptureMode.ConditionLeftColor;
+    public bool IsCapturingConditionRightColor => _captureMode == EditorCaptureMode.ConditionRightColor;
+    public bool IsCapturingPixelSearchTopLeft => _captureMode == EditorCaptureMode.PixelSearchTopLeft;
+    public bool IsCapturingPixelSearchBottomRight => _captureMode == EditorCaptureMode.PixelSearchBottomRight;
 
     public bool CanUndo => _undoStack.Count > 0;
     public bool CanRedo => _redoStack.Count > 0;

@@ -55,7 +55,7 @@
             </Grid>
             <Button Command="{Binding CaptureMouseAsync}"
                     Classes="primary compact"
-                    IsVisible="{Binding !IsCapturing}"
+                    IsVisible="{Binding !IsCapturingPosition}"
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Center">
                 <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
@@ -65,7 +65,7 @@
             </Button>
             <Button Command="{Binding CancelCapture}"
                     Classes="danger compact"
-                    IsVisible="{Binding IsCapturing}"
+                    IsVisible="{Binding IsCapturingPosition}"
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Center">
                 <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
@@ -105,7 +105,7 @@
             </Grid>
             <Button Command="{Binding CaptureMouseAsync}"
                     Classes="primary compact"
-                    IsVisible="{Binding !IsCapturing}"
+                    IsVisible="{Binding !IsCapturingPosition}"
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Center">
                 <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
@@ -115,7 +115,7 @@
             </Button>
             <Button Command="{Binding CancelCapture}"
                     Classes="danger compact"
-                    IsVisible="{Binding IsCapturing}"
+                    IsVisible="{Binding IsCapturingPosition}"
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Center">
                 <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
@@ -156,11 +156,21 @@
                 <Button Grid.Column="4"
                         Command="{Binding CaptureTargetColorAsync}"
                         Classes="primary compact"
-                        IsVisible="{Binding !IsCapturing}"
+                        IsVisible="{Binding !IsCapturingTargetColor}"
                         HorizontalContentAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                         <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
                         <TextBlock Text="{localization:Loc Editor_CaptureTargetColor}"/>
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="4"
+                        Command="{Binding CancelCapture}"
+                        Classes="danger compact"
+                        IsVisible="{Binding IsCapturingTargetColor}"
+                        HorizontalContentAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                        <icons:EmojiAppIcon Icon="Cancel" Width="16" Height="16"/>
+                        <TextBlock Text="{localization:Loc Editor_CancelCapture}"/>
                     </StackPanel>
                 </Button>
               </Grid>
@@ -250,7 +260,7 @@
             <Grid ColumnDefinitions="*,8,*">
                 <Button Command="{Binding CapturePixelSearchTopLeftAsync}"
                         Classes="primary compact"
-                        IsVisible="{Binding !IsCapturing}"
+                        IsVisible="{Binding !IsCapturingPixelSearchTopLeft}"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
@@ -258,10 +268,20 @@
                         <TextBlock Text="{localization:Loc Editor_CaptureRegionTopLeft}"/>
                     </StackPanel>
                 </Button>
+                <Button Command="{Binding CancelCapture}"
+                        Classes="danger compact"
+                        IsVisible="{Binding IsCapturingPixelSearchTopLeft}"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                        <icons:EmojiAppIcon Icon="Cancel" Width="16" Height="16"/>
+                        <TextBlock Text="{localization:Loc Editor_CancelCapture}"/>
+                    </StackPanel>
+                </Button>
                 <Button Grid.Column="2"
                         Command="{Binding CapturePixelSearchBottomRightAsync}"
                         Classes="primary compact"
-                        IsVisible="{Binding !IsCapturing}"
+                        IsVisible="{Binding !IsCapturingPixelSearchBottomRight}"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
@@ -269,17 +289,18 @@
                         <TextBlock Text="{localization:Loc Editor_CaptureRegionBottomRight}"/>
                     </StackPanel>
                 </Button>
+                <Button Grid.Column="2"
+                        Command="{Binding CancelCapture}"
+                        Classes="danger compact"
+                        IsVisible="{Binding IsCapturingPixelSearchBottomRight}"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                        <icons:EmojiAppIcon Icon="Cancel" Width="16" Height="16"/>
+                        <TextBlock Text="{localization:Loc Editor_CancelCapture}"/>
+                    </StackPanel>
+                </Button>
             </Grid>
-            <Button Command="{Binding CancelCapture}"
-                    Classes="danger compact"
-                    IsVisible="{Binding IsCapturing}"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Center">
-                <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                    <icons:EmojiAppIcon Icon="Cancel" Width="16" Height="16"/>
-                    <TextBlock Text="{localization:Loc Editor_CancelCapture}"/>
-                </StackPanel>
-            </Button>
             <TextBlock Text="{localization:Loc Editor_TargetColorSource}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
             <ComboBox ItemsSource="{Binding ScreenTargetColorSources}"
                       SelectedItem="{Binding SelectedAction.ScreenTargetColorSource}"
@@ -313,11 +334,21 @@
                 <Button Grid.Column="4"
                         Command="{Binding CaptureTargetColorAsync}"
                         Classes="primary compact"
-                        IsVisible="{Binding !IsCapturing}"
+                        IsVisible="{Binding !IsCapturingTargetColor}"
                         HorizontalContentAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                         <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
                         <TextBlock Text="{localization:Loc Editor_CaptureTargetColor}"/>
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="4"
+                        Command="{Binding CancelCapture}"
+                        Classes="danger compact"
+                        IsVisible="{Binding IsCapturingTargetColor}"
+                        HorizontalContentAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                        <icons:EmojiAppIcon Icon="Cancel" Width="16" Height="16"/>
+                        <TextBlock Text="{localization:Loc Editor_CancelCapture}"/>
                     </StackPanel>
                 </Button>
             </Grid>

@@ -94,7 +94,7 @@ public partial class EditorViewModel
         && (SelectedAction?.ScriptLeftOperandType != ScriptOperandType.VariableReference || !ShowConditionLeftVariablePicker);
     public bool ShowConditionLeftColorPicker =>
         ShowConditionFields
-        && !IsCapturing
+        && !IsCapturingConditionLeftColor
         && _screenPixelReader?.IsSupported == true
         && SelectedAction?.ScriptLeftOperandType == ScriptOperandType.Color;
     public bool ShowConditionRightVariablePicker =>
@@ -106,7 +106,7 @@ public partial class EditorViewModel
         && (SelectedAction?.ScriptRightOperandType != ScriptOperandType.VariableReference || !ShowConditionRightVariablePicker);
     public bool ShowConditionRightColorPicker =>
         ShowConditionFields
-        && !IsCapturing
+        && !IsCapturingConditionRightColor
         && _screenPixelReader?.IsSupported == true
         && SelectedAction?.ScriptRightOperandType == ScriptOperandType.Color;
     public bool ShowForVariablePicker => ShowForFields && HasAvailableVariableNames;

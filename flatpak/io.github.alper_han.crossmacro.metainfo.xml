@@ -92,6 +92,20 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.3.0" date="2026-06-27">
+      <description>
+        <p>CrossMacro 1.3.0 adds screen-reading capabilities, profile management, and input simulation enhancements.</p>
+        <ul>
+          <li>Added pixelcolor, waitcolor, and pixelsearch commands for color-based automation.</li>
+          <li>Added built-in color picker and region capture controls for editor actions.</li>
+          <li>Added support for native screen capturing backends.</li>
+          <li>Added profile management to easily save, load, and switch configuration profiles.</li>
+          <li>Added Fast and Compatible (Key-by-Key) method selector for Direct Typing text expansion to resolve character skipping.</li>
+          <li>Added scheduler safeguards to prevent burst-firing of macros after system stalls.</li>
+          <li>Improved Linux AppImage and Flatpak diagnostics to reliably detect missing input recording permissions upfront.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.2.1" date="2026-06-09">
       <description>
         <p>CrossMacro 1.2.1 improves text expansion editing and updates GNOME Shell integration metadata.</p>

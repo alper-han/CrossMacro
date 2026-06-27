@@ -270,7 +270,8 @@ echo "Installing icons..."
 cp -r "$PROJECT_ROOT/src/CrossMacro.UI/Assets/icons/"* "$DEB_DIR/usr/share/icons/hicolor/"
 
 # Copy Desktop File
-cp "$SCRIPTS_DIR/assets/CrossMacro.desktop" "$DEB_DIR/usr/share/applications/$APP_NAME.desktop"
+cp "$SCRIPTS_DIR/assets/CrossMacro.desktop" "$DEB_DIR/usr/share/applications/CrossMacro.desktop"
+sed -i 's|Exec=crossmacro|Exec=/usr/lib/crossmacro/CrossMacro.UI|g' "$DEB_DIR/usr/share/applications/CrossMacro.desktop"
 
 # Install man page (Debian policy: compressed under /usr/share/man/man1)
 echo "Installing man page..."

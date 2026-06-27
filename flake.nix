@@ -186,8 +186,8 @@
               + (
                 if pkgs.stdenv.isLinux then
                   ''
-                    install -Dm644 scripts/assets/CrossMacro.desktop $out/share/applications/crossmacro.desktop
-                    substituteInPlace $out/share/applications/crossmacro.desktop \
+                    install -Dm644 scripts/assets/CrossMacro.desktop $out/share/applications/CrossMacro.desktop
+                    substituteInPlace $out/share/applications/CrossMacro.desktop \
                       --replace-fail "Exec=crossmacro" "Exec=$out/lib/crossmacro/CrossMacro.UI"
 
                     ${pkgs.lib.concatMapStringsSep "\n"

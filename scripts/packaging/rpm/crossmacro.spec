@@ -77,7 +77,8 @@ install -m 0644 %{_sourcedir}/crossmacro-modules.conf %{buildroot}/usr/lib/modul
 ln -s ../lib/%{name}/CrossMacro.UI %{buildroot}/usr/bin/%{name}
 # Copy icons
 cp -r %{_sourcedir}/icons/* %{buildroot}/usr/share/icons/hicolor/
-cp %{_sourcedir}/CrossMacro.desktop %{buildroot}/usr/share/applications/%{name}.desktop
+cp %{_sourcedir}/CrossMacro.desktop %{buildroot}/usr/share/applications/CrossMacro.desktop
+sed -i 's/Exec=crossmacro/Exec=\/usr\/lib\/crossmacro\/CrossMacro.UI/g' %{buildroot}/usr/share/applications/CrossMacro.desktop
 install -m 0644 %{_sourcedir}/crossmacro.1 %{buildroot}/usr/share/man/man1/crossmacro.1
 
 %pre
@@ -187,7 +188,7 @@ fi
 /usr/bin/%{name}
 /usr/lib/systemd/system/crossmacro.service
 /usr/lib/udev/rules.d/99-crossmacro.rules
-/usr/share/applications/%{name}.desktop
+/usr/share/applications/CrossMacro.desktop
 /usr/share/icons/hicolor/*/apps/%{name}.png
 /usr/share/selinux/packages/%{name}/crossmacro.pp
 /usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy

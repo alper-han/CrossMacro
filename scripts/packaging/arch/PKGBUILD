@@ -118,7 +118,8 @@ package() {
     
     # Install desktop file
     install -Dm644 "scripts/assets/CrossMacro.desktop" \
-        "$pkgdir/usr/share/applications/$pkgname.desktop"
+        "$pkgdir/usr/share/applications/CrossMacro.desktop"
+    sed -i 's|Exec=crossmacro|Exec=/usr/lib/crossmacro/CrossMacro.UI|g' "$pkgdir/usr/share/applications/CrossMacro.desktop"
 
     # Install man page
     install -Dm644 "docs/man/crossmacro.1" \

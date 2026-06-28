@@ -33,7 +33,10 @@ public sealed class CliHost
             services.AddCliServices();
 
             await using var provider = services.BuildServiceProvider();
-            await InitializeProfilesAsync(provider).ConfigureAwait(false);
+            if (RequiresProfileInitialization(options))
+            {
+                await InitializeProfilesAsync(provider).ConfigureAwait(false);
+            }
             var commandExecutor = provider.GetRequiredService<CliCommandExecutor>();
 
             using var cancellation = new CancellationTokenSource();
@@ -106,5 +109,16 @@ public sealed class CliHost
         {
             LoggerSetup.Initialize("Fatal", enableFileLogging: false, enableConsoleLogging: false);
         }
+    }
+
+    private static bool RequiresProfileInitialization(CliCommandOptions options)
+    {
+        return options is SettingsGetCliOptions
+            or SettingsSetCliOptions
+            or ShortcutListCliOptions
+            or ShortcutRunCliOptions
+            or ScheduleListCliOptions
+            or ScheduleRunCliOptions
+            or HeadlessCliOptions;
     }
 }

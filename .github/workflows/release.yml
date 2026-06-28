@@ -548,7 +548,7 @@ jobs:
         grep -Fx 'usr/lib/udev/rules.d/99-crossmacro.rules' package-files.txt
         grep -Fx 'usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy' package-files.txt
         grep -Fx 'usr/share/polkit-1/rules.d/50-crossmacro.rules' package-files.txt
-        grep -Fx 'usr/share/applications/crossmacro.desktop' package-files.txt
+        grep -Fx 'usr/share/applications/CrossMacro.desktop' package-files.txt
         grep -E '^usr/share/man/man1/crossmacro\.1(\.gz)?$' package-files.txt
         grep -Fx 'usr/share/licenses/crossmacro/LICENSE' package-files.txt
 

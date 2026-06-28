@@ -100,6 +100,10 @@ public class InputDeviceHelper
             {
                 inaccessibleDevices.Add((CreateInaccessiblePlaceholder(file), ex.Errno));
             }
+            catch (DeviceOpenException ex) when (ex.Errno == 2)
+            {
+                Log.Debug("[InputDeviceHelper] Device file {File} disappeared before it could be opened (race condition).", file);
+            }
             catch (Exception ex)
             {
                 readErrors++;

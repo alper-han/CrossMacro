@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Logging;
 using CrossMacro.Infrastructure.Linux.Native.Evdev;
@@ -31,8 +32,7 @@ public class UInputDevice : IUInputDevice
         try
         {
             SetupDeviceInternal();
-            Thread.Sleep(100);
-            Log.Debug("[UInputDevice] Kernel stabilization delay complete");
+            WaitForDeviceStabilization();
         }
         catch
         {
@@ -46,14 +46,94 @@ public class UInputDevice : IUInputDevice
         try
         {
             SetupDeviceInternal();
-            await Task.Delay(100);
-            Log.Debug("[UInputDevice] Kernel stabilization delay complete");
+            await WaitForDeviceStabilizationAsync();
         }
         catch
         {
             CleanupOnFailure();
             throw;
         }
+    }
+
+    [DllImport("libc", SetLastError = true, EntryPoint = "ioctl")]
+    private static extern int ioctl_sysname(int fd, uint request, byte[] name);
+
+    private const uint UI_GET_SYSNAME_64 = 0x8040552c;
+
+    private string? FindVirtualDeviceEventNode()
+    {
+        try
+        {
+            byte[] buf = new byte[64];
+            int result = ioctl_sysname(_fd, UI_GET_SYSNAME_64, buf);
+            if (result < 0)
+            {
+                return null;
+            }
+
+            string sysname = System.Text.Encoding.ASCII.GetString(buf).TrimEnd('\0');
+            if (string.IsNullOrWhiteSpace(sysname))
+            {
+                return null;
+            }
+
+            var sysPath = $"/sys/devices/virtual/input/{sysname}";
+            if (!System.IO.Directory.Exists(sysPath))
+            {
+                return null;
+            }
+
+            var dirs = System.IO.Directory.GetDirectories(sysPath, "event*");
+            if (dirs.Length > 0)
+            {
+                return System.IO.Path.GetFileName(dirs[0]);
+            }
+        }
+        catch
+        {
+            // Ignore and fallback
+        }
+        return null;
+    }
+
+    private void WaitForDeviceStabilization()
+    {
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        while (stopwatch.ElapsedMilliseconds < 500)
+        {
+            var eventNode = FindVirtualDeviceEventNode();
+            if (eventNode != null)
+            {
+                var path = $"/dev/input/{eventNode}";
+                if (System.IO.File.Exists(path))
+                {
+                    Log.Debug("[UInputDevice] Virtual device {Node} detected and stabilized in {Elapsed}ms", eventNode, stopwatch.ElapsedMilliseconds);
+                    return;
+                }
+            }
+            Thread.Sleep(5);
+        }
+        Log.Warning("[UInputDevice] Virtual device stabilization timed out after 500ms.");
+    }
+
+    private async Task WaitForDeviceStabilizationAsync()
+    {
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        while (stopwatch.ElapsedMilliseconds < 500)
+        {
+            var eventNode = FindVirtualDeviceEventNode();
+            if (eventNode != null)
+            {
+                var path = $"/dev/input/{eventNode}";
+                if (System.IO.File.Exists(path))
+                {
+                    Log.Debug("[UInputDevice] Virtual device {Node} detected and stabilized in {Elapsed}ms (async)", eventNode, stopwatch.ElapsedMilliseconds);
+                    return;
+                }
+            }
+            await Task.Delay(5);
+        }
+        Log.Warning("[UInputDevice] Virtual device stabilization timed out after 500ms (async).");
     }
 
     private void CleanupOnFailure()

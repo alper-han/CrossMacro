@@ -313,6 +313,21 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
                 RefreshDaemonConnectivity(now);
             }
 
+            if (_cachedMode.HasValue &&
+                _lastModeResolutionUtc != DateTime.MinValue &&
+                (now - _lastModeResolutionUtc) <= ModeResolutionTtl)
+            {
+                return _cachedMode.Value;
+            }
+
+            if (_canConnectToDaemon)
+            {
+                _cachedMode = InputProviderMode.Daemon;
+                _lastModeResolutionUtc = now;
+                return InputProviderMode.Daemon;
+            }
+
+            // Daemon is unavailable, so we probe fallback capabilities to decide the mode
             if (!_canUseDirectUInput.HasValue)
             {
                 try
@@ -337,20 +352,6 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
                     Log.Debug(ex, "[LinuxInputCapabilityDetector] Failed probing readable input events");
                     _canReadInputEvents = false;
                 }
-            }
-
-            if (_cachedMode.HasValue &&
-                _lastModeResolutionUtc != DateTime.MinValue &&
-                (now - _lastModeResolutionUtc) <= ModeResolutionTtl)
-            {
-                return _cachedMode.Value;
-            }
-
-            if (_canConnectToDaemon)
-            {
-                _cachedMode = InputProviderMode.Daemon;
-                _lastModeResolutionUtc = now;
-                return InputProviderMode.Daemon;
             }
 
             var canUseDirectUInput = _canUseDirectUInput ?? false;

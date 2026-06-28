@@ -8,7 +8,7 @@
 
   <Identity Name="CrossMacro.CrossMacro"
             Publisher="CN=FE9E81DC-2233-4DB9-B5D4-E11AFD6462CF"
-            Version="1.3.0.0"
+            Version="1.3.1.0"
             ProcessorArchitecture="x64"/>
 
   <Properties>

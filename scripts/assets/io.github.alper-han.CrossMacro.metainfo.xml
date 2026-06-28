@@ -29,26 +29,39 @@
   <screenshots>
     <screenshot type="default">
       <caption>Recording Tab - Record mouse and keyboard macros</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.0/screenshots/recording-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/recording-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Playback Tab - Play recorded macros with customizable settings</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.0/screenshots/playback-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/playback-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Files Tab - Manage saved macro files</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.0/screenshots/files-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/files-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Text Expansion Tab - Create text shortcuts</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.0/screenshots/text-expansion-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/text-expansion-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Settings Tab - Configure application preferences</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.0/screenshots/settings-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/settings-tab.png</image>
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.3.1" date="2026-06-28">
+      <description>
+        <p>Version 1.3.1 - Native AOT compilation, major CLI performance optimizations, and Linux uinput stabilization fixes.</p>
+        <ul>
+          <li>Added Native AOT compilation support for CLI and UI packages, eliminating the .NET runtime dependency and dramatically reducing binary size, startup latency, and memory footprint.</li>
+          <li>Optimized Linux virtual uinput device creation and stabilization using dynamic sysfs and ioctl calls, dropping sequential run delays.</li>
+          <li>Optimized CLI startup by lazily evaluating capability probes and conditionally bypassing profile initialization, saving multiple redundant disk I/O operations on macro runs.</li>
+          <li>Fixed a desktop entry filename casing issue across Linux packages to ensure standard application launcher compliance.</li>
+          <li>Fixed a potential race condition (ENOENT) during evdev hardware device scanning when a temporary virtual uinput node is destroyed.</li>
+          <li>Replaced the IsCapturing boolean with EditorCaptureMode enum in the UI editor to support rich macro recording states.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.3.0" date="2026-06-27">
       <description>
         <p>Version 1.3.0 - Screen-reading support, profile management, and input simulation improvements.</p>

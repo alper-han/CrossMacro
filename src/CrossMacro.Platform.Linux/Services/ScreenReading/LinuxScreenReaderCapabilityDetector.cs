@@ -1,3 +1,5 @@
+using System;
+using System.Threading;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
@@ -10,6 +12,8 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
     private readonly IPortalScreenCastSupportProbe _portalScreenCastProbe;
     private readonly IKWinScreenShotSupportProbe _kWinScreenShotProbe;
     private readonly GnomePositionProvider _gnomePositionProvider;
+
+    private readonly Lazy<LinuxScreenReaderCapabilitySnapshot> _snapshot;
 
     public LinuxScreenReaderCapabilityDetector(GnomePositionProvider gnomePositionProvider)
         : this(
@@ -54,9 +58,13 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
         _portalScreenCastProbe = portalScreenCastProbe ?? throw new ArgumentNullException(nameof(portalScreenCastProbe));
         _kWinScreenShotProbe = kWinScreenShotProbe ?? throw new ArgumentNullException(nameof(kWinScreenShotProbe));
         _gnomePositionProvider = gnomePositionProvider ?? throw new ArgumentNullException(nameof(gnomePositionProvider));
+
+        _snapshot = new Lazy<LinuxScreenReaderCapabilitySnapshot>(CreateSnapshot, LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
-    public LinuxScreenReaderCapabilitySnapshot GetSnapshot()
+    public LinuxScreenReaderCapabilitySnapshot GetSnapshot() => _snapshot.Value;
+
+    private LinuxScreenReaderCapabilitySnapshot CreateSnapshot()
     {
         var extSupport = _extImageCopyProbe.ProbeSupport();
         var wlrSupport = _wlrScreencopyProbe.ProbeSupport();

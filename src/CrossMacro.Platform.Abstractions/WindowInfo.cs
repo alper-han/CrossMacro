@@ -26,6 +26,9 @@ public sealed record WindowInfo
     /// <summary>Whether the window is in fullscreen mode.</summary>
     public bool IsFullscreen { get; init; }
 
+    /// <summary>Whether the window is maximized.</summary>
+    public bool IsMaximized { get; init; }
+
     /// <summary>Whether the window is floating (not tiled).</summary>
     public bool IsFloating { get; init; }
 

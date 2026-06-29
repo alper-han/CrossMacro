@@ -32,6 +32,7 @@ internal sealed class RunScriptWindowExecutor
             new WindowMoveCommandHandler(),
             new WindowResizeCommandHandler(),
             new WindowStateCommandHandler("fullscreen"),
+            new WindowStateCommandHandler("maximize"),
             new WindowStateCommandHandler("float"),
             new WindowStateCommandHandler("center"),
             new WindowWorkspaceCommandHandler("getdesktop"),

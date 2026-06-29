@@ -14,10 +14,10 @@ internal sealed class WindowActiveCommandHandler : IWindowCommandHandler
 
     public string? Validate(string[] parts)
     {
-        if (parts.Length != 4) return "Syntax: window active title|class|address|fullscreen|float|pinned|hidden|geometry $variable";
+        if (parts.Length != 4) return "Syntax: window active title|class|address|fullscreen|maximize|float|pinned|hidden|geometry $variable";
         var field = parts[2].ToLowerInvariant();
-        if (field is not ("title" or "class" or "address" or "fullscreen" or "float" or "pinned" or "hidden" or "geometry")) 
-            return $"Unknown field '{parts[2]}'. Expected: title, class, address, fullscreen, float, pinned, hidden, geometry.";
+        if (field is not ("title" or "class" or "address" or "fullscreen" or "maximize" or "float" or "pinned" or "hidden" or "geometry")) 
+            return $"Unknown field '{parts[2]}'. Expected: title, class, address, fullscreen, maximize, float, pinned, hidden, geometry.";
         if (!IsValidVarName(StripDollar(parts[3]))) return $"Invalid variable name '{parts[3]}'.";
         return null;
     }
@@ -32,6 +32,7 @@ internal sealed class WindowActiveCommandHandler : IWindowCommandHandler
             "class" => info?.Class ?? string.Empty,
             "address" => info?.Address ?? string.Empty,
             "fullscreen" => (info?.IsFullscreen ?? false) ? "true" : "false",
+            "maximize" => (info?.IsMaximized ?? false) ? "true" : "false",
             "float" => (info?.IsFloating ?? false) ? "true" : "false",
             "pinned" => (info?.IsPinned ?? false) ? "true" : "false",
             "hidden" => (info?.IsHidden ?? false) ? "true" : "false",
@@ -100,6 +101,12 @@ internal sealed class WindowFocusCommandHandler : IWindowCommandHandler
             _ => false
         };
     }
+
+    private static async Task<bool> UnlockAndCenterAsync(IWindowQueryService query, IWindowMutationService mutator, CancellationToken cancellationToken)
+    {
+        await WindowGeometryUnlocker.UnlockAsync(query, mutator, cancellationToken).ConfigureAwait(false);
+        return await mutator.CenterActiveWindowAsync(cancellationToken).ConfigureAwait(false);
+    }
 }
 
 internal sealed class WindowCloseCommandHandler : IWindowCommandHandler
@@ -133,6 +140,12 @@ internal sealed class WindowCloseCommandHandler : IWindowCommandHandler
             _ => false
         };
     }
+
+    private static async Task<bool> UnlockAndCenterAsync(IWindowQueryService query, IWindowMutationService mutator, CancellationToken cancellationToken)
+    {
+        await WindowGeometryUnlocker.UnlockAsync(query, mutator, cancellationToken).ConfigureAwait(false);
+        return await mutator.CenterActiveWindowAsync(cancellationToken).ConfigureAwait(false);
+    }
 }
 
 internal sealed class WindowMoveCommandHandler : IWindowCommandHandler
@@ -152,6 +165,7 @@ internal sealed class WindowMoveCommandHandler : IWindowCommandHandler
     {
         var x = int.Parse(parts[2], CultureInfo.InvariantCulture);
         var y = int.Parse(parts[3], CultureInfo.InvariantCulture);
+        await WindowGeometryUnlocker.UnlockAsync(query, mutator, cancellationToken).ConfigureAwait(false);
         await mutator.MoveActiveWindowAsync(x, y, cancellationToken).ConfigureAwait(false);
     }
 }
@@ -174,6 +188,7 @@ internal sealed class WindowResizeCommandHandler : IWindowCommandHandler
     {
         var w = int.Parse(parts[2], CultureInfo.InvariantCulture);
         var h = int.Parse(parts[3], CultureInfo.InvariantCulture);
+        await WindowGeometryUnlocker.UnlockAsync(query, mutator, cancellationToken).ConfigureAwait(false);
         await mutator.ResizeActiveWindowAsync(w, h, cancellationToken).ConfigureAwait(false);
     }
 }
@@ -266,10 +281,17 @@ internal sealed class WindowStateCommandHandler : IWindowCommandHandler
     {
         _ = _state switch {
             "fullscreen" => await mutator.FullscreenActiveWindowAsync(cancellationToken).ConfigureAwait(false),
+            "maximize" => await mutator.MaximizeActiveWindowAsync(cancellationToken).ConfigureAwait(false),
             "float" => await mutator.FloatActiveWindowAsync(cancellationToken).ConfigureAwait(false),
-            "center" => await mutator.CenterActiveWindowAsync(cancellationToken).ConfigureAwait(false),
+            "center" => await UnlockAndCenterAsync(query, mutator, cancellationToken),
             _ => false
         };
+    }
+
+    private static async Task<bool> UnlockAndCenterAsync(IWindowQueryService query, IWindowMutationService mutator, CancellationToken cancellationToken)
+    {
+        await WindowGeometryUnlocker.UnlockAsync(query, mutator, cancellationToken).ConfigureAwait(false);
+        return await mutator.CenterActiveWindowAsync(cancellationToken).ConfigureAwait(false);
     }
 }
 
@@ -319,6 +341,35 @@ internal sealed class WindowWorkspaceCommandHandler : IWindowCommandHandler
                 await workspace.MoveActiveWindowToWorkspaceAsync(Unquote(string.Join(' ', parts[3..])), cancellationToken).ConfigureAwait(false);
             else if (field == "address")
                 await workspace.MoveWindowToWorkspaceByAddressAsync(parts[3], Unquote(string.Join(' ', parts[4..])), cancellationToken).ConfigureAwait(false);
+        }
+    }
+}
+
+
+internal static class WindowGeometryUnlocker
+{
+    public static async Task UnlockAsync(IWindowQueryService query, IWindowMutationService mutator, CancellationToken cancellationToken)
+    {
+        var info = await query.GetActiveWindowAsync(cancellationToken).ConfigureAwait(false);
+        if (info != null)
+        {
+            bool stateChanged = false;
+            
+            if (info.IsFullscreen) {
+                await mutator.FullscreenActiveWindowAsync(cancellationToken).ConfigureAwait(false);
+                stateChanged = true;
+            }
+            if (info.IsMaximized) {
+                await mutator.MaximizeActiveWindowAsync(cancellationToken).ConfigureAwait(false);
+                stateChanged = true;
+            }
+            if (!info.IsFloating) {
+                await mutator.FloatActiveWindowAsync(cancellationToken).ConfigureAwait(false);
+                stateChanged = true;
+            }
+                
+            if (stateChanged)
+                await Task.Delay(150, cancellationToken).ConfigureAwait(false);
         }
     }
 }

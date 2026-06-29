@@ -114,19 +114,25 @@ public sealed class HyprlandWindowManager : IWindowManager
 
     public async Task<bool> MoveActiveWindowAsync(int x, int y, CancellationToken cancellationToken = default)
     {
-        var response = await _ipcClient.SendCommandAsync($"dispatch movewindowpixel exact {x} {y}", cancellationToken).ConfigureAwait(false);
+        var response = await _ipcClient.SendCommandAsync($"dispatch movewindowpixel exact {x} {y},active", cancellationToken).ConfigureAwait(false);
         return IsOkResponse(response);
     }
 
     public async Task<bool> ResizeActiveWindowAsync(int width, int height, CancellationToken cancellationToken = default)
     {
-        var response = await _ipcClient.SendCommandAsync($"dispatch resizewindowpixel exact {width} {height}", cancellationToken).ConfigureAwait(false);
+        var response = await _ipcClient.SendCommandAsync($"dispatch resizewindowpixel exact {width} {height},active", cancellationToken).ConfigureAwait(false);
         return IsOkResponse(response);
     }
 
     public async Task<bool> FullscreenActiveWindowAsync(CancellationToken cancellationToken = default)
     {
         var response = await _ipcClient.SendCommandAsync("dispatch fullscreen 0", cancellationToken).ConfigureAwait(false);
+        return IsOkResponse(response);
+    }
+
+    public async Task<bool> MaximizeActiveWindowAsync(CancellationToken cancellationToken = default)
+    {
+        var response = await _ipcClient.SendCommandAsync("dispatch fullscreen 1", cancellationToken).ConfigureAwait(false);
         return IsOkResponse(response);
     }
 
@@ -174,7 +180,7 @@ public sealed class HyprlandWindowManager : IWindowManager
         if (string.IsNullOrWhiteSpace(workspace))
             return false;
 
-        var response = await _ipcClient.SendCommandAsync($"dispatch movetoworkspace {workspace}", cancellationToken).ConfigureAwait(false);
+        var response = await _ipcClient.SendCommandAsync($"dispatch movetoworkspacesilent {workspace}", cancellationToken).ConfigureAwait(false);
         return IsOkResponse(response);
     }
 
@@ -184,7 +190,7 @@ public sealed class HyprlandWindowManager : IWindowManager
             return false;
 
         var addr = NormalizeAddress(address);
-        var response = await _ipcClient.SendCommandAsync($"dispatch movetoworkspace {workspace},address:{addr}", cancellationToken).ConfigureAwait(false);
+        var response = await _ipcClient.SendCommandAsync($"dispatch movetoworkspacesilent {workspace},address:{addr}", cancellationToken).ConfigureAwait(false);
         return IsOkResponse(response);
     }
 
@@ -197,7 +203,8 @@ public sealed class HyprlandWindowManager : IWindowManager
             Pid = dto.Pid,
             Workspace = dto.Workspace?.Name ?? string.Empty,
             IsFocused = isFocused,
-            IsFullscreen = dto.Fullscreen > 0,
+            IsFullscreen = dto.Fullscreen == 2,
+            IsMaximized = dto.Fullscreen == 1,
             IsFloating = dto.Floating,
             IsPinned = dto.Pinned,
             IsHidden = dto.Hidden, X = dto.At != null && dto.At.Length >= 2 ? dto.At[0] : 0, Y = dto.At != null && dto.At.Length >= 2 ? dto.At[1] : 0, Width = dto.Size != null && dto.Size.Length >= 2 ? dto.Size[0] : 0, Height = dto.Size != null && dto.Size.Length >= 2 ? dto.Size[1] : 0

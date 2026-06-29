@@ -165,7 +165,8 @@ public static class RuntimeServiceCollectionExtensions
                 simulatorPool: pool,
                 playbackBehaviorPolicy: playbackBehaviorPolicy,
                 screenPixelReader: sp.GetRequiredService<IScreenPixelReader>(),
-                keyCodeMapper: sp.GetRequiredService<IKeyCodeMapper>());
+                keyCodeMapper: sp.GetRequiredService<IKeyCodeMapper>(),
+                windowManager: sp.GetService<IWindowManager>());
         });
 
         services.AddSingleton<Func<IMacroPlayer>>(sp => () => sp.GetRequiredService<IMacroPlayer>());

@@ -16,6 +16,7 @@ public static class RunScriptSyntax
     public const string WaitColorCommand = "waitcolor";
     public const string PixelSearchCommand = "pixelsearch";
     public const string PixelSearchToleranceKeyword = "tolerance";
+    public const string WindowCommand = "window";
 
     private static readonly string[] ScreenReadingCommands =
     [
@@ -98,6 +99,16 @@ public static class RunScriptSyntax
     public static bool IsPixelSearchToleranceKeyword(string? token)
     {
         return string.Equals(token?.Trim(), PixelSearchToleranceKeyword, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsWindowStep(string? step)
+    {
+        if (string.IsNullOrWhiteSpace(step))
+        {
+            return false;
+        }
+
+        return StartsWithCommandToken(step.TrimStart(), WindowCommand);
     }
 
     public static bool StartsWithCommandToken(string step, string command)

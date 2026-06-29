@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Infrastructure.Services.Playback;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
@@ -83,7 +84,7 @@ public sealed class RunScriptCompiler
             return RunScriptCompileResult.Fail(parseResult.ErrorMessage);
         }
 
-        if (ContainsScreenReadingNode(parseResult.Nodes!))
+        if (ContainsScreenReadingNode(parseResult.Nodes!) || ContainsWindowNode(parseResult.Nodes!))
         {
             return CompileRuntimeScriptBackedSteps(steps, parseResult.Nodes!);
         }
@@ -192,6 +193,14 @@ public sealed class RunScriptCompiler
         {
             return TryParseScreenReadingStep(trimmed, out var screenReadingError) && screenReadingError != null
                 ? RunScriptCompileResult.Fail($"{source}: {screenReadingError}")
+                : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
+        }
+
+        if (RunScriptSyntax.IsWindowStep(trimmed))
+        {
+            var windowError = RunScriptWindowExecutor.Validate(trimmed);
+            return windowError != null
+                ? RunScriptCompileResult.Fail($"{source}: {windowError}")
                 : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
         }
 
@@ -312,6 +321,29 @@ public sealed class RunScriptCompiler
     private static bool IsScreenReadingStep(string step)
     {
         return RunScriptSyntax.IsScreenReadingStep(step);
+    }
+
+    private static bool ContainsWindowNode(IReadOnlyList<RunScriptNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            switch (node)
+            {
+                case CommandNode commandNode when RunScriptSyntax.IsWindowStep(commandNode.Source.Step):
+                    return true;
+                case RepeatNode repeatNode when ContainsWindowNode(repeatNode.Body):
+                    return true;
+                case IfNode ifNode when ContainsWindowNode(ifNode.TrueBody)
+                    || (ifNode.FalseBody != null && ContainsWindowNode(ifNode.FalseBody)):
+                    return true;
+                case WhileNode whileNode when ContainsWindowNode(whileNode.Body):
+                    return true;
+                case ForNode forNode when ContainsWindowNode(forNode.Body):
+                    return true;
+            }
+        }
+
+        return false;
     }
 
     private RunScriptCompileResult CompileExpandedSteps(IReadOnlyList<RunScriptStep> expandedSteps)

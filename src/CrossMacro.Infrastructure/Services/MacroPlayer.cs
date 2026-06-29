@@ -18,6 +18,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
 {
     private readonly IMousePositionProvider? _positionProvider;
     private readonly IScreenPixelReader? _screenPixelReader;
+    private readonly IWindowManager? _windowManager;
     private readonly PlaybackValidator _validator;
     private readonly Func<IInputSimulator>? _inputSimulatorFactory;
     private readonly InputSimulatorPool? _simulatorPool;
@@ -130,10 +131,12 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         InputSimulatorPool? simulatorPool = null,
         IPlaybackBehaviorPolicy? playbackBehaviorPolicy = null,
         IScreenPixelReader? screenPixelReader = null,
-        IKeyCodeMapper? keyCodeMapper = null)
+        IKeyCodeMapper? keyCodeMapper = null,
+        IWindowManager? windowManager = null)
     {
         _positionProvider = positionProvider;
         _screenPixelReader = screenPixelReader;
+        _windowManager = windowManager;
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
         _inputSimulatorFactory = inputSimulatorFactory;
         _simulatorPool = simulatorPool;
@@ -223,13 +226,13 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
 
         try
         {
-            if (macro.Events.Count == 0 && HasOnlyScreenReadScriptSteps(macro))
+            if (macro.Events.Count == 0 && HasOnlyRuntimeScriptSteps(macro))
             {
                 await PlayRuntimeScriptOnlyLoopAsync(macro, options, normalizedSpeed, repeatCount, infiniteLoop, _cts.Token);
                 return;
             }
 
-            if (macro.Events.Count == 0 && !HasScreenReadScriptSteps(macro))
+            if (macro.Events.Count == 0 && !HasRuntimeScriptSteps(macro))
             {
                 await ExecuteScreenReadScriptStepsAsync(macro, _cts.Token);
                 return;
@@ -259,7 +262,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
                         _cachedScreenWidth, _cachedScreenHeight, _cts.Token);
                 }
 
-                if (HasScreenReadScriptSteps(macro))
+                if (HasRuntimeScriptSteps(macro))
                 {
                     await PlayOnceRuntimeScriptAsync(macro, normalizedSpeed, _cts.Token);
                 }
@@ -450,12 +453,14 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         };
         var playbackElapsedMilliseconds = _playbackElapsedMillisecondsFactory();
         var screenReadExecutor = new RunScriptScreenReadExecutor(_screenPixelReader!, _positionProvider);
+        var windowExecutor = new RunScriptWindowExecutor(_windowManager ?? new NullWindowManager());
         var runtimeExecutor = new RunScriptRuntimeExecutor(
             _keyCodeMapper,
             _timingService,
             this,
             _runtimeVariables,
-            screenReadExecutor);
+            screenReadExecutor,
+            windowExecutor);
         var executionRequest = new RunScriptRuntimeExecutionRequest(
             macro.ScriptSteps,
             speedMultiplier,
@@ -672,7 +677,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
 
     private async Task ExecuteScreenReadScriptStepsAsync(MacroSequence macro, CancellationToken cancellationToken)
     {
-        if (macro.ScriptSteps.Count == 0 || !HasScreenReadScriptSteps(macro))
+        if (macro.ScriptSteps.Count == 0 || !HasRuntimeScriptSteps(macro))
         {
             return;
         }
@@ -745,20 +750,20 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         }
     }
 
-    private static bool HasScreenReadScriptSteps(MacroSequence macro)
+    private static bool HasRuntimeScriptSteps(MacroSequence macro)
     {
         return macro.ScriptSteps.Any(step =>
-        {
-            return RunScriptScreenReadExecutor.IsScreenReadingStep(step);
-        });
+            RunScriptScreenReadExecutor.IsScreenReadingStep(step)
+            || RunScriptSyntax.IsWindowStep(step));
     }
 
-    private static bool HasOnlyScreenReadScriptSteps(MacroSequence macro)
+    private static bool HasOnlyRuntimeScriptSteps(MacroSequence macro)
     {
         return macro.ScriptSteps.Count > 0
             && macro.ScriptSteps
                 .Where(step => !string.IsNullOrWhiteSpace(step))
-                .All(RunScriptScreenReadExecutor.IsScreenReadingStep);
+                .All(step => RunScriptScreenReadExecutor.IsScreenReadingStep(step)
+                             || RunScriptSyntax.IsWindowStep(step));
     }
 
     private static bool HasAbsoluteRuntimeScriptSteps(MacroSequence macro)

@@ -25,19 +25,22 @@ internal sealed class RunScriptRuntimeExecutor
     private readonly IPlaybackPauseToken _pauseToken;
     private readonly IDictionary<string, string> _runtimeVariables;
     private readonly RunScriptScreenReadExecutor _screenReadExecutor;
+    private readonly RunScriptWindowExecutor _windowExecutor;
 
     public RunScriptRuntimeExecutor(
         IKeyCodeMapper keyCodeMapper,
         IPlaybackTimingService timingService,
         IPlaybackPauseToken pauseToken,
         IDictionary<string, string> runtimeVariables,
-        RunScriptScreenReadExecutor screenReadExecutor)
+        RunScriptScreenReadExecutor screenReadExecutor,
+        RunScriptWindowExecutor windowExecutor)
     {
         _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
         _timingService = timingService ?? throw new ArgumentNullException(nameof(timingService));
         _pauseToken = pauseToken ?? throw new ArgumentNullException(nameof(pauseToken));
         _runtimeVariables = runtimeVariables ?? throw new ArgumentNullException(nameof(runtimeVariables));
         _screenReadExecutor = screenReadExecutor ?? throw new ArgumentNullException(nameof(screenReadExecutor));
+        _windowExecutor = windowExecutor ?? throw new ArgumentNullException(nameof(windowExecutor));
     }
 
     public async Task ExecuteAsync(RunScriptRuntimeExecutionRequest request, CancellationToken cancellationToken)
@@ -211,6 +214,12 @@ internal sealed class RunScriptRuntimeExecutor
         if (RunScriptScreenReadExecutor.IsScreenReadingStep(step))
         {
             await _screenReadExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken);
+            return;
+        }
+
+        if (RunScriptWindowExecutor.IsWindowStep(step))
+        {
+            await _windowExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken);
             return;
         }
 

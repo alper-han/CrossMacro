@@ -32,7 +32,7 @@ public class PlaybackValidator
     {
         var result = new ValidationResult();
 
-        if (macro == null || (macro.Events.Count == 0 && !HasScreenReadScriptSteps(macro)))
+        if (macro == null || (macro.Events.Count == 0 && !HasRuntimeScriptSteps(macro)))
         {
             result.AddError("Macro is empty or null");
             return result;
@@ -134,9 +134,10 @@ public class PlaybackValidator
             and not MouseButton.ScrollRight;
     }
 
-    private static bool HasScreenReadScriptSteps(MacroSequence macro)
+    private static bool HasRuntimeScriptSteps(MacroSequence macro)
     {
-        return macro.ScriptSteps.Any(RunScriptSyntax.IsScreenReadingStep);
+        return macro.ScriptSteps.Any(s =>
+            RunScriptSyntax.IsScreenReadingStep(s) || RunScriptSyntax.IsWindowStep(s));
     }
 
     private void ValidateScriptSteps(MacroSequence macro, ValidationResult result)

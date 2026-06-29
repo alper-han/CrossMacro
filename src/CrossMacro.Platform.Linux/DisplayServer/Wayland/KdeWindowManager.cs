@@ -162,6 +162,7 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
                     Pid: w.pid || 0,
                     Workspace: (workspace.currentDesktop && workspace.currentDesktop.name) ? workspace.currentDesktop.name : '',
                     IsFocused: true,
+                    IsMaximized: w.maximizeMode !== 0,
                     IsFullscreen: w.fullScreen || false,
                     IsFloating: w.tile == null,
                     IsPinned: w.onAllDesktops || false,
@@ -194,6 +195,7 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
                     Pid: w.pid || 0,
                     Workspace: (w.desktops && w.desktops.length > 0) ? w.desktops[0].name : '',
                     IsFocused: (workspace.activeWindow === w),
+                    IsMaximized: w.maximizeMode !== 0,
                     IsFullscreen: w.fullScreen || false,
                     IsFloating: w.tile == null,
                     IsPinned: w.onAllDesktops || false,
@@ -242,19 +244,25 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
 
     public Task<bool> MoveActiveWindowAsync(int x, int y, CancellationToken cancellationToken = default)
     {
-        string script = "(function() { var w = workspace.activeWindow || workspace.activeClient; if (w) { var g = w.frameGeometry; g.x = " + x + "; g.y = " + y + "; w.frameGeometry = g; } })();";
+        string script = "(function() { var w = workspace.activeWindow || workspace.activeClient; if (w) { var g = w.frameGeometry; w.frameGeometry = { x: " + x + ", y: " + y + ", width: g.width, height: g.height }; } })();";
         return ExecuteMutationAsync(script, cancellationToken);
     }
 
     public Task<bool> ResizeActiveWindowAsync(int width, int height, CancellationToken cancellationToken = default)
     {
-        string script = "(function() { var w = workspace.activeWindow || workspace.activeClient; if (w) { var g = w.frameGeometry; g.width = " + width + "; g.height = " + height + "; w.frameGeometry = g; } })();";
+        string script = "(function() { var w = workspace.activeWindow || workspace.activeClient; if (w) { var g = w.frameGeometry; w.frameGeometry = { x: g.x, y: g.y, width: " + width + ", height: " + height + " }; } })();";
         return ExecuteMutationAsync(script, cancellationToken);
     }
 
     public Task<bool> FullscreenActiveWindowAsync(CancellationToken cancellationToken = default)
     {
         string script = "(function() { var w = workspace.activeWindow || workspace.activeClient; if (w) { w.fullScreen = !w.fullScreen; } })();";
+        return ExecuteMutationAsync(script, cancellationToken);
+    }
+
+    public Task<bool> MaximizeActiveWindowAsync(CancellationToken cancellationToken = default)
+    {
+        string script = "(function() { var w = workspace.activeWindow || workspace.activeClient; if (w) { if (w.maximizeMode !== 0) w.setMaximize(false, false); else w.setMaximize(true, true); } })();";
         return ExecuteMutationAsync(script, cancellationToken);
     }
 
@@ -265,7 +273,7 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
 
     public Task<bool> CenterActiveWindowAsync(CancellationToken cancellationToken = default)
     {
-        string script = "(function() { var w = workspace.activeWindow || workspace.activeClient; if (w) { var screen = workspace.activeScreen; if (!screen) return; var sg = screen.geometry || workspace.clientArea(0, screen, workspace.currentDesktop); var wg = w.frameGeometry; wg.x = sg.x + (sg.width - wg.width) / 2; wg.y = sg.y + (sg.height - wg.height) / 2; w.frameGeometry = wg; } })();";
+        string script = "(function() { var w = workspace.activeWindow || workspace.activeClient; if (w) { var screen = workspace.activeScreen; if (!screen) return; var sg = screen.geometry || workspace.clientArea(0, screen, workspace.currentDesktop); var wg = w.frameGeometry; w.frameGeometry = { x: Math.round(sg.x + (sg.width - wg.width) / 2), y: Math.round(sg.y + (sg.height - wg.height) / 2), width: wg.width, height: wg.height }; } })();";
         return ExecuteMutationAsync(script, cancellationToken);
     }
 

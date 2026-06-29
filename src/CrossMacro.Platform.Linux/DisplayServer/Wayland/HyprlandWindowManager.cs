@@ -200,7 +200,7 @@ public sealed class HyprlandWindowManager : IWindowManager
             IsFullscreen = dto.Fullscreen > 0,
             IsFloating = dto.Floating,
             IsPinned = dto.Pinned,
-            IsHidden = dto.Hidden
+            IsHidden = dto.Hidden, X = dto.At != null && dto.At.Length >= 2 ? dto.At[0] : 0, Y = dto.At != null && dto.At.Length >= 2 ? dto.At[1] : 0, Width = dto.Size != null && dto.Size.Length >= 2 ? dto.Size[0] : 0, Height = dto.Size != null && dto.Size.Length >= 2 ? dto.Size[1] : 0
         };
 
     private static string NormalizeAddress(string address) =>
@@ -247,6 +247,8 @@ internal sealed class HyprlandWindowDto
 
     [JsonPropertyName("hidden")]
     public bool Hidden { get; set; }
+    [JsonPropertyName("at")] public int[]? At { get; set; }
+    [JsonPropertyName("size")] public int[]? Size { get; set; }
 
     [JsonPropertyName("workspace")]
     public HyprlandWorkspaceDto? Workspace { get; set; }

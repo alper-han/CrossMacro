@@ -14,10 +14,10 @@ internal sealed class WindowActiveCommandHandler : IWindowCommandHandler
 
     public string? Validate(string[] parts)
     {
-        if (parts.Length != 4) return "Syntax: window active title|class|address|fullscreen|float|pinned|hidden $variable";
+        if (parts.Length != 4) return "Syntax: window active title|class|address|fullscreen|float|pinned|hidden|geometry $variable";
         var field = parts[2].ToLowerInvariant();
-        if (field is not ("title" or "class" or "address" or "fullscreen" or "float" or "pinned" or "hidden")) 
-            return $"Unknown field '{parts[2]}'. Expected: title, class, address, fullscreen, float, pinned, hidden.";
+        if (field is not ("title" or "class" or "address" or "fullscreen" or "float" or "pinned" or "hidden" or "geometry")) 
+            return $"Unknown field '{parts[2]}'. Expected: title, class, address, fullscreen, float, pinned, hidden, geometry.";
         if (!IsValidVarName(StripDollar(parts[3]))) return $"Invalid variable name '{parts[3]}'.";
         return null;
     }
@@ -35,6 +35,7 @@ internal sealed class WindowActiveCommandHandler : IWindowCommandHandler
             "float" => (info?.IsFloating ?? false) ? "true" : "false",
             "pinned" => (info?.IsPinned ?? false) ? "true" : "false",
             "hidden" => (info?.IsHidden ?? false) ? "true" : "false",
+            "geometry" => info != null ? $"{info.X} {info.Y} {info.Width} {info.Height}" : string.Empty,
             _ => string.Empty
         };
         StoreVariable(variables, varName, val, stepNumber);
@@ -287,15 +288,14 @@ internal sealed class WindowWorkspaceCommandHandler : IWindowCommandHandler
         }
         else if (_cmd == "setdesktop")
         {
-            if (parts.Length != 3) return "Syntax: window setdesktop <workspace>";
-            if (string.IsNullOrWhiteSpace(parts[2])) return "Workspace cannot be empty.";
+            if (parts.Length < 3) return "Syntax: window setdesktop <workspace>";
         }
         else if (_cmd == "setdesktopforwindow")
         {
             if (parts.Length < 4) return "Syntax: window setdesktopforwindow active|address <addr> <workspace>";
             var field = parts[2].ToLowerInvariant();
-            if (field == "active") return parts.Length == 4 ? null : "Syntax: window setdesktopforwindow active <workspace>";
-            if (field == "address") return parts.Length == 5 ? null : "Syntax: window setdesktopforwindow address <addr> <workspace>";
+            if (field == "active") return parts.Length >= 4 ? null : "Syntax: window setdesktopforwindow active <workspace>";
+            if (field == "address") return parts.Length >= 5 ? null : "Syntax: window setdesktopforwindow address <addr> <workspace>";
             return $"Unknown field '{parts[2]}'. Expected: active, address.";
         }
         return null;
@@ -310,15 +310,15 @@ internal sealed class WindowWorkspaceCommandHandler : IWindowCommandHandler
         }
         else if (_cmd == "setdesktop")
         {
-            await workspace.SwitchWorkspaceAsync(parts[2], cancellationToken).ConfigureAwait(false);
+            await workspace.SwitchWorkspaceAsync(Unquote(string.Join(' ', parts[2..])), cancellationToken).ConfigureAwait(false);
         }
         else if (_cmd == "setdesktopforwindow")
         {
             var field = parts[2].ToLowerInvariant();
             if (field == "active")
-                await workspace.MoveActiveWindowToWorkspaceAsync(parts[3], cancellationToken).ConfigureAwait(false);
+                await workspace.MoveActiveWindowToWorkspaceAsync(Unquote(string.Join(' ', parts[3..])), cancellationToken).ConfigureAwait(false);
             else if (field == "address")
-                await workspace.MoveWindowToWorkspaceByAddressAsync(parts[3], parts[4], cancellationToken).ConfigureAwait(false);
+                await workspace.MoveWindowToWorkspaceByAddressAsync(parts[3], Unquote(string.Join(' ', parts[4..])), cancellationToken).ConfigureAwait(false);
         }
     }
 }

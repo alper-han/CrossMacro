@@ -84,13 +84,19 @@ internal static class LinuxPlatformServiceCollectionExtensions
         services.AddSingleton<IMousePositionProvider>(sp =>
             sp.GetRequiredService<LinuxPositionProviderFactory>().Create());
 
-        // Window manager: Hyprland when available, NullWindowManager otherwise
+        // Window manager: Hyprland or KDE when available, NullWindowManager otherwise
         services.AddSingleton<HyprlandIpcClient>();
         services.AddSingleton<IWindowManager>(sp =>
         {
             var ipcClient = sp.GetRequiredService<HyprlandIpcClient>();
             if (ipcClient.IsAvailable)
                 return new HyprlandWindowManager(ipcClient);
+
+            var desktop = System.Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP");
+            if (desktop != null && desktop.Contains("KDE", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return new DisplayServer.Wayland.KdeWindowManager();
+            }
 
             return new NullWindowManager();
         });

@@ -34,4 +34,16 @@ public sealed record WindowInfo
 
     /// <summary>Whether the window is hidden/minimized.</summary>
     public bool IsHidden { get; init; }
+
+    /// <summary>Window's X coordinate on screen.</summary>
+    public int X { get; init; }
+
+    /// <summary>Window's Y coordinate on screen.</summary>
+    public int Y { get; init; }
+
+    /// <summary>Window's width in pixels.</summary>
+    public int Width { get; init; }
+
+    /// <summary>Window's height in pixels.</summary>
+    public int Height { get; init; }
 }

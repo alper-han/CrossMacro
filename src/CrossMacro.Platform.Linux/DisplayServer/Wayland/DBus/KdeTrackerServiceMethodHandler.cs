@@ -25,6 +25,10 @@ internal sealed class KdeTrackerServiceMethodHandler : IPathMethodHandler
             <arg direction="in" type="i"/>
             <arg direction="in" type="i"/>
           </method>
+          <method name="ReportWindowData">
+            <arg direction="in" type="s"/>
+            <arg direction="in" type="s"/>
+          </method>
         </interface>
 
         """u8.ToArray();
@@ -36,7 +40,7 @@ internal sealed class KdeTrackerServiceMethodHandler : IPathMethodHandler
         _service = service;
     }
 
-    public string Path => KdeTrackerService.TrackerObjectPath;
+    public string Path => _service.ObjectPath.ToString();
 
     public bool HandlesChildPaths => false;
 
@@ -75,6 +79,13 @@ internal sealed class KdeTrackerServiceMethodHandler : IPathMethodHandler
                 int width = reader.ReadInt32();
                 int height = reader.ReadInt32();
                 _service.UpdateResolutionAsync(width, height).GetAwaiter().GetResult();
+                return DispatchResult.Handled;
+            }
+            case KdeTrackerService.ReportWindowDataMethod:
+            {
+                string correlationId = reader.ReadString();
+                string json = reader.ReadString();
+                _service.ReportWindowDataAsync(correlationId, json).GetAwaiter().GetResult();
                 return DispatchResult.Handled;
             }
             default:
@@ -131,6 +142,7 @@ internal sealed class KdeTrackerServiceMethodHandler : IPathMethodHandler
         {
             KdeTrackerService.UpdatePositionMethod => "ii",
             KdeTrackerService.UpdateResolutionMethod => "ii",
+            KdeTrackerService.ReportWindowDataMethod => "ss",
             _ => null
         };
 
@@ -145,6 +157,7 @@ internal sealed class KdeTrackerServiceMethodHandler : IPathMethodHandler
     private static bool IsTrackedMember(string member)
     {
         return string.Equals(member, KdeTrackerService.UpdatePositionMethod, StringComparison.Ordinal)
-            || string.Equals(member, KdeTrackerService.UpdateResolutionMethod, StringComparison.Ordinal);
+            || string.Equals(member, KdeTrackerService.UpdateResolutionMethod, StringComparison.Ordinal)
+            || string.Equals(member, KdeTrackerService.ReportWindowDataMethod, StringComparison.Ordinal);
     }
 }

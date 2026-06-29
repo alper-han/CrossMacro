@@ -15,6 +15,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
         private const string EXTENSION_JS = @"import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
+import Meta from 'gi://Meta';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
@@ -38,10 +39,59 @@ const MouseInterface = `
       <arg type=""i"" direction=""out"" name=""stride""/>
       <arg type=""b"" direction=""out"" name=""hasAlpha""/>
     </method>
+    <method name=""GetWindows"">
+      <arg type=""s"" direction=""out"" name=""json""/>
+    </method>
+    <method name=""GetActiveWindow"">
+      <arg type=""s"" direction=""out"" name=""json""/>
+    </method>
+    <method name=""FocusWindow"">
+      <arg type=""s"" direction=""in"" name=""address""/>
+      <arg type=""b"" direction=""out"" name=""success""/>
+    </method>
+    <method name=""CloseWindow"">
+      <arg type=""s"" direction=""in"" name=""address""/>
+      <arg type=""b"" direction=""out"" name=""success""/>
+    </method>
+    <method name=""MoveActiveWindow"">
+      <arg type=""i"" direction=""in"" name=""x""/>
+      <arg type=""i"" direction=""in"" name=""y""/>
+      <arg type=""b"" direction=""out"" name=""success""/>
+    </method>
+    <method name=""ResizeActiveWindow"">
+      <arg type=""i"" direction=""in"" name=""width""/>
+      <arg type=""i"" direction=""in"" name=""height""/>
+      <arg type=""b"" direction=""out"" name=""success""/>
+    </method>
+    <method name=""MaximizeActiveWindow"">
+      <arg type=""b"" direction=""out"" name=""success""/>
+    </method>
+    <method name=""FullscreenActiveWindow"">
+      <arg type=""b"" direction=""out"" name=""success""/>
+    </method>
+    <method name=""CenterActiveWindow"">
+      <arg type=""b"" direction=""out"" name=""success""/>
+    </method>
+    <method name=""GetActiveWorkspace"">
+      <arg type=""s"" direction=""out"" name=""name""/>
+    </method>
+    <method name=""SwitchWorkspace"">
+      <arg type=""s"" direction=""in"" name=""name""/>
+      <arg type=""b"" direction=""out"" name=""success""/>
+    </method>
+    <method name=""MoveActiveWindowToWorkspace"">
+      <arg type=""s"" direction=""in"" name=""name""/>
+      <arg type=""b"" direction=""out"" name=""success""/>
+    </method>
+    <method name=""MoveWindowToWorkspaceByAddress"">
+      <arg type=""s"" direction=""in"" name=""address""/>
+      <arg type=""s"" direction=""in"" name=""name""/>
+      <arg type=""b"" direction=""out"" name=""success""/>
+    </method>
   </interface>
 </node>`;
 
-export default class CursorSpyExtension extends Extension {
+export default class CrossMacroExtension extends Extension {
     enable() {
         this._dbusImpl = Gio.DBusExportedObject.wrapJSObject(MouseInterface, this);
         this._dbusImpl.export(Gio.DBus.session, '/io/github/alper_han/crossmacro/Tracker');
@@ -52,8 +102,6 @@ export default class CursorSpyExtension extends Extension {
             null,
             null
         );
-
-        console.log('CursorSpyExtension enabled');
     }
 
     disable() {
@@ -61,7 +109,6 @@ export default class CursorSpyExtension extends Extension {
             this._dbusImpl.unexport();
             this._dbusImpl = null;
         }
-        console.log('CursorSpyExtension disabled');
     }
 
     GetPosition() {
@@ -70,11 +117,8 @@ export default class CursorSpyExtension extends Extension {
     }
 
     GetResolution() {
-        // Use global.stage to get the full desktop dimensions (all monitors combined)
-        // This ensures the virtual mouse maps 1:1 to the coordinate space used by GetPosition
         let width = global.stage.get_width();
         let height = global.stage.get_height();
-        console.log(`CursorSpyExtension: GetResolution called, returning ${width}x${height}`);
         return [width, height];
     }
 
@@ -93,16 +137,221 @@ export default class CursorSpyExtension extends Extension {
             let base64 = GLib.base64_encode(pixels);
             return [base64, pixbuf.get_rowstride(), pixbuf.get_has_alpha()];
         } catch (error) {
-            console.error('CursorSpyExtension: CaptureArea failed:', error);
+            console.error('CrossMacroExtension: CaptureArea failed:', error);
             throw error;
         }
     }
-}
-";
+
+    _listWindows() {
+        return global.get_window_actors()
+            .map(a => a.meta_window)
+            .filter(w => w && !w.is_override_redirect() && w.get_window_type() !== Meta.WindowType.DESKTOP);
+    }
+    
+    _windowToJson(w) {
+        if (!w) return null;
+        let rect = w.get_frame_rect();
+        let ws = w.get_workspace();
+        
+        let isMax = false;
+        if (w.get_maximized) {
+            isMax = w.get_maximized() === 3;
+        } else if (w.is_maximized) {
+            isMax = w.is_maximized();
+        } else {
+            isMax = w.maximized_horizontally && w.maximized_vertically;
+        }
+
+        let title = """";
+        try { title = w.get_title() || """"; } catch(e) {}
+        
+        let wmClass = """";
+        try { wmClass = w.get_wm_class_instance() || w.get_wm_class() || """"; } catch(e) {}
+
+        return {
+            Address: w.get_id().toString(),
+            IsMaximized: isMax,
+            Title: title,
+            Class: wmClass,
+            Pid: w.get_pid() || 0,
+            Workspace: ws ? ws.index().toString() : """",
+            IsFocused: w.has_focus(),
+            IsFullscreen: w.is_fullscreen(),
+            IsFloating: true,
+            IsPinned: w.is_on_all_workspaces(),
+            IsHidden: w.minimized,
+            X: rect.x,
+            Y: rect.y,
+            Width: rect.width,
+            Height: rect.height
+        };
+    }
+
+    GetWindows() {
+        let wins = this._listWindows().map(w => this._windowToJson(w)).filter(w => w !== null);
+        return JSON.stringify(wins);
+    }
+
+    GetActiveWindow() {
+        let w = global.display.focus_window;
+        return w ? JSON.stringify(this._windowToJson(w)) : ""null"";
+    }
+
+    FocusWindow(address) {
+        let id = Number(address);
+        let w = this._listWindows().find(win => win.get_id() === id);
+        if (w) {
+            if (w.minimized && typeof w.unminimize === 'function') w.unminimize();
+            w.activate(global.get_current_time());
+            return true;
+        }
+        return false;
+    }
+
+    CloseWindow(address) {
+        let id = Number(address);
+        let w = this._listWindows().find(win => win.get_id() === id);
+        if (w) {
+            w.delete(global.get_current_time());
+            return true;
+        }
+        return false;
+    }
+    
+    MoveActiveWindow(x, y) {
+        let w = global.display.focus_window;
+        if (w) {
+            let rect = w.get_frame_rect();
+            w.move_resize_frame(true, x, y, rect.width, rect.height);
+            return true;
+        }
+        return false;
+    }
+
+    ResizeActiveWindow(width, height) {
+        let w = global.display.focus_window;
+        if (w) {
+            let rect = w.get_frame_rect();
+            w.move_resize_frame(true, rect.x, rect.y, width, height);
+            return true;
+        }
+        return false;
+    }
+
+    MaximizeActiveWindow() {
+        let w = global.display.focus_window;
+        if (w) {
+            let isMax = false;
+            if (w.get_maximized) {
+                isMax = w.get_maximized() === 3;
+            } else if (w.is_maximized) {
+                isMax = w.is_maximized();
+            } else {
+                isMax = w.maximized_horizontally && w.maximized_vertically;
+            }
+
+            if (isMax) {
+                if (w.unmaximize) {
+                    if (w.unmaximize.length === 0) {
+                        w.unmaximize();
+                    } else {
+                        w.unmaximize(3);
+                    }
+                }
+            } else {
+                if (w.maximize) {
+                    if (w.maximize.length === 0) {
+                        w.maximize();
+                    } else {
+                        w.maximize(3);
+                    }
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    FullscreenActiveWindow() {
+        let w = global.display.focus_window;
+        if (w) {
+            if (w.is_fullscreen()) {
+                w.unmake_fullscreen();
+            } else {
+                w.make_fullscreen();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    CenterActiveWindow() {
+        let w = global.display.focus_window;
+        if (w) {
+            let monitorIndex = w.get_monitor();
+            let ws = w.get_workspace();
+            let workArea;
+            if (ws && ws.get_work_area_for_monitor) {
+                workArea = ws.get_work_area_for_monitor(monitorIndex);
+            } else {
+                workArea = global.display.get_monitor_geometry(monitorIndex);
+            }
+            
+            let rect = w.get_frame_rect();
+            let targetX = workArea.x + Math.floor((workArea.width - rect.width) / 2);
+            let targetY = workArea.y + Math.floor((workArea.height - rect.height) / 2);
+            
+            w.move_resize_frame(true, targetX, targetY, rect.width, rect.height);
+            return true;
+        }
+        return false;
+    }
+
+    GetActiveWorkspace() {
+        let ws = global.workspace_manager.get_active_workspace();
+        return ws ? ws.index().toString() : """";
+    }
+
+    SwitchWorkspace(name) {
+        let index = Number(name);
+        if (isNaN(index)) return false;
+        let ws = global.workspace_manager.get_workspace_by_index(index);
+        if (ws) {
+            ws.activate(global.get_current_time());
+            return true;
+        }
+        return false;
+    }
+
+    MoveActiveWindowToWorkspace(name) {
+        let index = Number(name);
+        if (isNaN(index)) return false;
+        let w = global.display.focus_window;
+        let ws = global.workspace_manager.get_workspace_by_index(index);
+        if (w && ws) {
+            w.change_workspace(ws);
+            return true;
+        }
+        return false;
+    }
+
+    MoveWindowToWorkspaceByAddress(address, name) {
+        let id = Number(address);
+        let index = Number(name);
+        if (isNaN(index)) return false;
+        let w = this._listWindows().find(win => win.get_id() === id);
+        let ws = global.workspace_manager.get_workspace_by_index(index);
+        if (w && ws) {
+            w.change_workspace(ws);
+            return true;
+        }
+        return false;
+    }
+}";
 
         private const string METADATA_JSON = @"{
-  ""name"": ""Cursor Spy"",
-  ""description"": ""Exposes cursor position via DBus"",
+  ""name"": ""CrossMacro Integration"",
+  ""description"": ""Window management, screen capture, and cursor tracking for CrossMacro"",
   ""uuid"": ""crossmacro@zynix.net"",
   ""shell-version"": [ ""45"", ""46"", ""47"", ""48"", ""49"", ""50"", ""51"" ]
 }

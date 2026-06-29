@@ -44,6 +44,8 @@ public interface IWindowMutationService
 
     /// <summary>Toggles fullscreen on the currently active window.</summary>
     Task<bool> FullscreenActiveWindowAsync(CancellationToken cancellationToken = default);
+    /// <summary>Toggles maximized state on the currently active window.</summary>
+    Task<bool> MaximizeActiveWindowAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Toggles floating mode on the currently active window.</summary>
     Task<bool> FloatActiveWindowAsync(CancellationToken cancellationToken = default);

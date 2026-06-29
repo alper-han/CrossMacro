@@ -6,9 +6,6 @@ using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
 
-/// <summary>
-/// No-op window manager used on platforms that do not support window management.
-/// </summary>
 public sealed class NullWindowManager : IWindowManager
 {
     private static void WarnUnsupported(string operation) =>
@@ -56,7 +53,6 @@ public sealed class NullWindowManager : IWindowManager
         return Task.FromResult(false);
     }
 
-
     public Task<bool> MoveActiveWindowAsync(int x, int y, CancellationToken cancellationToken = default)
     {
         WarnUnsupported(nameof(MoveActiveWindowAsync));
@@ -66,6 +62,12 @@ public sealed class NullWindowManager : IWindowManager
     public Task<bool> ResizeActiveWindowAsync(int width, int height, CancellationToken cancellationToken = default)
     {
         WarnUnsupported(nameof(ResizeActiveWindowAsync));
+        return Task.FromResult(false);
+    }
+
+    public Task<bool> MaximizeActiveWindowAsync(CancellationToken cancellationToken = default)
+    {
+        WarnUnsupported(nameof(MaximizeActiveWindowAsync));
         return Task.FromResult(false);
     }
 

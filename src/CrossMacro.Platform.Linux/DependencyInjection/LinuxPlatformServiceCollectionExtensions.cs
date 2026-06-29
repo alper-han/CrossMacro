@@ -93,9 +93,16 @@ internal static class LinuxPlatformServiceCollectionExtensions
                 return new HyprlandWindowManager(ipcClient);
 
             var desktop = System.Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP");
-            if (desktop != null && desktop.Contains("KDE", System.StringComparison.OrdinalIgnoreCase))
+            if (desktop != null)
             {
-                return new DisplayServer.Wayland.KdeWindowManager();
+                if (desktop.Contains("KDE", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return new DisplayServer.Wayland.KdeWindowManager();
+                }
+                if (desktop.Contains("GNOME", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return new DisplayServer.Wayland.GnomeWindowManager();
+                }
             }
 
             return new NullWindowManager();

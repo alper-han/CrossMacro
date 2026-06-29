@@ -3,7 +3,9 @@ using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Infrastructure.Services.Recording.Strategies;
 using CrossMacro.Packaging.Abstractions;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Abstractions.Diagnostics;
+using CrossMacro.Platform.Linux.DisplayServer;
 using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 using CrossMacro.Platform.Linux.DisplayServer.X11;
 using CrossMacro.Platform.Linux.Ipc;
@@ -81,6 +83,17 @@ internal static class LinuxPlatformServiceCollectionExtensions
         services.AddSingleton<IEnvironmentInfoProvider, LinuxEnvironmentInfoProvider>();
         services.AddSingleton<IMousePositionProvider>(sp =>
             sp.GetRequiredService<LinuxPositionProviderFactory>().Create());
+
+        // Window manager: Hyprland when available, NullWindowManager otherwise
+        services.AddSingleton<HyprlandIpcClient>();
+        services.AddSingleton<IWindowManager>(sp =>
+        {
+            var ipcClient = sp.GetRequiredService<HyprlandIpcClient>();
+            if (ipcClient.IsAvailable)
+                return new HyprlandWindowManager(ipcClient);
+
+            return new NullWindowManager();
+        });
 
         services.AddSingleton<IExtensionStatusNotifier>(sp =>
         {

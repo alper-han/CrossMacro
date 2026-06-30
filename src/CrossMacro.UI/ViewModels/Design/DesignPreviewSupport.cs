@@ -684,6 +684,7 @@ internal sealed class DesignMacroRecorder : IMacroRecorder
 
 internal sealed class DesignMacroPlayer : IMacroPlayer
 {
+    public bool IsPlaying { get; private set; }
     public bool IsPaused { get; private set; }
 
     public int CurrentLoop { get; private set; }

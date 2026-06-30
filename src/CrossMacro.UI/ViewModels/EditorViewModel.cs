@@ -9,6 +9,7 @@ using CrossMacro.Core.Services;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
+using CrossMacro.UI.Icons;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -58,6 +59,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private readonly ILocalizationService _localizationService;
     private readonly EditorActionDisplayFormatter _actionDisplayFormatter;
     private readonly IScreenPixelReader? _screenPixelReader;
+    private readonly IMacroPlayer _macroPlayer;
 
     private readonly Stack<List<EditorAction>> _undoStack = new(UndoStackLimit);
     private readonly Stack<List<EditorAction>> _redoStack = new(UndoStackLimit);
@@ -126,6 +128,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         IMacroFileManager fileManager,
         IDialogService dialogService,
         IKeyCodeMapper keyCodeMapper,
+        IMacroPlayer macroPlayer,
         ILocalizationService? localizationService = null,
         EditorActionDisplayFormatter? actionDisplayFormatter = null,
         IScreenPixelReader? screenPixelReader = null)
@@ -139,6 +142,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         _localizationService = localizationService ?? new LocalizationService();
         _actionDisplayFormatter = actionDisplayFormatter ?? new EditorActionDisplayFormatter(_localizationService);
         _screenPixelReader = screenPixelReader;
+        _macroPlayer = macroPlayer ?? throw new ArgumentNullException(nameof(macroPlayer));
         _macroName = _localizationService["Editor_DefaultMacroName"];
         _status = BuildStatus(EditorStatusKind.Ready);
 
@@ -416,6 +420,25 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public bool IsCapturingConditionRightColor => _captureMode == EditorCaptureMode.ConditionRightColor;
     public bool IsCapturingPixelSearchTopLeft => _captureMode == EditorCaptureMode.PixelSearchTopLeft;
     public bool IsCapturingPixelSearchBottomRight => _captureMode == EditorCaptureMode.PixelSearchBottomRight;
+
+    private bool _isRunningTest;
+    public bool IsRunningTest
+    {
+        get => _isRunningTest;
+        private set
+        {
+            if (_isRunningTest != value)
+            {
+                _isRunningTest = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(RunIcon));
+                OnPropertyChanged(nameof(RunText));
+            }
+        }
+    }
+
+    public AppIcon RunIcon => IsRunningTest ? AppIcon.Stop : AppIcon.Play;
+    public string RunText => IsRunningTest ? Localize("Editor_StopTest") : Localize("Editor_RunTest");
 
     public bool CanUndo => _undoStack.Count > 0;
     public bool CanRedo => _redoStack.Count > 0;

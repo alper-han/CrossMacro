@@ -34,6 +34,7 @@ public class EditorViewModelIntegrationTests
             Substitute.For<IMacroFileManager>(),
             Substitute.For<IDialogService>(),
             keyCodeMapper,
+            Substitute.For<CrossMacro.Core.Services.IMacroPlayer>(),
             localizationService,
             new EditorActionDisplayFormatter(localizationService));
 
@@ -78,6 +79,7 @@ public class EditorViewModelIntegrationTests
             Substitute.For<IMacroFileManager>(),
             Substitute.For<IDialogService>(),
             keyCodeMapper,
+            Substitute.For<CrossMacro.Core.Services.IMacroPlayer>(),
             localizationService,
             new EditorActionDisplayFormatter(localizationService));
         var sequence = new MacroSequence

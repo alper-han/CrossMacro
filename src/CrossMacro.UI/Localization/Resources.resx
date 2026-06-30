@@ -1680,4 +1680,22 @@
   <data name="Editor_SelectedActionsFormat" xml:space="preserve">
     <value>{0} selected</value>
   </data>
+  <data name="Editor_RunTest" xml:space="preserve">
+    <value>Run Test</value>
+  </data>
+  <data name="Editor_StopTest" xml:space="preserve">
+    <value>Stop Test</value>
+  </data>
+  <data name="Editor_StatusTestRunning" xml:space="preserve">
+    <value>Test playback running...</value>
+  </data>
+  <data name="Editor_StatusTestComplete" xml:space="preserve">
+    <value>Test playback completed successfully.</value>
+  </data>
+  <data name="Editor_StatusTestCancelled" xml:space="preserve">
+    <value>Test playback stopped.</value>
+  </data>
+  <data name="Editor_StatusTestError" xml:space="preserve">
+    <value>Test error: {0}</value>
+  </data>
 </root>

@@ -448,12 +448,12 @@ public partial class EditorViewModel
         Status = Localize("Editor_StatusCaptureCancelled");
     }
 
-    public async Task SaveMacroAsync()
+private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
     {
         if (Actions.Count == 0)
         {
             await _dialogService.ShowMessageAsync(Localize("Editor_DialogTitleNoActions"), Localize("Editor_DialogMessageNoActions"));
-            return;
+            return null;
         }
 
         var normalizedActions = CloneState(Actions);
@@ -465,8 +465,73 @@ public partial class EditorViewModel
             var errorMessage = $"{Localize("Editor_ValidationErrorHeader")}\n\n{string.Join("\n", errors.Select(error => $"• {error}"))}";
             await _dialogService.ShowMessageAsync(Localize("Editor_DialogTitleValidationErrors"), errorMessage);
             Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusValidationFailed"), errors.Count);
+            return null;
+        }
+
+        var firstCoordinateAction = normalizedActions.FirstOrDefault(action =>
+            UsesCoordinateFields(action.Type) && !IsCurrentPositionMouseButtonAction(action));
+        var isAbsolute = firstCoordinateAction?.IsAbsolute ?? false;
+        var skipInitialZeroZero = _skipInitialZeroZero || RequiresSkipInitialZeroZero;
+        if (_skipInitialZeroZero != skipInitialZeroZero)
+        {
+            _skipInitialZeroZero = skipInitialZeroZero;
+            OnPropertyChanged(nameof(SkipInitialZeroZero));
+        }
+
+        return _converter.ToMacroSequence(normalizedActions, MacroName, isAbsolute, skipInitialZeroZero);
+    }
+
+
+    private CancellationTokenSource? _testPlaybackCts;
+
+    public async Task ToggleTestPlaybackAsync()
+    {
+        if (IsRunningTest)
+        {
+            _testPlaybackCts?.Cancel();
+            _macroPlayer.Stop();
             return;
         }
+
+        if (_macroPlayer.IsPlaying)
+        {
+            Status = Localize("Editor_StatusOperationBlocked");
+            return;
+        }
+
+        var sequence = await BuildValidMacroSequenceAsync();
+        if (sequence == null)
+            return;
+
+        IsRunningTest = true;
+        Status = Localize("Editor_StatusTestRunning");
+        _testPlaybackCts = new CancellationTokenSource();
+        try
+        {
+            var options = new CrossMacro.Core.Models.PlaybackOptions { Loop = false, RepeatCount = 1 };
+            await _macroPlayer.PlayAsync(sequence, options, _testPlaybackCts.Token);
+            if (!_testPlaybackCts.IsCancellationRequested)
+                Status = Localize("Editor_StatusTestComplete");
+            else
+                Status = Localize("Editor_StatusTestCancelled");
+        }
+        catch (Exception ex)
+        {
+            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusTestError"), ex.Message);
+        }
+        finally
+        {
+            IsRunningTest = false;
+            _testPlaybackCts?.Dispose();
+            _testPlaybackCts = null;
+        }
+    }
+
+    public async Task SaveMacroAsync()
+    {
+        var sequence = await BuildValidMacroSequenceAsync();
+        if (sequence == null)
+            return;
 
         try
         {
@@ -486,17 +551,6 @@ public partial class EditorViewModel
                 return;
             }
 
-            var firstCoordinateAction = normalizedActions.FirstOrDefault(action =>
-                UsesCoordinateFields(action.Type) && !IsCurrentPositionMouseButtonAction(action));
-            var isAbsolute = firstCoordinateAction?.IsAbsolute ?? false;
-            var skipInitialZeroZero = _skipInitialZeroZero || RequiresSkipInitialZeroZero;
-            if (_skipInitialZeroZero != skipInitialZeroZero)
-            {
-                _skipInitialZeroZero = skipInitialZeroZero;
-                OnPropertyChanged(nameof(SkipInitialZeroZero));
-            }
-
-            var sequence = _converter.ToMacroSequence(normalizedActions, MacroName, isAbsolute, skipInitialZeroZero);
             await _fileManager.SaveAsync(sequence, filePath);
 
             Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusSaved"), Path.GetFileName(filePath));

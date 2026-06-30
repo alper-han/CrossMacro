@@ -139,6 +139,7 @@ public sealed class DesignEditorViewModel : EditorViewModel
             context.MacroFileManager,
             context.DialogService,
             context.KeyCodeMapper,
+            context.MacroPlayer,
             context.LocalizationService,
             new CrossMacro.UI.Localization.EditorActionDisplayFormatter(context.LocalizationService))
     {

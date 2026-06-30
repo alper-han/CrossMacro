@@ -145,7 +145,7 @@ public class MainWindowViewModelTests
         var editorValidator = Substitute.For<IEditorActionValidator>();
         var captureService = Substitute.For<ICoordinateCaptureService>();
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
-        _editorViewModel = new EditorViewModel(editorConverter, editorValidator, captureService, _fileManager, dialogService, keyCodeMapper);
+        _editorViewModel = new EditorViewModel(editorConverter, editorValidator, captureService, _fileManager, dialogService, keyCodeMapper, Substitute.For<CrossMacro.Core.Services.IMacroPlayer>());
 
         _viewModel = new MainWindowViewModel(
             _recordingViewModel,
@@ -972,7 +972,7 @@ public class MainWindowViewModelTests
         var editorValidator = Substitute.For<IEditorActionValidator>();
         var captureService = Substitute.For<ICoordinateCaptureService>();
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
-        var editorViewModel = new EditorViewModel(editorConverter, editorValidator, captureService, fileManager, dialogService, keyCodeMapper);
+        var editorViewModel = new EditorViewModel(editorConverter, editorValidator, captureService, fileManager, dialogService, keyCodeMapper, Substitute.For<CrossMacro.Core.Services.IMacroPlayer>());
 
         return new MainWindowViewModel(
             recordingViewModel,

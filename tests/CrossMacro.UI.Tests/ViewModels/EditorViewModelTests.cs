@@ -73,6 +73,7 @@ public class EditorViewModelTests
     private readonly IKeyCodeMapper _keyCodeMapper;
     private readonly ILocalizationService _localizationService;
     private readonly IScreenPixelReader _screenPixelReader;
+    private readonly IMacroPlayer _macroPlayer;
     private readonly EditorViewModel _viewModel;
 
     public EditorViewModelTests()
@@ -85,6 +86,7 @@ public class EditorViewModelTests
         _keyCodeMapper = Substitute.For<IKeyCodeMapper>();
         _localizationService = Substitute.For<ILocalizationService>();
         _screenPixelReader = Substitute.For<IScreenPixelReader>();
+        _macroPlayer = Substitute.For<IMacroPlayer>();
         _keyCodeMapper.GetKeyName(Arg.Any<int>()).Returns("A");
         _screenPixelReader.IsSupported.Returns(true);
         _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.InvariantCulture);
@@ -145,6 +147,7 @@ public class EditorViewModelTests
             _fileManager,
             _dialogService,
             _keyCodeMapper,
+            _macroPlayer,
             _localizationService,
             new EditorActionDisplayFormatter(_localizationService),
             _screenPixelReader);

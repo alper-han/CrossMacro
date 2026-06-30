@@ -13,6 +13,8 @@ public interface IMacroPlayer : IDisposable
     /// <summary>
     /// Whether playback is currently active
     /// </summary>
+    bool IsPlaying { get; }
+
     /// <summary>
     /// Whether playback is currently paused
     /// </summary>

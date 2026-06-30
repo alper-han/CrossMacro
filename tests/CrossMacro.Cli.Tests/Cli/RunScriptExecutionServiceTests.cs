@@ -919,6 +919,7 @@ public class RunScriptExecutionServiceTests
             RuntimeVariables = runtimeVariables;
         }
 
+        public bool IsPlaying => false;
         public bool IsPaused => false;
 
         public int CurrentLoop => 0;

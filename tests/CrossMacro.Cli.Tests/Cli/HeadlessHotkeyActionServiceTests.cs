@@ -654,6 +654,7 @@ public class HeadlessHotkeyActionServiceTests
         public AsyncSignal PlayCompleted { get; } = new();
         public bool DisposeCalled { get; private set; }
 
+        public bool IsPlaying => false;
         public bool IsPaused => false;
         public int CurrentLoop => 1;
         public int TotalLoops => 1;
@@ -704,6 +705,7 @@ public class HeadlessHotkeyActionServiceTests
         public AsyncSignal PlayCompleted { get; } = new();
         public bool DisposeCalled { get; private set; }
 
+        public bool IsPlaying => false;
         public bool IsPaused => false;
         public int CurrentLoop => 1;
         public int TotalLoops => 1;

@@ -18,17 +18,98 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
 
     public KWinScreenShotSupportResult ProbeSupport()
     {
-        try
+        bool isAppImageKde = IsAppImageKdeEnvironment();
+        if (isAppImageKde)
+        {
+            EnsureAppImageKdeDesktopFile();
+        }
+
+        bool isFlatpak = File.Exists("/.flatpak-info");
+        bool isKde = isAppImageKde || IsKdeEnvironment();
+        
+        int maxRetries;
+        if (isFlatpak) maxRetries = 1;
+        else if (isAppImageKde) maxRetries = 20;
+        else if (isKde) maxRetries = 6;
+        else maxRetries = 1;
+        
+        int delayMs = 500;
+
+        for (int i = 0; i < maxRetries; i++)
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
             var result = CaptureAreaCoreAsync(ProbeRegion, new ScreenReadOptions(cancellationToken: cts.Token)).GetAwaiter().GetResult();
-            return result.IsSuccess
-                ? KWinScreenShotSupportResult.Supported()
-                : KWinScreenShotSupportResult.Failure(result.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable, result.ErrorMessage ?? "KWin ScreenShot2 is unavailable.");
+            
+            if (result.IsSuccess)
+            {
+                return KWinScreenShotSupportResult.Supported();
+            }
+
+            if (isKde && result.ErrorKind != ScreenReadErrorKind.CaptureTimeout && i < maxRetries - 1)
+            {
+                Thread.Sleep(delayMs);
+                continue;
+            }
+
+            return KWinScreenShotSupportResult.Failure(result.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable, result.ErrorMessage ?? "KWin ScreenShot2 is unavailable.");
         }
-        catch (Exception ex) when (ex is InvalidOperationException or DBusErrorReplyException or TimeoutException or IOException or UnauthorizedAccessException)
+        
+        return KWinScreenShotSupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, "KWin ScreenShot2 is unavailable.");
+    }
+
+    private static bool IsKdeEnvironment()
+    {
+        return Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP")?.Contains("KDE", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private static bool IsAppImageKdeEnvironment()
+    {
+        var appImage = Environment.GetEnvironmentVariable("APPIMAGE");
+        var isKde = Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP")?.Contains("KDE", StringComparison.OrdinalIgnoreCase) == true;
+        return !string.IsNullOrEmpty(appImage) && isKde;
+    }
+
+    private static void EnsureAppImageKdeDesktopFile()
+    {
+        var currentExe = Environment.ProcessPath;
+        if (string.IsNullOrEmpty(currentExe))
         {
-            return KWinScreenShotSupportResult.Failure(MapException(ex), BuildErrorMessage(ex));
+            return;
+        }
+
+        try
+        {
+            var canonicalExe = File.ResolveLinkTarget("/proc/self/exe", true)?.FullName ?? currentExe;
+            var desktopDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "applications");
+            var desktopFile = System.IO.Path.Combine(desktopDir, "crossmacro-appimage-kwin.desktop");
+
+            Directory.CreateDirectory(desktopDir);
+
+            string desktopContent = $"""
+[Desktop Entry]
+Name=CrossMacro AppImage (Internal)
+Exec={canonicalExe}
+Type=Application
+NoDisplay=true
+X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
+""";
+
+            if (File.Exists(desktopFile))
+            {
+                var existingLines = File.ReadAllLines(desktopFile);
+                foreach (var line in existingLines)
+                {
+                    if (string.Equals(line, $"Exec={canonicalExe}", StringComparison.Ordinal))
+                    {
+                        return;
+                    }
+                }
+            }
+
+            File.WriteAllText(desktopFile, desktopContent);
+        }
+        catch
+        {
         }
     }
 
@@ -209,7 +290,10 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
 
     private static ScreenReadErrorKind MapException(Exception ex)
     {
-        if (ex is DBusErrorReplyException dbus && dbus.ErrorName.Contains("NoAuthorized", StringComparison.OrdinalIgnoreCase))
+        if (ex is DBusErrorReplyException dbus && 
+            (dbus.ErrorName.Contains("NoAuthorized", StringComparison.OrdinalIgnoreCase) || 
+             dbus.ErrorName.Contains("AccessDenied", StringComparison.OrdinalIgnoreCase) ||
+             dbus.ErrorMessage?.Contains("Not authorized", StringComparison.OrdinalIgnoreCase) == true))
         {
             return ScreenReadErrorKind.PermissionDenied;
         }
@@ -219,7 +303,10 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
 
     private static string BuildErrorMessage(Exception ex)
     {
-        if (ex is DBusErrorReplyException dbus && dbus.ErrorName.Contains("NoAuthorized", StringComparison.OrdinalIgnoreCase))
+        if (ex is DBusErrorReplyException dbus && 
+            (dbus.ErrorName.Contains("NoAuthorized", StringComparison.OrdinalIgnoreCase) || 
+             dbus.ErrorName.Contains("AccessDenied", StringComparison.OrdinalIgnoreCase) ||
+             dbus.ErrorMessage?.Contains("Not authorized", StringComparison.OrdinalIgnoreCase) == true))
         {
             return "KWin ScreenShot2 permission denied. Install a desktop entry for CrossMacro that includes X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2.";
         }

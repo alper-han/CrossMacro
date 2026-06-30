@@ -85,12 +85,17 @@ internal static class LinuxPlatformServiceCollectionExtensions
             sp.GetRequiredService<LinuxPositionProviderFactory>().Create());
 
         // Window manager: Hyprland or KDE when available, NullWindowManager otherwise
+        services.AddSingleton<INiriIpcClient, NiriIpcClient>();
         services.AddSingleton<HyprlandIpcClient>();
         services.AddSingleton<IWindowManager>(sp =>
         {
             var ipcClient = sp.GetRequiredService<HyprlandIpcClient>();
             if (ipcClient.IsAvailable)
                 return new HyprlandWindowManager(ipcClient);
+
+            var niriClient = sp.GetRequiredService<INiriIpcClient>();
+            if (niriClient.IsAvailable)
+                return new DisplayServer.Wayland.NiriWindowManager(niriClient);
 
             var desktop = System.Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP");
             if (desktop != null)

@@ -10,7 +10,7 @@ public class LinuxEnvironmentInfoProviderTests
     [InlineData(CompositorType.X11, DisplayEnvironment.LinuxX11, false)]
     [InlineData(CompositorType.HYPRLAND, DisplayEnvironment.LinuxHyprland, true)]
     [InlineData(CompositorType.WAYFIRE, DisplayEnvironment.LinuxWayfire, false)]
-    [InlineData(CompositorType.NIRI, DisplayEnvironment.LinuxWayland, false)]
+    [InlineData(CompositorType.NIRI, DisplayEnvironment.LinuxWayland, true)]
     [InlineData(CompositorType.COSMIC, DisplayEnvironment.LinuxWayland, false)]
     [InlineData(CompositorType.KDE, DisplayEnvironment.LinuxKDE, false)]
     [InlineData(CompositorType.GNOME, DisplayEnvironment.LinuxGnome, false)]
@@ -52,11 +52,15 @@ public class LinuxEnvironmentInfoProviderTests
         var hyprlandProvider = new LinuxEnvironmentInfoProvider(
             CompositorType.HYPRLAND,
             _ => null);
+        var niriProvider = new LinuxEnvironmentInfoProvider(
+            CompositorType.NIRI,
+            _ => null);
         var x11Provider = new LinuxEnvironmentInfoProvider(
             CompositorType.X11,
             _ => null);
 
         Assert.True(hyprlandProvider.WindowManagerHandlesCloseButton);
+        Assert.True(niriProvider.WindowManagerHandlesCloseButton);
         Assert.False(x11Provider.WindowManagerHandlesCloseButton);
     }
 }

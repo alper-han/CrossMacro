@@ -83,8 +83,8 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
         CompositorType compositor,
         string? windowButtonsMode)
     {
-        // Default behavior: on Hyprland, let compositor title bar controls own close/minimize affordance.
-        var defaultValue = compositor == CompositorType.HYPRLAND;
+        // Default behavior: on tiling WMs like Hyprland and Niri, let compositor title bar controls own close/minimize affordance.
+        var defaultValue = compositor is CompositorType.HYPRLAND or CompositorType.NIRI;
 
         if (string.IsNullOrWhiteSpace(windowButtonsMode))
         {

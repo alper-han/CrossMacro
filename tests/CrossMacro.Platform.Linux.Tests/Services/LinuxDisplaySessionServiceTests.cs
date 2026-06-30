@@ -660,6 +660,7 @@ public sealed class LinuxDisplaySessionServiceTests
             HyprlandInstanceSignature: null,
             RuntimeDir: null,
             WayfireSocket: null,
+            SwaySocket: null,
             WindowButtons: null);
     }
 

@@ -70,6 +70,9 @@ namespace CrossMacro.Platform.Linux.DisplayServer
                 _ when desktopIdentity.Contains("COSMIC") =>
                     LogAndReturn(CompositorType.COSMIC, "COSMIC"),
 
+                var desktop when desktop.Contains("SWAY") || !string.IsNullOrWhiteSpace(environment.SwaySocket) =>
+                    LogAndReturn(CompositorType.SWAY, "Sway"),
+
                 "KDE" =>
                     LogAndReturn(CompositorType.KDE, "KDE Plasma"),
 

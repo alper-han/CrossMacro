@@ -28,6 +28,7 @@ public sealed class LinuxEnvironmentVariables : ILinuxEnvironmentVariables
             HyprlandInstanceSignature: _getEnvironmentVariable("HYPRLAND_INSTANCE_SIGNATURE"),
             RuntimeDir: _getEnvironmentVariable("XDG_RUNTIME_DIR"),
             WayfireSocket: _getEnvironmentVariable("WAYFIRE_SOCKET"),
+            SwaySocket: _getEnvironmentVariable("SWAYSOCK"),
             WindowButtons: _getEnvironmentVariable("CROSSMACRO_WINDOW_BUTTONS"));
     }
 }

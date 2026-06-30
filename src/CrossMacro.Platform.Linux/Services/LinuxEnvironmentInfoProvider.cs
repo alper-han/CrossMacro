@@ -71,6 +71,7 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
         CompositorType.WAYFIRE => DisplayEnvironment.LinuxWayfire,
         CompositorType.NIRI => DisplayEnvironment.LinuxWayland,
         CompositorType.COSMIC => DisplayEnvironment.LinuxWayland,
+        CompositorType.SWAY => DisplayEnvironment.LinuxWayland,
         CompositorType.KDE => DisplayEnvironment.LinuxKDE,
         CompositorType.GNOME => DisplayEnvironment.LinuxGnome,
         CompositorType.Other => DisplayEnvironment.LinuxWayland,
@@ -83,8 +84,8 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
         CompositorType compositor,
         string? windowButtonsMode)
     {
-        // Default behavior: on tiling WMs like Hyprland and Niri, let compositor title bar controls own close/minimize affordance.
-        var defaultValue = compositor is CompositorType.HYPRLAND or CompositorType.NIRI;
+        // Default behavior: on tiling WMs like Hyprland, Sway, and Niri, let compositor title bar controls own close/minimize affordance.
+        var defaultValue = compositor is CompositorType.HYPRLAND or CompositorType.SWAY or CompositorType.NIRI;
 
         if (string.IsNullOrWhiteSpace(windowButtonsMode))
         {

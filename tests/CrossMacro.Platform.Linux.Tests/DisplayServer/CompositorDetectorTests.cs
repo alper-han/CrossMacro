@@ -64,6 +64,8 @@ public sealed class CompositorDetectorTests
     [InlineData("niri:GNOME", CompositorType.NIRI)]
     [InlineData("COSMIC", CompositorType.COSMIC)]
     [InlineData("pop:COSMIC", CompositorType.COSMIC)]
+    [InlineData("Sway", CompositorType.SWAY)]
+    [InlineData("sway", CompositorType.SWAY)]
     public void ClassifyFromEnvironment_WhenKnownWaylandDesktop_ReturnsCompositor(
         string currentDesktop,
         CompositorType expected)
@@ -81,6 +83,15 @@ public sealed class CompositorDetectorTests
             Snapshot(sessionType: "wayland", wayfireSocket: "/run/user/1000/wayfire.sock"));
 
         Assert.Equal(CompositorType.WAYFIRE, result);
+    }
+
+    [Fact]
+    public void ClassifyFromEnvironment_WhenSwaySocketIsSet_ReturnsSway()
+    {
+        var result = CompositorDetector.ClassifyFromEnvironment(
+            Snapshot(sessionType: "wayland", swaySocket: "/run/user/1000/sway-ipc.1234.sock"));
+
+        Assert.Equal(CompositorType.SWAY, result);
     }
 
     [Fact]
@@ -125,7 +136,8 @@ public sealed class CompositorDetectorTests
         string? display = null,
         string? currentDesktop = null,
         string? gdmSession = null,
-        string? wayfireSocket = null)
+        string? wayfireSocket = null,
+        string? swaySocket = null)
     {
         return new LinuxEnvironmentSnapshot(
             FlatpakId: null,
@@ -139,6 +151,7 @@ public sealed class CompositorDetectorTests
             HyprlandInstanceSignature: null,
             RuntimeDir: null,
             WayfireSocket: wayfireSocket,
+            SwaySocket: swaySocket,
             WindowButtons: null);
     }
 }

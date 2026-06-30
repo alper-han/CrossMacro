@@ -12,4 +12,5 @@ public readonly record struct LinuxEnvironmentSnapshot(
     string? HyprlandInstanceSignature,
     string? RuntimeDir,
     string? WayfireSocket,
+    string? SwaySocket,
     string? WindowButtons);

@@ -13,6 +13,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer
         COSMIC,
         KDE,
         GNOME,
+        SWAY,
         Other
     }
 }

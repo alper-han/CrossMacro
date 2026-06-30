@@ -84,14 +84,19 @@ internal static class LinuxPlatformServiceCollectionExtensions
         services.AddSingleton<IMousePositionProvider>(sp =>
             sp.GetRequiredService<LinuxPositionProviderFactory>().Create());
 
-        // Window manager: Hyprland or KDE when available, NullWindowManager otherwise
+        // Window manager: Hyprland, Sway, Niri or KDE/GNOME when available, NullWindowManager otherwise
         services.AddSingleton<INiriIpcClient, NiriIpcClient>();
+        services.AddSingleton<ISwayIpcClient, SwayIpcClient>();
         services.AddSingleton<HyprlandIpcClient>();
         services.AddSingleton<IWindowManager>(sp =>
         {
             var ipcClient = sp.GetRequiredService<HyprlandIpcClient>();
             if (ipcClient.IsAvailable)
                 return new HyprlandWindowManager(ipcClient);
+
+            var swayClient = sp.GetRequiredService<ISwayIpcClient>();
+            if (swayClient.IsAvailable)
+                return new DisplayServer.Wayland.SwayWindowManager(swayClient);
 
             var niriClient = sp.GetRequiredService<INiriIpcClient>();
             if (niriClient.IsAvailable)
@@ -230,6 +235,7 @@ internal static class LinuxPlatformServiceCollectionExtensions
         services.AddSingleton<IPositionProviderSelector, WayfirePositionProviderSelector>();
         services.AddSingleton<IPositionProviderSelector, NiriPositionProviderSelector>();
         services.AddSingleton<IPositionProviderSelector, CosmicPositionProviderSelector>();
+        services.AddSingleton<IPositionProviderSelector, SwayPositionProviderSelector>();
     }
 
     internal static void AddLinuxCoordinateStrategy(this IServiceCollection services)

@@ -26,6 +26,7 @@ internal sealed class RunScriptRuntimeExecutor
     private readonly IDictionary<string, string> _runtimeVariables;
     private readonly RunScriptScreenReadExecutor _screenReadExecutor;
     private readonly RunScriptWindowExecutor _windowExecutor;
+    private readonly RunScriptClipboardExecutor _clipboardExecutor;
 
     public RunScriptRuntimeExecutor(
         IKeyCodeMapper keyCodeMapper,
@@ -33,7 +34,8 @@ internal sealed class RunScriptRuntimeExecutor
         IPlaybackPauseToken pauseToken,
         IDictionary<string, string> runtimeVariables,
         RunScriptScreenReadExecutor screenReadExecutor,
-        RunScriptWindowExecutor windowExecutor)
+        RunScriptWindowExecutor windowExecutor,
+        RunScriptClipboardExecutor clipboardExecutor)
     {
         _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
         _timingService = timingService ?? throw new ArgumentNullException(nameof(timingService));
@@ -41,6 +43,7 @@ internal sealed class RunScriptRuntimeExecutor
         _runtimeVariables = runtimeVariables ?? throw new ArgumentNullException(nameof(runtimeVariables));
         _screenReadExecutor = screenReadExecutor ?? throw new ArgumentNullException(nameof(screenReadExecutor));
         _windowExecutor = windowExecutor ?? throw new ArgumentNullException(nameof(windowExecutor));
+        _clipboardExecutor = clipboardExecutor ?? throw new ArgumentNullException(nameof(clipboardExecutor));
     }
 
     public async Task ExecuteAsync(RunScriptRuntimeExecutionRequest request, CancellationToken cancellationToken)
@@ -223,6 +226,12 @@ internal sealed class RunScriptRuntimeExecutor
             return;
         }
 
+        if (RunScriptSyntax.IsClipboardStep(step))
+        {
+            await _clipboardExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken);
+            return;
+        }
+
         if (TryParseDelayCommand(step, out var delayMs, request))
         {
             if (delayMs > 0)
@@ -277,7 +286,7 @@ internal sealed class RunScriptRuntimeExecutor
                 value = parts[1];
             }
 
-            EnsureValidVariableName(variableName);
+            RunScriptRuntimeText.EnsureValidVariableName(variableName);
             _runtimeVariables[variableName] = ResolveVariables(value);
             return true;
         }
@@ -294,7 +303,7 @@ internal sealed class RunScriptRuntimeExecutor
             }
 
             var variableName = parts[0];
-            EnsureValidVariableName(variableName);
+            RunScriptRuntimeText.EnsureValidVariableName(variableName);
             if (!_runtimeVariables.TryGetValue(variableName, out var existingValue)
                 || !int.TryParse(existingValue, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var existingInt))
             {
@@ -403,7 +412,7 @@ internal sealed class RunScriptRuntimeExecutor
         }
 
         variableName = parts[1];
-        EnsureValidVariableName(variableName);
+        RunScriptRuntimeText.EnsureValidVariableName(variableName);
         if (!string.Equals(parts[2], "from", StringComparison.OrdinalIgnoreCase)
             || !string.Equals(parts[4], "to", StringComparison.OrdinalIgnoreCase))
         {
@@ -511,7 +520,7 @@ internal sealed class RunScriptRuntimeExecutor
         if (token.StartsWith('$'))
         {
             var variableName = token[1..];
-            EnsureValidVariableName(variableName);
+            RunScriptRuntimeText.EnsureValidVariableName(variableName);
             if (!_runtimeVariables.TryGetValue(variableName, out var value))
             {
                 throw new InvalidOperationException($"Unknown variable '${variableName}'.");
@@ -525,40 +534,7 @@ internal sealed class RunScriptRuntimeExecutor
 
     private string ResolveVariables(string input)
     {
-        var output = new System.Text.StringBuilder(input.Length);
-        for (var i = 0; i < input.Length; i++)
-        {
-            if (input[i] != '$')
-            {
-                output.Append(input[i]);
-                continue;
-            }
-
-            if (i + 1 < input.Length && input[i + 1] == '$')
-            {
-                output.Append('$');
-                i++;
-                continue;
-            }
-
-            var j = i + 1;
-            while (j < input.Length && EditorActionScriptTokens.IsVariableNamePart(input[j]))
-            {
-                j++;
-            }
-
-            var variableName = input[(i + 1)..j];
-            EnsureValidVariableName(variableName);
-            if (!_runtimeVariables.TryGetValue(variableName, out var value))
-            {
-                throw new InvalidOperationException($"Unknown variable '${variableName}'.");
-            }
-
-            output.Append(value);
-            i = j - 1;
-        }
-
-        return output.ToString();
+        return RunScriptRuntimeText.ResolveVariables(input, _runtimeVariables);
     }
 
     private static bool ValuesEqual(string left, string right)
@@ -583,23 +559,8 @@ internal sealed class RunScriptRuntimeExecutor
         return string.Equals(left, right, StringComparison.Ordinal);
     }
 
-    private static void EnsureValidVariableName(string variableName)
-    {
-        if (!EditorActionScriptTokens.IsValidVariableName(variableName))
-        {
-            throw new InvalidOperationException($"Invalid variable name '{variableName}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*");
-        }
-    }
-
     private static string Unquote(string input)
     {
-        if (input.Length >= 2
-            && ((input[0] == '"' && input[^1] == '"')
-                || (input[0] == '\'' && input[^1] == '\'')))
-        {
-            return input[1..^1];
-        }
-
-        return input;
+        return RunScriptRuntimeText.Unquote(input);
     }
 }

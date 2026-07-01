@@ -19,6 +19,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
     private readonly IMousePositionProvider? _positionProvider;
     private readonly IScreenPixelReader? _screenPixelReader;
     private readonly IWindowManager? _windowManager;
+    private readonly IClipboardService? _clipboardService;
     private readonly PlaybackValidator _validator;
     private readonly Func<IInputSimulator>? _inputSimulatorFactory;
     private readonly InputSimulatorPool? _simulatorPool;
@@ -132,11 +133,13 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         IPlaybackBehaviorPolicy? playbackBehaviorPolicy = null,
         IScreenPixelReader? screenPixelReader = null,
         IKeyCodeMapper? keyCodeMapper = null,
-        IWindowManager? windowManager = null)
+        IWindowManager? windowManager = null,
+        IClipboardService? clipboardService = null)
     {
         _positionProvider = positionProvider;
         _screenPixelReader = screenPixelReader;
         _windowManager = windowManager;
+        _clipboardService = clipboardService;
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
         _inputSimulatorFactory = inputSimulatorFactory;
         _simulatorPool = simulatorPool;
@@ -452,15 +455,17 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
             ObservedPauseResumeVersion = Volatile.Read(ref _pauseResumeVersion)
         };
         var playbackElapsedMilliseconds = _playbackElapsedMillisecondsFactory();
-        var screenReadExecutor = new RunScriptScreenReadExecutor(_screenPixelReader!, _positionProvider);
+        var screenReadExecutor = new RunScriptScreenReadExecutor(_screenPixelReader ?? NullScreenPixelReader.Instance, _positionProvider);
         var windowExecutor = new RunScriptWindowExecutor(_windowManager ?? new NullWindowManager());
+        var clipboardExecutor = new RunScriptClipboardExecutor(_clipboardService);
         var runtimeExecutor = new RunScriptRuntimeExecutor(
             _keyCodeMapper,
             _timingService,
             this,
             _runtimeVariables,
             screenReadExecutor,
-            windowExecutor);
+            windowExecutor,
+            clipboardExecutor);
         var executionRequest = new RunScriptRuntimeExecutionRequest(
             macro.ScriptSteps,
             speedMultiplier,
@@ -701,7 +706,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (_screenPixelReader is null)
+        if (_screenPixelReader is null && HasScreenReadingScriptSteps(macro))
         {
             throw new InvalidOperationException("Screen-reading script steps require an IScreenPixelReader runtime service.");
         }
@@ -750,11 +755,14 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         }
     }
 
+    private static bool HasScreenReadingScriptSteps(MacroSequence macro)
+    {
+        return macro.ScriptSteps.Any(RunScriptScreenReadExecutor.IsScreenReadingStep);
+    }
+
     private static bool HasRuntimeScriptSteps(MacroSequence macro)
     {
-        return macro.ScriptSteps.Any(step =>
-            RunScriptScreenReadExecutor.IsScreenReadingStep(step)
-            || RunScriptSyntax.IsWindowStep(step));
+        return macro.ScriptSteps.Any(IsRuntimeScriptStep);
     }
 
     private static bool HasOnlyRuntimeScriptSteps(MacroSequence macro)
@@ -762,8 +770,12 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         return macro.ScriptSteps.Count > 0
             && macro.ScriptSteps
                 .Where(step => !string.IsNullOrWhiteSpace(step))
-                .All(step => RunScriptScreenReadExecutor.IsScreenReadingStep(step)
-                             || RunScriptSyntax.IsWindowStep(step));
+                .All(IsRuntimeScriptStep);
+    }
+
+    private static bool IsRuntimeScriptStep(string step)
+    {
+        return RunScriptRuntimeStepClassifier.IsRuntimeStep(step);
     }
 
     private static bool HasAbsoluteRuntimeScriptSteps(MacroSequence macro)

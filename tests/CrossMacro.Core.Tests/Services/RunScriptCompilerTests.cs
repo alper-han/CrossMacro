@@ -216,6 +216,26 @@ public class RunScriptCompilerTests
         result.ErrorMessage.Should().Contain("cannot map character '?' for type command");
     }
 
+    [Fact]
+    public void Compile_WhenClipboardGetIsWellFormed_PreservesScriptStep()
+    {
+        var result = _compiler.Compile([new RunScriptStep("clipboard get $clip")]);
+
+        result.Success.Should().BeTrue(result.ErrorMessage);
+        result.Sequence.Should().NotBeNull();
+        result.Sequence!.Events.Should().BeEmpty();
+        result.Sequence.ScriptSteps.Should().Equal("clipboard get $clip");
+    }
+
+    [Fact]
+    public void Compile_WhenClipboardGetHasExtraTokens_ReturnsFailure()
+    {
+        var result = _compiler.Compile([new RunScriptStep("clipboard get clip extra")]);
+
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("Syntax: clipboard get <var>");
+    }
+
     [Theory]
     [InlineData("pixelcolor 1 2")]
     [InlineData("pixelcolor 1 2 mycolor")]

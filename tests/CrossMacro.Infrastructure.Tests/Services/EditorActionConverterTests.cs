@@ -1130,7 +1130,7 @@ public class EditorActionConverterTests
     }
 
     [Fact]
-    public void ToMacroSequence_WhenOnlyStateScriptActions_ThrowsInvalidOperationException()
+    public void ToMacroSequence_WhenOnlyStateScriptActions_ProducesRuntimeOnlyScriptMacro()
     {
         // Arrange
         var actions = new[]
@@ -1145,11 +1145,11 @@ public class EditorActionConverterTests
         };
 
         // Act
-        Action act = () => _converter.ToMacroSequence(actions, "State Only Script", isAbsolute: false);
+        var sequence = _converter.ToMacroSequence(actions, "State Only Script", isAbsolute: false);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*did not produce any executable events*");
+        sequence.Events.Should().BeEmpty();
+        sequence.ScriptSteps.Should().ContainSingle().Which.Should().StartWith("set i");
     }
 
     [Fact]

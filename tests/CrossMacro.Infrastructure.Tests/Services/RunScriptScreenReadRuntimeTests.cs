@@ -1,4 +1,5 @@
 using CrossMacro.Core.Models;
+using CrossMacro.Core.Services;
 using CrossMacro.Core.Services.Playback;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Infrastructure.Services.Playback;
@@ -139,6 +140,64 @@ public sealed class RunScriptScreenReadRuntimeTests
             new ScreenPoint(10, 20),
             new ScreenPoint(10, 20),
             new ScreenPoint(10, 20));
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenRuntimeOnlyClipboardDelayAndVariables_DoesNotAcquireSimulator()
+    {
+        var timingService = new RecordingTimingService();
+        var clipboard = Substitute.For<IClipboardService>();
+        clipboard.IsSupported.Returns(true);
+        clipboard.GetTextAsync(Arg.Any<CancellationToken>()).Returns("clipboard text");
+        using var player = CreatePlayer(
+            CreatePositionProvider((0, 0)),
+            new FakeScreenPixelReader(),
+            timingService: timingService,
+            inputSimulatorFactory: () => throw new InvalidOperationException("simulator should not be acquired"),
+            clipboardService: clipboard);
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            [
+                "clipboard set \"hello   spaced   world\"",
+                "delay 5",
+                "clipboard get $clip",
+                "set copied=$clip",
+                "clipboard set $copied"
+            ]
+        };
+
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        await clipboard.Received(1).SetTextAsync("hello   spaced   world", Arg.Any<CancellationToken>());
+        await clipboard.Received(1).SetTextAsync("clipboard text", Arg.Any<CancellationToken>());
+        timingService.WaitCalls.Should().ContainSingle().Which.Should().Be(5);
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenRuntimeOnlyControlFlow_DoesNotAcquireSimulator()
+    {
+        var clipboard = Substitute.For<IClipboardService>();
+        clipboard.IsSupported.Returns(true);
+        using var player = CreatePlayer(
+            CreatePositionProvider((0, 0)),
+            new FakeScreenPixelReader(),
+            inputSimulatorFactory: () => throw new InvalidOperationException("simulator should not be acquired"),
+            clipboardService: clipboard);
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            [
+                "set n=1",
+                "if $n == 1 {",
+                "clipboard set ok",
+                "}"
+            ]
+        };
+
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        await clipboard.Received(1).SetTextAsync("ok", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -916,26 +975,31 @@ public sealed class RunScriptScreenReadRuntimeTests
     }
 
     [Fact]
-    public async Task PlayAsync_WhenScriptStepsDoNotContainScreenReads_StillRejectsEmptyMacro()
+    public async Task PlayAsync_WhenRuntimeVariableOnlyScriptHasNoEvents_RunsWithoutSimulator()
     {
         var screenReader = new FakeScreenPixelReader();
-        using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
+        using var player = CreatePlayer(
+            CreatePositionProvider((0, 0)),
+            screenReader,
+            inputSimulatorFactory: () => throw new InvalidOperationException("simulator should not be acquired"));
         var macro = new MacroSequence
         {
             ScriptSteps = ["set c=123456"]
         };
 
-        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*validation failed: Macro is empty or null*");
+        var variables = ((IRunScriptRuntimeVariableSource)player).RuntimeVariables;
+        variables.Should().Contain("c", "123456");
     }
 
     private static MacroPlayer CreatePlayer(
         IMousePositionProvider positionProvider,
         IScreenPixelReader screenReader,
         IInputSimulator? inputSimulator = null,
-        IPlaybackTimingService? timingService = null)
+        IPlaybackTimingService? timingService = null,
+        Func<IInputSimulator>? inputSimulatorFactory = null,
+        IClipboardService? clipboardService = null)
     {
         var keyCodeMapper = CreateKeyCodeMapper();
         return new MacroPlayer(
@@ -943,9 +1007,10 @@ public sealed class RunScriptScreenReadRuntimeTests
             new PlaybackValidator(keyCodeMapper, positionProvider),
             timingService: timingService,
             playbackWaitAsync: (_, _) => Task.CompletedTask,
-            inputSimulatorFactory: () => inputSimulator ?? Substitute.For<IInputSimulator>(),
+            inputSimulatorFactory: inputSimulatorFactory ?? (() => inputSimulator ?? Substitute.For<IInputSimulator>()),
             screenPixelReader: screenReader,
-            keyCodeMapper: keyCodeMapper);
+            keyCodeMapper: keyCodeMapper,
+            clipboardService: clipboardService);
     }
 
     private static IKeyCodeMapper CreateKeyCodeMapper()

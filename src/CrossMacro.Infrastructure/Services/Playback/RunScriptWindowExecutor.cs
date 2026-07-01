@@ -80,7 +80,7 @@ internal sealed class RunScriptWindowExecutor
         IDictionary<string, string> variables,
         CancellationToken cancellationToken)
     {
-        var resolvedStep = ResolveVariables(step, variables, stepNumber);
+        var resolvedStep = RunScriptRuntimeText.ResolveVariables(step, variables, $"Step {stepNumber}: ");
 
         var parts = resolvedStep.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length < 2 || !parts[0].Equals(CommandToken, StringComparison.OrdinalIgnoreCase))
@@ -97,40 +97,4 @@ internal sealed class RunScriptWindowExecutor
         await handler.ExecuteAsync(parts, variables, stepNumber, _queryService, _mutationService, _workspaceService, cancellationToken).ConfigureAwait(false);
     }
 
-    private static string ResolveVariables(string input, IDictionary<string, string> variables, int stepNumber)
-    {
-        if (!input.Contains('$'))
-            return input;
-
-        var sb = new System.Text.StringBuilder(input.Length);
-        var i = 0;
-        while (i < input.Length)
-        {
-            if (input[i] != '$')
-            {
-                sb.Append(input[i++]);
-                continue;
-            }
-
-            if (i + 1 < input.Length && input[i + 1] == '$')
-            {
-                sb.Append('$');
-                i += 2;
-                continue;
-            }
-
-            var j = i + 1;
-            while (j < input.Length && (char.IsLetterOrDigit(input[j]) || input[j] == '_'))
-                j++;
-
-            var varName = input[(i + 1)..j];
-            if (!variables.TryGetValue(varName, out var value))
-                throw new InvalidOperationException($"Step {stepNumber}: unknown variable '${varName}'.");
-
-            sb.Append(value);
-            i = j;
-        }
-
-        return sb.ToString();
-    }
 }

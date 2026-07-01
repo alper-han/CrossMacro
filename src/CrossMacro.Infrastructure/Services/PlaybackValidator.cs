@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Infrastructure.Services.Playback;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
@@ -136,8 +137,7 @@ public class PlaybackValidator
 
     private static bool HasRuntimeScriptSteps(MacroSequence macro)
     {
-        return macro.ScriptSteps.Any(s =>
-            RunScriptSyntax.IsScreenReadingStep(s) || RunScriptSyntax.IsWindowStep(s));
+        return macro.ScriptSteps.Any(RunScriptRuntimeStepClassifier.IsRuntimeStep);
     }
 
     private void ValidateScriptSteps(MacroSequence macro, ValidationResult result)

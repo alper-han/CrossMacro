@@ -17,6 +17,7 @@ public static class RunScriptSyntax
     public const string PixelSearchCommand = "pixelsearch";
     public const string PixelSearchToleranceKeyword = "tolerance";
     public const string WindowCommand = "window";
+    public const string ClipboardCommand = "clipboard";
 
     private static readonly string[] ScreenReadingCommands =
     [
@@ -109,6 +110,16 @@ public static class RunScriptSyntax
         }
 
         return StartsWithCommandToken(step.TrimStart(), WindowCommand);
+    }
+
+    public static bool IsClipboardStep(string? step)
+    {
+        if (string.IsNullOrWhiteSpace(step))
+        {
+            return false;
+        }
+
+        return StartsWithCommandToken(step.TrimStart(), ClipboardCommand);
     }
 
     public static bool StartsWithCommandToken(string step, string command)

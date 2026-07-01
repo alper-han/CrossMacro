@@ -84,7 +84,7 @@ public sealed class RunScriptCompiler
             return RunScriptCompileResult.Fail(parseResult.ErrorMessage);
         }
 
-        if (ContainsScreenReadingNode(parseResult.Nodes!) || ContainsWindowNode(parseResult.Nodes!))
+        if (ContainsRuntimeServiceNode(parseResult.Nodes!))
         {
             return CompileRuntimeScriptBackedSteps(steps, parseResult.Nodes!);
         }
@@ -101,6 +101,11 @@ public sealed class RunScriptCompiler
         if (expandResult.LoopControlSignal != LoopControlSignal.None)
         {
             return RunScriptCompileResult.Fail("Internal parser error: unhandled loop-control signal.");
+        }
+
+        if (expandedSteps.Count == 0 && ContainsRuntimeBackedNode(parseResult.Nodes!))
+        {
+            return CompileRuntimeScriptBackedSteps(steps, parseResult.Nodes!);
         }
 
         return CompileExpandedSteps(expandedSteps);
@@ -204,6 +209,14 @@ public sealed class RunScriptCompiler
                 : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
         }
 
+        if (RunScriptSyntax.IsClipboardStep(trimmed))
+        {
+            var clipboardError = RunScriptClipboardExecutor.Validate(trimmed);
+            return clipboardError != null
+                ? RunScriptCompileResult.Fail($"{source}: {clipboardError}")
+                : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
+        }
+
         if (RunScriptSyntax.IsBreakCommand(trimmed) || RunScriptSyntax.IsContinueCommand(trimmed))
         {
             return loopDepth == 0
@@ -295,27 +308,32 @@ public sealed class RunScriptCompiler
             && EditorActionScriptTokens.IsValidVariableName(token[1..]);
     }
 
-    private static bool ContainsScreenReadingNode(IReadOnlyList<RunScriptNode> nodes)
+    private static bool ContainsRuntimeBackedNode(IReadOnlyList<RunScriptNode> nodes)
     {
-        foreach (var node in nodes)
-        {
-            switch (node)
-            {
-                case CommandNode commandNode when IsScreenReadingStep(commandNode.Source.Step):
-                    return true;
-                case RepeatNode repeatNode when ContainsScreenReadingNode(repeatNode.Body):
-                    return true;
-                case IfNode ifNode when ContainsScreenReadingNode(ifNode.TrueBody)
-                    || (ifNode.FalseBody != null && ContainsScreenReadingNode(ifNode.FalseBody)):
-                    return true;
-                case WhileNode whileNode when ContainsScreenReadingNode(whileNode.Body):
-                    return true;
-                case ForNode forNode when ContainsScreenReadingNode(forNode.Body):
-                    return true;
-            }
-        }
+        return ContainsCommandNode(nodes, IsRuntimeBackedCommand);
+    }
 
-        return false;
+    private static bool ContainsRuntimeServiceNode(IReadOnlyList<RunScriptNode> nodes)
+    {
+        return ContainsCommandNode(nodes, IsRuntimeServiceCommand);
+    }
+
+    private static bool IsRuntimeServiceCommand(string step)
+    {
+        var trimmed = step.Trim();
+        return IsScreenReadingStep(trimmed)
+            || RunScriptSyntax.IsWindowStep(trimmed)
+            || RunScriptSyntax.IsClipboardStep(trimmed);
+    }
+
+    private static bool IsRuntimeBackedCommand(string step)
+    {
+        var trimmed = step.Trim();
+        return IsRuntimeServiceCommand(trimmed)
+            || IsRuntimeDelayCommand(trimmed)
+            || IsRuntimeVariableCommand(trimmed)
+            || RunScriptSyntax.IsBreakCommand(trimmed)
+            || RunScriptSyntax.IsContinueCommand(trimmed);
     }
 
     private static bool IsScreenReadingStep(string step)
@@ -323,22 +341,22 @@ public sealed class RunScriptCompiler
         return RunScriptSyntax.IsScreenReadingStep(step);
     }
 
-    private static bool ContainsWindowNode(IReadOnlyList<RunScriptNode> nodes)
+    private static bool ContainsCommandNode(IReadOnlyList<RunScriptNode> nodes, Func<string, bool> predicate)
     {
         foreach (var node in nodes)
         {
             switch (node)
             {
-                case CommandNode commandNode when RunScriptSyntax.IsWindowStep(commandNode.Source.Step):
+                case CommandNode commandNode when predicate(commandNode.Source.Step):
                     return true;
-                case RepeatNode repeatNode when ContainsWindowNode(repeatNode.Body):
+                case RepeatNode repeatNode when ContainsCommandNode(repeatNode.Body, predicate):
                     return true;
-                case IfNode ifNode when ContainsWindowNode(ifNode.TrueBody)
-                    || (ifNode.FalseBody != null && ContainsWindowNode(ifNode.FalseBody)):
+                case IfNode ifNode when ContainsCommandNode(ifNode.TrueBody, predicate)
+                    || (ifNode.FalseBody != null && ContainsCommandNode(ifNode.FalseBody, predicate)):
                     return true;
-                case WhileNode whileNode when ContainsWindowNode(whileNode.Body):
+                case WhileNode whileNode when ContainsCommandNode(whileNode.Body, predicate):
                     return true;
-                case ForNode forNode when ContainsWindowNode(forNode.Body):
+                case ForNode forNode when ContainsCommandNode(forNode.Body, predicate):
                     return true;
             }
         }

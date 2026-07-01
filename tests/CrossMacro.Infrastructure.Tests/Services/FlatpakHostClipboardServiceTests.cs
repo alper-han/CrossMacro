@@ -91,12 +91,25 @@ public sealed class FlatpakHostClipboardServiceTests
         var service = new FlatpakHostClipboardService(
             runner,
             new TestRuntimeContext(null),
-            name => string.Equals(name, "WAYLAND_DISPLAY", StringComparison.Ordinal) ? "wayland-1" : null);
+                name => string.Equals(name, "WAYLAND_DISPLAY", StringComparison.Ordinal) ? "wayland-1" : null);
 
-        await service.SetTextAsync("hello");
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.SetTextAsync("hello"));
 
         Assert.Empty(runner.RunCalls);
         Assert.DoesNotContain(runner.ReadCalls, call => call.Args.Contains("command -v xclip", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task SetTextAsync_WhenNoHostClipboardToolAvailable_Throws()
+    {
+        var runner = new FakeProcessRunner
+        {
+            CheckResults = { ["flatpak-spawn"] = true }
+        };
+        var service = new FlatpakHostClipboardService(runner, new TestRuntimeContext("wayland"));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.SetTextAsync("hello"));
+        Assert.False(service.IsSupported);
     }
 
     [Fact]

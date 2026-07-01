@@ -67,6 +67,49 @@ public class LinuxShellClipboardServiceTests
             Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", originalWaylandDisplay);
         }
     }
+
+    [Fact]
+    public async Task SetTextAsync_WhenToolCommandFails_Throws()
+    {
+        var originalWaylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
+        try
+        {
+            Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", "wayland-0");
+            _processRunner.CheckCommandAsync("wl-copy", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+            _processRunner.CheckCommandAsync("wl-paste", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+            _processRunner.WriteInputAndCloseAsync("wl-copy", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns<Task>(_ => throw new InvalidOperationException("wl-copy failed"));
+            await _service.InitializeAsync();
+
+            var act = async () => await _service.SetTextAsync("test");
+
+            await Assert.ThrowsAsync<InvalidOperationException>(act);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", originalWaylandDisplay);
+        }
+    }
+
+    [Fact]
+    public async Task SetTextAsync_WhenNoClipboardToolAvailable_Throws()
+    {
+        var originalWaylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
+        try
+        {
+            Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", null);
+            var service = new LinuxShellClipboardService(_processRunner);
+
+            var act = async () => await service.SetTextAsync("test");
+
+            await Assert.ThrowsAsync<InvalidOperationException>(act);
+            Assert.False(service.IsSupported);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", originalWaylandDisplay);
+        }
+    }
     
     [Fact]
     public async Task SetTextAsync_UsesXclip_OnX11()

@@ -19,7 +19,7 @@ public class LinuxShellClipboardService : IClipboardService
     private ClipboardTool _tool = ClipboardTool.Unknown;
     private bool _initialized = false;
 
-    public bool IsSupported => _tool != ClipboardTool.Unknown;
+    public bool IsSupported => _tool != ClipboardTool.Unknown || !_initialized;
 
     public LinuxShellClipboardService(IProcessRunner processRunner)
     {
@@ -82,8 +82,7 @@ public class LinuxShellClipboardService : IClipboardService
                     await _processRunner.WriteInputAndCloseAsync("xsel", "--clipboard --input", text, cancellationToken);
                     break;
                 default:
-                    Log.Warning("Cannot set clipboard: No tool available");
-                    break;
+                    throw new InvalidOperationException("No supported Linux clipboard tool is available.");
             }
         }
         catch (OperationCanceledException)
@@ -93,6 +92,7 @@ public class LinuxShellClipboardService : IClipboardService
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to set clipboard text via shell");
+            throw;
         }
     }
 
@@ -107,7 +107,7 @@ public class LinuxShellClipboardService : IClipboardService
                 ClipboardTool.WlClipboard => await _processRunner.ReadCommandAsync("wl-paste", "--no-newline", cancellationToken),
                 ClipboardTool.Xclip => await _processRunner.ReadCommandAsync("xclip", "-selection clipboard -o", cancellationToken),
                 ClipboardTool.Xsel => await _processRunner.ReadCommandAsync("xsel", "--clipboard --output", cancellationToken),
-                _ => null
+                _ => throw new InvalidOperationException("No supported Linux clipboard tool is available.")
             };
         }
         catch (OperationCanceledException)
@@ -123,7 +123,7 @@ public class LinuxShellClipboardService : IClipboardService
             }
 
             Log.Error(ex, "Failed to get clipboard text via shell");
-            return null;
+            throw;
         }
     }
 

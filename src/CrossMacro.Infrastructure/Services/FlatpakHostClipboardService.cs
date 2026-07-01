@@ -118,8 +118,7 @@ public sealed class FlatpakHostClipboardService : IClipboardService
                         cancellationToken);
                     return;
                 default:
-                    Log.Warning("[FlatpakHostClipboard] Cannot set clipboard: no host clipboard tool available");
-                    return;
+                    throw new InvalidOperationException("No supported host clipboard tool is available.");
             }
         }
         catch (OperationCanceledException)
@@ -153,7 +152,7 @@ public sealed class FlatpakHostClipboardService : IClipboardService
                     FlatpakSpawn,
                     ["--host", "xsel", "--clipboard", "--output"],
                     cancellationToken),
-                _ => null
+                _ => throw new InvalidOperationException("No supported host clipboard tool is available.")
             };
         }
         catch (OperationCanceledException)

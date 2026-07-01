@@ -71,8 +71,8 @@ public class ProcessRunnerTests
         Assert.Contains("failure", ex.Message, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 5000)]
-    public async Task WriteInputAndCloseAsync_WhenCommandKeepsRunningAfterInput_ReturnsAfterClosingStdin()
+    [Fact]
+    public async Task WriteInputAndCloseAsync_WhenCommandExitsNonZero_ThrowsInvalidOperationException()
     {
         if (!OperatingSystem.IsLinux())
         {
@@ -80,13 +80,29 @@ public class ProcessRunnerTests
         }
 
         var runner = new ProcessRunner();
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            runner.WriteInputAndCloseAsync("sh", ["-c", "cat >/dev/null; exit 11"], "hello"));
+
+        Assert.Contains("sh", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("exited with code 11", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task WriteInputAndCloseAsync_WhenCommandKeepsRunningAfterInput_ReturnsAfterSafetyTimeout()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return;
+        }
+
+        var runner = new ProcessRunner();
 
         await runner.WriteInputAndCloseAsync(
             "sh",
             ["-c", "read _; sleep 10"],
             "hello\n",
-            timeout.Token);
+            CancellationToken.None);
     }
 
     private sealed class TempFileCleanup : IAsyncDisposable

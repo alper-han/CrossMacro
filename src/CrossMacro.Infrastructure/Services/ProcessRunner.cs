@@ -108,33 +108,39 @@ public class ProcessRunner : IProcessRunner
             await proc.StandardInput.WriteAsync(input.AsMemory(), cancellationToken);
             await proc.StandardInput.FlushAsync(cancellationToken);
             proc.StandardInput.Close();
-            ObserveProcessExit(proc);
+
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+            var exited = false;
+            try
+            {
+                await proc.WaitForExitAsync(linked.Token);
+                exited = true;
+            }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            {
+                // Some clipboard owners keep serving after stdin closes.
+            }
+
+            if (exited)
+            {
+                EnsureSuccessfulExit(proc, string.Empty);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            TryKillProcess(proc);
+            throw;
         }
         catch
         {
             TryKillProcess(proc);
-            proc.Dispose();
             throw;
         }
-    }
-
-    private static void ObserveProcessExit(Process process)
-    {
-        _ = Task.Run(async () =>
+        finally
         {
-            try
-            {
-                await process.WaitForExitAsync();
-            }
-            catch
-            {
-                // Process lifetime observation is best-effort for clipboard owner processes.
-            }
-            finally
-            {
-                process.Dispose();
-            }
-        });
+            proc.Dispose();
+        }
     }
 
     public async Task ExecuteCommandAsync(string command, string[] args, CancellationToken cancellationToken = default)

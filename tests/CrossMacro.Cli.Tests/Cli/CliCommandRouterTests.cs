@@ -634,6 +634,92 @@ public class CliCommandRouterTests
     }
 
     [Fact]
+    public void GetUsage_WhenRunHelp_IncludesShellStep()
+    {
+        var usage = _router.GetUsage("run");
+
+        Assert.Contains("shell \"<command>\" [retries] [backoff_ms] [timeout_ms]", usage);
+        Assert.Contains("shell capture \"<command>\" exit_var stdout_var stderr_var", usage);
+        Assert.Contains("shell input \"<stdin text>\" \"<command>\"", usage);
+        Assert.Contains("shell capture-input \"<stdin text>\" \"<command>\" exit_var stdout_var stderr_var", usage);
+        Assert.Contains("Capture modes do not fail on non-zero exits", usage);
+        Assert.Contains("capped at 65536 characters", usage);
+        Assert.Contains("only run trusted macros", usage);
+        Assert.Contains("Flatpak builds disable shell steps", usage);
+        Assert.Contains("Use $$NAME to pass $NAME to the shell", usage);
+    }
+
+    [Fact]
+    public void Parse_WhenInlineShellStepHasOptions_ReturnsRunOptions()
+    {
+        var result = _router.Parse(["run", "shell", "printf ok", "1", "250", "5000"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<RunCliOptions>(result.Options);
+        Assert.Equal(["shell \"printf ok\" 1 250 5000"], options.Steps);
+    }
+
+    [Fact]
+    public void Parse_WhenInlineShellStepContainsQuotes_EscapesCommandPayload()
+    {
+        var result = _router.Parse(["run", "shell", "printf \"ok\""]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<RunCliOptions>(result.Options);
+        Assert.Equal(["shell \"printf \\\"ok\\\"\""], options.Steps);
+    }
+
+    [Fact]
+    public void Parse_WhenInlineShellCaptureStepHasVariables_ReturnsRunOptions()
+    {
+        var result = _router.Parse(["run", "shell", "capture", "printf ok", "code", "out", "err", "1", "250", "5000"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<RunCliOptions>(result.Options);
+        Assert.Equal(["shell capture \"printf ok\" code out err 1 250 5000"], options.Steps);
+    }
+
+    [Fact]
+    public void Parse_WhenInlineShellInputStepHasPayload_ReturnsRunOptions()
+    {
+        var result = _router.Parse(["run", "shell", "input", "hello", "cat", "0", "0", "1000"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<RunCliOptions>(result.Options);
+        Assert.Equal(["shell input \"hello\" \"cat\" 0 0 1000"], options.Steps);
+    }
+
+    [Fact]
+    public void Parse_WhenInlineShellCaptureInputStepHasPayload_ReturnsRunOptions()
+    {
+        var result = _router.Parse(["run", "shell", "capture-input", "hello", "cat", "code", "out", "err"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<RunCliOptions>(result.Options);
+        Assert.Equal(["shell capture-input \"hello\" \"cat\" code out err"], options.Steps);
+    }
+
+    [Fact]
+    public void Parse_WhenInlineShellCommandContainsBackslashes_EscapesBackslashes()
+    {
+        var result = _router.Parse(["run", "shell", @"printf C:\temp\"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<RunCliOptions>(result.Options);
+        Assert.Equal([@"shell ""printf C:\\temp\\"""], options.Steps);
+    }
+
+    [Fact]
+    public void Parse_WhenInlineShellCaptureInputContainsBackslashes_EscapesBackslashes()
+    {
+        var result = _router.Parse(["run", "shell", "capture-input", @"C:\temp\", "cat", "code", "out", "err"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<RunCliOptions>(result.Options);
+        Assert.Equal([@"shell capture-input ""C:\\temp\\"" ""cat"" code out err"], options.Steps);
+    }
+
+    [Fact]
     public void GetUsage_WhenRunTopic_ContainsPhase2Details()
     {
         var usage = _router.GetUsage("run");

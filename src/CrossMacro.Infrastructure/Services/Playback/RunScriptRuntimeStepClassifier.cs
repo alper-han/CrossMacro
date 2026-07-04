@@ -11,6 +11,7 @@ internal static class RunScriptRuntimeStepClassifier
         return RunScriptSyntax.IsScreenReadingStep(trimmed)
             || RunScriptSyntax.IsWindowStep(trimmed)
             || RunScriptSyntax.IsClipboardStep(trimmed)
+            || RunScriptSyntax.IsShellStep(trimmed)
             || IsRuntimeDelayStep(trimmed)
             || IsRuntimeVariableStep(trimmed)
             || RunScriptSyntax.IsBreakCommand(trimmed)

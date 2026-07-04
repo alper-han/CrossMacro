@@ -77,6 +77,7 @@ public class ServiceCollectionExtensionsTests
         Assert.IsNotType<CompositeClipboardService>(clipboard);
 
         Assert.False(clipboard.IsSupported);
+        Assert.IsType<ShellCommandRunner>(provider.GetRequiredService<IShellCommandRunner>());
     }
 
     [Fact]
@@ -90,6 +91,7 @@ public class ServiceCollectionExtensionsTests
 
         Assert.NotNull(clipboard);
         Assert.IsType<AvaloniaClipboardService>(clipboard);
+        Assert.IsType<ShellCommandRunner>(provider.GetRequiredService<IShellCommandRunner>());
     }
 
     [Fact]

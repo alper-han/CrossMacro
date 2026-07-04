@@ -266,6 +266,17 @@ internal static class RunCommandParser
             return true;
         }
 
+        if (string.Equals(token, RunScriptSyntax.ShellCommand, StringComparison.OrdinalIgnoreCase))
+        {
+            if (index + 1 >= args.Length)
+            {
+                error = "Invalid inline step syntax for shell. Expected: shell \"<command>\" [retries] [backoff_ms] [timeout_ms]";
+                return false;
+            }
+
+            return TryParseInlineShellStep(args, ref index, out step, out error);
+        }
+
         if (string.Equals(token, "pixelcolor", StringComparison.OrdinalIgnoreCase))
         {
             if (index + 2 >= args.Length)
@@ -546,6 +557,80 @@ internal static class RunCommandParser
         return true;
     }
 
+    private static bool TryParseInlineShellStep(string[] args, ref int index, out string step, out string error)
+    {
+        step = string.Empty;
+        error = string.Empty;
+        var shellIndex = index;
+        var modeOrCommand = args[shellIndex + 1];
+        if (string.Equals(modeOrCommand, "capture-input", StringComparison.OrdinalIgnoreCase))
+        {
+            if (shellIndex + 6 >= args.Length)
+            {
+                error = "Invalid inline step syntax for shell capture-input. Expected: shell capture-input \"<stdin text>\" \"<command>\" exitVar stdoutVar stderrVar [retries] [backoff_ms] [timeout_ms]";
+                return false;
+            }
+
+            step = $"shell capture-input \"{EscapeShellField(args[shellIndex + 2])}\" \"{EscapeShellField(args[shellIndex + 3])}\" {args[shellIndex + 4]} {args[shellIndex + 5]} {args[shellIndex + 6]}";
+            index = shellIndex + 6;
+            AppendInlineShellOptions(args, ref index, ref step);
+            return true;
+        }
+
+        if (string.Equals(modeOrCommand, "capture", StringComparison.OrdinalIgnoreCase))
+        {
+            if (shellIndex + 5 >= args.Length)
+            {
+                error = "Invalid inline step syntax for shell capture. Expected: shell capture \"<command>\" exitVar stdoutVar stderrVar [retries] [backoff_ms] [timeout_ms]";
+                return false;
+            }
+
+            step = $"shell capture \"{EscapeShellField(args[shellIndex + 2])}\" {args[shellIndex + 3]} {args[shellIndex + 4]} {args[shellIndex + 5]}";
+            index = shellIndex + 5;
+            AppendInlineShellOptions(args, ref index, ref step);
+            return true;
+        }
+
+        if (string.Equals(modeOrCommand, "input", StringComparison.OrdinalIgnoreCase))
+        {
+            if (shellIndex + 3 >= args.Length)
+            {
+                error = "Invalid inline step syntax for shell input. Expected: shell input \"<stdin text>\" \"<command>\" [retries] [backoff_ms] [timeout_ms]";
+                return false;
+            }
+
+            step = $"shell input \"{EscapeShellField(args[shellIndex + 2])}\" \"{EscapeShellField(args[shellIndex + 3])}\"";
+            index = shellIndex + 3;
+            AppendInlineShellOptions(args, ref index, ref step);
+            return true;
+        }
+
+        step = $"shell \"{EscapeShellField(modeOrCommand)}\"";
+        index = shellIndex + 1;
+        AppendInlineShellOptions(args, ref index, ref step);
+        return true;
+    }
+
+    private static void AppendInlineShellOptions(string[] args, ref int index, ref string step)
+    {
+        var optionCount = 0;
+        while (optionCount < 3
+            && index + 1 < args.Length
+            && int.TryParse(args[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+        {
+            step += $" {args[index + 1]}";
+            index += 1;
+            optionCount++;
+        }
+    }
+
+    private static string EscapeShellField(string value)
+    {
+        return value
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\"", "\\\"", StringComparison.Ordinal);
+    }
+
     private static bool IsInlineRunCommandToken(string token)
     {
         return string.Equals(token, "move", StringComparison.OrdinalIgnoreCase)
@@ -560,6 +645,7 @@ internal static class RunCommandParser
             || string.Equals(token, "set", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "inc", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "dec", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, RunScriptSyntax.ShellCommand, StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "repeat", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "if", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "while", StringComparison.OrdinalIgnoreCase)

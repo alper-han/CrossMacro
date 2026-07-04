@@ -33,12 +33,39 @@ public class RuntimeServiceCollectionExtensionsTests
 
         AssertImplementationRegistration<IRuntimeContext, RuntimeContext>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IRuntimeLogLevelService, RuntimeLogLevelService>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<IShellCommandRunner>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IHotkeyConfigurationService, HotkeyConfigurationService>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ISettingsService, SettingsService>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<HotkeySettings>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ITimeProvider, SystemTimeProvider>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<Func<ICoordinateStrategy, IInputEventProcessor>>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IMacroRecorder>(services, ServiceLifetime.Transient);
+    }
+
+    [Fact]
+    public void AddCrossMacroCommonRuntimeServices_ResolvesShellCommandRunnerOutsideFlatpak()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IRuntimeContext>(new TestRuntimeContext(isFlatpak: false));
+
+        services.AddCrossMacroCommonRuntimeServices();
+
+        var runner = ResolveShellRunnerFromDescriptor(services, new TestRuntimeContext(isFlatpak: false));
+
+        Assert.IsType<ShellCommandRunner>(runner);
+    }
+
+    [Fact]
+    public void AddCrossMacroCommonRuntimeServices_DisablesShellCommandRunnerInFlatpak()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IRuntimeContext>(new TestRuntimeContext(isFlatpak: true));
+
+        services.AddCrossMacroCommonRuntimeServices();
+
+        var runner = ResolveShellRunnerFromDescriptor(services, new TestRuntimeContext(isFlatpak: true));
+
+        Assert.IsType<FlatpakDisabledShellCommandRunner>(runner);
     }
 
     [Fact]
@@ -96,7 +123,44 @@ public class RuntimeServiceCollectionExtensionsTests
         Assert.NotNull(descriptor.ImplementationFactory);
     }
 
+    private static IShellCommandRunner ResolveShellRunnerFromDescriptor(
+        IServiceCollection services,
+        IRuntimeContext runtimeContext)
+    {
+        var descriptor = Assert.Single(services, d => d.ServiceType == typeof(IShellCommandRunner));
+        Assert.NotNull(descriptor.ImplementationFactory);
+        return Assert.IsAssignableFrom<IShellCommandRunner>(
+            descriptor.ImplementationFactory(new TestServiceProvider(runtimeContext)));
+    }
+
     private sealed class TestServiceCollection : List<ServiceDescriptor>, IServiceCollection
     {
+    }
+
+    private sealed class TestRuntimeContext : IRuntimeContext
+    {
+        public TestRuntimeContext(bool isFlatpak)
+        {
+            IsFlatpak = isFlatpak;
+        }
+
+        public bool IsLinux => true;
+        public bool IsWindows => false;
+        public bool IsMacOS => false;
+        public bool IsFlatpak { get; }
+        public string? SessionType => "wayland";
+    }
+
+    private sealed class TestServiceProvider : IServiceProvider
+    {
+        private readonly IRuntimeContext _runtimeContext;
+
+        public TestServiceProvider(IRuntimeContext runtimeContext)
+        {
+            _runtimeContext = runtimeContext;
+        }
+
+        public object? GetService(Type serviceType) =>
+            serviceType == typeof(IRuntimeContext) ? _runtimeContext : null;
     }
 }

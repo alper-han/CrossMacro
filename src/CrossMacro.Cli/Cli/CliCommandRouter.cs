@@ -402,6 +402,10 @@ public sealed class CliCommandRouter
                 "  tap <combo>\n" +
                 "  delay <ms>\n" +
                 "  delay random <min> <max> | delay random <min>..<max>\n" +
+                "  shell \"<command>\" [retries] [backoff_ms] [timeout_ms]\n" +
+                "  shell capture \"<command>\" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]\n" +
+                "  shell input \"<stdin text>\" \"<command>\" [retries] [backoff_ms] [timeout_ms]\n" +
+                "  shell capture-input \"<stdin text>\" \"<command>\" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]\n" +
                 "  set <name> <value> | set <name>=<value>\n" +
                 "  inc <name> [amount] | dec <name> [amount]\n" +
                 "  repeat <count> { ... }\n" +
@@ -414,6 +418,9 @@ public sealed class CliCommandRouter
                 "  pixelcolor rel <dx> <dy> [var]\n" +
                 "  waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var]\n" +
                 "  pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [tolerance <0..255>]\n\n" +
+                "Shell capture modes store exit/stdout/stderr variables; use _ to ignore a value. Capture modes do not fail on non-zero exits.\n" +
+                "Shell output captured into variables is capped at 65536 characters per stream.\n" +
+                "Shell steps execute arbitrary commands as the current OS user; only run trusted macros. Flatpak builds disable shell steps. Use $$NAME to pass $NAME to the shell.\n\n" +
                 "Examples:\n" +
                 "  crossmacro run --step \"move abs 500 300\" --step \"click left\" --dry-run\n" +
                 "  crossmacro run move rel 100 0 delay 40 click left\n" +
@@ -421,6 +428,9 @@ public sealed class CliCommandRouter
                 "  crossmacro run --step \"repeat 3 {\" --step \"click left\" --step \"delay random 40 90\" --step \"}\"\n" +
                 "  crossmacro run --step \"set i=0\" --step \"while $i < 3 {\" --step \"click left\" --step \"inc i\" --step \"}\"\n" +
                 "  crossmacro run --step \"delay random 40..90\" --step \"click left\"\n" +
+                "  crossmacro run --step 'shell \"notify-send done\" 1 250 5000'\n" +
+                "  crossmacro run --step 'shell capture \"printf ok\" code out err'\n" +
+                "  crossmacro run --step 'shell capture-input \"hello\" \"cat\" code out err'\n" +
                 "  crossmacro run --step \"pixelcolor 500 300 sampled\"\n" +
                 "  crossmacro run --step \"waitcolor 500 300 00FF00 5000\"\n" +
                 "  crossmacro run --step 'pixelcolor 500 300 sampled' --step 'waitcolor 500 300 $sampled 5000'\n" +

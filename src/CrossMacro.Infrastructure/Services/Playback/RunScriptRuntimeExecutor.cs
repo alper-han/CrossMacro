@@ -27,6 +27,7 @@ internal sealed class RunScriptRuntimeExecutor
     private readonly RunScriptScreenReadExecutor _screenReadExecutor;
     private readonly RunScriptWindowExecutor _windowExecutor;
     private readonly RunScriptClipboardExecutor _clipboardExecutor;
+    private readonly RunScriptShellExecutor _shellExecutor;
 
     public RunScriptRuntimeExecutor(
         IKeyCodeMapper keyCodeMapper,
@@ -35,7 +36,8 @@ internal sealed class RunScriptRuntimeExecutor
         IDictionary<string, string> runtimeVariables,
         RunScriptScreenReadExecutor screenReadExecutor,
         RunScriptWindowExecutor windowExecutor,
-        RunScriptClipboardExecutor clipboardExecutor)
+        RunScriptClipboardExecutor clipboardExecutor,
+        RunScriptShellExecutor shellExecutor)
     {
         _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
         _timingService = timingService ?? throw new ArgumentNullException(nameof(timingService));
@@ -44,6 +46,7 @@ internal sealed class RunScriptRuntimeExecutor
         _screenReadExecutor = screenReadExecutor ?? throw new ArgumentNullException(nameof(screenReadExecutor));
         _windowExecutor = windowExecutor ?? throw new ArgumentNullException(nameof(windowExecutor));
         _clipboardExecutor = clipboardExecutor ?? throw new ArgumentNullException(nameof(clipboardExecutor));
+        _shellExecutor = shellExecutor ?? throw new ArgumentNullException(nameof(shellExecutor));
     }
 
     public async Task ExecuteAsync(RunScriptRuntimeExecutionRequest request, CancellationToken cancellationToken)
@@ -229,6 +232,12 @@ internal sealed class RunScriptRuntimeExecutor
         if (RunScriptSyntax.IsClipboardStep(step))
         {
             await _clipboardExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken);
+            return;
+        }
+
+        if (RunScriptSyntax.IsShellStep(step))
+        {
+            await _shellExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken);
             return;
         }
 

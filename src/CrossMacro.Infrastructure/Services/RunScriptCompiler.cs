@@ -217,6 +217,14 @@ public sealed class RunScriptCompiler
                 : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
         }
 
+        if (RunScriptSyntax.IsShellStep(trimmed))
+        {
+            var shellError = RunScriptShellExecutor.Validate(trimmed);
+            return shellError != null
+                ? RunScriptCompileResult.Fail($"{source}: {shellError}")
+                : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
+        }
+
         if (RunScriptSyntax.IsBreakCommand(trimmed) || RunScriptSyntax.IsContinueCommand(trimmed))
         {
             return loopDepth == 0
@@ -323,7 +331,8 @@ public sealed class RunScriptCompiler
         var trimmed = step.Trim();
         return IsScreenReadingStep(trimmed)
             || RunScriptSyntax.IsWindowStep(trimmed)
-            || RunScriptSyntax.IsClipboardStep(trimmed);
+            || RunScriptSyntax.IsClipboardStep(trimmed)
+            || RunScriptSyntax.IsShellStep(trimmed);
     }
 
     private static bool IsRuntimeBackedCommand(string step)

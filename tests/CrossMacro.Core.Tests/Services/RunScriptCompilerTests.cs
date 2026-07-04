@@ -236,6 +236,85 @@ public class RunScriptCompilerTests
         result.ErrorMessage.Should().Contain("Syntax: clipboard get <var>");
     }
 
+    [Fact]
+    public void Compile_WhenShellStepIsWellFormed_PreservesScriptStep()
+    {
+        var result = _compiler.Compile([new RunScriptStep("shell \"printf hello   world\" 2 100 5000")]);
+
+        result.Success.Should().BeTrue(result.ErrorMessage);
+        result.Sequence.Should().NotBeNull();
+        result.Sequence!.Events.Should().BeEmpty();
+        result.Sequence.ScriptSteps.Should().Equal("shell \"printf hello   world\" 2 100 5000");
+    }
+
+    [Fact]
+    public void Compile_WhenShellQuotedCommandContainsEscapedBackslashes_PreservesScriptStep()
+    {
+        const string step = @"shell capture ""printf C:\\temp\\"" code stdout stderr";
+
+        var result = _compiler.Compile([new RunScriptStep(step)]);
+
+        result.Success.Should().BeTrue(result.ErrorMessage);
+        result.Sequence.Should().NotBeNull();
+        result.Sequence!.Events.Should().BeEmpty();
+        result.Sequence.ScriptSteps.Should().Equal(step);
+    }
+
+    [Theory]
+    [InlineData("shell capture \"printf ok\" code stdout stderr")]
+    [InlineData("shell capture \"printf ok\" _ stdout _ 1 250 5000")]
+    [InlineData("shell input \"payload\" \"cat\" 1 250 5000")]
+    [InlineData("shell capture-input \"payload\" \"cat\" code stdout stderr")]
+    public void Compile_WhenShellExtendedStepIsWellFormed_PreservesScriptStep(string step)
+    {
+        var result = _compiler.Compile([new RunScriptStep(step)]);
+
+        result.Success.Should().BeTrue(result.ErrorMessage);
+        result.Sequence.Should().NotBeNull();
+        result.Sequence!.Events.Should().BeEmpty();
+        result.Sequence.ScriptSteps.Should().Equal(step);
+    }
+
+    [Theory]
+    [InlineData("shell")]
+    [InlineData("shell \"\"")]
+    public void Compile_WhenShellCommandIsMissing_ReturnsFailure(string step)
+    {
+        var result = _compiler.Compile([new RunScriptStep(step)]);
+
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("Shell command cannot be empty");
+    }
+
+    [Theory]
+    [InlineData("shell \"echo ok\" -1", "Invalid retries")]
+    [InlineData("shell \"echo ok\" 2147483647", "Invalid retries")]
+    [InlineData("shell \"echo ok\" 0 -1", "Invalid backoff_ms")]
+    [InlineData("shell \"echo ok\" 0 0 -1", "Invalid timeout_ms")]
+    [InlineData("shell \"echo ok\" nope", "Invalid retries")]
+    [InlineData("shell \"echo ok\" 0 0 0 0", "Syntax: shell")]
+    [InlineData("shell \"echo ok\"1", "Syntax: shell")]
+    [InlineData("shell capture \"echo ok\" code stdout", "Syntax: shell")]
+    [InlineData("shell capture \"echo ok\" 1bad stdout stderr", "Invalid variable name")]
+    [InlineData("shell input \"payload\"", "Syntax: shell")]
+    [InlineData("shell capture-input \"payload\" \"cat\" code stdout", "Syntax: shell")]
+    public void Compile_WhenShellNumericOptionsAreInvalid_ReturnsFailure(string step, string expected)
+    {
+        var result = _compiler.Compile([new RunScriptStep(step)]);
+
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain(expected);
+    }
+
+    [Fact]
+    public void Compile_WhenUnquotedShellCommandEndsWithNumericToken_ReturnsAmbiguityFailure()
+    {
+        var result = _compiler.Compile([new RunScriptStep("shell echo 1")]);
+
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("Quote the shell command");
+    }
+
     [Theory]
     [InlineData("pixelcolor 1 2")]
     [InlineData("pixelcolor 1 2 mycolor")]

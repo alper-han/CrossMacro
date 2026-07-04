@@ -20,6 +20,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
     private readonly IScreenPixelReader? _screenPixelReader;
     private readonly IWindowManager? _windowManager;
     private readonly IClipboardService? _clipboardService;
+    private readonly IShellCommandRunner? _shellCommandRunner;
     private readonly PlaybackValidator _validator;
     private readonly Func<IInputSimulator>? _inputSimulatorFactory;
     private readonly InputSimulatorPool? _simulatorPool;
@@ -134,12 +135,14 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         IScreenPixelReader? screenPixelReader = null,
         IKeyCodeMapper? keyCodeMapper = null,
         IWindowManager? windowManager = null,
-        IClipboardService? clipboardService = null)
+        IClipboardService? clipboardService = null,
+        IShellCommandRunner? shellCommandRunner = null)
     {
         _positionProvider = positionProvider;
         _screenPixelReader = screenPixelReader;
         _windowManager = windowManager;
         _clipboardService = clipboardService;
+        _shellCommandRunner = shellCommandRunner;
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
         _inputSimulatorFactory = inputSimulatorFactory;
         _simulatorPool = simulatorPool;
@@ -458,6 +461,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         var screenReadExecutor = new RunScriptScreenReadExecutor(_screenPixelReader ?? NullScreenPixelReader.Instance, _positionProvider);
         var windowExecutor = new RunScriptWindowExecutor(_windowManager ?? new NullWindowManager());
         var clipboardExecutor = new RunScriptClipboardExecutor(_clipboardService);
+        var shellExecutor = new RunScriptShellExecutor(_shellCommandRunner, _timingService, this);
         var runtimeExecutor = new RunScriptRuntimeExecutor(
             _keyCodeMapper,
             _timingService,
@@ -465,7 +469,8 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
             _runtimeVariables,
             screenReadExecutor,
             windowExecutor,
-            clipboardExecutor);
+            clipboardExecutor,
+            shellExecutor);
         var executionRequest = new RunScriptRuntimeExecutionRequest(
             macro.ScriptSteps,
             speedMultiplier,

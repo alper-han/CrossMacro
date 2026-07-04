@@ -69,9 +69,13 @@ public static class RuntimeServiceCollectionExtensions
     private static void RegisterRuntimePrimitiveServices(IServiceCollection services)
     {
         // Shared process-local runtime state and timing primitives.
-        services.AddSingleton<IRuntimeContext, RuntimeContext>();
+        services.TryAddSingleton<IRuntimeContext, RuntimeContext>();
         services.AddSingleton<IRuntimeLogLevelService, RuntimeLogLevelService>();
         services.AddSingleton<ITimeProvider, SystemTimeProvider>();
+        services.TryAddSingleton<IShellCommandRunner>(sp =>
+            sp.GetRequiredService<IRuntimeContext>().IsFlatpak
+                ? new FlatpakDisabledShellCommandRunner()
+                : new ShellCommandRunner());
     }
 
     private static void RegisterRecordingServices(IServiceCollection services)
@@ -167,7 +171,8 @@ public static class RuntimeServiceCollectionExtensions
                 screenPixelReader: sp.GetRequiredService<IScreenPixelReader>(),
                 keyCodeMapper: sp.GetRequiredService<IKeyCodeMapper>(),
                 windowManager: sp.GetService<IWindowManager>(),
-                clipboardService: sp.GetService<IClipboardService>());
+                clipboardService: sp.GetService<IClipboardService>(),
+                shellCommandRunner: sp.GetRequiredService<IShellCommandRunner>());
         });
 
         services.AddSingleton<Func<IMacroPlayer>>(sp => () => sp.GetRequiredService<IMacroPlayer>());

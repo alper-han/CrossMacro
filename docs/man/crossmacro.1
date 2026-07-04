@@ -174,11 +174,30 @@ Supported steps:
 \fBmove abs|rel\fR, \fBdown\fR, \fBup\fR, \fBclick\fR, \fBscroll\fR,
 \fBkey down|up\fR, \fBtap\fR, \fBdelay\fR, \fBtype\fR,
 \fBset\fR variables, \fBinc\fR/\fBdec\fR counters,
+\fBshell "<command>" [retries] [backoff_ms] [timeout_ms]\fR,
+\fBshell capture "<command>" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]\fR,
+\fBshell input "<stdin text>" "<command>" [retries] [backoff_ms] [timeout_ms]\fR,
+\fBshell capture-input "<stdin text>" "<command>" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]\fR,
 \fBrepeat\fR blocks, \fBif\fR/\fBelse\fR, \fBwhile\fR, and \fBfor\fR blocks,
 screen-reading steps \fBpixelcolor\fR, \fBwaitcolor\fR, and \fBpixelsearch\fR,
 plus loop control with \fBbreak\fR and \fBcontinue\fR.
 Randomized timing is supported with
 \fBdelay random <min> <max>\fR or \fBdelay random <min>..<max>\fR.
+.PP
+Shell steps run through the platform shell (\fB/bin/sh -c\fR on Unix,
+\fBcmd.exe /S /C\fR on Windows). \fBretries\fR is the number of extra attempts
+after the first; \fBbackoff_ms\fR is the delay before retrying; \fBtimeout_ms\fR
+is per attempt and \fB0\fR means no timeout. Variables inside command and stdin
+payloads are resolved before execution. Quote command payloads when using numeric
+options so command arguments are not confused with retry/backoff/timeout values.
+Capture forms write exit code, stdout, and stderr variables; use \fB_\fR
+to ignore a captured value. Normal and input forms fail on final non-zero exits,
+while capture forms continue and let scripts branch on the captured exit code.
+Captured stdout/stderr are capped at 65536 characters per stream. Shell steps
+execute arbitrary commands as the current OS user, so only run trusted macros.
+They are disabled in Flatpak builds to prevent sandbox escapes; use a native or
+AppImage build when a macro needs shell execution. Use \fB$$NAME\fR when the shell
+should receive \fB$NAME\fR literally instead of resolving a CrossMacro variable.
 .PP
 Screen-reading syntax:
 .br
@@ -247,6 +266,15 @@ Run a bounded while loop with explicit counter increment.
 .TP
 .B crossmacro run --step "for n from 1 to 5 step 2 {" --step "click right" --step "}"
 Run a for loop with custom step value.
+.TP
+.B crossmacro run --step 'shell "echo done" 1 250 5000'
+Run a shell command with one retry, 250 ms backoff, and a 5000 ms per-attempt timeout.
+.TP
+.B crossmacro run --step 'shell capture "printf ok" code out err'
+Run a shell command and store exit code, stdout, and stderr in runtime variables.
+.TP
+.B crossmacro run --step 'shell capture-input "hello" "cat" code out err'
+Pipe stdin to a shell command and store exit code, stdout, and stderr in runtime variables.
 .TP
 .B crossmacro run --file ./steps.txt
 Load run steps from a plain text file (one step per line, '#' comments allowed).

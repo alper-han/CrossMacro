@@ -79,12 +79,39 @@ crossmacro run \
   --step "click left" \
   --step "inc i" \
   --step "}"
+crossmacro run --step 'shell "notify-send done" 1 250 5000'
 crossmacro run --file ./steps.txt --json
 ```
 
 Use single quotes around shell expressions containing `$`, such as
 `'repeat $n {'`, so the shell does not expand the variable before CrossMacro
 sees it.
+
+`shell "<command>" [retries] [backoff_ms] [timeout_ms]` runs a command through
+the platform shell (`/bin/sh -c` on Unix, `cmd.exe /S /C` on Windows). `retries`
+is the number of extra attempts after the first. `backoff_ms` is the delay before
+retrying. `timeout_ms` applies to each attempt; `0` means no per-attempt timeout.
+Variables inside command and stdin payloads are resolved before execution. Quote
+command payloads when using numeric options so command arguments are not confused
+with retry/backoff/timeout values.
+
+Shell result capture and stdin are available with explicit forms:
+
+```text
+shell capture "<command>" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]
+shell input "<stdin text>" "<command>" [retries] [backoff_ms] [timeout_ms]
+shell capture-input "<stdin text>" "<command>" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]
+```
+
+Use `_` for any capture target you want to ignore. Normal `shell` and `shell
+input` fail when the command exits non-zero after retries are exhausted. Capture
+modes store the exit code, stdout, and stderr variables and continue even when the
+exit code is non-zero, so scripts can branch on the captured code. Captured
+stdout/stderr are capped at 65536 characters per stream. Shell steps execute
+arbitrary commands as the current OS user, so only run trusted macros. They are
+disabled in Flatpak builds to prevent sandbox escapes; use a native or AppImage
+build when a macro needs shell execution. Use `$$NAME` when you want the shell to
+receive `$NAME` literally instead of resolving a CrossMacro variable.
 
 ## Screen reading steps
 
@@ -144,6 +171,10 @@ Supported direct-run steps include:
 - `type <text>`
 - `delay <ms>`, `delay random <min> <max>`, and
   `delay random <min>..<max>`
+- `shell "<command>" [retries] [backoff_ms] [timeout_ms]`
+- `shell capture "<command>" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]`
+- `shell input "<stdin text>" "<command>" [retries] [backoff_ms] [timeout_ms]`
+- `shell capture-input "<stdin text>" "<command>" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]`
 - `set <name> <value>` or `set <name>=<value>`
 - `inc <name> [amount]` and `dec <name> [amount]`
 - `repeat <count> { ... }`

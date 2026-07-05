@@ -62,14 +62,14 @@ public class ProcessRunner : IProcessRunner
 
     public async Task WriteInputAndCloseAsync(string command, string args, string input, CancellationToken cancellationToken = default)
     {
-        var proc = CreateProcess(command, redirectStandardInput: true, redirectStandardError: false);
+        var proc = CreateProcess(command, redirectStandardInput: true);
         proc.StartInfo.Arguments = args;
         await WriteInputAndCloseProcessAsync(proc, input, cancellationToken);
     }
 
     public async Task WriteInputAndCloseAsync(string command, string[] args, string input, CancellationToken cancellationToken = default)
     {
-        var proc = CreateProcess(command, redirectStandardInput: true, redirectStandardError: false);
+        var proc = CreateProcess(command, redirectStandardInput: true);
         foreach (var arg in args)
         {
             proc.StartInfo.ArgumentList.Add(arg);
@@ -103,6 +103,8 @@ public class ProcessRunner : IProcessRunner
     private static async Task WriteInputAndCloseProcessAsync(Process proc, string input, CancellationToken cancellationToken)
     {
         proc.Start();
+        using var streamReadCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var errorTask = proc.StandardError.ReadToEndAsync(streamReadCts.Token);
         try
         {
             await proc.StandardInput.WriteAsync(input.AsMemory(), cancellationToken);
@@ -119,27 +121,58 @@ public class ProcessRunner : IProcessRunner
             }
             catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
             {
-                // Some clipboard owners keep serving after stdin closes.
+                // Clipboard owner staying alive; abandon stderr read.
+                streamReadCts.Cancel();
+                _ = ObserveCanceledReadAsync(errorTask);
+                return;
             }
 
             if (exited)
             {
-                EnsureSuccessfulExit(proc, string.Empty);
+                // Wrapper child may hold stderr pipe; don't block on it.
+                string error;
+                var completed = await Task.WhenAny(errorTask, Task.Delay(TimeSpan.FromMilliseconds(500)));
+                if (completed == errorTask)
+                {
+                    error = await errorTask;
+                }
+                else
+                {
+                    streamReadCts.Cancel();
+                    _ = ObserveCanceledReadAsync(errorTask);
+                    error = string.Empty;
+                }
+
+                EnsureSuccessfulExit(proc, error);
             }
         }
         catch (OperationCanceledException)
         {
+            streamReadCts.Cancel();
             TryKillProcess(proc);
             throw;
         }
         catch
         {
+            streamReadCts.Cancel();
             TryKillProcess(proc);
             throw;
         }
         finally
         {
             proc.Dispose();
+        }
+    }
+
+    private static async Task ObserveCanceledReadAsync(Task readTask)
+    {
+        try
+        {
+            await readTask;
+        }
+        catch (OperationCanceledException)
+        {
+            return;
         }
     }
 

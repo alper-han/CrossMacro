@@ -54,6 +54,9 @@ public static class CliServiceCollectionExtensions
         services.AddSingleton<IHeadlessHotkeyActionService, HeadlessHotkeyActionService>();
         services.AddSingleton<IHeadlessRuntimeService, HeadlessRuntimeService>();
         services.AddSingleton<IRunScriptExecutionService, RunScriptExecutionService>();
+        services.AddSingleton<IClipboardCliService, ClipboardCliService>();
+        services.AddSingleton<IWindowCliService, WindowCliService>();
+        services.AddSingleton<IScreenCliService, ScreenCliService>();
 
         services.AddSingleton<MacroValidateCommandHandler>();
         services.AddSingleton<MacroInfoCommandHandler>();
@@ -67,6 +70,9 @@ public static class CliServiceCollectionExtensions
         services.AddSingleton<ShortcutRunCommandHandler>();
         services.AddSingleton<RecordCommandHandler>();
         services.AddSingleton<RunCommandHandler>();
+        services.AddSingleton<ClipboardCommandHandler>();
+        services.AddSingleton<WindowCommandHandler>();
+        services.AddSingleton<ScreenCommandHandler>();
         services.AddSingleton<HeadlessCommandHandler>();
 
         services.AddSingleton<Func<MacroValidateCommandHandler>>(sp => sp.GetRequiredService<MacroValidateCommandHandler>);
@@ -81,6 +87,9 @@ public static class CliServiceCollectionExtensions
         services.AddSingleton<Func<ShortcutRunCommandHandler>>(sp => sp.GetRequiredService<ShortcutRunCommandHandler>);
         services.AddSingleton<Func<RecordCommandHandler>>(sp => sp.GetRequiredService<RecordCommandHandler>);
         services.AddSingleton<Func<RunCommandHandler>>(sp => sp.GetRequiredService<RunCommandHandler>);
+        services.AddSingleton<Func<ClipboardCommandHandler>>(sp => sp.GetRequiredService<ClipboardCommandHandler>);
+        services.AddSingleton<Func<WindowCommandHandler>>(sp => sp.GetRequiredService<WindowCommandHandler>);
+        services.AddSingleton<Func<ScreenCommandHandler>>(sp => sp.GetRequiredService<ScreenCommandHandler>);
         services.AddSingleton<Func<HeadlessCommandHandler>>(sp => sp.GetRequiredService<HeadlessCommandHandler>);
         services.AddSingleton<ICliCommandHandlerResolver, CliCommandHandlerResolver>();
         services.AddSingleton<CliCommandExecutor>();

@@ -34,7 +34,14 @@ public sealed class CliCommandRouter
         "--skip-initial-zero",
         "--duration",
         "--step",
-        "--file"
+        "--file",
+        "--active",
+        "--address",
+        "--title",
+        "--class",
+        "--timeout-ms",
+        "--relative",
+        "--tolerance"
     };
 
     private static readonly RootCommandDescriptor[] RootCommands =
@@ -47,6 +54,9 @@ public sealed class CliCommandRouter
         new("shortcut", ShortcutCommandParser.Parse),
         new("record", RecordCommandParser.Parse),
         new("run", RunCommandParser.Parse),
+        new("clipboard", ClipboardCommandParser.Parse),
+        new("window", WindowCommandParser.Parse),
+        new("screen", ScreenCommandParser.Parse),
         new("headless", HeadlessCommandParser.Parse, "--headless")
     ];
 
@@ -70,6 +80,13 @@ public sealed class CliCommandRouter
         string.Empty,
         "  crossmacro run --step <step> [--step <step> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]",
         "  crossmacro run <step-command> [<step-command> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]",
+        string.Empty,
+        "  crossmacro clipboard get [--json] [--log-level <level>]",
+        "  crossmacro clipboard set <text> [--json] [--log-level <level>]",
+        "  crossmacro clipboard set --file <path> [--json] [--log-level <level>]",
+        "  crossmacro clipboard clear [--json] [--log-level <level>]",
+        "  crossmacro window active|list|search|wait|focus|close|move|resize|center|maximize|fullscreen|float|workspace ... [--json] [--log-level <level>]",
+        "  crossmacro screen pixel|wait-color|search-color ... [--json] [--log-level <level>]",
         string.Empty,
         "  crossmacro headless [--json] [--log-level <level>]",
         "  crossmacro --headless [--json] [--log-level <level>]"
@@ -454,6 +471,76 @@ public sealed class CliCommandRouter
                 "Notes:\n" +
                 "  Playback hotkey requires a macro recorded in the same headless session.\n" +
                 "  Stops on Ctrl+C (exit code 130).\n";
+        }
+
+        if (string.Equals(topic, "clipboard", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro clipboard get [--json] [--log-level <level>]\n" +
+                "  crossmacro clipboard set <text> [--json] [--log-level <level>]\n" +
+                "  crossmacro clipboard set --file <path> [--json] [--log-level <level>]\n" +
+                "  crossmacro clipboard clear [--json] [--log-level <level>]\n\n" +
+                "Subcommands:\n" +
+                "  get   Print current clipboard text.\n" +
+                "  set   Replace clipboard text from an argument or file.\n" +
+                "  clear Clear clipboard text.\n";
+        }
+
+        if (string.Equals(topic, "clipboard.get", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Usage:\n  crossmacro clipboard get [--json] [--log-level <level>]\n";
+        }
+
+        if (string.Equals(topic, "clipboard.set", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro clipboard set <text> [--json] [--log-level <level>]\n" +
+                "  crossmacro clipboard set --file <path> [--json] [--log-level <level>]\n";
+        }
+
+        if (string.Equals(topic, "clipboard.clear", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Usage:\n  crossmacro clipboard clear [--json] [--log-level <level>]\n";
+        }
+
+        if (string.Equals(topic, "window", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro window active [--json] [--log-level <level>]\n" +
+                "  crossmacro window list [--json] [--log-level <level>]\n" +
+                "  crossmacro window search (--title <text>|--class <text>) [--json] [--log-level <level>]\n" +
+                "  crossmacro window wait (--title <text>|--class <text>) [--timeout-ms <n>] [--json] [--log-level <level>]\n" +
+                "  crossmacro window focus (--address <id>|--title <text>|--class <text>) [--json] [--log-level <level>]\n" +
+                "  crossmacro window close (--address <id>|--title <text>) [--json] [--log-level <level>]\n" +
+                "  crossmacro window move --active <x> <y> [--json] [--log-level <level>]\n" +
+                "  crossmacro window resize --active <width> <height> [--json] [--log-level <level>]\n" +
+                "  crossmacro window center|maximize|fullscreen|float --active [--json] [--log-level <level>]\n" +
+                "  crossmacro window workspace get|switch|move-active|move-window ... [--json] [--log-level <level>]\n\n" +
+                "Matches for --title and --class use case-insensitive substring matching.\n";
+        }
+
+        if (topic.StartsWith("window.", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetTopicUsage("window");
+        }
+
+        if (string.Equals(topic, "screen", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro screen pixel <x> <y> [--json] [--log-level <level>]\n" +
+                "  crossmacro screen pixel --relative <dx> <dy> [--json] [--log-level <level>]\n" +
+                "  crossmacro screen wait-color <x> <y> <RRGGBB> [--timeout-ms <n>] [--json] [--log-level <level>]\n" +
+                "  crossmacro screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--tolerance <0..255>] [--json] [--log-level <level>]\n\n" +
+                "Colors are 6-character RGB hex values. search-color bounds are end-exclusive.\n";
+        }
+
+        if (topic.StartsWith("screen.", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetTopicUsage("screen");
         }
 
         return "Usage:\n  crossmacro --help\n";

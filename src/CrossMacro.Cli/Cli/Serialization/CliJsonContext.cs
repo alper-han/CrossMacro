@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using CrossMacro.Cli.Services;
 
 namespace CrossMacro.Cli.Serialization;
 
@@ -21,6 +22,16 @@ namespace CrossMacro.Cli.Serialization;
 [JsonSerializable(typeof(ShortcutTaskRunData))]
 [JsonSerializable(typeof(Dictionary<string, object?>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
+[JsonSerializable(typeof(ClipboardTextData))]
+[JsonSerializable(typeof(ClipboardSetData))]
+[JsonSerializable(typeof(WindowInfoData))]
+[JsonSerializable(typeof(WindowListData))]
+[JsonSerializable(typeof(WindowWaitData))]
+[JsonSerializable(typeof(WindowMutationData))]
+[JsonSerializable(typeof(WorkspaceData))]
+[JsonSerializable(typeof(ScreenPixelData))]
+[JsonSerializable(typeof(ScreenWaitColorData))]
+[JsonSerializable(typeof(ScreenSearchColorData))]
 [JsonSerializable(typeof(List<string>))]
 [JsonSerializable(typeof(string[]))]
 [JsonSerializable(typeof(JsonNode))]

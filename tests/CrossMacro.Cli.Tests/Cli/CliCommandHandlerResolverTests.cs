@@ -45,6 +45,10 @@ public class CliCommandHandlerResolverTests
         yield return [new ShortcutRunCliOptions("shortcut-id"), typeof(ShortcutRunCommandHandler)];
         yield return [new RecordCliOptions("recorded.macro"), typeof(RecordCommandHandler)];
         yield return [new RunCliOptions(["tap A"]), typeof(RunCommandHandler)];
+        yield return [new ClipboardCliOptions(ClipboardCliAction.Get), typeof(ClipboardCommandHandler)];
+        yield return [new ClipboardCliOptions(ClipboardCliAction.Clear), typeof(ClipboardCommandHandler)];
+        yield return [new WindowCliOptions(WindowCliAction.Active), typeof(WindowCommandHandler)];
+        yield return [new ScreenCliOptions(ScreenCliAction.Pixel, 1, 2), typeof(ScreenCommandHandler)];
         yield return [new HeadlessCliOptions(), typeof(HeadlessCommandHandler)];
     }
 
@@ -63,6 +67,9 @@ public class CliCommandHandlerResolverTests
             new ShortcutRunCommandHandler(Substitute.For<IShortcutCliService>()),
             new RecordCommandHandler(Substitute.For<IRecordExecutionService>(), Substitute.For<ICliPreflightService>()),
             new RunCommandHandler(Substitute.For<IRunScriptExecutionService>(), Substitute.For<ICliPreflightService>()),
+            new ClipboardCommandHandler(Substitute.For<IClipboardCliService>()),
+            new WindowCommandHandler(Substitute.For<IWindowCliService>()),
+            new ScreenCommandHandler(Substitute.For<IScreenCliService>()),
             new HeadlessCommandHandler(Substitute.For<IHeadlessRuntimeService>(), Substitute.For<ICliPreflightService>()));
     }
 
@@ -81,6 +88,9 @@ public class CliCommandHandlerResolverTests
             () => handlers.ShortcutRun,
             () => handlers.Record,
             () => handlers.Run,
+            () => handlers.Clipboard,
+            () => handlers.Window,
+            () => handlers.Screen,
             () => handlers.Headless);
     }
 
@@ -99,5 +109,8 @@ public class CliCommandHandlerResolverTests
         ShortcutRunCommandHandler ShortcutRun,
         RecordCommandHandler Record,
         RunCommandHandler Run,
+        ClipboardCommandHandler Clipboard,
+        WindowCommandHandler Window,
+        ScreenCommandHandler Screen,
         HeadlessCommandHandler Headless);
 }

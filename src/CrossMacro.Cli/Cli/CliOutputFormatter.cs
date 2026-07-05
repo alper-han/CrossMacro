@@ -4,6 +4,7 @@ using System.IO;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using CrossMacro.Cli.Services;
 using CrossMacro.Cli.Serialization;
 
 namespace CrossMacro.Cli;
@@ -29,6 +30,12 @@ public static class CliOutputFormatter
 
     private static void WriteText(CliCommandExecutionResult result)
     {
+        if (result.Success && result.Data is ClipboardTextData clipboardText)
+        {
+            Console.Out.Write(clipboardText.Value);
+            return;
+        }
+
         var writer = result.Success ? Console.Out : Console.Error;
 
         writer.WriteLine($"Status: {(result.Success ? "ok" : "error")}");

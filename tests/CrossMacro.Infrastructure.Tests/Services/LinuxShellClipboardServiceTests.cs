@@ -69,6 +69,28 @@ public class LinuxShellClipboardServiceTests
     }
 
     [Fact]
+    public async Task SetTextAsync_WhenTextIsEmptyOnWayland_ClearsWlClipboard()
+    {
+        var originalWaylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
+        try
+        {
+            Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", "wayland-0");
+            _processRunner.CheckCommandAsync("wl-copy", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+            _processRunner.CheckCommandAsync("wl-paste", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+            await _service.InitializeAsync();
+
+            await _service.SetTextAsync(string.Empty);
+
+            await _processRunner.Received(1).ExecuteCommandAsync("wl-copy", Arg.Is<string[]>(args => args.Length == 1 && args[0] == "--clear"), Arg.Any<CancellationToken>());
+            await _processRunner.DidNotReceive().WriteInputAndCloseAsync("wl-copy", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", originalWaylandDisplay);
+        }
+    }
+
+    [Fact]
     public async Task SetTextAsync_WhenToolCommandFails_Throws()
     {
         var originalWaylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");

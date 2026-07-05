@@ -17,6 +17,9 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
     private readonly Func<ShortcutRunCommandHandler> _shortcutRunCommandHandler;
     private readonly Func<RecordCommandHandler> _recordCommandHandler;
     private readonly Func<RunCommandHandler> _runCommandHandler;
+    private readonly Func<ClipboardCommandHandler> _clipboardCommandHandler;
+    private readonly Func<WindowCommandHandler> _windowCommandHandler;
+    private readonly Func<ScreenCommandHandler> _screenCommandHandler;
     private readonly Func<HeadlessCommandHandler> _headlessCommandHandler;
 
     public CliCommandHandlerResolver(
@@ -32,6 +35,9 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
         Func<ShortcutRunCommandHandler> shortcutRunCommandHandler,
         Func<RecordCommandHandler> recordCommandHandler,
         Func<RunCommandHandler> runCommandHandler,
+        Func<ClipboardCommandHandler> clipboardCommandHandler,
+        Func<WindowCommandHandler> windowCommandHandler,
+        Func<ScreenCommandHandler> screenCommandHandler,
         Func<HeadlessCommandHandler> headlessCommandHandler)
     {
         _macroValidateCommandHandler = macroValidateCommandHandler;
@@ -46,6 +52,9 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
         _shortcutRunCommandHandler = shortcutRunCommandHandler;
         _recordCommandHandler = recordCommandHandler;
         _runCommandHandler = runCommandHandler;
+        _clipboardCommandHandler = clipboardCommandHandler;
+        _windowCommandHandler = windowCommandHandler;
+        _screenCommandHandler = screenCommandHandler;
         _headlessCommandHandler = headlessCommandHandler;
     }
 
@@ -65,6 +74,9 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
             ShortcutRunCliOptions => _shortcutRunCommandHandler(),
             RecordCliOptions => _recordCommandHandler(),
             RunCliOptions => _runCommandHandler(),
+            ClipboardCliOptions => _clipboardCommandHandler(),
+            WindowCliOptions => _windowCommandHandler(),
+            ScreenCliOptions => _screenCommandHandler(),
             HeadlessCliOptions => _headlessCommandHandler(),
             _ => null
         };

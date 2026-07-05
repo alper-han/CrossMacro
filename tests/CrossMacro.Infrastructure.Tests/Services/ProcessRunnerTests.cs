@@ -89,6 +89,26 @@ public class ProcessRunnerTests
     }
 
     [Fact(Timeout = 5000)]
+    public async Task WriteInputAndCloseAsync_WhenCommandWritesLargeStderrAndExitsNonZero_ThrowsWithStderr()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return;
+        }
+
+        var runner = new ProcessRunner();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            runner.WriteInputAndCloseAsync(
+                "sh",
+                ["-c", "cat >/dev/null; printf failure >&2; head -c 1048576 /dev/zero >&2; exit 17"],
+                "hello"));
+
+        Assert.Contains("exited with code 17", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("failure", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact(Timeout = 5000)]
     public async Task WriteInputAndCloseAsync_WhenCommandKeepsRunningAfterInput_ReturnsAfterSafetyTimeout()
     {
         if (!OperatingSystem.IsLinux())

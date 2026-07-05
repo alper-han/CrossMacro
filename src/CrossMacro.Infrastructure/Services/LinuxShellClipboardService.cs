@@ -73,7 +73,14 @@ public class LinuxShellClipboardService : IClipboardService
             switch (_tool)
             {
                 case ClipboardTool.WlClipboard:
-                    await _processRunner.WriteInputAndCloseAsync("wl-copy", "--type text/plain", text, cancellationToken);
+                    if (text.Length == 0)
+                    {
+                        await _processRunner.ExecuteCommandAsync("wl-copy", ["--clear"], cancellationToken);
+                    }
+                    else
+                    {
+                        await _processRunner.WriteInputAndCloseAsync("wl-copy", "--type text/plain", text, cancellationToken);
+                    }
                     break;
                 case ClipboardTool.Xclip:
                     await _processRunner.WriteInputAndCloseAsync("xclip", "-selection clipboard", text, cancellationToken);

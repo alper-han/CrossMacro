@@ -56,6 +56,25 @@ crossmacro \- keyboard and mouse macro automation CLI
 [\fB\-\-dry-run\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
+\fBclipboard get\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBclipboard set\fR \fITEXT\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBclipboard set --file\fR \fIPATH\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBclipboard clear\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBwindow active|list|search|wait|focus|close|move|resize|center|maximize|fullscreen|float|workspace\fR ...
+[\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBscreen pixel|wait-color|search-color\fR ... [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
 \fBheadless\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
@@ -137,6 +156,10 @@ Providing \fB\-\-repeat\fR with value > 0 implies loop semantics for that playba
 \fB\-\-speed\fR must be between 0.1 and 10.0.
 \fB\-\-countdown\fR and \fB\-\-timeout\fR must be >= 0.
 .TP
+.B window and screen
+\fBwindow wait --timeout-ms\fR must be >= 0. \fBscreen search-color --tolerance\fR must be between 0 and 255.
+\fBscreen search-color\fR bounds are end-exclusive and must produce a positive region.
+.TP
 .B record
 \fB\-\-duration\fR must be >= 0, and at least one of \fB\-\-mouse\fR or \fB\-\-keyboard\fR must be true.
 .SH COMMANDS
@@ -212,6 +235,63 @@ Screen-reading syntax:
 Use \fBRRGGBB\fR for a literal target color, or \fB$var\fR to reuse a color
 previously written by \fBpixelcolor\fR. Bare variable names are not accepted as
 target colors.
+.PP
+Clipboard runtime-step syntax:
+.br
+\fBclipboard get <var>\fR
+.br
+\fBclipboard set <text>\fR
+.PP
+\fBclipboard get\fR stores current clipboard text in a runtime variable.
+\fBclipboard set\fR replaces clipboard text after variable substitution.
+.PP
+Window runtime-step syntax includes:
+.br
+\fBwindow active title|class|address|fullscreen|maximize|float|pinned|hidden|geometry <var>\fR
+.br
+\fBwindow search title|class <term> <var>\fR
+.br
+\fBwindow wait title|class <term> [timeout_ms] <var>\fR
+.br
+\fBwindow focus active|title|class|address <value>\fR
+.br
+\fBwindow close active|title|address <value>\fR
+.br
+\fBwindow move <x> <y>\fR, \fBwindow resize <width> <height>\fR,
+\fBwindow center active\fR, \fBwindow maximize active\fR,
+\fBwindow fullscreen active\fR, and \fBwindow float active\fR
+.br
+\fBwindow getdesktop <var>\fR, \fBwindow setdesktop <workspace>\fR, and
+\fBwindow setdesktopforwindow active|address <addr> <workspace>\fR
+.PP
+Title and class matching uses substring matching. Unsupported platforms return runtime errors.
+.TP
+.B clipboard
+Read or replace text clipboard contents without writing a run script.
+Text mode for \fBclipboard get\fR prints only the clipboard value; JSON mode includes the value in \fBdata.value\fR.
+\fBclipboard clear\fR replaces clipboard text with an empty value.
+Unsupported platforms return a non-zero environment error.
+.TP
+.B window
+Query and mutate desktop windows without writing a run script.
+Supported forms include \fBactive\fR, \fBlist\fR, \fBsearch (--title <text>|--class <text>)\fR,
+\fBwait (--title <text>|--class <text>) [--timeout-ms <n>]\fR,
+\fBfocus (--address <id>|--title <text>|--class <text>)\fR,
+\fBclose (--address <id>|--title <text>)\fR, \fBmove --active <x> <y>\fR,
+\fBresize --active <width> <height>\fR, \fBcenter|maximize|fullscreen|float --active\fR,
+and workspace \fBget\fR, \fBswitch <name>\fR, \fBmove-active <name>\fR, and
+\fBmove-window --address <id> <name>\fR.
+.PP
+Title and class selectors use case-insensitive substring matching. Unsupported window managers return a non-zero environment error.
+.TP
+.B screen
+Read screen pixel colors without writing a run script.
+Supported forms include \fBpixel <x> <y>\fR, \fBpixel --relative <dx> <dy>\fR,
+\fBwait-color <x> <y> <RRGGBB> [--timeout-ms <n>]\fR, and
+\fBsearch-color <x1> <y1> <x2> <y2> <RRGGBB> [--tolerance <0..255>]\fR.
+.PP
+JSON output includes coordinates, color metadata, provider name, and search/wait result metadata.
+Screenshot capture is not part of this phase.
 .TP
 .B headless
 Run background services without GUI (hotkeys, scheduler, shortcuts, text expansion)
@@ -278,6 +358,15 @@ Pipe stdin to a shell command and store exit code, stdout, and stderr in runtime
 .TP
 .B crossmacro run --file ./steps.txt
 Load run steps from a plain text file (one step per line, '#' comments allowed).
+.TP
+.B crossmacro clipboard get --json
+Read clipboard text and print structured JSON.
+.TP
+.B crossmacro window search --title Firefox
+List windows whose title contains Firefox.
+.TP
+.B crossmacro screen pixel 500 300
+Print the color at screen coordinate 500,300.
 .TP
 .B crossmacro headless
 Start headless runtime and keep running until interrupted.

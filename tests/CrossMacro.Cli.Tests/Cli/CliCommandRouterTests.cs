@@ -937,6 +937,121 @@ public class CliCommandRouterTests
 
         Assert.Contains("crossmacro [--start-minimized]", usage);
         Assert.Contains("record (--output|-o)", usage);
+        Assert.Contains("crossmacro clipboard get", usage);
+        Assert.Contains("crossmacro clipboard clear", usage);
+        Assert.Contains("crossmacro window active|list", usage);
+        Assert.Contains("crossmacro screen pixel|wait-color|search-color", usage);
         Assert.Contains("crossmacro --headless", usage);
+    }
+
+    [Fact]
+    public void Parse_WhenClipboardGetWithJson_ReturnsOptions()
+    {
+        var result = _router.Parse(["clipboard", "get", "--json", "--log-level", "debug"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<ClipboardCliOptions>(result.Options);
+        Assert.Equal(ClipboardCliAction.Get, options.Action);
+        Assert.True(options.JsonOutput);
+        Assert.Equal("Debug", options.LogLevel);
+    }
+
+    [Fact]
+    public void Parse_WhenClipboardSetFile_ReturnsOptions()
+    {
+        var result = _router.Parse(["clipboard", "set", "--file", "/tmp/message.txt", "--json"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<ClipboardCliOptions>(result.Options);
+        Assert.Equal(ClipboardCliAction.Set, options.Action);
+        Assert.Equal("/tmp/message.txt", options.FilePath);
+        Assert.True(options.JsonOutput);
+    }
+
+    [Fact]
+    public void Parse_WhenClipboardClearWithJson_ReturnsOptions()
+    {
+        var result = _router.Parse(["clipboard", "clear", "--json", "--log-level", "debug"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<ClipboardCliOptions>(result.Options);
+        Assert.Equal(ClipboardCliAction.Clear, options.Action);
+        Assert.True(options.JsonOutput);
+        Assert.Equal("Debug", options.LogLevel);
+    }
+
+    [Fact]
+    public void Parse_WhenClipboardClearHasOperand_ReturnsError()
+    {
+        var result = _router.Parse(["clipboard", "clear", "extra"]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("clipboard clear", result.ErrorMessage);
+    }
+
+    [Fact]
+    public void Parse_WhenClipboardSetHasTextAndFile_ReturnsError()
+    {
+        var result = _router.Parse(["clipboard", "set", "hello", "--file", "/tmp/message.txt"]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("either <text> or --file", result.ErrorMessage);
+    }
+
+    [Fact]
+    public void Parse_WhenWindowCommands_ReturnTypedOptions()
+    {
+        var search = _router.Parse(["window", "search", "--title", "Firefox", "--json"]);
+        var wait = _router.Parse(["window", "wait", "--class", "Code", "--timeout-ms", "1500"]);
+        var move = _router.Parse(["window", "move", "--active", "10", "20"]);
+        var workspace = _router.Parse(["window", "workspace", "move-window", "--address", "0xabc", "dev"]);
+
+        Assert.True(search.IsSuccess);
+        Assert.Equal(WindowCliAction.Search, Assert.IsType<WindowCliOptions>(search.Options).Action);
+        Assert.True(Assert.IsType<WindowCliOptions>(search.Options).JsonOutput);
+        Assert.True(wait.IsSuccess);
+        Assert.Equal(1500, Assert.IsType<WindowCliOptions>(wait.Options).TimeoutMs);
+        Assert.True(move.IsSuccess);
+        Assert.Equal(10, Assert.IsType<WindowCliOptions>(move.Options).X);
+        Assert.True(workspace.IsSuccess);
+        var workspaceOptions = Assert.IsType<WindowCliOptions>(workspace.Options);
+        Assert.Equal(WindowCliAction.WorkspaceMoveWindow, workspaceOptions.Action);
+        Assert.Equal("dev", workspaceOptions.WorkspaceName);
+    }
+
+    [Fact]
+    public void Parse_WhenWindowFocusHasMultipleSelectors_ReturnsError()
+    {
+        var result = _router.Parse(["window", "focus", "--title", "A", "--class", "B"]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("Only one window selector", result.ErrorMessage);
+    }
+
+    [Fact]
+    public void Parse_WhenScreenCommands_ReturnTypedOptions()
+    {
+        var pixel = _router.Parse(["screen", "pixel", "--relative", "-1", "2", "--json"]);
+        var wait = _router.Parse(["screen", "wait-color", "3", "4", "00ff00", "--timeout-ms", "500"]);
+        var search = _router.Parse(["screen", "search-color", "0", "0", "10", "20", "FF0000", "--tolerance", "26"]);
+
+        Assert.True(pixel.IsSuccess);
+        var pixelOptions = Assert.IsType<ScreenCliOptions>(pixel.Options);
+        Assert.True(pixelOptions.Relative);
+        Assert.Equal(-1, pixelOptions.X);
+        Assert.True(pixelOptions.JsonOutput);
+        Assert.True(wait.IsSuccess);
+        Assert.Equal(500, Assert.IsType<ScreenCliOptions>(wait.Options).TimeoutMs);
+        Assert.True(search.IsSuccess);
+        Assert.Equal(26, Assert.IsType<ScreenCliOptions>(search.Options).Tolerance);
+    }
+
+    [Fact]
+    public void Parse_WhenScreenSearchToleranceOutOfRange_ReturnsError()
+    {
+        var result = _router.Parse(["screen", "search-color", "0", "0", "10", "20", "FF0000", "--tolerance", "256"]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("--tolerance", result.ErrorMessage);
     }
 }

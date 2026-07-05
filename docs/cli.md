@@ -34,6 +34,18 @@ crossmacro schedule run <task-id>
 crossmacro shortcut list
 crossmacro shortcut run <task-id>
 
+crossmacro clipboard get
+crossmacro clipboard set "hello"
+crossmacro clipboard set --file ./message.txt
+crossmacro clipboard clear
+crossmacro window active --json
+crossmacro window search --title Firefox
+crossmacro window move --active 100 100
+crossmacro window workspace switch 2
+crossmacro screen pixel 500 300
+crossmacro screen wait-color 500 300 00FF00 --timeout-ms 5000
+crossmacro screen search-color 0 0 1920 1080 FF0000 --tolerance 26
+
 crossmacro record --output ./recorded.macro --duration 10 --mode auto
 crossmacro headless
 crossmacro --headless
@@ -58,6 +70,80 @@ crossmacro --headless
 
 This mode still requires a desktop session. It is not intended for display-less
 server automation.
+
+## Clipboard command
+
+The first-class clipboard command wraps the text clipboard service directly:
+
+```bash
+crossmacro clipboard get
+crossmacro clipboard get --json
+crossmacro clipboard set "hello"
+crossmacro clipboard set --file ./message.txt
+crossmacro clipboard clear
+```
+
+- `clipboard get` prints the clipboard text directly in text mode. JSON output
+  includes the value in `data.value`.
+- `clipboard set <text>` replaces clipboard text with the provided argument.
+- `clipboard set --file <path>` reads UTF-8 text from a file and copies it.
+- `clipboard clear` replaces clipboard text with an empty value.
+
+Unsupported platforms or sessions return a non-zero environment error instead
+of silently succeeding.
+
+## Window command
+
+The first-class window command wraps the current runtime window-management
+capabilities:
+
+```bash
+crossmacro window active --json
+crossmacro window list --json
+crossmacro window search --title Firefox
+crossmacro window search --class Code
+crossmacro window wait --title "Download complete" --timeout-ms 10000
+crossmacro window focus --address 0x1234
+crossmacro window focus --title Firefox
+crossmacro window focus --class Code
+crossmacro window close --address 0x1234
+crossmacro window close --title "Untitled"
+crossmacro window move --active 100 100
+crossmacro window resize --active 1280 720
+crossmacro window center --active
+crossmacro window maximize --active
+crossmacro window fullscreen --active
+crossmacro window float --active
+crossmacro window workspace get
+crossmacro window workspace switch 2
+crossmacro window workspace move-active 2
+crossmacro window workspace move-window --address 0x1234 2
+```
+
+Title and class selectors use case-insensitive substring matching. Address
+selectors match the compositor/window-manager address exactly. Unsupported
+platforms return a clear non-zero environment error.
+
+## Screen command
+
+The first-class screen command is an ergonomic wrapper for pixel/color reads:
+
+```bash
+crossmacro screen pixel 500 300
+crossmacro screen pixel --relative 0 0 --json
+crossmacro screen wait-color 500 300 00FF00 --timeout-ms 5000
+crossmacro screen search-color 0 0 1920 1080 FF0000 --tolerance 26 --json
+```
+
+- `screen pixel <x> <y>` prints one pixel color and includes coordinates/color in
+  JSON `data`.
+- `screen pixel --relative <dx> <dy>` samples relative to the current cursor; it
+  returns an unsupported error if no mouse position provider is available.
+- `screen wait-color <x> <y> <RRGGBB> [--timeout-ms <n>]` waits for a color.
+- `screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--tolerance <0..255>]`
+  searches the end-exclusive region `[x1, x2) x [y1, y2)`.
+
+Screenshot capture is not part of this command phase.
 
 ## Direct run examples
 
@@ -123,6 +209,18 @@ are documented in [`docs/linux.md`](linux.md).
 ```bash
 pixelcolor 500 300 mycolor
 pixelcolor rel 0 0 underCursor
+clipboard get clipText
+clipboard set "new clipboard text"
+window active title activeTitle
+window search title "Firefox" firefoxAddress
+window focus address 0x1234
+window close title "Untitled"
+window move 100 100
+window resize 1280 720
+window maximize active
+window getdesktop workspaceName
+window setdesktop 2
+window setdesktopforwindow address 0x1234 2
 waitcolor 500 300 00FF00 5000 wait_ok
 waitcolor 500 300 $mycolor 5000 wait_ok
 pixelsearch 0 0 1920 1080 FF0000 found found_x found_y tolerance 26
@@ -140,6 +238,21 @@ pixelsearch 0 0 1920 1080 FF0000 found found_x found_y tolerance 26
   match. When `found_var` is present, no match writes `false` plus `-1, -1`
   coordinates and playback continues; the legacy `var_x var_y` form keeps
   fail-fast behavior.
+- `clipboard get <var>` stores current clipboard text in a runtime variable.
+- `clipboard set <text>` replaces clipboard text after variable substitution.
+- `window active title|class|address|fullscreen|maximize|float|pinned|hidden|geometry <var>`
+  stores active-window fields.
+- `window search title|class <term> <var>` stores the first matching window
+  address, using substring matching.
+- `window wait title|class <term> [timeout_ms] <var>` polls for a matching window
+  and stores its address or an empty value.
+- `window focus active|title|class|address <value>` and
+  `window close active|title|address <value>` mutate matching windows.
+- `window move <x> <y>`, `window resize <width> <height>`, `window center active`,
+  `window maximize active`, `window fullscreen active`, and `window float active`
+  mutate the active window.
+- `window getdesktop <var>`, `window setdesktop <workspace>`, and
+  `window setdesktopforwindow active|address <addr> <workspace>` manage workspaces.
 
 Target colors can be a canonical six-digit `RRGGBB` value with no `#`, or a
 `$var` reference to a color previously written by `pixelcolor`; bare variable
@@ -175,6 +288,11 @@ Supported direct-run steps include:
 - `shell capture "<command>" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]`
 - `shell input "<stdin text>" "<command>" [retries] [backoff_ms] [timeout_ms]`
 - `shell capture-input "<stdin text>" "<command>" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]`
+- `clipboard get <var>` and `clipboard set <text>`
+- `window active|search|wait|focus|close|move|resize|center|maximize|fullscreen|float|getdesktop|setdesktop|setdesktopforwindow ...`
+- `pixelcolor <x> <y> [var]`, `pixelcolor rel <dx> <dy> [var]`,
+  `waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var]`, and
+  `pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [tolerance <0..255>]`
 - `set <name> <value>` or `set <name>=<value>`
 - `inc <name> [amount]` and `dec <name> [amount]`
 - `repeat <count> { ... }`

@@ -8,6 +8,8 @@ namespace CrossMacro.Infrastructure.Services;
 
 public sealed class NullWindowManager : IWindowManager
 {
+    public bool IsSupported => false;
+
     private static void WarnUnsupported(string operation) =>
         Log.Warning("[NullWindowManager] Window management is not supported on this platform. Operation: {Op}", operation);
 

@@ -57,6 +57,7 @@ public static class CliServiceCollectionExtensions
         services.AddSingleton<IClipboardCliService, ClipboardCliService>();
         services.AddSingleton<IWindowCliService, WindowCliService>();
         services.AddSingleton<IScreenCliService, ScreenCliService>();
+        services.AddSingleton<IScreenshotCliService, ScreenshotCliService>();
 
         services.AddSingleton<MacroValidateCommandHandler>();
         services.AddSingleton<MacroInfoCommandHandler>();
@@ -73,6 +74,7 @@ public static class CliServiceCollectionExtensions
         services.AddSingleton<ClipboardCommandHandler>();
         services.AddSingleton<WindowCommandHandler>();
         services.AddSingleton<ScreenCommandHandler>();
+        services.AddSingleton<ScreenshotCommandHandler>();
         services.AddSingleton<HeadlessCommandHandler>();
 
         services.AddSingleton<Func<MacroValidateCommandHandler>>(sp => sp.GetRequiredService<MacroValidateCommandHandler>);
@@ -90,6 +92,7 @@ public static class CliServiceCollectionExtensions
         services.AddSingleton<Func<ClipboardCommandHandler>>(sp => sp.GetRequiredService<ClipboardCommandHandler>);
         services.AddSingleton<Func<WindowCommandHandler>>(sp => sp.GetRequiredService<WindowCommandHandler>);
         services.AddSingleton<Func<ScreenCommandHandler>>(sp => sp.GetRequiredService<ScreenCommandHandler>);
+        services.AddSingleton<Func<ScreenshotCommandHandler>>(sp => sp.GetRequiredService<ScreenshotCommandHandler>);
         services.AddSingleton<Func<HeadlessCommandHandler>>(sp => sp.GetRequiredService<HeadlessCommandHandler>);
         services.AddSingleton<ICliCommandHandlerResolver, CliCommandHandlerResolver>();
         services.AddSingleton<CliCommandExecutor>();

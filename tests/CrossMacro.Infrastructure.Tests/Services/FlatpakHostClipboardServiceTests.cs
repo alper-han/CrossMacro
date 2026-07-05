@@ -149,15 +149,21 @@ public sealed class FlatpakHostClipboardServiceTests
             return Task.CompletedTask;
         }
 
-        public Task WriteInputAndCloseAsync(string command, string args, string input, CancellationToken cancellationToken = default)
+        public Task WriteClipboardInputAndCloseAsync(string command, string args, string input, CancellationToken cancellationToken = default)
         {
             WriteCalls.Add((command, args, input));
             return Task.CompletedTask;
         }
 
-        public Task WriteInputAndCloseAsync(string command, string[] args, string input, CancellationToken cancellationToken = default)
+        public Task WriteClipboardInputAndCloseAsync(string command, string[] args, string input, CancellationToken cancellationToken = default)
         {
             WriteCalls.Add((command, string.Join(' ', args), input));
+            return Task.CompletedTask;
+        }
+
+        public Task WriteClipboardInputAndCloseAsync(string command, string[] args, ReadOnlyMemory<byte> input, CancellationToken cancellationToken = default)
+        {
+            WriteCalls.Add((command, string.Join(' ', args), Convert.ToHexString(input.Span)));
             return Task.CompletedTask;
         }
 

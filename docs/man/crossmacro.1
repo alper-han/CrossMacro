@@ -75,6 +75,10 @@ crossmacro \- keyboard and mouse macro automation CLI
 \fBscreen pixel|wait-color|search-color\fR ... [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
+\fBscreenshot\fR ((\fB\-\-output\fR|\fB\-o\fR) \fIPATH\fR|\fB\-\-clipboard\fR) [\fB\-\-region\fR \fIX\fR \fIY\fR \fIWIDTH\fR \fIHEIGHT\fR]
+[\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
 \fBheadless\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
@@ -159,6 +163,10 @@ Providing \fB\-\-repeat\fR with value > 0 implies loop semantics for that playba
 .B window and screen
 \fBwindow wait --timeout-ms\fR must be >= 0. \fBscreen search-color --tolerance\fR must be between 0 and 255.
 \fBscreen search-color\fR bounds are end-exclusive and must produce a positive region.
+.TP
+.B screenshot
+At least one destination, \fB\-\-output\fR/\fB\-o\fR or \fB\-\-clipboard\fR, is required.
+\fB\-\-region\fR width and height must be positive.
 .TP
 .B record
 \fB\-\-duration\fR must be >= 0, and at least one of \fB\-\-mouse\fR or \fB\-\-keyboard\fR must be true.
@@ -291,7 +299,24 @@ Supported forms include \fBpixel <x> <y>\fR, \fBpixel --relative <dx> <dy>\fR,
 \fBsearch-color <x1> <y1> <x2> <y2> <RRGGBB> [--tolerance <0..255>]\fR.
 .PP
 JSON output includes coordinates, color metadata, provider name, and search/wait result metadata.
-Screenshot capture is not part of this phase.
+.TP
+.B screenshot
+Capture the current screen frame to a PNG file.
+.PP
+Screenshot syntax:
+.br
+\fBscreenshot --output ./shot.png\fR
+.br
+\fBscreenshot -o ./shot.png --json\fR
+.br
+\fBscreenshot --clipboard\fR
+.br
+\fBscreenshot --output ./shot.png --clipboard\fR
+.br
+\fBscreenshot --output ./crop.png --region 100 100 800 600\fR
+.PP
+Screenshot capture uses the same platform frame providers as screen pixel reads.
+Unsupported platforms or sessions return a non-zero environment error.
 .TP
 .B headless
 Run background services without GUI (hotkeys, scheduler, shortcuts, text expansion)

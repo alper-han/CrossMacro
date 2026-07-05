@@ -79,14 +79,14 @@ public class LinuxShellClipboardService : IClipboardService
                     }
                     else
                     {
-                        await _processRunner.WriteInputAndCloseAsync("wl-copy", "--type text/plain", text, cancellationToken);
+                        await _processRunner.WriteClipboardInputAndCloseAsync("wl-copy", "--type text/plain", text, cancellationToken);
                     }
                     break;
                 case ClipboardTool.Xclip:
-                    await _processRunner.WriteInputAndCloseAsync("xclip", "-selection clipboard", text, cancellationToken);
+                    await _processRunner.WriteClipboardInputAndCloseAsync("xclip", "-selection clipboard", text, cancellationToken);
                     break;
                 case ClipboardTool.Xsel:
-                    await _processRunner.WriteInputAndCloseAsync("xsel", "--clipboard --input", text, cancellationToken);
+                    await _processRunner.WriteClipboardInputAndCloseAsync("xsel", "--clipboard --input", text, cancellationToken);
                     break;
                 default:
                     throw new InvalidOperationException("No supported Linux clipboard tool is available.");

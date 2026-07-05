@@ -54,10 +54,17 @@ public static class CliRuntimeServiceCollectionExtensions
             case CliClipboardRegistrationMode.LinuxShellOnly:
                 services.AddSingleton<IProcessRunner, ProcessRunner>();
                 services.AddSingleton<LinuxShellClipboardService>();
+                services.AddSingleton<LinuxShellImageClipboardService>();
+                services.AddSingleton<FlatpakHostImageClipboardService>();
                 services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<LinuxShellClipboardService>());
+                services.AddSingleton<IImageClipboardService>(sp =>
+                    sp.GetRequiredService<IRuntimeContext>().IsFlatpak
+                        ? sp.GetRequiredService<FlatpakHostImageClipboardService>()
+                        : sp.GetRequiredService<LinuxShellImageClipboardService>());
                 return;
             case CliClipboardRegistrationMode.NoOp:
                 services.AddSingleton<IClipboardService, CliNoOpClipboardService>();
+                services.AddSingleton<IImageClipboardService, CliNoOpImageClipboardService>();
                 return;
             default:
                 throw new ArgumentOutOfRangeException(nameof(clipboardMode), clipboardMode, null);
@@ -76,6 +83,16 @@ public static class CliRuntimeServiceCollectionExtensions
         public Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
         {
             return Task.FromResult<string?>(null);
+        }
+    }
+
+    private sealed class CliNoOpImageClipboardService : IImageClipboardService
+    {
+        public bool IsSupported => false;
+
+        public Task SetPngAsync(ReadOnlyMemory<byte> pngBytes, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
         }
     }
 }

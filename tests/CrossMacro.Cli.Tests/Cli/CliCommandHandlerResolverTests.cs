@@ -49,6 +49,7 @@ public class CliCommandHandlerResolverTests
         yield return [new ClipboardCliOptions(ClipboardCliAction.Clear), typeof(ClipboardCommandHandler)];
         yield return [new WindowCliOptions(WindowCliAction.Active), typeof(WindowCommandHandler)];
         yield return [new ScreenCliOptions(ScreenCliAction.Pixel, 1, 2), typeof(ScreenCommandHandler)];
+        yield return [new ScreenshotCliOptions(ScreenshotCliAction.Capture, "shot.png"), typeof(ScreenshotCommandHandler)];
         yield return [new HeadlessCliOptions(), typeof(HeadlessCommandHandler)];
     }
 
@@ -70,6 +71,7 @@ public class CliCommandHandlerResolverTests
             new ClipboardCommandHandler(Substitute.For<IClipboardCliService>()),
             new WindowCommandHandler(Substitute.For<IWindowCliService>()),
             new ScreenCommandHandler(Substitute.For<IScreenCliService>()),
+            new ScreenshotCommandHandler(Substitute.For<IScreenshotCliService>()),
             new HeadlessCommandHandler(Substitute.For<IHeadlessRuntimeService>(), Substitute.For<ICliPreflightService>()));
     }
 
@@ -91,6 +93,7 @@ public class CliCommandHandlerResolverTests
             () => handlers.Clipboard,
             () => handlers.Window,
             () => handlers.Screen,
+            () => handlers.Screenshot,
             () => handlers.Headless);
     }
 
@@ -112,5 +115,6 @@ public class CliCommandHandlerResolverTests
         ClipboardCommandHandler Clipboard,
         WindowCommandHandler Window,
         ScreenCommandHandler Screen,
+        ScreenshotCommandHandler Screenshot,
         HeadlessCommandHandler Headless);
 }

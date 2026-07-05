@@ -60,7 +60,7 @@ public class LinuxShellClipboardServiceTests
             await _service.SetTextAsync("test");
 
             // Assert
-            await _processRunner.Received(1).WriteInputAndCloseAsync("wl-copy", Arg.Any<string>(), "test", Arg.Any<CancellationToken>());
+            await _processRunner.Received(1).WriteClipboardInputAndCloseAsync("wl-copy", Arg.Any<string>(), "test", Arg.Any<CancellationToken>());
         }
         finally
         {
@@ -82,7 +82,7 @@ public class LinuxShellClipboardServiceTests
             await _service.SetTextAsync(string.Empty);
 
             await _processRunner.Received(1).ExecuteCommandAsync("wl-copy", Arg.Is<string[]>(args => args.Length == 1 && args[0] == "--clear"), Arg.Any<CancellationToken>());
-            await _processRunner.DidNotReceive().WriteInputAndCloseAsync("wl-copy", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            await _processRunner.DidNotReceive().WriteClipboardInputAndCloseAsync("wl-copy", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         }
         finally
         {
@@ -99,7 +99,7 @@ public class LinuxShellClipboardServiceTests
             Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", "wayland-0");
             _processRunner.CheckCommandAsync("wl-copy", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
             _processRunner.CheckCommandAsync("wl-paste", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
-            _processRunner.WriteInputAndCloseAsync("wl-copy", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            _processRunner.WriteClipboardInputAndCloseAsync("wl-copy", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
                 .Returns<Task>(_ => throw new InvalidOperationException("wl-copy failed"));
             await _service.InitializeAsync();
 
@@ -150,7 +150,7 @@ public class LinuxShellClipboardServiceTests
             await service.SetTextAsync("test");
 
             // Assert
-            await _processRunner.Received(1).WriteInputAndCloseAsync("xclip", Arg.Any<string>(), "test", Arg.Any<CancellationToken>());
+            await _processRunner.Received(1).WriteClipboardInputAndCloseAsync("xclip", Arg.Any<string>(), "test", Arg.Any<CancellationToken>());
         }
         finally
         {
@@ -173,7 +173,7 @@ public class LinuxShellClipboardServiceTests
             await service.InitializeAsync();
             await service.SetTextAsync("test");
 
-            await _processRunner.Received(1).WriteInputAndCloseAsync("xclip", Arg.Any<string>(), "test", Arg.Any<CancellationToken>());
+            await _processRunner.Received(1).WriteClipboardInputAndCloseAsync("xclip", Arg.Any<string>(), "test", Arg.Any<CancellationToken>());
         }
         finally
         {

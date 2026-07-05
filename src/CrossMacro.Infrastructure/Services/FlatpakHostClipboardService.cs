@@ -97,21 +97,21 @@ public sealed class FlatpakHostClipboardService : IClipboardService
             switch (_tool)
             {
                 case ClipboardTool.HostWlClipboard:
-                    await _processRunner.WriteInputAndCloseAsync(
+                    await _processRunner.WriteClipboardInputAndCloseAsync(
                         FlatpakSpawn,
                         ["--host", "wl-copy", "--type", "text/plain"],
                         text,
                         cancellationToken);
                     return;
                 case ClipboardTool.HostXclip:
-                    await _processRunner.WriteInputAndCloseAsync(
+                    await _processRunner.WriteClipboardInputAndCloseAsync(
                         FlatpakSpawn,
                         ["--host", "xclip", "-selection", "clipboard"],
                         text,
                         cancellationToken);
                     return;
                 case ClipboardTool.HostXsel:
-                    await _processRunner.WriteInputAndCloseAsync(
+                    await _processRunner.WriteClipboardInputAndCloseAsync(
                         FlatpakSpawn,
                         ["--host", "xsel", "--clipboard", "--input"],
                         text,

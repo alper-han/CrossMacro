@@ -141,6 +141,23 @@ public enum ScreenCliAction
     SearchColor
 }
 
+public enum ScreenshotCliAction
+{
+    Capture
+}
+
+public sealed record ScreenshotCliOptions(
+    ScreenshotCliAction Action,
+    string? OutputPath = null,
+    bool Clipboard = false,
+    int? RegionX = null,
+    int? RegionY = null,
+    int? RegionWidth = null,
+    int? RegionHeight = null,
+    bool JsonOutput = false,
+    string? LogLevel = null)
+    : CliCommandOptions(JsonOutput, LogLevel);
+
 public sealed record ScreenCliOptions(
     ScreenCliAction Action,
     int X,

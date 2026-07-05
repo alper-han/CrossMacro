@@ -41,7 +41,9 @@ public sealed class CliCommandRouter
         "--class",
         "--timeout-ms",
         "--relative",
-        "--tolerance"
+        "--tolerance",
+        "--region",
+        "--clipboard"
     };
 
     private static readonly RootCommandDescriptor[] RootCommands =
@@ -57,6 +59,7 @@ public sealed class CliCommandRouter
         new("clipboard", ClipboardCommandParser.Parse),
         new("window", WindowCommandParser.Parse),
         new("screen", ScreenCommandParser.Parse),
+        new("screenshot", ScreenshotCommandParser.Parse),
         new("headless", HeadlessCommandParser.Parse, "--headless")
     ];
 
@@ -87,6 +90,7 @@ public sealed class CliCommandRouter
         "  crossmacro clipboard clear [--json] [--log-level <level>]",
         "  crossmacro window active|list|search|wait|focus|close|move|resize|center|maximize|fullscreen|float|workspace ... [--json] [--log-level <level>]",
         "  crossmacro screen pixel|wait-color|search-color ... [--json] [--log-level <level>]",
+        "  crossmacro screenshot ((--output|-o) <path>|--clipboard) [--region <x> <y> <width> <height>] [--json] [--log-level <level>]",
         string.Empty,
         "  crossmacro headless [--json] [--log-level <level>]",
         "  crossmacro --headless [--json] [--log-level <level>]"
@@ -541,6 +545,16 @@ public sealed class CliCommandRouter
         if (topic.StartsWith("screen.", StringComparison.OrdinalIgnoreCase))
         {
             return GetTopicUsage("screen");
+        }
+
+        if (string.Equals(topic, "screenshot", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro screenshot --output <path> [--json] [--log-level <level>]\n" +
+                "  crossmacro screenshot --clipboard [--json] [--log-level <level>]\n" +
+                "  crossmacro screenshot -o <path> --clipboard --region <x> <y> <width> <height> [--json] [--log-level <level>]\n\n" +
+                "Captures a PNG image using the active screen frame provider.\n";
         }
 
         return "Usage:\n  crossmacro --help\n";

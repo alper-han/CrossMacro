@@ -20,6 +20,7 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
     private readonly Func<ClipboardCommandHandler> _clipboardCommandHandler;
     private readonly Func<WindowCommandHandler> _windowCommandHandler;
     private readonly Func<ScreenCommandHandler> _screenCommandHandler;
+    private readonly Func<ScreenshotCommandHandler> _screenshotCommandHandler;
     private readonly Func<HeadlessCommandHandler> _headlessCommandHandler;
 
     public CliCommandHandlerResolver(
@@ -38,6 +39,7 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
         Func<ClipboardCommandHandler> clipboardCommandHandler,
         Func<WindowCommandHandler> windowCommandHandler,
         Func<ScreenCommandHandler> screenCommandHandler,
+        Func<ScreenshotCommandHandler> screenshotCommandHandler,
         Func<HeadlessCommandHandler> headlessCommandHandler)
     {
         _macroValidateCommandHandler = macroValidateCommandHandler;
@@ -55,6 +57,7 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
         _clipboardCommandHandler = clipboardCommandHandler;
         _windowCommandHandler = windowCommandHandler;
         _screenCommandHandler = screenCommandHandler;
+        _screenshotCommandHandler = screenshotCommandHandler;
         _headlessCommandHandler = headlessCommandHandler;
     }
 
@@ -77,6 +80,7 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
             ClipboardCliOptions => _clipboardCommandHandler(),
             WindowCliOptions => _windowCommandHandler(),
             ScreenCliOptions => _screenCommandHandler(),
+            ScreenshotCliOptions => _screenshotCommandHandler(),
             HeadlessCliOptions => _headlessCommandHandler(),
             _ => null
         };

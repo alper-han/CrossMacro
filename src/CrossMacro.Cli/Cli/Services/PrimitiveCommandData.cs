@@ -47,3 +47,12 @@ public sealed record ScreenSearchColorData(
     int RegionHeight,
     int Tolerance,
     string ProviderName);
+
+public sealed record ScreenshotData(
+    string? OutputPath,
+    int Width,
+    int Height,
+    string Format,
+    string ProviderName,
+    bool IsRegion,
+    bool CopiedToClipboard);

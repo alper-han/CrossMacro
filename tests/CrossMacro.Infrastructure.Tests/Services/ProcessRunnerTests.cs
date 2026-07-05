@@ -72,7 +72,7 @@ public class ProcessRunnerTests
     }
 
     [Fact]
-    public async Task WriteInputAndCloseAsync_WhenCommandExitsNonZero_ThrowsInvalidOperationException()
+    public async Task WriteClipboardInputAndCloseAsync_WhenCommandExitsNonZero_ThrowsInvalidOperationException()
     {
         if (!OperatingSystem.IsLinux())
         {
@@ -82,14 +82,14 @@ public class ProcessRunnerTests
         var runner = new ProcessRunner();
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            runner.WriteInputAndCloseAsync("sh", ["-c", "cat >/dev/null; exit 11"], "hello"));
+            runner.WriteClipboardInputAndCloseAsync("sh", ["-c", "cat >/dev/null; exit 11"], "hello"));
 
         Assert.Contains("sh", ex.Message, StringComparison.Ordinal);
         Assert.Contains("exited with code 11", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact(Timeout = 5000)]
-    public async Task WriteInputAndCloseAsync_WhenCommandWritesLargeStderrAndExitsNonZero_ThrowsWithStderr()
+    public async Task WriteClipboardInputAndCloseAsync_WhenCommandWritesLargeStderrAndExitsNonZero_ThrowsWithStderr()
     {
         if (!OperatingSystem.IsLinux())
         {
@@ -99,7 +99,7 @@ public class ProcessRunnerTests
         var runner = new ProcessRunner();
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            runner.WriteInputAndCloseAsync(
+            runner.WriteClipboardInputAndCloseAsync(
                 "sh",
                 ["-c", "cat >/dev/null; printf failure >&2; head -c 1048576 /dev/zero >&2; exit 17"],
                 "hello"));
@@ -108,8 +108,26 @@ public class ProcessRunnerTests
         Assert.Contains("failure", ex.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task WriteClipboardInputAndCloseAsync_WhenInputIsBytes_WritesBytesUnchanged()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return;
+        }
+
+        var marker = $"/tmp/crossmacro-process-runner-bytes-{Guid.NewGuid():N}";
+        await using var cleanup = new TempFileCleanup(marker);
+        byte[] input = [0x00, 0x01, 0xFF, 0x41, 0x0A];
+        var runner = new ProcessRunner();
+
+        await runner.WriteClipboardInputAndCloseAsync("sh", ["-c", $"cat > {marker}"], input);
+
+        Assert.Equal(input, await File.ReadAllBytesAsync(marker));
+    }
+
     [Fact(Timeout = 5000)]
-    public async Task WriteInputAndCloseAsync_WhenCommandKeepsRunningAfterInput_ReturnsAfterSafetyTimeout()
+    public async Task WriteClipboardInputAndCloseAsync_WhenCommandKeepsRunningAfterInput_ReturnsAfterSafetyTimeout()
     {
         if (!OperatingSystem.IsLinux())
         {
@@ -118,7 +136,7 @@ public class ProcessRunnerTests
 
         var runner = new ProcessRunner();
 
-        await runner.WriteInputAndCloseAsync(
+        await runner.WriteClipboardInputAndCloseAsync(
             "sh",
             ["-c", "read _; sleep 10"],
             "hello\n",

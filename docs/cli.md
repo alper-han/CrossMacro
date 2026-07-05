@@ -45,6 +45,9 @@ crossmacro window workspace switch 2
 crossmacro screen pixel 500 300
 crossmacro screen wait-color 500 300 00FF00 --timeout-ms 5000
 crossmacro screen search-color 0 0 1920 1080 FF0000 --tolerance 26
+crossmacro screenshot --output ./shot.png
+crossmacro screenshot --clipboard
+crossmacro screenshot --output ./crop.png --region 100 100 800 600
 
 crossmacro record --output ./recorded.macro --duration 10 --mode auto
 crossmacro headless
@@ -143,7 +146,28 @@ crossmacro screen search-color 0 0 1920 1080 FF0000 --tolerance 26 --json
 - `screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--tolerance <0..255>]`
   searches the end-exclusive region `[x1, x2) x [y1, y2)`.
 
-Screenshot capture is not part of this command phase.
+## Screenshot command
+
+The screenshot command captures the current screen frame and writes a PNG file:
+
+```bash
+crossmacro screenshot --output ./shot.png
+crossmacro screenshot -o ./shot.png --json
+crossmacro screenshot --clipboard
+crossmacro screenshot --output ./shot.png --clipboard
+crossmacro screenshot --output ./crop.png --region 100 100 800 600
+```
+
+- `--output`/`-o` writes a PNG file and overwrites the target file.
+- `--clipboard` copies the captured PNG image to the system clipboard.
+- At least one destination (`--output` or `--clipboard`) is required. Both can be
+  used together from one capture.
+- `--region <x> <y> <width> <height>` captures a positive-size region.
+- JSON output includes output path, dimensions, format, provider, and whether a
+  region or clipboard destination was requested.
+
+Screenshot capture uses the same platform frame providers as screen pixel reads.
+Unsupported platforms or sessions return a non-zero environment error.
 
 ## Direct run examples
 

@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -60,14 +61,14 @@ public class ProcessRunner : IProcessRunner
         await RunCommandProcessAsync(proc, input, cancellationToken);
     }
 
-    public async Task WriteInputAndCloseAsync(string command, string args, string input, CancellationToken cancellationToken = default)
+    public async Task WriteClipboardInputAndCloseAsync(string command, string args, string input, CancellationToken cancellationToken = default)
     {
         var proc = CreateProcess(command, redirectStandardInput: true);
         proc.StartInfo.Arguments = args;
-        await WriteInputAndCloseProcessAsync(proc, input, cancellationToken);
+        await WriteClipboardInputAndCloseProcessAsync(proc, input, cancellationToken);
     }
 
-    public async Task WriteInputAndCloseAsync(string command, string[] args, string input, CancellationToken cancellationToken = default)
+    public async Task WriteClipboardInputAndCloseAsync(string command, string[] args, string input, CancellationToken cancellationToken = default)
     {
         var proc = CreateProcess(command, redirectStandardInput: true);
         foreach (var arg in args)
@@ -75,7 +76,18 @@ public class ProcessRunner : IProcessRunner
             proc.StartInfo.ArgumentList.Add(arg);
         }
 
-        await WriteInputAndCloseProcessAsync(proc, input, cancellationToken);
+        await WriteClipboardInputAndCloseProcessAsync(proc, input, cancellationToken);
+    }
+
+    public async Task WriteClipboardInputAndCloseAsync(string command, string[] args, ReadOnlyMemory<byte> input, CancellationToken cancellationToken = default)
+    {
+        var proc = CreateProcess(command, redirectStandardInput: true);
+        foreach (var arg in args)
+        {
+            proc.StartInfo.ArgumentList.Add(arg);
+        }
+
+        await WriteClipboardInputAndCloseProcessAsync(proc, input, cancellationToken);
     }
 
     private static async Task RunCommandProcessAsync(Process proc, string input, CancellationToken cancellationToken)
@@ -100,15 +112,21 @@ public class ProcessRunner : IProcessRunner
         EnsureSuccessfulExit(proc, error);
     }
 
-    private static async Task WriteInputAndCloseProcessAsync(Process proc, string input, CancellationToken cancellationToken)
+    private static async Task WriteClipboardInputAndCloseProcessAsync(Process proc, string input, CancellationToken cancellationToken)
     {
-        proc.Start();
+        await WriteClipboardInputAndCloseProcessAsync(proc, Encoding.UTF8.GetBytes(input), cancellationToken);
+    }
+
+    private static async Task WriteClipboardInputAndCloseProcessAsync(Process proc, ReadOnlyMemory<byte> input, CancellationToken cancellationToken)
+    {
         using var streamReadCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var errorTask = proc.StandardError.ReadToEndAsync(streamReadCts.Token);
+        Task<string>? errorTask = null;
         try
         {
-            await proc.StandardInput.WriteAsync(input.AsMemory(), cancellationToken);
-            await proc.StandardInput.FlushAsync(cancellationToken);
+            proc.Start();
+            errorTask = proc.StandardError.ReadToEndAsync(streamReadCts.Token);
+            await proc.StandardInput.BaseStream.WriteAsync(input, cancellationToken);
+            await proc.StandardInput.BaseStream.FlushAsync(cancellationToken);
             proc.StandardInput.Close();
 
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));

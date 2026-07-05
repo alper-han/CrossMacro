@@ -941,6 +941,7 @@ public class CliCommandRouterTests
         Assert.Contains("crossmacro clipboard clear", usage);
         Assert.Contains("crossmacro window active|list", usage);
         Assert.Contains("crossmacro screen pixel|wait-color|search-color", usage);
+        Assert.Contains("crossmacro screenshot", usage);
         Assert.Contains("crossmacro --headless", usage);
     }
 
@@ -1053,5 +1054,54 @@ public class CliCommandRouterTests
 
         Assert.False(result.IsSuccess);
         Assert.Contains("--tolerance", result.ErrorMessage);
+    }
+
+    [Fact]
+    public void Parse_WhenScreenshotOutputAndRegion_ReturnsOptions()
+    {
+        var result = _router.Parse(["screenshot", "--output", "/tmp/shot.png", "--region", "1", "2", "30", "40", "--json"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<ScreenshotCliOptions>(result.Options);
+        Assert.Equal(ScreenshotCliAction.Capture, options.Action);
+        Assert.Equal("/tmp/shot.png", options.OutputPath);
+        Assert.Equal(1, options.RegionX);
+        Assert.Equal(2, options.RegionY);
+        Assert.Equal(30, options.RegionWidth);
+        Assert.Equal(40, options.RegionHeight);
+        Assert.True(options.JsonOutput);
+    }
+
+    [Fact]
+    public void Parse_WhenScreenshotClipboard_ReturnsOptions()
+    {
+        var result = _router.Parse(["screenshot", "--clipboard", "--json"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<ScreenshotCliOptions>(result.Options);
+        Assert.True(options.Clipboard);
+        Assert.Null(options.OutputPath);
+        Assert.True(options.JsonOutput);
+    }
+
+    [Fact]
+    public void Parse_WhenScreenshotOutputAndClipboard_ReturnsOptions()
+    {
+        var result = _router.Parse(["screenshot", "-o", "/tmp/shot.png", "--clipboard"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<ScreenshotCliOptions>(result.Options);
+        Assert.Equal("/tmp/shot.png", options.OutputPath);
+        Assert.True(options.Clipboard);
+    }
+
+    [Fact]
+    public void Parse_WhenScreenshotMissingOutput_ReturnsError()
+    {
+        var result = _router.Parse(["screenshot", "--region", "1", "2", "3", "4"]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("--output", result.ErrorMessage);
+        Assert.Contains("--clipboard", result.ErrorMessage);
     }
 }

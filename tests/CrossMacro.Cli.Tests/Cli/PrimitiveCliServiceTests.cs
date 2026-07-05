@@ -162,6 +162,174 @@ public sealed class PrimitiveCliServiceTests
     }
 
     [Fact]
+    public async Task Screenshot_Capture_WritesPngAndReturnsData()
+    {
+        var outputPath = Path.Combine(Path.GetTempPath(), $"crossmacro-shot-{Guid.NewGuid():N}.png");
+        try
+        {
+            var provider = new FakeScreenFrameProvider();
+            var service = new ScreenshotCliService(provider, new FakeImageClipboardService());
+
+            var result = await service.ExecuteAsync(new ScreenshotCliOptions(
+                ScreenshotCliAction.Capture,
+                outputPath,
+                RegionX: 1,
+                RegionY: 2,
+                RegionWidth: 2,
+                RegionHeight: 1), CancellationToken.None);
+
+            Assert.True(result.Success);
+            Assert.Equal(new ScreenRect(1, 2, 2, 1), provider.LastRegion);
+            Assert.True(File.Exists(outputPath));
+            var bytes = await File.ReadAllBytesAsync(outputPath);
+            Assert.Equal([0x89, 0x50, 0x4E, 0x47], bytes[..4]);
+            var data = Assert.IsType<ScreenshotData>(result.Data);
+            Assert.Equal(Path.GetFullPath(outputPath), data.OutputPath);
+            Assert.Equal(2, data.Width);
+            Assert.Equal(1, data.Height);
+            Assert.Equal("png", data.Format);
+            Assert.True(data.IsRegion);
+            Assert.False(data.CopiedToClipboard);
+        }
+        finally
+        {
+            File.Delete(outputPath);
+        }
+    }
+
+    [Fact]
+    public async Task Screenshot_UnsupportedProvider_ReturnsEnvironmentError()
+    {
+        var service = new ScreenshotCliService(new FakeScreenFrameProvider { IsSupported = false }, new FakeImageClipboardService());
+
+        var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture, "shot.png"), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal((int)CliExitCode.EnvironmentError, result.ExitCode);
+    }
+
+    [Fact]
+    public async Task Screenshot_Clipboard_CopiesPngAndReturnsData()
+    {
+        var imageClipboard = new FakeImageClipboardService();
+        var service = new ScreenshotCliService(new FakeScreenFrameProvider(), imageClipboard);
+
+        var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture, Clipboard: true), CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(imageClipboard.PngBytes);
+        Assert.Equal([0x89, 0x50, 0x4E, 0x47], imageClipboard.PngBytes[..4]);
+        var data = Assert.IsType<ScreenshotData>(result.Data);
+        Assert.Null(data.OutputPath);
+        Assert.True(data.CopiedToClipboard);
+    }
+
+    [Fact]
+    public async Task Screenshot_ClipboardUnsupported_ReturnsEnvironmentError()
+    {
+        var service = new ScreenshotCliService(
+            new FakeScreenFrameProvider(),
+            new FakeImageClipboardService { IsSupported = false });
+
+        var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture, Clipboard: true), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal((int)CliExitCode.EnvironmentError, result.ExitCode);
+    }
+
+    [Fact]
+    public async Task Screenshot_WhenImageClipboardToolIsMissing_ReturnsEnvironmentError()
+    {
+        var service = new ScreenshotCliService(
+            new FakeScreenFrameProvider(),
+            new FakeImageClipboardService { ThrowUnavailable = true });
+
+        var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture, Clipboard: true), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal((int)CliExitCode.EnvironmentError, result.ExitCode);
+    }
+
+    [Fact]
+    public async Task Screenshot_WhenImageClipboardWriteFails_ReturnsRuntimeError()
+    {
+        var service = new ScreenshotCliService(
+            new FakeScreenFrameProvider(),
+            new FakeImageClipboardService { ThrowWriteFailure = true });
+
+        var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture, Clipboard: true), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal((int)CliExitCode.RuntimeError, result.ExitCode);
+    }
+
+    [Fact]
+    public async Task Screenshot_WhenOutputCannotBeWritten_ReturnsFileError()
+    {
+        var directoryPath = Path.Combine(Path.GetTempPath(), $"crossmacro-shot-dir-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directoryPath);
+        try
+        {
+            var service = new ScreenshotCliService(new FakeScreenFrameProvider(), new FakeImageClipboardService());
+
+            var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture, directoryPath), CancellationToken.None);
+
+            Assert.False(result.Success);
+            Assert.Equal((int)CliExitCode.FileError, result.ExitCode);
+        }
+        finally
+        {
+            Directory.Delete(directoryPath);
+        }
+    }
+
+    [Fact]
+    public async Task Screenshot_WhenDestinationMissing_ReturnsInvalidArgumentsBeforeCapture()
+    {
+        var provider = new FakeScreenFrameProvider();
+        var service = new ScreenshotCliService(provider, new FakeImageClipboardService());
+
+        var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture), CancellationToken.None);
+
+        AssertInvalidArguments(result);
+        Assert.Equal(0, provider.CaptureCalls);
+    }
+
+    [Fact]
+    public async Task Screenshot_WhenRegionIsPartial_ReturnsInvalidArgumentsBeforeCapture()
+    {
+        var provider = new FakeScreenFrameProvider();
+        var service = new ScreenshotCliService(provider, new FakeImageClipboardService());
+
+        var result = await service.ExecuteAsync(new ScreenshotCliOptions(
+            ScreenshotCliAction.Capture,
+            "shot.png",
+            RegionX: 1,
+            RegionY: 2), CancellationToken.None);
+
+        AssertInvalidArguments(result);
+        Assert.Equal(0, provider.CaptureCalls);
+    }
+
+    [Fact]
+    public async Task Screenshot_WhenRegionSizeIsInvalid_ReturnsInvalidArgumentsBeforeCapture()
+    {
+        var provider = new FakeScreenFrameProvider();
+        var service = new ScreenshotCliService(provider, new FakeImageClipboardService());
+
+        var result = await service.ExecuteAsync(new ScreenshotCliOptions(
+            ScreenshotCliAction.Capture,
+            "shot.png",
+            RegionX: 1,
+            RegionY: 2,
+            RegionWidth: 0,
+            RegionHeight: 1), CancellationToken.None);
+
+        AssertInvalidArguments(result);
+        Assert.Equal(0, provider.CaptureCalls);
+    }
+
+    [Fact]
     public async Task Screen_InvalidActionOptions_ReturnInvalidArguments()
     {
         var service = new ScreenCliService(new FakeScreenPixelReader(), new FakeMousePositionProvider());
@@ -251,6 +419,55 @@ public sealed class PrimitiveCliServiceTests
 
         public void Dispose()
         {
+        }
+    }
+
+    private sealed class FakeScreenFrameProvider : IScreenFrameProvider
+    {
+        public string ProviderName => "fake-frame";
+        public bool IsSupported { get; init; } = true;
+        public ScreenRect? LastRegion { get; private set; }
+        public int CaptureCalls { get; private set; }
+
+        public Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
+        {
+            CaptureCalls++;
+            LastRegion = region;
+            var bounds = region ?? new ScreenRect(0, 0, 2, 1);
+            byte[] pixels = [0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00];
+            return Task.FromResult(ScreenReadResult<ScreenFrame>.Success(new ScreenFrame(
+                bounds,
+                bounds.Width * 3,
+                ScreenPixelFormat.Rgb24,
+                pixels)));
+        }
+
+        public void Dispose()
+        {
+        }
+    }
+
+    private sealed class FakeImageClipboardService : IImageClipboardService
+    {
+        public bool IsSupported { get; init; } = true;
+        public bool ThrowUnavailable { get; init; }
+        public bool ThrowWriteFailure { get; init; }
+        public byte[]? PngBytes { get; private set; }
+
+        public Task SetPngAsync(ReadOnlyMemory<byte> pngBytes, CancellationToken cancellationToken = default)
+        {
+            if (ThrowUnavailable)
+            {
+                throw new ImageClipboardUnavailableException("missing image clipboard tool");
+            }
+
+            if (ThrowWriteFailure)
+            {
+                throw new InvalidOperationException("write failed");
+            }
+
+            PngBytes = pngBytes.ToArray();
+            return Task.CompletedTask;
         }
     }
 

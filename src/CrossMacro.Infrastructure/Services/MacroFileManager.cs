@@ -64,13 +64,9 @@ public class MacroFileManager : IMacroFileManager
         using var writer = new StreamWriter(filePath);
         
         // Write Header
-        // TODO: Deprecate # IsAbsolute once all supported .macro files carry explicit per-event coordinate mode tokens.
-        // It must remain for now as the legacy fallback for old token-less coordinate events.
-        var legacyHeaderIsAbsolute = GetLegacyHeaderCoordinateMode(macro);
         await writer.WriteLineAsync($"# Name: {macro.Name}");
         await writer.WriteLineAsync($"# Created: {macro.CreatedAt:O}");
         await writer.WriteLineAsync($"# DurationMs: {macro.TotalDurationMs}");
-        await writer.WriteLineAsync($"# IsAbsolute: {legacyHeaderIsAbsolute}");
         await writer.WriteLineAsync($"# SkipInitialZero: {macro.SkipInitialZeroZero}");
         if (macro.TrailingDelayMs > 0)
         {
@@ -173,26 +169,6 @@ public class MacroFileManager : IMacroFileManager
         return ev.CoordinateMode.HasValue
             ? $"M,{ToCoordinateModeToken(ev.CoordinateMode.Value)},{ev.X},{ev.Y}"
             : $"M,{ev.X},{ev.Y}";
-    }
-
-    private static bool GetLegacyHeaderCoordinateMode(MacroSequence macro)
-    {
-        if (macro.Events.Any(ev => MacroPositionSemantics.IsCoordinateBearing(ev)
-            && !MacroPositionSemantics.HasExplicitCoordinateMode(ev)))
-        {
-            return macro.IsAbsoluteCoordinates;
-        }
-
-        // Event-level coordinate mode wins; the header remains legacy/default metadata.
-        foreach (var ev in macro.Events)
-        {
-            if (MacroPositionSemantics.HasExplicitCoordinateMode(ev))
-            {
-                return ev.CoordinateMode == MouseCoordinateMode.Absolute;
-            }
-        }
-
-        return macro.IsAbsoluteCoordinates;
     }
 
     private static string ToCoordinateModeToken(MouseCoordinateMode mode)
@@ -331,8 +307,6 @@ public class MacroFileManager : IMacroFileManager
                     macro.CreatedAt = date;
                 else if (line.StartsWith("# DurationMs: ") && long.TryParse(line.Substring(14).Trim(), out var duration))
                     macro.TotalDurationMs = duration;
-                else if (line.StartsWith("# IsAbsolute: ") && bool.TryParse(line.Substring(14).Trim(), out var isAbs))
-                    macro.IsAbsoluteCoordinates = isAbs;
                 else if (line.StartsWith("# SkipInitialZero: ") && bool.TryParse(line.Substring(19).Trim(), out var skipZero))
                     macro.SkipInitialZeroZero = skipZero;
                 else if (line.StartsWith(TrailingDelayHeader, StringComparison.Ordinal)

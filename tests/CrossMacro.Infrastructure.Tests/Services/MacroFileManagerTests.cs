@@ -231,22 +231,6 @@ M,0,0
     }
 
     [Fact]
-    public async Task SaveAndLoad_RoundTrip_PreservesIsAbsoluteCoordinates()
-    {
-        // Arrange
-        var macro = CreateValidMacro();
-        macro.IsAbsoluteCoordinates = true;
-        var filePath = GetTempFilePath();
-
-        // Act
-        await _manager.SaveAsync(macro, filePath);
-        var loaded = await _manager.LoadAsync(filePath);
-
-        // Assert
-        loaded!.IsAbsoluteCoordinates.Should().BeTrue();
-    }
-
-    [Fact]
     public async Task SaveAndLoad_RoundTrip_PreservesMouseMoveEvents()
     {
         // Arrange
@@ -905,35 +889,6 @@ KP,65
     }
 
     [Fact]
-    public async Task Load_WhenLegacyAbsoluteEventsHaveNoModeTokens_UsesHeaderFallback()
-    {
-        // Arrange
-        var filePath = GetTempFilePath();
-        var content = @"# Name: Legacy Absolute
-# IsAbsolute: True
-# Format: CrossMacroFormatV2
-[Events]
-M,10,20
-P,10,20,Left";
-
-        await File.WriteAllTextAsync(filePath, content);
-
-        // Act
-        var loaded = await _manager.LoadAsync(filePath);
-
-        // Assert
-        loaded.Should().NotBeNull();
-        loaded!.IsAbsoluteCoordinates.Should().BeTrue();
-        loaded.Events.Should().HaveCount(2);
-        loaded.Events[0].CoordinateMode.Should().BeNull();
-        loaded.Events[1].CoordinateMode.Should().BeNull();
-        MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[0], loaded.IsAbsoluteCoordinates)
-            .Should().Be(MouseCoordinateMode.Absolute);
-        MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[1], loaded.IsAbsoluteCoordinates)
-            .Should().Be(MouseCoordinateMode.Absolute);
-    }
-
-    [Fact]
     public async Task Load_WhenLegacyRelativeEventsHaveNoModeTokens_UsesHeaderFallback()
     {
         // Arrange
@@ -985,11 +940,9 @@ C,5,6,Right";
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        saved.Should().Contain("# IsAbsolute: True");
         saved.Should().Contain("M,abs,100,200");
         saved.Should().Contain("M,rel,10,20");
         loaded.Should().NotBeNull();
-        loaded!.IsAbsoluteCoordinates.Should().BeTrue();
         loaded.Events.Select(ev => ev.CoordinateMode).Should().Equal(
             MouseCoordinateMode.Absolute,
             MouseCoordinateMode.Relative);
@@ -1018,7 +971,6 @@ C,5,6,Right";
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        saved.Should().Contain("# IsAbsolute: False");
         saved.Should().Contain("M,abs,100,200");
         saved.Should().Contain("M,10,20");
         saved.Should().Contain("C,5,6,Left");

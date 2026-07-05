@@ -8,4 +8,6 @@ public interface IShortcutCliService
     Task<CliCommandExecutionResult> ListAsync(CancellationToken cancellationToken);
 
     Task<CliCommandExecutionResult> RunAsync(string taskId, CancellationToken cancellationToken);
+
+    Task<CliCommandExecutionResult> ExecuteAsync(ShortcutCliOptions options, CancellationToken cancellationToken);
 }

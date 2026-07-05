@@ -102,6 +102,10 @@ public sealed record ScheduleTaskData(
     [property: JsonPropertyName("enabled")] bool Enabled,
     [property: JsonPropertyName("type")] string Type,
     [property: JsonPropertyName("macroFilePath")] string MacroFilePath,
+    [property: JsonPropertyName("playbackSpeed")] double PlaybackSpeed,
+    [property: JsonPropertyName("intervalValue"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? IntervalValue,
+    [property: JsonPropertyName("intervalUnit"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? IntervalUnit,
+    [property: JsonPropertyName("scheduledDateTime"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTime? ScheduledDateTime,
     [property: JsonPropertyName("weeklyDays"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? WeeklyDays,
     [property: JsonPropertyName("weeklyTime"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? WeeklyTime,
     [property: JsonPropertyName("nextRunTime")] DateTime? NextRunTime,
@@ -120,6 +124,9 @@ public sealed record ShortcutTaskData(
     [property: JsonPropertyName("runWhileHeld")] bool RunWhileHeld,
     [property: JsonPropertyName("repeatCount")] int RepeatCount,
     [property: JsonPropertyName("repeatDelayMs")] int RepeatDelayMs,
+    [property: JsonPropertyName("randomRepeatDelay")] bool RandomRepeatDelay,
+    [property: JsonPropertyName("repeatDelayMinMs"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? RepeatDelayMinMs,
+    [property: JsonPropertyName("repeatDelayMaxMs"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? RepeatDelayMaxMs,
     [property: JsonPropertyName("lastTriggeredTime")] DateTime? LastTriggeredTime,
     [property: JsonPropertyName("lastStatus")] string? LastStatus
 );

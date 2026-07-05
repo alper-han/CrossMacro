@@ -79,6 +79,9 @@ public class ScheduleCliServiceTests
 
         var task = JsonSerializer.SerializeToElement(result.Data)
             .GetProperty("tasks")[0];
+        Assert.Equal(1.0, task.GetProperty("playbackSpeed").GetDouble());
+        Assert.Equal(30, task.GetProperty("intervalValue").GetInt32());
+        Assert.Equal("Seconds", task.GetProperty("intervalUnit").GetString());
         Assert.False(task.TryGetProperty("weeklyDays", out _));
         Assert.False(task.TryGetProperty("weeklyTime", out _));
     }
@@ -159,5 +162,114 @@ public class ScheduleCliServiceTests
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => service.RunAsync(id.ToString(), cts.Token));
         await scheduler.DidNotReceive().RunTaskAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_AddInterval_AddsAndSavesTask()
+    {
+        var scheduler = Substitute.For<ISchedulerService>();
+        scheduler.Tasks.Returns(new ObservableCollection<ScheduledTask>());
+        var service = new ScheduleCliService(scheduler);
+
+        var result = await service.ExecuteAsync(
+            new ScheduleCliOptions(
+                ScheduleCliAction.Add,
+                Name: "Daily",
+                MacroFilePath: "/tmp/demo.macro",
+                Interval: "10m",
+                Enabled: true),
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var taskData = JsonSerializer.SerializeToElement(result.Data);
+        Assert.Equal(10, taskData.GetProperty("intervalValue").GetInt32());
+        Assert.Equal("Minutes", taskData.GetProperty("intervalUnit").GetString());
+        scheduler.Received(1).AddTask(Arg.Is<ScheduledTask>(task =>
+            task.Name == "Daily"
+            && task.MacroFilePath == "/tmp/demo.macro"
+            && task.Type == ScheduleType.Interval
+            && task.IntervalValue == 10
+            && task.IntervalUnit == IntervalUnit.Minutes
+            && task.IsEnabled));
+        await scheduler.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_EditExistingTask_UpdatesAndSavesTask()
+    {
+        var id = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var task = new ScheduledTask { Id = id, Name = "Old", MacroFilePath = "/tmp/old.macro" };
+        var scheduler = Substitute.For<ISchedulerService>();
+        scheduler.Tasks.Returns(new ObservableCollection<ScheduledTask> { task });
+        var service = new ScheduleCliService(scheduler);
+
+        var result = await service.ExecuteAsync(
+            new ScheduleCliOptions(
+                ScheduleCliAction.Edit,
+                TaskId: id.ToString(),
+                Name: "New",
+                Weekly: "mon,wed",
+                Time: "09:30"),
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        scheduler.Received(1).UpdateTask(Arg.Is<ScheduledTask>(updated =>
+            updated.Id == id
+            && updated.Name == "New"
+            && updated.Type == ScheduleType.Weekly
+            && updated.WeeklyDays == (ScheduleDays.Monday | ScheduleDays.Wednesday)
+            && updated.WeeklyTime == new TimeSpan(9, 30, 0)));
+        await scheduler.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_RemoveMissingTask_ReturnsInvalidArguments()
+    {
+        var scheduler = Substitute.For<ISchedulerService>();
+        scheduler.Tasks.Returns(new ObservableCollection<ScheduledTask>());
+        var service = new ScheduleCliService(scheduler);
+
+        var result = await service.ExecuteAsync(
+            new ScheduleCliOptions(ScheduleCliAction.Remove, TaskId: "11111111-1111-1111-1111-111111111111"),
+            CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
+        await scheduler.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_EnableExistingTask_SavesMutation()
+    {
+        var id = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var scheduler = Substitute.For<ISchedulerService>();
+        scheduler.Tasks.Returns(new ObservableCollection<ScheduledTask>
+        {
+            new() { Id = id, Name = "Task", MacroFilePath = "/tmp/a.macro" }
+        });
+        var service = new ScheduleCliService(scheduler);
+
+        var result = await service.ExecuteAsync(new ScheduleCliOptions(ScheduleCliAction.Enable, TaskId: id.ToString()), CancellationToken.None);
+
+        Assert.True(result.Success);
+        scheduler.Received(1).SetTaskEnabled(id, true);
+        await scheduler.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Next_DoesNotSave()
+    {
+        var id = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var scheduler = Substitute.For<ISchedulerService>();
+        scheduler.Tasks.Returns(new ObservableCollection<ScheduledTask>
+        {
+            new() { Id = id, Name = "Task", MacroFilePath = "/tmp/a.macro", Type = ScheduleType.Interval, IntervalValue = 5, IntervalUnit = IntervalUnit.Minutes }
+        });
+        var service = new ScheduleCliService(scheduler);
+
+        var result = await service.ExecuteAsync(new ScheduleCliOptions(ScheduleCliAction.Next, TaskId: id.ToString()), CancellationToken.None);
+
+        Assert.True(result.Success);
+        await scheduler.DidNotReceive().SaveAsync();
     }
 }

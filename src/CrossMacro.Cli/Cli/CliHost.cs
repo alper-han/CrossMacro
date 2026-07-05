@@ -121,8 +121,10 @@ public sealed class CliHost
             or TextExpansionCliOptions
             or ShortcutListCliOptions
             or ShortcutRunCliOptions
+            or ShortcutCliOptions
             or ScheduleListCliOptions
             or ScheduleRunCliOptions
+            or ScheduleCliOptions
             or HeadlessCliOptions;
     }
 }

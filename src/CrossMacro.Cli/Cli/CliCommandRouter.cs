@@ -49,7 +49,17 @@ public sealed class CliCommandRouter
         "--profile",
         "--method",
         "--insertion-mode",
-        "--direct-typing-method"
+        "--direct-typing-method",
+        "--name",
+        "--macro",
+        "--interval",
+        "--at",
+        "--weekly",
+        "--time",
+        "--enabled",
+        "--hotkey",
+        "--random-repeat-delay",
+        "--run-while-held"
     };
 
     private static readonly RootCommandDescriptor[] RootCommands =
@@ -88,10 +98,8 @@ public sealed class CliCommandRouter
         "  crossmacro settings reset <key> [--json] [--log-level <level>]",
         "  crossmacro profile list|current|create|switch|rename|delete ... [--json] [--log-level <level>]",
         "  crossmacro text-expansion list|add|remove|enable|disable|test ... [--json] [--log-level <level>]",
-        "  crossmacro schedule list [--json] [--log-level <level>]",
-        "  crossmacro schedule run <task-id> [--json] [--log-level <level>]",
-        "  crossmacro shortcut list [--json] [--log-level <level>]",
-        "  crossmacro shortcut run <task-id> [--json] [--log-level <level>]",
+        "  crossmacro schedule list|run|add|edit|remove|enable|disable|next ... [--json] [--log-level <level>]",
+        "  crossmacro shortcut list|run|add|edit|remove|enable|disable|bind ... [--json] [--log-level <level>]",
         "  crossmacro record (--output|-o) <macro-file> [--mouse <true|false>] [--keyboard <true|false>] [--mode <auto|absolute|relative>] [--skip-initial-zero] [--duration <sec>] [--json] [--log-level <level>]",
         string.Empty,
         "  crossmacro run --step <step> [--step <step> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]",
@@ -382,9 +390,7 @@ public sealed class CliCommandRouter
                 "Usage:\n" +
                 "  crossmacro text-expansion list [--profile <name-or-id>] [--json] [--log-level <level>]\n" +
                 "  crossmacro text-expansion add <trigger> <replacement> [--method CtrlV|CtrlShiftV|ShiftInsert] [--insertion-mode Paste|DirectTyping] [--direct-typing-method FastBatch|CompatibleKeyByKey] [--profile <name-or-id>] [--json] [--log-level <level>]\n" +
-                "  crossmacro text-expansion remove|enable|disable|test <trigger> [--profile <name-or-id>] [--json] [--log-level <level>]\n" +
-                "  crossmacro text-expansion export --output <path> [--profile <name-or-id>] [--json] [--log-level <level>]\n" +
-                "  crossmacro text-expansion import <path> [--profile <name-or-id>] [--json] [--log-level <level>]\n\n" +
+                "  crossmacro text-expansion remove|enable|disable|test <trigger> [--profile <name-or-id>] [--json] [--log-level <level>]\n\n" +
                 "The --profile option edits that profile's storage without switching the active profile. test only resolves an expansion; it does not type or paste.\n";
         }
 
@@ -398,10 +404,19 @@ public sealed class CliCommandRouter
             return
                 "Usage:\n" +
                 "  crossmacro schedule list [--json] [--log-level <level>]\n" +
-                "  crossmacro schedule run <task-id> [--json] [--log-level <level>]\n\n" +
+                "  crossmacro schedule run <task-id> [--json] [--log-level <level>]\n" +
+                "  crossmacro schedule add --name <name> --macro <path> [--interval <duration>|--at <datetime>|--weekly <days> --time <HH:mm>] [--speed <value>] [--enabled <bool>] [--json] [--log-level <level>]\n" +
+                "  crossmacro schedule edit <task-id> [--name <name>] [--macro <path>] [--interval <duration>|--at <datetime>|--weekly <days> --time <HH:mm>] [--speed <value>] [--enabled <bool>] [--json] [--log-level <level>]\n" +
+                "  crossmacro schedule remove|enable|disable|next <task-id> [--json] [--log-level <level>]\n\n" +
                 "Subcommands:\n" +
-                "  list   List known schedule tasks.\n" +
-                "  run    Trigger a schedule task by task id.\n";
+                "  list     List known schedule tasks.\n" +
+                "  run      Trigger a schedule task by task id.\n" +
+                "  add      Create an interval, one-time, or weekly schedule task.\n" +
+                "  edit     Update schedule task fields.\n" +
+                "  remove   Delete a schedule task.\n" +
+                "  enable   Enable a schedule task.\n" +
+                "  disable  Disable a schedule task.\n" +
+                "  next     Show the next run time for a schedule task.\n";
         }
 
         if (string.Equals(topic, "schedule.list", StringComparison.OrdinalIgnoreCase))
@@ -426,15 +441,30 @@ public sealed class CliCommandRouter
                 "  crossmacro schedule run 11111111-1111-1111-1111-111111111111 --json\n";
         }
 
+        if (topic.StartsWith("schedule.", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetTopicUsage("schedule");
+        }
+
         if (string.Equals(topic, "shortcut", StringComparison.OrdinalIgnoreCase))
         {
             return
                 "Usage:\n" +
                 "  crossmacro shortcut list [--json] [--log-level <level>]\n" +
-                "  crossmacro shortcut run <task-id> [--json] [--log-level <level>]\n\n" +
+                "  crossmacro shortcut run <task-id> [--json] [--log-level <level>]\n" +
+                "  crossmacro shortcut add --name <name> --macro <path> --hotkey <keys> [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--enabled <bool>] [--json] [--log-level <level>]\n" +
+                "  crossmacro shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys>] [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--enabled <bool>] [--json] [--log-level <level>]\n" +
+                "  crossmacro shortcut remove|enable|disable <task-id> [--json] [--log-level <level>]\n" +
+                "  crossmacro shortcut bind <task-id> <hotkey> [--json] [--log-level <level>]\n\n" +
                 "Subcommands:\n" +
-                "  list   List known shortcut tasks.\n" +
-                "  run    Trigger a shortcut task by task id.\n";
+                "  list     List known shortcut tasks.\n" +
+                "  run      Trigger a shortcut task by task id.\n" +
+                "  add      Create a shortcut-bound macro task.\n" +
+                "  edit     Update shortcut task fields.\n" +
+                "  remove   Delete a shortcut task.\n" +
+                "  enable   Enable a shortcut task.\n" +
+                "  disable  Disable a shortcut task.\n" +
+                "  bind     Replace a shortcut task's hotkey.\n";
         }
 
         if (string.Equals(topic, "shortcut.list", StringComparison.OrdinalIgnoreCase))
@@ -457,6 +487,11 @@ public sealed class CliCommandRouter
                 "Examples:\n" +
                 "  crossmacro shortcut run 22222222-2222-2222-2222-222222222222\n" +
                 "  crossmacro shortcut run 22222222-2222-2222-2222-222222222222 --json\n";
+        }
+
+        if (topic.StartsWith("shortcut.", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetTopicUsage("shortcut");
         }
 
         if (string.Equals(topic, "record", StringComparison.OrdinalIgnoreCase))

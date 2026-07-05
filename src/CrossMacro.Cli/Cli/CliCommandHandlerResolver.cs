@@ -17,8 +17,10 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
     private readonly Func<TextExpansionCommandHandler> _textExpansionCommandHandler;
     private readonly Func<ScheduleListCommandHandler> _scheduleListCommandHandler;
     private readonly Func<ScheduleRunCommandHandler> _scheduleRunCommandHandler;
+    private readonly Func<ScheduleCommandHandler> _scheduleCommandHandler;
     private readonly Func<ShortcutListCommandHandler> _shortcutListCommandHandler;
     private readonly Func<ShortcutRunCommandHandler> _shortcutRunCommandHandler;
+    private readonly Func<ShortcutCommandHandler> _shortcutCommandHandler;
     private readonly Func<RecordCommandHandler> _recordCommandHandler;
     private readonly Func<RunCommandHandler> _runCommandHandler;
     private readonly Func<ClipboardCommandHandler> _clipboardCommandHandler;
@@ -40,8 +42,10 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
         Func<TextExpansionCommandHandler> textExpansionCommandHandler,
         Func<ScheduleListCommandHandler> scheduleListCommandHandler,
         Func<ScheduleRunCommandHandler> scheduleRunCommandHandler,
+        Func<ScheduleCommandHandler> scheduleCommandHandler,
         Func<ShortcutListCommandHandler> shortcutListCommandHandler,
         Func<ShortcutRunCommandHandler> shortcutRunCommandHandler,
+        Func<ShortcutCommandHandler> shortcutCommandHandler,
         Func<RecordCommandHandler> recordCommandHandler,
         Func<RunCommandHandler> runCommandHandler,
         Func<ClipboardCommandHandler> clipboardCommandHandler,
@@ -62,8 +66,10 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
         _textExpansionCommandHandler = textExpansionCommandHandler;
         _scheduleListCommandHandler = scheduleListCommandHandler;
         _scheduleRunCommandHandler = scheduleRunCommandHandler;
+        _scheduleCommandHandler = scheduleCommandHandler;
         _shortcutListCommandHandler = shortcutListCommandHandler;
         _shortcutRunCommandHandler = shortcutRunCommandHandler;
+        _shortcutCommandHandler = shortcutCommandHandler;
         _recordCommandHandler = recordCommandHandler;
         _runCommandHandler = runCommandHandler;
         _clipboardCommandHandler = clipboardCommandHandler;
@@ -89,8 +95,10 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
             TextExpansionCliOptions => _textExpansionCommandHandler(),
             ScheduleListCliOptions => _scheduleListCommandHandler(),
             ScheduleRunCliOptions => _scheduleRunCommandHandler(),
+            ScheduleCliOptions => _scheduleCommandHandler(),
             ShortcutListCliOptions => _shortcutListCommandHandler(),
             ShortcutRunCliOptions => _shortcutRunCommandHandler(),
+            ShortcutCliOptions => _shortcutCommandHandler(),
             RecordCliOptions => _recordCommandHandler(),
             RunCliOptions => _runCommandHandler(),
             ClipboardCliOptions => _clipboardCommandHandler(),

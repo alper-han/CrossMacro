@@ -45,8 +45,10 @@ public class CliCommandHandlerResolverTests
         yield return [new TextExpansionCliOptions(TextExpansionCliAction.List), typeof(TextExpansionCommandHandler)];
         yield return [new ScheduleListCliOptions(), typeof(ScheduleListCommandHandler)];
         yield return [new ScheduleRunCliOptions("task-id"), typeof(ScheduleRunCommandHandler)];
+        yield return [new ScheduleCliOptions(ScheduleCliAction.Add), typeof(ScheduleCommandHandler)];
         yield return [new ShortcutListCliOptions(), typeof(ShortcutListCommandHandler)];
         yield return [new ShortcutRunCliOptions("shortcut-id"), typeof(ShortcutRunCommandHandler)];
+        yield return [new ShortcutCliOptions(ShortcutCliAction.Add), typeof(ShortcutCommandHandler)];
         yield return [new RecordCliOptions("recorded.macro"), typeof(RecordCommandHandler)];
         yield return [new RunCliOptions(["tap A"]), typeof(RunCommandHandler)];
         yield return [new ClipboardCliOptions(ClipboardCliAction.Get), typeof(ClipboardCommandHandler)];
@@ -72,8 +74,10 @@ public class CliCommandHandlerResolverTests
             new TextExpansionCommandHandler(Substitute.For<ITextExpansionCliService>()),
             new ScheduleListCommandHandler(Substitute.For<IScheduleCliService>()),
             new ScheduleRunCommandHandler(Substitute.For<IScheduleCliService>()),
+            new ScheduleCommandHandler(Substitute.For<IScheduleCliService>()),
             new ShortcutListCommandHandler(Substitute.For<IShortcutCliService>()),
             new ShortcutRunCommandHandler(Substitute.For<IShortcutCliService>()),
+            new ShortcutCommandHandler(Substitute.For<IShortcutCliService>()),
             new RecordCommandHandler(Substitute.For<IRecordExecutionService>(), Substitute.For<ICliPreflightService>()),
             new RunCommandHandler(Substitute.For<IRunScriptExecutionService>(), Substitute.For<ICliPreflightService>()),
             new ClipboardCommandHandler(Substitute.For<IClipboardCliService>()),
@@ -98,8 +102,10 @@ public class CliCommandHandlerResolverTests
             () => handlers.TextExpansion,
             () => handlers.ScheduleList,
             () => handlers.ScheduleRun,
+            () => handlers.Schedule,
             () => handlers.ShortcutList,
             () => handlers.ShortcutRun,
+            () => handlers.Shortcut,
             () => handlers.Record,
             () => handlers.Run,
             () => handlers.Clipboard,
@@ -124,8 +130,10 @@ public class CliCommandHandlerResolverTests
         TextExpansionCommandHandler TextExpansion,
         ScheduleListCommandHandler ScheduleList,
         ScheduleRunCommandHandler ScheduleRun,
+        ScheduleCommandHandler Schedule,
         ShortcutListCommandHandler ShortcutList,
         ShortcutRunCommandHandler ShortcutRun,
+        ShortcutCommandHandler Shortcut,
         RecordCommandHandler Record,
         RunCommandHandler Run,
         ClipboardCommandHandler Clipboard,

@@ -73,8 +73,10 @@ public static class CliServiceCollectionExtensions
         services.AddSingleton<TextExpansionCommandHandler>();
         services.AddSingleton<ScheduleListCommandHandler>();
         services.AddSingleton<ScheduleRunCommandHandler>();
+        services.AddSingleton<ScheduleCommandHandler>();
         services.AddSingleton<ShortcutListCommandHandler>();
         services.AddSingleton<ShortcutRunCommandHandler>();
+        services.AddSingleton<ShortcutCommandHandler>();
         services.AddSingleton<RecordCommandHandler>();
         services.AddSingleton<RunCommandHandler>();
         services.AddSingleton<ClipboardCommandHandler>();
@@ -95,8 +97,10 @@ public static class CliServiceCollectionExtensions
         services.AddSingleton<Func<TextExpansionCommandHandler>>(sp => sp.GetRequiredService<TextExpansionCommandHandler>);
         services.AddSingleton<Func<ScheduleListCommandHandler>>(sp => sp.GetRequiredService<ScheduleListCommandHandler>);
         services.AddSingleton<Func<ScheduleRunCommandHandler>>(sp => sp.GetRequiredService<ScheduleRunCommandHandler>);
+        services.AddSingleton<Func<ScheduleCommandHandler>>(sp => sp.GetRequiredService<ScheduleCommandHandler>);
         services.AddSingleton<Func<ShortcutListCommandHandler>>(sp => sp.GetRequiredService<ShortcutListCommandHandler>);
         services.AddSingleton<Func<ShortcutRunCommandHandler>>(sp => sp.GetRequiredService<ShortcutRunCommandHandler>);
+        services.AddSingleton<Func<ShortcutCommandHandler>>(sp => sp.GetRequiredService<ShortcutCommandHandler>);
         services.AddSingleton<Func<RecordCommandHandler>>(sp => sp.GetRequiredService<RecordCommandHandler>);
         services.AddSingleton<Func<RunCommandHandler>>(sp => sp.GetRequiredService<RunCommandHandler>);
         services.AddSingleton<Func<ClipboardCommandHandler>>(sp => sp.GetRequiredService<ClipboardCommandHandler>);

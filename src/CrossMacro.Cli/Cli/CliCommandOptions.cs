@@ -94,10 +94,63 @@ public sealed record ScheduleListCliOptions(bool JsonOutput = false, string? Log
 public sealed record ScheduleRunCliOptions(string TaskId, bool JsonOutput = false, string? LogLevel = null)
     : CliCommandOptions(JsonOutput, LogLevel);
 
+public enum ScheduleCliAction
+{
+    Add,
+    Edit,
+    Remove,
+    Enable,
+    Disable,
+    Next
+}
+
+public sealed record ScheduleCliOptions(
+    ScheduleCliAction Action,
+    string? TaskId = null,
+    string? Name = null,
+    string? MacroFilePath = null,
+    string? Interval = null,
+    string? At = null,
+    string? Weekly = null,
+    string? Time = null,
+    double? Speed = null,
+    bool? Enabled = null,
+    bool JsonOutput = false,
+    string? LogLevel = null)
+    : CliCommandOptions(JsonOutput, LogLevel);
+
 public sealed record ShortcutListCliOptions(bool JsonOutput = false, string? LogLevel = null)
     : CliCommandOptions(JsonOutput, LogLevel);
 
 public sealed record ShortcutRunCliOptions(string TaskId, bool JsonOutput = false, string? LogLevel = null)
+    : CliCommandOptions(JsonOutput, LogLevel);
+
+public enum ShortcutCliAction
+{
+    Add,
+    Edit,
+    Remove,
+    Enable,
+    Disable,
+    Bind
+}
+
+public sealed record ShortcutCliOptions(
+    ShortcutCliAction Action,
+    string? TaskId = null,
+    string? Name = null,
+    string? MacroFilePath = null,
+    string? Hotkey = null,
+    double? Speed = null,
+    bool? Loop = null,
+    int? RepeatCount = null,
+    int? RepeatDelayMs = null,
+    int? RepeatDelayMinMs = null,
+    int? RepeatDelayMaxMs = null,
+    bool RunWhileHeld = false,
+    bool? Enabled = null,
+    bool JsonOutput = false,
+    string? LogLevel = null)
     : CliCommandOptions(JsonOutput, LogLevel);
 
 public sealed record RecordCliOptions(

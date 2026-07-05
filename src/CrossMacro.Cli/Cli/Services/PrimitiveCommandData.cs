@@ -1,10 +1,15 @@
 using System.Collections.Generic;
+using System;
 
 namespace CrossMacro.Cli.Services;
 
 public sealed record ClipboardTextData(string Value);
 
 public sealed record ClipboardSetData(int Length, string Source);
+
+public sealed record SettingsValueData(string Key, object? Value);
+
+public sealed record SettingsMutationData(string Key, object? OldValue, object? NewValue);
 
 public sealed record WindowInfoData(
     string Address,
@@ -56,3 +61,19 @@ public sealed record ScreenshotData(
     string ProviderName,
     bool IsRegion,
     bool CopiedToClipboard);
+
+public sealed record ProfileData(string Id, string Name, DateTime CreatedAt, bool IsActive);
+
+public sealed record ProfileListData(IReadOnlyList<ProfileData> Profiles, string ActiveProfileId);
+
+public sealed record TextExpansionData(
+    string Trigger,
+    string Replacement,
+    bool IsEnabled,
+    string Method,
+    string InsertionMode,
+    string DirectTypingMethod);
+
+public sealed record TextExpansionListData(IReadOnlyList<TextExpansionData> Expansions, string ProfileId, int Count);
+
+public sealed record TextExpansionTestData(bool Found, TextExpansionData? Expansion);

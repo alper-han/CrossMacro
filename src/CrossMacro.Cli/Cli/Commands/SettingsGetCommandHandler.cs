@@ -1,8 +1,8 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Cli.Services;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace CrossMacro.Cli.Commands;
 
@@ -19,7 +19,7 @@ public sealed class SettingsGetCommandHandler : CliCommandHandlerBase<SettingsGe
     {
         var result = await _settingsCliService.GetAsync(options.Key, cancellationToken);
 
-        if (result.Success && !options.JsonOutput && options.Key == null && result.Data is Dictionary<string, object?> allSettings)
+        if (result.Success && !options.JsonOutput && (options.Key == null || options.All) && result.Data is Dictionary<string, object?> allSettings)
         {
             var lines = allSettings
                 .OrderBy(x => x.Key)

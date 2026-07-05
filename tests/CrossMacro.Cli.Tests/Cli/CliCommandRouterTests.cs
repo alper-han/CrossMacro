@@ -799,6 +799,94 @@ public class CliCommandRouterTests
     }
 
     [Fact]
+    public void Parse_WhenSettingsGetAll_ReturnsOptions()
+    {
+        var result = _router.Parse(["settings", "get", "--all", "--json"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<SettingsGetCliOptions>(result.Options);
+        Assert.True(options.All);
+        Assert.Null(options.Key);
+        Assert.True(options.JsonOutput);
+    }
+
+    [Fact]
+    public void Parse_WhenSettingsListKeys_ReturnsOptions()
+    {
+        var result = _router.Parse(["settings", "list-keys", "--json"]);
+
+        Assert.True(result.IsSuccess);
+        Assert.IsType<SettingsListKeysCliOptions>(result.Options);
+    }
+
+    [Fact]
+    public void Parse_WhenSettingsReset_ReturnsOptions()
+    {
+        var result = _router.Parse(["settings", "reset", "ui.theme", "--json"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<SettingsResetCliOptions>(result.Options);
+        Assert.Equal("ui.theme", options.Key);
+        Assert.True(options.JsonOutput);
+    }
+
+    [Fact]
+    public void Parse_WhenProfileDeleteWithForce_ReturnsOptions()
+    {
+        var result = _router.Parse(["profile", "delete", "work", "--force", "--json"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<ProfileCliOptions>(result.Options);
+        Assert.Equal(ProfileCliAction.Delete, options.Action);
+        Assert.Equal("work", options.ProfileIdentifier);
+        Assert.True(options.Force);
+        Assert.True(options.JsonOutput);
+    }
+
+    [Fact]
+    public void Parse_WhenProfileRename_ReturnsOptions()
+    {
+        var result = _router.Parse(["profile", "rename", "work", "office"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<ProfileCliOptions>(result.Options);
+        Assert.Equal(ProfileCliAction.Rename, options.Action);
+        Assert.Equal("work", options.ProfileIdentifier);
+        Assert.Equal("office", options.NewName);
+    }
+
+    [Fact]
+    public void Parse_WhenTextExpansionAddWithOptions_ReturnsOptions()
+    {
+        var result = _router.Parse([
+            "text-expansion",
+            "add",
+            ":mail",
+            "me@example.com",
+            "--method",
+            "CtrlShiftV",
+            "--insertion-mode",
+            "DirectTyping",
+            "--direct-typing-method",
+            "CompatibleKeyByKey",
+            "--profile",
+            "work",
+            "--json"
+        ]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<TextExpansionCliOptions>(result.Options);
+        Assert.Equal(TextExpansionCliAction.Add, options.Action);
+        Assert.Equal(":mail", options.Trigger);
+        Assert.Equal("me@example.com", options.Replacement);
+        Assert.Equal(CrossMacro.Core.Models.PasteMethod.CtrlShiftV, options.Method);
+        Assert.Equal(CrossMacro.Core.Models.TextInsertionMode.DirectTyping, options.InsertionMode);
+        Assert.Equal(CrossMacro.Core.Models.DirectTypingMethod.CompatibleKeyByKey, options.DirectTypingMethod);
+        Assert.Equal("work", options.ProfileIdentifier);
+        Assert.True(options.JsonOutput);
+    }
+
+    [Fact]
     public void Parse_WhenScheduleListWithJson_ReturnsOptions()
     {
         var result = _router.Parse(["schedule", "list", "--json"]);
@@ -942,6 +1030,8 @@ public class CliCommandRouterTests
         Assert.Contains("crossmacro window active|list", usage);
         Assert.Contains("crossmacro screen pixel|wait-color|search-color", usage);
         Assert.Contains("crossmacro screenshot", usage);
+        Assert.Contains("crossmacro profile", usage);
+        Assert.Contains("crossmacro text-expansion", usage);
         Assert.Contains("crossmacro --headless", usage);
     }
 

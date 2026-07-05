@@ -11,6 +11,10 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
     private readonly Func<DoctorCommandHandler> _doctorCommandHandler;
     private readonly Func<SettingsGetCommandHandler> _settingsGetCommandHandler;
     private readonly Func<SettingsSetCommandHandler> _settingsSetCommandHandler;
+    private readonly Func<SettingsListKeysCommandHandler> _settingsListKeysCommandHandler;
+    private readonly Func<SettingsResetCommandHandler> _settingsResetCommandHandler;
+    private readonly Func<ProfileCommandHandler> _profileCommandHandler;
+    private readonly Func<TextExpansionCommandHandler> _textExpansionCommandHandler;
     private readonly Func<ScheduleListCommandHandler> _scheduleListCommandHandler;
     private readonly Func<ScheduleRunCommandHandler> _scheduleRunCommandHandler;
     private readonly Func<ShortcutListCommandHandler> _shortcutListCommandHandler;
@@ -30,6 +34,10 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
         Func<DoctorCommandHandler> doctorCommandHandler,
         Func<SettingsGetCommandHandler> settingsGetCommandHandler,
         Func<SettingsSetCommandHandler> settingsSetCommandHandler,
+        Func<SettingsListKeysCommandHandler> settingsListKeysCommandHandler,
+        Func<SettingsResetCommandHandler> settingsResetCommandHandler,
+        Func<ProfileCommandHandler> profileCommandHandler,
+        Func<TextExpansionCommandHandler> textExpansionCommandHandler,
         Func<ScheduleListCommandHandler> scheduleListCommandHandler,
         Func<ScheduleRunCommandHandler> scheduleRunCommandHandler,
         Func<ShortcutListCommandHandler> shortcutListCommandHandler,
@@ -48,6 +56,10 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
         _doctorCommandHandler = doctorCommandHandler;
         _settingsGetCommandHandler = settingsGetCommandHandler;
         _settingsSetCommandHandler = settingsSetCommandHandler;
+        _settingsListKeysCommandHandler = settingsListKeysCommandHandler;
+        _settingsResetCommandHandler = settingsResetCommandHandler;
+        _profileCommandHandler = profileCommandHandler;
+        _textExpansionCommandHandler = textExpansionCommandHandler;
         _scheduleListCommandHandler = scheduleListCommandHandler;
         _scheduleRunCommandHandler = scheduleRunCommandHandler;
         _shortcutListCommandHandler = shortcutListCommandHandler;
@@ -71,6 +83,10 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
             DoctorCliOptions => _doctorCommandHandler(),
             SettingsGetCliOptions => _settingsGetCommandHandler(),
             SettingsSetCliOptions => _settingsSetCommandHandler(),
+            SettingsListKeysCliOptions => _settingsListKeysCommandHandler(),
+            SettingsResetCliOptions => _settingsResetCommandHandler(),
+            ProfileCliOptions => _profileCommandHandler(),
+            TextExpansionCliOptions => _textExpansionCommandHandler(),
             ScheduleListCliOptions => _scheduleListCommandHandler(),
             ScheduleRunCliOptions => _scheduleRunCommandHandler(),
             ShortcutListCliOptions => _shortcutListCommandHandler(),

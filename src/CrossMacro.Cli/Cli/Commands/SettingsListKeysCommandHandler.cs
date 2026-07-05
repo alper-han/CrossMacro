@@ -1,0 +1,23 @@
+using System.Threading;
+using System.Threading.Tasks;
+using CrossMacro.Cli.Services;
+
+namespace CrossMacro.Cli.Commands;
+
+public sealed class SettingsListKeysCommandHandler : CliCommandHandlerBase<SettingsListKeysCliOptions>
+{
+    private readonly ISettingsCliService _settingsCliService;
+
+    public SettingsListKeysCommandHandler(ISettingsCliService settingsCliService)
+    {
+        _settingsCliService = settingsCliService;
+    }
+
+    protected override async Task<CliCommandExecutionResult> ExecuteAsync(SettingsListKeysCliOptions options, CancellationToken cancellationToken)
+    {
+        var result = await _settingsCliService.ListKeysAsync(cancellationToken);
+        return result.Success
+            ? CliCommandExecutionResult.Ok(result.Message, result.Data)
+            : CliCommandExecutionResult.Fail(result.ExitCode, result.Message, errors: result.Errors);
+    }
+}

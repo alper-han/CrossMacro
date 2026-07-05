@@ -48,6 +48,8 @@ public static class CliServiceCollectionExtensions
         });
         services.AddSingleton<ICliPreflightService, CliPreflightService>();
         services.AddSingleton<ISettingsCliService, SettingsCliService>();
+        services.AddSingleton<IProfileCliService, ProfileCliService>();
+        services.AddSingleton<ITextExpansionCliService, TextExpansionCliService>();
         services.AddSingleton<IScheduleCliService, ScheduleCliService>();
         services.AddSingleton<IShortcutCliService, ShortcutCliService>();
         services.AddSingleton<IRecordExecutionService, RecordExecutionService>();
@@ -65,6 +67,10 @@ public static class CliServiceCollectionExtensions
         services.AddSingleton<DoctorCommandHandler>();
         services.AddSingleton<SettingsGetCommandHandler>();
         services.AddSingleton<SettingsSetCommandHandler>();
+        services.AddSingleton<SettingsListKeysCommandHandler>();
+        services.AddSingleton<SettingsResetCommandHandler>();
+        services.AddSingleton<ProfileCommandHandler>();
+        services.AddSingleton<TextExpansionCommandHandler>();
         services.AddSingleton<ScheduleListCommandHandler>();
         services.AddSingleton<ScheduleRunCommandHandler>();
         services.AddSingleton<ShortcutListCommandHandler>();
@@ -83,6 +89,10 @@ public static class CliServiceCollectionExtensions
         services.AddSingleton<Func<DoctorCommandHandler>>(sp => sp.GetRequiredService<DoctorCommandHandler>);
         services.AddSingleton<Func<SettingsGetCommandHandler>>(sp => sp.GetRequiredService<SettingsGetCommandHandler>);
         services.AddSingleton<Func<SettingsSetCommandHandler>>(sp => sp.GetRequiredService<SettingsSetCommandHandler>);
+        services.AddSingleton<Func<SettingsListKeysCommandHandler>>(sp => sp.GetRequiredService<SettingsListKeysCommandHandler>);
+        services.AddSingleton<Func<SettingsResetCommandHandler>>(sp => sp.GetRequiredService<SettingsResetCommandHandler>);
+        services.AddSingleton<Func<ProfileCommandHandler>>(sp => sp.GetRequiredService<ProfileCommandHandler>);
+        services.AddSingleton<Func<TextExpansionCommandHandler>>(sp => sp.GetRequiredService<TextExpansionCommandHandler>);
         services.AddSingleton<Func<ScheduleListCommandHandler>>(sp => sp.GetRequiredService<ScheduleListCommandHandler>);
         services.AddSingleton<Func<ScheduleRunCommandHandler>>(sp => sp.GetRequiredService<ScheduleRunCommandHandler>);
         services.AddSingleton<Func<ShortcutListCommandHandler>>(sp => sp.GetRequiredService<ShortcutListCommandHandler>);

@@ -43,7 +43,13 @@ public sealed class CliCommandRouter
         "--relative",
         "--tolerance",
         "--region",
-        "--clipboard"
+        "--clipboard",
+        "--all",
+        "--force",
+        "--profile",
+        "--method",
+        "--insertion-mode",
+        "--direct-typing-method"
     };
 
     private static readonly RootCommandDescriptor[] RootCommands =
@@ -52,6 +58,8 @@ public sealed class CliCommandRouter
         new("play", PlayCommandParser.Parse),
         new("doctor", DoctorCommandParser.Parse),
         new("settings", SettingsCommandParser.Parse),
+        new("profile", ProfileCommandParser.Parse),
+        new("text-expansion", TextExpansionCommandParser.Parse, "text"),
         new("schedule", ScheduleCommandParser.Parse),
         new("shortcut", ShortcutCommandParser.Parse),
         new("record", RecordCommandParser.Parse),
@@ -74,7 +82,12 @@ public sealed class CliCommandRouter
         "  crossmacro doctor [--verbose] [--json] [--log-level <level>]",
         string.Empty,
         "  crossmacro settings get [<key>] [--json] [--log-level <level>]",
+        "  crossmacro settings get --all [--json] [--log-level <level>]",
         "  crossmacro settings set <key> <value> [--json] [--log-level <level>]",
+        "  crossmacro settings list-keys [--json] [--log-level <level>]",
+        "  crossmacro settings reset <key> [--json] [--log-level <level>]",
+        "  crossmacro profile list|current|create|switch|rename|delete ... [--json] [--log-level <level>]",
+        "  crossmacro text-expansion list|add|remove|enable|disable|test ... [--json] [--log-level <level>]",
         "  crossmacro schedule list [--json] [--log-level <level>]",
         "  crossmacro schedule run <task-id> [--json] [--log-level <level>]",
         "  crossmacro shortcut list [--json] [--log-level <level>]",
@@ -266,11 +279,15 @@ public sealed class CliCommandRouter
 
             return
                 "Usage:\n" +
-                "  crossmacro settings get [<key>] [--json] [--log-level <level>]\n" +
-                "  crossmacro settings set <key> <value> [--json] [--log-level <level>]\n\n" +
+                "  crossmacro settings get [<key>|--all] [--json] [--log-level <level>]\n" +
+                "  crossmacro settings set <key> <value> [--json] [--log-level <level>]\n" +
+                "  crossmacro settings list-keys [--json] [--log-level <level>]\n" +
+                "  crossmacro settings reset <key> [--json] [--log-level <level>]\n\n" +
                 "Subcommands:\n" +
-                "  get   Read one key or all supported keys.\n" +
-                "  set   Update a single key.\n\n" +
+                "  get        Read one key or all supported keys.\n" +
+                "  set        Update a single key.\n" +
+                "  list-keys  List supported public keys.\n" +
+                "  reset      Reset one key to its default value.\n\n" +
                 "Supported Keys:\n" +
                 $"{keys}\n\n" +
                 "Try:\n" +
@@ -284,14 +301,16 @@ public sealed class CliCommandRouter
 
             return
                 "Usage:\n" +
-                "  crossmacro settings get [<key>] [--json] [--log-level <level>]\n\n" +
+                "  crossmacro settings get [<key>|--all] [--json] [--log-level <level>]\n\n" +
                 "Description:\n" +
                 "  Without <key>, prints all supported key/value pairs.\n" +
+                "  With --all, explicitly prints all supported key/value pairs.\n" +
                 "  With <key>, prints only that key.\n\n" +
                 "Supported Keys:\n" +
                 $"{keys}\n\n" +
                 "Examples:\n" +
                 "  crossmacro settings get\n" +
+                "  crossmacro settings get --all --json\n" +
                 "  crossmacro settings get playback.speed\n" +
                 "  crossmacro settings get logging.level --json\n";
         }
@@ -317,10 +336,61 @@ public sealed class CliCommandRouter
                 "  recording.forceRelative    bool\n" +
                 "  recording.skipInitialZeroZero bool\n" +
                 "  textExpansion.enabled      bool\n\n" +
+                "  ui.theme                  string\n" +
+                "  ui.language               string\n" +
+                "  ui.trayIcon               bool\n" +
+                "  ui.startMinimized         bool\n" +
+                "  updates.checkForUpdates   bool\n\n" +
                 "Examples:\n" +
                 "  crossmacro settings set playback.speed 1.25\n" +
                 "  crossmacro settings set playback.loop true\n" +
                 "  crossmacro settings set logging.level Warning\n";
+        }
+
+        if (string.Equals(topic, "settings.list-keys", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Usage:\n  crossmacro settings list-keys [--json] [--log-level <level>]\n";
+        }
+
+        if (string.Equals(topic, "settings.reset", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Usage:\n  crossmacro settings reset <key> [--json] [--log-level <level>]\n";
+        }
+
+        if (string.Equals(topic, "profile", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro profile list [--json] [--log-level <level>]\n" +
+                "  crossmacro profile current [--json] [--log-level <level>]\n" +
+                "  crossmacro profile create <name> [--json] [--log-level <level>]\n" +
+                "  crossmacro profile switch <name-or-id> [--json] [--log-level <level>]\n" +
+                "  crossmacro profile rename <name-or-id> <new-name> [--json] [--log-level <level>]\n" +
+                "  crossmacro profile delete <name-or-id> --force [--json] [--log-level <level>]\n\n" +
+                "Profile export/import is intentionally deferred until archive restore semantics are specified.\n";
+        }
+
+        if (topic.StartsWith("profile.", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetTopicUsage("profile");
+        }
+
+        if (string.Equals(topic, "text-expansion", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(topic, "text", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro text-expansion list [--profile <name-or-id>] [--json] [--log-level <level>]\n" +
+                "  crossmacro text-expansion add <trigger> <replacement> [--method CtrlV|CtrlShiftV|ShiftInsert] [--insertion-mode Paste|DirectTyping] [--direct-typing-method FastBatch|CompatibleKeyByKey] [--profile <name-or-id>] [--json] [--log-level <level>]\n" +
+                "  crossmacro text-expansion remove|enable|disable|test <trigger> [--profile <name-or-id>] [--json] [--log-level <level>]\n" +
+                "  crossmacro text-expansion export --output <path> [--profile <name-or-id>] [--json] [--log-level <level>]\n" +
+                "  crossmacro text-expansion import <path> [--profile <name-or-id>] [--json] [--log-level <level>]\n\n" +
+                "The --profile option edits that profile's storage without switching the active profile. test only resolves an expansion; it does not type or paste.\n";
+        }
+
+        if (topic.StartsWith("text-expansion.", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetTopicUsage("text-expansion");
         }
 
         if (string.Equals(topic, "schedule", StringComparison.OrdinalIgnoreCase))

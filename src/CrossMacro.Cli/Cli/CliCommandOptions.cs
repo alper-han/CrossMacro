@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CrossMacro.Core.Models;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Cli;
@@ -34,10 +35,57 @@ public sealed record PlayCliOptions(
 public sealed record DoctorCliOptions(bool Verbose = false, bool JsonOutput = false, string? LogLevel = null)
     : CliCommandOptions(JsonOutput, LogLevel);
 
-public sealed record SettingsGetCliOptions(string? Key = null, bool JsonOutput = false, string? LogLevel = null)
+public sealed record SettingsGetCliOptions(string? Key = null, bool JsonOutput = false, string? LogLevel = null, bool All = false)
     : CliCommandOptions(JsonOutput, LogLevel);
 
 public sealed record SettingsSetCliOptions(string Key, string Value, bool JsonOutput = false, string? LogLevel = null)
+    : CliCommandOptions(JsonOutput, LogLevel);
+
+public sealed record SettingsListKeysCliOptions(bool JsonOutput = false, string? LogLevel = null)
+    : CliCommandOptions(JsonOutput, LogLevel);
+
+public sealed record SettingsResetCliOptions(string Key, bool JsonOutput = false, string? LogLevel = null)
+    : CliCommandOptions(JsonOutput, LogLevel);
+
+public enum ProfileCliAction
+{
+    List,
+    Current,
+    Create,
+    Switch,
+    Rename,
+    Delete
+}
+
+public sealed record ProfileCliOptions(
+    ProfileCliAction Action,
+    string? ProfileIdentifier = null,
+    string? NewName = null,
+    bool Force = false,
+    bool JsonOutput = false,
+    string? LogLevel = null)
+    : CliCommandOptions(JsonOutput, LogLevel);
+
+public enum TextExpansionCliAction
+{
+    List,
+    Add,
+    Remove,
+    Enable,
+    Disable,
+    Test
+}
+
+public sealed record TextExpansionCliOptions(
+    TextExpansionCliAction Action,
+    string? Trigger = null,
+    string? Replacement = null,
+    PasteMethod Method = PasteMethod.CtrlV,
+    TextInsertionMode InsertionMode = TextInsertionMode.Paste,
+    DirectTypingMethod DirectTypingMethod = DirectTypingMethod.FastBatch,
+    string? ProfileIdentifier = null,
+    bool JsonOutput = false,
+    string? LogLevel = null)
     : CliCommandOptions(JsonOutput, LogLevel);
 
 public sealed record ScheduleListCliOptions(bool JsonOutput = false, string? LogLevel = null)

@@ -115,6 +115,10 @@ public sealed class CliHost
     {
         return options is SettingsGetCliOptions
             or SettingsSetCliOptions
+            or SettingsListKeysCliOptions
+            or SettingsResetCliOptions
+            or ProfileCliOptions
+            or TextExpansionCliOptions
             or ShortcutListCliOptions
             or ShortcutRunCliOptions
             or ScheduleListCliOptions

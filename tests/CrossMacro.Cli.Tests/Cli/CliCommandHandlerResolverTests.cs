@@ -39,6 +39,10 @@ public class CliCommandHandlerResolverTests
         yield return [new DoctorCliOptions(), typeof(DoctorCommandHandler)];
         yield return [new SettingsGetCliOptions(), typeof(SettingsGetCommandHandler)];
         yield return [new SettingsSetCliOptions("playback.speed", "1.25"), typeof(SettingsSetCommandHandler)];
+        yield return [new SettingsListKeysCliOptions(), typeof(SettingsListKeysCommandHandler)];
+        yield return [new SettingsResetCliOptions("ui.theme"), typeof(SettingsResetCommandHandler)];
+        yield return [new ProfileCliOptions(ProfileCliAction.List), typeof(ProfileCommandHandler)];
+        yield return [new TextExpansionCliOptions(TextExpansionCliAction.List), typeof(TextExpansionCommandHandler)];
         yield return [new ScheduleListCliOptions(), typeof(ScheduleListCommandHandler)];
         yield return [new ScheduleRunCliOptions("task-id"), typeof(ScheduleRunCommandHandler)];
         yield return [new ShortcutListCliOptions(), typeof(ShortcutListCommandHandler)];
@@ -62,6 +66,10 @@ public class CliCommandHandlerResolverTests
             new DoctorCommandHandler(Substitute.For<IDoctorService>()),
             new SettingsGetCommandHandler(Substitute.For<ISettingsCliService>()),
             new SettingsSetCommandHandler(Substitute.For<ISettingsCliService>()),
+            new SettingsListKeysCommandHandler(Substitute.For<ISettingsCliService>()),
+            new SettingsResetCommandHandler(Substitute.For<ISettingsCliService>()),
+            new ProfileCommandHandler(Substitute.For<IProfileCliService>()),
+            new TextExpansionCommandHandler(Substitute.For<ITextExpansionCliService>()),
             new ScheduleListCommandHandler(Substitute.For<IScheduleCliService>()),
             new ScheduleRunCommandHandler(Substitute.For<IScheduleCliService>()),
             new ShortcutListCommandHandler(Substitute.For<IShortcutCliService>()),
@@ -84,6 +92,10 @@ public class CliCommandHandlerResolverTests
             () => handlers.Doctor,
             () => handlers.SettingsGet,
             () => handlers.SettingsSet,
+            () => handlers.SettingsListKeys,
+            () => handlers.SettingsReset,
+            () => handlers.Profile,
+            () => handlers.TextExpansion,
             () => handlers.ScheduleList,
             () => handlers.ScheduleRun,
             () => handlers.ShortcutList,
@@ -106,6 +118,10 @@ public class CliCommandHandlerResolverTests
         DoctorCommandHandler Doctor,
         SettingsGetCommandHandler SettingsGet,
         SettingsSetCommandHandler SettingsSet,
+        SettingsListKeysCommandHandler SettingsListKeys,
+        SettingsResetCommandHandler SettingsReset,
+        ProfileCommandHandler Profile,
+        TextExpansionCommandHandler TextExpansion,
         ScheduleListCommandHandler ScheduleList,
         ScheduleRunCommandHandler ScheduleRun,
         ShortcutListCommandHandler ShortcutList,

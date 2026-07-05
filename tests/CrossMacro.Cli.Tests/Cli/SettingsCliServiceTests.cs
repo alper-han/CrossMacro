@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
@@ -30,7 +31,13 @@ public class SettingsCliServiceTests
             IsKeyboardRecordingEnabled = true,
             ForceRelativeCoordinates = false,
             SkipInitialZeroZero = false,
-            EnableTextExpansion = false
+            EnableTextExpansion = false,
+            Theme = "Mocha",
+            Language = "en",
+            EnableTrayIcon = false,
+            StartMinimized = false,
+            CheckForUpdates = false,
+            PortalScreenCastRestoreToken = "secret-token"
         };
         _settingsService.Current.Returns(_current);
         _settingsService.Load().Returns(_current);
@@ -93,5 +100,56 @@ public class SettingsCliServiceTests
         Assert.True(result.Success);
         Assert.False(_current.IsKeyboardRecordingEnabled);
         await _settingsService.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public async Task GetAsync_WithPortalRestoreToken_ReturnsStatusNotRawToken()
+    {
+        var result = await _service.GetAsync("screen.portalRestoreToken", CancellationToken.None);
+
+        Assert.True(result.Success);
+        var data = Assert.IsType<SettingsValueData>(result.Data);
+        Assert.Equal("set", data.Value);
+    }
+
+    [Fact]
+    public async Task SetAsync_WithUiTheme_UpdatesAndSaves()
+    {
+        var result = await _service.SetAsync("ui.theme", "Nord", CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal("Nord", _current.Theme);
+        await _settingsService.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public async Task SetAsync_WithPortalRestoreToken_ReturnsInvalidArguments()
+    {
+        var result = await _service.SetAsync("screen.portalRestoreToken", "raw", CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(CliExitCode.InvalidArguments, result.ExitCode);
+        await _settingsService.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task ResetAsync_WithPortalRestoreToken_ClearsToken()
+    {
+        var result = await _service.ResetAsync("screen.portalRestoreToken", CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Null(_current.PortalScreenCastRestoreToken);
+        await _settingsService.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public async Task ListKeysAsync_ReturnsExpandedKeys()
+    {
+        var result = await _service.ListKeysAsync(CancellationToken.None);
+
+        Assert.True(result.Success);
+        var keys = Assert.IsType<List<string>>(result.Data);
+        Assert.Contains("ui.theme", keys);
+        Assert.Contains("updates.checkForUpdates", keys);
     }
 }

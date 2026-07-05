@@ -8,7 +8,7 @@ internal static class SettingsCommandParser
     {
         if (args.Length < 2)
         {
-            return CliParseResult.Error("Missing settings subcommand. Expected: get or set");
+            return CliParseResult.Error("Missing settings subcommand. Expected: get, set, list-keys, or reset");
         }
 
         if (CliParseHelpers.IsHelpToken(args[1]))
@@ -27,6 +27,16 @@ internal static class SettingsCommandParser
             return ParseSet(args);
         }
 
+        if (string.Equals(subcommand, "list-keys", StringComparison.OrdinalIgnoreCase))
+        {
+            return ParseListKeys(args);
+        }
+
+        if (string.Equals(subcommand, "reset", StringComparison.OrdinalIgnoreCase))
+        {
+            return ParseReset(args);
+        }
+
         return CliParseResult.Error(
             $"Unknown settings subcommand: {subcommand}",
             prefersJsonOutput: string.Equals(subcommand, "--json", StringComparison.OrdinalIgnoreCase)
@@ -41,6 +51,7 @@ internal static class SettingsCommandParser
         }
 
         string? key = null;
+        var all = false;
         var jsonOutput = false;
         string? logLevel = null;
 
@@ -57,6 +68,12 @@ internal static class SettingsCommandParser
                 continue;
             }
 
+            if (string.Equals(token, "--all", StringComparison.OrdinalIgnoreCase))
+            {
+                all = true;
+                continue;
+            }
+
             if (key == null)
             {
                 key = token;
@@ -66,7 +83,12 @@ internal static class SettingsCommandParser
             return CliParseHelpers.Error($"Unexpected argument for settings get: {token}", jsonOutput);
         }
 
-        return CliParseResult.Success(new SettingsGetCliOptions(key, jsonOutput, logLevel));
+        if (all && key != null)
+        {
+            return CliParseHelpers.Error("settings get accepts either --all or <key>, not both.", jsonOutput);
+        }
+
+        return CliParseResult.Success(new SettingsGetCliOptions(key, jsonOutput, logLevel, all));
     }
 
     private static CliParseResult ParseSet(string[] args)
@@ -124,5 +146,71 @@ internal static class SettingsCommandParser
         }
 
         return CliParseResult.Success(new SettingsSetCliOptions(key, value, jsonOutput, logLevel));
+    }
+
+    private static CliParseResult ParseListKeys(string[] args)
+    {
+        if (args.Length >= 3 && CliParseHelpers.IsHelpToken(args[2]))
+        {
+            return CliParseResult.Help("settings.list-keys");
+        }
+
+        var jsonOutput = false;
+        string? logLevel = null;
+        for (var i = 2; i < args.Length; i++)
+        {
+            var token = args[i];
+            if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "settings.list-keys", ref jsonOutput, ref logLevel, out var commonResult))
+            {
+                if (commonResult != null)
+                {
+                    return commonResult;
+                }
+
+                continue;
+            }
+
+            return CliParseHelpers.Error($"Unknown option for settings list-keys: {token}", jsonOutput);
+        }
+
+        return CliParseResult.Success(new SettingsListKeysCliOptions(jsonOutput, logLevel));
+    }
+
+    private static CliParseResult ParseReset(string[] args)
+    {
+        if (args.Length >= 3 && CliParseHelpers.IsHelpToken(args[2]))
+        {
+            return CliParseResult.Help("settings.reset");
+        }
+
+        if (args.Length < 3 || string.IsNullOrWhiteSpace(args[2]) || CliParseHelpers.LooksLikeOptionToken(args[2]))
+        {
+            return CliParseHelpers.MissingRequiredOperandsWithRemainingOptionsJson(
+                args,
+                2,
+                "settings reset requires <key>.",
+                "crossmacro settings reset <key> [--json] [--log-level <level>]");
+        }
+
+        var key = args[2];
+        var jsonOutput = false;
+        string? logLevel = null;
+        for (var i = 3; i < args.Length; i++)
+        {
+            var token = args[i];
+            if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "settings.reset", ref jsonOutput, ref logLevel, out var commonResult))
+            {
+                if (commonResult != null)
+                {
+                    return commonResult;
+                }
+
+                continue;
+            }
+
+            return CliParseHelpers.Error($"Unknown option for settings reset: {token}", jsonOutput);
+        }
+
+        return CliParseResult.Success(new SettingsResetCliOptions(key, jsonOutput, logLevel));
     }
 }

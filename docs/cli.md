@@ -13,46 +13,19 @@ crossmacro <command> --help
 
 The packaged manpage is also available at [`docs/man/crossmacro.1`](man/crossmacro.1).
 
-## Common commands
+## Command overview
 
-```bash
-crossmacro --help
-crossmacro --version
-crossmacro --start-minimized
+| Area | Commands |
+| --- | --- |
+| Help and startup | `--help`, `<command> --help`, `--version`, `--start-minimized` |
+| Macro files | `play`, `record`, `macro validate`, `macro info` |
+| Inline automation | `run --step ...`, `run --file ...` |
+| Runtime primitives | `clipboard`, `window`, `screen`, `screenshot` |
+| User data | `settings`, `profile`, `text-expansion`, `schedule`, `shortcut` |
+| Diagnostics/runtime | `doctor`, `headless`, `--headless` |
 
-crossmacro play ./demo.macro --speed 1.25 --repeat 3 --repeat-delay-ms 500
-crossmacro macro validate ./demo.macro
-crossmacro macro info ./demo.macro
-crossmacro doctor --json --verbose
-
-crossmacro settings get
-crossmacro settings get playback.speed
-crossmacro settings set playback.speed 1.25
-
-crossmacro schedule list
-crossmacro schedule run <task-id>
-crossmacro shortcut list
-crossmacro shortcut run <task-id>
-
-crossmacro clipboard get
-crossmacro clipboard set "hello"
-crossmacro clipboard set --file ./message.txt
-crossmacro clipboard clear
-crossmacro window active --json
-crossmacro window search --title Firefox
-crossmacro window move --active 100 100
-crossmacro window workspace switch 2
-crossmacro screen pixel 500 300
-crossmacro screen wait-color 500 300 00FF00 --timeout-ms 5000
-crossmacro screen search-color 0 0 1920 1080 FF0000 --tolerance 26
-crossmacro screenshot --output ./shot.png
-crossmacro screenshot --clipboard
-crossmacro screenshot --output ./crop.png --region 100 100 800 600
-
-crossmacro record --output ./recorded.macro --duration 10 --mode auto
-crossmacro headless
-crossmacro --headless
-```
+Use the command-specific sections below for examples, option notes, and platform
+behavior.
 
 Supported log levels for CLI commands are `Verbose`, `Debug`, `Information`,
 `Warning`, `Error`, and `Fatal`.
@@ -169,6 +142,127 @@ crossmacro screenshot --output ./crop.png --region 100 100 800 600
 Screenshot capture uses the same platform frame providers as screen pixel reads.
 Unsupported platforms or sessions return a non-zero environment error.
 
+## Profile command
+
+The profile command manages the same profile registry used by the GUI:
+
+```bash
+crossmacro profile list
+crossmacro profile list --json
+crossmacro profile current
+crossmacro profile create work
+crossmacro profile switch work
+crossmacro profile rename work office
+crossmacro profile delete office --force
+```
+
+- `profile list` prints registered profiles and marks the active profile in JSON
+  `data.profiles[].isActive`.
+- `profile current` prints the active profile.
+- `profile create <name>` creates a new profile with default config files.
+- `profile switch <name-or-id>`, `rename`, and `delete` resolve either stable id
+  or display name case-insensitively.
+- `profile delete` requires `--force` and still respects backend protections such
+  as refusing to delete the active or default profile.
+
+Profile archive `export`/`import` is intentionally deferred until portable backup
+and restore semantics are specified.
+
+## Text expansion command
+
+The text expansion command manages stored expansion entries without typing or
+pasting into the desktop:
+
+```bash
+crossmacro text-expansion list
+crossmacro text-expansion list --profile work --json
+crossmacro text-expansion add ":mail" "me@example.com"
+crossmacro text-expansion add ":sig" "Regards" --method CtrlShiftV
+crossmacro text-expansion add ":sig" "Regards" --insertion-mode DirectTyping --direct-typing-method CompatibleKeyByKey
+crossmacro text-expansion remove ":mail"
+crossmacro text-expansion enable ":mail"
+crossmacro text-expansion disable ":mail"
+crossmacro text-expansion test ":mail"
+```
+
+- `--profile <name-or-id>` temporarily loads that profile's text-expansion
+  storage for the operation and restores the active profile storage afterward;
+  it does not switch the active profile.
+- `add` rejects duplicate triggers case-insensitively.
+- `test` only resolves and reports the matching expansion; it never sends input.
+- `--method` accepts `CtrlV`, `CtrlShiftV`, or `ShiftInsert`.
+- `--insertion-mode` accepts `Paste` or `DirectTyping`.
+- `--direct-typing-method` accepts `FastBatch` or `CompatibleKeyByKey`.
+
+`text` is accepted as a short alias for `text-expansion`.
+
+## Schedule and shortcut commands
+
+Schedule commands manage active-profile scheduled macro tasks:
+
+```bash
+crossmacro schedule list --json
+crossmacro schedule run <task-id>
+crossmacro schedule add --name Daily --macro ./demo.macro --interval 10m
+crossmacro schedule add --name Once --macro ./demo.macro --at "2026-07-05T18:00:00"
+crossmacro schedule add --name Weekly --macro ./demo.macro --weekly mon,wed --time 09:30
+crossmacro schedule edit <task-id> --name Office --speed 1.25 --enabled true
+crossmacro schedule remove <task-id>
+crossmacro schedule enable <task-id>
+crossmacro schedule disable <task-id>
+crossmacro schedule next <task-id> --json
+```
+
+- `add` requires `--name` and `--macro`.
+- `--interval` accepts a positive integer with optional `s`, `m`, or `h` suffix.
+- `--at` creates a one-time schedule using a parseable date/time value.
+- `--weekly` accepts comma-separated day names such as `mon,wed`, plus
+  `weekdays`, `weekends`, or `everyday`; `--time` sets the local time of day.
+- `--speed` sets the playback speed for that scheduled macro.
+- `next` reports the task's next run time and does not save changes.
+
+Shortcut commands manage active-profile shortcut-bound macro tasks:
+
+```bash
+crossmacro shortcut list --json
+crossmacro shortcut run <task-id>
+crossmacro shortcut add --name Demo --macro ./demo.macro --hotkey Ctrl+Alt+D
+crossmacro shortcut add --name Loop --macro ./loop.macro --hotkey F7 --loop --repeat 3
+crossmacro shortcut edit <task-id> --repeat-delay-ms 250
+crossmacro shortcut edit <task-id> --random-repeat-delay 100 300
+crossmacro shortcut bind <task-id> Ctrl+Shift+M
+crossmacro shortcut remove <task-id>
+crossmacro shortcut enable <task-id>
+crossmacro shortcut disable <task-id>
+```
+
+- `add` requires `--name`, `--macro`, and `--hotkey`.
+- `bind` is shorthand for replacing a shortcut task's hotkey.
+- `--loop`, `--repeat`, `--repeat-delay-ms`, `--random-repeat-delay`, and
+  `--run-while-held` mirror the GUI shortcut playback options.
+
+## Settings command
+
+Settings expose stable public keys rather than raw C# property names:
+
+```bash
+crossmacro settings get
+crossmacro settings get --all --json
+crossmacro settings get ui.theme
+crossmacro settings set ui.theme Nord
+crossmacro settings list-keys --json
+crossmacro settings reset updates.checkForUpdates
+```
+
+- `settings get [key]` preserves the existing behavior. Without a key it prints
+  all supported keys; `settings get --all` is the explicit all-settings form.
+- `settings list-keys` prints supported public keys.
+- `settings reset <key>` resets one supported key to its default value.
+- Supported UI/update keys include `ui.theme`, `ui.language`, `ui.trayIcon`,
+  `ui.startMinimized`, and `updates.checkForUpdates`.
+- `screen.portalRestoreToken` is status/reset only. `get` reports `set` or
+  `empty`, and `reset` clears it; the raw token is never printed.
+
 ## Direct run examples
 
 `crossmacro run` executes inline steps without a `.macro` file:
@@ -182,12 +276,6 @@ crossmacro run \
   --step 'repeat $n {' \
   --step "click left" \
   --step "delay random 20 50" \
-  --step "}"
-crossmacro run \
-  --step "set i=0" \
-  --step 'while $i < 10 {' \
-  --step "click left" \
-  --step "inc i" \
   --step "}"
 crossmacro run --step 'shell "notify-send done" 1 250 5000'
 crossmacro run --file ./steps.txt --json
@@ -223,7 +311,7 @@ disabled in Flatpak builds to prevent sandbox escapes; use a native or AppImage
 build when a macro needs shell execution. Use `$$NAME` when you want the shell to
 receive `$NAME` literally instead of resolving a CrossMacro variable.
 
-## Screen reading steps
+## Runtime clipboard, window, and screen steps
 
 CrossMacro's screen-reading commands are available on Windows desktop sessions,
 macOS 10.15+, native Linux X11, and Linux Wayland. Windows and macOS use native
@@ -296,9 +384,9 @@ variable rules.
 On macOS, grant Screen Recording permission in System Settings > Privacy &
 Security > Screen Recording, then restart CrossMacro.
 
-## Run step commands
+## Other run step commands
 
-Supported direct-run steps include:
+Additional direct-run steps include:
 
 - `move abs <x> <y>` and `move rel <dx> <dy>`
 - `click <button>`, `down <button>`, and `up <button>`
@@ -312,11 +400,6 @@ Supported direct-run steps include:
 - `shell capture "<command>" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]`
 - `shell input "<stdin text>" "<command>" [retries] [backoff_ms] [timeout_ms]`
 - `shell capture-input "<stdin text>" "<command>" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]`
-- `clipboard get <var>` and `clipboard set <text>`
-- `window active|search|wait|focus|close|move|resize|center|maximize|fullscreen|float|getdesktop|setdesktop|setdesktopforwindow ...`
-- `pixelcolor <x> <y> [var]`, `pixelcolor rel <dx> <dy> [var]`,
-  `waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var]`, and
-  `pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [tolerance <0..255>]`
 - `set <name> <value>` or `set <name>=<value>`
 - `inc <name> [amount]` and `dec <name> [amount]`
 - `repeat <count> { ... }`

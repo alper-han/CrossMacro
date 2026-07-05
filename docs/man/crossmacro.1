@@ -23,22 +23,28 @@ crossmacro \- keyboard and mouse macro automation CLI
 \fBdoctor\fR [\fB\-\-verbose\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
-\fBsettings get\fR [\fIKEY\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+\fBsettings get\fR [\fIKEY\fR|\fB\-\-all\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
 \fBsettings set\fR \fIKEY\fR \fIVALUE\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
-\fBschedule list\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+\fBsettings list-keys\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
-\fBschedule run\fR \fITASK_ID\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+\fBsettings reset\fR \fIKEY\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
-\fBshortcut list\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+\fBprofile list|current|create|switch|rename|delete\fR ... [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
-\fBshortcut run\fR \fITASK_ID\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+\fBtext-expansion list|add|remove|enable|disable|test\fR ... [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBschedule list|run|add|edit|remove|enable|disable|next\fR ... [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBshortcut list|run|add|edit|remove|enable|disable|bind\fR ... [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
 \fBrecord\fR (\fB\-\-output\fR|\fB\-o\fR) \fIMACRO_FILE\fR [\fB\-\-mouse\fR \fIBOOL\fR] [\fB\-\-keyboard\fR \fIBOOL\fR]
@@ -168,6 +174,12 @@ Providing \fB\-\-repeat\fR with value > 0 implies loop semantics for that playba
 At least one destination, \fB\-\-output\fR/\fB\-o\fR or \fB\-\-clipboard\fR, is required.
 \fB\-\-region\fR width and height must be positive.
 .TP
+.B profile
+\fBprofile delete\fR requires \fB\-\-force\fR. Profile ids and display names are resolved case-insensitively.
+.TP
+.B text-expansion
+\fBadd\fR rejects duplicate triggers. \fBtest\fR only reports a matching expansion and never types or pastes into the desktop.
+.TP
 .B record
 \fB\-\-duration\fR must be >= 0, and at least one of \fB\-\-mouse\fR or \fB\-\-keyboard\fR must be true.
 .SH COMMANDS
@@ -187,14 +199,75 @@ device checks are reported separately. With \fB--json\fR, inspect daemon-specifi
 socket status, required group, current process groups, session membership, and remediation.
 Direct input readiness can pass while daemon IPC still warns or fails.
 .TP
-.B settings get|set
-Read or update scriptable settings keys.
+.B settings get|set|list-keys|reset
+Read, update, list, or reset scriptable settings keys.
+Supported UI/update keys include \fBui.theme\fR, \fBui.language\fR, \fBui.trayIcon\fR,
+\fBui.startMinimized\fR, and \fBupdates.checkForUpdates\fR. The portal restore token
+key \fBscreen.portalRestoreToken\fR is status/reset only; raw token values are never printed.
 .TP
-.B schedule list|run
-Inspect schedule tasks or trigger a schedule task manually.
+.B profile
+Manage GUI profiles from scripts.
+.PP
+Profile syntax:
+.br
+\fBprofile list\fR
+.br
+\fBprofile current\fR
+.br
+\fBprofile create <name>\fR
+.br
+\fBprofile switch <name-or-id>\fR
+.br
+\fBprofile rename <name-or-id> <new-name>\fR
+.br
+\fBprofile delete <name-or-id> --force\fR
+.PP
+Archive \fBprofile export/import\fR is intentionally deferred until portable backup and restore semantics are specified.
 .TP
-.B shortcut list|run
-Inspect shortcut tasks or trigger a shortcut task manually.
+.B text-expansion
+Manage stored text expansion entries.
+.PP
+Text expansion syntax:
+.br
+\fBtext-expansion list [--profile <name-or-id>]\fR
+.br
+\fBtext-expansion add <trigger> <replacement> [--method CtrlV|CtrlShiftV|ShiftInsert] [--insertion-mode Paste|DirectTyping] [--direct-typing-method FastBatch|CompatibleKeyByKey] [--profile <name-or-id>]\fR
+.br
+\fBtext-expansion remove|enable|disable|test <trigger> [--profile <name-or-id>]\fR
+.PP
+\fB--profile\fR temporarily loads that profile's text-expansion storage for the operation and restores the active profile storage afterward; it does not switch the active profile. \fBtext\fR is accepted as a short alias for \fBtext-expansion\fR.
+.TP
+.B schedule
+Manage scheduled macro tasks in the active profile.
+.PP
+Schedule syntax:
+.br
+\fBschedule list\fR
+.br
+\fBschedule run <task-id>\fR
+.br
+\fBschedule add --name <name> --macro <path> [--interval <duration>|--at <datetime>|--weekly <days> --time <HH:mm>] [--speed <value>] [--enabled <bool>]\fR
+.br
+\fBschedule edit <task-id> [--name <name>] [--macro <path>] [--interval <duration>|--at <datetime>|--weekly <days> --time <HH:mm>] [--speed <value>] [--enabled <bool>]\fR
+.br
+\fBschedule remove|enable|disable|next <task-id>\fR
+.TP
+.B shortcut
+Manage shortcut-bound macro tasks in the active profile.
+.PP
+Shortcut syntax:
+.br
+\fBshortcut list\fR
+.br
+\fBshortcut run <task-id>\fR
+.br
+\fBshortcut add --name <name> --macro <path> --hotkey <keys> [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--enabled <bool>]\fR
+.br
+\fBshortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys>] [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--enabled <bool>]\fR
+.br
+\fBshortcut remove|enable|disable <task-id>\fR
+.br
+\fBshortcut bind <task-id> <hotkey>\fR
 .TP
 .B record
 Record input events and save a macro file.
@@ -230,49 +303,13 @@ They are disabled in Flatpak builds to prevent sandbox escapes; use a native or
 AppImage build when a macro needs shell execution. Use \fB$$NAME\fR when the shell
 should receive \fB$NAME\fR literally instead of resolving a CrossMacro variable.
 .PP
-Screen-reading syntax:
-.br
-\fBpixelcolor <x> <y> [var]\fR
-.br
-\fBpixelcolor rel <dx> <dy> [var]\fR
-.br
-\fBwaitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var]\fR
-.br
-\fBpixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [tolerance <0..255>]\fR
-.PP
-Use \fBRRGGBB\fR for a literal target color, or \fB$var\fR to reuse a color
-previously written by \fBpixelcolor\fR. Bare variable names are not accepted as
-target colors.
-.PP
-Clipboard runtime-step syntax:
-.br
-\fBclipboard get <var>\fR
-.br
-\fBclipboard set <text>\fR
-.PP
-\fBclipboard get\fR stores current clipboard text in a runtime variable.
-\fBclipboard set\fR replaces clipboard text after variable substitution.
-.PP
-Window runtime-step syntax includes:
-.br
-\fBwindow active title|class|address|fullscreen|maximize|float|pinned|hidden|geometry <var>\fR
-.br
-\fBwindow search title|class <term> <var>\fR
-.br
-\fBwindow wait title|class <term> [timeout_ms] <var>\fR
-.br
-\fBwindow focus active|title|class|address <value>\fR
-.br
-\fBwindow close active|title|address <value>\fR
-.br
-\fBwindow move <x> <y>\fR, \fBwindow resize <width> <height>\fR,
-\fBwindow center active\fR, \fBwindow maximize active\fR,
-\fBwindow fullscreen active\fR, and \fBwindow float active\fR
-.br
-\fBwindow getdesktop <var>\fR, \fBwindow setdesktop <workspace>\fR, and
-\fBwindow setdesktopforwindow active|address <addr> <workspace>\fR
-.PP
-Title and class matching uses substring matching. Unsupported platforms return runtime errors.
+Runtime primitive steps mirror the first-class \fBclipboard\fR, \fBwindow\fR,
+and \fBscreen\fR command families. Use \fBclipboard get <var>\fR and
+\fBclipboard set <text>\fR for text clipboard state, \fBwindow ...\fR forms for
+active/search/wait/focus/close/move/resize/workspace operations, and
+\fBpixelcolor\fR, \fBwaitcolor\fR, or \fBpixelsearch\fR for screen color reads.
+Target colors use six-digit \fBRRGGBB\fR values or \fB$var\fR references to
+values written by \fBpixelcolor\fR. Unsupported platforms return runtime errors.
 .TP
 .B clipboard
 Read or replace text clipboard contents without writing a run script.
@@ -360,18 +397,6 @@ Compile and validate direct run steps without sending input.
 .B crossmacro run --step "move abs 800 400" --step "click current left"
 Force click at live cursor even after absolute moves.
 .TP
-.B crossmacro run move rel 100 0 delay 30 click left
-Execute chained inline run steps in sequence.
-.TP
-.B crossmacro run --step "set n=3" --step "repeat $n {" --step "click left" --step "delay random 20 50" --step "}"
-Run a repeated block with variable substitution and randomized delay.
-.TP
-.B crossmacro run --step "set i=0" --step "while $i < 10 {" --step "click left" --step "inc i" --step "}"
-Run a bounded while loop with explicit counter increment.
-.TP
-.B crossmacro run --step "for n from 1 to 5 step 2 {" --step "click right" --step "}"
-Run a for loop with custom step value.
-.TP
 .B crossmacro run --step 'shell "echo done" 1 250 5000'
 Run a shell command with one retry, 250 ms backoff, and a 5000 ms per-attempt timeout.
 .TP
@@ -386,12 +411,6 @@ Load run steps from a plain text file (one step per line, '#' comments allowed).
 .TP
 .B crossmacro clipboard get --json
 Read clipboard text and print structured JSON.
-.TP
-.B crossmacro window search --title Firefox
-List windows whose title contains Firefox.
-.TP
-.B crossmacro screen pixel 500 300
-Print the color at screen coordinate 500,300.
 .TP
 .B crossmacro headless
 Start headless runtime and keep running until interrupted.

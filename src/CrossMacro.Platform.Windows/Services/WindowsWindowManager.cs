@@ -8,8 +8,6 @@ namespace CrossMacro.Platform.Windows.Services;
 
 public sealed class WindowsWindowManager : IWindowManager
 {
-    private static readonly Guid VirtualDesktopManagerClsid = new("aa509086-5ca9-4c25-8f95-589d3c07b48a");
-
     public bool IsSupported => OperatingSystem.IsWindows();
 
     public Task<WindowInfo?> GetActiveWindowAsync(CancellationToken cancellationToken = default)
@@ -411,7 +409,7 @@ public sealed class WindowsWindowManager : IWindowManager
     {
         try
         {
-            var manager = CreateVirtualDesktopManager();
+            using var manager = CreateVirtualDesktopManager();
             return manager.GetWindowDesktopId(hwnd, out var desktopId) == 0 ? desktopId.ToString() : null;
         }
         catch (COMException)
@@ -427,7 +425,7 @@ public sealed class WindowsWindowManager : IWindowManager
 
         try
         {
-            var manager = CreateVirtualDesktopManager();
+            using var manager = CreateVirtualDesktopManager();
             return manager.MoveWindowToDesktop(hwnd, ref desktopId) == 0;
         }
         catch (COMException)
@@ -446,13 +444,12 @@ public sealed class WindowsWindowManager : IWindowManager
         return hwnd != IntPtr.Zero;
     }
 
-    private static IVirtualDesktopManager CreateVirtualDesktopManager()
+    private static VirtualDesktopManager CreateVirtualDesktopManager()
     {
         if (!OperatingSystem.IsWindows())
             throw new PlatformNotSupportedException("Windows Virtual Desktop Manager is available only on Windows.");
 
-        var managerType = Type.GetTypeFromCLSID(VirtualDesktopManagerClsid, throwOnError: true)!;
-        return (IVirtualDesktopManager)Activator.CreateInstance(managerType)!;
+        return VirtualDesktopManager.Create();
     }
 
     private static uint GetExtendedStyle(IntPtr hwnd) =>

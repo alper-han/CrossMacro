@@ -1,6 +1,5 @@
 using System;
 using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.ComTypes;
 using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
@@ -140,9 +139,7 @@ internal sealed class WindowsCliImageClipboardService : IImageClipboardService
             pStream = Shlwapi.SHCreateMemStream(pngBytes, (uint)pngBytes.Length);
             if (pStream == IntPtr.Zero) return IntPtr.Zero;
 
-            IStream stream = (IStream)Marshal.GetObjectForIUnknown(pStream);
-
-            status = GdipCreateBitmapFromStream(stream, out pBitmap);
+            status = GdipCreateBitmapFromStream(pStream, out pBitmap);
             if (status != 0) return IntPtr.Zero;
 
             status = GdipGetImageWidth(pBitmap, out uint width);
@@ -257,7 +254,7 @@ internal sealed class WindowsCliImageClipboardService : IImageClipboardService
     private static extern void GdiplusShutdown(IntPtr token);
 
     [DllImport("gdiplus.dll", ExactSpelling = true)]
-    private static extern int GdipCreateBitmapFromStream(IStream stream, out IntPtr bitmap);
+    private static extern int GdipCreateBitmapFromStream(IntPtr stream, out IntPtr bitmap);
 
     [DllImport("gdiplus.dll", ExactSpelling = true)]
     private static extern int GdipGetImageWidth(IntPtr image, out uint width);

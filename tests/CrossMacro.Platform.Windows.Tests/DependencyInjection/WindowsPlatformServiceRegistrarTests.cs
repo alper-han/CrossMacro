@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Runtime.Versioning;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
@@ -13,6 +14,7 @@ using Xunit;
 
 namespace CrossMacro.Platform.Windows.Tests.DependencyInjection;
 
+[SupportedOSPlatform("windows")]
 public class WindowsPlatformServiceRegistrarTests
 {
     [WindowsFact]
@@ -39,7 +41,7 @@ public class WindowsPlatformServiceRegistrarTests
         Assert.Equal(typeof(WindowsMousePositionProvider), descriptor!.ImplementationType);
     }
 
-    [Fact]
+    [WindowsFact]
     public void RegisterPlatformServices_RegistersScreenFrameProvider()
     {
         var services = new ServiceCollection();

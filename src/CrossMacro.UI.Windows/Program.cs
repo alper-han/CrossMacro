@@ -1,10 +1,12 @@
 using Avalonia;
 using CrossMacro.Cli;
 using CrossMacro.Platform.Windows.DependencyInjection;
+using System.Runtime.Versioning;
 using System.Threading.Tasks;
 
 namespace CrossMacro.UI.Windows;
 
+[SupportedOSPlatform("windows")]
 internal static class Program
 {
     // Avalonia configuration, don't remove; also used by visual designer.

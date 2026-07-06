@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.Versioning;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Platform.Windows.DependencyInjection;
 
+[SupportedOSPlatform("windows")]
 public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
 {
     public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Windows;
@@ -31,5 +33,9 @@ public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
 
         services.AddSingleton<ICoordinateStrategyFactory, WindowsCoordinateStrategyFactory>();
         services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
+
+        services.AddSingleton(sp => new StaMessageThread("CrossMacro_WindowsCliClipboard"));
+        services.AddSingleton<IClipboardService, WindowsCliClipboardService>();
+        services.AddSingleton<IImageClipboardService, WindowsCliImageClipboardService>();
     }
 }

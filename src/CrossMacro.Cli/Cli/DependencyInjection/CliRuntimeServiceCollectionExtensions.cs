@@ -62,6 +62,9 @@ public static class CliRuntimeServiceCollectionExtensions
                         ? sp.GetRequiredService<FlatpakHostImageClipboardService>()
                         : sp.GetRequiredService<LinuxShellImageClipboardService>());
                 return;
+            case CliClipboardRegistrationMode.WindowsNative:
+                // Implementations are registered by WindowsPlatformServiceRegistrar.
+                return;
             case CliClipboardRegistrationMode.NoOp:
                 services.AddSingleton<IClipboardService, CliNoOpClipboardService>();
                 services.AddSingleton<IImageClipboardService, CliNoOpImageClipboardService>();

@@ -8,7 +8,7 @@ public sealed record PlatformClipboardRegistration(
         new(GuiClipboardRegistrationMode.LinuxShellWithAvaloniaFallback, CliClipboardRegistrationMode.LinuxShellOnly);
 
     public static PlatformClipboardRegistration Windows { get; } =
-        new(GuiClipboardRegistrationMode.AvaloniaOnly, CliClipboardRegistrationMode.NoOp);
+        new(GuiClipboardRegistrationMode.AvaloniaOnly, CliClipboardRegistrationMode.WindowsNative);
 
     public static PlatformClipboardRegistration MacOS { get; } =
         new(GuiClipboardRegistrationMode.AvaloniaOnly, CliClipboardRegistrationMode.NoOp);
@@ -26,5 +26,6 @@ public enum GuiClipboardRegistrationMode
 public enum CliClipboardRegistrationMode
 {
     LinuxShellOnly,
-    NoOp
+    NoOp,
+    WindowsNative
 }

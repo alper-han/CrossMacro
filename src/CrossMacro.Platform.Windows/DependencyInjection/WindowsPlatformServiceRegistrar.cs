@@ -21,6 +21,7 @@ public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
         services.AddSingleton<IMousePositionProvider, WindowsMousePositionProvider>();
         services.AddSingleton<IScreenFrameProvider, WindowsScreenFrameProvider>();
         services.AddSingleton<IEnvironmentInfoProvider, WindowsEnvironmentInfoProvider>();
+        services.AddSingleton<IWindowManager, WindowsWindowManager>();
         services.AddSingleton<IPlaybackBehaviorPolicy>(
             _ => new PlaybackBehaviorPolicy(useHybridAbsoluteDragMovement: false));
 

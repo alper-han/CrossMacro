@@ -178,6 +178,8 @@ public class ServiceCollectionExtensionsTests
 
         public void RegisterPlatformServices(IServiceCollection services)
         {
+            services.AddSingleton<IClipboardService, DummyClipboardService>();
+            services.AddSingleton<IImageClipboardService, DummyImageClipboardService>();
         }
     }
 
@@ -283,5 +285,24 @@ public class ServiceCollectionExtensionsTests
         public void Dispose()
         {
         }
+    }
+
+    private sealed class DummyClipboardService : IClipboardService
+    {
+        public bool IsSupported => false;
+
+        public Task SetTextAsync(string text, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task<string?> GetTextAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<string?>(null);
+    }
+
+    private sealed class DummyImageClipboardService : IImageClipboardService
+    {
+        public bool IsSupported => false;
+
+        public Task SetPngAsync(ReadOnlyMemory<byte> pngBytes, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 }

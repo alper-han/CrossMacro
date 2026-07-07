@@ -76,7 +76,7 @@ jobs:
       source_tag_sha: ${{ steps.tag_sha.outputs.source_tag_sha }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
     
     - name: Extract version
       id: version
@@ -201,7 +201,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       with:
         ref: ${{ needs.build-core.outputs.source_tag }}
 
@@ -319,7 +319,7 @@ jobs:
     - name: Upload to Release
       # Pinned from softprops/action-gh-release@v3 on 2026-05-09.
       # Update by checking the current v3 tag, reviewing upstream changes, then replacing this SHA.
-      uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda
+      uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b
       with:
         name: ${{ steps.release_meta.outputs.release_name }}
         tag_name: ${{ steps.release_meta.outputs.tag }}
@@ -341,7 +341,7 @@ jobs:
       is_draft: ${{ steps.release_state.outputs.is_draft }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       with:
         ref: ${{ needs.build-core.outputs.source_tag }}
 
@@ -411,7 +411,7 @@ jobs:
           libarchive
         
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
     
     - name: Setup SSH for AUR
       env:
@@ -603,7 +603,7 @@ jobs:
       needs.build-core.outputs.is_prerelease_release != 'true'
     steps:
       - name: Setup .NET for WinGetCreate
-        uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
         with:
           dotnet-version: '6.x'
 

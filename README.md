@@ -239,11 +239,11 @@ Thanks to everyone who contributes to CrossMacro.
 
 ## Star History
 
-<a href="https://www.star-history.com/?repos=alper-han%2Fcrossmacro&type=date&legend=bottom-right">
+<a href="https://www.star-history.com/?repos=alper-han%2Fcrossmacro&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=alper-han/crossmacro&type=date&theme=dark&legend=bottom-right" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=alper-han/crossmacro&type=date&legend=bottom-right" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=alper-han/crossmacro&type=date&legend=bottom-right" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=alper-han/crossmacro&type=date&theme=dark&legend=top-left&sealed_token=GRrvzlJbSqs2_q_zUzqNBHhFZSTzWT7I28BiPrI0uQkvU_N05qPSn7UEOvilNSdTQ0bqSuTGHwf1CoUTzbSiYTEXLsjznC2iHbjj6c_Wb4J6vA_HJyq-Ysujhn-XrVGN-5SPDcDgbHyKzBV-7qzjToSUfSFE3-3Rs2udLnBWOTlYJyMSK-y2z_oU_xjV" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=alper-han/crossmacro&type=date&legend=top-left&sealed_token=GRrvzlJbSqs2_q_zUzqNBHhFZSTzWT7I28BiPrI0uQkvU_N05qPSn7UEOvilNSdTQ0bqSuTGHwf1CoUTzbSiYTEXLsjznC2iHbjj6c_Wb4J6vA_HJyq-Ysujhn-XrVGN-5SPDcDgbHyKzBV-7qzjToSUfSFE3-3Rs2udLnBWOTlYJyMSK-y2z_oU_xjV" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=alper-han/crossmacro&type=date&legend=top-left&sealed_token=GRrvzlJbSqs2_q_zUzqNBHhFZSTzWT7I28BiPrI0uQkvU_N05qPSn7UEOvilNSdTQ0bqSuTGHwf1CoUTzbSiYTEXLsjznC2iHbjj6c_Wb4J6vA_HJyq-Ysujhn-XrVGN-5SPDcDgbHyKzBV-7qzjToSUfSFE3-3Rs2udLnBWOTlYJyMSK-y2z_oU_xjV" />
  </picture>
 </a>
 

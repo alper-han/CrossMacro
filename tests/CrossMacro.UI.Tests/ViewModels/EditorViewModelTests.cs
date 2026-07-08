@@ -39,11 +39,38 @@ public class EditorViewModelTests
         nameof(EditorViewModel.AvailableVariableNames),
         nameof(EditorViewModel.HasAvailableVariableNames),
         nameof(EditorViewModel.SelectedSetVariableSuggestion),
+        nameof(EditorViewModel.SelectedClipboardVariableSuggestion),
+        nameof(EditorViewModel.ShellCommandModes),
+        nameof(EditorViewModel.ShowShellCommandFields),
+        nameof(EditorViewModel.ShowShellStandardInputFields),
+        nameof(EditorViewModel.ShowShellCaptureFields),
+        nameof(EditorViewModel.WindowCommandModes),
+        nameof(EditorViewModel.WindowSearchSelectorKinds),
+        nameof(EditorViewModel.WindowFocusSelectorKinds),
+        nameof(EditorViewModel.WindowCloseSelectorKinds),
+        nameof(EditorViewModel.WindowActiveFields),
+        nameof(EditorViewModel.ShowWindowCommandFields),
+        nameof(EditorViewModel.ShowWindowSelectorFields),
+        nameof(EditorViewModel.ShowWindowSearchSelectorKinds),
+        nameof(EditorViewModel.ShowWindowFocusSelectorKinds),
+        nameof(EditorViewModel.ShowWindowCloseSelectorKinds),
+        nameof(EditorViewModel.ShowWindowSelectorValueField),
+        nameof(EditorViewModel.ShowWindowActiveFieldSelector),
+        nameof(EditorViewModel.ShowWindowCoordinateFields),
+        nameof(EditorViewModel.ShowWindowDimensionFields),
+        nameof(EditorViewModel.ShowWindowTimeoutField),
+        nameof(EditorViewModel.ShowWindowOutputVariableField),
+        nameof(EditorViewModel.ShowWindowWorkspaceField),
+        nameof(EditorViewModel.ShowWindowAddressField),
         nameof(EditorViewModel.SelectedIncDecVariableSuggestion),
         nameof(EditorViewModel.SelectedConditionLeftVariableSuggestion),
         nameof(EditorViewModel.SelectedConditionRightVariableSuggestion),
         nameof(EditorViewModel.SelectedForVariableSuggestion),
         nameof(EditorViewModel.ShowSetVariablePicker),
+        nameof(EditorViewModel.ShowClipboardGetFields),
+        nameof(EditorViewModel.ShowClipboardVariablePicker),
+        nameof(EditorViewModel.ShowScreenshotFields),
+        nameof(EditorViewModel.ShowScreenshotRegionFields),
         nameof(EditorViewModel.ShowIncDecVariablePicker),
         nameof(EditorViewModel.ShowConditionLeftVariablePicker),
         nameof(EditorViewModel.ShowConditionLeftOperandTextBox),
@@ -62,6 +89,9 @@ public class EditorViewModelTests
         nameof(EditorViewModel.CaptureConditionRightColorAsync),
         nameof(EditorViewModel.CapturePixelSearchTopLeftAsync),
         nameof(EditorViewModel.CapturePixelSearchBottomRightAsync),
+        nameof(EditorViewModel.CaptureScreenshotRegionStartAsync),
+        nameof(EditorViewModel.CaptureScreenshotRegionEndAsync),
+        nameof(EditorViewModel.BrowseScreenshotOutputPathAsync),
         nameof(EditorViewModel.CancelCapture)
     };
 
@@ -108,6 +138,7 @@ public class EditorViewModelTests
             "Editor_StatusCaptureSelectionChanged" => "[Editor_StatusCaptureSelectionChanged]",
             "Editor_StatusInsertedElseBlock" => "[Editor_StatusInsertedElseBlock]",
             "Editor_StatusOperationBlocked" => "[Editor_StatusOperationBlocked]",
+            "Editor_StatusAutoManagedAction" => "[Editor_StatusAutoManagedAction]",
             "Editor_StatusPixelReaderUnavailable" => "[Editor_StatusPixelReaderUnavailable]",
             "Editor_StatusCaptureColorPrompt" => "[Editor_StatusCaptureColorPrompt]",
             "Editor_StatusCaptureColorFailed" => "[Editor_StatusCaptureColorFailed] {0}",
@@ -115,6 +146,7 @@ public class EditorViewModelTests
             "Editor_StatusCapturedRegionTopLeft" => "[Editor_StatusCapturedRegionTopLeft] {0} {1}",
             "Editor_StatusCapturedRegionBottomRight" => "[Editor_StatusCapturedRegionBottomRight] {0} {1}",
             "Editor_StatusCaptureRegionInvalidBottomRight" => "[Editor_StatusCaptureRegionInvalidBottomRight]",
+            "Editor_StatusCaptureCancelled" => "[Editor_StatusCaptureCancelled]",
             "Editor_StatusRemovedBlock" => "[Editor_StatusRemovedBlock]",
             "Editor_StatusValidationFailed" => "[Editor_StatusValidationFailed]",
             "Editor_DialogTitleNoActions" => "[Editor_DialogTitleNoActions]",
@@ -248,6 +280,306 @@ public class EditorViewModelTests
         _viewModel.Status.Should().Contain("[Editor_StatusAddedAction]");
     }
 
+    [Fact]
+    public void AddableActionGroups_ExcludeInternalAndAdvancedActions()
+    {
+        var groupedActionTypes = _viewModel.AddableActionGroups
+            .SelectMany(group => group.Choices)
+            .Select(choice => choice.ActionType)
+            .ToArray();
+
+        groupedActionTypes.Should().Contain(_viewModel.AddableActionTypes);
+        groupedActionTypes.Should().OnlyHaveUniqueItems();
+        groupedActionTypes.Should().NotContain(EditorActionType.RawScriptStep);
+        groupedActionTypes.Should().NotContain(EditorActionType.BlockEnd);
+        groupedActionTypes.Should().NotContain(EditorActionType.ElseBlockStart);
+        _viewModel.AddableActionGroups.Select(group => group.DisplayName).Should().NotContain("Advanced");
+    }
+
+    [Fact]
+    public void NewActionGroup_WhenChanged_SelectsFirstActionInGroup()
+    {
+        var timingGroup = _viewModel.AddableActionGroups.Single(group =>
+            group.Choices.Any(choice => choice.ActionType == EditorActionType.Delay));
+
+        _viewModel.NewActionGroup = timingGroup;
+
+        _viewModel.NewActionChoice.Should().NotBeNull();
+        _viewModel.NewActionChoice!.ActionType.Should().Be(EditorActionType.Delay);
+        _viewModel.NewActionType.Should().Be(EditorActionType.Delay);
+        _viewModel.NewActionChoices.Should().Equal(timingGroup.Choices);
+    }
+
+    [Fact]
+    public void NewActionType_WhenChanged_SynchronizesGroupedPicker()
+    {
+        _viewModel.NewActionType = EditorActionType.PixelSearch;
+
+        _viewModel.NewActionChoice.Should().NotBeNull();
+        _viewModel.NewActionChoice!.ActionType.Should().Be(EditorActionType.PixelSearch);
+        _viewModel.NewActionGroup.Should().NotBeNull();
+        _viewModel.NewActionGroup!.Choices.Select(choice => choice.ActionType).Should().Contain(EditorActionType.PixelSearch);
+    }
+
+    [Fact]
+    public void AddableActionGroups_IncludesClipboardActions()
+    {
+        var clipboardGroup = _viewModel.AddableActionGroups.Single(group =>
+            group.Choices.Any(choice => choice.ActionType == EditorActionType.ClipboardGet));
+
+        clipboardGroup.Choices.Select(choice => choice.ActionType).Should().Equal(
+            EditorActionType.ClipboardGet,
+            EditorActionType.ClipboardSet);
+    }
+
+    [Fact]
+    public void AddableActionGroups_IncludesSingleShellCommandAction()
+    {
+        var shellGroup = _viewModel.AddableActionGroups.Single(group =>
+            group.Choices.Any(choice => choice.ActionType == EditorActionType.ShellCommand));
+
+        shellGroup.Choices.Select(choice => choice.ActionType).Should().Equal(EditorActionType.ShellCommand);
+    }
+
+    [Fact]
+    public void AddableActionGroups_IncludesSingleWindowCommandAction()
+    {
+        var windowGroup = _viewModel.AddableActionGroups.Single(group =>
+            group.Choices.Any(choice => choice.ActionType == EditorActionType.WindowCommand));
+
+        windowGroup.Choices.Select(choice => choice.ActionType).Should().Equal(EditorActionType.WindowCommand);
+    }
+
+    [Fact]
+    public void AddableActionGroups_IncludesSingleScreenshotAction()
+    {
+        var screenshotGroup = _viewModel.AddableActionGroups.Single(group =>
+            group.Choices.Any(choice => choice.ActionType == EditorActionType.Screenshot));
+
+        screenshotGroup.Choices.Select(choice => choice.ActionType).Should().Equal(EditorActionType.Screenshot);
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.RawScriptStep)]
+    [InlineData(EditorActionType.BlockEnd)]
+    [InlineData(EditorActionType.ElseBlockStart)]
+    public void AddAction_WhenNewActionTypeIsExcluded_DoesNotAddFallbackAction(EditorActionType excludedActionType)
+    {
+        _viewModel.NewActionType = excludedActionType;
+
+        _viewModel.AddAction();
+
+        _viewModel.NewActionType.Should().Be(excludedActionType);
+        _viewModel.Actions.Should().BeEmpty();
+        _viewModel.Status.Should().Be("[Editor_StatusAutoManagedAction]");
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.ClipboardGet)]
+    [InlineData(EditorActionType.ClipboardSet)]
+    public void AddAction_ForClipboardActions_InitializesDefaults(EditorActionType actionType)
+    {
+        _viewModel.NewActionType = actionType;
+
+        _viewModel.AddAction();
+
+        var action = _viewModel.Actions.Should().ContainSingle().Subject;
+        action.Type.Should().Be(actionType);
+        if (actionType == EditorActionType.ClipboardGet)
+        {
+            action.ScriptVariableName.Should().Be("clipboardText");
+            _viewModel.ShowClipboardGetFields.Should().BeTrue();
+            _viewModel.ShowTextInput.Should().BeFalse();
+        }
+        else
+        {
+            action.Text.Should().Be("clipboard text");
+            _viewModel.ShowClipboardGetFields.Should().BeFalse();
+            _viewModel.ShowTextInput.Should().BeTrue();
+            _viewModel.TextInputLabel.Should().Be("Editor_ClipboardText");
+        }
+    }
+
+    [Fact]
+    public void AddAction_ForShellCommand_InitializesDefaultsAndShowsShellFields()
+    {
+        _viewModel.NewActionType = EditorActionType.ShellCommand;
+
+        _viewModel.AddAction();
+
+        var action = _viewModel.Actions.Should().ContainSingle().Subject;
+        action.Type.Should().Be(EditorActionType.ShellCommand);
+        action.ShellCommandMode.Should().Be(ShellCommandMode.Shell);
+        action.ShellCommand.Should().Be("echo hello");
+        action.ShellExitCodeVariableName.Should().Be("exit_code");
+        _viewModel.ShowShellCommandFields.Should().BeTrue();
+        _viewModel.ShowShellStandardInputFields.Should().BeFalse();
+        _viewModel.ShowShellCaptureFields.Should().BeFalse();
+    }
+
+    [Fact]
+    public void AddAction_ForWindowCommand_InitializesDefaultsAndShowsWindowFields()
+    {
+        _viewModel.NewActionType = EditorActionType.WindowCommand;
+
+        _viewModel.AddAction();
+
+        var action = _viewModel.Actions.Should().ContainSingle().Subject;
+        action.Type.Should().Be(EditorActionType.WindowCommand);
+        action.WindowCommandMode.Should().Be(WindowCommandMode.Active);
+        action.WindowActiveField.Should().Be("title");
+        action.WindowOutputVariable.Should().Be("windowResult");
+        _viewModel.ShowWindowCommandFields.Should().BeTrue();
+        _viewModel.ShowWindowActiveFieldSelector.Should().BeTrue();
+        _viewModel.ShowWindowOutputVariableField.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(WindowCommandMode.Search, true, true, false, false, false, true, false, false, false, true, false)]
+    [InlineData(WindowCommandMode.Wait, true, true, false, false, true, true, false, false, false, true, false)]
+    [InlineData(WindowCommandMode.Focus, true, false, true, false, false, false, false, false, false, true, false)]
+    [InlineData(WindowCommandMode.Close, true, false, false, true, false, false, false, false, false, true, false)]
+    [InlineData(WindowCommandMode.Move, false, false, false, false, false, false, true, false, false, false, false)]
+    [InlineData(WindowCommandMode.Resize, false, false, false, false, false, false, false, true, false, false, false)]
+    [InlineData(WindowCommandMode.WorkspaceSwitch, false, false, false, false, false, false, false, false, true, false, false)]
+    [InlineData(WindowCommandMode.WorkspaceMoveWindow, false, false, false, false, false, false, false, false, true, false, true)]
+    public void SelectedAction_ForWindowMode_TogglesModeSpecificFields(
+        WindowCommandMode mode,
+        bool showSelector,
+        bool showSearchKinds,
+        bool showFocusKinds,
+        bool showCloseKinds,
+        bool showTimeout,
+        bool showOutput,
+        bool showCoordinate,
+        bool showDimension,
+        bool showWorkspace,
+        bool showSelectorValue,
+        bool showAddress)
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.WindowCommand,
+            WindowCommandMode = mode,
+            WindowSelectorKind = "title",
+            WindowSelectorValue = "Firefox",
+            WindowWorkspace = "2"
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+
+        _viewModel.ShowWindowCommandFields.Should().BeTrue();
+        _viewModel.ShowWindowSelectorFields.Should().Be(showSelector);
+        _viewModel.ShowWindowSearchSelectorKinds.Should().Be(showSearchKinds);
+        _viewModel.ShowWindowFocusSelectorKinds.Should().Be(showFocusKinds);
+        _viewModel.ShowWindowCloseSelectorKinds.Should().Be(showCloseKinds);
+        _viewModel.ShowWindowTimeoutField.Should().Be(showTimeout);
+        _viewModel.ShowWindowOutputVariableField.Should().Be(showOutput);
+        _viewModel.ShowWindowCoordinateFields.Should().Be(showCoordinate);
+        _viewModel.ShowWindowDimensionFields.Should().Be(showDimension);
+        _viewModel.ShowWindowWorkspaceField.Should().Be(showWorkspace);
+        _viewModel.ShowWindowSelectorValueField.Should().Be(showSelectorValue);
+        _viewModel.ShowWindowAddressField.Should().Be(showAddress);
+    }
+
+    [Fact]
+    public void AddAction_ForScreenshot_InitializesClipboardDefaultAndShowsScreenshotFields()
+    {
+        _viewModel.NewActionType = EditorActionType.Screenshot;
+
+        _viewModel.AddAction();
+
+        var action = _viewModel.Actions.Should().ContainSingle().Subject;
+        action.Type.Should().Be(EditorActionType.Screenshot);
+        action.ScreenshotCopyToClipboard.Should().BeTrue();
+        action.ScreenshotOutputPath.Should().BeEmpty();
+        _viewModel.ShowScreenshotFields.Should().BeTrue();
+        _viewModel.ShowScreenshotRegionFields.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SelectedAction_ForScreenshotUseRegion_TogglesRegionFields()
+    {
+        var action = new EditorAction { Type = EditorActionType.Screenshot };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+
+        _viewModel.ShowScreenshotFields.Should().BeTrue();
+        _viewModel.ShowScreenshotRegionFields.Should().BeFalse();
+
+        action.ScreenshotUseRegion = true;
+
+        _viewModel.ShowScreenshotRegionFields.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task BrowseScreenshotOutputPathAsync_WhenPathChosen_UsesPngSaveDialogAndUpdatesSelectedAction()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.Screenshot,
+            ScreenshotOutputPath = "/tmp/current-shot.png"
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        _dialogService
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .Returns("/tmp/new-shot.png");
+
+        await _viewModel.BrowseScreenshotOutputPathAsync();
+
+        await _dialogService.Received(1).ShowSaveFileDialogAsync(
+            "Editor_ScreenshotSaveDialogTitle",
+            "current-shot.png",
+            Arg.Is<FileDialogFilter[]>(filters =>
+                filters.Length == 1
+                && filters[0].Name == "Editor_ScreenshotFileDialogName"
+                && filters[0].Extensions.SequenceEqual(new[] { "png" })));
+        action.ScreenshotOutputPath.Should().Be("/tmp/new-shot.png");
+        _viewModel.CanUndo.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task BrowseScreenshotOutputPathAsync_WhenCancelled_DoesNotUpdateSelectedAction()
+    {
+        var action = new EditorAction { Type = EditorActionType.Screenshot };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        _dialogService
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .Returns((string?)null);
+
+        await _viewModel.BrowseScreenshotOutputPathAsync();
+
+        await _dialogService.Received(1).ShowSaveFileDialogAsync(
+            "Editor_ScreenshotSaveDialogTitle",
+            "Editor_ScreenshotDefaultFileName",
+            Arg.Any<FileDialogFilter[]>());
+        action.ScreenshotOutputPath.Should().BeEmpty();
+        _viewModel.CanUndo.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(ShellCommandMode.Shell, false, false)]
+    [InlineData(ShellCommandMode.ShellCapture, false, true)]
+    [InlineData(ShellCommandMode.ShellInput, true, false)]
+    [InlineData(ShellCommandMode.ShellCaptureInput, true, true)]
+    public void SelectedAction_ForShellMode_TogglesModeSpecificFields(ShellCommandMode mode, bool showInput, bool showCapture)
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ShellCommand,
+            ShellCommandMode = mode,
+            ShellCommand = "echo ok"
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+
+        _viewModel.ShowShellCommandFields.Should().BeTrue();
+        _viewModel.ShowShellStandardInputFields.Should().Be(showInput);
+        _viewModel.ShowShellCaptureFields.Should().Be(showCapture);
+    }
+
     [Theory]
     [InlineData(EditorActionType.PixelColor)]
     [InlineData(EditorActionType.WaitColor)]
@@ -370,10 +702,13 @@ public class EditorViewModelTests
     }
 
     [Theory]
+    [InlineData("window active title activeTitle", "Editor_RawScriptHint_Window", "localized window hint")]
+    [InlineData("clipboard set \"hello\"", "Editor_RawScriptHint_Clipboard", "localized clipboard hint")]
+    [InlineData("shell \"notify-send done\" 1 250 5000", "Editor_RawScriptHint_Shell", "localized shell hint")]
     [InlineData("pixelcolor rel 1 2 sampled", "Editor_RawScreenReadingHint_PixelColor", "localized pixelcolor hint")]
     [InlineData("waitcolor 10 20 00FF00 1000 wait_ok", "Editor_RawScreenReadingHint_WaitColor", "localized waitcolor hint")]
     [InlineData("pixelsearch 0 0 100 100 00FF00 found", "Editor_RawScreenReadingHint_PixelSearch", "localized pixelsearch hint")]
-    public void ScreenReadingRawHint_ForScreenReadingRawScript_UsesLocalizedHint(
+    public void TextInputHint_ForRawScriptStep_UsesLocalizedHint(
         string rawStep,
         string resourceKey,
         string expectedHint)
@@ -387,8 +722,47 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
+        _viewModel.TextInputHint.Should().Be(expectedHint);
+    }
+
+    [Fact]
+    public void ScreenReadingRawHint_ForScreenReadingRawScript_StillUsesLocalizedHint()
+    {
+        _localizationService["Editor_RawScreenReadingHint_WaitColor"].Returns("localized waitcolor hint");
+        var action = new EditorAction
+        {
+            Type = EditorActionType.RawScriptStep,
+            Text = "waitcolor 10 20 00FF00 1000 wait_ok"
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+
         _viewModel.ShowScreenReadingRawAssistance.Should().BeTrue();
-        _viewModel.ScreenReadingRawHint.Should().Be(expectedHint);
+        _viewModel.ScreenReadingRawHint.Should().Be("localized waitcolor hint");
+    }
+
+    [Fact]
+    public void SelectedActionDisplayText_WhenRawScriptTextChanges_RaisesTextInputHintNotification()
+    {
+        _localizationService["Editor_RawScriptHint_Window"].Returns("window hint");
+        _localizationService["Editor_RawScriptHint_Clipboard"].Returns("clipboard hint");
+
+        var action = new EditorAction
+        {
+            Type = EditorActionType.RawScriptStep,
+            Text = "window active title activeTitle"
+        };
+        var changed = new List<string?>();
+        _viewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        changed.Clear();
+
+        action.Text = "clipboard set \"hello\"";
+
+        changed.Should().Contain(nameof(EditorViewModel.TextInputHint));
+        _viewModel.TextInputHint.Should().Be("clipboard hint");
     }
 
     [Fact]
@@ -2806,6 +3180,105 @@ public class EditorViewModelTests
     }
 
     [Fact]
+    public async Task CaptureScreenshotRegionStartAsync_StoresStartAndEnablesRegion()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.Screenshot,
+            ScreenshotUseRegion = false,
+            ScreenshotRegionWidth = string.Empty,
+            ScreenshotRegionHeight = "0"
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<(int X, int Y)?>((12, 34)));
+
+        await _viewModel.CaptureScreenshotRegionStartAsync();
+
+        action.ScreenshotUseRegion.Should().BeTrue();
+        action.ScreenshotRegionX.Should().Be("12");
+        action.ScreenshotRegionY.Should().Be("34");
+        action.ScreenshotRegionWidth.Should().Be("1");
+        action.ScreenshotRegionHeight.Should().Be("1");
+        _viewModel.Status.Should().Be("[Editor_StatusCapturedRegionTopLeft] 12 34");
+    }
+
+    [Fact]
+    public async Task CaptureScreenshotRegionEndAsync_NormalizesRectangleFromStartAndEnd()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.Screenshot,
+            ScreenshotUseRegion = true,
+            ScreenshotRegionX = "30",
+            ScreenshotRegionY = "40"
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<(int X, int Y)?>((10, 70)));
+
+        await _viewModel.CaptureScreenshotRegionEndAsync();
+
+        action.ScreenshotRegionX.Should().Be("10");
+        action.ScreenshotRegionY.Should().Be("40");
+        action.ScreenshotRegionWidth.Should().Be("21");
+        action.ScreenshotRegionHeight.Should().Be("31");
+        _viewModel.Status.Should().Be("[Editor_StatusCapturedRegionBottomRight] 10 70");
+    }
+
+    [Fact]
+    public async Task CaptureScreenshotRegionEndAsync_WhenCaptureCancelled_DoesNotUpdateRegion()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.Screenshot,
+            ScreenshotUseRegion = false,
+            ScreenshotRegionX = "5",
+            ScreenshotRegionY = "6",
+            ScreenshotRegionWidth = "7",
+            ScreenshotRegionHeight = "8"
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<(int X, int Y)?>(null));
+
+        await _viewModel.CaptureScreenshotRegionEndAsync();
+
+        action.ScreenshotUseRegion.Should().BeFalse();
+        action.ScreenshotRegionX.Should().Be("5");
+        action.ScreenshotRegionY.Should().Be("6");
+        action.ScreenshotRegionWidth.Should().Be("7");
+        action.ScreenshotRegionHeight.Should().Be("8");
+        _viewModel.Status.Should().Be("[Editor_StatusCaptureCancelled]");
+    }
+
+    [Fact]
+    public async Task CaptureScreenshotRegionEndAsync_WhenSamePointCaptured_UsesMinimumSize()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.Screenshot,
+            ScreenshotRegionX = "12",
+            ScreenshotRegionY = "34"
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<(int X, int Y)?>((12, 34)));
+
+        await _viewModel.CaptureScreenshotRegionEndAsync();
+
+        action.ScreenshotUseRegion.Should().BeTrue();
+        action.ScreenshotRegionX.Should().Be("12");
+        action.ScreenshotRegionY.Should().Be("34");
+        action.ScreenshotRegionWidth.Should().Be("1");
+        action.ScreenshotRegionHeight.Should().Be("1");
+    }
+
+    [Fact]
     public async Task CaptureMouseAsync_WhenSelectedActionUsesCurrentPosition_ConvertsToCapturedAbsolutePosition()
     {
         // Arrange
@@ -3119,6 +3592,25 @@ public class EditorViewModelTests
         // Assert
         names.Should().Contain("i");
         _viewModel.HasAvailableVariableNames.Should().BeTrue();
+    }
+
+    [Fact]
+    public void AvailableVariableNames_WhenWindowCommandProducesOutput_IncludesWindowVariable()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.WindowCommand,
+            WindowCommandMode = WindowCommandMode.Active,
+            WindowOutputVariable = "activeTitle"
+        };
+        _viewModel.Actions.Add(action);
+
+        _viewModel.AvailableVariableNames.Should().Contain("activeTitle");
+
+        action.WindowOutputVariable = "activeClass";
+
+        _viewModel.AvailableVariableNames.Should().Contain("activeClass");
+        _viewModel.AvailableVariableNames.Should().NotContain("activeTitle");
     }
 
     [Fact]

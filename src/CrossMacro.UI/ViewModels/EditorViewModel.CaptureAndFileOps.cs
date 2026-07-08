@@ -391,6 +391,52 @@ public partial class EditorViewModel
         });
     }
 
+    public Task CaptureScreenshotRegionStartAsync()
+    {
+        return CaptureScreenshotRegionPointAsync(
+            EditorCaptureMode.ScreenshotRegionStart,
+            (action, x, y) =>
+        {
+            action.ScreenshotUseRegion = true;
+            action.ScreenshotRegionX = x.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            action.ScreenshotRegionY = y.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+            if (!IsPositiveIntegerOrVariable(action.ScreenshotRegionWidth))
+            {
+                action.ScreenshotRegionWidth = "1";
+            }
+
+            if (!IsPositiveIntegerOrVariable(action.ScreenshotRegionHeight))
+            {
+                action.ScreenshotRegionHeight = "1";
+            }
+
+            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCapturedRegionTopLeft"), x, y);
+        });
+    }
+
+    public Task CaptureScreenshotRegionEndAsync()
+    {
+        return CaptureScreenshotRegionPointAsync(
+            EditorCaptureMode.ScreenshotRegionEnd,
+            (action, endX, endY) =>
+        {
+            var startX = TryParseNonNegativeInteger(action.ScreenshotRegionX, out var parsedStartX) ? parsedStartX : endX;
+            var startY = TryParseNonNegativeInteger(action.ScreenshotRegionY, out var parsedStartY) ? parsedStartY : endY;
+            var x = Math.Min(startX, endX);
+            var y = Math.Min(startY, endY);
+            var width = Math.Max(1, Math.Abs(endX - startX) + 1);
+            var height = Math.Max(1, Math.Abs(endY - startY) + 1);
+
+            action.ScreenshotUseRegion = true;
+            action.ScreenshotRegionX = x.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            action.ScreenshotRegionY = y.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            action.ScreenshotRegionWidth = width.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            action.ScreenshotRegionHeight = height.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCapturedRegionBottomRight"), endX, endY);
+        });
+    }
+
     private async Task CapturePixelSearchRegionPointAsync(EditorCaptureMode mode, Action<EditorAction, int, int> applyPoint)
     {
         var targetAction = SelectedAction;
@@ -439,6 +485,69 @@ public partial class EditorViewModel
         {
             CaptureMode = EditorCaptureMode.None;
         }
+    }
+
+    private async Task CaptureScreenshotRegionPointAsync(EditorCaptureMode mode, Action<EditorAction, int, int> applyPoint)
+    {
+        var targetAction = SelectedAction;
+        if (targetAction == null)
+        {
+            Status = Localize("Editor_StatusSelectActionFirst");
+            return;
+        }
+
+        if (targetAction.Type != EditorActionType.Screenshot)
+        {
+            Status = Localize("Editor_StatusOperationBlocked");
+            return;
+        }
+
+        CaptureMode = mode;
+        Status = Localize("Editor_StatusCaptureMousePrompt");
+
+        try
+        {
+            using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var result = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token);
+
+            await RunOnUiThreadAsync(() =>
+            {
+                if (!result.HasValue)
+                {
+                    Status = Localize("Editor_StatusCaptureCancelled");
+                    return;
+                }
+
+                if (!ReferenceEquals(SelectedAction, targetAction))
+                {
+                    Status = Localize("Editor_StatusCaptureSelectionChanged");
+                    return;
+                }
+
+                applyPoint(targetAction, result.Value.X, result.Value.Y);
+            });
+        }
+        catch (Exception ex)
+        {
+            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message);
+        }
+        finally
+        {
+            CaptureMode = EditorCaptureMode.None;
+        }
+    }
+
+    private static bool TryParseNonNegativeInteger(string token, out int value)
+    {
+        return int.TryParse(token, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out value)
+            && value >= 0;
+    }
+
+    private static bool IsPositiveIntegerOrVariable(string token)
+    {
+        return int.TryParse(token, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var value)
+            ? value > 0
+            : token.StartsWith("$", StringComparison.Ordinal) && EditorActionScriptTokens.IsValidVariableName(token);
     }
 
     public void CancelCapture()
@@ -559,6 +668,41 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
         catch (Exception ex)
         {
             Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusSaveError"), ex.Message);
+        }
+    }
+
+    public async Task BrowseScreenshotOutputPathAsync()
+    {
+        var action = SelectedAction;
+        if (action == null)
+        {
+            Status = Localize("Editor_StatusSelectActionFirst");
+            return;
+        }
+
+        if (action.Type != EditorActionType.Screenshot)
+        {
+            Status = Localize("Editor_StatusOperationBlocked");
+            return;
+        }
+
+        var filters = new[]
+        {
+            new FileDialogFilter { Name = Localize("Editor_ScreenshotFileDialogName"), Extensions = new[] { "png" } }
+        };
+        var currentFileName = Path.GetFileName(action.ScreenshotOutputPath);
+        var defaultFileName = string.IsNullOrWhiteSpace(currentFileName)
+            ? Localize("Editor_ScreenshotDefaultFileName")
+            : currentFileName;
+
+        var filePath = await _dialogService.ShowSaveFileDialogAsync(
+            Localize("Editor_ScreenshotSaveDialogTitle"),
+            defaultFileName,
+            filters);
+
+        if (!string.IsNullOrEmpty(filePath))
+        {
+            action.ScreenshotOutputPath = filePath;
         }
     }
 

@@ -23,6 +23,92 @@ public class EditorActionDisplayFormatterTests
         formatter.FormatActionType(actionType).Should().Be(expected);
     }
 
+    [Theory]
+    [InlineData(EditorActionType.ClipboardGet, "Editor_ActionType_ClipboardGet", "Clipboard Get")]
+    [InlineData(EditorActionType.ClipboardSet, "Editor_ActionType_ClipboardSet", "Clipboard Set")]
+    [InlineData(EditorActionType.ShellCommand, "Editor_ActionType_ShellCommand", "Shell Command")]
+    [InlineData(EditorActionType.Screenshot, "Editor_ActionType_Screenshot", "Screenshot")]
+    public void FormatActionType_ForClipboardActions_UsesLocalizedLabels(
+        EditorActionType actionType,
+        string resourceKey,
+        string expected)
+    {
+        var formatter = CreateFormatter(resourceKey, expected);
+
+        formatter.FormatActionType(actionType).Should().Be(expected);
+    }
+
+    [Fact]
+    public void Format_ForClipboardGet_IncludesDestinationVariable()
+    {
+        var formatter = CreateFormatter("Editor_Action_ClipboardGet", "Read clipboard into {0}");
+        var action = new EditorAction { Type = EditorActionType.ClipboardGet, ScriptVariableName = "clipText" };
+
+        formatter.Format(action).Should().Be("Read clipboard into clipText");
+    }
+
+    [Fact]
+    public void Format_ForClipboardSet_IncludesTextPreview()
+    {
+        var formatter = CreateFormatter("Editor_Action_ClipboardSet", "Set clipboard to \"{0}\"");
+        var action = new EditorAction { Type = EditorActionType.ClipboardSet, Text = "hello" };
+
+        formatter.Format(action).Should().Be("Set clipboard to \"hello\"");
+    }
+
+    [Fact]
+    public void Format_ForShellCaptureInput_IncludesCommandAndCaptureTargets()
+    {
+        var formatter = CreateFormatter("Editor_Action_ShellCaptureInput", "Run shell with input \"{0}\" -> {1}, {2}, {3}");
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ShellCommand,
+            ShellCommandMode = ShellCommandMode.ShellCaptureInput,
+            ShellCommand = "cat",
+            ShellExitCodeVariableName = "exitCode",
+            ShellStandardOutputVariableName = "stdout",
+            ShellStandardErrorVariableName = "_"
+        };
+
+        formatter.Format(action).Should().Be("Run shell with input \"cat\" -> exitCode, stdout, _");
+    }
+
+    [Fact]
+    public void Format_ForScreenshotClipboard_UsesClipboardDestination()
+    {
+        var formatter = CreateFormatter(new Dictionary<string, string>
+        {
+            ["Editor_Action_Screenshot"] = "Screenshot -> {0}",
+            ["Editor_ScreenshotClipboardDestination"] = "clipboard"
+        });
+        var action = new EditorAction { Type = EditorActionType.Screenshot, ScreenshotCopyToClipboard = true };
+
+        formatter.Format(action).Should().Be("Screenshot -> clipboard");
+    }
+
+    [Fact]
+    public void Format_ForScreenshotRegionFileAndClipboard_IncludesRegionAndDestination()
+    {
+        var formatter = CreateFormatter(new Dictionary<string, string>
+        {
+            ["Editor_Action_ScreenshotRegion"] = "Screenshot ({0}, {1}, {2}x{3}) -> {4}",
+            ["Editor_ScreenshotFileAndClipboardDestination"] = "{0} + clipboard"
+        });
+        var action = new EditorAction
+        {
+            Type = EditorActionType.Screenshot,
+            ScreenshotOutputPath = "./shot.png",
+            ScreenshotCopyToClipboard = true,
+            ScreenshotUseRegion = true,
+            ScreenshotRegionX = "10",
+            ScreenshotRegionY = "20",
+            ScreenshotRegionWidth = "300",
+            ScreenshotRegionHeight = "200"
+        };
+
+        formatter.Format(action).Should().Be("Screenshot (10, 20, 300x200) -> ./shot.png + clipboard");
+    }
+
     [Fact]
     public void Format_ForAbsolutePixelColor_UsesStructuredScreenFields()
     {
@@ -93,11 +179,93 @@ public class EditorActionDisplayFormatterTests
         formatter.Format(action).Should().Be("Find 00FF11 in (1, 2, 300x200) -> found, hit_x, hit_y tol 26");
     }
 
+    [Fact]
+    public void FormatActionType_ForWindowCommand_UsesLocalizedLabel()
+    {
+        var formatter = CreateFormatter("Editor_ActionType_WindowCommand", "Window Command");
+
+        formatter.FormatActionType(EditorActionType.WindowCommand).Should().Be("Window Command");
+    }
+
+    [Theory]
+    [InlineData(WindowCommandMode.Active, "Get active window title -> activeTitle")]
+    [InlineData(WindowCommandMode.Search, "Search window by title \"Firefox\" -> addr")]
+    [InlineData(WindowCommandMode.Wait, "Wait for window title \"Firefox\" (2500ms) -> addr")]
+    [InlineData(WindowCommandMode.Focus, "Focus window by title \"Firefox\"")]
+    [InlineData(WindowCommandMode.Close, "Close window by title \"Firefox\"")]
+    [InlineData(WindowCommandMode.Move, "Move active window to 10, 20")]
+    [InlineData(WindowCommandMode.Resize, "Resize active window to 800x600")]
+    [InlineData(WindowCommandMode.Center, "Center active window")]
+    [InlineData(WindowCommandMode.Maximize, "Maximize active window")]
+    [InlineData(WindowCommandMode.Fullscreen, "Fullscreen active window")]
+    [InlineData(WindowCommandMode.Float, "Float active window")]
+    [InlineData(WindowCommandMode.WorkspaceGet, "Get active workspace -> workspace")]
+    [InlineData(WindowCommandMode.WorkspaceSwitch, "Switch to workspace 2")]
+    [InlineData(WindowCommandMode.WorkspaceMoveActive, "Move active window to workspace 2")]
+    [InlineData(WindowCommandMode.WorkspaceMoveWindow, "Move window 0x123 to workspace 2")]
+    public void Format_ForWindowCommand_UsesModeSpecificResources(WindowCommandMode mode, string expected)
+    {
+        var formatter = CreateFormatter(WindowResources());
+
+        formatter.Format(CreateWindowAction(mode)).Should().Be(expected);
+    }
+
+    private static Dictionary<string, string> WindowResources()
+    {
+        return new Dictionary<string, string>
+        {
+            ["Editor_Action_WindowActive"] = "Get active window {0} -> {1}",
+            ["Editor_Action_WindowSearch"] = "Search window by {0} \"{1}\" -> {2}",
+            ["Editor_Action_WindowWait"] = "Wait for window {0} \"{1}\" ({2}ms) -> {3}",
+            ["Editor_Action_WindowFocus"] = "Focus window by {0} \"{1}\"",
+            ["Editor_Action_WindowFocusActive"] = "Focus active window",
+            ["Editor_Action_WindowClose"] = "Close window by {0} \"{1}\"",
+            ["Editor_Action_WindowCloseActive"] = "Close active window",
+            ["Editor_Action_WindowMove"] = "Move active window to {0}, {1}",
+            ["Editor_Action_WindowResize"] = "Resize active window to {0}x{1}",
+            ["Editor_Action_WindowCenter"] = "Center active window",
+            ["Editor_Action_WindowMaximize"] = "Maximize active window",
+            ["Editor_Action_WindowFullscreen"] = "Fullscreen active window",
+            ["Editor_Action_WindowFloat"] = "Float active window",
+            ["Editor_Action_WindowWorkspaceGet"] = "Get active workspace -> {0}",
+            ["Editor_Action_WindowWorkspaceSwitch"] = "Switch to workspace {0}",
+            ["Editor_Action_WindowWorkspaceMoveActive"] = "Move active window to workspace {0}",
+            ["Editor_Action_WindowWorkspaceMoveWindow"] = "Move window {0} to workspace {1}"
+        };
+    }
+
+    private static EditorAction CreateWindowAction(WindowCommandMode mode)
+    {
+        return new EditorAction
+        {
+            Type = EditorActionType.WindowCommand,
+            WindowCommandMode = mode,
+            WindowSelectorKind = "title",
+            WindowSelectorValue = mode == WindowCommandMode.WorkspaceMoveWindow ? "0x123" : "Firefox",
+            WindowActiveField = "title",
+            WindowOutputVariable = mode == WindowCommandMode.Active ? "activeTitle" : mode == WindowCommandMode.WorkspaceGet ? "workspace" : "addr",
+            WindowTimeoutMs = 2500,
+            WindowX = 10,
+            WindowY = 20,
+            WindowWidth = 800,
+            WindowHeight = 600,
+            WindowWorkspace = "2"
+        };
+    }
+
     private static EditorActionDisplayFormatter CreateFormatter(string resourceKey, string resourceValue)
     {
         var localizationService = Substitute.For<ILocalizationService>();
         localizationService.CurrentCulture.Returns(CultureInfo.InvariantCulture);
         localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() == resourceKey ? resourceValue : call.Arg<string>());
+        return new EditorActionDisplayFormatter(localizationService);
+    }
+
+    private static EditorActionDisplayFormatter CreateFormatter(IReadOnlyDictionary<string, string> resources)
+    {
+        var localizationService = Substitute.For<ILocalizationService>();
+        localizationService.CurrentCulture.Returns(CultureInfo.InvariantCulture);
+        localizationService[Arg.Any<string>()].Returns(call => resources.GetValueOrDefault(call.Arg<string>(), call.Arg<string>()));
         return new EditorActionDisplayFormatter(localizationService);
     }
 }

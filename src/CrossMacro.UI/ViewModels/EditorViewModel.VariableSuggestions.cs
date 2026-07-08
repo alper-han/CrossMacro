@@ -26,6 +26,14 @@ public partial class EditorViewModel
                 case EditorActionType.ForBlockStart:
                     AddIfValidVariableName(names, action.ForVariableName);
                     break;
+                case EditorActionType.ShellCommand when action.ShellCommandMode is ShellCommandMode.ShellCapture or ShellCommandMode.ShellCaptureInput:
+                    AddIfValidVariableName(names, action.ShellExitCodeVariableName);
+                    AddIfValidVariableName(names, action.ShellStandardOutputVariableName);
+                    AddIfValidVariableName(names, action.ShellStandardErrorVariableName);
+                    break;
+                case EditorActionType.WindowCommand when action.WindowCommandMode is WindowCommandMode.Active or WindowCommandMode.Search or WindowCommandMode.Wait or WindowCommandMode.WorkspaceGet:
+                    AddIfValidVariableName(names, action.WindowOutputVariable);
+                    break;
             }
 
             if (action.TryGetScreenReadingPayload(out var screenReadingPayload))
@@ -126,6 +134,7 @@ public partial class EditorViewModel
         SetSuggestionValue(ref _selectedConditionLeftVariableSuggestion, nameof(SelectedConditionLeftVariableSuggestion), null);
         SetSuggestionValue(ref _selectedConditionRightVariableSuggestion, nameof(SelectedConditionRightVariableSuggestion), null);
         SetSuggestionValue(ref _selectedForVariableSuggestion, nameof(SelectedForVariableSuggestion), null);
+        SetSuggestionValue(ref _selectedClipboardVariableSuggestion, nameof(SelectedClipboardVariableSuggestion), null);
         SetSuggestionValue(ref _selectedScreenTargetColorVariableSuggestion, nameof(SelectedScreenTargetColorVariableSuggestion), null);
     }
 

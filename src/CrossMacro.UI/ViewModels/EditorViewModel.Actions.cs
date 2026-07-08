@@ -83,6 +83,33 @@ public partial class EditorViewModel
             && string.Equals(left.ScreenFoundVariableName, right.ScreenFoundVariableName, StringComparison.Ordinal)
             && string.Equals(left.ScreenFoundXVariableName, right.ScreenFoundXVariableName, StringComparison.Ordinal)
             && string.Equals(left.ScreenFoundYVariableName, right.ScreenFoundYVariableName, StringComparison.Ordinal)
+            && left.ShellCommandMode == right.ShellCommandMode
+            && string.Equals(left.ShellCommand, right.ShellCommand, StringComparison.Ordinal)
+            && string.Equals(left.ShellStandardInput, right.ShellStandardInput, StringComparison.Ordinal)
+            && string.Equals(left.ShellExitCodeVariableName, right.ShellExitCodeVariableName, StringComparison.Ordinal)
+            && string.Equals(left.ShellStandardOutputVariableName, right.ShellStandardOutputVariableName, StringComparison.Ordinal)
+            && string.Equals(left.ShellStandardErrorVariableName, right.ShellStandardErrorVariableName, StringComparison.Ordinal)
+            && left.ShellRetries == right.ShellRetries
+            && left.ShellBackoffMs == right.ShellBackoffMs
+            && left.ShellTimeoutMs == right.ShellTimeoutMs
+            && string.Equals(left.ScreenshotOutputPath, right.ScreenshotOutputPath, StringComparison.Ordinal)
+            && left.ScreenshotCopyToClipboard == right.ScreenshotCopyToClipboard
+            && left.ScreenshotUseRegion == right.ScreenshotUseRegion
+            && string.Equals(left.ScreenshotRegionX, right.ScreenshotRegionX, StringComparison.Ordinal)
+            && string.Equals(left.ScreenshotRegionY, right.ScreenshotRegionY, StringComparison.Ordinal)
+            && string.Equals(left.ScreenshotRegionWidth, right.ScreenshotRegionWidth, StringComparison.Ordinal)
+            && string.Equals(left.ScreenshotRegionHeight, right.ScreenshotRegionHeight, StringComparison.Ordinal)
+            && left.WindowCommandMode == right.WindowCommandMode
+            && string.Equals(left.WindowSelectorKind, right.WindowSelectorKind, StringComparison.Ordinal)
+            && string.Equals(left.WindowSelectorValue, right.WindowSelectorValue, StringComparison.Ordinal)
+            && string.Equals(left.WindowActiveField, right.WindowActiveField, StringComparison.Ordinal)
+            && string.Equals(left.WindowOutputVariable, right.WindowOutputVariable, StringComparison.Ordinal)
+            && left.WindowTimeoutMs == right.WindowTimeoutMs
+            && left.WindowX == right.WindowX
+            && left.WindowY == right.WindowY
+            && left.WindowWidth == right.WindowWidth
+            && left.WindowHeight == right.WindowHeight
+            && string.Equals(left.WindowWorkspace, right.WindowWorkspace, StringComparison.Ordinal)
             && left.PreferLegacyScriptText == right.PreferLegacyScriptText;
     }
 
@@ -208,6 +235,9 @@ public partial class EditorViewModel
             && e.PropertyName is nameof(EditorAction.Type)
                 or nameof(EditorAction.UseRandomDelay)
                 or nameof(EditorAction.UseCurrentPosition)
+                or nameof(EditorAction.ShellCommandMode)
+                or nameof(EditorAction.WindowCommandMode)
+                or nameof(EditorAction.WindowSelectorKind)
                 or nameof(EditorAction.ScriptLeftOperandType)
                 or nameof(EditorAction.ScriptRightOperandType)
                 or nameof(EditorAction.ScriptLeftOperand)
@@ -220,8 +250,12 @@ public partial class EditorViewModel
             || e.PropertyName == nameof(EditorAction.UseRandomDelay)
             || e.PropertyName == nameof(EditorAction.UseCurrentPosition)
             || e.PropertyName == nameof(EditorAction.ScreenTargetColorSource)
+            || e.PropertyName == nameof(EditorAction.ScreenshotUseRegion)
             || e.PropertyName == nameof(EditorAction.ForHasStep)
+            || e.PropertyName == nameof(EditorAction.WindowCommandMode)
+            || e.PropertyName == nameof(EditorAction.WindowSelectorKind)
             || e.PropertyName == nameof(EditorAction.ScriptValueType)
+            || e.PropertyName == nameof(EditorAction.ShellCommandMode)
             || e.PropertyName == nameof(EditorAction.ScriptNumericSourceType)
             || e.PropertyName == nameof(EditorAction.ScriptLeftOperandType)
             || e.PropertyName == nameof(EditorAction.ScriptRightOperandType)
@@ -255,7 +289,11 @@ public partial class EditorViewModel
             or nameof(EditorAction.ScreenColorVariableName)
             or nameof(EditorAction.ScreenFoundVariableName)
             or nameof(EditorAction.ScreenFoundXVariableName)
-            or nameof(EditorAction.ScreenFoundYVariableName))
+            or nameof(EditorAction.ScreenFoundYVariableName)
+            or nameof(EditorAction.ShellExitCodeVariableName)
+            or nameof(EditorAction.ShellStandardOutputVariableName)
+            or nameof(EditorAction.ShellStandardErrorVariableName)
+            or nameof(EditorAction.WindowOutputVariable))
         {
             RefreshAvailableVariableNames();
         }
@@ -309,6 +347,27 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(ShowScrollAmount));
         OnPropertyChanged(nameof(ShowTextInput));
         OnPropertyChanged(nameof(ShowSetVariableFields));
+        OnPropertyChanged(nameof(ShowClipboardGetFields));
+        OnPropertyChanged(nameof(ShowClipboardVariablePicker));
+        OnPropertyChanged(nameof(SelectedClipboardVariableSuggestion));
+        OnPropertyChanged(nameof(ShowScreenshotFields));
+        OnPropertyChanged(nameof(ShowScreenshotRegionFields));
+        OnPropertyChanged(nameof(ShowShellCommandFields));
+        OnPropertyChanged(nameof(ShowShellStandardInputFields));
+        OnPropertyChanged(nameof(ShowShellCaptureFields));
+        OnPropertyChanged(nameof(ShowWindowCommandFields));
+        OnPropertyChanged(nameof(ShowWindowSelectorFields));
+        OnPropertyChanged(nameof(ShowWindowSearchSelectorKinds));
+        OnPropertyChanged(nameof(ShowWindowFocusSelectorKinds));
+        OnPropertyChanged(nameof(ShowWindowCloseSelectorKinds));
+        OnPropertyChanged(nameof(ShowWindowSelectorValueField));
+        OnPropertyChanged(nameof(ShowWindowActiveFieldSelector));
+        OnPropertyChanged(nameof(ShowWindowCoordinateFields));
+        OnPropertyChanged(nameof(ShowWindowDimensionFields));
+        OnPropertyChanged(nameof(ShowWindowTimeoutField));
+        OnPropertyChanged(nameof(ShowWindowOutputVariableField));
+        OnPropertyChanged(nameof(ShowWindowWorkspaceField));
+        OnPropertyChanged(nameof(ShowWindowAddressField));
         OnPropertyChanged(nameof(ShowIncDecFields));
         OnPropertyChanged(nameof(ShowRepeatFields));
         OnPropertyChanged(nameof(ShowConditionFields));
@@ -407,6 +466,22 @@ public partial class EditorViewModel
             {
                 action.ScriptConditionOperator = ScriptConditionOperator.Equals;
             }
+
+            if (action.Type == EditorActionType.WindowCommand)
+            {
+                if (action.WindowCommandMode is WindowCommandMode.Search && !WindowSearchSelectorKinds.Contains(action.WindowSelectorKind))
+                {
+                    action.WindowSelectorKind = WindowSearchSelectorKinds.FirstOrDefault() ?? string.Empty;
+                }
+                else if (action.WindowCommandMode is WindowCommandMode.Focus && !WindowFocusSelectorKinds.Contains(action.WindowSelectorKind))
+                {
+                    action.WindowSelectorKind = WindowFocusSelectorKinds.FirstOrDefault() ?? string.Empty;
+                }
+                else if (action.WindowCommandMode is WindowCommandMode.Close && !WindowCloseSelectorKinds.Contains(action.WindowSelectorKind))
+                {
+                    action.WindowSelectorKind = WindowCloseSelectorKinds.FirstOrDefault() ?? string.Empty;
+                }
+            }
         }
         finally
         {
@@ -484,6 +559,20 @@ public partial class EditorViewModel
             RandomDelayMinMs = 50,
             RandomDelayMaxMs = 150,
             ScrollAmount = NewActionType is EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal ? 1 : 0,
+            Text = NewActionType == EditorActionType.ClipboardSet ? "clipboard text" : string.Empty,
+            ScriptVariableName = NewActionType == EditorActionType.ClipboardGet ? "clipboardText" : "i",
+            ShellCommand = NewActionType == EditorActionType.ShellCommand ? "echo hello" : string.Empty,
+            ScreenshotCopyToClipboard = NewActionType == EditorActionType.Screenshot,
+            ShellStandardInput = string.Empty,
+            ShellExitCodeVariableName = "exit_code",
+            ShellStandardOutputVariableName = "stdout",
+            ShellStandardErrorVariableName = "stderr",
+            WindowCommandMode = WindowCommandMode.Active,
+            WindowActiveField = "title",
+            WindowOutputVariable = "windowResult",
+            WindowTimeoutMs = 5000,
+            WindowWidth = 1280,
+            WindowHeight = 720,
             ScreenWidth = EditorActionScreenReadingPayload.DefaultPointScreenWidth,
             ScreenHeight = EditorActionScreenReadingPayload.DefaultPointScreenHeight,
             ScreenColorHex = EditorActionScreenReadingPayload.DefaultColorHex,

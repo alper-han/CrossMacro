@@ -151,7 +151,13 @@ public static class ServiceCollectionExtensions
                 services.AddSingleton<IProcessRunner, ProcessRunner>();
                 services.AddSingleton<FlatpakHostClipboardService>();
                 services.AddSingleton<LinuxShellClipboardService>();
+                services.AddSingleton<FlatpakHostImageClipboardService>();
+                services.AddSingleton<LinuxShellImageClipboardService>();
                 services.AddSingleton<IClipboardService, CompositeClipboardService>();
+                services.AddSingleton<IImageClipboardService>(sp =>
+                    sp.GetRequiredService<IRuntimeContext>().IsFlatpak
+                        ? sp.GetRequiredService<FlatpakHostImageClipboardService>()
+                        : sp.GetRequiredService<LinuxShellImageClipboardService>());
                 return;
             default:
                 throw new ArgumentOutOfRangeException(nameof(clipboardMode), clipboardMode, null);

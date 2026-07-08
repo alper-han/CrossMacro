@@ -48,6 +48,7 @@ public partial class EditorViewModel
 
     private void NotifyScreenReadingComputedPropertiesChanged()
     {
+        OnPropertyChanged(nameof(TextInputHint));
         OnPropertyChanged(nameof(ShowScreenReadingRawAssistance));
         OnPropertyChanged(nameof(ScreenReadingRawHint));
         OnPropertyChanged(nameof(ShowScreenReadingFields));
@@ -80,6 +81,34 @@ public partial class EditorViewModel
         }
 
         return string.Empty;
+    }
+
+    private bool TryGetRawScriptHint(string? step, out string hint)
+    {
+        hint = string.Empty;
+        if (string.IsNullOrWhiteSpace(step))
+        {
+            return false;
+        }
+
+        var tokens = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (tokens.Length == 0)
+        {
+            return false;
+        }
+
+        hint = tokens[0].ToLowerInvariant() switch
+        {
+            "window" => Localize("Editor_RawScriptHint_Window"),
+            "clipboard" => Localize("Editor_RawScriptHint_Clipboard"),
+            "shell" => Localize("Editor_RawScriptHint_Shell"),
+            "pixelcolor" => Localize("Editor_RawScreenReadingHint_PixelColor"),
+            "waitcolor" => Localize("Editor_RawScreenReadingHint_WaitColor"),
+            "pixelsearch" => Localize("Editor_RawScreenReadingHint_PixelSearch"),
+            _ => string.Empty
+        };
+
+        return hint.Length > 0;
     }
 
     private bool TryGetRawScreenReadingHint(string? step, out string hint)

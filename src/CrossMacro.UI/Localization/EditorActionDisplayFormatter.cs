@@ -46,6 +46,13 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             EditorActionType.PixelColor => FormatPixelColor(GetScreenReadingPayload(action)),
             EditorActionType.WaitColor => FormatWaitColor(GetScreenReadingPayload(action)),
             EditorActionType.PixelSearch => FormatPixelSearch(GetScreenReadingPayload(action)),
+            EditorActionType.ClipboardGet => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ClipboardGet"], action.ScriptVariableName),
+            EditorActionType.ClipboardSet => string.IsNullOrEmpty(action.Text)
+                ? localizationService["Editor_Action_ClipboardSetEmpty"]
+                : string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ClipboardSet"], Truncate(TextInputControlCharacterFormatter.Escape(action.Text), 25)),
+            EditorActionType.ShellCommand => FormatShellCommand(action),
+            EditorActionType.Screenshot => FormatScreenshot(action),
+            EditorActionType.WindowCommand => FormatWindowCommand(action),
             EditorActionType.Break => localizationService["Editor_Action_BreakShort"],
             EditorActionType.Continue => localizationService["Editor_Action_ContinueShort"],
             EditorActionType.BlockEnd => localizationService["Editor_Action_EndBlockShort"],
@@ -85,6 +92,11 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             EditorActionType.PixelColor => localizationService["Editor_ActionType_PixelColor"],
             EditorActionType.WaitColor => localizationService["Editor_ActionType_WaitColor"],
             EditorActionType.PixelSearch => localizationService["Editor_ActionType_PixelSearch"],
+            EditorActionType.ClipboardGet => localizationService["Editor_ActionType_ClipboardGet"],
+            EditorActionType.ClipboardSet => localizationService["Editor_ActionType_ClipboardSet"],
+            EditorActionType.ShellCommand => localizationService["Editor_ActionType_ShellCommand"],
+            EditorActionType.Screenshot => localizationService["Editor_ActionType_Screenshot"],
+            EditorActionType.WindowCommand => localizationService["Editor_ActionType_WindowCommand"],
             EditorActionType.RawScriptStep => localizationService["Editor_ActionType_RawScriptStep"],
             _ => actionType.ToString()
         };
@@ -155,6 +167,72 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             payload.ScreenFoundXVariableName,
             payload.ScreenFoundYVariableName,
             payload.ScreenTolerance);
+    }
+
+    private string FormatShellCommand(EditorAction action)
+    {
+        var command = string.IsNullOrWhiteSpace(action.ShellCommand)
+            ? localizationService["Editor_Action_ShellCommandEmpty"]
+            : Truncate(TextInputControlCharacterFormatter.Escape(action.ShellCommand), 32);
+        return action.ShellCommandMode switch
+        {
+            ShellCommandMode.ShellCapture => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ShellCapture"], command, action.ShellExitCodeVariableName, action.ShellStandardOutputVariableName, action.ShellStandardErrorVariableName),
+            ShellCommandMode.ShellInput => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ShellInput"], command),
+            ShellCommandMode.ShellCaptureInput => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ShellCaptureInput"], command, action.ShellExitCodeVariableName, action.ShellStandardOutputVariableName, action.ShellStandardErrorVariableName),
+            _ => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ShellCommand"], command)
+        };
+    }
+
+    private string FormatScreenshot(EditorAction action)
+    {
+        var destination = FormatScreenshotDestination(action);
+        return action.ScreenshotUseRegion
+            ? string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ScreenshotRegion"], action.ScreenshotRegionX, action.ScreenshotRegionY, action.ScreenshotRegionWidth, action.ScreenshotRegionHeight, destination)
+            : string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_Screenshot"], destination);
+    }
+
+    private string FormatScreenshotDestination(EditorAction action)
+    {
+        if (action.ScreenshotCopyToClipboard)
+        {
+            return string.IsNullOrWhiteSpace(action.ScreenshotOutputPath)
+                ? localizationService["Editor_ScreenshotClipboardDestination"]
+                : string.Format(localizationService.CurrentCulture, localizationService["Editor_ScreenshotFileAndClipboardDestination"], action.ScreenshotOutputPath);
+        }
+
+        return string.IsNullOrWhiteSpace(action.ScreenshotOutputPath)
+            ? localizationService["Editor_ScreenshotDestinationRequired"]
+            : action.ScreenshotOutputPath;
+    }
+
+    private string FormatWindowCommand(EditorAction action)
+    {
+        return action.WindowCommandMode switch
+        {
+            WindowCommandMode.Active => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_WindowActive"], action.WindowActiveField, action.WindowOutputVariable),
+            WindowCommandMode.Search => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_WindowSearch"], action.WindowSelectorKind, action.WindowSelectorValue, action.WindowOutputVariable),
+            WindowCommandMode.Wait => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_WindowWait"], action.WindowSelectorKind, action.WindowSelectorValue, action.WindowTimeoutMs, action.WindowOutputVariable),
+            WindowCommandMode.Focus => FormatWindowSelectorAction(action, "Editor_Action_WindowFocus", "Editor_Action_WindowFocusActive"),
+            WindowCommandMode.Close => FormatWindowSelectorAction(action, "Editor_Action_WindowClose", "Editor_Action_WindowCloseActive"),
+            WindowCommandMode.Move => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_WindowMove"], action.WindowX, action.WindowY),
+            WindowCommandMode.Resize => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_WindowResize"], action.WindowWidth, action.WindowHeight),
+            WindowCommandMode.Center => localizationService["Editor_Action_WindowCenter"],
+            WindowCommandMode.Maximize => localizationService["Editor_Action_WindowMaximize"],
+            WindowCommandMode.Fullscreen => localizationService["Editor_Action_WindowFullscreen"],
+            WindowCommandMode.Float => localizationService["Editor_Action_WindowFloat"],
+            WindowCommandMode.WorkspaceGet => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_WindowWorkspaceGet"], action.WindowOutputVariable),
+            WindowCommandMode.WorkspaceSwitch => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_WindowWorkspaceSwitch"], action.WindowWorkspace),
+            WindowCommandMode.WorkspaceMoveActive => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_WindowWorkspaceMoveActive"], action.WindowWorkspace),
+            WindowCommandMode.WorkspaceMoveWindow => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_WindowWorkspaceMoveWindow"], action.WindowSelectorValue, action.WindowWorkspace),
+            _ => localizationService["Editor_ActionType_WindowCommand"]
+        };
+    }
+
+    private string FormatWindowSelectorAction(EditorAction action, string selectorKey, string activeKey)
+    {
+        return action.WindowSelectorKind == "active"
+            ? localizationService[activeKey]
+            : string.Format(localizationService.CurrentCulture, localizationService[selectorKey], action.WindowSelectorKind, action.WindowSelectorValue);
     }
 
     private static EditorActionScreenReadingPayload GetScreenReadingPayload(EditorAction action)

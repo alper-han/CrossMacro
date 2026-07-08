@@ -83,7 +83,20 @@ public partial class EditorViewModel
         });
     }
 
+    public string? SelectedClipboardVariableSuggestion
+    {
+        get => _selectedClipboardVariableSuggestion;
+        set => ApplyVariableSuggestion(ref _selectedClipboardVariableSuggestion, value, nameof(SelectedClipboardVariableSuggestion), suggestion =>
+        {
+            if (SelectedAction?.Type == EditorActionType.ClipboardGet)
+            {
+                SelectedAction.ScriptVariableName = suggestion;
+            }
+        });
+    }
+
     public bool ShowSetVariablePicker => ShowSetVariableFields && HasAvailableVariableNames;
+    public bool ShowClipboardVariablePicker => ShowClipboardGetFields && HasAvailableVariableNames;
     public bool ShowIncDecVariablePicker => ShowIncDecFields && HasAvailableVariableNames;
     public bool ShowConditionLeftVariablePicker =>
         ShowConditionFields

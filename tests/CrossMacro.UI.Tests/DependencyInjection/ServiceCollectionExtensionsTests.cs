@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using System.Reflection;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Infrastructure.Services.ScreenCapture;
 using CrossMacro.Infrastructure.Services.Recording.Strategies;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Cli.DependencyInjection;
@@ -116,6 +117,30 @@ public class ServiceCollectionExtensionsTests
         var clipboard = provider.GetRequiredService<IClipboardService>();
 
         Assert.IsType<CompositeClipboardService>(clipboard);
+    }
+
+    [Fact]
+    public void AddCrossMacroGuiRuntimeServices_RegistersLinuxImageClipboardBinding_WhenRegistrarRequestsLinuxMode()
+    {
+        var services = new ServiceCollection();
+        services.AddCrossMacroGuiRuntimeServices(new LinuxLikePlatformServiceRegistrar());
+
+        using var provider = services.BuildServiceProvider();
+        var imageClipboard = provider.GetRequiredService<IImageClipboardService>();
+
+        Assert.IsType<LinuxShellImageClipboardService>(imageClipboard);
+    }
+
+    [Fact]
+    public void AddCrossMacroGuiRuntimeServices_ResolvesScreenshotCaptureWithLinuxImageClipboardBinding()
+    {
+        var services = new ServiceCollection();
+        services.AddCrossMacroGuiRuntimeServices(new LinuxLikePlatformServiceRegistrar());
+
+        using var provider = services.BuildServiceProvider();
+
+        Assert.NotNull(provider.GetRequiredService<IScreenshotCaptureService>());
+        Assert.IsType<LinuxShellImageClipboardService>(provider.GetRequiredService<IImageClipboardService>());
     }
 
     [Fact]

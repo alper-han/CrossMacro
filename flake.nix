@@ -111,15 +111,15 @@
                   # Enable self-contained build for Native AOT
                   selfContainedBuild = true;
 
-                  # Native AOT requires clang and zlib for compilation
+                  # Native AOT requires clang for compilation and patching
                   nativeBuildInputs = with pkgs; [
                     clang
-                    zlib
                     autoPatchelfHook
                   ];
 
                   buildInputs = with pkgs; [
                     systemd
+                    zlib
                   ];
 
                   dotnetFlags = [
@@ -192,10 +192,8 @@
 
               nativeBuildInputs = [
                 pkgs.installShellFiles
-                pkgs.makeWrapper
               ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
                 pkgs.clang
-                pkgs.zlib
                 pkgs.autoPatchelfHook
               ];
 
@@ -236,6 +234,7 @@
               # Keep desktop Exec aligned with /proc/<pid>/exe for KWin's
               # restricted screenshot permission checks.
               postFixup = pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+                # Align wrapper and ELF paths so KWin's strict /proc/<pid>/exe check grants Wayland permissions.
                 # Move the real ELF binary to .CrossMacro.UI-wrapped
                 mv $out/lib/crossmacro/CrossMacro.UI \
                    $out/lib/crossmacro/.CrossMacro.UI-wrapped

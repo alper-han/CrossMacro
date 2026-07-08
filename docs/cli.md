@@ -323,6 +323,9 @@ pixelcolor 500 300 mycolor
 pixelcolor rel 0 0 underCursor
 clipboard get clipText
 clipboard set "new clipboard text"
+screenshot output "./shot.png"
+screenshot clipboard
+screenshot region 100 100 800 600 output "./crop.png" clipboard
 window active title activeTitle
 window search title "Firefox" firefoxAddress
 window focus address 0x1234
@@ -352,6 +355,9 @@ pixelsearch 0 0 1920 1080 FF0000 found found_x found_y tolerance 26
   fail-fast behavior.
 - `clipboard get <var>` stores current clipboard text in a runtime variable.
 - `clipboard set <text>` replaces clipboard text after variable substitution.
+- `screenshot [region <x> <y> <width> <height>] [output <path>] [clipboard]`
+  captures a screen frame. At least one destination, `output` or `clipboard`, is
+  required; `output` overwrites the target PNG path.
 - `window active title|class|address|fullscreen|maximize|float|pinned|hidden|geometry <var>`
   stores active-window fields.
 - `window search title|class <term> <var>` stores the first matching window
@@ -400,6 +406,7 @@ Additional direct-run steps include:
 - `shell capture "<command>" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]`
 - `shell input "<stdin text>" "<command>" [retries] [backoff_ms] [timeout_ms]`
 - `shell capture-input "<stdin text>" "<command>" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]`
+- `screenshot [region <x> <y> <width> <height>] [output <path>] [clipboard]`
 - `set <name> <value>` or `set <name>=<value>`
 - `inc <name> [amount]` and `dec <name> [amount]`
 - `repeat <count> { ... }`

@@ -4,6 +4,7 @@ using System.Linq;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Resources;
 using CrossMacro.Core.Services;
+using CrossMacro.Infrastructure.Services.Playback;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
@@ -41,12 +42,15 @@ public class EditorActionValidator : IEditorActionValidator
                 or EditorActionType.IfBlockStart
                 or EditorActionType.WhileBlockStart
                 or EditorActionType.ForBlockStart => ValidateActionPayload(action),
-            EditorActionType.RawScriptStep => string.IsNullOrWhiteSpace(action.Text)
-                ? (false, "Raw script step cannot be empty.")
-                : (true, null),
+            EditorActionType.RawScriptStep => ValidateRawScriptStep(action),
             EditorActionType.PixelColor => ValidatePixelColor(action),
             EditorActionType.WaitColor => ValidateWaitColor(action),
             EditorActionType.PixelSearch => ValidatePixelSearch(action),
+            EditorActionType.ClipboardGet => ValidateClipboardGet(action),
+            EditorActionType.ClipboardSet => ValidateClipboardSet(action),
+            EditorActionType.ShellCommand => ValidateShellCommand(action),
+            EditorActionType.Screenshot => ValidateScreenshot(action),
+            EditorActionType.WindowCommand => ValidateWindowCommand(action),
             EditorActionType.ElseBlockStart
                 or EditorActionType.BlockEnd
                 or EditorActionType.Break
@@ -206,6 +210,147 @@ public class EditorActionValidator : IEditorActionValidator
             return (false, ValidationMessages.TextInputRequired);
 
         return (true, null);
+    }
+
+    private static (bool IsValid, string? Error) ValidateClipboardGet(EditorAction action)
+    {
+        return EditorActionScriptTokens.IsValidVariableName(action.ScriptVariableName)
+            ? (true, null)
+            : (false, "Clipboard destination variable name is invalid. Allowed: letters, digits, underscore; cannot start with digit.");
+    }
+
+    private static (bool IsValid, string? Error) ValidateClipboardSet(EditorAction action)
+    {
+        return string.IsNullOrEmpty(action.Text)
+            ? (false, "Clipboard text cannot be empty.")
+            : (true, null);
+    }
+
+    private (bool IsValid, string? Error) ValidateRawScriptStep(EditorAction action)
+    {
+        if (string.IsNullOrWhiteSpace(action.Text))
+        {
+            return (false, "Raw script step cannot be empty.");
+        }
+
+        var text = action.Text;
+        if (!RunScriptSyntax.IsWindowStep(text)
+            && !RunScriptSyntax.IsClipboardStep(text)
+            && !RunScriptSyntax.IsShellStep(text)
+            && !RunScriptSyntax.IsScreenReadingStep(text)
+            && !RunScriptSyntax.IsScreenshotStep(text))
+        {
+            return (true, null);
+        }
+
+        try
+        {
+            _validationConverter.ToMacroSequence(new[] { action }, "Validation", isAbsolute: false);
+            return (true, null);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return (false, ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    private static (bool IsValid, string? Error) ValidateShellCommand(EditorAction action)
+    {
+        if (string.IsNullOrWhiteSpace(action.ShellCommand))
+        {
+            return (false, "Shell command cannot be empty.");
+        }
+
+        if (!Enum.IsDefined(typeof(ShellCommandMode), action.ShellCommandMode))
+        {
+            return (false, "Shell command mode is invalid.");
+        }
+
+        if (action.ShellCommandMode is ShellCommandMode.ShellCapture or ShellCommandMode.ShellCaptureInput)
+        {
+            if (!IsValidShellCaptureTarget(action.ShellExitCodeVariableName)
+                || !IsValidShellCaptureTarget(action.ShellStandardOutputVariableName)
+                || !IsValidShellCaptureTarget(action.ShellStandardErrorVariableName))
+            {
+                return (false, "Shell capture targets must be valid variable names, or '_' to ignore a stream.");
+            }
+        }
+
+        if (action.ShellRetries < 0 || action.ShellRetries > 10_000)
+        {
+            return (false, "Shell retries must be between 0 and 10000.");
+        }
+
+        if (action.ShellBackoffMs < 0)
+        {
+            return (false, "Shell backoff_ms must be non-negative.");
+        }
+
+        if (action.ShellTimeoutMs < 0)
+        {
+            return (false, "Shell timeout_ms must be non-negative.");
+        }
+
+        return (true, null);
+    }
+
+    private static (bool IsValid, string? Error) ValidateScreenshot(EditorAction action)
+    {
+        if (string.IsNullOrWhiteSpace(action.ScreenshotOutputPath) && !action.ScreenshotCopyToClipboard)
+        {
+            return (false, "Screenshot requires an output path or clipboard destination.");
+        }
+
+        if (!action.ScreenshotUseRegion)
+        {
+            return (true, null);
+        }
+
+        if (!IsNonNegativeIntegerOrVariable(action.ScreenshotRegionX) || !IsNonNegativeIntegerOrVariable(action.ScreenshotRegionY))
+        {
+            return (false, "Screenshot region x/y must be non-negative integers or variables.");
+        }
+
+        if (!IsPositiveIntegerOrVariable(action.ScreenshotRegionWidth) || !IsPositiveIntegerOrVariable(action.ScreenshotRegionHeight))
+        {
+            return (false, "Screenshot region width/height must be positive integers or variables.");
+        }
+
+        return (true, null);
+    }
+
+    private static (bool IsValid, string? Error) ValidateWindowCommand(EditorAction action)
+    {
+        if (!Enum.IsDefined(typeof(WindowCommandMode), action.WindowCommandMode))
+        {
+            return (false, "Window command mode is invalid.");
+        }
+
+        var error = RunScriptWindowExecutor.Validate(EditorActionConverter.BuildWindowStep(action));
+        return error == null ? (true, null) : (false, error);
+    }
+
+    private static bool IsNonNegativeIntegerOrVariable(string token)
+    {
+        return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            ? value >= 0
+            : token.StartsWith("$", StringComparison.Ordinal) && EditorActionScriptTokens.IsValidVariableName(token);
+    }
+
+    private static bool IsPositiveIntegerOrVariable(string token)
+    {
+        return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            ? value > 0
+            : token.StartsWith("$", StringComparison.Ordinal) && EditorActionScriptTokens.IsValidVariableName(token);
+    }
+
+    private static bool IsValidShellCaptureTarget(string target)
+    {
+        return target == "_" || EditorActionScriptTokens.IsValidVariableName(target);
     }
 
     private static (bool IsValid, string? Error) ValidateActionPayload(EditorAction action)

@@ -61,6 +61,33 @@ public class EditorAction : INotifyPropertyChanged
     private string _screenFoundVariableName = "found";
     private string _screenFoundXVariableName = "found_x";
     private string _screenFoundYVariableName = "found_y";
+    private ShellCommandMode _shellCommandMode = ShellCommandMode.Shell;
+    private string _shellCommand = string.Empty;
+    private string _shellStandardInput = string.Empty;
+    private string _shellExitCodeVariableName = "exit_code";
+    private string _shellStandardOutputVariableName = "stdout";
+    private string _shellStandardErrorVariableName = "stderr";
+    private int _shellRetries;
+    private int _shellBackoffMs;
+    private int _shellTimeoutMs;
+    private string _screenshotOutputPath = string.Empty;
+    private bool _screenshotCopyToClipboard;
+    private bool _screenshotUseRegion;
+    private string _screenshotRegionX = "0";
+    private string _screenshotRegionY = "0";
+    private string _screenshotRegionWidth = "100";
+    private string _screenshotRegionHeight = "100";
+    private WindowCommandMode _windowCommandMode = WindowCommandMode.Active;
+    private string _windowSelectorKind = "title";
+    private string _windowSelectorValue = string.Empty;
+    private string _windowActiveField = "title";
+    private string _windowOutputVariable = "windowResult";
+    private int _windowTimeoutMs = 5000;
+    private int _windowX;
+    private int _windowY;
+    private int _windowWidth = 1280;
+    private int _windowHeight = 720;
+    private string _windowWorkspace = string.Empty;
     private bool _preferLegacyScriptText;
     private List<MacroEvent>? _preservedTextInputEvents;
     private string? _preservedTextInputText;
@@ -850,6 +877,168 @@ public class EditorAction : INotifyPropertyChanged
         set => SetScreenField(ref _screenFoundYVariableName, value?.Trim() ?? string.Empty);
     }
 
+    public ShellCommandMode ShellCommandMode
+    {
+        get => _shellCommandMode;
+        set => SetScriptField(ref _shellCommandMode, value);
+    }
+
+    public string ShellCommand
+    {
+        get => _shellCommand;
+        set => SetScriptField(ref _shellCommand, value ?? string.Empty);
+    }
+
+    public string ShellStandardInput
+    {
+        get => _shellStandardInput;
+        set => SetScriptField(ref _shellStandardInput, value ?? string.Empty);
+    }
+
+    public string ShellExitCodeVariableName
+    {
+        get => _shellExitCodeVariableName;
+        set => SetScriptField(ref _shellExitCodeVariableName, value?.Trim() ?? string.Empty);
+    }
+
+    public string ShellStandardOutputVariableName
+    {
+        get => _shellStandardOutputVariableName;
+        set => SetScriptField(ref _shellStandardOutputVariableName, value?.Trim() ?? string.Empty);
+    }
+
+    public string ShellStandardErrorVariableName
+    {
+        get => _shellStandardErrorVariableName;
+        set => SetScriptField(ref _shellStandardErrorVariableName, value?.Trim() ?? string.Empty);
+    }
+
+    public int ShellRetries
+    {
+        get => _shellRetries;
+        set => SetScriptField(ref _shellRetries, value);
+    }
+
+    public int ShellBackoffMs
+    {
+        get => _shellBackoffMs;
+        set => SetScriptField(ref _shellBackoffMs, value);
+    }
+
+    public int ShellTimeoutMs
+    {
+        get => _shellTimeoutMs;
+        set => SetScriptField(ref _shellTimeoutMs, value);
+    }
+
+    public string ScreenshotOutputPath
+    {
+        get => _screenshotOutputPath;
+        set => SetScriptField(ref _screenshotOutputPath, value ?? string.Empty);
+    }
+
+    public bool ScreenshotCopyToClipboard
+    {
+        get => _screenshotCopyToClipboard;
+        set => SetScriptField(ref _screenshotCopyToClipboard, value);
+    }
+
+    public bool ScreenshotUseRegion
+    {
+        get => _screenshotUseRegion;
+        set => SetScriptField(ref _screenshotUseRegion, value);
+    }
+
+    public string ScreenshotRegionX
+    {
+        get => _screenshotRegionX;
+        set => SetScriptField(ref _screenshotRegionX, value?.Trim() ?? string.Empty);
+    }
+
+    public string ScreenshotRegionY
+    {
+        get => _screenshotRegionY;
+        set => SetScriptField(ref _screenshotRegionY, value?.Trim() ?? string.Empty);
+    }
+
+    public string ScreenshotRegionWidth
+    {
+        get => _screenshotRegionWidth;
+        set => SetScriptField(ref _screenshotRegionWidth, value?.Trim() ?? string.Empty);
+    }
+
+    public string ScreenshotRegionHeight
+    {
+        get => _screenshotRegionHeight;
+        set => SetScriptField(ref _screenshotRegionHeight, value?.Trim() ?? string.Empty);
+    }
+
+    public WindowCommandMode WindowCommandMode
+    {
+        get => _windowCommandMode;
+        set => SetScriptField(ref _windowCommandMode, value);
+    }
+
+    public string WindowSelectorKind
+    {
+        get => _windowSelectorKind;
+        set => SetScriptField(ref _windowSelectorKind, value?.Trim().ToLowerInvariant() ?? string.Empty);
+    }
+
+    public string WindowSelectorValue
+    {
+        get => _windowSelectorValue;
+        set => SetScriptField(ref _windowSelectorValue, value ?? string.Empty);
+    }
+
+    public string WindowActiveField
+    {
+        get => _windowActiveField;
+        set => SetScriptField(ref _windowActiveField, value?.Trim().ToLowerInvariant() ?? string.Empty);
+    }
+
+    public string WindowOutputVariable
+    {
+        get => _windowOutputVariable;
+        set => SetScriptField(ref _windowOutputVariable, value?.Trim() ?? string.Empty);
+    }
+
+    public int WindowTimeoutMs
+    {
+        get => _windowTimeoutMs;
+        set => SetScriptField(ref _windowTimeoutMs, value);
+    }
+
+    public int WindowX
+    {
+        get => _windowX;
+        set => SetScriptField(ref _windowX, value);
+    }
+
+    public int WindowY
+    {
+        get => _windowY;
+        set => SetScriptField(ref _windowY, value);
+    }
+
+    public int WindowWidth
+    {
+        get => _windowWidth;
+        set => SetScriptField(ref _windowWidth, value);
+    }
+
+    public int WindowHeight
+    {
+        get => _windowHeight;
+        set => SetScriptField(ref _windowHeight, value);
+    }
+
+    public string WindowWorkspace
+    {
+        get => _windowWorkspace;
+        set => SetScriptField(ref _windowWorkspace, value ?? string.Empty);
+    }
+
     public bool TryGetScreenReadingPayload(out EditorActionScreenReadingPayload payload)
     {
         return EditorActionScreenReadingPayload.TryCreate(this, out payload);
@@ -942,6 +1131,11 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.PixelColor => BuildPixelColorDisplayName(GetScreenReadingPayload()),
             EditorActionType.WaitColor => BuildWaitColorDisplayName(GetScreenReadingPayload()),
             EditorActionType.PixelSearch => BuildPixelSearchDisplayName(GetScreenReadingPayload()),
+            EditorActionType.ShellCommand => string.IsNullOrWhiteSpace(ShellCommand)
+                ? "Shell Command"
+                : $"Shell {ShellCommandMode}: \"{(ShellCommand.Length > 30 ? ShellCommand[..30] + "..." : ShellCommand)}\"",
+            EditorActionType.Screenshot => BuildScreenshotDisplayName(),
+            EditorActionType.WindowCommand => BuildWindowCommandDisplayName(),
             EditorActionType.Break => "Break",
             EditorActionType.Continue => "Continue",
             EditorActionType.BlockEnd => "End Block",
@@ -977,6 +1171,11 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.PixelColor => ValidatePixelColorFields(),
             EditorActionType.WaitColor => ValidateWaitColorFields(),
             EditorActionType.PixelSearch => ValidatePixelSearchFields(),
+            EditorActionType.ClipboardGet => EditorActionScriptTokens.IsValidVariableName(ScriptVariableName),
+            EditorActionType.ClipboardSet => !string.IsNullOrEmpty(Text),
+            EditorActionType.ShellCommand => ValidateShellCommandFields(),
+            EditorActionType.Screenshot => ValidateScreenshotFields(),
+            EditorActionType.WindowCommand => ValidateWindowCommandFields(),
             EditorActionType.RawScriptStep => !string.IsNullOrWhiteSpace(Text),
             EditorActionType.ElseBlockStart or EditorActionType.BlockEnd or EditorActionType.Break or EditorActionType.Continue => true,
             _ => true
@@ -1020,6 +1219,33 @@ public class EditorAction : INotifyPropertyChanged
             _forHasStep = ForHasStep,
             _forStepType = ForStepType,
             _forStepValue = ForStepValue,
+            _shellCommandMode = ShellCommandMode,
+            _shellCommand = ShellCommand,
+            _shellStandardInput = ShellStandardInput,
+            _shellExitCodeVariableName = ShellExitCodeVariableName,
+            _shellStandardOutputVariableName = ShellStandardOutputVariableName,
+            _shellStandardErrorVariableName = ShellStandardErrorVariableName,
+            _shellRetries = ShellRetries,
+            _shellBackoffMs = ShellBackoffMs,
+            _shellTimeoutMs = ShellTimeoutMs,
+            _screenshotOutputPath = ScreenshotOutputPath,
+            _screenshotCopyToClipboard = ScreenshotCopyToClipboard,
+            _screenshotUseRegion = ScreenshotUseRegion,
+            _screenshotRegionX = ScreenshotRegionX,
+            _screenshotRegionY = ScreenshotRegionY,
+            _screenshotRegionWidth = ScreenshotRegionWidth,
+            _screenshotRegionHeight = ScreenshotRegionHeight,
+            _windowCommandMode = WindowCommandMode,
+            _windowSelectorKind = WindowSelectorKind,
+            _windowSelectorValue = WindowSelectorValue,
+            _windowActiveField = WindowActiveField,
+            _windowOutputVariable = WindowOutputVariable,
+            _windowTimeoutMs = WindowTimeoutMs,
+            _windowX = WindowX,
+            _windowY = WindowY,
+            _windowWidth = WindowWidth,
+            _windowHeight = WindowHeight,
+            _windowWorkspace = WindowWorkspace,
             _preferLegacyScriptText = PreferLegacyScriptText,
             _preservedTextInputText = _preservedTextInputText,
             _preservedTextInputEvents = _preservedTextInputEvents?.ToList()
@@ -1080,7 +1306,12 @@ public class EditorAction : INotifyPropertyChanged
             or EditorActionType.ForBlockStart
             or EditorActionType.PixelColor
             or EditorActionType.WaitColor
-            or EditorActionType.PixelSearch;
+            or EditorActionType.PixelSearch
+            or EditorActionType.ClipboardGet
+            or EditorActionType.ClipboardSet
+            or EditorActionType.ShellCommand
+            or EditorActionType.Screenshot
+            or EditorActionType.WindowCommand;
     }
 
     private string BuildSetValueToken()
@@ -1191,6 +1422,80 @@ public class EditorAction : INotifyPropertyChanged
             && payload.HasValidFoundCoordinateVariableNames();
     }
 
+    private bool ValidateShellCommandFields()
+    {
+        if (string.IsNullOrWhiteSpace(ShellCommand) || ShellRetries < 0 || ShellRetries > 10_000 || ShellBackoffMs < 0 || ShellTimeoutMs < 0)
+        {
+            return false;
+        }
+
+        if (ShellCommandMode is ShellCommandMode.ShellCapture or ShellCommandMode.ShellCaptureInput)
+        {
+            return IsValidShellCaptureTarget(ShellExitCodeVariableName)
+                && IsValidShellCaptureTarget(ShellStandardOutputVariableName)
+                && IsValidShellCaptureTarget(ShellStandardErrorVariableName);
+        }
+
+        return true;
+    }
+
+    private bool ValidateScreenshotFields()
+    {
+        if (string.IsNullOrWhiteSpace(ScreenshotOutputPath) && !ScreenshotCopyToClipboard)
+        {
+            return false;
+        }
+
+        return !ScreenshotUseRegion || (IsNonNegativeIntegerOrVariable(ScreenshotRegionX)
+            && IsNonNegativeIntegerOrVariable(ScreenshotRegionY)
+            && IsPositiveIntegerOrVariable(ScreenshotRegionWidth)
+            && IsPositiveIntegerOrVariable(ScreenshotRegionHeight));
+    }
+
+    private bool ValidateWindowCommandFields()
+    {
+        return WindowCommandMode switch
+        {
+            WindowCommandMode.Active => IsValidWindowActiveField(WindowActiveField)
+                && EditorActionScriptTokens.IsValidVariableName(WindowOutputVariable),
+            WindowCommandMode.Search => IsValidWindowSearchSelector(WindowSelectorKind)
+                && !string.IsNullOrWhiteSpace(WindowSelectorValue)
+                && EditorActionScriptTokens.IsValidVariableName(WindowOutputVariable),
+            WindowCommandMode.Wait => IsValidWindowSearchSelector(WindowSelectorKind)
+                && !string.IsNullOrWhiteSpace(WindowSelectorValue)
+                && WindowTimeoutMs > 0
+                && EditorActionScriptTokens.IsValidVariableName(WindowOutputVariable),
+            WindowCommandMode.Focus => WindowSelectorKind == "active"
+                || (IsValidWindowFocusSelector(WindowSelectorKind) && !string.IsNullOrWhiteSpace(WindowSelectorValue)),
+            WindowCommandMode.Close => WindowSelectorKind == "active"
+                || (IsValidWindowCloseSelector(WindowSelectorKind) && !string.IsNullOrWhiteSpace(WindowSelectorValue)),
+            WindowCommandMode.Resize => WindowWidth > 0 && WindowHeight > 0,
+            WindowCommandMode.WorkspaceGet => EditorActionScriptTokens.IsValidVariableName(WindowOutputVariable),
+            WindowCommandMode.WorkspaceSwitch or WindowCommandMode.WorkspaceMoveActive => !string.IsNullOrWhiteSpace(WindowWorkspace),
+            WindowCommandMode.WorkspaceMoveWindow => !string.IsNullOrWhiteSpace(WindowSelectorValue) && !string.IsNullOrWhiteSpace(WindowWorkspace),
+            _ => true
+        };
+    }
+
+    private static bool IsNonNegativeIntegerOrVariable(string token)
+    {
+        return int.TryParse(token, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var value)
+            ? value >= 0
+            : token.StartsWith("$", StringComparison.Ordinal) && EditorActionScriptTokens.IsValidVariableName(token);
+    }
+
+    private static bool IsPositiveIntegerOrVariable(string token)
+    {
+        return int.TryParse(token, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var value)
+            ? value > 0
+            : token.StartsWith("$", StringComparison.Ordinal) && EditorActionScriptTokens.IsValidVariableName(token);
+    }
+
+    private static bool IsValidShellCaptureTarget(string target)
+    {
+        return target == "_" || EditorActionScriptTokens.IsValidVariableName(target);
+    }
+
     private EditorActionScreenReadingPayload GetScreenReadingPayload()
     {
         if (!TryGetScreenReadingPayload(out var payload))
@@ -1218,7 +1523,80 @@ public class EditorAction : INotifyPropertyChanged
         return $"Pixel search {payload.FormatTargetColorToken()} in ({payload.ScreenLeft}, {payload.ScreenTop}, {payload.ScreenWidth}x{payload.ScreenHeight}) -> {payload.ScreenFoundVariableName}, {payload.ScreenFoundXVariableName}, {payload.ScreenFoundYVariableName}";
     }
 
+    private string BuildScreenshotDisplayName()
+    {
+        var destination = ScreenshotCopyToClipboard
+            ? string.IsNullOrWhiteSpace(ScreenshotOutputPath) ? "clipboard" : $"{ScreenshotOutputPath} + clipboard"
+            : string.IsNullOrWhiteSpace(ScreenshotOutputPath) ? "destination required" : ScreenshotOutputPath;
+        return ScreenshotUseRegion
+            ? $"Screenshot ({ScreenshotRegionX}, {ScreenshotRegionY}, {ScreenshotRegionWidth}x{ScreenshotRegionHeight}) -> {destination}"
+            : $"Screenshot -> {destination}";
+    }
+
+    private string BuildWindowCommandDisplayName()
+    {
+        return WindowCommandMode switch
+        {
+            WindowCommandMode.Active => $"Get active window {WindowActiveField} -> {WindowOutputVariable}",
+            WindowCommandMode.Search => $"Search window by {WindowSelectorKind} \"{WindowSelectorValue}\" -> {WindowOutputVariable}",
+            WindowCommandMode.Wait => $"Wait for window {WindowSelectorKind} \"{WindowSelectorValue}\" ({WindowTimeoutMs}ms) -> {WindowOutputVariable}",
+            WindowCommandMode.Focus => FormatWindowSelectorSummary("Focus"),
+            WindowCommandMode.Close => FormatWindowSelectorSummary("Close"),
+            WindowCommandMode.Move => $"Move active window to {WindowX}, {WindowY}",
+            WindowCommandMode.Resize => $"Resize active window to {WindowWidth}x{WindowHeight}",
+            WindowCommandMode.Center => "Center active window",
+            WindowCommandMode.Maximize => "Maximize active window",
+            WindowCommandMode.Fullscreen => "Fullscreen active window",
+            WindowCommandMode.Float => "Float active window",
+            WindowCommandMode.WorkspaceGet => $"Get active workspace -> {WindowOutputVariable}",
+            WindowCommandMode.WorkspaceSwitch => $"Switch to workspace {WindowWorkspace}",
+            WindowCommandMode.WorkspaceMoveActive => $"Move active window to workspace {WindowWorkspace}",
+            WindowCommandMode.WorkspaceMoveWindow => $"Move window {WindowSelectorValue} to workspace {WindowWorkspace}",
+            _ => "Window Command"
+        };
+    }
+
+    private string FormatWindowSelectorSummary(string verb)
+    {
+        return WindowSelectorKind == "active"
+            ? $"{verb} active window"
+            : $"{verb} window by {WindowSelectorKind} \"{WindowSelectorValue}\"";
+    }
+
+    private static bool IsValidWindowActiveField(string value)
+    {
+        return value is "title" or "class" or "address" or "fullscreen" or "maximize" or "float" or "pinned" or "hidden" or "geometry";
+    }
+
+    private static bool IsValidWindowSearchSelector(string value)
+    {
+        return value is "title" or "class";
+    }
+
+    private static bool IsValidWindowFocusSelector(string value)
+    {
+        return value is "title" or "class" or "address";
+    }
+
+    private static bool IsValidWindowCloseSelector(string value)
+    {
+        return value is "title" or "address";
+    }
+
     private void SetScreenField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value))
+        {
+            return;
+        }
+
+        field = value;
+        MarkStructuredScriptEdited();
+        OnPropertyChanged(propertyName);
+        OnPropertyChanged(nameof(DisplayName));
+    }
+
+    private void SetScriptField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
         if (EqualityComparer<T>.Default.Equals(field, value))
         {

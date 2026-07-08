@@ -144,6 +144,17 @@ public sealed class RunScriptWindowRuntimeTests
     }
 
     [Fact]
+    public async Task ExecuteStepAsync_WhenFocusByQuotedTitleWithEscapes_CallsFocusWindowByTitle()
+    {
+        var wm = FakeWindowManager(null);
+        wm.FocusWindowByTitleAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+
+        await Executor(wm).ExecuteStepAsync("window focus title \"Fire\\\" Fox\"", 1, Vars(), CancellationToken.None);
+
+        await wm.Received(1).FocusWindowByTitleAsync("Fire\" Fox", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ExecuteStepAsync_WhenFocusByClass_CallsFocusWindowByClass()
     {
         var wm = FakeWindowManager(null);
@@ -359,6 +370,7 @@ public sealed class RunScriptWindowRuntimeTests
     [InlineData("window setdesktopforwindow active 3", null)]
     [InlineData("window setdesktopforwindow address 0x123 4", null)]
     [InlineData("window active bad_field x", "Unknown field")]
+    [InlineData("window focus title \"unterminated", "Unterminated quoted token")]
     [InlineData("window unknown x", "Unknown window sub-command")]
     public void Validate_ReturnsExpectedError(string step, string? errorFragment)
     {

@@ -133,6 +133,31 @@ public enum EditorActionType
     PixelSearch,
 
     /// <summary>
+    /// Reads clipboard text into a script variable.
+    /// </summary>
+    ClipboardGet,
+
+    /// <summary>
+    /// Writes text to the clipboard after script variable substitution.
+    /// </summary>
+    ClipboardSet,
+
+    /// <summary>
+    /// Runs a shell command, optionally with stdin and capture targets.
+    /// </summary>
+    ShellCommand,
+
+    /// <summary>
+    /// Captures a screenshot to a file and/or the clipboard.
+    /// </summary>
+    Screenshot,
+
+    /// <summary>
+    /// Runs a window-management script command with typed editor fields.
+    /// </summary>
+    WindowCommand,
+
+    /// <summary>
     /// Raw run-script line that could not be mapped to a structured editor action.
     /// Preserved to avoid data loss during round-trip save.
     /// </summary>

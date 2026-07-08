@@ -490,8 +490,9 @@ public class EditorActionConverterTests
 
         var actions = new[]
         {
+            new EditorAction { Type = EditorActionType.SetVariable, Text = "myVar=1" },
             new EditorAction { Type = EditorActionType.RepeatBlockStart, Text = "1" },
-            new EditorAction { Type = EditorActionType.TextInput, Text = "price $10 and $$HOME" },
+            new EditorAction { Type = EditorActionType.TextInput, Text = "price $$10 and $myVar" },
             new EditorAction { Type = EditorActionType.BlockEnd }
         };
 
@@ -499,12 +500,13 @@ public class EditorActionConverterTests
         var restored = _converter.FromMacroSequence(sequence);
 
         sequence.ScriptSteps.Should().Equal(
+            "set myVar=1",
             "repeat 1 {",
-            "type price $$10 and $$$$HOME",
+            "type price $$10 and $myVar",
             "}");
-        restored.Should().HaveCount(3);
-        restored[1].Type.Should().Be(EditorActionType.TextInput);
-        restored[1].Text.Should().Be("price $10 and $$HOME");
+        restored.Should().HaveCount(4);
+        restored[2].Type.Should().Be(EditorActionType.TextInput);
+        restored[2].Text.Should().Be("price $$10 and $myVar");
     }
 
     [Fact]
@@ -514,7 +516,7 @@ public class EditorActionConverterTests
         _keyCodeMapper.GetKeyCode("Enter").Returns(InputEventCode.KEY_ENTER);
         var fileManager = new MacroFileManager(() => _keyCodeMapper);
         var filePath = Path.Combine(Path.GetTempPath(), $"crossmacro_converter_{Guid.NewGuid():N}.macro");
-        var text = "first line\nprice $10";
+        var text = "first line\nprice $$10";
 
         try
         {
@@ -1150,6 +1152,77 @@ public class EditorActionConverterTests
         // Assert
         sequence.Events.Should().BeEmpty();
         sequence.ScriptSteps.Should().ContainSingle().Which.Should().StartWith("set i");
+    }
+
+    [Fact]
+    public void ToMacroSequence_WhenClipboardActionsUsed_PreservesClipboardScriptSteps()
+    {
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.ClipboardGet, ScriptVariableName = "clipText" },
+            new EditorAction { Type = EditorActionType.ClipboardSet, Text = "hello $clipText" }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Clipboard Macro", isAbsolute: true);
+
+        sequence.Events.Should().BeEmpty();
+        sequence.ScriptSteps.Should().Equal(
+            "clipboard get clipText",
+            "clipboard set hello $clipText");
+    }
+
+    [Fact]
+    public void ToMacroSequence_WhenClipboardSetUsesEscapedDollar_PreservesLiteralDollarEscape()
+    {
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.ClipboardSet, Text = "literal $$clipText" }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Clipboard Macro", isAbsolute: true);
+
+        sequence.Events.Should().BeEmpty();
+        sequence.ScriptSteps.Should().Equal("clipboard set literal $$clipText");
+    }
+
+    [Fact]
+    public void FromMacroSequenceWithDiagnostics_WhenClipboardStepsPresent_RestoresStructuredActions()
+    {
+        var sequence = new MacroSequence
+        {
+            ScriptSteps =
+            [
+                "clipboard get clipText",
+                "clipboard set hello $clipText"
+            ]
+        };
+
+        var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
+
+        result.RestoredFromScriptSteps.Should().BeTrue();
+        result.Warnings.Should().BeEmpty();
+        result.Actions.Should().HaveCount(2);
+        result.Actions[0].Type.Should().Be(EditorActionType.ClipboardGet);
+        result.Actions[0].ScriptVariableName.Should().Be("clipText");
+        result.Actions[1].Type.Should().Be(EditorActionType.ClipboardSet);
+        result.Actions[1].Text.Should().Be("hello $clipText");
+    }
+
+    [Fact]
+    public void FromMacroSequenceWithDiagnostics_WhenClipboardSetUsesEscapedDollar_PreservesLiteralDollarEscape()
+    {
+        var sequence = new MacroSequence
+        {
+            ScriptSteps = ["clipboard set literal $$clipText"]
+        };
+
+        var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
+
+        result.RestoredFromScriptSteps.Should().BeTrue();
+        result.Warnings.Should().BeEmpty();
+        result.Actions.Should().ContainSingle();
+        result.Actions[0].Type.Should().Be(EditorActionType.ClipboardSet);
+        result.Actions[0].Text.Should().Be("literal $$clipText");
     }
 
     [Fact]
@@ -2678,6 +2751,145 @@ public class EditorActionConverterTests
         actions[0].ScriptConditionOperator.Should().Be(ScriptConditionOperator.GreaterThan);
         actions[0].ScriptRightOperandType.Should().Be(ScriptOperandType.Number);
         actions[0].ScriptRightOperand.Should().Be("100000");
+    }
+
+    [Theory]
+    [InlineData(ShellCommandMode.Shell, "shell \"echo ok\" 1 20 300")]
+    [InlineData(ShellCommandMode.ShellCapture, "shell capture \"echo ok\" exitCode stdout _ 1 20 300")]
+    [InlineData(ShellCommandMode.ShellInput, "shell input \"hello\" \"echo ok\" 1 20 300")]
+    [InlineData(ShellCommandMode.ShellCaptureInput, "shell capture-input \"hello\" \"echo ok\" exitCode stdout _ 1 20 300")]
+    public void ToMacroSequence_ForShellCommandModes_SerializesExistingShellSyntax(ShellCommandMode mode, string expectedStep)
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ShellCommand,
+            ShellCommandMode = mode,
+            ShellCommand = "echo ok",
+            ShellStandardInput = "hello",
+            ShellExitCodeVariableName = "exitCode",
+            ShellStandardOutputVariableName = "stdout",
+            ShellStandardErrorVariableName = "_",
+            ShellRetries = 1,
+            ShellBackoffMs = 20,
+            ShellTimeoutMs = 300
+        };
+
+        var sequence = _converter.ToMacroSequence([action], "Shell", isAbsolute: false);
+
+        sequence.ScriptSteps.Should().Equal(expectedStep);
+    }
+
+    [Theory]
+    [InlineData("shell \"echo ok\"", ShellCommandMode.Shell, "echo ok", "", "exit_code", "stdout", "stderr", 0, 0, 0)]
+    [InlineData("shell capture \"echo ok\" exitCode stdout _ 2 50 1000", ShellCommandMode.ShellCapture, "echo ok", "", "exitCode", "stdout", "_", 2, 50, 1000)]
+    [InlineData("shell input \"stdin text\" \"cat\" 1", ShellCommandMode.ShellInput, "cat", "stdin text", "exit_code", "stdout", "stderr", 1, 0, 0)]
+    [InlineData("shell capture-input \"stdin text\" \"cat\" exitCode stdout stderr 0 0 500", ShellCommandMode.ShellCaptureInput, "cat", "stdin text", "exitCode", "stdout", "stderr", 0, 0, 500)]
+    public void FromMacroSequence_ForShellForms_RestoresStructuredShellCommand(
+        string step,
+        ShellCommandMode expectedMode,
+        string expectedCommand,
+        string expectedInput,
+        string expectedExit,
+        string expectedStdout,
+        string expectedStderr,
+        int expectedRetries,
+        int expectedBackoff,
+        int expectedTimeout)
+    {
+        var sequence = new MacroSequence { ScriptSteps = [step] };
+
+        var actions = _converter.FromMacroSequence(sequence);
+
+        var action = actions.Should().ContainSingle().Subject;
+        action.Type.Should().Be(EditorActionType.ShellCommand);
+        action.ShellCommandMode.Should().Be(expectedMode);
+        action.ShellCommand.Should().Be(expectedCommand);
+        action.ShellStandardInput.Should().Be(expectedInput);
+        action.ShellExitCodeVariableName.Should().Be(expectedExit);
+        action.ShellStandardOutputVariableName.Should().Be(expectedStdout);
+        action.ShellStandardErrorVariableName.Should().Be(expectedStderr);
+        action.ShellRetries.Should().Be(expectedRetries);
+        action.ShellBackoffMs.Should().Be(expectedBackoff);
+        action.ShellTimeoutMs.Should().Be(expectedTimeout);
+    }
+
+    [Fact]
+    public void FromMacroSequence_WhenShellLineIsInvalid_RestoresRawScriptStep()
+    {
+        var sequence = new MacroSequence { ScriptSteps = ["shell capture \"echo ok\" onlyTwo targets"] };
+
+        var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
+
+        result.Actions.Should().ContainSingle().Which.Type.Should().Be(EditorActionType.RawScriptStep);
+        result.Warnings.Should().ContainSingle();
+    }
+
+    [Theory]
+    [InlineData(WindowCommandMode.Active, "window active title activeTitle")]
+    [InlineData(WindowCommandMode.Search, "window search title \"Firefox\" windowAddress")]
+    [InlineData(WindowCommandMode.Wait, "window wait title \"Firefox\" 2500 windowAddress")]
+    [InlineData(WindowCommandMode.Focus, "window focus title \"Firefox\"")]
+    [InlineData(WindowCommandMode.Close, "window close title \"Firefox\"")]
+    [InlineData(WindowCommandMode.Move, "window move 100 200")]
+    [InlineData(WindowCommandMode.Resize, "window resize 800 600")]
+    [InlineData(WindowCommandMode.Center, "window center active")]
+    [InlineData(WindowCommandMode.Maximize, "window maximize active")]
+    [InlineData(WindowCommandMode.Fullscreen, "window fullscreen active")]
+    [InlineData(WindowCommandMode.Float, "window float active")]
+    [InlineData(WindowCommandMode.WorkspaceGet, "window getdesktop workspaceName")]
+    [InlineData(WindowCommandMode.WorkspaceSwitch, "window setdesktop \"2\"")]
+    [InlineData(WindowCommandMode.WorkspaceMoveActive, "window setdesktopforwindow active \"2\"")]
+    [InlineData(WindowCommandMode.WorkspaceMoveWindow, "window setdesktopforwindow address 0x123 \"2\"")]
+    public void ToMacroSequence_ForWindowCommandModes_SerializesRunScriptWindowSyntax(WindowCommandMode mode, string expectedStep)
+    {
+        var sequence = _converter.ToMacroSequence([CreateWindowAction(mode)], "Window", isAbsolute: false);
+
+        sequence.ScriptSteps.Should().Equal(expectedStep);
+    }
+
+    [Fact]
+    public void FromMacroSequence_ForWindowSearchWithEscapedQuote_RestoresStructuredWindowCommand()
+    {
+        var sequence = new MacroSequence { ScriptSteps = ["window search title \"Fire\\\"fox\" $addr"] };
+
+        var action = _converter.FromMacroSequence(sequence).Should().ContainSingle().Subject;
+
+        action.Type.Should().Be(EditorActionType.WindowCommand);
+        action.WindowCommandMode.Should().Be(WindowCommandMode.Search);
+        action.WindowSelectorKind.Should().Be("title");
+        action.WindowSelectorValue.Should().Be("Fire\"fox");
+        action.WindowOutputVariable.Should().Be("addr");
+    }
+
+    [Fact]
+    public void FromMacroSequence_WhenWindowLineIsInvalid_RestoresRawScriptStep()
+    {
+        var sequence = new MacroSequence { ScriptSteps = ["window search title $missingTerm"] };
+
+        var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
+
+        result.Actions.Should().ContainSingle().Which.Type.Should().Be(EditorActionType.RawScriptStep);
+        result.Actions[0].Text.Should().Be("window search title $missingTerm");
+        result.Warnings.Should().ContainSingle();
+    }
+
+    private static EditorAction CreateWindowAction(WindowCommandMode mode)
+    {
+        return new EditorAction
+        {
+            Type = EditorActionType.WindowCommand,
+            WindowCommandMode = mode,
+            WindowSelectorKind = "title",
+            WindowSelectorValue = mode == WindowCommandMode.WorkspaceMoveWindow ? "0x123" : "Firefox",
+            WindowActiveField = "title",
+            WindowOutputVariable = mode == WindowCommandMode.WorkspaceGet ? "workspaceName" : mode is WindowCommandMode.Active ? "activeTitle" : "windowAddress",
+            WindowTimeoutMs = 2500,
+            WindowX = 100,
+            WindowY = 200,
+            WindowWidth = 800,
+            WindowHeight = 600,
+            WindowWorkspace = "2"
+        };
     }
 
     private void ConfigureTextInputTyping()

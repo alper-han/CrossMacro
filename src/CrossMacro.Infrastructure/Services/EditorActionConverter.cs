@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Platform.Abstractions;
@@ -201,6 +202,11 @@ public class EditorActionConverter : IEditorActionConverter
             case EditorActionType.Continue:
             case EditorActionType.BlockEnd:
             case EditorActionType.RawScriptStep:
+            case EditorActionType.ClipboardGet:
+            case EditorActionType.ClipboardSet:
+            case EditorActionType.ShellCommand:
+            case EditorActionType.Screenshot:
+            case EditorActionType.WindowCommand:
                 break;
         }
         
@@ -669,7 +675,7 @@ public class EditorActionConverter : IEditorActionConverter
                 yield break;
 
             case EditorActionType.TextInput:
-                yield return $"type {EditorActionScriptTokens.EscapeLiteralDollar(action.Text)}";
+                yield return $"type {action.Text}";
                 yield break;
 
             case EditorActionType.SetVariable:
@@ -716,6 +722,26 @@ public class EditorActionConverter : IEditorActionConverter
                 yield return BuildPixelSearchStep(action);
                 yield break;
 
+            case EditorActionType.ClipboardGet:
+                yield return $"clipboard get {EditorActionScriptTokens.NormalizeVariableToken(action.ScriptVariableName)}";
+                yield break;
+
+            case EditorActionType.ClipboardSet:
+                yield return $"clipboard set {action.Text}";
+                yield break;
+
+            case EditorActionType.ShellCommand:
+                yield return BuildShellStep(action);
+                yield break;
+
+            case EditorActionType.Screenshot:
+                yield return BuildScreenshotStep(action);
+                yield break;
+
+            case EditorActionType.WindowCommand:
+                yield return BuildWindowStep(action);
+                yield break;
+
             case EditorActionType.Break:
                 yield return RunScriptSyntax.BreakCommand;
                 yield break;
@@ -760,6 +786,108 @@ public class EditorActionConverter : IEditorActionConverter
         var xVariableName = payload.NormalizeFoundXVariableToken();
         var yVariableName = payload.NormalizeFoundYVariableToken();
         return $"pixelsearch {payload.ScreenLeft} {payload.ScreenTop} {payload.ScreenRight} {payload.ScreenBottom} {payload.FormatTargetColorToken()} {foundVariableName} {xVariableName} {yVariableName} tolerance {payload.ScreenTolerance}";
+    }
+
+    private static string BuildShellStep(EditorAction action)
+    {
+        var command = QuoteShellField(action.ShellCommand);
+        var options = BuildShellOptions(action);
+        return action.ShellCommandMode switch
+        {
+            ShellCommandMode.ShellCapture => $"shell capture {command} {FormatShellCaptureTarget(action.ShellExitCodeVariableName)} {FormatShellCaptureTarget(action.ShellStandardOutputVariableName)} {FormatShellCaptureTarget(action.ShellStandardErrorVariableName)}{options}",
+            ShellCommandMode.ShellInput => $"shell input {QuoteShellField(action.ShellStandardInput)} {command}{options}",
+            ShellCommandMode.ShellCaptureInput => $"shell capture-input {QuoteShellField(action.ShellStandardInput)} {command} {FormatShellCaptureTarget(action.ShellExitCodeVariableName)} {FormatShellCaptureTarget(action.ShellStandardOutputVariableName)} {FormatShellCaptureTarget(action.ShellStandardErrorVariableName)}{options}",
+            _ => $"shell {command}{options}"
+        };
+    }
+
+    private static string BuildScreenshotStep(EditorAction action)
+    {
+        var parts = new List<string> { RunScriptSyntax.ScreenshotCommand };
+        if (action.ScreenshotUseRegion)
+        {
+            parts.AddRange(["region", action.ScreenshotRegionX, action.ScreenshotRegionY, action.ScreenshotRegionWidth, action.ScreenshotRegionHeight]);
+        }
+
+        if (!string.IsNullOrWhiteSpace(action.ScreenshotOutputPath))
+        {
+            parts.Add("output");
+            parts.Add(QuoteScreenshotOutputPath(action.ScreenshotOutputPath));
+        }
+
+        if (action.ScreenshotCopyToClipboard)
+        {
+            parts.Add("clipboard");
+        }
+
+        return string.Join(' ', parts);
+    }
+
+    internal static string BuildWindowStep(EditorAction action)
+    {
+        var selectorKind = string.IsNullOrWhiteSpace(action.WindowSelectorKind) ? "title" : action.WindowSelectorKind.Trim().ToLowerInvariant();
+        var selectorValue = QuoteWindowField(action.WindowSelectorValue);
+        var outputVariable = EditorActionScriptTokens.NormalizeVariableToken(action.WindowOutputVariable);
+        var workspace = QuoteWindowField(action.WindowWorkspace);
+
+        return action.WindowCommandMode switch
+        {
+            WindowCommandMode.Active => $"window active {action.WindowActiveField} {outputVariable}",
+            WindowCommandMode.Search => $"window search {selectorKind} {selectorValue} {outputVariable}",
+            WindowCommandMode.Wait => $"window wait {selectorKind} {selectorValue} {action.WindowTimeoutMs} {outputVariable}",
+            WindowCommandMode.Focus when selectorKind == "active" => "window focus active",
+            WindowCommandMode.Focus => $"window focus {selectorKind} {selectorValue}",
+            WindowCommandMode.Close when selectorKind == "active" => "window close active",
+            WindowCommandMode.Close => $"window close {selectorKind} {selectorValue}",
+            WindowCommandMode.Move => $"window move {action.WindowX} {action.WindowY}",
+            WindowCommandMode.Resize => $"window resize {action.WindowWidth} {action.WindowHeight}",
+            WindowCommandMode.Center => "window center active",
+            WindowCommandMode.Maximize => "window maximize active",
+            WindowCommandMode.Fullscreen => "window fullscreen active",
+            WindowCommandMode.Float => "window float active",
+            WindowCommandMode.WorkspaceGet => $"window getdesktop {outputVariable}",
+            WindowCommandMode.WorkspaceSwitch => $"window setdesktop {workspace}",
+            WindowCommandMode.WorkspaceMoveActive => $"window setdesktopforwindow active {workspace}",
+            WindowCommandMode.WorkspaceMoveWindow => $"window setdesktopforwindow address {action.WindowSelectorValue.Trim()} {workspace}",
+            _ => "window active title $windowResult"
+        };
+    }
+
+    private static string QuoteWindowField(string value)
+    {
+        return $"\"{(value ?? string.Empty).Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\"";
+    }
+
+    private static string QuoteScreenshotOutputPath(string value)
+    {
+        return value.Any(char.IsWhiteSpace) || value.Contains('"', StringComparison.Ordinal) || value.Contains('\\', StringComparison.Ordinal)
+            ? $"\"{value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\""
+            : value;
+    }
+
+    private static string BuildShellOptions(EditorAction action)
+    {
+        if (action.ShellTimeoutMs > 0)
+        {
+            return $" {action.ShellRetries} {action.ShellBackoffMs} {action.ShellTimeoutMs}";
+        }
+
+        if (action.ShellBackoffMs > 0)
+        {
+            return $" {action.ShellRetries} {action.ShellBackoffMs}";
+        }
+
+        return action.ShellRetries > 0 ? $" {action.ShellRetries}" : string.Empty;
+    }
+
+    private static string FormatShellCaptureTarget(string target)
+    {
+        return target == "_" ? "_" : EditorActionScriptTokens.NormalizeVariableToken(target);
+    }
+
+    private static string QuoteShellField(string value)
+    {
+        return $"\"{value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\"";
     }
 
     private static EditorActionScreenReadingPayload GetScreenReadingPayload(EditorAction action)
@@ -1277,7 +1405,7 @@ public class EditorActionConverter : IEditorActionConverter
                 actions.Add(new EditorAction
                 {
                     Type = EditorActionType.TextInput,
-                    Text = EditorActionScriptTokens.UnescapeLiteralDollar(text)
+                    Text = text
                 });
                 continue;
             }
@@ -1291,6 +1419,53 @@ public class EditorActionConverter : IEditorActionConverter
             if (TryParseScreenReadingStep(step, out var screenReadingAction))
             {
                 actions.Add(screenReadingAction);
+                continue;
+            }
+
+            if (TryParseClipboardStep(stepForType, out var clipboardAction))
+            {
+                actions.Add(clipboardAction);
+                continue;
+            }
+
+            if (TryParseShellStep(stepForType, out var shellAction))
+            {
+                actions.Add(shellAction);
+                continue;
+            }
+
+            if (RunScriptSyntax.IsScreenshotStep(stepForType))
+            {
+                if (TryParseScreenshotStep(stepForType, out var screenshotAction))
+                {
+                    actions.Add(screenshotAction);
+                }
+                else
+                {
+                    warnings.Add(new EditorActionRestoreWarning(
+                        index + 1,
+                        step,
+                        "Malformed screenshot step restored as raw script text."));
+                    actions.Add(CreateRawScriptStepAction(step));
+                }
+                continue;
+            }
+
+            if (RunScriptSyntax.IsWindowStep(stepForType))
+            {
+                if (TryParseWindowStep(stepForType, out var windowAction))
+                {
+                    actions.Add(windowAction);
+                }
+                else
+                {
+                    warnings.Add(new EditorActionRestoreWarning(
+                        index + 1,
+                        step,
+                        "Malformed window step restored as raw script text."));
+                    actions.Add(CreateRawScriptStepAction(step));
+                }
+
                 continue;
             }
 
@@ -1693,6 +1868,516 @@ public class EditorActionConverter : IEditorActionConverter
 
         text = step[5..];
         return true;
+    }
+
+    private static bool TryParseClipboardStep(string step, out EditorAction action)
+    {
+        action = new EditorAction();
+        if (!RunScriptSyntax.StartsWithCommandToken(step.TrimStart(), RunScriptSyntax.ClipboardCommand))
+        {
+            return false;
+        }
+
+        var trimmed = step.Trim();
+        var parts = trimmed.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length != 3 || !parts[0].Equals(RunScriptSyntax.ClipboardCommand, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (parts[1].Equals("get", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TryNormalizeVariableName(parts[2], out var variableName))
+            {
+                return false;
+            }
+
+            action = new EditorAction
+            {
+                Type = EditorActionType.ClipboardGet,
+                ScriptVariableName = variableName
+            };
+            return true;
+        }
+
+        if (parts[1].Equals("set", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(parts[2]))
+        {
+            action = new EditorAction
+            {
+                Type = EditorActionType.ClipboardSet,
+                Text = parts[2]
+            };
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseShellStep(string step, out EditorAction action)
+    {
+        action = new EditorAction();
+        if (!RunScriptSyntax.IsShellStep(step))
+        {
+            return false;
+        }
+
+        var payload = step.Trim()["shell".Length..].TrimStart();
+        if (payload.Length == 0)
+        {
+            return false;
+        }
+
+        if (TryConsumeShellMode(payload, "capture-input", out var afterCaptureInput))
+        {
+            return TryParseShellCaptureInputStep(afterCaptureInput, out action);
+        }
+
+        if (TryConsumeShellMode(payload, "capture", out var afterCapture))
+        {
+            return TryParseShellCaptureStep(afterCapture, out action);
+        }
+
+        if (TryConsumeShellMode(payload, "input", out var afterInput))
+        {
+            return TryParseShellInputStep(afterInput, out action);
+        }
+
+        return TryParseShellRunStep(payload, out action);
+    }
+
+    private static bool TryParseScreenshotStep(string step, out EditorAction action)
+    {
+        action = new EditorAction();
+        if (!RunScriptSyntax.IsScreenshotStep(step))
+        {
+            return false;
+        }
+
+        if (!RunScriptSyntax.TryParseScreenshotStep(step, out var parsed, out _))
+        {
+            return false;
+        }
+
+        action = new EditorAction
+        {
+            Type = EditorActionType.Screenshot,
+            ScreenshotOutputPath = parsed.OutputPath ?? string.Empty,
+            ScreenshotCopyToClipboard = parsed.CopyToClipboard,
+            ScreenshotUseRegion = parsed.UseRegion,
+            ScreenshotRegionX = parsed.UseRegion ? parsed.RegionX : "0",
+            ScreenshotRegionY = parsed.UseRegion ? parsed.RegionY : "0",
+            ScreenshotRegionWidth = parsed.UseRegion ? parsed.RegionWidth : "100",
+            ScreenshotRegionHeight = parsed.UseRegion ? parsed.RegionHeight : "100"
+        };
+        return true;
+    }
+
+    private static bool TryParseWindowStep(string step, out EditorAction action)
+    {
+        action = new EditorAction();
+        var trimmed = step.Trim();
+        var validationError = Playback.RunScriptWindowExecutor.Validate(trimmed);
+        if (validationError != null)
+        {
+            return false;
+        }
+
+        var parts = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length < 2 || !parts[0].Equals("window", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var subCommand = parts[1].ToLowerInvariant();
+        switch (subCommand)
+        {
+            case "active":
+                action = CreateWindowAction(WindowCommandMode.Active, activeField: parts[2], outputVariable: parts[3]);
+                return true;
+            case "search":
+                return TryParseWindowSearch(trimmed, out action);
+            case "wait":
+                return TryParseWindowWait(trimmed, out action);
+            case "focus":
+                return TryParseWindowSelectorCommand(trimmed, WindowCommandMode.Focus, out action);
+            case "close":
+                return TryParseWindowSelectorCommand(trimmed, WindowCommandMode.Close, out action);
+            case "move":
+                action = CreateWindowAction(WindowCommandMode.Move, x: int.Parse(parts[2], CultureInfo.InvariantCulture), y: int.Parse(parts[3], CultureInfo.InvariantCulture));
+                return true;
+            case "resize":
+                action = CreateWindowAction(WindowCommandMode.Resize, width: int.Parse(parts[2], CultureInfo.InvariantCulture), height: int.Parse(parts[3], CultureInfo.InvariantCulture));
+                return true;
+            case "center":
+                action = CreateWindowAction(WindowCommandMode.Center);
+                return true;
+            case "maximize":
+                action = CreateWindowAction(WindowCommandMode.Maximize);
+                return true;
+            case "fullscreen":
+                action = CreateWindowAction(WindowCommandMode.Fullscreen);
+                return true;
+            case "float":
+                action = CreateWindowAction(WindowCommandMode.Float);
+                return true;
+            case "getdesktop":
+                action = CreateWindowAction(WindowCommandMode.WorkspaceGet, outputVariable: parts[2]);
+                return true;
+            case "setdesktop":
+                action = CreateWindowAction(WindowCommandMode.WorkspaceSwitch, workspace: UnquoteWindowField(string.Join(' ', parts[2..])));
+                return true;
+            case "setdesktopforwindow":
+                return TryParseWindowWorkspaceMove(parts, out action);
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryParseWindowSearch(string step, out EditorAction action)
+    {
+        action = new EditorAction();
+        var parts = step.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length != 4 || !TryExtractLastToken(parts[3], out var rawTerm, out var outputVariable))
+        {
+            return false;
+        }
+
+        action = CreateWindowAction(WindowCommandMode.Search, selectorKind: parts[2], selectorValue: UnquoteWindowField(rawTerm), outputVariable: outputVariable);
+        return true;
+    }
+
+    private static bool TryParseWindowWait(string step, out EditorAction action)
+    {
+        action = new EditorAction();
+        var parts = step.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length != 4 || !TryExtractLastToken(parts[3], out var beforeVariable, out var outputVariable))
+        {
+            return false;
+        }
+
+        var timeoutMs = 5000;
+        var rawTerm = beforeVariable;
+        if (TryExtractLastToken(beforeVariable, out var beforeTimeout, out var maybeTimeout)
+            && int.TryParse(maybeTimeout, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedTimeout)
+            && parsedTimeout > 0)
+        {
+            timeoutMs = parsedTimeout;
+            rawTerm = beforeTimeout;
+        }
+
+        action = CreateWindowAction(WindowCommandMode.Wait, selectorKind: parts[2], selectorValue: UnquoteWindowField(rawTerm), outputVariable: outputVariable, timeoutMs: timeoutMs);
+        return true;
+    }
+
+    private static bool TryParseWindowSelectorCommand(string step, WindowCommandMode mode, out EditorAction action)
+    {
+        action = new EditorAction();
+        var parts = step.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length < 3)
+        {
+            return false;
+        }
+
+        var selectorKind = parts[2].ToLowerInvariant();
+        var selectorValue = selectorKind == "active" ? string.Empty : UnquoteWindowField(parts.Length == 4 ? parts[3] : string.Empty);
+        action = CreateWindowAction(mode, selectorKind: selectorKind, selectorValue: selectorValue);
+        return true;
+    }
+
+    private static bool TryParseWindowWorkspaceMove(string[] parts, out EditorAction action)
+    {
+        action = new EditorAction();
+        if (parts.Length < 4)
+        {
+            return false;
+        }
+
+        var selectorKind = parts[2].ToLowerInvariant();
+        if (selectorKind == "active")
+        {
+            action = CreateWindowAction(WindowCommandMode.WorkspaceMoveActive, workspace: UnquoteWindowField(string.Join(' ', parts[3..])));
+            return true;
+        }
+
+        if (selectorKind == "address" && parts.Length >= 5)
+        {
+            action = CreateWindowAction(WindowCommandMode.WorkspaceMoveWindow, selectorKind: "address", selectorValue: parts[3], workspace: UnquoteWindowField(string.Join(' ', parts[4..])));
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryExtractLastToken(string value, out string beforeLast, out string lastToken)
+    {
+        beforeLast = string.Empty;
+        lastToken = string.Empty;
+        var lastSpace = value.Trim().LastIndexOf(' ');
+        if (lastSpace < 0)
+        {
+            return false;
+        }
+
+        beforeLast = value[..lastSpace].Trim();
+        lastToken = value[(lastSpace + 1)..].Trim();
+        return beforeLast.Length > 0 && lastToken.Length > 0;
+    }
+
+    private static string UnquoteWindowField(string value)
+    {
+        var trimmed = value.Trim();
+        if (trimmed.Length < 2 || !((trimmed[0] == '"' && trimmed[^1] == '"') || (trimmed[0] == '\'' && trimmed[^1] == '\'')))
+        {
+            return trimmed;
+        }
+
+        var quote = trimmed[0];
+        var builder = new StringBuilder();
+        for (var index = 1; index < trimmed.Length - 1; index++)
+        {
+            if (trimmed[index] == '\\' && index + 1 < trimmed.Length - 1 && (trimmed[index + 1] == quote || trimmed[index + 1] == '\\'))
+            {
+                builder.Append(trimmed[index + 1]);
+                index++;
+                continue;
+            }
+
+            builder.Append(trimmed[index]);
+        }
+
+        return builder.ToString();
+    }
+
+    private static EditorAction CreateWindowAction(
+        WindowCommandMode mode,
+        string selectorKind = "title",
+        string selectorValue = "",
+        string activeField = "title",
+        string outputVariable = "windowResult",
+        int timeoutMs = 5000,
+        int x = 0,
+        int y = 0,
+        int width = 1280,
+        int height = 720,
+        string workspace = "")
+    {
+        return new EditorAction
+        {
+            Type = EditorActionType.WindowCommand,
+            WindowCommandMode = mode,
+            WindowSelectorKind = selectorKind,
+            WindowSelectorValue = selectorValue,
+            WindowActiveField = activeField,
+            WindowOutputVariable = EditorActionScriptTokens.NormalizeVariableToken(outputVariable),
+            WindowTimeoutMs = timeoutMs,
+            WindowX = x,
+            WindowY = y,
+            WindowWidth = width,
+            WindowHeight = height,
+            WindowWorkspace = workspace
+        };
+    }
+
+    private static bool TryParseShellRunStep(string payload, out EditorAction action)
+    {
+        action = new EditorAction();
+        if (!TryReadQuotedShellField(payload, allowEmpty: false, out var command, out var afterCommand)
+            || !TryParseShellOptions(afterCommand, out var retries, out var backoffMs, out var timeoutMs))
+        {
+            return false;
+        }
+
+        action = CreateShellAction(ShellCommandMode.Shell, command, string.Empty, null, null, null, retries, backoffMs, timeoutMs);
+        return true;
+    }
+
+    private static bool TryParseShellCaptureStep(string payload, out EditorAction action)
+    {
+        action = new EditorAction();
+        if (!TryReadQuotedShellField(payload, allowEmpty: false, out var command, out var afterCommand)
+            || !TryReadShellCaptureTargets(afterCommand, out var exitVariable, out var stdoutVariable, out var stderrVariable, out var optionText)
+            || !TryParseShellOptions(optionText, out var retries, out var backoffMs, out var timeoutMs))
+        {
+            return false;
+        }
+
+        action = CreateShellAction(ShellCommandMode.ShellCapture, command, string.Empty, exitVariable, stdoutVariable, stderrVariable, retries, backoffMs, timeoutMs);
+        return true;
+    }
+
+    private static bool TryParseShellInputStep(string payload, out EditorAction action)
+    {
+        action = new EditorAction();
+        if (!TryReadQuotedShellField(payload, allowEmpty: true, out var standardInput, out var afterInput)
+            || !TryReadQuotedShellField(afterInput, allowEmpty: false, out var command, out var afterCommand)
+            || !TryParseShellOptions(afterCommand, out var retries, out var backoffMs, out var timeoutMs))
+        {
+            return false;
+        }
+
+        action = CreateShellAction(ShellCommandMode.ShellInput, command, standardInput, null, null, null, retries, backoffMs, timeoutMs);
+        return true;
+    }
+
+    private static bool TryParseShellCaptureInputStep(string payload, out EditorAction action)
+    {
+        action = new EditorAction();
+        if (!TryReadQuotedShellField(payload, allowEmpty: true, out var standardInput, out var afterInput)
+            || !TryReadQuotedShellField(afterInput, allowEmpty: false, out var command, out var afterCommand)
+            || !TryReadShellCaptureTargets(afterCommand, out var exitVariable, out var stdoutVariable, out var stderrVariable, out var optionText)
+            || !TryParseShellOptions(optionText, out var retries, out var backoffMs, out var timeoutMs))
+        {
+            return false;
+        }
+
+        action = CreateShellAction(ShellCommandMode.ShellCaptureInput, command, standardInput, exitVariable, stdoutVariable, stderrVariable, retries, backoffMs, timeoutMs);
+        return true;
+    }
+
+    private static bool TryConsumeShellMode(string payload, string mode, out string remaining)
+    {
+        remaining = string.Empty;
+        if (!payload.StartsWith(mode, StringComparison.OrdinalIgnoreCase)
+            || (payload.Length != mode.Length && !char.IsWhiteSpace(payload[mode.Length])))
+        {
+            return false;
+        }
+
+        remaining = payload[mode.Length..].TrimStart();
+        return true;
+    }
+
+    private static bool TryReadQuotedShellField(string payload, bool allowEmpty, out string value, out string remaining)
+    {
+        value = string.Empty;
+        remaining = string.Empty;
+        var trimmed = payload.TrimStart();
+        if (trimmed.Length == 0 || trimmed[0] is not ('\"' or '\''))
+        {
+            return false;
+        }
+
+        var quote = trimmed[0];
+        var builder = new StringBuilder();
+        for (var index = 1; index < trimmed.Length; index++)
+        {
+            var current = trimmed[index];
+            if (current == '\\' && index + 1 < trimmed.Length && (trimmed[index + 1] == quote || trimmed[index + 1] == '\\'))
+            {
+                builder.Append(trimmed[index + 1]);
+                index++;
+                continue;
+            }
+
+            if (current == quote)
+            {
+                if (index + 1 < trimmed.Length && !char.IsWhiteSpace(trimmed[index + 1]))
+                {
+                    return false;
+                }
+
+                value = builder.ToString();
+                remaining = trimmed[(index + 1)..].TrimStart();
+                return allowEmpty || !string.IsNullOrWhiteSpace(value);
+            }
+
+            builder.Append(current);
+        }
+
+        return false;
+    }
+
+    private static bool TryReadShellCaptureTargets(string payload, out string exitVariable, out string stdoutVariable, out string stderrVariable, out string optionText)
+    {
+        exitVariable = string.Empty;
+        stdoutVariable = string.Empty;
+        stderrVariable = string.Empty;
+        optionText = string.Empty;
+        var tokens = SplitShellTokens(payload);
+        if (tokens.Length < 3
+            || !TryNormalizeShellCaptureTarget(tokens[0], out exitVariable)
+            || !TryNormalizeShellCaptureTarget(tokens[1], out stdoutVariable)
+            || !TryNormalizeShellCaptureTarget(tokens[2], out stderrVariable))
+        {
+            return false;
+        }
+
+        optionText = string.Join(' ', tokens[3..]);
+        return true;
+    }
+
+    private static bool TryNormalizeShellCaptureTarget(string token, out string target)
+    {
+        target = token;
+        if (token == "_")
+        {
+            return true;
+        }
+
+        return TryNormalizeVariableName(token, out target);
+    }
+
+    private static bool TryParseShellOptions(string payload, out int retries, out int backoffMs, out int timeoutMs)
+    {
+        retries = 0;
+        backoffMs = 0;
+        timeoutMs = 0;
+        var tokens = SplitShellTokens(payload);
+        if (tokens.Length > 3)
+        {
+            return false;
+        }
+
+        var values = new[] { 0, 0, 0 };
+        for (var index = 0; index < tokens.Length; index++)
+        {
+            if (!int.TryParse(tokens[index], NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+                || value < 0
+                || (index == 0 && value > 10_000))
+            {
+                return false;
+            }
+
+            values[index] = value;
+        }
+
+        retries = values[0];
+        backoffMs = values[1];
+        timeoutMs = values[2];
+        return true;
+    }
+
+    private static string[] SplitShellTokens(string payload)
+    {
+        return payload.Trim().Length == 0
+            ? []
+            : payload.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    private static EditorAction CreateShellAction(
+        ShellCommandMode mode,
+        string command,
+        string standardInput,
+        string? exitVariable,
+        string? stdoutVariable,
+        string? stderrVariable,
+        int retries,
+        int backoffMs,
+        int timeoutMs)
+    {
+        return new EditorAction
+        {
+            Type = EditorActionType.ShellCommand,
+            ShellCommandMode = mode,
+            ShellCommand = command,
+            ShellStandardInput = standardInput,
+            ShellExitCodeVariableName = exitVariable ?? "exit_code",
+            ShellStandardOutputVariableName = stdoutVariable ?? "stdout",
+            ShellStandardErrorVariableName = stderrVariable ?? "stderr",
+            ShellRetries = retries,
+            ShellBackoffMs = backoffMs,
+            ShellTimeoutMs = timeoutMs
+        };
     }
 
     private static bool TryParseSetStep(string step, out EditorAction action)

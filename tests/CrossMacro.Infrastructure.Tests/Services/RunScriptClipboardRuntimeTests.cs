@@ -20,6 +20,17 @@ public sealed class RunScriptClipboardRuntimeTests
     }
 
     [Fact]
+    public async Task ExecuteStepAsync_WhenSetPayloadEscapesDollar_PreservesLiteralDollar()
+    {
+        var clipboard = SupportedClipboard();
+        var executor = new RunScriptClipboardExecutor(clipboard);
+
+        await executor.ExecuteStepAsync("clipboard set literal $$clipText", 1, Vars(), CancellationToken.None);
+
+        await clipboard.Received(1).SetTextAsync("literal $clipText", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ExecuteStepAsync_WhenGetDestinationUsesDollar_DoesNotResolveDestinationAsVariable()
     {
         var clipboard = SupportedClipboard();

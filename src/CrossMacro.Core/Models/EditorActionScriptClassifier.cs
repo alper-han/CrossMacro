@@ -26,7 +26,12 @@ public static class EditorActionScriptClassifier
             or EditorActionType.DecrementVariable
             or EditorActionType.PixelColor
             or EditorActionType.WaitColor
-            or EditorActionType.PixelSearch;
+            or EditorActionType.PixelSearch
+            or EditorActionType.ClipboardGet
+            or EditorActionType.ClipboardSet
+            or EditorActionType.ShellCommand
+            or EditorActionType.Screenshot
+            or EditorActionType.WindowCommand;
     }
 
     public static bool IsOpaqueScriptAction(EditorActionType actionType)

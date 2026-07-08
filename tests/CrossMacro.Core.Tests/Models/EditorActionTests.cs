@@ -41,7 +41,27 @@ public class EditorActionTests
             ForEndValue = "10",
             ForHasStep = true,
             ForStepType = ScriptNumericSourceType.Number,
-            ForStepValue = "2"
+            ForStepValue = "2",
+            ShellCommandMode = ShellCommandMode.ShellCaptureInput,
+            ShellCommand = "cat",
+            ShellStandardInput = "hello",
+            ShellExitCodeVariableName = "exitVar",
+            ShellStandardOutputVariableName = "outVar",
+            ShellStandardErrorVariableName = "errVar",
+            ShellRetries = 2,
+            ShellBackoffMs = 50,
+            ShellTimeoutMs = 1000,
+            WindowCommandMode = WindowCommandMode.Wait,
+            WindowSelectorKind = "class",
+            WindowSelectorValue = "Firefox",
+            WindowActiveField = "address",
+            WindowOutputVariable = "windowAddr",
+            WindowTimeoutMs = 2500,
+            WindowX = 10,
+            WindowY = 20,
+            WindowWidth = 800,
+            WindowHeight = 600,
+            WindowWorkspace = "2"
         };
 
         // Act
@@ -81,6 +101,26 @@ public class EditorActionTests
         clone.ForHasStep.Should().Be(source.ForHasStep);
         clone.ForStepType.Should().Be(source.ForStepType);
         clone.ForStepValue.Should().Be(source.ForStepValue);
+        clone.ShellCommandMode.Should().Be(source.ShellCommandMode);
+        clone.ShellCommand.Should().Be(source.ShellCommand);
+        clone.ShellStandardInput.Should().Be(source.ShellStandardInput);
+        clone.ShellExitCodeVariableName.Should().Be(source.ShellExitCodeVariableName);
+        clone.ShellStandardOutputVariableName.Should().Be(source.ShellStandardOutputVariableName);
+        clone.ShellStandardErrorVariableName.Should().Be(source.ShellStandardErrorVariableName);
+        clone.ShellRetries.Should().Be(source.ShellRetries);
+        clone.ShellBackoffMs.Should().Be(source.ShellBackoffMs);
+        clone.ShellTimeoutMs.Should().Be(source.ShellTimeoutMs);
+        clone.WindowCommandMode.Should().Be(source.WindowCommandMode);
+        clone.WindowSelectorKind.Should().Be(source.WindowSelectorKind);
+        clone.WindowSelectorValue.Should().Be(source.WindowSelectorValue);
+        clone.WindowActiveField.Should().Be(source.WindowActiveField);
+        clone.WindowOutputVariable.Should().Be(source.WindowOutputVariable);
+        clone.WindowTimeoutMs.Should().Be(source.WindowTimeoutMs);
+        clone.WindowX.Should().Be(source.WindowX);
+        clone.WindowY.Should().Be(source.WindowY);
+        clone.WindowWidth.Should().Be(source.WindowWidth);
+        clone.WindowHeight.Should().Be(source.WindowHeight);
+        clone.WindowWorkspace.Should().Be(source.WindowWorkspace);
     }
 
     [Fact]
@@ -237,6 +277,22 @@ public class EditorActionTests
             Type = EditorActionType.RepeatBlockStart,
             ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
             ScriptNumericValue = "$count"
+        };
+
+        action.IsValid().Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsValid_WhenShellCaptureUsesIgnoredTargets_ReturnsTrue()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ShellCommand,
+            ShellCommandMode = ShellCommandMode.ShellCapture,
+            ShellCommand = "echo ok",
+            ShellExitCodeVariableName = "_",
+            ShellStandardOutputVariableName = "stdout",
+            ShellStandardErrorVariableName = "_"
         };
 
         action.IsValid().Should().BeTrue();

@@ -62,7 +62,7 @@ internal static class WindowCommandHelpers
     {
         s = s.Trim();
         if (s.Length >= 2 && ((s[0] == '"' && s[^1] == '"') || (s[0] == '\'' && s[^1] == '\'')))
-            return s[1..^1];
+            return s[1..^1].Replace("\\\"", "\"").Replace("\\\\", "\\").Replace("\\'", "'");
         return s;
     }
 

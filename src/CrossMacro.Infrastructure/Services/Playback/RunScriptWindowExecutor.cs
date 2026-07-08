@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Core.Services;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services.Playback;
@@ -60,7 +61,16 @@ internal sealed class RunScriptWindowExecutor
     /// </summary>
     public static string? Validate(string step)
     {
-        var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        string[] parts;
+        try
+        {
+            parts = RunScriptSyntax.SplitQuotedTokens(step).ToArray();
+        }
+        catch (FormatException ex)
+        {
+            return $"Invalid window syntax: '{step}'. {ex.Message}";
+        }
+
         if (parts.Length < 2 || !parts[0].Equals(CommandToken, StringComparison.OrdinalIgnoreCase))
             return $"Invalid window syntax: '{step}'.";
 
@@ -82,7 +92,16 @@ internal sealed class RunScriptWindowExecutor
     {
         var resolvedStep = RunScriptRuntimeText.ResolveVariables(step, variables, $"Step {stepNumber}: ");
 
-        var parts = resolvedStep.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        string[] parts;
+        try
+        {
+            parts = RunScriptSyntax.SplitQuotedTokens(resolvedStep).ToArray();
+        }
+        catch (FormatException ex)
+        {
+            throw new InvalidOperationException($"Step {stepNumber}: Invalid window syntax: '{resolvedStep}'. {ex.Message}", ex);
+        }
+
         if (parts.Length < 2 || !parts[0].Equals(CommandToken, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException($"Step {stepNumber}: Invalid window syntax: '{resolvedStep}'.");
 

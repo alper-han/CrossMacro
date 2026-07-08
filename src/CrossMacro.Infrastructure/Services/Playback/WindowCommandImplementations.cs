@@ -52,20 +52,25 @@ internal sealed class WindowSearchCommandHandler : IWindowCommandHandler
         if (parts.Length < 4) return "Syntax: window search title|class \"<term>\" $variable";
         var field = parts[2].ToLowerInvariant();
         if (field is not ("title" or "class")) return $"Unknown field '{parts[2]}'. Expected: title, class.";
-        var remaining = string.Join(' ', parts[3..]);
-        if (!TryExtractTermAndVar(remaining, out _, out _, out var error)) return error;
+
+        var varPart = parts[^1];
+        var vn = StripDollar(varPart);
+        if (!IsValidVarName(vn)) return $"Invalid variable name '{varPart}'.";
+
+        var term = Unquote(string.Join(' ', parts[3..^1]));
+        if (string.IsNullOrWhiteSpace(term)) return "Search term cannot be empty.";
         return null;
     }
 
     public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowQueryService query, IWindowMutationService mutator, IWorkspaceManagementService workspace, CancellationToken cancellationToken)
     {
         var field = parts[2].ToLowerInvariant();
-        var remaining = string.Join(' ', parts[3..]);
-        TryExtractTermAndVar(remaining, out var term, out var varName, out _);
+        var varName = StripDollar(parts[^1]);
+        var term = Unquote(string.Join(' ', parts[3..^1]));
         
         var windows = await query.GetWindowsAsync(cancellationToken).ConfigureAwait(false);
-        var match = field == "title" ? FindByTitle(windows, term!) : FindByClass(windows, term!);
-        StoreVariable(variables, varName!, match?.Address ?? string.Empty, stepNumber);
+        var match = field == "title" ? FindByTitle(windows, term) : FindByClass(windows, term);
+        StoreVariable(variables, varName, match?.Address ?? string.Empty, stepNumber);
     }
 }
 
@@ -203,51 +208,30 @@ internal sealed class WindowWaitCommandHandler : IWindowCommandHandler
         var field = parts[2].ToLowerInvariant();
         if (field is not ("title" or "class")) return $"Unknown field '{parts[2]}'. Expected: title, class.";
         
-        var remaining = string.Join(' ', parts[3..]).Trim();
-        var lastSpace = remaining.LastIndexOf(' ');
-        if (lastSpace < 0) return "Syntax: window wait title|class \"<term>\" [timeout_ms] $variable";
+        var varPart = parts[^1];
+        var vn = StripDollar(varPart);
+        if (!IsValidVarName(vn)) return $"Invalid variable name '{varPart}'.";
 
-        var rawVar = remaining[(lastSpace + 1)..].Trim();
-        if (!IsValidVarName(StripDollar(rawVar))) return $"Invalid variable name '{rawVar}'.";
-        
-        var beforeVar = remaining[..lastSpace].Trim();
-        var beforeVarLastSpace = beforeVar.LastIndexOf(' ');
-        string rawTerm = beforeVar;
-        if (beforeVarLastSpace >= 0)
-        {
-            var maybeTimeout = beforeVar[(beforeVarLastSpace + 1)..].Trim();
-            if (int.TryParse(maybeTimeout, NumberStyles.None, CultureInfo.InvariantCulture, out var t) && t > 0)
-                rawTerm = beforeVar[..beforeVarLastSpace].Trim();
-        }
-        
-        if (string.IsNullOrWhiteSpace(Unquote(rawTerm))) return "Search term cannot be empty.";
+        int tVal = 0;
+        var hasTimeout = parts.Length > 4 && int.TryParse(parts[^2], NumberStyles.None, CultureInfo.InvariantCulture, out tVal) && tVal > 0;
+        var termEndIndex = hasTimeout ? parts.Length - 2 : parts.Length - 1;
+
+        var term = Unquote(string.Join(' ', parts[3..termEndIndex]));
+        if (string.IsNullOrWhiteSpace(term)) return "Search term cannot be empty.";
         return null;
     }
 
     public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowQueryService query, IWindowMutationService mutator, IWorkspaceManagementService workspace, CancellationToken cancellationToken)
     {
         var field = parts[2].ToLowerInvariant();
-        var remaining = string.Join(' ', parts[3..]).Trim();
-        var lastSpace = remaining.LastIndexOf(' ');
-        var rawVar = remaining[(lastSpace + 1)..].Trim();
-        var varName = StripDollar(rawVar);
-        
-        var beforeVar = remaining[..lastSpace].Trim();
-        var beforeVarLastSpace = beforeVar.LastIndexOf(' ');
-        
-        int timeoutMs = 5000;
-        string rawTerm = beforeVar;
-        if (beforeVarLastSpace >= 0)
-        {
-            var maybeTimeout = beforeVar[(beforeVarLastSpace + 1)..].Trim();
-            if (int.TryParse(maybeTimeout, NumberStyles.None, CultureInfo.InvariantCulture, out var t) && t > 0)
-            {
-                timeoutMs = t;
-                rawTerm = beforeVar[..beforeVarLastSpace].Trim();
-            }
-        }
-        
-        var term = Unquote(rawTerm);
+        var varName = StripDollar(parts[^1]);
+
+        int tVal = 0;
+        var hasTimeout = parts.Length > 4 && int.TryParse(parts[^2], NumberStyles.None, CultureInfo.InvariantCulture, out tVal) && tVal > 0;
+        var termEndIndex = hasTimeout ? parts.Length - 2 : parts.Length - 1;
+        var timeoutMs = hasTimeout ? tVal : 5000;
+
+        var term = Unquote(string.Join(' ', parts[3..termEndIndex]));
         var deadline = Environment.TickCount64 + timeoutMs;
         WindowInfo? found = null;
 
@@ -367,7 +351,7 @@ internal static class WindowGeometryUnlocker
                 await mutator.FloatActiveWindowAsync(cancellationToken).ConfigureAwait(false);
                 stateChanged = true;
             }
-                
+
             if (stateChanged)
                 await Task.Delay(150, cancellationToken).ConfigureAwait(false);
         }

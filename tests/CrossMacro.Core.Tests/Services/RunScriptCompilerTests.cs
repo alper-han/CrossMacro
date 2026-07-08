@@ -361,6 +361,39 @@ public class RunScriptCompilerTests
         result.ErrorMessage.Should().Contain(expectedError);
     }
 
+    [Theory]
+    [InlineData("screenshot output shot.png")]
+    [InlineData("screenshot clipboard")]
+    [InlineData("screenshot output shot.png clipboard")]
+    [InlineData("screenshot region 1 2 3 4 output shot.png")]
+    [InlineData("screenshot region $x $y $w $h clipboard")]
+    public void Compile_WhenScreenshotStepIsWellFormed_PreservesScriptStep(string step)
+    {
+        var result = _compiler.Compile([new RunScriptStep(step)]);
+
+        result.Success.Should().BeTrue(result.ErrorMessage);
+        result.Sequence.Should().NotBeNull();
+        result.Sequence!.Events.Should().BeEmpty();
+        result.Sequence.ScriptSteps.Should().Equal(step);
+    }
+
+    [Theory]
+    [InlineData("screenshot", "at least one destination")]
+    [InlineData("screenshot region 1 2 0 4 clipboard", "width and height > 0")]
+    [InlineData("screenshot region 1 2 3 -4 clipboard", "width and height > 0")]
+    [InlineData("screenshot output a.png output b.png", "Duplicate screenshot output")]
+    [InlineData("screenshot clipboard clipboard", "Duplicate screenshot clipboard")]
+    [InlineData("screenshot region 1 2 3 4 region 5 6 7 8 clipboard", "Unknown screenshot token 'region'")]
+    [InlineData("screenshot output", "Syntax: screenshot output <path>")]
+    [InlineData("screenshot unknown", "Unknown screenshot token 'unknown'")]
+    public void Compile_WhenScreenshotStepIsMalformed_ReturnsFailure(string step, string expectedError)
+    {
+        var result = _compiler.Compile([new RunScriptStep(step)]);
+
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain(expectedError);
+    }
+
     [Fact]
     public void Compile_WhenScreenReadingScriptContainsUnsupportedCommand_ReturnsFailure()
     {

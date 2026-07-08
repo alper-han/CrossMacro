@@ -9,6 +9,7 @@ using CrossMacro.Core.Services;
 using CrossMacro.Core.Services.Playback;
 using CrossMacro.Core.Logging;
 using CrossMacro.Infrastructure.Services.Playback;
+using CrossMacro.Infrastructure.Services.ScreenCapture;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
@@ -21,6 +22,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
     private readonly IWindowManager? _windowManager;
     private readonly IClipboardService? _clipboardService;
     private readonly IShellCommandRunner? _shellCommandRunner;
+    private readonly IScreenshotCaptureService? _screenshotCaptureService;
     private readonly PlaybackValidator _validator;
     private readonly Func<IInputSimulator>? _inputSimulatorFactory;
     private readonly InputSimulatorPool? _simulatorPool;
@@ -136,13 +138,15 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         IKeyCodeMapper? keyCodeMapper = null,
         IWindowManager? windowManager = null,
         IClipboardService? clipboardService = null,
-        IShellCommandRunner? shellCommandRunner = null)
+        IShellCommandRunner? shellCommandRunner = null,
+        IScreenshotCaptureService? screenshotCaptureService = null)
     {
         _positionProvider = positionProvider;
         _screenPixelReader = screenPixelReader;
         _windowManager = windowManager;
         _clipboardService = clipboardService;
         _shellCommandRunner = shellCommandRunner;
+        _screenshotCaptureService = screenshotCaptureService;
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
         _inputSimulatorFactory = inputSimulatorFactory;
         _simulatorPool = simulatorPool;
@@ -462,6 +466,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         var windowExecutor = new RunScriptWindowExecutor(_windowManager ?? new NullWindowManager());
         var clipboardExecutor = new RunScriptClipboardExecutor(_clipboardService);
         var shellExecutor = new RunScriptShellExecutor(_shellCommandRunner, _timingService, this);
+        var screenshotExecutor = new RunScriptScreenshotExecutor(_screenshotCaptureService);
         var runtimeExecutor = new RunScriptRuntimeExecutor(
             _keyCodeMapper,
             _timingService,
@@ -470,7 +475,8 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
             screenReadExecutor,
             windowExecutor,
             clipboardExecutor,
-            shellExecutor);
+            shellExecutor,
+            screenshotExecutor);
         var executionRequest = new RunScriptRuntimeExecutionRequest(
             macro.ScriptSteps,
             speedMultiplier,

@@ -63,6 +63,202 @@ public class EditorActionValidatorTests
     }
 
     [Fact]
+    public void Validate_ClipboardGetWithValidVariable_ReturnsValid()
+    {
+        var action = new EditorAction { Type = EditorActionType.ClipboardGet, ScriptVariableName = "clipText" };
+
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeTrue();
+        result.Error.Should().BeNull();
+    }
+
+    [Fact]
+    public void Validate_ClipboardGetWithInvalidVariable_ReturnsInvalid()
+    {
+        var action = new EditorAction { Type = EditorActionType.ClipboardGet, ScriptVariableName = "1clip" };
+
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("Clipboard destination variable");
+    }
+
+    [Fact]
+    public void Validate_ClipboardSetWithText_ReturnsValid()
+    {
+        var action = new EditorAction { Type = EditorActionType.ClipboardSet, Text = "hello" };
+
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeTrue();
+        result.Error.Should().BeNull();
+    }
+
+    [Fact]
+    public void Validate_ClipboardSetWithEmptyText_ReturnsInvalid()
+    {
+        var action = new EditorAction { Type = EditorActionType.ClipboardSet, Text = string.Empty };
+
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("Clipboard text");
+    }
+
+    [Theory]
+    [InlineData("window", "window")]
+    [InlineData("clipboard get", "clipboard")]
+    [InlineData("shell", "shell")]
+    [InlineData("pixelcolor", "pixelcolor")]
+    [InlineData("waitcolor 1 2", "waitcolor")]
+    [InlineData("pixelsearch 1 2 3 4", "pixelsearch")]
+    public void Validate_RawScriptStepWithMalformedRecognizedCommand_ReturnsCommandSpecificError(string text, string expected)
+    {
+        var action = new EditorAction { Type = EditorActionType.RawScriptStep, Text = text };
+
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().ContainEquivalentOf(expected);
+    }
+
+    [Fact]
+    public void Validate_RawScriptStepWithUnknownNonEmptyText_ReturnsValid()
+    {
+        var action = new EditorAction { Type = EditorActionType.RawScriptStep, Text = "custom raw text" };
+
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeTrue();
+        result.Error.Should().BeNull();
+    }
+
+    [Fact]
+    public void Validate_RawScriptStepWithEmptyText_ReturnsInvalid()
+    {
+        var action = new EditorAction { Type = EditorActionType.RawScriptStep, Text = string.Empty };
+
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("Raw script step cannot be empty");
+    }
+
+    [Fact]
+    public void Validate_ShellCommandWithCommandAndOptions_ReturnsValid()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ShellCommand,
+            ShellCommandMode = ShellCommandMode.ShellCaptureInput,
+            ShellCommand = "cat",
+            ShellStandardInput = "hello",
+            ShellExitCodeVariableName = "_",
+            ShellStandardOutputVariableName = "stdout",
+            ShellStandardErrorVariableName = "stderr",
+            ShellRetries = 1,
+            ShellBackoffMs = 20,
+            ShellTimeoutMs = 1000
+        };
+
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Validate_ShellCommandWithInvalidCaptureTarget_ReturnsInvalid()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ShellCommand,
+            ShellCommandMode = ShellCommandMode.ShellCapture,
+            ShellCommand = "echo ok",
+            ShellExitCodeVariableName = "1exit",
+            ShellStandardOutputVariableName = "stdout",
+            ShellStandardErrorVariableName = "stderr"
+        };
+
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("capture targets");
+    }
+
+    [Theory]
+    [MemberData(nameof(ValidWindowActions))]
+    public void Validate_WindowCommandWithValidMode_ReturnsValid(EditorAction action)
+    {
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeTrue();
+        result.Error.Should().BeNull();
+    }
+
+    [Fact]
+    public void Validate_WindowCommandWithInvalidVariable_ReturnsInvalid()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.WindowCommand,
+            WindowCommandMode = WindowCommandMode.Active,
+            WindowActiveField = "title",
+            WindowOutputVariable = "1bad"
+        };
+
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("Invalid variable");
+    }
+
+    [Fact]
+    public void Validate_WindowCommandWithMissingRequiredField_ReturnsInvalid()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.WindowCommand,
+            WindowCommandMode = WindowCommandMode.Search,
+            WindowSelectorKind = "title",
+            WindowSelectorValue = string.Empty,
+            WindowOutputVariable = "addr"
+        };
+
+        var result = _validator.Validate(action);
+
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("Search term");
+    }
+
+    public static IEnumerable<object[]> ValidWindowActions()
+    {
+        foreach (var mode in Enum.GetValues<WindowCommandMode>())
+        {
+            yield return [CreateValidWindowAction(mode)];
+        }
+    }
+
+    private static EditorAction CreateValidWindowAction(WindowCommandMode mode)
+    {
+        return new EditorAction
+        {
+            Type = EditorActionType.WindowCommand,
+            WindowCommandMode = mode,
+            WindowSelectorKind = mode is WindowCommandMode.Focus or WindowCommandMode.Close ? "active" : "title",
+            WindowSelectorValue = mode == WindowCommandMode.WorkspaceMoveWindow ? "0x123" : "Firefox",
+            WindowActiveField = "title",
+            WindowOutputVariable = mode == WindowCommandMode.WorkspaceGet ? "workspaceName" : "windowAddress",
+            WindowTimeoutMs = 2500,
+            WindowX = 100,
+            WindowY = 200,
+            WindowWidth = 800,
+            WindowHeight = 600,
+            WindowWorkspace = "2"
+        };
+    }
+
+    [Fact]
     public void Validate_DelayWithRandomBounds_ReturnsValid()
     {
         // Arrange

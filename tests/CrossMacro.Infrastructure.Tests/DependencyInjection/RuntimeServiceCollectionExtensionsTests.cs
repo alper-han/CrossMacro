@@ -8,6 +8,7 @@ using CrossMacro.Core.Services.TextExpansion;
 using CrossMacro.Infrastructure.DependencyInjection;
 using CrossMacro.Infrastructure.Logging;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Infrastructure.Services.ScreenCapture;
 using CrossMacro.Infrastructure.Services.Recording.Processors;
 using CrossMacro.Infrastructure.Services.TextExpansion;
 using CrossMacro.Platform.Abstractions;
@@ -83,6 +84,7 @@ public class RuntimeServiceCollectionExtensionsTests
         AssertImplementationRegistration<IHotkeyStringBuilder, HotkeyStringBuilder>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IHotkeyMatcher, HotkeyMatcher>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IGlobalHotkeyService>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<IScreenshotCaptureService>(services, ServiceLifetime.Singleton);
 
         AssertImplementationRegistration<PlaybackValidator, PlaybackValidator>(services, ServiceLifetime.Transient);
         AssertFactoryRegistration<IMacroPlayer>(services, ServiceLifetime.Transient);
@@ -102,6 +104,21 @@ public class RuntimeServiceCollectionExtensionsTests
         AssertImplementationRegistration<IEditorActionConverter, EditorActionConverter>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IEditorActionValidator, EditorActionValidator>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<ICoordinateCaptureService>(services, ServiceLifetime.Singleton);
+    }
+
+    [Fact]
+    public void AddCrossMacroSharedPostPlatformRuntimeServices_ResolvesScreenshotCaptureWithoutImageClipboardService()
+    {
+        var services = new ServiceCollection();
+
+        services.AddCrossMacroSharedPostPlatformRuntimeServices(_ => null);
+
+        var descriptor = Assert.Single(services, d => d.ServiceType == typeof(IScreenshotCaptureService));
+        Assert.NotNull(descriptor.ImplementationFactory);
+
+        var screenshotCaptureService = descriptor.ImplementationFactory(new TestServiceProvider(new TestRuntimeContext(isFlatpak: false)));
+
+        Assert.IsType<ScreenshotCaptureService>(screenshotCaptureService);
     }
 
     private static void AssertImplementationRegistration<TService, TImplementation>(

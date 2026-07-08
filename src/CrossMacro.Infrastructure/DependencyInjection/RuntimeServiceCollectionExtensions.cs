@@ -3,6 +3,7 @@ using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Logging;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Infrastructure.Services.ScreenCapture;
 using CrossMacro.Infrastructure.Services.ScreenReading;
 using CrossMacro.Infrastructure.Services.Recording.Processors;
 using CrossMacro.Infrastructure.Services.Recording.Strategies;
@@ -122,6 +123,10 @@ public static class RuntimeServiceCollectionExtensions
     private static void RegisterScreenReadingServices(IServiceCollection services)
     {
         services.TryAddSingleton<IScreenFrameProvider, UnsupportedScreenFrameProvider>();
+        services.TryAddSingleton<IScreenshotCaptureService>(sp =>
+            new ScreenshotCaptureService(
+                sp.GetService<IScreenFrameProvider>(),
+                sp.GetService<IImageClipboardService>()));
         services.TryAddSingleton<IScreenPixelReader, ScreenPixelReader>();
         services.TryAddSingleton<IScreenReadingWarmupService, ScreenReadingWarmupService>();
     }
@@ -172,7 +177,8 @@ public static class RuntimeServiceCollectionExtensions
                 keyCodeMapper: sp.GetRequiredService<IKeyCodeMapper>(),
                 windowManager: sp.GetService<IWindowManager>(),
                 clipboardService: sp.GetService<IClipboardService>(),
-                shellCommandRunner: sp.GetRequiredService<IShellCommandRunner>());
+                shellCommandRunner: sp.GetRequiredService<IShellCommandRunner>(),
+                screenshotCaptureService: sp.GetRequiredService<IScreenshotCaptureService>());
         });
 
         services.AddSingleton<Func<IMacroPlayer>>(sp => () => sp.GetRequiredService<IMacroPlayer>());

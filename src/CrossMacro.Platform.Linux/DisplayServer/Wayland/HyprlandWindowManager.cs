@@ -201,6 +201,7 @@ public sealed class HyprlandWindowManager : IWindowManager
             Title = dto.Title ?? string.Empty,
             Class = dto.Class ?? string.Empty,
             Pid = dto.Pid,
+            ProcessName = Helpers.ProcessHelper.GetProcessName(dto.Pid),
             Workspace = dto.Workspace?.Name ?? string.Empty,
             IsFocused = isFocused,
             IsFullscreen = dto.Fullscreen == 2,

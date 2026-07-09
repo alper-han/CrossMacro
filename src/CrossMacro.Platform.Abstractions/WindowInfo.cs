@@ -14,8 +14,16 @@ public sealed record WindowInfo
     /// <summary>Window class (WM_CLASS instance or app-id on Wayland).</summary>
     public string Class { get; init; } = string.Empty;
 
+    private readonly int _pid = -1;
     /// <summary>Process ID of the window owner, or -1 if unknown.</summary>
-    public int Pid { get; init; } = -1;
+    public int Pid
+    {
+        get => _pid;
+        init => _pid = value > 0 ? value : -1;
+    }
+
+    /// <summary>Name of the process owning the window, or empty string if unknown.</summary>
+    public string ProcessName { get; init; } = string.Empty;
 
     /// <summary>Workspace name or ID, or empty string if unknown.</summary>
     public string Workspace { get; init; } = string.Empty;

@@ -222,6 +222,20 @@ public sealed class WindowsWindowManager : IWindowManager
         return Task.FromResult(MoveWindowToWorkspace(hwnd, workspace));
     }
 
+    private static string GetProcessName(int pid)
+    {
+        if (pid <= 0) return string.Empty;
+        try
+        {
+            using var process = System.Diagnostics.Process.GetProcessById(pid);
+            return process.ProcessName;
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
     private static WindowInfo MapWindow(IntPtr hwnd)
     {
         var visibleBounds = GetVisibleBounds(hwnd);
@@ -238,6 +252,7 @@ public sealed class WindowsWindowManager : IWindowManager
             Title = title,
             Class = className,
             Pid = processId <= int.MaxValue ? (int)processId : -1,
+            ProcessName = processId <= int.MaxValue ? GetProcessName((int)processId) : string.Empty,
             Workspace = GetWindowDesktopId(hwnd) ?? string.Empty,
             IsFocused = hwnd == foreground,
             IsFullscreen = IsFullscreen(hwnd, visibleBounds),

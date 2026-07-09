@@ -43,4 +43,26 @@ public static class ProcessHelper
         }
         return null;
     }
+
+    /// <summary>
+    /// Retrieves the process name for a given PID.
+    /// </summary>
+    public static string GetProcessName(int pid)
+    {
+        if (pid <= 0) return string.Empty;
+        try
+        {
+            var commPath = $"/proc/{pid}/comm";
+            if (System.IO.File.Exists(commPath))
+            {
+                return System.IO.File.ReadAllText(commPath).Trim();
+            }
+            using var process = Process.GetProcessById(pid);
+            return process.ProcessName;
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
 }

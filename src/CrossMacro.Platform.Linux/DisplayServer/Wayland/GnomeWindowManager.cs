@@ -44,7 +44,8 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
         {
             var json = await _trackerClient!.GetActiveWindowAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrEmpty(json) || json == "null") return null;
-            return JsonSerializer.Deserialize(json, GnomeJsonContext.Default.WindowInfo);
+            var win = JsonSerializer.Deserialize(json, GnomeJsonContext.Default.WindowInfo);
+            return win is not null ? win with { ProcessName = Helpers.ProcessHelper.GetProcessName(win.Pid) } : null;
         }
         catch { return null; }
     }
@@ -56,7 +57,9 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
         {
             var json = await _trackerClient!.GetWindowsAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrEmpty(json)) return [];
-            return JsonSerializer.Deserialize(json, GnomeJsonContext.Default.WindowInfoArray) ?? [];
+            var list = JsonSerializer.Deserialize(json, GnomeJsonContext.Default.WindowInfoArray);
+            if (list is null) return [];
+            return list.Select(w => w with { ProcessName = Helpers.ProcessHelper.GetProcessName(w.Pid) }).ToArray();
         }
         catch { return []; }
     }

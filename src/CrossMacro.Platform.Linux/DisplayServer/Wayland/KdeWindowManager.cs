@@ -176,7 +176,11 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
         var json = await ExecuteOneShotScriptAsync(script, true, cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrEmpty(json) || json == "null") return null;
 
-        try { return JsonSerializer.Deserialize(json, KdeJsonContext.Default.WindowInfo); }
+        try
+        {
+            var win = JsonSerializer.Deserialize(json, KdeJsonContext.Default.WindowInfo);
+            return win is not null ? win with { ProcessName = Helpers.ProcessHelper.GetProcessName(win.Pid) } : null;
+        }
         catch { return null; }
     }
 
@@ -208,7 +212,12 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
         var json = await ExecuteOneShotScriptAsync(script, true, cancellationToken).ConfigureAwait(false);
         Log.Information("JSON: {Json}", json); if (string.IsNullOrEmpty(json)) return [];
 
-        try { return JsonSerializer.Deserialize(json, KdeJsonContext.Default.WindowInfoArray) ?? []; }
+        try
+        {
+            var list = JsonSerializer.Deserialize(json, KdeJsonContext.Default.WindowInfoArray);
+            if (list is null) return [];
+            return list.Select(w => w with { ProcessName = Helpers.ProcessHelper.GetProcessName(w.Pid) }).ToArray();
+        }
         catch { return []; }
     }
 

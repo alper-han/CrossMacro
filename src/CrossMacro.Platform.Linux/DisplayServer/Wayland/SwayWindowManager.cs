@@ -258,6 +258,7 @@ public sealed class SwayWindowManager : IWindowManager
             Title = node.Name ?? string.Empty,
             Class = windowClass,
             Pid = node.Pid ?? 0,
+            ProcessName = Helpers.ProcessHelper.GetProcessName(node.Pid ?? 0),
             Workspace = workspace,
             IsFocused = node.Focused,
             IsFullscreen = node.FullscreenMode > 0,

@@ -350,6 +350,7 @@ internal sealed class NiriWindowManager : IWindowManager
             Title = dto.Title ?? string.Empty,
             Class = dto.AppId ?? string.Empty,
             Pid = dto.Pid ?? -1,
+            ProcessName = Helpers.ProcessHelper.GetProcessName(dto.Pid ?? -1),
             Workspace = dto.WorkspaceId?.ToString() ?? string.Empty,
             IsFocused = dto.IsFocused,
             IsFullscreen = false,

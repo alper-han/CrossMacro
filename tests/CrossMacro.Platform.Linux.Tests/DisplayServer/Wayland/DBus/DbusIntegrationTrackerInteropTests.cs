@@ -102,7 +102,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         wrongInterfaceRequest.WriteInt32(240);
         var wrongInterfaceMessage = wrongInterfaceRequest.CreateMessage();
 
-        var exception = await Assert.ThrowsAnyAsync<DBusException>(() =>
+        var exception = await Assert.ThrowsAnyAsync<DBusErrorReplyException>(() =>
             clientConnection.CallMethodAsync(wrongInterfaceMessage).WaitAsync(SessionBusTimeout));
 
         Assert.Equal("org.freedesktop.DBus.Error.UnknownMethod", exception.ErrorName);
@@ -140,7 +140,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         invalidSignatureRequest.WriteString("oops");
         var invalidSignatureMessage = invalidSignatureRequest.CreateMessage();
 
-        var exception = await Assert.ThrowsAnyAsync<DBusException>(() =>
+        var exception = await Assert.ThrowsAnyAsync<DBusErrorReplyException>(() =>
             clientConnection.CallMethodAsync(invalidSignatureMessage).WaitAsync(SessionBusTimeout));
 
         Assert.Equal("org.freedesktop.DBus.Error.InvalidArgs", exception.ErrorName);

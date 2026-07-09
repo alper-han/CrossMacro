@@ -59,7 +59,11 @@ public sealed class CliCommandRouter
         "--enabled",
         "--hotkey",
         "--random-repeat-delay",
-        "--run-while-held"
+        "--run-while-held",
+        "--match-mode",
+        "--cooldown-ms",
+        "--debounce-ms",
+        "--fire-mode"
     };
 
     private static readonly RootCommandDescriptor[] RootCommands =
@@ -72,6 +76,7 @@ public sealed class CliCommandRouter
         new("text-expansion", TextExpansionCommandParser.Parse, "text"),
         new("schedule", ScheduleCommandParser.Parse),
         new("shortcut", ShortcutCommandParser.Parse),
+        new("trigger", TriggerCommandParser.Parse),
         new("record", RecordCommandParser.Parse),
         new("run", RunCommandParser.Parse),
         new("clipboard", ClipboardCommandParser.Parse),
@@ -100,6 +105,7 @@ public sealed class CliCommandRouter
         "  crossmacro text-expansion list|add|remove|enable|disable|test ... [--json] [--log-level <level>]",
         "  crossmacro schedule list|run|add|edit|remove|enable|disable|next ... [--json] [--log-level <level>]",
         "  crossmacro shortcut list|run|add|edit|remove|enable|disable|bind ... [--json] [--log-level <level>]",
+        "  crossmacro trigger list|add|edit|remove|enable|disable ... [--json] [--log-level <level>]",
         "  crossmacro record (--output|-o) <macro-file> [--mouse <true|false>] [--keyboard <true|false>] [--mode <auto|absolute|relative>] [--skip-initial-zero] [--duration <sec>] [--json] [--log-level <level>]",
         string.Empty,
         "  crossmacro run --step <step> [--step <step> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]",
@@ -492,6 +498,28 @@ public sealed class CliCommandRouter
         if (topic.StartsWith("shortcut.", StringComparison.OrdinalIgnoreCase))
         {
             return GetTopicUsage("shortcut");
+        }
+
+        if (string.Equals(topic, "trigger", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro trigger list [--json] [--log-level <level>]\n" +
+                "  crossmacro trigger add --name <name> --field <field> --match-mode <mode> --value <value> --action <action> [--profile <profile>] [--macro <path>] [--fire-mode <mode>] [--cooldown-ms <ms>] [--debounce-ms <ms>] [--enabled <bool>] [--json] [--log-level <level>]\n" +
+                "  crossmacro trigger edit <task-id> [--name <name>] [--field <field>] [--match-mode <mode>] [--value <value>] [--action <action>] [--profile <profile>] [--macro <path>] [--fire-mode <mode>] [--cooldown-ms <ms>] [--debounce-ms <ms>] [--enabled <bool>] [--json] [--log-level <level>]\n" +
+                "  crossmacro trigger remove|enable|disable <task-id> [--json] [--log-level <level>]\n\n" +
+                "Subcommands:\n" +
+                "  list     List known trigger tasks.\n" +
+                "  add      Create a window-match trigger task.\n" +
+                "  edit     Update trigger task fields.\n" +
+                "  remove   Delete a trigger task.\n" +
+                "  enable   Enable a trigger task.\n" +
+                "  disable  Disable a trigger task.\n";
+        }
+
+        if (topic.StartsWith("trigger.", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetTopicUsage("trigger");
         }
 
         if (string.Equals(topic, "record", StringComparison.OrdinalIgnoreCase))

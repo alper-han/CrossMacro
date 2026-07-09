@@ -20,6 +20,7 @@ public sealed class DesignMainWindowViewModel : MainWindowViewModel
             new DesignTextExpansionViewModel(context),
             new DesignScheduleViewModel(context),
             new DesignShortcutViewModel(context),
+            new DesignTriggerViewModel(context),
             new DesignSettingsViewModel(context),
             new DesignEditorViewModel(context),
             context.HotkeyService,

@@ -176,6 +176,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<TextExpansionViewModel>();
         services.AddSingleton<ScheduleViewModel>();
         services.AddSingleton<ShortcutViewModel>();
+        services.AddSingleton<TriggerViewModel>();
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<EditorViewModel>();
         services.AddSingleton<MainWindowViewModel>();

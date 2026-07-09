@@ -21,7 +21,7 @@ The packaged manpage is also available at [`docs/man/crossmacro.1`](man/crossmac
 | Macro files | `play`, `record`, `macro validate`, `macro info` |
 | Inline automation | `run --step ...`, `run --file ...` |
 | Runtime primitives | `clipboard`, `window`, `screen`, `screenshot` |
-| User data | `settings`, `profile`, `text-expansion`, `schedule`, `shortcut` |
+| User data | `settings`, `profile`, `text-expansion`, `schedule`, `shortcut`, `trigger` |
 | Diagnostics/runtime | `doctor`, `headless`, `--headless` |
 
 Use the command-specific sections below for examples, option notes, and platform
@@ -240,6 +240,28 @@ crossmacro shortcut disable <task-id>
 - `bind` is shorthand for replacing a shortcut task's hotkey.
 - `--loop`, `--repeat`, `--repeat-delay-ms`, `--random-repeat-delay`, and
   `--run-while-held` mirror the GUI shortcut playback options.
+
+## Trigger command
+
+Trigger commands manage active-profile window-match trigger tasks:
+
+```bash
+crossmacro trigger list --json
+crossmacro trigger add --name "VSCode Focus" --field WindowClass --match-mode Contains --value Code --action SwitchProfile --profile dev --fire-mode OnceOnChange
+crossmacro trigger add --name "Firefox Focus" --field WindowTitle --match-mode Regex --value ".*Firefox.*" --action RunMacro --macro ./fx.macro --debounce-ms 200 --cooldown-ms 1000
+crossmacro trigger edit <task-id> --debounce-ms 250
+crossmacro trigger remove <task-id>
+crossmacro trigger enable <task-id>
+crossmacro trigger disable <task-id>
+```
+
+- `add` requires `--name`, `--field`, `--match-mode`, and `--action`.
+- `--field` accepts `WindowClass`, `WindowTitle`, `Workspace`, `ProcessName`, or `None`.
+- `--match-mode` accepts `Equals`, `Contains`, or `Regex`.
+- `--action` accepts `SwitchProfile` or `RunMacro`.
+- `--profile` sets the target profile to switch to, and `--macro` sets the macro path to run.
+- `--fire-mode` accepts `OnceOnChange`, `EveryMatch`, `OnEnter`, or `OnExit`.
+- `--cooldown-ms` and `--debounce-ms` accept positive integers representing milliseconds.
 
 ## Settings command
 

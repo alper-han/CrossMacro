@@ -25,6 +25,11 @@ public static class ConfigFileNames
     /// Text expansions file.
     /// </summary>
     public const string TextExpansions = "text-expansions.json";
+
+    /// <summary>
+    /// Window-state triggers file.
+    /// </summary>
+    public const string Triggers = "triggers.json";
     
     /// <summary>
     /// Hotkey configuration file.

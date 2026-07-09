@@ -49,6 +49,8 @@ public class CliCommandHandlerResolverTests
         yield return [new ShortcutListCliOptions(), typeof(ShortcutListCommandHandler)];
         yield return [new ShortcutRunCliOptions("shortcut-id"), typeof(ShortcutRunCommandHandler)];
         yield return [new ShortcutCliOptions(ShortcutCliAction.Add), typeof(ShortcutCommandHandler)];
+        yield return [new TriggerListCliOptions(), typeof(TriggerListCommandHandler)];
+        yield return [new TriggerCliOptions(TriggerCliAction.Add), typeof(TriggerCommandHandler)];
         yield return [new RecordCliOptions("recorded.macro"), typeof(RecordCommandHandler)];
         yield return [new RunCliOptions(["tap A"]), typeof(RunCommandHandler)];
         yield return [new ClipboardCliOptions(ClipboardCliAction.Get), typeof(ClipboardCommandHandler)];
@@ -78,6 +80,8 @@ public class CliCommandHandlerResolverTests
             new ShortcutListCommandHandler(Substitute.For<IShortcutCliService>()),
             new ShortcutRunCommandHandler(Substitute.For<IShortcutCliService>()),
             new ShortcutCommandHandler(Substitute.For<IShortcutCliService>()),
+            new TriggerListCommandHandler(Substitute.For<ITriggerCliService>()),
+            new TriggerCommandHandler(Substitute.For<ITriggerCliService>()),
             new RecordCommandHandler(Substitute.For<IRecordExecutionService>(), Substitute.For<ICliPreflightService>()),
             new RunCommandHandler(Substitute.For<IRunScriptExecutionService>(), Substitute.For<ICliPreflightService>()),
             new ClipboardCommandHandler(Substitute.For<IClipboardCliService>()),
@@ -106,6 +110,8 @@ public class CliCommandHandlerResolverTests
             () => handlers.ShortcutList,
             () => handlers.ShortcutRun,
             () => handlers.Shortcut,
+            () => handlers.TriggerList,
+            () => handlers.Trigger,
             () => handlers.Record,
             () => handlers.Run,
             () => handlers.Clipboard,
@@ -134,6 +140,8 @@ public class CliCommandHandlerResolverTests
         ShortcutListCommandHandler ShortcutList,
         ShortcutRunCommandHandler ShortcutRun,
         ShortcutCommandHandler Shortcut,
+        TriggerListCommandHandler TriggerList,
+        TriggerCommandHandler Trigger,
         RecordCommandHandler Record,
         RunCommandHandler Run,
         ClipboardCommandHandler Clipboard,

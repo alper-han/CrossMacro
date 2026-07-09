@@ -21,6 +21,7 @@ public class ViewLocator : IDataTemplate
             SettingsViewModel => new SettingsTabView(),
             ScheduleViewModel => new ScheduleTabView(),
             ShortcutViewModel => new ShortcutTabView(),
+            TriggerViewModel => new TriggerTabView(),
             EditorViewModel => new EditorTabView(),
             null => null,
             _ => new TextBlock { Text = "Not Found: " + param.GetType().FullName }

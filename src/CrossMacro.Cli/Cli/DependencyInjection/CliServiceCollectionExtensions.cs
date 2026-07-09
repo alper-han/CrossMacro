@@ -52,6 +52,7 @@ public static class CliServiceCollectionExtensions
         services.AddSingleton<ITextExpansionCliService, TextExpansionCliService>();
         services.AddSingleton<IScheduleCliService, ScheduleCliService>();
         services.AddSingleton<IShortcutCliService, ShortcutCliService>();
+        services.AddSingleton<ITriggerCliService, TriggerCliService>();
         services.AddSingleton<IRecordExecutionService, RecordExecutionService>();
         services.AddSingleton<IHeadlessHotkeyActionService, HeadlessHotkeyActionService>();
         services.AddSingleton<IHeadlessRuntimeService, HeadlessRuntimeService>();
@@ -77,6 +78,8 @@ public static class CliServiceCollectionExtensions
         services.AddSingleton<ShortcutListCommandHandler>();
         services.AddSingleton<ShortcutRunCommandHandler>();
         services.AddSingleton<ShortcutCommandHandler>();
+        services.AddSingleton<TriggerListCommandHandler>();
+        services.AddSingleton<TriggerCommandHandler>();
         services.AddSingleton<RecordCommandHandler>();
         services.AddSingleton<RunCommandHandler>();
         services.AddSingleton<ClipboardCommandHandler>();
@@ -101,6 +104,8 @@ public static class CliServiceCollectionExtensions
         services.AddSingleton<Func<ShortcutListCommandHandler>>(sp => sp.GetRequiredService<ShortcutListCommandHandler>);
         services.AddSingleton<Func<ShortcutRunCommandHandler>>(sp => sp.GetRequiredService<ShortcutRunCommandHandler>);
         services.AddSingleton<Func<ShortcutCommandHandler>>(sp => sp.GetRequiredService<ShortcutCommandHandler>);
+        services.AddSingleton<Func<TriggerListCommandHandler>>(sp => sp.GetRequiredService<TriggerListCommandHandler>);
+        services.AddSingleton<Func<TriggerCommandHandler>>(sp => sp.GetRequiredService<TriggerCommandHandler>);
         services.AddSingleton<Func<RecordCommandHandler>>(sp => sp.GetRequiredService<RecordCommandHandler>);
         services.AddSingleton<Func<RunCommandHandler>>(sp => sp.GetRequiredService<RunCommandHandler>);
         services.AddSingleton<Func<ClipboardCommandHandler>>(sp => sp.GetRequiredService<ClipboardCommandHandler>);

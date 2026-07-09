@@ -22,6 +22,7 @@ internal sealed class MainWindowNavigationCatalog
         TextExpansionViewModel textExpansion,
         ShortcutViewModel shortcuts,
         ScheduleViewModel schedule,
+        TriggerViewModel triggers,
         EditorViewModel editor)
     {
         return new ObservableCollection<NavigationItem>
@@ -32,6 +33,7 @@ internal sealed class MainWindowNavigationCatalog
             CreateNavigationItem("Navigation_TextExpansion", AppIcon.EditNote, textExpansion),
             CreateNavigationItem("Navigation_Shortcuts", AppIcon.Keyboard, shortcuts),
             CreateNavigationItem("Navigation_Schedule", AppIcon.Clock, schedule),
+            CreateNavigationItem("Navigation_Triggers", AppIcon.Trigger, triggers),
             CreateNavigationItem("Navigation_Editor", AppIcon.Tools, editor)
         };
     }

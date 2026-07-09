@@ -726,6 +726,132 @@
   <data name="Shortcut_StatusFailed" xml:space="preserve">
     <value>Kısayol: {0} - {1}</value>
   </data>
+  <data name="Navigation_Triggers" xml:space="preserve">
+    <value>Tetikleyiciler</value>
+  </data>
+  <data name="Trigger_ItemsText" xml:space="preserve">
+    <value>{0} öğe</value>
+  </data>
+  <data name="Trigger_DefaultTaskName" xml:space="preserve">
+    <value>Tetikleyici {0}</value>
+  </data>
+  <data name="Trigger_Title" xml:space="preserve">
+    <value>TETİKLEYİCİLER</value>
+  </data>
+  <data name="Trigger_Settings" xml:space="preserve">
+    <value>AYARLAR</value>
+  </data>
+  <data name="Trigger_Name" xml:space="preserve">
+    <value>Ad</value>
+  </data>
+  <data name="Trigger_NamePlaceholder" xml:space="preserve">
+    <value>Tetikleyici adı</value>
+  </data>
+  <data name="Trigger_Field" xml:space="preserve">
+    <value>Alan</value>
+  </data>
+  <data name="Trigger_MatchMode" xml:space="preserve">
+    <value>Eşleşme Modu</value>
+  </data>
+  <data name="Trigger_Value" xml:space="preserve">
+    <value>Değer</value>
+  </data>
+  <data name="Trigger_ValuePlaceholder" xml:space="preserve">
+    <value>Eşleştirilecek metin</value>
+  </data>
+  <data name="Trigger_Action" xml:space="preserve">
+    <value>Eylem</value>
+  </data>
+  <data name="Trigger_TargetProfile" xml:space="preserve">
+    <value>Hedef Profil</value>
+  </data>
+  <data name="Trigger_TargetProfilePlaceholder" xml:space="preserve">
+    <value>Profil seçin</value>
+  </data>
+  <data name="Trigger_MacroFile" xml:space="preserve">
+    <value>Makro Dosyası</value>
+  </data>
+  <data name="Trigger_MacroFilePlaceholder" xml:space="preserve">
+    <value>Dosya seçilmedi</value>
+  </data>
+  <data name="Trigger_MacroFileBrowse" xml:space="preserve">
+    <value>Gözat</value>
+  </data>
+  <data name="Trigger_OpenMacroDialogTitle" xml:space="preserve">
+    <value>Makro Dosyası Seç</value>
+  </data>
+  <data name="Trigger_OpenMacroDialogFilter" xml:space="preserve">
+    <value>Makro Dosyaları</value>
+  </data>
+  <data name="Trigger_FireMode" xml:space="preserve">
+    <value>Çalışma Modu</value>
+  </data>
+  <data name="Trigger_DebounceMs" xml:space="preserve">
+    <value>Titreşim Gecikmesi (ms)</value>
+  </data>
+  <data name="Trigger_CooldownMs" xml:space="preserve">
+    <value>Bekleme Süresi (ms)</value>
+  </data>
+  <data name="Trigger_WindowPickerRefresh" xml:space="preserve">
+    <value>Yenile</value>
+  </data>
+  <data name="Trigger_WindowPickerPlaceholder" xml:space="preserve">
+    <value>Çalışan pencerelerden seçin…</value>
+  </data>
+  <data name="Trigger_Status" xml:space="preserve">
+    <value>DURUM</value>
+  </data>
+  <data name="Trigger_LastTriggered" xml:space="preserve">
+    <value>Son Tetiklenme</value>
+  </data>
+  <data name="Trigger_StatusLabel" xml:space="preserve">
+    <value>Durum</value>
+  </data>
+  <data name="Trigger_StatusPlaceholder" xml:space="preserve">
+    <value>Boşta</value>
+  </data>
+  <data name="Trigger_Never" xml:space="preserve">
+    <value>Hiçbir zaman</value>
+  </data>
+  <data name="Trigger_SaveAll" xml:space="preserve">
+    <value>Tümünü Kaydet</value>
+  </data>
+  <data name="Trigger_NoSelected" xml:space="preserve">
+    <value>Tetikleyici Seçilmedi</value>
+  </data>
+  <data name="Trigger_SelectHint" xml:space="preserve">
+    <value>Yapılandırmak için bir tetikleyici ekleyin veya seçin</value>
+  </data>
+  <data name="Trigger_EditTooltip" xml:space="preserve">
+    <value>Düzenle</value>
+  </data>
+  <data name="Trigger_DeleteTooltip" xml:space="preserve">
+    <value>Sil</value>
+  </data>
+  <data name="Trigger_DeleteTitle" xml:space="preserve">
+    <value>Tetikleyiciyi Sil</value>
+  </data>
+  <data name="Trigger_DeleteMessage" xml:space="preserve">
+    <value>'{0}' tetikleyicisi silinsin mi?</value>
+  </data>
+  <data name="Trigger_StatusInitFailed" xml:space="preserve">
+    <value>Tetikleyiciler başlatılamadı: {0}</value>
+  </data>
+  <data name="Trigger_StatusChangesSaved" xml:space="preserve">
+    <value>Tetikleyici değişiklikleri kaydedildi</value>
+  </data>
+  <data name="Trigger_StatusSaveFailed" xml:space="preserve">
+    <value>Tetikleyiciler kaydedilemedi: {0}</value>
+  </data>
+  <data name="Trigger_SaveFailedTitle" xml:space="preserve">
+    <value>Tetikleyici Kaydetme Başarısız</value>
+  </data>
+  <data name="Trigger_StatusFired" xml:space="preserve">
+    <value>Tetikleyici çalıştı: {0} -> {1}</value>
+  </data>
+  <data name="Trigger_StatusFailed" xml:space="preserve">
+    <value>Tetikleyici başarısız: {0} - {1}</value>
+  </data>
   <data name="Files_StatusReady" xml:space="preserve">
     <value>Hazır</value>
   </data>

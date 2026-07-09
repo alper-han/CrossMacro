@@ -1,5 +1,6 @@
 using System.IO;
 using CrossMacro.Cli;
+using CrossMacro.Core.Models;
 
 namespace CrossMacro.Cli.Tests;
 
@@ -1076,6 +1077,74 @@ public class CliCommandRouterTests
 
         Assert.True(result.ShowHelp);
         Assert.Equal("shortcut.bind", result.HelpTopic);
+    }
+
+    [Fact]
+    public void Parse_WhenTriggerListWithJson_ReturnsOptions()
+    {
+        var result = _router.Parse(["trigger", "list", "--json"]);
+
+        Assert.False(result.ShouldStartGui);
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<TriggerListCliOptions>(result.Options);
+        Assert.True(options.JsonOutput);
+    }
+
+    [Fact]
+    public void Parse_WhenTriggerAdd_ReturnsOptions()
+    {
+        var result = _router.Parse([
+            "trigger", "add", 
+            "--name", "Firefox Dev", 
+            "--field", "WindowTitle", 
+            "--match-mode", "Regex", 
+            "--value", ".*Firefox.*", 
+            "--action", "SwitchProfile", 
+            "--profile", "dev", 
+            "--fire-mode", "OnceOnChange", 
+            "--cooldown-ms", "1000", 
+            "--debounce-ms", "250", 
+            "--enabled", "true", 
+            "--json"
+        ]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<TriggerCliOptions>(result.Options);
+        Assert.Equal(TriggerCliAction.Add, options.Action);
+        Assert.Equal("Firefox Dev", options.Name);
+        Assert.Equal(TriggerField.WindowTitle, options.Field);
+        Assert.Equal(TriggerMatchMode.Regex, options.MatchMode);
+        Assert.Equal(".*Firefox.*", options.Value);
+        Assert.Equal(TriggerAction.SwitchProfile, options.TriggerActionVal);
+        Assert.Equal("dev", options.TargetProfileId);
+        Assert.Equal(TriggerFireMode.OnceOnChange, options.FireMode);
+        Assert.Equal(1000, options.CooldownMs);
+        Assert.Equal(250, options.DebounceMs);
+        Assert.True(options.Enabled);
+        Assert.True(options.JsonOutput);
+    }
+
+    [Fact]
+    public void Parse_WhenTriggerEdit_ReturnsOptions()
+    {
+        const string id = "33333333-3333-3333-3333-333333333333";
+        var result = _router.Parse(["trigger", "edit", id, "--debounce-ms", "500", "--cooldown-ms", "1500"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<TriggerCliOptions>(result.Options);
+        Assert.Equal(TriggerCliAction.Edit, options.Action);
+        Assert.Equal(id, options.TaskId);
+        Assert.Equal(500, options.DebounceMs);
+        Assert.Equal(1500, options.CooldownMs);
+    }
+
+    [Fact]
+    public void Parse_WhenTriggerAddMissingRequiredOptions_ReturnsError()
+    {
+        var result = _router.Parse(["trigger", "add", "--name", "Firefox Dev", "--field", "WindowTitle"]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("trigger add requires", result.ErrorMessage);
     }
 
     [Fact]

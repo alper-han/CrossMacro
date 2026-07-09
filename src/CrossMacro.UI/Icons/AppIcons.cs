@@ -49,6 +49,7 @@ public static class AppIcons
             AppIcon.Play => Play,
             AppIcon.Record => Record,
             AppIcon.Redo => Redo,
+            AppIcon.Refresh => Refresh,
             AppIcon.Save => Save,
             AppIcon.Settings => Settings,
             AppIcon.Stop => Stop,
@@ -56,6 +57,7 @@ public static class AppIcons
             AppIcon.Timer => Timer,
             AppIcon.Tip => Tip,
             AppIcon.Tools => Tools,
+            AppIcon.Trigger => Trigger,
             AppIcon.Undo => Undo,
             AppIcon.Warning => Warning,
             _ => throw new ArgumentOutOfRangeException(nameof(icon), icon, "Unknown application icon.")
@@ -87,6 +89,7 @@ public static class AppIcons
     private const string Play = "M8,5V19L19,12L8,5Z";
     private const string Record = "M12,2A10,10 0,1 0,12,22A10,10 0,1 0,12,2M12,7A5,5 0,1 1,12,17A5,5 0,1 1,12,7Z";
     private const string Redo = "M12,5V2L17,7L12,12V9C8.69,9 6,11.69 6,15C6,16.01 6.25,16.96 6.7,17.8L5.24,19.26C4.46,18.03 4,16.57 4,15C4,10.58 7.58,7 12,7V5Z";
+    private const string Refresh = "M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0,0,0 4,12A8,8 0,0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0,0,1 6,12A6,6 0,0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z";
     private const string Save = "M17,3H5C3.89,3 3,3.9 3,5V19C3,20.1 3.89,21 5,21H19C20.1,21 21,20.1 21,19V7L17,3M12,19A3,3 0,1 1,12,13A3,3 0,1 1,12,19M6,5H15V9H6V5Z";
     private const string Settings = "M19.43,12.98C19.47,12.66 19.5,12.34 19.5,12C19.5,11.66 19.47,11.33 19.42,11L21.54,9.35L19.54,5.88L17.05,6.88C16.5,6.46 15.91,6.12 15.25,5.86L14.88,3.21H10.88L10.5,5.86C9.85,6.12 9.25,6.47 8.71,6.88L6.22,5.88L4.22,9.35L6.34,11C6.29,11.33 6.25,11.66 6.25,12C6.25,12.34 6.29,12.67 6.34,13L4.22,14.65L6.22,18.12L8.71,17.12C9.26,17.54 9.85,17.88 10.5,18.14L10.88,20.79H14.88L15.25,18.14C15.91,17.88 16.5,17.53 17.05,17.12L19.54,18.12L21.54,14.65L19.43,12.98M12.88,15.5A3.5,3.5 0,1 1,12.88,8.5A3.5,3.5 0,1 1,12.88,15.5Z";
     private const string Stop = "M6,6H18V18H6V6Z";
@@ -94,6 +97,7 @@ public static class AppIcons
     private const string Timer = "M15,1H9V3H15V1M11,13H13V7H11V13M12,4A9,9 0,1 0,12,22A9,9 0,1 0,12,4M12,20A7,7 0,1 1,12,6A7,7 0,1 1,12,20Z";
     private const string Tip = "M9,21H15V19H9V21M12,2A7,7 0,0 0,8,14C8.8,14.8 9.5,15.8 10,17H14C14.5,15.8 15.2,14.8 16,14A7,7 0,0 0,12,2M14.85,12.6C13.78,13.38 13.17,14.4 12.82,15H11.18C10.83,14.4 10.22,13.38 9.15,12.6A5,5 0,1 1,14.85,12.6Z";
     private const string Tools = "M22.7,19L13.6,9.9C14.5,7.6 14,4.9 12,2.9C9.9,0.8 6.8,0.4 4.3,1.8L8.6,6.1L6.1,8.6L1.7,4.3C0.4,6.8 0.8,9.9 2.9,12C4.9,14 7.6,14.5 9.9,13.6L19,22.7C19.4,23.1 20,23.1 20.4,22.7L22.7,20.4C23.1,20 23.1,19.4 22.7,19Z";
+    private const string Trigger = "M11.5,2L4,13.5H9.5L7,22L17.5,10.5H12L14.5,2Z";
     private const string Undo = "M12,5V2L7,7L12,12V9C15.31,9 18,11.69 18,15C18,16.01 17.75,16.96 17.3,17.8L18.76,19.26C19.54,18.03 20,16.57 20,15C20,10.58 16.42,7 12,7V5Z";
     private const string Warning = "M1,21H23L12,2L1,21M13,18H11V16H13V18M13,14H11V10H13V14Z";
 }

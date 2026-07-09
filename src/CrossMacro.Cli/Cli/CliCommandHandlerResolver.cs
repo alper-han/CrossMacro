@@ -21,6 +21,8 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
     private readonly Func<ShortcutListCommandHandler> _shortcutListCommandHandler;
     private readonly Func<ShortcutRunCommandHandler> _shortcutRunCommandHandler;
     private readonly Func<ShortcutCommandHandler> _shortcutCommandHandler;
+    private readonly Func<TriggerListCommandHandler> _triggerListCommandHandler;
+    private readonly Func<TriggerCommandHandler> _triggerCommandHandler;
     private readonly Func<RecordCommandHandler> _recordCommandHandler;
     private readonly Func<RunCommandHandler> _runCommandHandler;
     private readonly Func<ClipboardCommandHandler> _clipboardCommandHandler;
@@ -46,6 +48,8 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
         Func<ShortcutListCommandHandler> shortcutListCommandHandler,
         Func<ShortcutRunCommandHandler> shortcutRunCommandHandler,
         Func<ShortcutCommandHandler> shortcutCommandHandler,
+        Func<TriggerListCommandHandler> triggerListCommandHandler,
+        Func<TriggerCommandHandler> triggerCommandHandler,
         Func<RecordCommandHandler> recordCommandHandler,
         Func<RunCommandHandler> runCommandHandler,
         Func<ClipboardCommandHandler> clipboardCommandHandler,
@@ -70,6 +74,8 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
         _shortcutListCommandHandler = shortcutListCommandHandler;
         _shortcutRunCommandHandler = shortcutRunCommandHandler;
         _shortcutCommandHandler = shortcutCommandHandler;
+        _triggerListCommandHandler = triggerListCommandHandler;
+        _triggerCommandHandler = triggerCommandHandler;
         _recordCommandHandler = recordCommandHandler;
         _runCommandHandler = runCommandHandler;
         _clipboardCommandHandler = clipboardCommandHandler;
@@ -99,6 +105,8 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
             ShortcutListCliOptions => _shortcutListCommandHandler(),
             ShortcutRunCliOptions => _shortcutRunCommandHandler(),
             ShortcutCliOptions => _shortcutCommandHandler(),
+            TriggerListCliOptions => _triggerListCommandHandler(),
+            TriggerCliOptions => _triggerCommandHandler(),
             RecordCliOptions => _recordCommandHandler(),
             RunCliOptions => _runCommandHandler(),
             ClipboardCliOptions => _clipboardCommandHandler(),

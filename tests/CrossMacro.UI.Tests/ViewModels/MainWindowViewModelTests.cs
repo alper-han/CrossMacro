@@ -37,6 +37,7 @@ public class MainWindowViewModelTests
     private readonly TextExpansionViewModel _textExpansionViewModel;
     private readonly ScheduleViewModel _scheduleViewModel;
     private readonly ShortcutViewModel _shortcutViewModel;
+    private readonly TriggerViewModel _triggerViewModel;
     private readonly SettingsViewModel _settingsViewModel;
     private readonly EditorViewModel _editorViewModel;
 
@@ -79,6 +80,7 @@ public class MainWindowViewModelTests
             "Navigation_TextExpansion" => "[Navigation_TextExpansion]",
             "Navigation_Shortcuts" => "[Navigation_Shortcuts]",
             "Navigation_Schedule" => "[Navigation_Schedule]",
+            "Navigation_Triggers" => "[Navigation_Triggers]",
             "Navigation_Editor" => "[Navigation_Editor]",
             "Navigation_Settings" => "[Navigation_Settings]",
             _ => call.Arg<string>()
@@ -119,6 +121,11 @@ public class MainWindowViewModelTests
         _shortcutService = Substitute.For<IShortcutService>();
         _shortcutViewModel = new ShortcutViewModel(_shortcutService, dialogService, _hotkeyService, _localizationService);
 
+        var triggerService = Substitute.For<ITriggerService>();
+        triggerService.Tasks.Returns(new System.Collections.ObjectModel.ObservableCollection<TriggerTask>());
+        triggerService.LoadAsync().Returns(Task.CompletedTask);
+        _triggerViewModel = new TriggerViewModel(triggerService, null, dialogService, _localizationService, windowManager: null);
+
         var hotkeySettings = new HotkeySettings();
         var textExpansionService = Substitute.For<ITextExpansionService>();
         var runtimeLogLevelService = Substitute.For<IRuntimeLogLevelService>();
@@ -154,6 +161,7 @@ public class MainWindowViewModelTests
             _textExpansionViewModel,
             _scheduleViewModel,
             _shortcutViewModel,
+            _triggerViewModel,
             _settingsViewModel,
             _editorViewModel,
             _hotkeyService,
@@ -254,6 +262,7 @@ public class MainWindowViewModelTests
             _textExpansionViewModel,
             _shortcutViewModel,
             _scheduleViewModel,
+            _triggerViewModel,
             _editorViewModel);
         var bottomItems = catalog.CreateBottomItems(_settingsViewModel);
 
@@ -265,6 +274,7 @@ public class MainWindowViewModelTests
             ("Navigation_TextExpansion", "[Navigation_TextExpansion]", _textExpansionViewModel),
             ("Navigation_Shortcuts", "[Navigation_Shortcuts]", _shortcutViewModel),
             ("Navigation_Schedule", "[Navigation_Schedule]", _scheduleViewModel),
+            ("Navigation_Triggers", "[Navigation_Triggers]", _triggerViewModel),
             ("Navigation_Editor", "[Navigation_Editor]", _editorViewModel)
         ]);
         topItems.Should().OnlyContain(item => Enum.IsDefined(item.Icon));
@@ -287,6 +297,7 @@ public class MainWindowViewModelTests
             _textExpansionViewModel,
             _shortcutViewModel,
             _scheduleViewModel,
+            _triggerViewModel,
             _editorViewModel);
         var bottomItems = catalog.CreateBottomItems(_settingsViewModel);
         _localizationService["Navigation_Recording"].Returns("[Navigation_Recording:updated]");
@@ -903,6 +914,7 @@ public class MainWindowViewModelTests
             "Navigation_TextExpansion" => "[Navigation_TextExpansion]",
             "Navigation_Shortcuts" => "[Navigation_Shortcuts]",
             "Navigation_Schedule" => "[Navigation_Schedule]",
+            "Navigation_Triggers" => "[Navigation_Triggers]",
             "Navigation_Editor" => "[Navigation_Editor]",
             "Navigation_Settings" => "[Navigation_Settings]",
             _ => call.Arg<string>()
@@ -945,6 +957,11 @@ public class MainWindowViewModelTests
         var shortcutService = Substitute.For<IShortcutService>();
         var shortcutViewModel = new ShortcutViewModel(shortcutService, dialogService, hotkeyService, localizationService);
 
+        var triggerService = Substitute.For<ITriggerService>();
+        triggerService.Tasks.Returns(new System.Collections.ObjectModel.ObservableCollection<TriggerTask>());
+        triggerService.LoadAsync().Returns(Task.CompletedTask);
+        var triggerViewModel = new TriggerViewModel(triggerService, null, dialogService, localizationService, windowManager: null);
+
         var hotkeySettings = new HotkeySettings();
         var textExpansionService = Substitute.For<ITextExpansionService>();
         var runtimeLogLevelService = Substitute.For<IRuntimeLogLevelService>();
@@ -981,6 +998,7 @@ public class MainWindowViewModelTests
             textExpansionViewModel,
             scheduleViewModel,
             shortcutViewModel,
+            triggerViewModel,
             settingsViewModel,
             editorViewModel,
             hotkeyService,

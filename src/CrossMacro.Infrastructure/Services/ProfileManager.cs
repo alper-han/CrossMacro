@@ -49,6 +49,7 @@ public class ProfileManager : IProfileManager
     private readonly IShortcutService? _shortcutService;
     private readonly ISchedulerService? _schedulerService;
     private readonly ITextExpansionService? _textExpansionService;
+    private readonly ITriggerService? _triggerService;
     private readonly IScheduledTaskRepository? _scheduledTaskRepository;
     private readonly ITextExpansionStorageService? _textExpansionStorageService;
 
@@ -83,6 +84,7 @@ public class ProfileManager : IProfileManager
         IShortcutService? shortcutService,
         ISchedulerService? schedulerService,
         ITextExpansionService? textExpansionService,
+        ITriggerService? triggerService,
         IScheduledTaskRepository scheduledTaskRepository,
         ITextExpansionStorageService textExpansionStorageService)
         : this(configRootPath)
@@ -94,6 +96,7 @@ public class ProfileManager : IProfileManager
         _shortcutService = shortcutService;
         _schedulerService = schedulerService;
         _textExpansionService = textExpansionService;
+        _triggerService = triggerService;
         _scheduledTaskRepository = scheduledTaskRepository;
         _textExpansionStorageService = textExpansionStorageService;
     }
@@ -132,6 +135,7 @@ public class ProfileManager : IProfileManager
             if (_settingsService != null
                 || _hotkeyConfigService != null
                 || _shortcutService != null
+                || _triggerService != null
                 || _scheduledTaskRepository != null
                 || _textExpansionStorageService != null)
             {
@@ -172,6 +176,7 @@ public class ProfileManager : IProfileManager
             var shortcutWasListening = _shortcutService?.IsListening ?? false;
             var schedulerWasRunning = _schedulerService?.IsRunning ?? false;
             var textExpansionWasRunning = _textExpansionService?.IsRunning ?? false;
+            var triggerWasMonitoring = _triggerService?.IsMonitoring ?? false;
 
             // 2. Stop runtime services (reverse dependency order)
             StopRuntimeServices();
@@ -195,7 +200,8 @@ public class ProfileManager : IProfileManager
                     hotkeyWasRunning,
                     shortcutWasListening,
                     schedulerWasRunning,
-                    textExpansionWasRunning);
+                    textExpansionWasRunning,
+                    triggerWasMonitoring);
                 throw;
             }
 
@@ -204,7 +210,8 @@ public class ProfileManager : IProfileManager
                 hotkeyWasRunning,
                 shortcutWasListening,
                 schedulerWasRunning,
-                textExpansionWasRunning);
+                textExpansionWasRunning,
+                triggerWasMonitoring);
 
             Log.Information("Switched active profile to {ProfileId}", profile.Id);
         }
@@ -223,6 +230,9 @@ public class ProfileManager : IProfileManager
 
         try { _schedulerService?.Stop(); }
         catch (Exception ex) { Log.Warning(ex, "Failed to stop scheduler service"); }
+
+        try { _triggerService?.Stop(); }
+        catch (Exception ex) { Log.Warning(ex, "Failed to stop trigger service"); }
 
         try { _shortcutService?.Stop(); }
         catch (Exception ex) { Log.Warning(ex, "Failed to stop shortcut service"); }
@@ -262,6 +272,11 @@ public class ProfileManager : IProfileManager
             await _shortcutService.ReloadAsync(profileDir).ConfigureAwait(false);
         }
 
+        if (_triggerService != null)
+        {
+            await _triggerService.ReloadAsync(profileDir).ConfigureAwait(false);
+        }
+
         if (_scheduledTaskRepository != null)
         {
             await _scheduledTaskRepository.ReloadAsync(profileDir).ConfigureAwait(false);
@@ -282,7 +297,8 @@ public class ProfileManager : IProfileManager
         bool hotkeyWasRunning,
         bool shortcutWasListening,
         bool schedulerWasRunning,
-        bool textExpansionWasRunning)
+        bool textExpansionWasRunning,
+        bool triggerWasMonitoring)
     {
         if (hotkeyWasRunning && _hotkeyService != null)
         {
@@ -304,6 +320,12 @@ public class ProfileManager : IProfileManager
         {
             try { _shortcutService.Start(); }
             catch (Exception ex) { Log.Warning(ex, "Failed to restart shortcut service after profile switch"); }
+        }
+
+        if (triggerWasMonitoring && _triggerService != null)
+        {
+            try { _triggerService.Start(); }
+            catch (Exception ex) { Log.Warning(ex, "Failed to restart trigger service after profile switch"); }
         }
 
         if (schedulerWasRunning && _schedulerService != null)

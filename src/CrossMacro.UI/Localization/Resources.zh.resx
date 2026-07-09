@@ -726,6 +726,132 @@
   <data name="Shortcut_StatusFailed" xml:space="preserve">
     <value>快捷方式：{0} - {1}</value>
   </data>
+  <data name="Navigation_Triggers" xml:space="preserve">
+    <value>触发器</value>
+  </data>
+  <data name="Trigger_ItemsText" xml:space="preserve">
+    <value>{0} 项</value>
+  </data>
+  <data name="Trigger_DefaultTaskName" xml:space="preserve">
+    <value>触发器 {0}</value>
+  </data>
+  <data name="Trigger_Title" xml:space="preserve">
+    <value>触发器</value>
+  </data>
+  <data name="Trigger_Settings" xml:space="preserve">
+    <value>设置</value>
+  </data>
+  <data name="Trigger_Name" xml:space="preserve">
+    <value>名称</value>
+  </data>
+  <data name="Trigger_NamePlaceholder" xml:space="preserve">
+    <value>触发器名称</value>
+  </data>
+  <data name="Trigger_Field" xml:space="preserve">
+    <value>字段</value>
+  </data>
+  <data name="Trigger_MatchMode" xml:space="preserve">
+    <value>匹配模式</value>
+  </data>
+  <data name="Trigger_Value" xml:space="preserve">
+    <value>值</value>
+  </data>
+  <data name="Trigger_ValuePlaceholder" xml:space="preserve">
+    <value>要匹配的文本</value>
+  </data>
+  <data name="Trigger_Action" xml:space="preserve">
+    <value>操作</value>
+  </data>
+  <data name="Trigger_TargetProfile" xml:space="preserve">
+    <value>目标配置</value>
+  </data>
+  <data name="Trigger_TargetProfilePlaceholder" xml:space="preserve">
+    <value>选择配置</value>
+  </data>
+  <data name="Trigger_MacroFile" xml:space="preserve">
+    <value>宏文件</value>
+  </data>
+  <data name="Trigger_MacroFilePlaceholder" xml:space="preserve">
+    <value>未选择文件</value>
+  </data>
+  <data name="Trigger_MacroFileBrowse" xml:space="preserve">
+    <value>浏览</value>
+  </data>
+  <data name="Trigger_OpenMacroDialogTitle" xml:space="preserve">
+    <value>选择宏文件</value>
+  </data>
+  <data name="Trigger_OpenMacroDialogFilter" xml:space="preserve">
+    <value>宏文件</value>
+  </data>
+  <data name="Trigger_FireMode" xml:space="preserve">
+    <value>触发模式</value>
+  </data>
+  <data name="Trigger_DebounceMs" xml:space="preserve">
+    <value>去抖 (ms)</value>
+  </data>
+  <data name="Trigger_CooldownMs" xml:space="preserve">
+    <value>冷却 (ms)</value>
+  </data>
+  <data name="Trigger_WindowPickerRefresh" xml:space="preserve">
+    <value>刷新</value>
+  </data>
+  <data name="Trigger_WindowPickerPlaceholder" xml:space="preserve">
+    <value>从运行中的窗口选择…</value>
+  </data>
+  <data name="Trigger_Status" xml:space="preserve">
+    <value>状态</value>
+  </data>
+  <data name="Trigger_LastTriggered" xml:space="preserve">
+    <value>最后触发</value>
+  </data>
+  <data name="Trigger_StatusLabel" xml:space="preserve">
+    <value>状态</value>
+  </data>
+  <data name="Trigger_StatusPlaceholder" xml:space="preserve">
+    <value>空闲</value>
+  </data>
+  <data name="Trigger_Never" xml:space="preserve">
+    <value>从未</value>
+  </data>
+  <data name="Trigger_SaveAll" xml:space="preserve">
+    <value>全部保存</value>
+  </data>
+  <data name="Trigger_NoSelected" xml:space="preserve">
+    <value>未选择触发器</value>
+  </data>
+  <data name="Trigger_SelectHint" xml:space="preserve">
+    <value>添加或选择触发器进行配置</value>
+  </data>
+  <data name="Trigger_EditTooltip" xml:space="preserve">
+    <value>编辑</value>
+  </data>
+  <data name="Trigger_DeleteTooltip" xml:space="preserve">
+    <value>删除</value>
+  </data>
+  <data name="Trigger_DeleteTitle" xml:space="preserve">
+    <value>删除触发器</value>
+  </data>
+  <data name="Trigger_DeleteMessage" xml:space="preserve">
+    <value>删除触发器“{0}”？</value>
+  </data>
+  <data name="Trigger_StatusInitFailed" xml:space="preserve">
+    <value>初始化触发器失败：{0}</value>
+  </data>
+  <data name="Trigger_StatusChangesSaved" xml:space="preserve">
+    <value>触发器更改已保存</value>
+  </data>
+  <data name="Trigger_StatusSaveFailed" xml:space="preserve">
+    <value>保存触发器失败：{0}</value>
+  </data>
+  <data name="Trigger_SaveFailedTitle" xml:space="preserve">
+    <value>触发器保存失败</value>
+  </data>
+  <data name="Trigger_StatusFired" xml:space="preserve">
+    <value>触发器已触发：{0} -> {1}</value>
+  </data>
+  <data name="Trigger_StatusFailed" xml:space="preserve">
+    <value>触发器失败：{0} - {1}</value>
+  </data>
   <data name="Files_StatusReady" xml:space="preserve">
     <value>准备好</value>
   </data>

@@ -1,0 +1,183 @@
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using CrossMacro.Core.Models;
+using CrossMacro.Core.Services;
+using CrossMacro.Cli.Serialization;
+
+namespace CrossMacro.Cli.Services;
+
+public sealed class TriggerCliService : ITriggerCliService
+{
+    private readonly ITriggerService _triggerService;
+
+    public TriggerCliService(ITriggerService triggerService)
+    {
+        _triggerService = triggerService;
+    }
+
+    public async Task<CliCommandExecutionResult> ListAsync(CancellationToken cancellationToken)
+    {
+        return await TaskCliServiceHelpers.ListTasksAsync(
+            taskKind: "trigger",
+            cancellationToken: cancellationToken,
+            loadAsync: () => _triggerService.LoadAsync(),
+            getTasks: () => _triggerService.Tasks,
+            mapTask: MapTask);
+    }
+
+    public Task<CliCommandExecutionResult> ExecuteAsync(TriggerCliOptions options, CancellationToken cancellationToken)
+    {
+        return options.Action switch
+        {
+            TriggerCliAction.Add => AddAsync(options, cancellationToken),
+            TriggerCliAction.Edit => EditAsync(options, cancellationToken),
+            TriggerCliAction.Remove => RemoveAsync(options.TaskId ?? string.Empty, cancellationToken),
+            TriggerCliAction.Enable => SetEnabledAsync(options.TaskId ?? string.Empty, true, cancellationToken),
+            TriggerCliAction.Disable => SetEnabledAsync(options.TaskId ?? string.Empty, false, cancellationToken),
+            _ => Task.FromResult(CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown trigger action."))
+        };
+    }
+
+    private async Task<CliCommandExecutionResult> AddAsync(TriggerCliOptions options, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var task = new TriggerTask
+        {
+            Name = options.Name ?? string.Empty,
+            Field = options.Field ?? TriggerField.None,
+            MatchMode = options.MatchMode ?? TriggerMatchMode.Equals,
+            Value = options.Value ?? string.Empty,
+            Action = options.TriggerActionVal ?? TriggerAction.SwitchProfile,
+            TargetProfileId = options.TargetProfileId ?? string.Empty,
+            MacroFilePath = options.MacroFilePath ?? string.Empty,
+            FireMode = options.FireMode ?? TriggerFireMode.OnceOnChange,
+            CooldownMs = options.CooldownMs,
+            DebounceMs = options.DebounceMs
+        };
+
+        if (options.Enabled.HasValue)
+        {
+            task.IsEnabled = options.Enabled.Value;
+        }
+
+        await _triggerService.LoadAsync().ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        _triggerService.AddTask(task);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        await _triggerService.SaveAsync().ConfigureAwait(false);
+        return CliCommandExecutionResult.Ok($"Trigger task added: {task.Name}.", MapTask(task));
+    }
+
+    private async Task<CliCommandExecutionResult> EditAsync(TriggerCliOptions options, CancellationToken cancellationToken)
+    {
+        var parsed = await LoadAndFindAsync(options.TaskId ?? string.Empty, cancellationToken).ConfigureAwait(false);
+        if (parsed.Result is not null) return parsed.Result;
+
+        var task = parsed.Task!;
+        if (!string.IsNullOrWhiteSpace(options.Name)) task.Name = options.Name;
+        if (options.Field.HasValue) task.Field = options.Field.Value;
+        if (options.MatchMode.HasValue) task.MatchMode = options.MatchMode.Value;
+        if (options.Value is not null) task.Value = options.Value;
+        if (options.TriggerActionVal.HasValue) task.Action = options.TriggerActionVal.Value;
+        if (options.TargetProfileId is not null) task.TargetProfileId = options.TargetProfileId;
+        if (options.MacroFilePath is not null) task.MacroFilePath = options.MacroFilePath;
+        if (options.FireMode.HasValue) task.FireMode = options.FireMode.Value;
+        if (options.CooldownMs.HasValue) task.CooldownMs = options.CooldownMs.Value == 0 ? null : options.CooldownMs.Value;
+        if (options.DebounceMs.HasValue) task.DebounceMs = options.DebounceMs.Value == 0 ? null : options.DebounceMs.Value;
+        if (options.Enabled.HasValue) task.IsEnabled = options.Enabled.Value;
+
+        cancellationToken.ThrowIfCancellationRequested();
+        _triggerService.UpdateTask(task);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        await _triggerService.SaveAsync().ConfigureAwait(false);
+        return CliCommandExecutionResult.Ok($"Trigger task updated: {task.Name}.", MapTask(task));
+    }
+
+    private async Task<CliCommandExecutionResult> RemoveAsync(string taskId, CancellationToken cancellationToken)
+    {
+        var parsed = await LoadAndFindAsync(taskId, cancellationToken).ConfigureAwait(false);
+        if (parsed.Result is not null) return parsed.Result;
+
+        var task = parsed.Task!;
+        cancellationToken.ThrowIfCancellationRequested();
+        _triggerService.RemoveTask(task.Id);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        await _triggerService.SaveAsync().ConfigureAwait(false);
+        return CliCommandExecutionResult.Ok($"Trigger task removed: {task.Name}.", MapTask(task));
+    }
+
+    private async Task<CliCommandExecutionResult> SetEnabledAsync(string taskId, bool enabled, CancellationToken cancellationToken)
+    {
+        var parsed = await LoadAndFindAsync(taskId, cancellationToken).ConfigureAwait(false);
+        if (parsed.Result is not null) return parsed.Result;
+
+        var task = parsed.Task!;
+        if (enabled && !task.CanBeEnabled)
+        {
+            return CliCommandExecutionResult.Fail(
+                CliExitCode.InvalidArguments,
+                "Trigger task cannot be enabled.",
+                ["Trigger task requires valid action configurations (Target Profile ID or Macro Path) before enabling."]);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        _triggerService.SetTaskEnabled(task.Id, enabled);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        await _triggerService.SaveAsync().ConfigureAwait(false);
+        task.IsEnabled = enabled;
+        var verb = enabled ? "enabled" : "disabled";
+        return CliCommandExecutionResult.Ok($"Trigger task {verb}: {task.Name}.", MapTask(task));
+    }
+
+    private async Task<(TriggerTask? Task, CliCommandExecutionResult? Result)> LoadAndFindAsync(string taskId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!Guid.TryParse(taskId, out var parsedTaskId))
+        {
+            return (null, CliCommandExecutionResult.Fail(
+                CliExitCode.InvalidArguments,
+                "Invalid trigger task id format.",
+                [$"Task id is not a valid GUID: {taskId}"]));
+        }
+
+        await _triggerService.LoadAsync().ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var task = _triggerService.Tasks.FirstOrDefault(candidate => candidate.Id == parsedTaskId);
+        if (task is null)
+        {
+            return (null, CliCommandExecutionResult.Fail(
+                CliExitCode.InvalidArguments,
+                "Trigger task not found.",
+                [$"No trigger task found with id: {taskId}"]));
+        }
+
+        return (task, null);
+    }
+
+    private static TriggerTaskData MapTask(TriggerTask task)
+    {
+        return new TriggerTaskData(
+            task.Id,
+            task.Name,
+            task.IsEnabled,
+            task.Field.ToString(),
+            task.MatchMode.ToString(),
+            task.Value,
+            task.Action.ToString(),
+            task.Action == TriggerAction.SwitchProfile ? task.TargetProfileId : null,
+            task.Action == TriggerAction.RunMacro ? task.MacroFilePath : null,
+            task.FireMode.ToString(),
+            task.CooldownMs,
+            task.DebounceMs,
+            task.LastTriggeredTime,
+            task.LastStatus);
+    }
+}

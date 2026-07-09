@@ -59,6 +59,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public TextExpansionViewModel TextExpansion { get; }
     public ScheduleViewModel Schedule { get; }
     public ShortcutViewModel Shortcuts { get; }
+    public TriggerViewModel Triggers { get; }
     public SettingsViewModel Settings { get; }
     public EditorViewModel Editor { get; }
     
@@ -178,6 +179,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         TextExpansionViewModel textExpansion,
         ScheduleViewModel schedule,
         ShortcutViewModel shortcuts,
+        TriggerViewModel triggers,
         SettingsViewModel settings,
         EditorViewModel editor,
         IGlobalHotkeyService hotkeyService,
@@ -196,6 +198,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         TextExpansion = textExpansion;
         Schedule = schedule;
         Shortcuts = shortcuts;
+        Triggers = triggers;
         Settings = settings;
         Editor = editor;
         _hotkeyService = hotkeyService;
@@ -252,6 +255,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             TextExpansion,
             Shortcuts,
             Schedule,
+            Triggers,
             Editor);
         BottomNavigationItems = _navigationCatalog.CreateBottomItems(Settings);
 
@@ -535,6 +539,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         Files.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
         Schedule.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
         Shortcuts.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
+        Triggers.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
         Editor.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
     }
 
@@ -565,6 +570,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _ = TextExpansion.RefreshProfileDataAsync();
             Schedule.RefreshProfileData();
             Shortcuts.RefreshProfileData();
+            Triggers.RefreshProfileData();
         }
 
         if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
@@ -996,6 +1002,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         Recording.Dispose();
         Schedule.Dispose();
         Shortcuts.Dispose();
+        Triggers.Dispose();
         Settings.Dispose();
     }
 

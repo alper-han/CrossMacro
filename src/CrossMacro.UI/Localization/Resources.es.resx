@@ -726,6 +726,132 @@
   <data name="Shortcut_StatusFailed" xml:space="preserve">
     <value>Acceso directo: {0} - {1}</value>
   </data>
+  <data name="Navigation_Triggers" xml:space="preserve">
+    <value>Disparadores</value>
+  </data>
+  <data name="Trigger_ItemsText" xml:space="preserve">
+    <value>{0} elementos</value>
+  </data>
+  <data name="Trigger_DefaultTaskName" xml:space="preserve">
+    <value>Disparador {0}</value>
+  </data>
+  <data name="Trigger_Title" xml:space="preserve">
+    <value>DISPARADORES</value>
+  </data>
+  <data name="Trigger_Settings" xml:space="preserve">
+    <value>CONFIGURACIÓN</value>
+  </data>
+  <data name="Trigger_Name" xml:space="preserve">
+    <value>Nombre</value>
+  </data>
+  <data name="Trigger_NamePlaceholder" xml:space="preserve">
+    <value>Nombre del disparador</value>
+  </data>
+  <data name="Trigger_Field" xml:space="preserve">
+    <value>Campo</value>
+  </data>
+  <data name="Trigger_MatchMode" xml:space="preserve">
+    <value>Modo de coincidencia</value>
+  </data>
+  <data name="Trigger_Value" xml:space="preserve">
+    <value>Valor</value>
+  </data>
+  <data name="Trigger_ValuePlaceholder" xml:space="preserve">
+    <value>Texto a coincidir</value>
+  </data>
+  <data name="Trigger_Action" xml:space="preserve">
+    <value>Acción</value>
+  </data>
+  <data name="Trigger_TargetProfile" xml:space="preserve">
+    <value>Perfil de destino</value>
+  </data>
+  <data name="Trigger_TargetProfilePlaceholder" xml:space="preserve">
+    <value>Seleccionar perfil</value>
+  </data>
+  <data name="Trigger_MacroFile" xml:space="preserve">
+    <value>Archivo de macro</value>
+  </data>
+  <data name="Trigger_MacroFilePlaceholder" xml:space="preserve">
+    <value>Ningún archivo seleccionado</value>
+  </data>
+  <data name="Trigger_MacroFileBrowse" xml:space="preserve">
+    <value>Navegar</value>
+  </data>
+  <data name="Trigger_OpenMacroDialogTitle" xml:space="preserve">
+    <value>Seleccionar archivo de macros</value>
+  </data>
+  <data name="Trigger_OpenMacroDialogFilter" xml:space="preserve">
+    <value>Archivos de macros</value>
+  </data>
+  <data name="Trigger_FireMode" xml:space="preserve">
+    <value>Modo de disparo</value>
+  </data>
+  <data name="Trigger_DebounceMs" xml:space="preserve">
+    <value>Antirrebote (ms)</value>
+  </data>
+  <data name="Trigger_CooldownMs" xml:space="preserve">
+    <value>Enfriamiento (ms)</value>
+  </data>
+  <data name="Trigger_WindowPickerRefresh" xml:space="preserve">
+    <value>Actualizar</value>
+  </data>
+  <data name="Trigger_WindowPickerPlaceholder" xml:space="preserve">
+    <value>Seleccionar de ventanas activas…</value>
+  </data>
+  <data name="Trigger_Status" xml:space="preserve">
+    <value>ESTADO</value>
+  </data>
+  <data name="Trigger_LastTriggered" xml:space="preserve">
+    <value>Último disparo</value>
+  </data>
+  <data name="Trigger_StatusLabel" xml:space="preserve">
+    <value>Estado</value>
+  </data>
+  <data name="Trigger_StatusPlaceholder" xml:space="preserve">
+    <value>Inactivo</value>
+  </data>
+  <data name="Trigger_Never" xml:space="preserve">
+    <value>Nunca</value>
+  </data>
+  <data name="Trigger_SaveAll" xml:space="preserve">
+    <value>Guardar todo</value>
+  </data>
+  <data name="Trigger_NoSelected" xml:space="preserve">
+    <value>Ningún disparador seleccionado</value>
+  </data>
+  <data name="Trigger_SelectHint" xml:space="preserve">
+    <value>Añade o selecciona un disparador para configurar</value>
+  </data>
+  <data name="Trigger_EditTooltip" xml:space="preserve">
+    <value>Editar</value>
+  </data>
+  <data name="Trigger_DeleteTooltip" xml:space="preserve">
+    <value>Eliminar</value>
+  </data>
+  <data name="Trigger_DeleteTitle" xml:space="preserve">
+    <value>Eliminar disparador</value>
+  </data>
+  <data name="Trigger_DeleteMessage" xml:space="preserve">
+    <value>¿Eliminar el disparador '{0}'?</value>
+  </data>
+  <data name="Trigger_StatusInitFailed" xml:space="preserve">
+    <value>Error al inicializar disparadores: {0}</value>
+  </data>
+  <data name="Trigger_StatusChangesSaved" xml:space="preserve">
+    <value>Cambios de disparador guardados</value>
+  </data>
+  <data name="Trigger_StatusSaveFailed" xml:space="preserve">
+    <value>Error al guardar disparadores: {0}</value>
+  </data>
+  <data name="Trigger_SaveFailedTitle" xml:space="preserve">
+    <value>Error al guardar disparador</value>
+  </data>
+  <data name="Trigger_StatusFired" xml:space="preserve">
+    <value>Disparador activado: {0} -> {1}</value>
+  </data>
+  <data name="Trigger_StatusFailed" xml:space="preserve">
+    <value>Disparador fallido: {0} - {1}</value>
+  </data>
   <data name="Files_StatusReady" xml:space="preserve">
     <value>Listo</value>
   </data>

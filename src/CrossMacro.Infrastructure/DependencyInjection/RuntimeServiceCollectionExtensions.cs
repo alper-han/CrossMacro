@@ -1,4 +1,6 @@
 using System;
+using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Logging;
@@ -191,6 +193,14 @@ public static class RuntimeServiceCollectionExtensions
         services.AddSingleton<IScheduledTaskExecutor, MacroScheduledTaskExecutor>();
         services.AddSingleton<ISchedulerService, SchedulerService>();
         services.AddSingleton<IShortcutService, ShortcutService>();
+        // Register TriggerService directly as a singleton.
+        // Pass IProfileManager via accessor factory to break the DI dependency loop.
+        services.AddSingleton<ITriggerService>(sp =>
+            new TriggerService(
+                sp.GetService<IWindowManager>(),
+                () => sp.GetRequiredService<IProfileManager>(),
+                sp.GetRequiredService<IMacroFileManager>(),
+                sp.GetRequiredService<Func<IMacroPlayer>>()));
     }
 
     private static void RegisterTextExpansionServices(IServiceCollection services)
@@ -232,8 +242,9 @@ public static class RuntimeServiceCollectionExtensions
                 hasKeyboardLayout ? sp.GetRequiredService<IShortcutService>() : null,
                 sp.GetRequiredService<ISchedulerService>(),
                 hasInputCaptureFactory ? sp.GetRequiredService<ITextExpansionService>() : null,
-                sp.GetRequiredService<IScheduledTaskRepository>(),
-                sp.GetRequiredService<ITextExpansionStorageService>());
+            sp.GetRequiredService<ITriggerService>(),
+            sp.GetRequiredService<IScheduledTaskRepository>(),
+            sp.GetRequiredService<ITextExpansionStorageService>());
         });
     }
 }

@@ -41,6 +41,8 @@ internal sealed class DesignPreviewContext
         CoordinateCaptureService = new DesignCoordinateCaptureService();
         KeyCodeMapper = new DesignKeyCodeMapper();
         TimeProvider = new DesignTimeProvider();
+        TriggerService = new DesignTriggerService();
+        ProfileManager = new DesignProfileManager();
     }
 
     public DesignSettingsService SettingsService { get; }
@@ -88,6 +90,10 @@ internal sealed class DesignPreviewContext
     public DesignKeyCodeMapper KeyCodeMapper { get; }
 
     public DesignTimeProvider TimeProvider { get; }
+
+    public DesignTriggerService TriggerService { get; }
+
+    public DesignProfileManager ProfileManager { get; }
 
     public LocalizationService LocalizationService { get; }
 
@@ -240,6 +246,37 @@ internal static class DesignPreviewSamples
         singleShortcut.IsEnabled = true;
 
         return [loopShortcut, singleShortcut];
+    }
+
+    public static IReadOnlyList<TriggerTask> CreateTriggerTasks()
+    {
+        var codeTrigger = new TriggerTask
+        {
+            Name = "Switch to dev profile in VS Code",
+            Field = TriggerField.WindowTitle,
+            MatchMode = TriggerMatchMode.Contains,
+            Value = "Visual Studio Code",
+            Action = TriggerAction.SwitchProfile,
+            TargetProfileId = "dev",
+            FireMode = TriggerFireMode.OnceOnChange,
+            LastTriggeredTime = SampleNow.AddMinutes(-5),
+            LastStatus = "Switched to dev"
+        };
+        codeTrigger.IsEnabled = true;
+
+        var browserTrigger = new TriggerTask
+        {
+            Name = "Switch to gaming in Firefox",
+            Field = TriggerField.WindowClass,
+            MatchMode = TriggerMatchMode.Equals,
+            Value = "firefox",
+            Action = TriggerAction.SwitchProfile,
+            TargetProfileId = "gaming",
+            FireMode = TriggerFireMode.OnceOnChange
+        };
+        browserTrigger.IsEnabled = true;
+
+        return [codeTrigger, browserTrigger];
     }
 
     public static IReadOnlyList<EditorAction> CreateEditorActions()
@@ -790,4 +827,87 @@ internal sealed class DesignTimeProvider : ITimeProvider
     public DateTime Now => DesignPreviewSamples.SampleNow;
 
     public DateTime UtcNow => DesignPreviewSamples.SampleNow.ToUniversalTime();
+}
+
+internal sealed class DesignTriggerService : ITriggerService
+{
+    public DesignTriggerService()
+    {
+        Tasks = new ObservableCollection<TriggerTask>(DesignPreviewSamples.CreateTriggerTasks());
+    }
+
+    public ObservableCollection<TriggerTask> Tasks { get; }
+
+    public bool IsMonitoring { get; private set; }
+
+    public event EventHandler<TriggerFiredEventArgs>? TriggerFired;
+
+    public void AddTask(TriggerTask task) => Tasks.Add(task);
+
+    public void RemoveTask(Guid id)
+    {
+        var task = Tasks.FirstOrDefault(item => item.Id == id);
+        if (task != null) Tasks.Remove(task);
+    }
+
+    public void UpdateTask(TriggerTask task) { }
+
+    public void SetTaskEnabled(Guid id, bool enabled)
+    {
+        var task = Tasks.FirstOrDefault(item => item.Id == id);
+        if (task != null) task.IsEnabled = enabled;
+    }
+
+    public void Start() => IsMonitoring = true;
+
+    public void Stop() => IsMonitoring = false;
+
+    public Task LoadAsync() => Task.CompletedTask;
+
+    public Task SaveAsync() => Task.CompletedTask;
+
+    public Task ReloadAsync(string profileConfigDirectory) => Task.CompletedTask;
+
+    public void Dispose() { }
+}
+
+internal sealed class DesignProfileManager : IProfileManager
+{
+    public DesignProfileManager()
+    {
+        Profiles =
+        [
+            new ProfileInfo { Id = "default", Name = "Default" },
+            new ProfileInfo { Id = "dev", Name = "Development" },
+            new ProfileInfo { Id = "gaming", Name = "Gaming" }
+        ];
+        ActiveProfile = Profiles[0];
+    }
+
+    public ProfileInfo ActiveProfile { get; private set; }
+
+    public IReadOnlyList<ProfileInfo> Profiles { get; }
+
+    public event EventHandler<ProfileInfo>? ProfileChanged
+    {
+        add { }
+        remove { }
+    }
+
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    public Task SwitchProfileAsync(string profileId)
+    {
+        ActiveProfile = Profiles.FirstOrDefault(p => p.Id == profileId) ?? Profiles[0];
+        return Task.CompletedTask;
+    }
+
+    public Task<ProfileInfo> CreateProfileAsync(string displayName) =>
+        Task.FromResult(new ProfileInfo { Id = displayName.ToLowerInvariant(), Name = displayName });
+
+    public Task RenameProfileAsync(string profileId, string newDisplayName) => Task.CompletedTask;
+
+    public Task DeleteProfileAsync(string profileId) => Task.CompletedTask;
+
+    public string GetProfileDirectory(string profileId) => $"/home/demo/.config/crossmacro/{profileId}";
 }

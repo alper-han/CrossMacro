@@ -125,6 +125,8 @@ public sealed class CliHost
             or ScheduleListCliOptions
             or ScheduleRunCliOptions
             or ScheduleCliOptions
+            or TriggerListCliOptions
+            or TriggerCliOptions
             or HeadlessCliOptions;
     }
 }

@@ -840,7 +840,7 @@ internal sealed class DesignTriggerService : ITriggerService
 
     public bool IsMonitoring { get; private set; }
 
-    public event EventHandler<TriggerFiredEventArgs>? TriggerFired;
+    public event EventHandler<TriggerFiredEventArgs>? TriggerFired { add { } remove { } }
 
     public void AddTask(TriggerTask task) => Tasks.Add(task);
 

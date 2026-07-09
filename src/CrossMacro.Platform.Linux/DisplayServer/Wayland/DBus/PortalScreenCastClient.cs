@@ -147,26 +147,34 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
                 var results = reader.ReadDictionaryOfStringToVariantValue();
                 return new PortalResponse(response, results);
             },
-            (exception, response) =>
+            notification =>
             {
-                if (exception is not null)
+                if (notification.IsCompletion)
                 {
-                    completion.TrySetException(exception);
-                }
-                else if (response.ResponseCode == 0)
-                {
-                    completion.TrySetResult(response);
+                    var exception = notification.Exception;
+                    if (exception is not null)
+                    {
+                        completion.TrySetException(exception);
+                    }
                 }
                 else
                 {
-                    completion.TrySetException(new PortalScreenCastException(
-                        MapResponseCode(response.ResponseCode),
-                        $"XDG Desktop Portal ScreenCast request failed with response={response.ResponseCode}."));
+                    var response = notification.Value;
+                    if (response.ResponseCode == 0)
+                    {
+                        completion.TrySetResult(response);
+                    }
+                    else
+                    {
+                        completion.TrySetException(new PortalScreenCastException(
+                            MapResponseCode(response.ResponseCode),
+                            $"XDG Desktop Portal ScreenCast request failed with response={response.ResponseCode}."));
+                    }
                 }
             },
-            readerState: null,
-            emitOnCapturedContext: false,
-            flags: ObserverFlags.None).ConfigureAwait(false);
+            synchronizationContext: null,
+            flags: ObserverFlags.None,
+            state: null).ConfigureAwait(false);
     }
 
     private string GetRequestPath(string handleToken)

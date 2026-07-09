@@ -51,14 +51,14 @@ public enum TriggerFireMode
 public static class TriggerEnums
 {
     public static readonly IReadOnlyList<TriggerField> AvailableFields =
-        (TriggerField[])System.Enum.GetValues(typeof(TriggerField));
+        System.Enum.GetValues<TriggerField>();
 
     public static readonly IReadOnlyList<TriggerMatchMode> AvailableMatchModes =
-        (TriggerMatchMode[])System.Enum.GetValues(typeof(TriggerMatchMode));
+        System.Enum.GetValues<TriggerMatchMode>();
 
     public static readonly IReadOnlyList<TriggerAction> AvailableActions =
-        (TriggerAction[])System.Enum.GetValues(typeof(TriggerAction));
+        System.Enum.GetValues<TriggerAction>();
 
     public static readonly IReadOnlyList<TriggerFireMode> AvailableFireModes =
-        (TriggerFireMode[])System.Enum.GetValues(typeof(TriggerFireMode));
+        System.Enum.GetValues<TriggerFireMode>();
 }

@@ -21,7 +21,7 @@ public class ShortcutService : IShortcutService
     private readonly IMacroFileManager _fileManager;
     private readonly Func<IMacroPlayer> _playerFactory;
     private readonly IGlobalHotkeyService _hotkeyService;
-    private readonly SynchronizationContext? _syncContext;
+    private SynchronizationContext? _syncContext;
     private readonly Lock _lock = new();
     private bool _isListening;
     private bool _disposed;
@@ -58,10 +58,20 @@ public class ShortcutService : IShortcutService
         _shortcutsFilePath = string.IsNullOrWhiteSpace(shortcutsFilePath)
             ? PathHelper.GetConfigFilePath(ConfigFileNames.Shortcuts)
             : shortcutsFilePath;
+        EnsureSyncContext();
+    }
+
+    private void EnsureSyncContext()
+    {
+        if (_syncContext == null && SynchronizationContext.Current != null)
+        {
+            _syncContext = SynchronizationContext.Current;
+        }
     }
     
     public void AddTask(ShortcutTask task)
     {
+        EnsureSyncContext();
         lock (_lock)
         {
             Tasks.Add(task);
@@ -70,6 +80,7 @@ public class ShortcutService : IShortcutService
     
     public void RemoveTask(Guid id)
     {
+        EnsureSyncContext();
         lock (_lock)
         {
             var task = Tasks.FirstOrDefault(t => t.Id == id);
@@ -82,6 +93,7 @@ public class ShortcutService : IShortcutService
     
     public void UpdateTask(ShortcutTask task)
     {
+        EnsureSyncContext();
         lock (_lock)
         {
             var existing = Tasks.FirstOrDefault(t => t.Id == task.Id);
@@ -105,6 +117,7 @@ public class ShortcutService : IShortcutService
     
     public void SetTaskEnabled(Guid id, bool enabled)
     {
+        EnsureSyncContext();
         lock (_lock)
         {
             var task = Tasks.FirstOrDefault(t => t.Id == id);
@@ -117,6 +130,7 @@ public class ShortcutService : IShortcutService
     
     public void Start()
     {
+        EnsureSyncContext();
         if (_isListening) return;
         
         _hotkeyService.RawInputReceived += OnRawInputReceived;
@@ -128,6 +142,7 @@ public class ShortcutService : IShortcutService
     
     public void Stop()
     {
+        EnsureSyncContext();
         List<IMacroPlayer> playersToStop;
         lock (_lock)
         {
@@ -374,6 +389,7 @@ public class ShortcutService : IShortcutService
     
     public async Task SaveAsync()
     {
+        EnsureSyncContext();
         try
         {
             List<ShortcutTask> taskSnapshot;
@@ -416,6 +432,7 @@ public class ShortcutService : IShortcutService
     
     public async Task LoadAsync()
     {
+        EnsureSyncContext();
         try
         {
             if (!File.Exists(_shortcutsFilePath)) return;
@@ -457,6 +474,7 @@ public class ShortcutService : IShortcutService
 
     public async Task ReloadAsync(string profileConfigDirectory)
     {
+        EnsureSyncContext();
         var shortcutsFilePath = Path.Combine(profileConfigDirectory, ConfigFileNames.Shortcuts);
 
         lock (_lock)

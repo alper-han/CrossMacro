@@ -60,6 +60,14 @@ public static class ActionTypeConverters
     });
 }
 
+public static class ImageMatchModeConverters
+{
+    public static readonly IValueConverter DisplayText = new FuncValueConverter<EditorImageMatchMode, string>(mode =>
+        mode == EditorImageMatchMode.BestMatch
+            ? Resources.ResourceManager.GetString("Editor_ImageMatchModeBest", Resources.Culture) ?? "Best match"
+            : Resources.ResourceManager.GetString("Editor_ImageMatchModeFirst", Resources.Culture) ?? "First threshold match");
+}
+
 public static class ScheduleTaskConverters
 {
     private static ILocalizationService? _localizationService;
@@ -182,6 +190,39 @@ public class ScreenTargetColorSourceDisplayConverter : IValueConverter
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         throw new NotSupportedException();
+    }
+}
+
+public class NullableDoubleConverter : IValueConverter
+{
+    public static readonly NullableDoubleConverter Instance = new();
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is double doubleValue)
+        {
+            return doubleValue.ToString("0.##", CultureInfo.InvariantCulture);
+        }
+        return value?.ToString() ?? "";
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is string str)
+        {
+            if (string.IsNullOrWhiteSpace(str))
+                return 0.0;
+
+            var normalized = str.Replace(',', '.').Trim();
+
+            if (double.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out double result))
+            {
+                return result;
+            }
+
+            return Avalonia.Data.BindingOperations.DoNothing;
+        }
+        return Avalonia.Data.BindingOperations.DoNothing;
     }
 }
 

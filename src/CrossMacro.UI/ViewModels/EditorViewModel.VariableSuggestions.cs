@@ -34,6 +34,13 @@ public partial class EditorViewModel
                 case EditorActionType.WindowCommand when action.WindowCommandMode is WindowCommandMode.Active or WindowCommandMode.Search or WindowCommandMode.Wait or WindowCommandMode.WorkspaceGet:
                     AddIfValidVariableName(names, action.WindowOutputVariable);
                     break;
+                case EditorActionType.ImageSearch:
+                case EditorActionType.ImageClick:
+                case EditorActionType.WaitImage:
+                    AddIfValidVariableName(names, action.ScreenFoundVariableName);
+                    AddIfValidVariableName(names, action.ScreenFoundXVariableName);
+                    AddIfValidVariableName(names, action.ScreenFoundYVariableName);
+                    break;
             }
 
             if (action.TryGetScreenReadingPayload(out var screenReadingPayload))

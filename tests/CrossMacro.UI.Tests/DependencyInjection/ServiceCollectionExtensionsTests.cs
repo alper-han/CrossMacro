@@ -34,6 +34,19 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
+    public void AddCrossMacroCliRuntimeServices_ResolvesScreenshotCliService()
+    {
+        var services = new ServiceCollection();
+
+        services.AddCrossMacroCliRuntimeServices(new NoOpPlatformServiceRegistrar());
+        services.AddCliServices();
+
+        using var provider = services.BuildServiceProvider();
+
+        Assert.IsType<ScreenshotCliService>(provider.GetRequiredService<IScreenshotCliService>());
+    }
+
+    [Fact]
     public void AddCrossMacroGuiRuntimeServices_RegistersGuiOnlyServices()
     {
         var services = new ServiceCollection();

@@ -1,17 +1,27 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using Avalonia.Media.Imaging;
 using CrossMacro.Core.Models;
 
 namespace CrossMacro.UI.ViewModels;
 
 public partial class EditorViewModel
 {
+    private WriteableBitmap? _selectedImageAssetPreview;
+
     public IReadOnlyList<EditorActionScreenTargetColorSource> ScreenTargetColorSources => EditorScreenTargetColorSources;
+    public IReadOnlyList<EditorImageMatchMode> ImageMatchModes { get; } = Enum.GetValues<EditorImageMatchMode>();
     public bool ShowPixelColorFields => SelectedAction?.Type == EditorActionType.PixelColor;
     public bool ShowWaitColorFields => SelectedAction?.Type == EditorActionType.WaitColor;
     public bool ShowPixelSearchFields => SelectedAction?.Type == EditorActionType.PixelSearch;
-    public bool ShowScreenReadingFields => ShowPixelColorFields || ShowWaitColorFields || ShowPixelSearchFields;
+    public bool ShowImageSearchFields => SelectedAction?.Type is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage;
+    public WriteableBitmap? SelectedImageAssetPreview => _selectedImageAssetPreview;
+    public bool ShowSelectedImageAssetPreview => ShowImageSearchFields && SelectedImageAssetPreview is not null;
+    public bool ShowImageOutputVariableFields => SelectedAction?.Type is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage;
+    public bool ShowImageWaitTimeoutField => SelectedAction?.Type is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage;
+    public bool ShowScreenReadingFields => ShowPixelColorFields || ShowWaitColorFields || ShowPixelSearchFields || ShowImageSearchFields;
     public bool ShowScreenReadingColorFields => ShowWaitColorFields || ShowPixelSearchFields;
     public bool ShowScreenReadingPointFields => ShowPixelColorFields || ShowWaitColorFields;
     public IReadOnlyList<string> AvailableColorVariableNames => _availableColorVariableNames;
@@ -52,12 +62,64 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(ShowScreenReadingRawAssistance));
         OnPropertyChanged(nameof(ScreenReadingRawHint));
         OnPropertyChanged(nameof(ShowScreenReadingFields));
+        OnPropertyChanged(nameof(ShowImageSearchFields));
+        OnPropertyChanged(nameof(ShowImageOutputVariableFields));
+        OnPropertyChanged(nameof(ShowImageWaitTimeoutField));
+        OnPropertyChanged(nameof(SelectedImageAssetPreview));
+        OnPropertyChanged(nameof(ShowSelectedImageAssetPreview));
         OnPropertyChanged(nameof(ShowScreenTargetColorHexInput));
         OnPropertyChanged(nameof(ShowScreenTargetColorVariableInput));
         OnPropertyChanged(nameof(ShowScreenTargetColorVariablePicker));
         OnPropertyChanged(nameof(SelectedScreenTargetColorVariableSuggestion));
         OnPropertyChanged(nameof(ShowScreenReadingColorPreview));
         OnPropertyChanged(nameof(ScreenReadingColorPreviewHex));
+    }
+
+    private void RefreshSelectedImageAssetPreview()
+    {
+        SetSelectedImageAssetPreview(null);
+        if (!ShowImageSearchFields)
+        {
+            return;
+        }
+
+        var assetName = SelectedAction?.ImageAssetName;
+        if (string.IsNullOrWhiteSpace(assetName)
+            || !_imageAssets.TryGetValue(assetName, out var encoded)
+            || string.IsNullOrWhiteSpace(encoded))
+        {
+            Status = string.Format(
+                _localizationService.CurrentCulture,
+                Localize("Editor_StatusImagePreviewError"),
+                assetName ?? Localize("Editor_ImageAsset"));
+            return;
+        }
+
+        try
+        {
+            SetSelectedImageAssetPreview(_imageAssetPreviewDecoder.Decode(encoded, assetName));
+        }
+        catch (Exception ex) when (ex is InvalidDataException or NotSupportedException or ArgumentException or InvalidOperationException)
+        {
+            Status = string.Format(
+                _localizationService.CurrentCulture,
+                Localize("Editor_StatusImagePreviewError"),
+                ex.Message);
+        }
+    }
+
+    private void SetSelectedImageAssetPreview(WriteableBitmap? preview)
+    {
+        if (ReferenceEquals(_selectedImageAssetPreview, preview))
+        {
+            return;
+        }
+
+        var previous = _selectedImageAssetPreview;
+        _selectedImageAssetPreview = preview;
+        previous?.Dispose();
+        OnPropertyChanged(nameof(SelectedImageAssetPreview));
+        OnPropertyChanged(nameof(ShowSelectedImageAssetPreview));
     }
 
     private string GetScreenReadingColorPreviewHex()
@@ -105,6 +167,9 @@ public partial class EditorViewModel
             "pixelcolor" => Localize("Editor_RawScreenReadingHint_PixelColor"),
             "waitcolor" => Localize("Editor_RawScreenReadingHint_WaitColor"),
             "pixelsearch" => Localize("Editor_RawScreenReadingHint_PixelSearch"),
+            "imagesearch" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
+            "imageclick" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
+            "waitimage" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
             _ => string.Empty
         };
 
@@ -130,6 +195,9 @@ public partial class EditorViewModel
             "pixelcolor" => Localize("Editor_RawScreenReadingHint_PixelColor"),
             "waitcolor" => Localize("Editor_RawScreenReadingHint_WaitColor"),
             "pixelsearch" => Localize("Editor_RawScreenReadingHint_PixelSearch"),
+            "imagesearch" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
+            "imageclick" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
+            "waitimage" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
             _ => string.Empty
         };
 

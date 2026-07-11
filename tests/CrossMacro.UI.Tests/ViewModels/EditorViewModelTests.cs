@@ -17,6 +17,8 @@ namespace CrossMacro.UI.Tests.ViewModels;
 
 public class EditorViewModelTests
 {
+    private const string TransparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=";
+
     public static TheoryData<string> Task7BindingMembers => new()
     {
         nameof(EditorViewModel.ShowPixelColorFields),
@@ -91,6 +93,12 @@ public class EditorViewModelTests
         nameof(EditorViewModel.CapturePixelSearchBottomRightAsync),
         nameof(EditorViewModel.CaptureScreenshotRegionStartAsync),
         nameof(EditorViewModel.CaptureScreenshotRegionEndAsync),
+        nameof(EditorViewModel.ShowImageSearchFields),
+        nameof(EditorViewModel.SelectedImageAssetPreview),
+        nameof(EditorViewModel.ShowSelectedImageAssetPreview),
+        nameof(EditorViewModel.HasImageAssets),
+        nameof(EditorViewModel.ImageAssetNames),
+        nameof(EditorViewModel.ImportImageAssetAsync),
         nameof(EditorViewModel.BrowseScreenshotOutputPathAsync),
         nameof(EditorViewModel.CancelCapture)
     };
@@ -557,6 +565,124 @@ public class EditorViewModelTests
             Arg.Any<FileDialogFilter[]>());
         action.ScreenshotOutputPath.Should().BeEmpty();
         _viewModel.CanUndo.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.ImageSearch)]
+    [InlineData(EditorActionType.ImageClick)]
+    [InlineData(EditorActionType.WaitImage)]
+    public async Task ImportImageAssetAsync_WhenPngChosen_AddsAssetNameAndSelectsImageAction(EditorActionType actionType)
+    {
+        var pngPath = Path.Combine(Path.GetTempPath(), $"crossmacro-target-{Guid.NewGuid():N}.png");
+        await File.WriteAllBytesAsync(pngPath, Convert.FromBase64String(TransparentPngBase64));
+        try
+        {
+            var action = new EditorAction { Type = actionType };
+            _viewModel.Actions.Add(action);
+            _viewModel.SelectedAction = action;
+            _dialogService
+                .ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+                .Returns(pngPath);
+
+            await _viewModel.ImportImageAssetAsync();
+
+            await _dialogService.Received(1).ShowOpenFileDialogAsync(
+                "Editor_ImageAssetImportDialogTitle",
+                Arg.Is<FileDialogFilter[]>(filters =>
+                    filters.Length == 1
+                    && filters[0].Name == "Editor_ImageAssetFileDialogName"
+                    && filters[0].Extensions.SequenceEqual(new[] { "png" })));
+            _viewModel.HasImageAssets.Should().BeTrue();
+            _viewModel.ImageAssetNames.Should().ContainSingle().Which.Should().StartWith("crossmacro_target_");
+            action.ImageAssetName.Should().Be(_viewModel.ImageAssetNames[0]);
+            _viewModel.Status.Should().Contain("Editor_StatusImageImported");
+        }
+        finally
+        {
+            File.Delete(pngPath);
+        }
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.ImageSearch)]
+    [InlineData(EditorActionType.ImageClick)]
+    [InlineData(EditorActionType.WaitImage)]
+    public void AddAction_ForImageActions_InitializesSharedDefaultsAndUsesImportedAsset(EditorActionType actionType)
+    {
+        _viewModel.ImageAssetNames.Add("Target_1");
+        _viewModel.NewActionType = actionType;
+
+        _viewModel.AddAction();
+
+        var action = _viewModel.Actions.Should().ContainSingle().Subject;
+        action.Type.Should().Be(actionType);
+        action.ImageAssetName.Should().Be("Target_1");
+        action.ImageSearchSimilarity.Should().Be(1.0);
+        action.ImageSearchDownsample.Should().Be(1);
+        action.ScreenWidth.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenWidth);
+        action.ScreenHeight.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenHeight);
+        if (actionType == EditorActionType.ImageClick)
+        {
+            action.Button.Should().Be(MouseButton.Left);
+        }
+        _viewModel.SelectedAction.Should().BeSameAs(action);
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.ImageSearch, false)]
+    [InlineData(EditorActionType.ImageClick, true)]
+    [InlineData(EditorActionType.WaitImage, false)]
+    public void SelectedAction_WhenImageActionSelected_TogglesMouseButton(EditorActionType actionType, bool expected)
+    {
+        var action = new EditorAction { Type = actionType };
+        _viewModel.Actions.Add(action);
+
+        _viewModel.SelectedAction = action;
+
+        _viewModel.ShowMouseButton.Should().Be(expected);
+    }
+
+    [Fact]
+    public void ImageClickButtons_ExposeOnlySupportedGrammarButtons()
+    {
+        _viewModel.ImageClickButtons.Should().Equal(MouseButton.Left, MouseButton.Right, MouseButton.Middle);
+    }
+
+    [Fact]
+    public async Task ImportImageAssetAsync_WhenCancelled_LeavesAssetsEmpty()
+    {
+        _dialogService
+            .ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .Returns((string?)null);
+
+        await _viewModel.ImportImageAssetAsync();
+
+        _viewModel.HasImageAssets.Should().BeFalse();
+        _viewModel.ImageAssetNames.Should().BeEmpty();
+        _viewModel.Status.Should().Be("Editor_StatusImageImportCancelled");
+    }
+
+    [Fact]
+    public async Task ImportImageAssetAsync_WhenPngExceedsSupportedDimensions_ShowsErrorAndLeavesAssetsEmpty()
+    {
+        var pngPath = Path.Combine(Path.GetTempPath(), $"crossmacro-target-{Guid.NewGuid():N}.png");
+        await File.WriteAllBytesAsync(pngPath, CreateOversizedPngBytes());
+        try
+        {
+            _dialogService
+                .ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+                .Returns(pngPath);
+
+            await _viewModel.ImportImageAssetAsync();
+
+            _viewModel.HasImageAssets.Should().BeFalse();
+            _viewModel.ImageAssetNames.Should().BeEmpty();
+            _viewModel.Status.Should().Contain("Editor_StatusImageImportError");
+        }
+        finally
+        {
+            File.Delete(pngPath);
+        }
     }
 
     [Theory]
@@ -3161,22 +3287,41 @@ public class EditorViewModelTests
         _viewModel.Status.Should().Be("[Editor_StatusCaptureRegionInvalidBottomRight]");
     }
 
-    [Fact]
-    public async Task CapturePixelSearchTopLeftAsync_WhenSelectedActionIsNotPixelSearch_BlocksCapture()
+    [Theory]
+    [InlineData(EditorActionType.WaitColor)]
+    [InlineData(EditorActionType.ImageSearch)]
+    [InlineData(EditorActionType.ImageClick)]
+    [InlineData(EditorActionType.WaitImage)]
+    public async Task CapturePixelSearchTopLeftAsync_OnlyAllowsPixelSearchAndImageActions(EditorActionType actionType)
     {
         // Arrange
-        var action = new EditorAction { Type = EditorActionType.WaitColor, ScreenLeft = 10, ScreenTop = 20 };
+        var action = new EditorAction { Type = actionType, ScreenLeft = 10, ScreenTop = 20 };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
+
+        if (actionType is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage)
+        {
+            _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+                .Returns(Task.FromResult<(int X, int Y)?>((12, 34)));
+        }
 
         // Act
         await _viewModel.CapturePixelSearchTopLeftAsync();
 
         // Assert
-        action.ScreenLeft.Should().Be(10);
-        action.ScreenTop.Should().Be(20);
-        _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
-        _ = _captureService.DidNotReceive().CaptureMousePositionAsync(Arg.Any<CancellationToken>());
+        if (actionType == EditorActionType.WaitColor)
+        {
+            action.ScreenLeft.Should().Be(10);
+            action.ScreenTop.Should().Be(20);
+            _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
+            _ = _captureService.DidNotReceive().CaptureMousePositionAsync(Arg.Any<CancellationToken>());
+        }
+        else
+        {
+            action.ScreenLeft.Should().Be(12);
+            action.ScreenTop.Should().Be(34);
+            _viewModel.Status.Should().Be("[Editor_StatusCapturedRegionTopLeft] 12 34");
+        }
     }
 
     [Fact]
@@ -3398,6 +3543,108 @@ public class EditorViewModelTests
         _viewModel.Actions.Should().HaveCount(1);
         _viewModel.SelectedAction.Should().NotBeNull();
         _viewModel.HasActions.Should().BeTrue();
+    }
+
+    [Fact]
+    public void LoadMacroSequence_LoadsImageAssetsForImageSearchSelection()
+    {
+        var sequence = new MacroSequence
+        {
+            Name = "Image Macro",
+            Images = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["Target_1"] = TransparentPngBase64
+            }
+        };
+        var converted = new List<EditorAction>
+        {
+            new()
+            {
+                Type = EditorActionType.ImageSearch,
+                ImageAssetName = "Target_1",
+                ScreenWidth = 100,
+                ScreenHeight = 100,
+                ScreenFoundVariableName = "found",
+                ScreenFoundXVariableName = "found_x",
+                ScreenFoundYVariableName = "found_y",
+                ImageSearchSimilarity = 1.0,
+                ImageSearchDownsample = 1
+            }
+        };
+        _converter.FromMacroSequenceWithDiagnostics(sequence)
+            .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: true));
+
+        _viewModel.LoadMacroSequence(sequence);
+
+        _viewModel.HasImageAssets.Should().BeTrue();
+        _viewModel.ImageAssetNames.Should().Equal("Target_1");
+        _viewModel.SelectedAction.Should().BeSameAs(converted[0]);
+        _viewModel.ShowImageSearchFields.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.ImageSearch)]
+    [InlineData(EditorActionType.ImageClick)]
+    [InlineData(EditorActionType.WaitImage)]
+    public void SelectedAction_WhenImageActionSelected_ShowsImageOutputVariablesAndTimeout(EditorActionType actionType)
+    {
+        var action = new EditorAction { Type = actionType };
+        _viewModel.Actions.Add(action);
+
+        _viewModel.SelectedAction = action;
+
+        _viewModel.ShowImageSearchFields.Should().BeTrue();
+        _viewModel.ShowImageOutputVariableFields.Should().BeTrue();
+        _viewModel.ShowImageWaitTimeoutField.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SaveMacroAsync_WhenImageSearchAssetImported_PersistsImageAssetsOnGeneratedSequence()
+    {
+        var pngPath = Path.Combine(Path.GetTempPath(), $"crossmacro-target-{Guid.NewGuid():N}.png");
+        await File.WriteAllBytesAsync(pngPath, Convert.FromBase64String(TransparentPngBase64));
+        try
+        {
+            var action = new EditorAction
+            {
+                Type = EditorActionType.ImageSearch,
+                ScreenWidth = 100,
+                ScreenHeight = 100,
+                ScreenFoundVariableName = "found",
+                ScreenFoundXVariableName = "found_x",
+                ScreenFoundYVariableName = "found_y",
+                ImageSearchSimilarity = 1.0,
+                ImageSearchDownsample = 1
+            };
+            _viewModel.Actions.Add(action);
+            _viewModel.SelectedAction = action;
+            _dialogService
+                .ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+                .Returns(pngPath);
+            await _viewModel.ImportImageAssetAsync();
+
+            var generatedSequence = new MacroSequence
+            {
+                Name = "Generated",
+                ScriptSteps = ["imagesearch 0 0 100 100 Target_1 found found_x found_y"]
+            };
+            _converter
+                .ToMacroSequence(Arg.Any<IEnumerable<EditorAction>>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<bool>())
+                .Returns(generatedSequence);
+            _dialogService
+                .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+                .Returns("/tmp/editor-image-search.macro");
+
+            await _viewModel.SaveMacroAsync();
+
+            generatedSequence.Images.Should().ContainKey(action.ImageAssetName);
+            generatedSequence.Images[action.ImageAssetName].Should().NotBeNullOrWhiteSpace();
+            await _fileManager.Received(1).SaveAsync(generatedSequence, "/tmp/editor-image-search.macro");
+        }
+        finally
+        {
+            File.Delete(pngPath);
+        }
     }
 
     [Fact]
@@ -3742,6 +3989,23 @@ public class EditorViewModelTests
 
         _viewModel.AvailableVariableNames.Should().Contain("located");
         _viewModel.AvailableVariableNames.Should().NotContain("found");
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.ImageSearch)]
+    [InlineData(EditorActionType.ImageClick)]
+    [InlineData(EditorActionType.WaitImage)]
+    public void AvailableVariableNames_WhenImageActionProducesOutputs_IncludesAllImageVariables(EditorActionType actionType)
+    {
+        _viewModel.Actions.Add(new EditorAction
+        {
+            Type = actionType,
+            ScreenFoundVariableName = "image_found",
+            ScreenFoundXVariableName = "image_x",
+            ScreenFoundYVariableName = "image_y"
+        });
+
+        _viewModel.AvailableVariableNames.Should().Contain(new[] { "image_found", "image_x", "image_y" });
     }
 
     [Fact]
@@ -4455,6 +4719,14 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(currentPositionClick);
 
+        _converter
+            .ToMacroSequence(
+                Arg.Any<IEnumerable<EditorAction>>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<bool>())
+            .Returns(new MacroSequence { Name = "Generated" });
+
         _dialogService
             .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
             .Returns((string?)null);
@@ -4469,6 +4741,38 @@ public class EditorViewModelTests
     }
 
     [Fact]
+    public async Task SaveMacroAsync_WhenConverterReturnsNull_DoesNotThrowOrMutateBoundAction()
+    {
+        // Arrange
+        var currentPositionClick = new EditorAction
+        {
+            Type = EditorActionType.MouseClick,
+            Button = MouseButton.Left,
+            UseCurrentPosition = true,
+            IsAbsolute = true,
+            X = 123,
+            Y = 456
+        };
+        _viewModel.Actions.Add(currentPositionClick);
+
+        _converter
+            .ToMacroSequence(
+                Arg.Any<IEnumerable<EditorAction>>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<bool>())
+            .Returns((MacroSequence?)null);
+
+        // Act
+        await _viewModel.SaveMacroAsync();
+
+        // Assert
+        currentPositionClick.IsAbsolute.Should().BeTrue();
+        currentPositionClick.X.Should().Be(123);
+        currentPositionClick.Y.Should().Be(456);
+    }
+
+	    [Fact]
     public async Task SaveMacroAsync_WhenCurrentPositionClickIsFirstAndOtherActionsAreAbsolute_UsesAbsoluteMacroMode()
     {
         // Arrange
@@ -4504,5 +4808,23 @@ public class EditorViewModelTests
             Arg.Any<string>(),
             true,
             true);
+    }
+
+    private static byte[] CreateOversizedPngBytes()
+    {
+        return
+        [
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+            0x00, 0x00, 0x00, 0x0D,
+            0x49, 0x48, 0x44, 0x52,
+            0x00, 0x00, 0x1E, 0x01,
+            0x00, 0x00, 0x00, 0x01,
+            0x08,
+            0x02,
+            0x00,
+            0x00,
+            0x00,
+            0x00, 0x00, 0x00, 0x00
+        ];
     }
 }

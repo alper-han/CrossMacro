@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -421,12 +422,20 @@ public partial class EditorViewModel
             EditorCaptureMode.ScreenshotRegionEnd,
             (action, endX, endY) =>
         {
-            var startX = TryParseNonNegativeInteger(action.ScreenshotRegionX, out var parsedStartX) ? parsedStartX : endX;
-            var startY = TryParseNonNegativeInteger(action.ScreenshotRegionY, out var parsedStartY) ? parsedStartY : endY;
+            var startX = TryParseInteger(action.ScreenshotRegionX, out var parsedStartX) ? parsedStartX : endX;
+            var startY = TryParseInteger(action.ScreenshotRegionY, out var parsedStartY) ? parsedStartY : endY;
             var x = Math.Min(startX, endX);
             var y = Math.Min(startY, endY);
-            var width = Math.Max(1, Math.Abs(endX - startX) + 1);
-            var height = Math.Max(1, Math.Abs(endY - startY) + 1);
+            var widthValue = Math.Abs((long)endX - startX) + 1;
+            var heightValue = Math.Abs((long)endY - startY) + 1;
+            if (widthValue > int.MaxValue || heightValue > int.MaxValue)
+            {
+                Status = Localize("Editor_StatusCaptureRegionInvalidBottomRight");
+                return;
+            }
+
+            var width = (int)Math.Max(1L, widthValue);
+            var height = (int)Math.Max(1L, heightValue);
 
             action.ScreenshotUseRegion = true;
             action.ScreenshotRegionX = x.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -446,7 +455,7 @@ public partial class EditorViewModel
             return;
         }
 
-        if (targetAction.Type != EditorActionType.PixelSearch)
+        if (targetAction.Type is not (EditorActionType.PixelSearch or EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage))
         {
             Status = Localize("Editor_StatusOperationBlocked");
             return;
@@ -537,10 +546,9 @@ public partial class EditorViewModel
         }
     }
 
-    private static bool TryParseNonNegativeInteger(string token, out int value)
+    private static bool TryParseInteger(string token, out int value)
     {
-        return int.TryParse(token, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out value)
-            && value >= 0;
+        return int.TryParse(token, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out value);
     }
 
     private static bool IsPositiveIntegerOrVariable(string token)
@@ -568,8 +576,10 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
         var normalizedActions = CloneState(Actions);
         NormalizeCurrentPositionMouseButtonActionSnapshot(normalizedActions);
 
-        var (isValid, errors) = _validator.ValidateAll(normalizedActions);
-        if (!isValid)
+        var (isValid, validationErrors) = _validator.ValidateAll(normalizedActions);
+        var errors = validationErrors.ToList();
+        errors.AddRange(ValidateImageSearchAssets(normalizedActions));
+        if (!isValid || errors.Count > 0)
         {
             var errorMessage = $"{Localize("Editor_ValidationErrorHeader")}\n\n{string.Join("\n", errors.Select(error => $"• {error}"))}";
             await _dialogService.ShowMessageAsync(Localize("Editor_DialogTitleValidationErrors"), errorMessage);
@@ -587,7 +597,32 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
             OnPropertyChanged(nameof(SkipInitialZeroZero));
         }
 
-        return _converter.ToMacroSequence(normalizedActions, MacroName, isAbsolute, skipInitialZeroZero);
+        var sequence = _converter.ToMacroSequence(normalizedActions, MacroName, isAbsolute, skipInitialZeroZero);
+        if (sequence == null)
+        {
+            return null;
+        }
+
+        sequence.Images = new Dictionary<string, string>(_imageAssets, StringComparer.Ordinal);
+        return sequence;
+    }
+
+    private IEnumerable<string> ValidateImageSearchAssets(IEnumerable<EditorAction> actions)
+    {
+        var index = 0;
+        foreach (var action in actions)
+        {
+            index++;
+            if (action.Type is not (EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage))
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(action.ImageAssetName) || !_imageAssets.ContainsKey(action.ImageAssetName))
+            {
+                yield return $"Action {index} ({action.Type}): Image asset '{action.ImageAssetName}' is not imported.";
+            }
+        }
     }
 
 
@@ -706,6 +741,75 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
         }
     }
 
+    public async Task ImportImageAssetAsync()
+    {
+        var filters = new[]
+        {
+            new FileDialogFilter { Name = Localize("Editor_ImageAssetFileDialogName"), Extensions = new[] { "png" } }
+        };
+
+        var filePath = await _dialogService.ShowOpenFileDialogAsync(Localize("Editor_ImageAssetImportDialogTitle"), filters);
+        if (string.IsNullOrEmpty(filePath))
+        {
+            Status = Localize("Editor_StatusImageImportCancelled");
+            return;
+        }
+
+        try
+        {
+            using var frame = await _imageAssetCodec.DecodeFileAsync(filePath);
+            using var encoded = new MemoryStream();
+            _imageAssetCodec.EncodePng(frame, encoded);
+            var assetName = GenerateUniqueImageAssetName(Path.GetFileNameWithoutExtension(filePath));
+            _imageAssets[assetName] = Convert.ToBase64String(encoded.ToArray());
+            ImageAssetNames.Add(assetName);
+            OnPropertyChanged(nameof(HasImageAssets));
+
+            if (SelectedAction?.Type is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage)
+            {
+                SelectedAction.ImageAssetName = assetName;
+            }
+
+            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusImageImported"), assetName);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException or ArgumentException)
+        {
+            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusImageImportError"), ex.Message);
+        }
+    }
+
+    private string GenerateUniqueImageAssetName(string? sourceName)
+    {
+        var baseName = NormalizeImageAssetName(sourceName);
+        var candidate = baseName;
+        var suffix = 2;
+        while (_imageAssets.ContainsKey(candidate))
+        {
+            candidate = $"{baseName}_{suffix}";
+            suffix++;
+        }
+
+        return candidate;
+    }
+
+    private static string NormalizeImageAssetName(string? sourceName)
+    {
+        var raw = string.IsNullOrWhiteSpace(sourceName) ? "image" : sourceName.Trim();
+        var chars = raw.Select(ch => char.IsAsciiLetterOrDigit(ch) || ch == '_' ? ch : '_').ToArray();
+        var normalized = new string(chars).Trim('_');
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            normalized = "image";
+        }
+
+        if (!char.IsAsciiLetter(normalized[0]) && normalized[0] != '_')
+        {
+            normalized = $"image_{normalized}";
+        }
+
+        return EditorActionScriptTokens.IsValidVariableName(normalized) ? normalized : "image";
+    }
+
     public async Task LoadMacroAsync()
     {
         try
@@ -751,7 +855,20 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
         SaveUndoState();
 
         ClearLoadedMacroSessionLink();
+        SetSelectedImageAssetPreview(null);
         Actions.Clear();
+        _imageAssets.Clear();
+        ImageAssetNames.Clear();
+        if (sequence.Images is { Count: > 0 })
+        {
+            foreach (var image in sequence.Images.OrderBy(image => image.Key, StringComparer.Ordinal))
+            {
+                _imageAssets[image.Key] = image.Value;
+                ImageAssetNames.Add(image.Key);
+            }
+        }
+
+        OnPropertyChanged(nameof(HasImageAssets));
         MacroName = sequence.Name;
 
         var restoreResult = _converter.FromMacroSequenceWithDiagnostics(sequence);
@@ -773,6 +890,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
         _skipInitialZeroZeroBeforeCurrentPositionForce = sequence.SkipInitialZeroZero;
 
         SelectedAction = Actions.FirstOrDefault();
+        RefreshSelectedImageAssetPreview();
         OnPropertyChanged(nameof(HasActions));
         RefreshCurrentPositionConfiguration();
         ResetPropertyEditUndoCoalescing();

@@ -7,6 +7,7 @@ using System.Linq;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Platform.Abstractions;
+using CrossMacro.Infrastructure.Services.ScreenCapture;
 using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
 using CrossMacro.UI.Icons;
@@ -61,6 +62,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private readonly ILocalizationService _localizationService;
     private readonly EditorActionDisplayFormatter _actionDisplayFormatter;
     private readonly IScreenPixelReader? _screenPixelReader;
+    private readonly IImageAssetCodec _imageAssetCodec;
+    private readonly IImageAssetPreviewDecoder _imageAssetPreviewDecoder;
     private readonly IMacroPlayer _macroPlayer;
 
     private readonly Stack<List<EditorAction>> _undoStack = new(UndoStackLimit);
@@ -90,6 +93,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private List<EditorAction> _lastKnownState = new();
     private IReadOnlyList<string> _availableVariableNames = Array.Empty<string>();
     private IReadOnlyList<string> _availableColorVariableNames = Array.Empty<string>();
+    private readonly Dictionary<string, string> _imageAssets = new(StringComparer.Ordinal);
     private string? _selectedSetVariableSuggestion;
     private string? _selectedIncDecVariableSuggestion;
     private string? _selectedConditionLeftVariableSuggestion;
@@ -148,7 +152,10 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             {
                 EditorActionType.PixelColor,
                 EditorActionType.WaitColor,
-                EditorActionType.PixelSearch
+                EditorActionType.PixelSearch,
+                EditorActionType.ImageSearch,
+                EditorActionType.ImageClick,
+                EditorActionType.WaitImage
             }),
             ("Editor_ActionGroup_Screenshot", new[]
             {
@@ -196,7 +203,9 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         IMacroPlayer macroPlayer,
         ILocalizationService? localizationService = null,
         EditorActionDisplayFormatter? actionDisplayFormatter = null,
-        IScreenPixelReader? screenPixelReader = null)
+        IScreenPixelReader? screenPixelReader = null,
+        IImageAssetCodec? imageAssetCodec = null,
+        IImageAssetPreviewDecoder? imageAssetPreviewDecoder = null)
     {
         _converter = converter ?? throw new ArgumentNullException(nameof(converter));
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
@@ -207,6 +216,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         _localizationService = localizationService ?? new LocalizationService();
         _actionDisplayFormatter = actionDisplayFormatter ?? new EditorActionDisplayFormatter(_localizationService);
         _screenPixelReader = screenPixelReader;
+        _imageAssetCodec = imageAssetCodec ?? new ImageAssetCodec();
+        _imageAssetPreviewDecoder = imageAssetPreviewDecoder ?? new ImageAssetPreviewDecoder(_imageAssetCodec);
         _macroPlayer = macroPlayer ?? throw new ArgumentNullException(nameof(macroPlayer));
         _macroName = _localizationService["Editor_DefaultMacroName"];
         _status = BuildStatus(EditorStatusKind.Ready);
@@ -216,6 +227,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         ActionListItems = new ObservableCollection<EditorActionListItem>();
         SelectedActionUnderlyingIndices = new ObservableCollection<int>();
         LoadWarnings = new ObservableCollection<string>();
+        ImageAssetNames = new ObservableCollection<string>();
         Actions.CollectionChanged += OnActionsCollectionChanged;
         SelectedActionUnderlyingIndices.CollectionChanged += OnSelectedActionUnderlyingIndicesChanged;
         LoadWarnings.CollectionChanged += OnLoadWarningsCollectionChanged;
@@ -233,6 +245,10 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public ObservableCollection<int> SelectedActionUnderlyingIndices { get; }
 
     public ObservableCollection<string> LoadWarnings { get; }
+
+    public ObservableCollection<string> ImageAssetNames { get; }
+
+    public bool HasImageAssets => ImageAssetNames.Count > 0;
 
     public EditorAction? SelectedAction
     {
@@ -263,6 +279,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(SelectedActionIsRelative));
             NotifyVisibilityChanged();
             OnPropertyChanged(nameof(SelectedActionDisplayText));
+            RefreshSelectedImageAssetPreview();
             ResetPropertyEditUndoCoalescing();
             SyncSelectedActionListItem();
             if (!_isSelectingFromActionList)
@@ -644,6 +661,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     public string FormatActionType(EditorActionType actionType) => _actionDisplayFormatter.FormatActionType(actionType);
     public IEnumerable<MouseButton> MouseButtons => Enum.GetValues<MouseButton>().Where(button => button != MouseButton.None);
+    public IReadOnlyList<MouseButton> ImageClickButtons { get; } =
+        [MouseButton.Left, MouseButton.Right, MouseButton.Middle];
     public IEnumerable<ScriptValueType> ScriptValueTypes => Enum.GetValues<ScriptValueType>();
     public IEnumerable<ScriptNumericSourceType> ScriptNumericSourceTypes => Enum.GetValues<ScriptNumericSourceType>();
     public IEnumerable<ScriptOperandType> ScriptOperandTypes => Enum.GetValues<ScriptOperandType>();
@@ -689,12 +708,14 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     };
 
     /// <summary>
-    /// Show mouse button for: MouseClick, MouseDown, MouseUp
+    /// Show mouse button for: MouseClick, ImageClick, MouseDown, MouseUp
     /// </summary>
     public bool ShowMouseButton => SelectedAction?.Type is
         EditorActionType.MouseClick or
+        EditorActionType.ImageClick or
         EditorActionType.MouseDown or
         EditorActionType.MouseUp;
+    public bool ShowImageClickButton => SelectedAction?.Type == EditorActionType.ImageClick;
 
     /// <summary>
     /// Show key code for: KeyPress, KeyDown, KeyUp
@@ -852,6 +873,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         LoadWarnings.CollectionChanged -= OnLoadWarningsCollectionChanged;
         _localizationService.CultureChanged -= OnCultureChanged;
         _captureService.CancelCapture();
+        SetSelectedImageAssetPreview(null);
     }
 
     private void OnCultureChanged(object? sender, EventArgs e)

@@ -1029,6 +1029,18 @@
   <data name="Editor_MacroFileDialogName" xml:space="preserve">
     <value>Macro Files</value>
   </data>
+  <data name="Editor_StatusImageImportCancelled" xml:space="preserve">
+    <value>Image import cancelled</value>
+  </data>
+  <data name="Editor_StatusImageImported" xml:space="preserve">
+    <value>Imported image asset: {0}</value>
+  </data>
+  <data name="Editor_StatusImageImportError" xml:space="preserve">
+    <value>Image import failed: {0}</value>
+  </data>
+  <data name="Editor_StatusImagePreviewError" xml:space="preserve">
+    <value>Image preview unavailable: {0}</value>
+  </data>
   <data name="Editor_DialogTitleNoActions" xml:space="preserve">
     <value>No Actions</value>
   </data>
@@ -1419,6 +1431,36 @@
   <data name="Editor_PixelSearchAction" xml:space="preserve">
     <value>Pixel Search:</value>
   </data>
+  <data name="Editor_ImageSearchAction" xml:space="preserve">
+    <value>Image Search:</value>
+  </data>
+  <data name="Editor_ImageAsset" xml:space="preserve">
+    <value>Image asset</value>
+  </data>
+  <data name="Editor_ImageAssetPreview" xml:space="preserve">
+    <value>Image preview</value>
+  </data>
+  <data name="Editor_ImportImageAsset" xml:space="preserve">
+    <value>Import PNG asset</value>
+  </data>
+  <data name="Editor_ImageAssetImportHint" xml:space="preserve">
+    <value>Import a PNG image asset before selecting an Image Search target. JPG import is not available without adding an image decoder package.</value>
+  </data>
+  <data name="Editor_ImageAssetImportDialogTitle" xml:space="preserve">
+    <value>Import Image Asset</value>
+  </data>
+  <data name="Editor_ImageAssetFileDialogName" xml:space="preserve">
+    <value>PNG Images</value>
+  </data>
+  <data name="Editor_ImageSearchSimilarity" xml:space="preserve">
+    <value>Similarity (0-1)</value>
+  </data>
+  <data name="Editor_ImageSearchDownsample" xml:space="preserve">
+    <value>Downsample</value>
+  </data>
+  <data name="Editor_ImageSearchScaleAware" xml:space="preserve">
+    <value>Scale-aware matching</value>
+  </data>
   <data name="Editor_ScreenPoint" xml:space="preserve">
     <value>Screen Point</value>
   </data>
@@ -1526,6 +1568,9 @@
   </data>
   <data name="Editor_RawScreenReadingHint_PixelSearch" xml:space="preserve">
     <value>pixelsearch: searches a region for RRGGBB or $variable; tolerance accepts 0-255 per RGB channel.</value>
+  </data>
+  <data name="Editor_RawScreenReadingHint_ImageSearch" xml:space="preserve">
+    <value>imagesearch: searches for a named imported PNG asset; options include similarity and downsample.</value>
   </data>
   <data name="Editor_RawScriptHint_Clipboard" xml:space="preserve">
     <value>clipboard: try 'clipboard set "hello"' or 'clipboard get clipText'.</value>
@@ -1821,6 +1866,15 @@
   <data name="Editor_Action_PixelSearch" xml:space="preserve">
     <value>Find {0} in ({1}, {2}, {3}x{4}) -&gt; {5}, {6}, {7} tol {8}</value>
   </data>
+  <data name="Editor_Action_ImageSearch" xml:space="preserve">
+    <value>Find image {0} in ({1}, {2}, {3}x{4}) -&gt; {5}, {6}, {7} sim {8} down {9}</value>
+  </data>
+  <data name="Editor_Action_ImageClick" xml:space="preserve">
+    <value>Image click {0} in ({1}, {2}, {3}x{4})</value>
+  </data>
+  <data name="Editor_Action_WaitImage" xml:space="preserve">
+    <value>Wait image {0} in ({1}, {2}, {3}x{4}) for {5}ms</value>
+  </data>
   <data name="Editor_ResultVariableName" xml:space="preserve">
     <value>Result variable</value>
   </data>
@@ -1916,6 +1970,15 @@
   </data>
   <data name="Editor_ActionType_PixelSearch" xml:space="preserve">
     <value>Pixel Search</value>
+  </data>
+  <data name="Editor_ActionType_ImageSearch" xml:space="preserve">
+    <value>Image Search</value>
+  </data>
+  <data name="Editor_ActionType_ImageClick" xml:space="preserve">
+    <value>Image Click</value>
+  </data>
+  <data name="Editor_ActionType_WaitImage" xml:space="preserve">
+    <value>Wait Image</value>
   </data>
   <data name="Editor_ActionType_RawScriptStep" xml:space="preserve">
     <value>Raw Script Step</value>
@@ -2168,5 +2231,14 @@
   </data>
   <data name="Enum_WindowCommandMode_WorkspaceMoveWindow" xml:space="preserve">
     <value>Move Target Window to Workspace</value>
+  </data>
+  <data name="Editor_ImageMatchMode" xml:space="preserve">
+    <value>Image match mode</value>
+  </data>
+  <data name="Editor_ImageMatchModeFirst" xml:space="preserve">
+    <value>First threshold match</value>
+  </data>
+  <data name="Editor_ImageMatchModeBest" xml:space="preserve">
+    <value>Best match</value>
   </data>
 </root>

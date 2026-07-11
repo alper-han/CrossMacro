@@ -286,7 +286,14 @@
                                           SelectedItem="{Binding SelectedAction.Button}"
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"
-                                          HorizontalAlignment="Stretch"/>
+                                          HorizontalAlignment="Stretch"
+                                          IsVisible="{Binding !ShowImageClickButton}"/>
+                                <ComboBox ItemsSource="{Binding ImageClickButtons}"
+                                          SelectedItem="{Binding SelectedAction.Button}"
+                                          Background="{DynamicResource SurfaceHoverBrush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          HorizontalAlignment="Stretch"
+                                          IsVisible="{Binding ShowImageClickButton}"/>
                             </StackPanel>
 
                             <!-- Key Code (KeyPress, KeyDown, KeyUp) -->

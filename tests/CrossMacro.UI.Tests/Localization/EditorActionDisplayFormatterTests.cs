@@ -13,6 +13,8 @@ public class EditorActionDisplayFormatterTests
     [InlineData(EditorActionType.PixelColor, "Editor_ActionType_PixelColor", "Pixel Color")]
     [InlineData(EditorActionType.WaitColor, "Editor_ActionType_WaitColor", "Wait Color")]
     [InlineData(EditorActionType.PixelSearch, "Editor_ActionType_PixelSearch", "Pixel Search")]
+    [InlineData(EditorActionType.ImageClick, "Editor_ActionType_ImageClick", "Image Click")]
+    [InlineData(EditorActionType.WaitImage, "Editor_ActionType_WaitImage", "Wait Image")]
     public void FormatActionType_ForScreenReadingActions_UsesLocalizedLabels(
         EditorActionType actionType,
         string resourceKey,
@@ -177,6 +179,41 @@ public class EditorActionDisplayFormatterTests
         };
 
         formatter.Format(action).Should().Be("Find 00FF11 in (1, 2, 300x200) -> found, hit_x, hit_y tol 26");
+    }
+
+    [Fact]
+    public void Format_ForImageClick_UsesLocalizedResourceAndPreservesFields()
+    {
+        var formatter = CreateFormatter("Editor_Action_ImageClick", "Click image {0} in ({1}, {2}, {3}x{4})");
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ImageClick,
+            ImageAssetName = "ButtonAsset",
+            ScreenLeft = 10,
+            ScreenTop = 20,
+            ScreenWidth = 300,
+            ScreenHeight = 200
+        };
+
+        formatter.Format(action).Should().Be("Click image ButtonAsset in (10, 20, 300x200)");
+    }
+
+    [Fact]
+    public void Format_ForWaitImage_UsesLocalizedResourceAndPreservesTimeout()
+    {
+        var formatter = CreateFormatter("Editor_Action_WaitImage", "Wait for image {0} in ({1}, {2}, {3}x{4}) up to {5}ms");
+        var action = new EditorAction
+        {
+            Type = EditorActionType.WaitImage,
+            ImageAssetName = "ReadyAsset",
+            ScreenLeft = 10,
+            ScreenTop = 20,
+            ScreenWidth = 300,
+            ScreenHeight = 200,
+            ScreenTimeoutMs = 2500
+        };
+
+        formatter.Format(action).Should().Be("Wait for image ReadyAsset in (10, 20, 300x200) up to 2500ms");
     }
 
     [Fact]

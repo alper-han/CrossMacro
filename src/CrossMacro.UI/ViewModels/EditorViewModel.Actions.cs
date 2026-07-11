@@ -83,6 +83,10 @@ public partial class EditorViewModel
             && string.Equals(left.ScreenFoundVariableName, right.ScreenFoundVariableName, StringComparison.Ordinal)
             && string.Equals(left.ScreenFoundXVariableName, right.ScreenFoundXVariableName, StringComparison.Ordinal)
             && string.Equals(left.ScreenFoundYVariableName, right.ScreenFoundYVariableName, StringComparison.Ordinal)
+            && string.Equals(left.ImageAssetName, right.ImageAssetName, StringComparison.Ordinal)
+            && left.ImageSearchSimilarity.Equals(right.ImageSearchSimilarity)
+            && left.ImageSearchDownsample == right.ImageSearchDownsample
+            && left.ImageSearchScaleAware == right.ImageSearchScaleAware
             && left.ShellCommandMode == right.ShellCommandMode
             && string.Equals(left.ShellCommand, right.ShellCommand, StringComparison.Ordinal)
             && string.Equals(left.ShellStandardInput, right.ShellStandardInput, StringComparison.Ordinal)
@@ -276,6 +280,7 @@ public partial class EditorViewModel
         }
 
         if (e.PropertyName is nameof(EditorAction.Type)
+            or nameof(EditorAction.ImageAssetName)
             or nameof(EditorAction.Text)
             or nameof(EditorAction.ScriptVariableName)
             or nameof(EditorAction.ForVariableName)
@@ -287,15 +292,21 @@ public partial class EditorViewModel
             or nameof(EditorAction.ForEndValue)
             or nameof(EditorAction.ForStepValue)
             or nameof(EditorAction.ScreenColorVariableName)
-            or nameof(EditorAction.ScreenFoundVariableName)
-            or nameof(EditorAction.ScreenFoundXVariableName)
-            or nameof(EditorAction.ScreenFoundYVariableName)
-            or nameof(EditorAction.ShellExitCodeVariableName)
+                or nameof(EditorAction.ScreenFoundVariableName)
+                or nameof(EditorAction.ScreenFoundXVariableName)
+                or nameof(EditorAction.ScreenFoundYVariableName)
+                or nameof(EditorAction.ImageAssetName)
+                or nameof(EditorAction.ShellExitCodeVariableName)
             or nameof(EditorAction.ShellStandardOutputVariableName)
             or nameof(EditorAction.ShellStandardErrorVariableName)
             or nameof(EditorAction.WindowOutputVariable))
         {
             RefreshAvailableVariableNames();
+        }
+
+        if (e.PropertyName is nameof(EditorAction.Type) or nameof(EditorAction.ImageAssetName))
+        {
+            RefreshSelectedImageAssetPreview();
         }
 
         if (e.PropertyName is nameof(EditorAction.Type) or nameof(EditorAction.Text))
@@ -340,6 +351,7 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(ShowCurrentPositionToggle));
         OnPropertyChanged(nameof(CurrentPositionToggleLabel));
         OnPropertyChanged(nameof(ShowMouseButton));
+        OnPropertyChanged(nameof(ShowImageClickButton));
         OnPropertyChanged(nameof(ShowKeyCode));
         OnPropertyChanged(nameof(ShowDelay));
         OnPropertyChanged(nameof(ShowFixedDelayInput));
@@ -376,6 +388,7 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(ShowPixelColorFields));
         OnPropertyChanged(nameof(ShowWaitColorFields));
         OnPropertyChanged(nameof(ShowPixelSearchFields));
+        OnPropertyChanged(nameof(ShowImageSearchFields));
         OnPropertyChanged(nameof(ShowScreenReadingColorFields));
         OnPropertyChanged(nameof(ShowScreenReadingPointFields));
         OnPropertyChanged(nameof(ScreenTargetColorSources));
@@ -583,12 +596,26 @@ public partial class EditorViewModel
             ScreenFoundXVariableName = EditorActionScreenReadingPayload.DefaultFoundXVariableName,
             ScreenFoundYVariableName = EditorActionScreenReadingPayload.DefaultFoundYVariableName,
             ScreenTimeoutMs = EditorActionScreenReadingPayload.DefaultTimeoutMs,
-            ScreenTolerance = EditorActionScreenReadingPayload.DefaultTolerance
+            ScreenTolerance = EditorActionScreenReadingPayload.DefaultTolerance,
+            ImageAssetName = NewActionType is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage
+                && ImageAssetNames.Count > 0
+                    ? ImageAssetNames[0]
+                    : string.Empty,
+            ImageSearchSimilarity = EditorActionScreenReadingPayload.DefaultImageSearchSimilarity,
+            ImageSearchDownsample = EditorActionScreenReadingPayload.DefaultImageSearchDownsample,
+            ImageSearchScaleAware = EditorActionScreenReadingPayload.DefaultImageSearchScaleAware,
+            Button = MouseButton.Left
         };
 
         if (EditorActionScreenReadingPayload.TryCreateDefault(NewActionType, out var screenReadingPayload))
         {
             action.ApplyScreenReadingPayload(screenReadingPayload);
+
+            if (NewActionType is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage
+                && ImageAssetNames.Count > 0)
+            {
+                action.ImageAssetName = ImageAssetNames[0];
+            }
         }
 
         Actions.Insert(insertionIndex, action);

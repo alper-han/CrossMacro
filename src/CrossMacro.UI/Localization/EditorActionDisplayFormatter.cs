@@ -46,6 +46,9 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             EditorActionType.PixelColor => FormatPixelColor(GetScreenReadingPayload(action)),
             EditorActionType.WaitColor => FormatWaitColor(GetScreenReadingPayload(action)),
             EditorActionType.PixelSearch => FormatPixelSearch(GetScreenReadingPayload(action)),
+            EditorActionType.ImageSearch => FormatImageSearch(action),
+            EditorActionType.ImageClick => FormatImageClick(action),
+            EditorActionType.WaitImage => FormatWaitImage(action),
             EditorActionType.ClipboardGet => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ClipboardGet"], action.ScriptVariableName),
             EditorActionType.ClipboardSet => string.IsNullOrEmpty(action.Text)
                 ? localizationService["Editor_Action_ClipboardSetEmpty"]
@@ -92,6 +95,9 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             EditorActionType.PixelColor => localizationService["Editor_ActionType_PixelColor"],
             EditorActionType.WaitColor => localizationService["Editor_ActionType_WaitColor"],
             EditorActionType.PixelSearch => localizationService["Editor_ActionType_PixelSearch"],
+            EditorActionType.ImageSearch => localizationService["Editor_ActionType_ImageSearch"],
+            EditorActionType.ImageClick => localizationService["Editor_ActionType_ImageClick"],
+            EditorActionType.WaitImage => localizationService["Editor_ActionType_WaitImage"],
             EditorActionType.ClipboardGet => localizationService["Editor_ActionType_ClipboardGet"],
             EditorActionType.ClipboardSet => localizationService["Editor_ActionType_ClipboardSet"],
             EditorActionType.ShellCommand => localizationService["Editor_ActionType_ShellCommand"],
@@ -167,6 +173,48 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             payload.ScreenFoundXVariableName,
             payload.ScreenFoundYVariableName,
             payload.ScreenTolerance);
+    }
+
+    private string FormatImageSearch(EditorAction action)
+    {
+        return string.Format(
+            localizationService.CurrentCulture,
+            localizationService["Editor_Action_ImageSearch"],
+            action.ImageAssetName,
+            action.ScreenLeft,
+            action.ScreenTop,
+            action.ScreenWidth,
+            action.ScreenHeight,
+            action.ScreenFoundVariableName,
+            action.ScreenFoundXVariableName,
+            action.ScreenFoundYVariableName,
+            action.ImageSearchSimilarity,
+            action.ImageSearchDownsample);
+    }
+
+    private string FormatImageClick(EditorAction action)
+    {
+        return string.Format(
+            localizationService.CurrentCulture,
+            localizationService["Editor_Action_ImageClick"],
+            action.ImageAssetName,
+            action.ScreenLeft,
+            action.ScreenTop,
+            action.ScreenWidth,
+            action.ScreenHeight);
+    }
+
+    private string FormatWaitImage(EditorAction action)
+    {
+        return string.Format(
+            localizationService.CurrentCulture,
+            localizationService["Editor_Action_WaitImage"],
+            action.ImageAssetName,
+            action.ScreenLeft,
+            action.ScreenTop,
+            action.ScreenWidth,
+            action.ScreenHeight,
+            action.ScreenTimeoutMs);
     }
 
     private string FormatShellCommand(EditorAction action)

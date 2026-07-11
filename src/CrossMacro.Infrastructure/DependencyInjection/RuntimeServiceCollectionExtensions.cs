@@ -5,6 +5,7 @@ using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Logging;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Infrastructure.Services.Playback;
 using CrossMacro.Infrastructure.Services.ScreenCapture;
 using CrossMacro.Infrastructure.Services.ScreenReading;
 using CrossMacro.Infrastructure.Services.Recording.Processors;
@@ -124,11 +125,13 @@ public static class RuntimeServiceCollectionExtensions
 
     private static void RegisterScreenReadingServices(IServiceCollection services)
     {
+        services.TryAddSingleton<IImageAssetCodec, ImageAssetCodec>();
         services.TryAddSingleton<IScreenFrameProvider, UnsupportedScreenFrameProvider>();
         services.TryAddSingleton<IScreenshotCaptureService>(sp =>
             new ScreenshotCaptureService(
                 sp.GetService<IScreenFrameProvider>(),
-                sp.GetService<IImageClipboardService>()));
+                sp.GetService<IImageClipboardService>(),
+                sp.GetRequiredService<IImageAssetCodec>()));
         services.TryAddSingleton<IScreenPixelReader, ScreenPixelReader>();
         services.TryAddSingleton<IScreenReadingWarmupService, ScreenReadingWarmupService>();
     }
@@ -159,6 +162,9 @@ public static class RuntimeServiceCollectionExtensions
                 captureFactory);
         });
 
+        services.AddSingleton<IImageClickMovementResolver>(sp =>
+            new ImageClickMovementResolver(sp.GetRequiredService<IMousePositionProvider>()));
+
         services.AddTransient<PlaybackValidator>();
 
         services.AddTransient<IMacroPlayer>(sp =>
@@ -180,7 +186,9 @@ public static class RuntimeServiceCollectionExtensions
                 windowManager: sp.GetService<IWindowManager>(),
                 clipboardService: sp.GetService<IClipboardService>(),
                 shellCommandRunner: sp.GetRequiredService<IShellCommandRunner>(),
-                screenshotCaptureService: sp.GetRequiredService<IScreenshotCaptureService>());
+                screenshotCaptureService: sp.GetRequiredService<IScreenshotCaptureService>(),
+                imageClickMovementResolver: sp.GetRequiredService<IImageClickMovementResolver>(),
+                imageAssetCodec: sp.GetRequiredService<IImageAssetCodec>());
         });
 
         services.AddSingleton<Func<IMacroPlayer>>(sp => () => sp.GetRequiredService<IMacroPlayer>());

@@ -222,7 +222,7 @@ internal sealed class RunScriptRuntimeExecutor
     {
         if (RunScriptScreenReadExecutor.IsScreenReadingStep(step))
         {
-            await _screenReadExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken);
+            await _screenReadExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken, request.ImageAssets);
             return;
         }
 

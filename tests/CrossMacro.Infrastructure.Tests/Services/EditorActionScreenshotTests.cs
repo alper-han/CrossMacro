@@ -128,7 +128,6 @@ public sealed class EditorActionScreenshotTests
     }
 
     [Theory]
-    [InlineData("-1", "0", "10", "10", "x/y")]
     [InlineData("0", "0", "0", "10", "width/height")]
     public void Validate_WhenScreenshotRegionIsInvalid_ReturnsInvalid(string x, string y, string width, string height, string errorText)
     {

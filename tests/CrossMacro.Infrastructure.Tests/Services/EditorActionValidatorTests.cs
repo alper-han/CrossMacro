@@ -776,9 +776,9 @@ public class EditorActionValidatorTests
         result.Error.Should().BeNull();
     }
 
-    [Fact]
-    public void Validate_ConditionWithColorOperand_ReturnsValid()
-    {
+	[Fact]
+	public void Validate_ConditionWithColorOperand_ReturnsValid()
+	{
         var action = new EditorAction
         {
             Type = EditorActionType.IfBlockStart,
@@ -791,13 +791,92 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeTrue();
-        result.Error.Should().BeNull();
-    }
+		result.IsValid.Should().BeTrue();
+		result.Error.Should().BeNull();
+	}
 
-    [Fact]
-    public void Validate_ConditionWithInvalidColorOperand_ReturnsInvalid()
-    {
+	[Fact]
+	public void Validate_ImageSearchWithNonFiniteSimilarity_ReturnsInvalid()
+	{
+		foreach (var similarity in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity })
+		{
+			var action = new EditorAction
+			{
+				Type = EditorActionType.ImageSearch,
+				ScreenLeft = 10,
+				ScreenTop = 20,
+				ScreenWidth = 30,
+				ScreenHeight = 40,
+				ImageAssetName = "Target",
+				ScreenFoundVariableName = "found",
+				ScreenFoundXVariableName = "found_x",
+				ScreenFoundYVariableName = "found_y",
+				ScreenTimeoutMs = 1500,
+				ImageSearchSimilarity = similarity,
+				ImageSearchDownsample = 1
+			};
+
+			var result = _validator.Validate(action);
+
+			result.IsValid.Should().BeFalse();
+			result.Error.Should().Contain("similarity");
+		}
+	}
+
+	[Fact]
+	public void Validate_ImageSearchWithBoundarySimilarities_ReturnsValid()
+	{
+		foreach (var similarity in new[] { 0.0, 1.0 })
+		{
+			var action = new EditorAction
+			{
+				Type = EditorActionType.ImageSearch,
+				ScreenLeft = 10,
+				ScreenTop = 20,
+				ScreenWidth = 30,
+				ScreenHeight = 40,
+				ImageAssetName = "Target",
+				ScreenFoundVariableName = "found",
+				ScreenFoundXVariableName = "found_x",
+				ScreenFoundYVariableName = "found_y",
+				ScreenTimeoutMs = 1500,
+				ImageSearchSimilarity = similarity,
+				ImageSearchDownsample = 1
+			};
+
+			var result = _validator.Validate(action);
+
+			result.IsValid.Should().BeTrue();
+			result.Error.Should().BeNull();
+		}
+	}
+
+	[Theory]
+	[InlineData(MouseButton.Side1)]
+	[InlineData(MouseButton.Side2)]
+	public void Validate_ImageClickWithUnsupportedButton_ReturnsInvalid(MouseButton button)
+	{
+		var action = new EditorAction
+		{
+			Type = EditorActionType.ImageClick,
+			ScreenWidth = 30,
+			ScreenHeight = 40,
+			ImageAssetName = "Target",
+			ScreenFoundVariableName = "found",
+			ScreenFoundXVariableName = "found_x",
+			ScreenFoundYVariableName = "found_y",
+			Button = button
+		};
+
+		var result = _validator.Validate(action);
+
+		result.IsValid.Should().BeFalse();
+		result.Error.Should().Contain("button");
+	}
+
+	[Fact]
+	public void Validate_ConditionWithInvalidColorOperand_ReturnsInvalid()
+	{
         var action = new EditorAction
         {
             Type = EditorActionType.IfBlockStart,

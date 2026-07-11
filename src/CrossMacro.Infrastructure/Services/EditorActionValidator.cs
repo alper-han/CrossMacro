@@ -46,6 +46,7 @@ public class EditorActionValidator : IEditorActionValidator
             EditorActionType.PixelColor => ValidatePixelColor(action),
             EditorActionType.WaitColor => ValidateWaitColor(action),
             EditorActionType.PixelSearch => ValidatePixelSearch(action),
+            EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage => ValidateImageSearch(action),
             EditorActionType.ClipboardGet => ValidateClipboardGet(action),
             EditorActionType.ClipboardSet => ValidateClipboardSet(action),
             EditorActionType.ShellCommand => ValidateShellCommand(action),
@@ -310,14 +311,23 @@ public class EditorActionValidator : IEditorActionValidator
             return (true, null);
         }
 
-        if (!IsNonNegativeIntegerOrVariable(action.ScreenshotRegionX) || !IsNonNegativeIntegerOrVariable(action.ScreenshotRegionY))
+        if (!IsIntegerOrVariable(action.ScreenshotRegionX) || !IsIntegerOrVariable(action.ScreenshotRegionY))
         {
-            return (false, "Screenshot region x/y must be non-negative integers or variables.");
+            return (false, "Screenshot region x/y must be integers or variables.");
         }
 
         if (!IsPositiveIntegerOrVariable(action.ScreenshotRegionWidth) || !IsPositiveIntegerOrVariable(action.ScreenshotRegionHeight))
         {
             return (false, "Screenshot region width/height must be positive integers or variables.");
+        }
+
+        if (int.TryParse(action.ScreenshotRegionX, NumberStyles.Integer, CultureInfo.InvariantCulture, out var x)
+            && int.TryParse(action.ScreenshotRegionY, NumberStyles.Integer, CultureInfo.InvariantCulture, out var y)
+            && int.TryParse(action.ScreenshotRegionWidth, NumberStyles.Integer, CultureInfo.InvariantCulture, out var width)
+            && int.TryParse(action.ScreenshotRegionHeight, NumberStyles.Integer, CultureInfo.InvariantCulture, out var height)
+            && !HasCheckedRegionEndpoints(x, y, width, height))
+        {
+            return (false, "Screenshot region endpoint exceeds the supported screen coordinate range.");
         }
 
         return (true, null);
@@ -334,11 +344,24 @@ public class EditorActionValidator : IEditorActionValidator
         return error == null ? (true, null) : (false, error);
     }
 
-    private static bool IsNonNegativeIntegerOrVariable(string token)
+    private static bool IsIntegerOrVariable(string token)
     {
-        return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-            ? value >= 0
-            : token.StartsWith("$", StringComparison.Ordinal) && EditorActionScriptTokens.IsValidVariableName(token);
+        return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
+            || token.StartsWith("$", StringComparison.Ordinal) && EditorActionScriptTokens.IsValidVariableName(token);
+    }
+
+    private static bool HasCheckedRegionEndpoints(int left, int top, int width, int height)
+    {
+        try
+        {
+            _ = checked(left + width);
+            _ = checked(top + height);
+            return true;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
     }
 
     private static bool IsPositiveIntegerOrVariable(string token)
@@ -515,6 +538,11 @@ public class EditorActionValidator : IEditorActionValidator
             return (false, "Pixel color output variable name is invalid.");
         }
 
+        if (payload.ScreenTimeoutMs < 0)
+        {
+            return (false, "Pixel color timeout must be >= 0.");
+        }
+
         return (true, null);
     }
 
@@ -551,14 +579,14 @@ public class EditorActionValidator : IEditorActionValidator
     {
         var payload = GetScreenReadingPayload(action);
 
-        if (payload.ScreenLeft < 0 || payload.ScreenTop < 0)
-        {
-            return (false, "Pixel search region origin must be non-negative.");
-        }
-
         if (!payload.HasPositiveSearchRegion())
         {
             return (false, "Pixel search region size must be positive.");
+        }
+
+        if (!HasCheckedRegionEndpoints(payload.ScreenLeft, payload.ScreenTop, payload.ScreenWidth, payload.ScreenHeight))
+        {
+            return (false, "Pixel search region endpoint exceeds the supported screen coordinate range.");
         }
 
         if (!payload.HasValidTargetColor())
@@ -573,9 +601,67 @@ public class EditorActionValidator : IEditorActionValidator
             return (false, "Pixel search tolerance must be between 0 and 255.");
         }
 
+        if (payload.ScreenTimeoutMs < 0)
+        {
+            return (false, "Pixel search timeout must be >= 0.");
+        }
+
         if (!payload.HasValidFoundVariableName() || !payload.HasValidFoundCoordinateVariableNames())
         {
             return (false, "Pixel search output variable names are invalid.");
+        }
+
+        return (true, null);
+    }
+
+    private static (bool IsValid, string? Error) ValidateImageSearch(EditorAction action)
+    {
+        if (action.ScreenWidth <= 0 || action.ScreenHeight <= 0)
+        {
+            return (false, "Image search region size must be positive.");
+        }
+
+        if (!HasCheckedRegionEndpoints(action.ScreenLeft, action.ScreenTop, action.ScreenWidth, action.ScreenHeight))
+        {
+            return (false, "Image search region endpoint exceeds the supported screen coordinate range.");
+        }
+
+        if (!EditorActionScriptTokens.IsValidVariableName(action.ImageAssetName))
+        {
+            return (false, "Image search asset name is invalid.");
+        }
+
+        if (!EditorActionScriptTokens.IsValidVariableName(action.ScreenFoundVariableName)
+            || !EditorActionScriptTokens.IsValidVariableName(action.ScreenFoundXVariableName)
+            || !EditorActionScriptTokens.IsValidVariableName(action.ScreenFoundYVariableName))
+        {
+            return (false, "Image search output variable names are invalid.");
+        }
+
+        if (!double.IsFinite(action.ImageSearchSimilarity) || action.ImageSearchSimilarity is < 0.0 or > 1.0)
+        {
+            return (false, "Image search similarity must be between 0.0 and 1.0.");
+        }
+
+        if (action.ImageSearchDownsample < 1)
+        {
+            return (false, "Image search downsample must be >= 1.");
+        }
+
+        if (!Enum.IsDefined(action.ImageSearchMatchMode))
+        {
+            return (false, "Image search match mode is invalid.");
+        }
+
+        if (action.ScreenTimeoutMs < 0)
+        {
+            return (false, "Image search timeout must be >= 0.");
+        }
+
+        if (action.Type == EditorActionType.ImageClick
+            && action.Button is not (MouseButton.Left or MouseButton.Right or MouseButton.Middle))
+        {
+            return (false, "Image click button must be left, right, or middle.");
         }
 
         return (true, null);

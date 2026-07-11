@@ -1567,7 +1567,7 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Condition Color", isAbsolute: false);
 
         sequence.ScriptSteps.Should().Equal(
-            "pixelcolor 1 2 color",
+            "pixelcolor 1 2 color timeout 5000",
             "if $color == 1C1C1C {",
             "click current left",
             "}");
@@ -2518,6 +2518,7 @@ public class EditorActionConverterTests
                 IsAbsolute = true,
                 ScreenX = 10,
                 ScreenY = 20,
+                ScreenTimeoutMs = 1200,
                 ScreenColorVariableName = "color"
             },
             new EditorAction
@@ -2526,6 +2527,7 @@ public class EditorActionConverterTests
                 IsAbsolute = false,
                 ScreenX = -1,
                 ScreenY = 2,
+                ScreenTimeoutMs = 1300,
                 ScreenColorVariableName = "relativeColor"
             },
             new EditorAction
@@ -2548,6 +2550,7 @@ public class EditorActionConverterTests
                 ScreenFoundVariableName = "found",
                 ScreenFoundXVariableName = "x",
                 ScreenFoundYVariableName = "y",
+                ScreenTimeoutMs = 1400,
                 ScreenTolerance = 5
             }
         };
@@ -2555,15 +2558,197 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Screen Reading", isAbsolute: true);
 
         sequence.ScriptSteps.Should().Equal(
-            "pixelcolor 10 20 color",
-            "pixelcolor rel -1 2 relativeColor",
+            "pixelcolor 10 20 color timeout 1200",
+            "pixelcolor rel -1 2 relativeColor timeout 1300",
             "waitcolor 11 22 00FFAA 2500 wait_ok",
-            "pixelsearch 0 0 3 3 123456 found x y tolerance 5");
+            "pixelsearch 0 0 3 3 123456 found x y timeout 1400 tolerance 5");
     }
 
     [Fact]
-    public void ToAndFromMacroSequence_WhenScreenReadingActionsUseVariableTargetColors_PreservesVariableTargetColorMetadata()
+    public void ToAndFromMacroSequence_WhenImageSearchActionPresent_PreservesStructuredPayload()
     {
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.ImageSearch,
+                ScreenLeft = 10,
+                ScreenTop = 20,
+                ScreenWidth = 30,
+                ScreenHeight = 40,
+                ImageAssetName = "Target_1",
+                ScreenFoundVariableName = "foundTarget",
+                ScreenFoundXVariableName = "targetX",
+                ScreenFoundYVariableName = "targetY",
+                ScreenTimeoutMs = 1500,
+                ImageSearchSimilarity = 0.875,
+                ImageSearchDownsample = 2
+            }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Image Search", isAbsolute: true);
+
+        sequence.ScriptSteps.Should().Equal(
+            "imagesearch 10 20 40 60 Target_1 foundTarget targetX targetY timeout 1500 similarity 0.875 downsample 2");
+
+        var restored = _converter.FromMacroSequenceWithDiagnostics(sequence);
+
+        restored.RestoredFromScriptSteps.Should().BeTrue();
+        restored.Warnings.Should().BeEmpty();
+        restored.Actions.Should().ContainSingle();
+        restored.Actions[0].Type.Should().Be(EditorActionType.ImageSearch);
+        restored.Actions[0].ScreenLeft.Should().Be(10);
+        restored.Actions[0].ScreenTop.Should().Be(20);
+        restored.Actions[0].ScreenWidth.Should().Be(30);
+        restored.Actions[0].ScreenHeight.Should().Be(40);
+        restored.Actions[0].ImageAssetName.Should().Be("Target_1");
+        restored.Actions[0].ScreenFoundVariableName.Should().Be("foundTarget");
+        restored.Actions[0].ScreenFoundXVariableName.Should().Be("targetX");
+        restored.Actions[0].ScreenFoundYVariableName.Should().Be("targetY");
+        restored.Actions[0].ScreenTimeoutMs.Should().Be(1500);
+        restored.Actions[0].ImageSearchSimilarity.Should().Be(0.875);
+        restored.Actions[0].ImageSearchDownsample.Should().Be(2);
+    }
+
+    [Fact]
+    public void ToAndFromMacroSequence_WhenScaleAwareIsExplicit_PreservesScaleAwareOption()
+    {
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.ImageSearch,
+                ImageAssetName = "Target_1",
+                ImageSearchScaleAware = true
+            }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Image Search", isAbsolute: true);
+
+        sequence.ScriptSteps.Should().ContainSingle()
+            .Which.Should().EndWith("scaleaware");
+        var restored = _converter.FromMacroSequenceWithDiagnostics(sequence);
+
+        restored.Actions.Should().ContainSingle();
+        restored.Actions[0].ImageSearchScaleAware.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(MouseButton.Left, "left")]
+    [InlineData(MouseButton.Right, "right")]
+    [InlineData(MouseButton.Middle, "middle")]
+    public void ToAndFromMacroSequence_WhenImageClickActionPresent_PreservesStructuredPayload(MouseButton button, string buttonToken)
+    {
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.ImageClick,
+                Button = button,
+                ScreenLeft = 10,
+                ScreenTop = 20,
+                ScreenWidth = 30,
+                ScreenHeight = 40,
+                ImageAssetName = "ButtonAsset",
+                ScreenFoundVariableName = "clicked",
+                ScreenFoundXVariableName = "clickX",
+                ScreenFoundYVariableName = "clickY",
+                ScreenTimeoutMs = 1600,
+                ImageSearchSimilarity = 0.75,
+                ImageSearchDownsample = 3
+            }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Image Click", isAbsolute: true);
+
+        sequence.ScriptSteps.Should().Equal(
+            $"imageclick 10 20 40 60 ButtonAsset clicked clickX clickY button {buttonToken} timeout 1600 similarity 0.75 downsample 3");
+
+        var restored = _converter.FromMacroSequenceWithDiagnostics(sequence);
+
+        restored.RestoredFromScriptSteps.Should().BeTrue();
+        restored.Warnings.Should().BeEmpty();
+        restored.Actions.Should().ContainSingle();
+        restored.Actions[0].Type.Should().Be(EditorActionType.ImageClick);
+        restored.Actions[0].ScreenLeft.Should().Be(10);
+        restored.Actions[0].ScreenTop.Should().Be(20);
+        restored.Actions[0].ScreenWidth.Should().Be(30);
+        restored.Actions[0].ScreenHeight.Should().Be(40);
+        restored.Actions[0].ImageAssetName.Should().Be("ButtonAsset");
+        restored.Actions[0].ScreenFoundVariableName.Should().Be("clicked");
+        restored.Actions[0].ScreenFoundXVariableName.Should().Be("clickX");
+        restored.Actions[0].ScreenFoundYVariableName.Should().Be("clickY");
+        restored.Actions[0].Button.Should().Be(button);
+        restored.Actions[0].ScreenTimeoutMs.Should().Be(1600);
+        restored.Actions[0].ImageSearchSimilarity.Should().Be(0.75);
+        restored.Actions[0].ImageSearchDownsample.Should().Be(3);
+    }
+
+	[Fact]
+	public void ToAndFromMacroSequence_WhenWaitImageActionPresent_PreservesStructuredPayload()
+	{
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.WaitImage,
+                ScreenLeft = 1,
+                ScreenTop = 2,
+                ScreenWidth = 3,
+                ScreenHeight = 4,
+                ImageAssetName = "DialogAsset",
+                ScreenFoundVariableName = "dialogFound",
+                ScreenFoundXVariableName = "dialogX",
+                ScreenFoundYVariableName = "dialogY",
+                ScreenTimeoutMs = 2500,
+                ImageSearchSimilarity = 0.625,
+                ImageSearchDownsample = 2
+            }
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Wait Image", isAbsolute: true);
+
+        sequence.ScriptSteps.Should().Equal(
+            "waitimage 1 2 4 6 DialogAsset dialogFound dialogX dialogY timeout 2500 similarity 0.625 downsample 2");
+
+        var restored = _converter.FromMacroSequenceWithDiagnostics(sequence);
+
+        restored.RestoredFromScriptSteps.Should().BeTrue();
+        restored.Warnings.Should().BeEmpty();
+        restored.Actions.Should().ContainSingle();
+        restored.Actions[0].Type.Should().Be(EditorActionType.WaitImage);
+        restored.Actions[0].ScreenLeft.Should().Be(1);
+        restored.Actions[0].ScreenTop.Should().Be(2);
+        restored.Actions[0].ScreenWidth.Should().Be(3);
+        restored.Actions[0].ScreenHeight.Should().Be(4);
+        restored.Actions[0].ImageAssetName.Should().Be("DialogAsset");
+        restored.Actions[0].ScreenFoundVariableName.Should().Be("dialogFound");
+        restored.Actions[0].ScreenFoundXVariableName.Should().Be("dialogX");
+        restored.Actions[0].ScreenFoundYVariableName.Should().Be("dialogY");
+        restored.Actions[0].ScreenTimeoutMs.Should().Be(2500);
+		restored.Actions[0].ImageSearchSimilarity.Should().Be(0.625);
+		restored.Actions[0].ImageSearchDownsample.Should().Be(2);
+	}
+
+	[Theory]
+	[InlineData("imagesearch TargetImage similarity NaN")]
+	[InlineData("imagesearch TargetImage similarity Infinity")]
+	[InlineData("imagesearch TargetImage similarity -Infinity")]
+	public void FromMacroSequence_WhenImageSearchSimilarityIsNotFinite_RestoresRawScriptStep(string step)
+	{
+		var sequence = new MacroSequence { ScriptSteps = [step] };
+
+		var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
+
+		result.RestoredFromScriptSteps.Should().BeTrue();
+		result.Warnings.Should().ContainSingle();
+		result.Actions.Should().ContainSingle().Which.Type.Should().Be(EditorActionType.RawScriptStep);
+		result.Actions[0].Text.Should().Be(step);
+	}
+
+	[Fact]
+	public void ToAndFromMacroSequence_WhenScreenReadingActionsUseVariableTargetColors_PreservesVariableTargetColorMetadata()
+	{
         var actions = new[]
         {
             new EditorAction
@@ -2596,7 +2781,7 @@ public class EditorActionConverterTests
 
         sequence.ScriptSteps.Should().Equal(
             "waitcolor 11 22 $sampled 2500 wait_ok",
-            "pixelsearch 0 0 3 3 $sampled found x y tolerance 5");
+            "pixelsearch 0 0 3 3 $sampled found x y timeout 5000 tolerance 5");
 
         var restored = _converter.FromMacroSequenceWithDiagnostics(sequence);
 
@@ -2609,11 +2794,10 @@ public class EditorActionConverterTests
     }
 
     [Theory]
-    [InlineData("pixelcolor 10 20")]
-    [InlineData("pixelcolor rel 1 2")]
+    [InlineData("pixelcolor 10 20 timeout")]
+    [InlineData("pixelcolor rel 1 2 timeout")]
     [InlineData("waitcolor 11 22 00FFAA")]
-    [InlineData("pixelsearch 0 0 3 3 123456")]
-    [InlineData("pixelsearch 0 0 3 3 123456 tolerance 10")]
+    [InlineData("pixelsearch 0 0 3 3 123456 timeout")]
     public void FromMacroSequenceWithDiagnostics_WhenScreenReadingCompilerOnlyShapePresent_RestoresRawActionAndWarning(string step)
     {
         // Arrange

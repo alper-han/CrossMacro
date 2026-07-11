@@ -202,6 +202,9 @@ public class EditorActionConverter : IEditorActionConverter
             case EditorActionType.Continue:
             case EditorActionType.BlockEnd:
             case EditorActionType.RawScriptStep:
+            case EditorActionType.ImageSearch:
+            case EditorActionType.ImageClick:
+            case EditorActionType.WaitImage:
             case EditorActionType.ClipboardGet:
             case EditorActionType.ClipboardSet:
             case EditorActionType.ShellCommand:
@@ -722,6 +725,18 @@ public class EditorActionConverter : IEditorActionConverter
                 yield return BuildPixelSearchStep(action);
                 yield break;
 
+            case EditorActionType.ImageSearch:
+                yield return BuildImageSearchStep(action);
+                yield break;
+
+            case EditorActionType.ImageClick:
+                yield return BuildImageClickStep(action);
+                yield break;
+
+            case EditorActionType.WaitImage:
+                yield return BuildWaitImageStep(action);
+                yield break;
+
             case EditorActionType.ClipboardGet:
                 yield return $"clipboard get {EditorActionScriptTokens.NormalizeVariableToken(action.ScriptVariableName)}";
                 yield break;
@@ -768,8 +783,8 @@ public class EditorActionConverter : IEditorActionConverter
         var payload = GetScreenReadingPayload(action);
         var variableName = payload.NormalizeColorVariableToken();
         return payload.IsAbsolute
-            ? $"pixelcolor {payload.ScreenX} {payload.ScreenY} {variableName}"
-            : $"pixelcolor rel {payload.ScreenX} {payload.ScreenY} {variableName}";
+            ? $"pixelcolor {payload.ScreenX} {payload.ScreenY} {variableName} timeout {payload.ScreenTimeoutMs}"
+            : $"pixelcolor rel {payload.ScreenX} {payload.ScreenY} {variableName} timeout {payload.ScreenTimeoutMs}";
     }
 
     private static string BuildWaitColorStep(EditorAction action)
@@ -785,7 +800,47 @@ public class EditorActionConverter : IEditorActionConverter
         var foundVariableName = payload.NormalizeFoundVariableToken();
         var xVariableName = payload.NormalizeFoundXVariableToken();
         var yVariableName = payload.NormalizeFoundYVariableToken();
-        return $"pixelsearch {payload.ScreenLeft} {payload.ScreenTop} {payload.ScreenRight} {payload.ScreenBottom} {payload.FormatTargetColorToken()} {foundVariableName} {xVariableName} {yVariableName} tolerance {payload.ScreenTolerance}";
+        return $"pixelsearch {payload.ScreenLeft} {payload.ScreenTop} {payload.ScreenRight} {payload.ScreenBottom} {payload.FormatTargetColorToken()} {foundVariableName} {xVariableName} {yVariableName} timeout {payload.ScreenTimeoutMs} tolerance {payload.ScreenTolerance}";
+    }
+
+    private static string BuildImageSearchStep(EditorAction action)
+    {
+        return BuildImageActionPrefix(RunScriptSyntax.ImageSearchCommand, action)
+            + $" {EditorActionScriptTokens.NormalizeVariableToken(action.ScreenFoundVariableName)} {EditorActionScriptTokens.NormalizeVariableToken(action.ScreenFoundXVariableName)} {EditorActionScriptTokens.NormalizeVariableToken(action.ScreenFoundYVariableName)}"
+            + BuildImageActionMatchOptions(action);
+    }
+
+    private static string BuildImageClickStep(EditorAction action)
+    {
+        return BuildImageActionPrefix(RunScriptSyntax.ImageClickCommand, action)
+            + $" {EditorActionScriptTokens.NormalizeVariableToken(action.ScreenFoundVariableName)} {EditorActionScriptTokens.NormalizeVariableToken(action.ScreenFoundXVariableName)} {EditorActionScriptTokens.NormalizeVariableToken(action.ScreenFoundYVariableName)}"
+            + $" button {ToImageClickButtonToken(action.Button)}"
+            + BuildImageActionMatchOptions(action);
+    }
+
+    private static string BuildWaitImageStep(EditorAction action)
+    {
+        return BuildImageActionPrefix(RunScriptSyntax.WaitImageCommand, action)
+            + $" {EditorActionScriptTokens.NormalizeVariableToken(action.ScreenFoundVariableName)} {EditorActionScriptTokens.NormalizeVariableToken(action.ScreenFoundXVariableName)} {EditorActionScriptTokens.NormalizeVariableToken(action.ScreenFoundYVariableName)}"
+            + BuildImageActionMatchOptions(action);
+    }
+
+    private static string BuildImageActionPrefix(string command, EditorAction action)
+    {
+        var imageName = EditorActionScriptTokens.NormalizeVariableToken(action.ImageAssetName);
+        var right = checked(action.ScreenLeft + action.ScreenWidth);
+        var bottom = checked(action.ScreenTop + action.ScreenHeight);
+        return $"{command} {action.ScreenLeft} {action.ScreenTop} {right} {bottom} {imageName}";
+    }
+
+    private static string BuildImageActionMatchOptions(EditorAction action)
+    {
+        var similarity = action.ImageSearchSimilarity.ToString("0.################", CultureInfo.InvariantCulture);
+        var mode = action.ImageSearchMatchModeWasExplicit || action.ImageSearchMatchMode != EditorImageMatchMode.FirstThresholdMatch
+            ? $" matchmode {RunScriptSyntax.ToImageMatchModeToken(action.ImageSearchMatchMode)}"
+            : string.Empty;
+        var scaleAware = action.ImageSearchScaleAware ? $" {RunScriptSyntax.ImageSearchScaleAwareKeyword}" : string.Empty;
+        return $" timeout {action.ScreenTimeoutMs} similarity {similarity} downsample {action.ImageSearchDownsample}{mode}{scaleAware}";
     }
 
     private static string BuildShellStep(EditorAction action)
@@ -909,6 +964,16 @@ public class EditorActionConverter : IEditorActionConverter
             MouseButton.Middle => "middle",
             MouseButton.Side1 => "side1",
             MouseButton.Side2 => "side2",
+            _ => "left"
+        };
+    }
+
+    private static string ToImageClickButtonToken(MouseButton button)
+    {
+        return button switch
+        {
+            MouseButton.Right => "right",
+            MouseButton.Middle => "middle",
             _ => "left"
         };
     }
@@ -2461,7 +2526,10 @@ public class EditorActionConverter : IEditorActionConverter
     {
         return TryParsePixelColorStep(step, out action)
             || TryParseWaitColorStep(step, out action)
-            || TryParsePixelSearchStep(step, out action);
+            || TryParsePixelSearchStep(step, out action)
+            || TryParseImageSearchStep(step, out action)
+            || TryParseImageClickStep(step, out action)
+            || TryParseWaitImageStep(step, out action);
     }
 
     private static bool TryParsePixelColorStep(string step, out EditorAction action)
@@ -2473,35 +2541,41 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        if (tokens.Length == 4)
+        var isRelative = tokens.Length > 1 && tokens[1].Equals("rel", StringComparison.OrdinalIgnoreCase);
+        var coordinateIndex = isRelative ? 2 : 1;
+        if (tokens.Length < coordinateIndex + 2)
         {
-            if (!TryParseInteger(tokens[1], out var x)
-                || !TryParseInteger(tokens[2], out var y)
-                || !TryNormalizeVariableName(tokens[3], out var variableName))
+            return false;
+        }
+
+        if (!TryParseInteger(tokens[coordinateIndex], out var x)
+            || !TryParseInteger(tokens[coordinateIndex + 1], out var y))
+        {
+            return false;
+        }
+
+        var index = coordinateIndex + 2;
+        var variableName = EditorActionScreenReadingPayload.DefaultColorVariableName;
+        if (index < tokens.Length && !RunScriptScreenReadingStepParser.IsScreenReadTimeoutKeyword(tokens[index]))
+        {
+            if (!TryNormalizeVariableName(tokens[index], out variableName))
             {
                 return false;
             }
 
-            action = new EditorAction();
-            action.ApplyScreenReadingPayload(EditorActionScreenReadingPayload.ForPixelColor(true, x, y, variableName));
-            return true;
+            index++;
         }
 
-        if (tokens.Length == 5 && tokens[1].Equals("rel", StringComparison.OrdinalIgnoreCase))
+        var timeoutMs = EditorActionScreenReadingPayload.DefaultTimeoutMs;
+        if (!TryParseScreenReadTimeout(tokens, index, ref timeoutMs))
         {
-            if (!TryParseInteger(tokens[2], out var x)
-                || !TryParseInteger(tokens[3], out var y)
-                || !TryNormalizeVariableName(tokens[4], out var variableName))
-            {
-                return false;
-            }
-
-            action = new EditorAction();
-            action.ApplyScreenReadingPayload(EditorActionScreenReadingPayload.ForPixelColor(false, x, y, variableName));
-            return true;
+            return false;
         }
 
-        return false;
+        action = new EditorAction();
+        action.ApplyScreenReadingPayload(EditorActionScreenReadingPayload.ForPixelColor(!isRelative, x, y, variableName));
+        action.ScreenTimeoutMs = timeoutMs;
+        return true;
     }
 
     private static bool TryParseWaitColorStep(string step, out EditorAction action)
@@ -2537,61 +2611,304 @@ public class EditorActionConverter : IEditorActionConverter
         action = new EditorAction();
         if (!RunScriptScreenReadingStepParser.TryParseCommand(step, out var command, out var tokens)
             || command != RunScriptScreenReadingCommand.PixelSearch
-            || tokens.Length is not (8 or 9 or 10 or 11))
+            || tokens.Length < 6)
         {
             return false;
         }
-
-        var hasFoundVariable = tokens.Length is 9 or 11;
-        var xVariableIndex = hasFoundVariable ? 7 : 6;
-        var yVariableIndex = hasFoundVariable ? 8 : 7;
-        var toleranceKeywordIndex = hasFoundVariable ? 9 : 8;
 
         if (!TryParseInteger(tokens[1], out var x1)
             || !TryParseInteger(tokens[2], out var y1)
             || !TryParseInteger(tokens[3], out var x2)
             || !TryParseInteger(tokens[4], out var y2)
             || !TryParseTargetColorToken(tokens[5], out var colorSource, out var colorHex, out var targetColorVariableName)
-            || (hasFoundVariable && !TryNormalizeVariableName(tokens[6], out _))
-            || !TryNormalizeVariableName(tokens[xVariableIndex], out var xVariableName)
-            || !TryNormalizeVariableName(tokens[yVariableIndex], out var yVariableName)
-            || x2 <= x1
-            || y2 <= y1)
+            || !TryGetPositiveRegionSize(x1, y1, x2, y2, out var width, out var height))
         {
             return false;
         }
 
-        var tolerance = 0;
-        if (tokens.Length is 10 or 11)
+        var index = 6;
+        var variables = new List<string>(3);
+        while (index < tokens.Length && !RunScriptScreenReadingStepParser.IsPixelSearchOptionKeyword(tokens[index]))
         {
-            if (!RunScriptScreenReadingStepParser.IsPixelSearchToleranceKeyword(tokens[toleranceKeywordIndex]))
+            if (!TryNormalizeVariableName(tokens[index], out var variableName))
             {
                 return false;
             }
 
-            if (!TryParseInteger(tokens[toleranceKeywordIndex + 1], out tolerance) || tolerance is < 0 or > byte.MaxValue)
-            {
-                return false;
-            }
+            variables.Add(variableName);
+            index++;
         }
 
-        var foundName = hasFoundVariable && TryNormalizeVariableName(tokens[6], out var foundVariableName)
-            ? foundVariableName
-            : EditorActionScreenReadingPayload.DefaultFoundVariableName;
+        if (variables.Count is not 0 and not 2 and not 3)
+        {
+            return false;
+        }
+
+        var foundName = variables.Count == 3 ? variables[0] : EditorActionScreenReadingPayload.DefaultFoundVariableName;
+        var xVariableName = variables.Count == 3
+            ? variables[1]
+            : variables.Count == 2 ? variables[0] : EditorActionScreenReadingPayload.DefaultFoundXVariableName;
+        var yVariableName = variables.Count == 3
+            ? variables[2]
+            : variables.Count == 2 ? variables[1] : EditorActionScreenReadingPayload.DefaultFoundYVariableName;
+        var tolerance = 0;
+        var timeoutMs = EditorActionScreenReadingPayload.DefaultTimeoutMs;
+        while (index < tokens.Length)
+        {
+            if (RunScriptScreenReadingStepParser.IsScreenReadTimeoutKeyword(tokens[index]))
+            {
+                if (index + 1 >= tokens.Length || !TryParseInteger(tokens[index + 1], out timeoutMs))
+                {
+                    return false;
+                }
+
+                index += 2;
+                continue;
+            }
+
+            if (RunScriptScreenReadingStepParser.IsPixelSearchToleranceKeyword(tokens[index]))
+            {
+                if (index + 1 >= tokens.Length || !TryParseInteger(tokens[index + 1], out tolerance) || tolerance is < 0 or > byte.MaxValue)
+                {
+                    return false;
+                }
+
+                index += 2;
+                continue;
+            }
+
+            return false;
+        }
+
         action = new EditorAction();
         action.ApplyScreenReadingPayload(EditorActionScreenReadingPayload.ForPixelSearch(
             x1,
             y1,
-            x2 - x1,
-            y2 - y1,
+            width,
+            height,
             colorHex,
             foundName,
             xVariableName,
             yVariableName,
             tolerance));
+        action.ScreenTimeoutMs = timeoutMs;
         action.ScreenTargetColorSource = colorSource;
         action.ScreenTargetColorVariableName = targetColorVariableName;
         return true;
+    }
+
+    private static bool TryGetPositiveRegionSize(int left, int top, int right, int bottom, out int width, out int height)
+    {
+        var widthValue = (long)right - left;
+        var heightValue = (long)bottom - top;
+        if (widthValue <= 0 || heightValue <= 0 || widthValue > int.MaxValue || heightValue > int.MaxValue)
+        {
+            width = 0;
+            height = 0;
+            return false;
+        }
+
+        width = (int)widthValue;
+        height = (int)heightValue;
+        return true;
+    }
+
+    private static bool TryParseScreenReadTimeout(IReadOnlyList<string> tokens, int startIndex, ref int timeoutMs)
+    {
+        var hasTimeout = false;
+        for (var index = startIndex; index < tokens.Count;)
+        {
+            if (!RunScriptScreenReadingStepParser.IsScreenReadTimeoutKeyword(tokens[index])
+                || hasTimeout
+                || index + 1 >= tokens.Count
+                || !TryParseInteger(tokens[index + 1], out timeoutMs)
+                || timeoutMs < 0)
+            {
+                return false;
+            }
+
+            hasTimeout = true;
+            index += 2;
+        }
+
+        return true;
+    }
+
+    private static bool TryParseImageSearchStep(string step, out EditorAction action)
+    {
+        return TryParseImageActionStep(step, RunScriptScreenReadingCommand.ImageSearch, EditorActionType.ImageSearch, out action);
+    }
+
+    private static bool TryParseImageClickStep(string step, out EditorAction action)
+    {
+        return TryParseImageActionStep(step, RunScriptScreenReadingCommand.ImageClick, EditorActionType.ImageClick, out action);
+    }
+
+    private static bool TryParseWaitImageStep(string step, out EditorAction action)
+    {
+        return TryParseImageActionStep(step, RunScriptScreenReadingCommand.WaitImage, EditorActionType.WaitImage, out action);
+    }
+
+    private static bool TryParseImageActionStep(string step, RunScriptScreenReadingCommand expectedCommand, EditorActionType actionType, out EditorAction action)
+    {
+        action = new EditorAction();
+        if (!RunScriptScreenReadingStepParser.TryParseCommand(step, out var command, out var tokens)
+            || command != expectedCommand
+            || !RunScriptScreenReadingStepParser.TryValidateStep(step, out var error)
+            || error != null)
+        {
+            return false;
+        }
+
+        var left = 0;
+        var top = 0;
+        var right = 0;
+        var bottom = 0;
+        var hasRegion = tokens.Length >= 6
+            && TryParseInteger(tokens[1], out left)
+            && TryParseInteger(tokens[2], out top)
+            && TryParseInteger(tokens[3], out right)
+            && TryParseInteger(tokens[4], out bottom);
+        var regionWidth = 0;
+        var regionHeight = 0;
+        if (hasRegion && !TryGetPositiveRegionSize(left, top, right, bottom, out regionWidth, out regionHeight))
+        {
+            return false;
+        }
+
+        var imageNameIndex = hasRegion ? 5 : 1;
+        if (!TryNormalizeVariableName(tokens[imageNameIndex], out var imageName))
+        {
+            return false;
+        }
+
+        var optionIndex = imageNameIndex + 1;
+        var variableNames = new List<string>(3);
+        if (actionType is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage)
+        {
+            while (optionIndex < tokens.Length && !IsImageActionOptionKeyword(actionType, tokens[optionIndex]))
+            {
+                if (!TryNormalizeVariableName(tokens[optionIndex], out var variableName))
+                {
+                    return false;
+                }
+
+                variableNames.Add(variableName);
+                optionIndex++;
+            }
+
+            if (variableNames.Count is not 0 and not 3)
+            {
+                return false;
+            }
+        }
+
+        var similarity = 1.0;
+        var downsample = 1;
+        var matchMode = EditorImageMatchMode.FirstThresholdMatch;
+        var matchModeExplicit = false;
+        var scaleAware = false;
+        var timeoutMs = EditorActionScreenReadingPayload.DefaultTimeoutMs;
+        var button = MouseButton.Left;
+        for (var index = optionIndex; index < tokens.Length;)
+        {
+			if (RunScriptSyntax.IsImageSearchSimilarityKeyword(tokens[index]))
+			{
+				if (!double.TryParse(tokens[index + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out similarity)
+					|| !double.IsFinite(similarity)
+					|| similarity is < 0.0 or > 1.0)
+				{
+					return false;
+				}
+
+                index += 2;
+                continue;
+            }
+
+            if (RunScriptSyntax.IsImageSearchDownsampleKeyword(tokens[index]))
+            {
+                if (!TryParseInteger(tokens[index + 1], out downsample))
+                {
+                    return false;
+                }
+
+                index += 2;
+                continue;
+            }
+
+            if (RunScriptSyntax.IsImageSearchMatchModeKeyword(tokens[index]))
+            {
+                if (index + 1 >= tokens.Length || !RunScriptSyntax.TryParseImageMatchMode(tokens[index + 1], out matchMode))
+                {
+                    return false;
+                }
+
+                matchModeExplicit = true;
+
+                index += 2;
+                continue;
+            }
+
+            if (RunScriptSyntax.IsImageSearchScaleAwareKeyword(tokens[index]))
+            {
+                scaleAware = true;
+                index++;
+                continue;
+            }
+
+            if (RunScriptSyntax.IsImageSearchTimeoutKeyword(tokens[index]))
+            {
+                if (!TryParseInteger(tokens[index + 1], out timeoutMs))
+                {
+                    return false;
+                }
+
+                index += 2;
+                continue;
+            }
+
+            if (actionType == EditorActionType.ImageClick
+                && string.Equals(tokens[index], "button", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!TryParseButtonToken(tokens[index + 1], out button)
+                    || button is not (MouseButton.Left or MouseButton.Right or MouseButton.Middle))
+                {
+                    return false;
+                }
+
+                index += 2;
+                continue;
+            }
+
+            return false;
+        }
+
+        action = new EditorAction
+        {
+            Type = actionType,
+            ScreenLeft = hasRegion ? left : 0,
+            ScreenTop = hasRegion ? top : 0,
+            ScreenWidth = hasRegion ? regionWidth : EditorActionScreenReadingPayload.DefaultSearchScreenWidth,
+            ScreenHeight = hasRegion ? regionHeight : EditorActionScreenReadingPayload.DefaultSearchScreenHeight,
+            ImageAssetName = imageName,
+            ScreenFoundVariableName = variableNames.Count == 3 ? variableNames[0] : EditorActionScreenReadingPayload.DefaultFoundVariableName,
+            ScreenFoundXVariableName = variableNames.Count == 3 ? variableNames[1] : EditorActionScreenReadingPayload.DefaultFoundXVariableName,
+            ScreenFoundYVariableName = variableNames.Count == 3 ? variableNames[2] : EditorActionScreenReadingPayload.DefaultFoundYVariableName,
+            ScreenTimeoutMs = timeoutMs,
+            ImageSearchSimilarity = similarity,
+            ImageSearchDownsample = downsample,
+            ImageSearchMatchMode = matchMode,
+            ImageSearchMatchModeWasExplicit = matchModeExplicit,
+            ImageSearchScaleAware = scaleAware,
+            Button = actionType == EditorActionType.ImageClick ? button : MouseButton.Left
+        };
+        return true;
+    }
+
+    private static bool IsImageActionOptionKeyword(EditorActionType actionType, string token)
+    {
+        return RunScriptScreenReadingStepParser.IsImageSearchOptionKeyword(token)
+            || (actionType == EditorActionType.ImageClick && string.Equals(token, "button", StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool TryParseTargetColorToken(

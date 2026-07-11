@@ -178,6 +178,10 @@ public class RuntimeServiceCollectionExtensionsTests
         }
 
         public object? GetService(Type serviceType) =>
-            serviceType == typeof(IRuntimeContext) ? _runtimeContext : null;
+            serviceType == typeof(IRuntimeContext)
+                ? _runtimeContext
+                : serviceType == typeof(IImageAssetCodec)
+                    ? new ImageAssetCodec()
+                    : null;
     }
 }

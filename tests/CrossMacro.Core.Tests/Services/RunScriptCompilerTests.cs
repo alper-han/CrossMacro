@@ -227,6 +227,25 @@ public class RunScriptCompilerTests
         result.Sequence.ScriptSteps.Should().Equal("clipboard get $clip");
     }
 
+    [Theory]
+    [InlineData("imageclick Target")]
+    [InlineData("imageclick Target clicked click_x click_y")]
+    [InlineData("imageclick 0 0 100 100 Target button right similarity 0.9 downsample 2")]
+    [InlineData("imageclick 0 0 100 100 Target button left")]
+    [InlineData("imageclick 0 0 100 100 Target button middle")]
+    [InlineData("imageclick 0 0 100 100 Target clicked click_x click_y button right timeout 5000 similarity 0.9 downsample 2")]
+    [InlineData("waitimage Target timeout 5000")]
+    [InlineData("waitimage 0 0 100 100 Target found x y timeout 5000 similarity 0.9 downsample 2")]
+    public void Compile_WhenImageActionCommandIsWellFormed_PreservesScriptStep(string step)
+    {
+        var result = _compiler.Compile([new RunScriptStep(step)]);
+
+        result.Success.Should().BeTrue(result.ErrorMessage);
+        result.Sequence.Should().NotBeNull();
+        result.Sequence!.Events.Should().BeEmpty();
+        result.Sequence.ScriptSteps.Should().ContainSingle().Which.Should().Be(step);
+    }
+
     [Fact]
     public void Compile_WhenClipboardGetHasExtraTokens_ReturnsFailure()
     {
@@ -330,6 +349,14 @@ public class RunScriptCompilerTests
     [InlineData("pixelsearch 0 0 10 10 123456 tolerance 10")]
     [InlineData("pixelsearch 0 0 10 10 123456 found found_x found_y tolerance 26")]
     [InlineData("pixelsearch 0 0 10 10 $sampled found found_x found_y tolerance 10")]
+		[InlineData("imagesearch TargetImage")]
+		[InlineData("imagesearch 0 0 10 10 TargetImage")]
+		[InlineData("imagesearch TargetImage found found_x found_y")]
+		[InlineData("imagesearch TargetImage similarity 0")]
+		[InlineData("imagesearch TargetImage similarity 1")]
+		[InlineData("imagesearch TargetImage similarity 0.9")]
+		[InlineData("imagesearch TargetImage downsample 2")]
+    [InlineData("imagesearch 0 0 10 10 TargetImage found found_x found_y similarity 0.85 downsample 2")]
     public void Compile_WhenScreenReadingStepIsWellFormed_PreservesScriptStep(string step)
     {
         var result = _compiler.Compile([new RunScriptStep(step)]);
@@ -349,10 +376,24 @@ public class RunScriptCompilerTests
     [InlineData("pixelsearch 0 0 ten 10 123456 found_x found_y", "Invalid pixelsearch bounds")]
     [InlineData("pixelsearch 0 0 10 10 123456 found_x found_y tolerance 256", "Invalid pixelsearch tolerance")]
     [InlineData("pixelsearch 0 0 10 10 123456 tolerance -1", "Invalid pixelsearch tolerance")]
-    [InlineData("pixelsearch 0 0 10 10 123456 variation 10", "Invalid variable name")]
+		[InlineData("pixelsearch 0 0 10 10 123456 variation 10", "Invalid variable name")]
+		[InlineData("imagesearch 10 0 10 10 TargetImage", "Invalid imagesearch bounds")]
+		[InlineData("imagesearch TargetImage similarity 1.1", "Invalid imagesearch similarity")]
+		[InlineData("imagesearch TargetImage similarity NaN", "Invalid imagesearch similarity")]
+		[InlineData("imagesearch TargetImage similarity Infinity", "Invalid imagesearch similarity")]
+		[InlineData("imagesearch TargetImage similarity -Infinity", "Invalid imagesearch similarity")]
+		[InlineData("imagesearch TargetImage similarity 0,9", "Invalid imagesearch similarity")]
+    [InlineData("imagesearch TargetImage downsample 0", "Invalid imagesearch downsample")]
+    [InlineData("imageclick TargetImage button side1", "Invalid imageclick button")]
+    [InlineData("imageclick TargetImage button l", "Invalid imageclick button")]
+    [InlineData("imageclick TargetImage button left button right", "Invalid imageclick button")]
+    [InlineData("imagesearch TargetImage found 1bad found_y", "Invalid variable name")]
+    [InlineData("imagesearch TargetImage similarity 0.9 found found_x found_y", "Unknown imagesearch option")]
+    [InlineData("imagesearch $TargetImage", "Invalid image name")]
     [InlineData("pixelcolorful 1 2 sampled", "unsupported step syntax")]
     [InlineData("waitcolorful 1 2 FF0000", "unsupported step syntax")]
     [InlineData("pixelsearchful 0 0 10 10 123456 found_x found_y", "unsupported step syntax")]
+    [InlineData("imagesearchful TargetImage", "unsupported step syntax")]
     public void Compile_WhenScreenReadingStepIsMalformed_ReturnsFailure(string step, string expectedError)
     {
         var result = _compiler.Compile([new RunScriptStep(step)]);

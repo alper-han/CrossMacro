@@ -23,6 +23,8 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
     private readonly IClipboardService? _clipboardService;
     private readonly IShellCommandRunner? _shellCommandRunner;
     private readonly IScreenshotCaptureService? _screenshotCaptureService;
+    private readonly IImageClickMovementResolver _imageClickMovementResolver;
+    private readonly IImageAssetCodec _imageAssetCodec;
     private readonly PlaybackValidator _validator;
     private readonly Func<IInputSimulator>? _inputSimulatorFactory;
     private readonly InputSimulatorPool? _simulatorPool;
@@ -37,6 +39,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
     private readonly IKeyCodeMapper _keyCodeMapper;
 
     private IInputSimulator? _inputSimulator;
+    private int _simulatorReleased;
     private IEventExecutor? _eventExecutor;
     private IPlaybackCoordinator? _coordinator;
     private IButtonStateTracker? _buttonTracker;
@@ -139,7 +142,9 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         IWindowManager? windowManager = null,
         IClipboardService? clipboardService = null,
         IShellCommandRunner? shellCommandRunner = null,
-        IScreenshotCaptureService? screenshotCaptureService = null)
+        IScreenshotCaptureService? screenshotCaptureService = null,
+        IImageClickMovementResolver? imageClickMovementResolver = null,
+        IImageAssetCodec? imageAssetCodec = null)
     {
         _positionProvider = positionProvider;
         _screenPixelReader = screenPixelReader;
@@ -147,6 +152,8 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         _clipboardService = clipboardService;
         _shellCommandRunner = shellCommandRunner;
         _screenshotCaptureService = screenshotCaptureService;
+        _imageClickMovementResolver = imageClickMovementResolver ?? new ImageClickMovementResolver(positionProvider);
+        _imageAssetCodec = imageAssetCodec ?? new ImageAssetCodec();
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
         _inputSimulatorFactory = inputSimulatorFactory;
         _simulatorPool = simulatorPool;
@@ -366,7 +373,8 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
     private async Task AcquireSimulatorAsync(MacroSequence macro)
     {
         bool needsAbsoluteDevice = MacroPositionSemantics.HasAnyAbsoluteCoordinateEvents(macro)
-            || HasAbsoluteRuntimeScriptSteps(macro);
+            || HasAbsoluteRuntimeScriptSteps(macro)
+            || HasImageClickRuntimeScriptSteps(macro);
         bool canCreateAbsoluteDevice = needsAbsoluteDevice && _resolutionCached;
         int deviceWidth = canCreateAbsoluteDevice ? _cachedScreenWidth : 0;
         int deviceHeight = canCreateAbsoluteDevice ? _cachedScreenHeight : 0;
@@ -376,6 +384,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         if (_simulatorPool != null)
         {
             _inputSimulator = _simulatorPool.Acquire(deviceWidth, deviceHeight);
+            Volatile.Write(ref _simulatorReleased, 0);
             Log.Information("[MacroPlayer] Acquired device from pool: {ProviderName}", _inputSimulator.ProviderName);
             await _playbackWaitAsync(TimeSpan.FromMilliseconds(20), _cts!.Token);
         }
@@ -383,6 +392,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         {
             _inputSimulator = _inputSimulatorFactory();
             _inputSimulator.Initialize(deviceWidth, deviceHeight);
+            Volatile.Write(ref _simulatorReleased, 0);
             Log.Information("[MacroPlayer] Input simulator created: {ProviderName}", _inputSimulator.ProviderName);
             await _playbackWaitAsync(TimeSpan.FromMilliseconds(VirtualDeviceCreationDelayMs), _cts!.Token);
         }
@@ -394,7 +404,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
 
     private void EnsureAbsolutePlaybackSupported(MacroSequence macro)
     {
-        if (!MacroPositionSemantics.HasAnyAbsoluteCoordinateEvents(macro))
+        if (!MacroPositionSemantics.HasAnyAbsoluteCoordinateEvents(macro) && !HasAbsoluteRuntimeScriptSteps(macro))
         {
             return;
         }
@@ -462,7 +472,21 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
             ObservedPauseResumeVersion = Volatile.Read(ref _pauseResumeVersion)
         };
         var playbackElapsedMilliseconds = _playbackElapsedMillisecondsFactory();
-        var screenReadExecutor = new RunScriptScreenReadExecutor(_screenPixelReader ?? NullScreenPixelReader.Instance, _positionProvider);
+        var screenReadExecutor = new RunScriptScreenReadExecutor(
+            _screenPixelReader ?? NullScreenPixelReader.Instance,
+                _positionProvider,
+                (ev, token) => ExecutePlaybackEventAsync(
+                macro,
+                ev,
+                speedMultiplier,
+                playbackElapsedMilliseconds,
+                state,
+                useLegacyCurrentPositionInterpretation,
+                macro.Events.Count,
+                    token),
+                _imageClickMovementResolver,
+                _inputSimulator,
+                _imageAssetCodec);
         var windowExecutor = new RunScriptWindowExecutor(_windowManager ?? new NullWindowManager());
         var clipboardExecutor = new RunScriptClipboardExecutor(_clipboardService);
         var shellExecutor = new RunScriptShellExecutor(_shellCommandRunner, _timingService, this);
@@ -479,6 +503,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
             screenshotExecutor);
         var executionRequest = new RunScriptRuntimeExecutionRequest(
             macro.ScriptSteps,
+            macro.Images,
             speedMultiplier,
             (ev, token) => ExecutePlaybackEventAsync(
                 macro,
@@ -504,7 +529,21 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         int totalEvents = macro.Events.Count;
         int eventIndex = 0;
         var playbackElapsedMilliseconds = _playbackElapsedMillisecondsFactory();
-        var screenReadExecutor = new RunScriptScreenReadExecutor(_screenPixelReader!, _positionProvider);
+        var screenReadExecutor = new RunScriptScreenReadExecutor(
+            _screenPixelReader!,
+                _positionProvider,
+                (ev, token) => ExecutePlaybackEventAsync(
+                macro,
+                ev,
+                speedMultiplier,
+                playbackElapsedMilliseconds,
+                state,
+                useLegacyCurrentPositionInterpretation,
+                totalEvents,
+                    token),
+                _imageClickMovementResolver,
+                _inputSimulator,
+                _imageAssetCodec);
 
         Log.Debug("[MacroPlayer] Starting playback of {Total} events at {Speed}x speed", totalEvents, speedMultiplier);
 
@@ -520,7 +559,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
 
             if (RunScriptScreenReadExecutor.IsScreenReadingStep(step))
             {
-                await screenReadExecutor.ExecuteStepAsync(step, scriptStepIndex + 1, _runtimeVariables, cancellationToken);
+                await screenReadExecutor.ExecuteStepAsync(step, scriptStepIndex + 1, _runtimeVariables, cancellationToken, macro.Images);
                 continue;
             }
 
@@ -678,6 +717,10 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         {
             throw;
         }
+        catch (ImageClickMovementUnsupportedException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             Log.Error(ex, "[MacroPlayer] Error executing event {Current}/{Total}: {Type}", state.EventCount, totalEvents, ev.Type);
@@ -703,7 +746,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
             throw new InvalidOperationException("Screen-reading script steps require an IScreenPixelReader runtime service.");
         }
 
-        var executor = new RunScriptScreenReadExecutor(_screenPixelReader, _positionProvider);
+        var executor = new RunScriptScreenReadExecutor(_screenPixelReader, _positionProvider, imageClickMovementResolver: _imageClickMovementResolver, inputSimulator: _inputSimulator, imageAssetCodec: _imageAssetCodec);
         await executor.ExecuteAsync(macro, _runtimeVariables, cancellationToken);
     }
 
@@ -724,6 +767,14 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
 
         Log.Information("[MacroPlayer] Loop settings: Loop={Loop}, RepeatCount={Count}, Infinite={Infinite}",
             options.Loop, repeatCount, infiniteLoop);
+
+        if (HasRuntimeInputScriptSteps(macro))
+        {
+            await CacheResolutionAsync();
+            await AcquireSimulatorAsync(macro);
+            EnsureAbsolutePlaybackSupported(macro);
+            await InitializePlaybackComponentsAsync(macro);
+        }
 
         var iteration = 0;
         while ((infiniteLoop || iteration < repeatCount) && !cancellationToken.IsCancellationRequested)
@@ -796,6 +847,28 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
             var trimmed = step.TrimStart();
             return trimmed.StartsWith("move abs ", StringComparison.OrdinalIgnoreCase)
                 || trimmed.StartsWith("move absolute ", StringComparison.OrdinalIgnoreCase);
+        });
+    }
+
+    private static bool HasImageClickRuntimeScriptSteps(MacroSequence macro)
+    {
+        return macro.ScriptSteps.Any(step =>
+            step.TrimStart().StartsWith("imageclick ", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool HasRuntimeInputScriptSteps(MacroSequence macro)
+    {
+        return macro.ScriptSteps.Any(step =>
+        {
+            var trimmed = step.TrimStart();
+            return trimmed.StartsWith("imageclick ", StringComparison.OrdinalIgnoreCase)
+                || trimmed.StartsWith("move ", StringComparison.OrdinalIgnoreCase)
+                || trimmed.StartsWith("click ", StringComparison.OrdinalIgnoreCase)
+                || trimmed.StartsWith("down ", StringComparison.OrdinalIgnoreCase)
+                || trimmed.StartsWith("up ", StringComparison.OrdinalIgnoreCase)
+                || trimmed.StartsWith("scroll ", StringComparison.OrdinalIgnoreCase)
+                || trimmed.StartsWith("tap ", StringComparison.OrdinalIgnoreCase)
+                || trimmed.StartsWith("type ", StringComparison.OrdinalIgnoreCase);
         });
     }
 
@@ -930,32 +1003,40 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         TotalLoops = 0;
         IsWaitingBetweenLoops = false;
 
-        // Return or dispose simulator
-        if (_inputSimulator != null)
-        {
-            if (_simulatorPool != null)
-            {
-                _simulatorPool.Release(_inputSimulator, _acquiredSimulatorWidth, _acquiredSimulatorHeight);
-            }
-            else
-            {
-                _inputSimulator.Dispose();
-            }
-            _inputSimulator = null;
-            _acquiredSimulatorWidth = 0;
-            _acquiredSimulatorHeight = 0;
-        }
-
         _eventExecutor?.Dispose();
         _eventExecutor = null;
         _coordinator = null;
         _buttonTracker = null;
         _keyTracker = null;
 
+        ReleaseSimulator();
+
         _cts?.Dispose();
         _cts = null;
 
         Log.Information("[MacroPlayer] ========== PLAYBACK ENDED ==========");
+    }
+
+    private void ReleaseSimulator()
+    {
+        var simulator = _inputSimulator;
+        if (simulator == null || Interlocked.Exchange(ref _simulatorReleased, 1) != 0)
+        {
+            return;
+        }
+
+        _inputSimulator = null;
+        if (_simulatorPool != null)
+        {
+            _simulatorPool.Release(simulator, _acquiredSimulatorWidth, _acquiredSimulatorHeight);
+        }
+        else
+        {
+            simulator.Dispose();
+        }
+
+        _acquiredSimulatorWidth = 0;
+        _acquiredSimulatorHeight = 0;
     }
 
     public void Dispose()
@@ -966,7 +1047,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         _disposed = true;
 
         Stop();
-        _inputSimulator?.Dispose();
+        ReleaseSimulator();
         _eventExecutor?.Dispose();
         _cts?.Dispose();
         _pauseEvent?.Dispose();

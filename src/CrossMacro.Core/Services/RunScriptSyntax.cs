@@ -28,7 +28,15 @@ public static class RunScriptSyntax
     public const string PixelColorCommand = "pixelcolor";
     public const string WaitColorCommand = "waitcolor";
     public const string PixelSearchCommand = "pixelsearch";
+    public const string ImageSearchCommand = "imagesearch";
+    public const string ImageClickCommand = "imageclick";
+    public const string WaitImageCommand = "waitimage";
     public const string PixelSearchToleranceKeyword = "tolerance";
+    public const string ImageSearchSimilarityKeyword = "similarity";
+    public const string ImageSearchDownsampleKeyword = "downsample";
+    public const string ImageSearchTimeoutKeyword = "timeout";
+    public const string ImageSearchMatchModeKeyword = "matchmode";
+    public const string ImageSearchScaleAwareKeyword = "scaleaware";
     public const string WindowCommand = "window";
     public const string ClipboardCommand = "clipboard";
     public const string ShellCommand = "shell";
@@ -106,7 +114,10 @@ public static class RunScriptSyntax
     [
         PixelColorCommand,
         WaitColorCommand,
-        PixelSearchCommand
+        PixelSearchCommand,
+        ImageSearchCommand,
+        ImageClickCommand,
+        WaitImageCommand
     ];
 
     public static bool IsBreakCommand(string step)
@@ -184,6 +195,48 @@ public static class RunScriptSyntax
     {
         return string.Equals(token?.Trim(), PixelSearchToleranceKeyword, StringComparison.OrdinalIgnoreCase);
     }
+
+    public static bool IsImageSearchSimilarityKeyword(string? token)
+    {
+        return string.Equals(token?.Trim(), ImageSearchSimilarityKeyword, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsImageSearchDownsampleKeyword(string? token)
+    {
+        return string.Equals(token?.Trim(), ImageSearchDownsampleKeyword, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsImageSearchTimeoutKeyword(string? token)
+    {
+        return string.Equals(token?.Trim(), ImageSearchTimeoutKeyword, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsImageSearchMatchModeKeyword(string? token) =>
+        string.Equals(token?.Trim(), ImageSearchMatchModeKeyword, StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsImageSearchScaleAwareKeyword(string? token) =>
+        string.Equals(token?.Trim(), ImageSearchScaleAwareKeyword, StringComparison.OrdinalIgnoreCase);
+
+    public static bool TryParseImageMatchMode(string? token, out EditorImageMatchMode mode)
+    {
+        mode = token?.Trim().ToLowerInvariant() switch
+        {
+            "first" => EditorImageMatchMode.FirstThresholdMatch,
+            "best" => EditorImageMatchMode.BestMatch,
+            _ => default
+        };
+
+        return token?.Trim() is "first" or "best"
+            || string.Equals(token?.Trim(), "first", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token?.Trim(), "best", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static string ToImageMatchModeToken(EditorImageMatchMode mode) => mode switch
+    {
+        EditorImageMatchMode.FirstThresholdMatch => "first",
+        EditorImageMatchMode.BestMatch => "best",
+        _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Image match mode is invalid.")
+    };
 
     public static bool IsWindowStep(string? step)
     {
@@ -270,8 +323,8 @@ public static class RunScriptSyntax
                     return false;
                 }
 
-                if (!ValidateRegionToken(regionX, allowNegativeLiteral: false, out error)
-                    || !ValidateRegionToken(regionY, allowNegativeLiteral: false, out error)
+                if (!ValidateRegionToken(regionX, allowNegativeLiteral: true, out error)
+                    || !ValidateRegionToken(regionY, allowNegativeLiteral: true, out error)
                     || !ValidateRegionToken(regionWidth, allowNegativeLiteral: true, out error)
                     || !ValidateRegionToken(regionHeight, allowNegativeLiteral: true, out error))
                 {

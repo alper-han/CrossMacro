@@ -35,11 +35,7 @@ internal sealed class RunScriptScreenshotExecutor
             }
 
             var region = parsed.UseRegion
-                ? new ScreenRect(
-                    ParseAndValidateCoordinate(parsed.RegionX, "region x", 0),
-                    ParseAndValidateCoordinate(parsed.RegionY, "region y", 0),
-                    ParseAndValidateCoordinate(parsed.RegionWidth, "region width", 1),
-                    ParseAndValidateCoordinate(parsed.RegionHeight, "region height", 1))
+                ? ParseRegion(parsed)
                 : (ScreenRect?)null;
 
             var result = await _screenshotCaptureService
@@ -65,13 +61,30 @@ internal sealed class RunScriptScreenshotExecutor
         }
     }
 
-    private static int ParseAndValidateCoordinate(string value, string description, int minValue)
+    private static ScreenRect ParseRegion(RunScriptSyntax.ScreenshotStep parsed)
+    {
+        var x = ParseInteger(parsed.RegionX, "region x");
+        var y = ParseInteger(parsed.RegionY, "region y");
+        var width = ParsePositiveInteger(parsed.RegionWidth, "region width");
+        var height = ParsePositiveInteger(parsed.RegionHeight, "region height");
+        try
+        {
+            return new ScreenRect(x, y, width, height);
+        }
+        catch (OverflowException ex)
+        {
+            throw new InvalidOperationException("Screenshot region endpoint exceeds the supported screen coordinate range.", ex);
+        }
+    }
+
+    private static int ParsePositiveInteger(string value, string description)
     {
         var parsed = ParseInteger(value, description);
-        if (parsed < minValue)
+        if (parsed <= 0)
         {
-            throw new InvalidOperationException($"Screenshot {description} must be >= {minValue}.");
+            throw new InvalidOperationException($"Screenshot {description} must be >= 1.");
         }
+
         return parsed;
     }
 

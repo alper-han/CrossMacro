@@ -22,35 +22,69 @@ public sealed class WlrScreencopyFrame : IDisposable
         int stride,
         ScreenPixelFormat pixelFormat,
         ReadOnlyMemory<byte> pixels,
-        IDisposable? owner = null)
+        IDisposable? owner = null,
+        ReadOnlyMemory<byte> validPixelMask = default,
+        int? physicalWidth = null,
+        int? physicalHeight = null,
+        ScreenFrameValidityIndex? validityIndex = null)
     {
         var bytesPerPixel = ScreenFrame.GetBytesPerPixel(pixelFormat);
-        var minimumStride = checked(logicalBounds.Width * bytesPerPixel);
-        if (stride < minimumStride)
+        var declaredPhysicalWidth = physicalWidth ?? logicalBounds.Width;
+        var declaredPhysicalHeight = physicalHeight ?? logicalBounds.Height;
+        if (declaredPhysicalWidth <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(stride), stride, "wlr-screencopy frame stride is smaller than its logical row width.");
+            throw new ArgumentOutOfRangeException(nameof(physicalWidth), declaredPhysicalWidth, "wlr-screencopy frame physical width must be positive.");
         }
 
-        var minimumLength = checked(stride * logicalBounds.Height);
+        if (declaredPhysicalHeight <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(physicalHeight), declaredPhysicalHeight, "wlr-screencopy frame physical height must be positive.");
+        }
+
+        var minimumStride = checked(declaredPhysicalWidth * bytesPerPixel);
+        if (stride < minimumStride)
+        {
+            throw new ArgumentOutOfRangeException(nameof(stride), stride, "wlr-screencopy frame stride is smaller than its physical row width.");
+        }
+
+        var minimumLength = checked(stride * declaredPhysicalHeight);
         if (pixels.Length < minimumLength)
         {
-            throw new ArgumentException("wlr-screencopy frame pixel memory is smaller than the declared frame dimensions.", nameof(pixels));
+            throw new ArgumentException("wlr-screencopy frame pixel memory is smaller than the declared physical frame dimensions.", nameof(pixels));
+        }
+
+        var validPixelCount = checked(logicalBounds.Width * logicalBounds.Height);
+        if (!validPixelMask.IsEmpty && validPixelMask.Length < validPixelCount)
+        {
+            throw new ArgumentException("wlr-screencopy frame valid-pixel mask is smaller than the declared frame dimensions.", nameof(validPixelMask));
         }
 
         LogicalBounds = logicalBounds;
+        PhysicalWidth = declaredPhysicalWidth;
+        PhysicalHeight = declaredPhysicalHeight;
         Stride = stride;
         PixelFormat = pixelFormat;
         Pixels = pixels;
+        ValidPixelMask = validPixelMask.IsEmpty ? ReadOnlyMemory<byte>.Empty : validPixelMask.Slice(0, validPixelCount);
         _owner = owner;
+        ValidityIndex = validityIndex;
     }
 
     public ScreenRect LogicalBounds { get; }
+
+    public int PhysicalWidth { get; }
+
+    public int PhysicalHeight { get; }
 
     public int Stride { get; }
 
     public ScreenPixelFormat PixelFormat { get; }
 
     public ReadOnlyMemory<byte> Pixels { get; }
+
+    public ReadOnlyMemory<byte> ValidPixelMask { get; }
+
+    public ScreenFrameValidityIndex? ValidityIndex { get; }
 
     public void Dispose()
     {

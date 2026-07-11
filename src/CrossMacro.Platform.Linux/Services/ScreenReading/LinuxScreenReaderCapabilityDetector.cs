@@ -66,8 +66,8 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
 
     private LinuxScreenReaderCapabilitySnapshot CreateSnapshot()
     {
-        var extSupport = _extImageCopyProbe.ProbeSupport();
-        var wlrSupport = _wlrScreencopyProbe.ProbeSupport();
+        var extSupport = ProbeExtImageCopySupport();
+        var wlrSupport = ProbeWlrScreencopySupport();
         var portalSupport = _portalScreenCastProbe.ProbeSupport();
         var kWinSupport = _kWinScreenShotProbe.ProbeSupport();
         var isGnomeExtensionAvailable = _gnomePositionProvider.IsSupported && 
@@ -104,5 +104,29 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
                     LinuxScreenReaderBackend.GnomeExtension,
                     ScreenReadErrorKind.BackendUnavailable,
                     "GNOME Shell extension backend is unavailable or not enabled."));
+    }
+
+    private ExtImageCopySupportResult ProbeExtImageCopySupport()
+    {
+        try
+        {
+            return _extImageCopyProbe.ProbeSupport();
+        }
+        catch (IOException ex)
+        {
+            return ExtImageCopySupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
+        }
+    }
+
+    private WlrScreencopySupportResult ProbeWlrScreencopySupport()
+    {
+        try
+        {
+            return _wlrScreencopyProbe.ProbeSupport();
+        }
+        catch (IOException ex)
+        {
+            return WlrScreencopySupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
+        }
     }
 }

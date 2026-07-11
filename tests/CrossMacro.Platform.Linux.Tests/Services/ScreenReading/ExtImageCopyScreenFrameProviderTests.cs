@@ -181,6 +181,28 @@ public sealed class ExtImageCopyScreenFrameProviderTests
     }
 
     [Fact]
+    public async Task ExtImageCopyProvider_WhenRegionInsideFullFrame_CopiesValidPixelMask()
+    {
+        var owner = new CountingDisposable();
+        var frame = ScreenReadingFrameFixtures.ExtFrame(
+            new ScreenRect(0, 0, 3, 1),
+            [0x03, 0x02, 0x01, 0x00, 0x06, 0x05, 0x04, 0x00, 0x09, 0x08, 0x07, 0x00],
+            owner,
+            new byte[] { 1, 0, 1 });
+        var capture = new FakeExtImageCopyCapture(ExtImageCopySupportResult.Supported(), ExtImageCopyCaptureResult.Success(frame));
+
+        using var provider = new ExtImageCopyScreenFrameProvider(capture);
+        var result = await provider.CaptureFrameAsync(new ScreenRect(1, 0, 2, 1), ScreenReadOptions.Default);
+
+        Assert.True(result.IsSuccess);
+        using var resultFrame = Assert.IsType<ScreenFrame>(result.Value);
+        Assert.False(resultFrame.TryGetPixel(new ScreenPoint(1, 0), out _));
+        Assert.True(resultFrame.TryGetPixel(new ScreenPoint(2, 0), out var color));
+        Assert.Equal(new ScreenPixelColor(0x07, 0x08, 0x09), color);
+        Assert.Equal(1, owner.DisposeCount);
+    }
+
+    [Fact]
     public void ExtImageCopyProvider_WhenDisposed_DisposesCaptureBackendOnce()
     {
         var capture = new FakeExtImageCopyCapture(ExtImageCopySupportResult.Supported());
@@ -236,7 +258,7 @@ public sealed class ExtImageCopyScreenFrameProviderTests
     }
 
     [Fact]
-    public async Task ExtImageCopyCapture_WhenNativeSessionCompletesAfterTimeout_ReturnsSessionResult()
+    public async Task ExtImageCopyCapture_WhenNativeSessionExceedsTimeout_ReturnsTimeout()
     {
         var frame = ScreenReadingFrameFixtures.ExtFrame(new ScreenRect(0, 0, 1, 1), [0x30, 0x20, 0x10, 0x00]);
         var factory = new FakeExtImageCopyNativeCaptureSessionFactory(ExtImageCopyCaptureResult.Success(frame))
@@ -247,8 +269,29 @@ public sealed class ExtImageCopyScreenFrameProviderTests
 
         var result = await capture.CaptureAsync(null, new ScreenReadOptions(timeout: TimeSpan.FromMilliseconds(1)));
 
-        Assert.True(result.IsSuccess);
-        Assert.Same(frame, result.Frame);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ScreenReadErrorKind.CaptureTimeout, result.ErrorKind);
+        Assert.Equal(1, factory.CaptureCalls);
+    }
+
+    [Fact]
+    public async Task ExtImageCopyCapture_WhenCanceledDuringNativeSession_ReturnsCanceled()
+    {
+        var frame = ScreenReadingFrameFixtures.ExtFrame(new ScreenRect(0, 0, 1, 1), [0x30, 0x20, 0x10, 0x00]);
+        var factory = new FakeExtImageCopyNativeCaptureSessionFactory(ExtImageCopyCaptureResult.Success(frame))
+        {
+            DelayBeforeResult = TimeSpan.FromSeconds(5)
+        };
+        using var capture = new ExtImageCopyCapture(new FakeExtImageCopyProbe(ExtImageCopySupportResult.Supported()), factory);
+        using var cts = new CancellationTokenSource();
+        var pending = capture.CaptureAsync(null, new ScreenReadOptions(cancellationToken: cts.Token));
+
+        await Task.Delay(20);
+        await cts.CancelAsync();
+        var result = await pending;
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ScreenReadErrorKind.Canceled, result.ErrorKind);
         Assert.Equal(1, factory.CaptureCalls);
     }
 

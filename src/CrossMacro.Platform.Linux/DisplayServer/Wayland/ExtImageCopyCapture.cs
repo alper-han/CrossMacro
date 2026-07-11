@@ -83,15 +83,23 @@ public sealed class WaylandExtImageCopySupportProbe : IExtImageCopySupportProbe
 {
     public static WaylandExtImageCopySupportProbe Instance { get; } = new();
 
+    private readonly Func<ExtImageCopySupportResult> _probeSupport;
+
     private WaylandExtImageCopySupportProbe()
+        : this(WaylandExtImageCopyRegistryProbe.Probe)
     {
+    }
+
+    internal WaylandExtImageCopySupportProbe(Func<ExtImageCopySupportResult> probeSupport)
+    {
+        _probeSupport = probeSupport ?? throw new ArgumentNullException(nameof(probeSupport));
     }
 
     public ExtImageCopySupportResult ProbeSupport()
     {
         try
         {
-            return WaylandExtImageCopyRegistryProbe.Probe();
+            return _probeSupport();
         }
         catch (DllNotFoundException ex)
         {
@@ -102,6 +110,10 @@ public sealed class WaylandExtImageCopySupportProbe : IExtImageCopySupportProbe
             return ExtImageCopySupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
         }
         catch (InvalidOperationException ex)
+        {
+            return ExtImageCopySupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
+        }
+        catch (IOException ex)
         {
             return ExtImageCopySupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
         }
@@ -116,7 +128,7 @@ public sealed class WaylandExtImageCopyNativeCaptureSessionFactory : IExtImageCo
 
     public Task<ExtImageCopyCaptureResult> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
     {
-        return Task.Run(() => CaptureFrame(region, options), options.CancellationToken);
+        return Task.Run(() => CaptureFrame(region, options));
     }
 
     public void Dispose()
@@ -138,20 +150,53 @@ public sealed class WaylandExtImageCopyNativeCaptureSessionFactory : IExtImageCo
     {
         options.CancellationToken.ThrowIfCancellationRequested();
 
+        try
+        {
+            lock (_lock)
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                options.CancellationToken.ThrowIfCancellationRequested();
+
+                _connection ??= WaylandWlrConnection.Connect(options);
+                if (_connection.Registry.Shm == IntPtr.Zero ||
+                    _connection.Registry.ExtOutputSourceManager == IntPtr.Zero ||
+                    _connection.Registry.ExtCopyManager == IntPtr.Zero)
+                {
+                    DisposeConnectionUnsafe();
+                    return ExtImageCopyCaptureResult.Failure(ScreenReadErrorKind.BackendUnavailable, "ext-image-copy required Wayland globals are unavailable.");
+                }
+
+                return ExtImageCopyCaptureResult.Success(_connection.CaptureExtImageCopy(region, options));
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            DisposeConnection();
+            throw;
+        }
+        catch (TimeoutException)
+        {
+            DisposeConnection();
+            throw;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException)
+        {
+            DisposeConnection();
+            throw;
+        }
+    }
+
+    private void DisposeConnection()
+    {
         lock (_lock)
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
-            options.CancellationToken.ThrowIfCancellationRequested();
-
-            _connection ??= WaylandWlrConnection.Connect();
-            if (_connection.Registry.Shm == IntPtr.Zero ||
-                _connection.Registry.ExtOutputSourceManager == IntPtr.Zero ||
-                _connection.Registry.ExtCopyManager == IntPtr.Zero)
-            {
-                return ExtImageCopyCaptureResult.Failure(ScreenReadErrorKind.BackendUnavailable, "ext-image-copy required Wayland globals are unavailable.");
-            }
-
-            return ExtImageCopyCaptureResult.Success(_connection.CaptureExtImageCopy(region));
+            DisposeConnectionUnsafe();
         }
+    }
+
+    private void DisposeConnectionUnsafe()
+    {
+        _connection?.Dispose();
+        _connection = null;
     }
 }

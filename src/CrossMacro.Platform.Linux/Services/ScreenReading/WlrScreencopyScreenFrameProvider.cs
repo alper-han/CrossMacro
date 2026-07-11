@@ -66,7 +66,7 @@ public sealed class WlrScreencopyScreenFrameProvider : IScreenFrameProvider
                 "Successful wlr-screencopy capture did not include a frame.");
         }
 
-        return LinuxScreenFrameProviderResults.CreateSharedFrame(frame.LogicalBounds, frame.Stride, frame.PixelFormat, frame.Pixels, frame);
+        return LinuxScreenFrameProviderResults.CreateSharedFrame(frame.LogicalBounds, frame.Stride, frame.PixelFormat, frame.Pixels, frame, frame.ValidPixelMask, frame.ValidityIndex);
     }
 
     public void Dispose()

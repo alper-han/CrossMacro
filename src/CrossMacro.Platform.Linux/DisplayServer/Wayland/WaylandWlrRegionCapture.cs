@@ -29,24 +29,38 @@ internal sealed class WaylandWlrRegionCapture : IDisposable
         _output = output;
     }
 
-    public WlrScreencopyFrame Capture(ScreenRect outputRegion, ScreenRect logicalBounds)
+    public WlrScreencopyFrame Capture(ScreenRect outputRegion, ScreenRect logicalBounds, WaylandCaptureCancellation cancellation)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        cancellation.ThrowIfCancellationRequested();
         var frame = _library.WlrCaptureOutputRegion(_registry.WlrScreencopyManager, _output, outputRegion, _protocol.WlrScreencopyFrame);
         try
         {
-            var frameState = WaitForConstraints(frame);
-            using var shm = CreateShm(frameState);
+            var frameState = WaitForConstraints(frame, cancellation);
+            cancellation.ThrowIfCancellationRequested();
+            using var shm = CreateShm(frameState, cancellation);
+            cancellation.ThrowIfCancellationRequested();
             var pool = _library.CreateShmPool(_registry.Shm, shm.Fd, shm.Size, _protocol.WlShmPool);
+            if (pool == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("wl_shm.create_pool returned NULL.");
+            }
             var buffer = IntPtr.Zero;
             try
             {
+                cancellation.ThrowIfCancellationRequested();
                 buffer = _library.CreateBuffer(pool, checked((int)frameState.Width), checked((int)frameState.Height), checked((int)frameState.Stride), frameState.Format, _protocol.WlBuffer);
+                if (buffer == IntPtr.Zero)
+                {
+                    throw new InvalidOperationException("wl_shm_pool.create_buffer returned NULL.");
+                }
                 var bufferState = new WaylandBufferState();
                 _library.AddDispatcher(buffer, bufferState.DispatcherPtr);
                 bufferState.MarkSubmitted();
+                cancellation.ThrowIfCancellationRequested();
                 _library.WlrFrameCopy(frame, buffer);
-                WaitForReady(frameState);
+                WaitForReady(frameState, cancellation);
+                cancellation.ThrowIfCancellationRequested();
                 return CreateFrame(logicalBounds, frameState, shm);
             }
             finally
@@ -67,13 +81,14 @@ internal sealed class WaylandWlrRegionCapture : IDisposable
 
     public void Dispose() => _disposed = true;
 
-    private WaylandWlrFrameState WaitForConstraints(IntPtr frame)
+    private WaylandWlrFrameState WaitForConstraints(IntPtr frame, WaylandCaptureCancellation cancellation)
     {
         var frameState = new WaylandWlrFrameState();
         _library.AddDispatcher(frame, frameState.DispatcherPtr);
         for (var i = 0; i < ConstraintRoundtripLimit && !frameState.CanCreateBuffer && !frameState.Failed; i++)
         {
-            _library.DisplayRoundtrip(_display);
+            cancellation.ThrowIfCancellationRequested();
+            _library.DisplayRoundtrip(_display, cancellation);
         }
 
         if (!frameState.CanCreateBuffer || frameState.Failed)
@@ -89,11 +104,12 @@ internal sealed class WaylandWlrRegionCapture : IDisposable
         return frameState;
     }
 
-    private void WaitForReady(WaylandWlrFrameState frameState)
+    private void WaitForReady(WaylandWlrFrameState frameState, WaylandCaptureCancellation cancellation)
     {
         for (var i = 0; i < FrameDispatchLimit && !frameState.Ready && !frameState.Failed; i++)
         {
-            _library.DisplayDispatch(_display);
+            cancellation.ThrowIfCancellationRequested();
+            _library.DisplayDispatch(_display, cancellation);
         }
 
         if (!frameState.Ready)
@@ -102,8 +118,9 @@ internal sealed class WaylandWlrRegionCapture : IDisposable
         }
     }
 
-    private static WaylandShmBuffer CreateShm(WaylandWlrFrameState frameState)
+    private static WaylandShmBuffer CreateShm(WaylandWlrFrameState frameState, WaylandCaptureCancellation cancellation)
     {
+        cancellation.ThrowIfCancellationRequested();
         var size = checked((int)frameState.Stride * (int)frameState.Height);
         return WaylandShmBuffer.Create(size);
     }
@@ -115,6 +132,12 @@ internal sealed class WaylandWlrRegionCapture : IDisposable
         var pixels = new byte[byteCount];
         System.Runtime.InteropServices.Marshal.Copy(shm.Address, pixels, 0, byteCount);
         var format = frameState.Format == WlShmFormatXrgb8888 ? ScreenPixelFormat.Xrgb8888 : ScreenPixelFormat.Bgra8888;
-        return new WlrScreencopyFrame(logicalBounds, stride, format, pixels);
+        return new WlrScreencopyFrame(
+            logicalBounds,
+            stride,
+            format,
+            pixels,
+            physicalWidth: checked((int)frameState.Width),
+            physicalHeight: checked((int)frameState.Height));
     }
 }

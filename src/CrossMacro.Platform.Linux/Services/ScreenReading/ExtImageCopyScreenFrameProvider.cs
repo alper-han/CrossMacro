@@ -68,7 +68,7 @@ public sealed class ExtImageCopyScreenFrameProvider : IScreenFrameProvider
 
         if (region is null || region.Value == frame.LogicalBounds)
         {
-            return LinuxScreenFrameProviderResults.CreateSharedFrame(frame.LogicalBounds, frame.Stride, frame.PixelFormat, frame.Pixels, frame);
+            return LinuxScreenFrameProviderResults.CreateSharedFrame(frame.LogicalBounds, frame.Stride, frame.PixelFormat, frame.Pixels, frame, frame.ValidPixelMask, frame.ValidityIndex);
         }
 
         try
@@ -85,7 +85,8 @@ public sealed class ExtImageCopyScreenFrameProvider : IScreenFrameProvider
                 frame.Stride,
                 frame.PixelFormat,
                 frame.Pixels,
-                region.Value));
+                region.Value,
+                frame.ValidPixelMask));
         }
         finally
         {

@@ -4,7 +4,31 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 internal sealed class WlrScreencopyCapture : IWlrScreencopyCapture
 {
+    private readonly Func<WlrScreencopySupportResult> _probeSupport;
+
+    public WlrScreencopyCapture()
+        : this(ProbeSupportCore)
+    {
+    }
+
+    internal WlrScreencopyCapture(Func<WlrScreencopySupportResult> probeSupport)
+    {
+        _probeSupport = probeSupport ?? throw new ArgumentNullException(nameof(probeSupport));
+    }
+
     public WlrScreencopySupportResult ProbeSupport()
+    {
+        try
+        {
+            return _probeSupport();
+        }
+        catch (IOException ex)
+        {
+            return WlrScreencopySupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
+        }
+    }
+
+    private static WlrScreencopySupportResult ProbeSupportCore()
     {
         try
         {
@@ -41,7 +65,7 @@ internal sealed class WlrScreencopyCapture : IWlrScreencopyCapture
 
         try
         {
-            return await Task.FromResult(CaptureRegion(region, options)).ConfigureAwait(false);
+            return await Task.Run(() => CaptureRegion(region, options)).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -62,14 +86,14 @@ internal sealed class WlrScreencopyCapture : IWlrScreencopyCapture
         try
         {
             options.CancellationToken.ThrowIfCancellationRequested();
-            using var connection = WaylandWlrConnection.Connect();
+            using var connection = WaylandWlrConnection.Connect(options);
             options.CancellationToken.ThrowIfCancellationRequested();
             if (connection.Registry.Shm == IntPtr.Zero || connection.Registry.WlrScreencopyManager == IntPtr.Zero)
             {
                 return WlrScreencopyCaptureResult.Failure(ScreenReadErrorKind.BackendUnavailable, "wlr-screencopy required Wayland globals are unavailable.");
             }
 
-            return WlrScreencopyCaptureResult.Success(connection.Capture(region));
+            return WlrScreencopyCaptureResult.Success(connection.Capture(region, options));
         }
         catch (OperationCanceledException)
         {

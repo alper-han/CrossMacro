@@ -29,11 +29,13 @@ internal static class LinuxScreenFrameProviderResults
         int stride,
         ScreenPixelFormat pixelFormat,
         ReadOnlyMemory<byte> pixels,
-        IDisposable owner)
+        IDisposable owner,
+        ReadOnlyMemory<byte> validPixelMask = default,
+        ScreenFrameValidityIndex? validityIndex = null)
     {
         try
         {
-            return ScreenReadResult<ScreenFrame>.Success(new ScreenFrame(logicalBounds, stride, pixelFormat, pixels, owner));
+            return ScreenReadResult<ScreenFrame>.Success(new ScreenFrame(logicalBounds, stride, pixelFormat, pixels, owner, validPixelMask, validityIndex));
         }
         catch (Exception ex) when (ex is ArgumentException or OverflowException)
         {
@@ -47,7 +49,8 @@ internal static class LinuxScreenFrameProviderResults
         int sourceStride,
         ScreenPixelFormat pixelFormat,
         ReadOnlyMemory<byte> sourcePixels,
-        ScreenRect region)
+        ScreenRect region,
+        ReadOnlyMemory<byte> sourceValidPixelMask = default)
     {
         var bytesPerPixel = ScreenFrame.GetBytesPerPixel(pixelFormat);
         var targetStride = checked(region.Width * bytesPerPixel);
@@ -55,14 +58,24 @@ internal static class LinuxScreenFrameProviderResults
         var sourceX = checked(region.X - sourceBounds.X);
         var sourceY = checked(region.Y - sourceBounds.Y);
         var sourceBytes = sourcePixels.Span;
+        byte[]? targetValidPixelMask = sourceValidPixelMask.IsEmpty ? null : new byte[checked(region.Width * region.Height)];
+        var sourceMask = sourceValidPixelMask.Span;
 
         for (var row = 0; row < region.Height; row++)
         {
             var sourceOffset = checked((sourceY + row) * sourceStride + sourceX * bytesPerPixel);
             var targetOffset = checked(row * targetStride);
             sourceBytes.Slice(sourceOffset, targetStride).CopyTo(targetPixels.AsSpan(targetOffset, targetStride));
+
+            if (targetValidPixelMask is not null)
+            {
+                var sourceMaskOffset = checked((sourceY + row) * sourceBounds.Width + sourceX);
+                var targetMaskOffset = checked(row * region.Width);
+                sourceMask.Slice(sourceMaskOffset, region.Width).CopyTo(targetValidPixelMask.AsSpan(targetMaskOffset, region.Width));
+            }
         }
 
-        return new ScreenFrame(region, targetStride, pixelFormat, targetPixels);
+        var targetMask = targetValidPixelMask is null ? ReadOnlyMemory<byte>.Empty : targetValidPixelMask;
+        return new ScreenFrame(region, targetStride, pixelFormat, targetPixels, validPixelMask: targetMask);
     }
 }

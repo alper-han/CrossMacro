@@ -10,7 +10,7 @@ internal sealed class WaylandShmBuffer : IDisposable
     private const int ProtWrite = 0x2;
     private const int MapShared = 0x01;
     private static readonly IntPtr MapFailed = new(-1);
-    private bool _disposed;
+    private int _disposed;
 
     private WaylandShmBuffer(int fd, IntPtr address, int size)
     {
@@ -49,12 +49,11 @@ internal sealed class WaylandShmBuffer : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
         {
             return;
         }
 
-        _disposed = true;
         if (Address != IntPtr.Zero)
         {
             PortalPipeWireLibc.munmap(Address, (UIntPtr)Size);

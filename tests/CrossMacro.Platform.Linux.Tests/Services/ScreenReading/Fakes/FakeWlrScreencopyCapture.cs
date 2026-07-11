@@ -28,22 +28,31 @@ internal sealed class FakeWlrScreencopyCapture : IWlrScreencopyCapture
 
     public ScreenRect? LastRegion { get; private set; }
 
+    public TimeSpan DelayBeforeResult { get; init; }
+
     public WlrScreencopySupportResult ProbeSupport()
     {
         ProbeCalls++;
         return _support;
     }
 
-    public Task<WlrScreencopyCaptureResult> CaptureRegionAsync(ScreenRect? region, ScreenReadOptions options)
+    public async Task<WlrScreencopyCaptureResult> CaptureRegionAsync(ScreenRect? region, ScreenReadOptions options)
     {
         CaptureCalls++;
         LastRegion = region;
-        if (CaptureException is not null)
+        if (DelayBeforeResult > TimeSpan.Zero)
         {
-            return Task.FromException<WlrScreencopyCaptureResult>(CaptureException);
+            await Task.Delay(DelayBeforeResult)
+                .WaitAsync(options.Timeout ?? Timeout.InfiniteTimeSpan, options.CancellationToken)
+                .ConfigureAwait(false);
         }
 
-        return Task.FromResult(_captureResult);
+        if (CaptureException is not null)
+        {
+            throw CaptureException;
+        }
+
+        return _captureResult;
     }
 
     public void Dispose() => DisposeCount++;

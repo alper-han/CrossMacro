@@ -81,4 +81,22 @@ public sealed class WaylandExtImageCopyShmFormatsTests
 
         Assert.Equal("[0x34324258,0x34324241]", formatted);
     }
+
+    [Fact]
+    public void CaptureCancellation_WhenTokenIsCanceled_ThrowsBeforeNativePolling()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var state = new WaylandCaptureCancellation(new ScreenReadOptions(cancellationToken: cancellation.Token));
+
+        Assert.Throws<OperationCanceledException>(state.ThrowIfCancellationRequested);
+    }
+
+    [Fact]
+    public void CaptureCancellation_WhenDeadlineExpires_ThrowsTimeout()
+    {
+        var state = new WaylandCaptureCancellation(new ScreenReadOptions(timeout: TimeSpan.Zero));
+
+        Assert.Throws<TimeoutException>(state.ThrowIfCancellationRequested);
+    }
 }

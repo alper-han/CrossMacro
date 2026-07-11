@@ -10,10 +10,15 @@ internal sealed class WaylandLibrary : IDisposable
     private readonly IntPtr _handle;
     private readonly WlDisplayConnect _displayConnect;
     private readonly WlDisplayDisconnect _displayDisconnect;
-    private readonly WlDisplayRoundtrip _displayRoundtrip;
-    private readonly WlDisplayDispatch _displayDispatch;
+    private readonly WlDisplayGetFd _displayGetFd;
+    private readonly WlDisplayPrepareRead _displayPrepareRead;
+    private readonly WlDisplayCancelRead _displayCancelRead;
+    private readonly WlDisplayReadEvents _displayReadEvents;
+    private readonly WlDisplayDispatchPending _displayDispatchPending;
+    private readonly WlDisplayFlush _displayFlush;
     private readonly WlProxyMarshalArrayConstructorVersioned _marshalConstructor;
     private readonly WlProxyMarshalArrayFlags _marshalFlags;
+    private readonly WlProxyDestroy _proxyDestroy;
     private readonly WlProxyAddDispatcher _addDispatcher;
     private bool _disposed;
 
@@ -22,20 +27,48 @@ internal sealed class WaylandLibrary : IDisposable
         _handle = handle;
         _displayConnect = Resolve<WlDisplayConnect>("wl_display_connect");
         _displayDisconnect = Resolve<WlDisplayDisconnect>("wl_display_disconnect");
-        _displayRoundtrip = Resolve<WlDisplayRoundtrip>("wl_display_roundtrip");
-        _displayDispatch = Resolve<WlDisplayDispatch>("wl_display_dispatch");
+        _displayGetFd = Resolve<WlDisplayGetFd>("wl_display_get_fd");
+        _displayPrepareRead = Resolve<WlDisplayPrepareRead>("wl_display_prepare_read");
+        _displayCancelRead = Resolve<WlDisplayCancelRead>("wl_display_cancel_read");
+        _displayReadEvents = Resolve<WlDisplayReadEvents>("wl_display_read_events");
+        _displayDispatchPending = Resolve<WlDisplayDispatchPending>("wl_display_dispatch_pending");
+        _displayFlush = Resolve<WlDisplayFlush>("wl_display_flush");
         _marshalConstructor = Resolve<WlProxyMarshalArrayConstructorVersioned>("wl_proxy_marshal_array_constructor_versioned");
         _marshalFlags = Resolve<WlProxyMarshalArrayFlags>("wl_proxy_marshal_array_flags");
+        _proxyDestroy = Resolve<WlProxyDestroy>("wl_proxy_destroy");
         _addDispatcher = Resolve<WlProxyAddDispatcher>("wl_proxy_add_dispatcher");
     }
 
     private delegate IntPtr WlDisplayConnect(IntPtr name);
     private delegate void WlDisplayDisconnect(IntPtr display);
-    private delegate int WlDisplayRoundtrip(IntPtr display);
-    private delegate int WlDisplayDispatch(IntPtr display);
+    private delegate int WlDisplayGetFd(IntPtr display);
+    private delegate int WlDisplayPrepareRead(IntPtr display);
+    private delegate void WlDisplayCancelRead(IntPtr display);
+    private delegate int WlDisplayReadEvents(IntPtr display);
+    private delegate int WlDisplayDispatchPending(IntPtr display);
+    private delegate int WlDisplayFlush(IntPtr display);
     private delegate IntPtr WlProxyMarshalArrayConstructorVersioned(IntPtr proxy, uint opcode, IntPtr args, IntPtr iface, uint version);
     private delegate IntPtr WlProxyMarshalArrayFlags(IntPtr proxy, uint opcode, IntPtr iface, uint version, uint flags, IntPtr args);
+    private delegate void WlProxyDestroy(IntPtr proxy);
     private delegate int WlProxyAddDispatcher(IntPtr proxy, IntPtr dispatcherFunc, IntPtr dispatcherData, IntPtr data);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PollFd
+    {
+        public int FileDescriptor;
+        public short Events;
+        public short Revents;
+    }
+
+    [DllImport("libc.so.6", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
+    private static extern int poll(ref PollFd fds, IntPtr count, int timeout);
+
+    private const short PollIn = 0x001;
+    private const short PollOut = 0x004;
+    private const short PollError = 0x008;
+    private const short PollHangup = 0x010;
+    private const int ErrnoInterrupted = 4;
+    private const int ErrnoWouldBlock = 11;
 
     public static WaylandLibrary Load()
     {
@@ -53,14 +86,187 @@ internal sealed class WaylandLibrary : IDisposable
 
     public IntPtr DisplayConnect() => _displayConnect(IntPtr.Zero);
     public void DisplayDisconnect(IntPtr display) => _displayDisconnect(display);
-    public int DisplayRoundtrip(IntPtr display) => _displayRoundtrip(display);
-    public int DisplayDispatch(IntPtr display) => _displayDispatch(display);
+    public void DisplayRoundtrip(IntPtr display, WaylandCaptureCancellation cancellation)
+    {
+        cancellation.ThrowIfCancellationRequested();
+        var callback = CreateSyncCallback(display);
+        try
+        {
+            while (!callback.Done)
+            {
+                DispatchInterruptibly(display, cancellation);
+            }
+        }
+        finally
+        {
+            if (callback.Proxy != IntPtr.Zero)
+            {
+                _proxyDestroy(callback.Proxy);
+            }
+
+            callback.Dispose();
+        }
+    }
+
+    public void DisplayDispatch(IntPtr display, WaylandCaptureCancellation cancellation) =>
+        DispatchInterruptibly(display, cancellation);
     public int AddDispatcher(IntPtr proxy, IntPtr dispatcherPtr) => _addDispatcher(proxy, dispatcherPtr, IntPtr.Zero, IntPtr.Zero);
     public IntPtr GetRegistry(IntPtr display, WaylandInterfaceHandle registryInterface)
     {
         using var args = new WlArgumentPack(1);
         args[0] = new WlArgument { o = IntPtr.Zero };
         return _marshalConstructor(display, 1, args.Address, registryInterface.Address, 1);
+    }
+
+    private SyncCallback CreateSyncCallback(IntPtr display)
+    {
+        using var args = new WlArgumentPack(1);
+        args[0] = new WlArgument { o = IntPtr.Zero };
+        var callback = new SyncCallback();
+        try
+        {
+            callback.Proxy = _marshalConstructor(display, 0, args.Address, callback.InterfaceAddress, 1);
+            if (callback.Proxy == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("wl_display.sync returned NULL.");
+            }
+
+            AddDispatcher(callback.Proxy, callback.DispatcherPtr);
+            return callback;
+        }
+        catch
+        {
+            if (callback.Proxy != IntPtr.Zero)
+            {
+                _proxyDestroy(callback.Proxy);
+            }
+
+            callback.Dispose();
+            throw;
+        }
+    }
+
+    private void DispatchInterruptibly(IntPtr display, WaylandCaptureCancellation cancellation)
+    {
+        cancellation.ThrowIfCancellationRequested();
+        var pending = _displayDispatchPending(display);
+        if (pending < 0)
+        {
+            throw new IOException($"wl_display_dispatch_pending failed errno={Marshal.GetLastPInvokeError()}.");
+        }
+
+        while (true)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (_displayPrepareRead(display) == 0)
+            {
+                var readEvents = false;
+                try
+                {
+                    var flushResult = _displayFlush(display);
+                    if (flushResult < 0 && Marshal.GetLastPInvokeError() != ErrnoWouldBlock)
+                    {
+                        throw new IOException($"wl_display_flush failed errno={Marshal.GetLastPInvokeError()}.");
+                    }
+
+                    var pollFd = new PollFd
+                    {
+                        FileDescriptor = _displayGetFd(display),
+                        Events = (short)(PollIn | (flushResult < 0 ? PollOut : 0))
+                    };
+                    if (pollFd.FileDescriptor < 0)
+                    {
+                        throw new IOException($"wl_display_get_fd failed errno={Marshal.GetLastPInvokeError()}.");
+                    }
+
+                    var result = poll(ref pollFd, new IntPtr(1), cancellation.GetPollTimeoutMilliseconds());
+                    if (result < 0)
+                    {
+                        if (Marshal.GetLastPInvokeError() == ErrnoInterrupted)
+                        {
+                            continue;
+                        }
+
+                        throw new IOException($"poll on Wayland display failed errno={Marshal.GetLastPInvokeError()}.");
+                    }
+
+                    if (result == 0)
+                    {
+                        continue;
+                    }
+
+                    if ((pollFd.Revents & (PollError | PollHangup)) != 0)
+                    {
+                        throw new IOException("Wayland display connection closed while waiting for events.");
+                    }
+
+                    if ((pollFd.Revents & PollIn) == 0)
+                    {
+                        continue;
+                    }
+
+                    if (_displayReadEvents(display) < 0)
+                    {
+                        throw new IOException($"wl_display_read_events failed errno={Marshal.GetLastPInvokeError()}.");
+                    }
+
+                    readEvents = true;
+                }
+                finally
+                {
+                    if (!readEvents)
+                    {
+                        _displayCancelRead(display);
+                    }
+                }
+
+                if (_displayDispatchPending(display) < 0)
+                {
+                    throw new IOException($"wl_display_dispatch_pending failed errno={Marshal.GetLastPInvokeError()}.");
+                }
+
+                return;
+            }
+
+            if (_displayDispatchPending(display) < 0)
+            {
+                throw new IOException($"wl_display_dispatch_pending failed errno={Marshal.GetLastPInvokeError()}.");
+            }
+        }
+    }
+
+    private sealed class SyncCallback : IDisposable
+    {
+        private readonly CallbackDispatcher _dispatcher;
+        private readonly WaylandInterfaceHandle _interface;
+
+        public SyncCallback()
+        {
+            _dispatcher = Dispatch;
+            var destructorDoneEvent = ("done", "u", true);
+            _interface = new("wl_callback", 1, [], [(destructorDoneEvent.Item1, destructorDoneEvent.Item2)]);
+            DispatcherPtr = Marshal.GetFunctionPointerForDelegate(_dispatcher);
+        }
+
+        public IntPtr Proxy { get; set; }
+        public IntPtr DispatcherPtr { get; }
+        public IntPtr InterfaceAddress => _interface.Address;
+        public bool Done { get; private set; }
+
+        private delegate int CallbackDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
+
+        private int Dispatch(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
+        {
+            if (opcode == 0)
+            {
+                Done = true;
+                Proxy = IntPtr.Zero;
+            }
+
+            return 0;
+        }
+
+        public void Dispose() => _interface.Dispose();
     }
 
     public IntPtr Bind(IntPtr registry, uint name, string iface, uint version, WaylandInterfaceHandle targetInterface)

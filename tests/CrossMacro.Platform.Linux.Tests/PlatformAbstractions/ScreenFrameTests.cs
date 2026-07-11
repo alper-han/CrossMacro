@@ -123,6 +123,120 @@ public class ScreenFrameTests
     }
 
     [Fact]
+    public void TryGetPixel_ReturnsFalseForInvalidMaskedPixelInsideBounds()
+    {
+        var frame = new ScreenFrame(
+            new ScreenRect(0, 0, 2, 1),
+            stride: 6,
+            ScreenPixelFormat.Rgb24,
+            new byte[] { 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00 },
+            validPixelMask: new byte[] { 0, 1 });
+
+        var invalidFound = frame.TryGetPixel(new ScreenPoint(0, 0), out var invalidColor);
+        var validFound = frame.TryGetPixel(new ScreenPoint(1, 0), out var validColor);
+
+        Assert.False(invalidFound);
+        Assert.Equal(default, invalidColor);
+        Assert.True(validFound);
+        Assert.Equal(new ScreenPixelColor(0xFF, 0x00, 0x00), validColor);
+    }
+
+    [Fact]
+    public void SearchPixel_SkipsInvalidMaskedPixelsThatMatchColor()
+    {
+        var expected = new ScreenPixelColor(0x00, 0x00, 0x00);
+        var frame = new ScreenFrame(
+            new ScreenRect(5, 6, 2, 1),
+            stride: 6,
+            ScreenPixelFormat.Rgb24,
+            new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+            validPixelMask: new byte[] { 0, 1 });
+
+        var found = frame.SearchPixel(new ScreenRect(5, 6, 2, 1), expected);
+
+        Assert.Equal(new ScreenPixelSearchMatch(new ScreenPoint(6, 6), expected), found);
+    }
+
+    [Fact]
+    public void ContainsAnyValidPixel_ReturnsFalseWhenRegionIsOnlyInvalidMaskedPixels()
+    {
+        var frame = new ScreenFrame(
+            new ScreenRect(0, 0, 2, 1),
+            stride: 6,
+            ScreenPixelFormat.Rgb24,
+            new byte[6],
+            validPixelMask: new byte[] { 0, 1 });
+
+        var containsValidPixel = frame.ContainsAnyValidPixel(new ScreenRect(0, 0, 1, 1));
+
+        Assert.False(containsValidPixel);
+    }
+
+    [Fact]
+    public void IsRectangleFullyValid_UsesFastPathForUnmaskedFrame()
+    {
+        using var frame = new ScreenFrame(
+            new ScreenRect(10, 20, 2, 2),
+            stride: 6,
+            ScreenPixelFormat.Rgb24,
+            new byte[12]);
+
+        Assert.True(frame.IsFullyValid);
+        Assert.False(frame.HasValidityIndex);
+        Assert.True(frame.IsRectangleFullyValid(new ScreenRect(10, 20, 2, 2)));
+    }
+
+    [Fact]
+    public void IsRectangleFullyValid_RejectsGapUsingIndexedMask()
+    {
+        using var index = ScreenFrameValidityIndex.Create(new byte[] { 1, 0, 1, 1 }, 2, 2);
+        using var frame = new ScreenFrame(
+            new ScreenRect(-3, 7, 2, 2),
+            stride: 6,
+            ScreenPixelFormat.Rgb24,
+            new byte[12],
+            validPixelMask: new byte[] { 1, 0, 1, 1 },
+            validityIndex: index);
+
+        Assert.False(frame.IsFullyValid);
+        Assert.True(frame.HasValidityIndex);
+        Assert.False(frame.IsRectangleFullyValid(new ScreenRect(-3, 7, 2, 1)));
+        Assert.True(frame.IsRectangleFullyValid(new ScreenRect(-3, 8, 2, 1)));
+    }
+
+    [Fact]
+    public void Dispose_ReleasesValidityIndexOwnership()
+    {
+        var index = ScreenFrameValidityIndex.Create(new byte[] { 1, 0 }, 2, 1);
+        var frame = new ScreenFrame(
+            new ScreenRect(0, 0, 2, 1),
+            stride: 6,
+            ScreenPixelFormat.Rgb24,
+            new byte[6],
+            validPixelMask: new byte[] { 1, 0 },
+            validityIndex: index);
+
+        frame.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => index.IsRectangleFullyValid(
+            new ScreenRect(0, 0, 1, 1),
+            new ScreenRect(0, 0, 2, 1)));
+    }
+
+    [Fact]
+    public void Constructor_ThrowsWhenValidPixelMaskIsTooSmall()
+    {
+        var exception = Assert.Throws<ArgumentException>(() => new ScreenFrame(
+            new ScreenRect(0, 0, 2, 1),
+            stride: 6,
+            ScreenPixelFormat.Rgb24,
+            new byte[6],
+            validPixelMask: new byte[] { 1 }));
+
+        Assert.Equal("validPixelMask", exception.ParamName);
+    }
+
+    [Fact]
     public void TryGetPixel_ReturnsFalseForOutOfBoundsGlobalCoordinate()
     {
         var frame = new ScreenFrame(

@@ -8,5 +8,6 @@ public enum ScreenReadErrorKind
     OutOfBounds,
     BackendUnavailable,
     CaptureFailed,
-    Canceled
+    Canceled,
+    ResourceLimitExceeded
 }

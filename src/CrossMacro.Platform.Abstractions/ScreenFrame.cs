@@ -1,13 +1,22 @@
 using System;
+using System.Buffers;
 
 namespace CrossMacro.Platform.Abstractions;
 
 public sealed class ScreenFrame : IDisposable
 {
     private readonly IDisposable? _owner;
+    private readonly ScreenFrameValidityIndex? _validityIndex;
     private bool _disposed;
 
-    public ScreenFrame(ScreenRect logicalBounds, int stride, ScreenPixelFormat pixelFormat, ReadOnlyMemory<byte> pixels, IDisposable? owner = null)
+    public ScreenFrame(
+        ScreenRect logicalBounds,
+        int stride,
+        ScreenPixelFormat pixelFormat,
+        ReadOnlyMemory<byte> pixels,
+        IDisposable? owner = null,
+        ReadOnlyMemory<byte> validPixelMask = default,
+        ScreenFrameValidityIndex? validityIndex = null)
     {
         var bytesPerPixel = GetBytesPerPixel(pixelFormat);
         var minimumStride = checked(logicalBounds.Width * bytesPerPixel);
@@ -23,11 +32,19 @@ public sealed class ScreenFrame : IDisposable
             throw new ArgumentException("Screen frame pixel memory is smaller than the declared frame dimensions.", nameof(pixels));
         }
 
+        var validPixelCount = checked(logicalBounds.Width * logicalBounds.Height);
+        if (!validPixelMask.IsEmpty && validPixelMask.Length < validPixelCount)
+        {
+            throw new ArgumentException("Screen frame valid-pixel mask is smaller than the declared frame dimensions.", nameof(validPixelMask));
+        }
+
         LogicalBounds = logicalBounds;
         Stride = stride;
         PixelFormat = pixelFormat;
         Pixels = pixels;
+        ValidPixelMask = validPixelMask.IsEmpty ? ReadOnlyMemory<byte>.Empty : validPixelMask.Slice(0, validPixelCount);
         _owner = owner;
+        _validityIndex = validityIndex;
     }
 
     public ScreenRect LogicalBounds { get; }
@@ -41,6 +58,14 @@ public sealed class ScreenFrame : IDisposable
     public ScreenPixelFormat PixelFormat { get; }
 
     public ReadOnlyMemory<byte> Pixels { get; }
+
+    public ReadOnlyMemory<byte> ValidPixelMask { get; }
+
+    public bool HasValidPixelMask => !ValidPixelMask.IsEmpty;
+
+    public bool IsFullyValid => !HasValidPixelMask && _validityIndex is null;
+
+    public bool HasValidityIndex => _validityIndex is not null;
 
     public ScreenPixelColor GetPixel(ScreenPoint point)
     {
@@ -56,13 +81,84 @@ public sealed class ScreenFrame : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (!LogicalBounds.Contains(point))
+        if (!LogicalBounds.Contains(point) || !IsValidPixel(point))
         {
             color = default;
             return false;
         }
 
         color = ReadPixel(point);
+        return true;
+    }
+
+    public bool IsPixelValid(ScreenPoint point)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return LogicalBounds.Contains(point) && IsValidPixel(point);
+    }
+
+    public bool ContainsAnyValidPixel(ScreenRect region)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (!LogicalBounds.Contains(region))
+        {
+            throw new ArgumentOutOfRangeException(nameof(region), region, "The search region is outside the frame bounds.");
+        }
+
+        if (!HasValidPixelMask)
+        {
+            return true;
+        }
+
+        var mask = ValidPixelMask.Span;
+        for (var currentY = region.Y; currentY < region.Bottom; currentY++)
+        {
+            var maskOffset = checked((currentY - LogicalBounds.Y) * Width + region.X - LogicalBounds.X);
+            for (var currentX = 0; currentX < region.Width; currentX++)
+            {
+                if (mask[maskOffset + currentX] != 0)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public bool IsRectangleFullyValid(ScreenRect region)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (!LogicalBounds.Contains(region))
+        {
+            throw new ArgumentOutOfRangeException(nameof(region), region, "The search region is outside the frame bounds.");
+        }
+
+        if (IsFullyValid)
+        {
+            return true;
+        }
+
+        if (_validityIndex is not null)
+        {
+            return _validityIndex.IsRectangleFullyValid(region, LogicalBounds);
+        }
+
+        var mask = ValidPixelMask.Span;
+        for (var currentY = region.Y; currentY < region.Bottom; currentY++)
+        {
+            var maskOffset = checked((currentY - LogicalBounds.Y) * Width + region.X - LogicalBounds.X);
+            for (var currentX = 0; currentX < region.Width; currentX++)
+            {
+                if (mask[maskOffset + currentX] == 0)
+                {
+                    return false;
+                }
+            }
+        }
+
         return true;
     }
 
@@ -85,6 +181,11 @@ public sealed class ScreenFrame : IDisposable
             for (var currentX = region.X; currentX < region.Right; currentX++)
             {
                 var point = new ScreenPoint(currentX, currentY);
+                if (!IsValidPixel(point))
+                {
+                    continue;
+                }
+
                 var color = ReadPixel(point);
                 if (color.IsWithinTolerance(expected, tolerance))
                 {
@@ -104,6 +205,7 @@ public sealed class ScreenFrame : IDisposable
         }
 
         _disposed = true;
+        _validityIndex?.Dispose();
         _owner?.Dispose();
     }
 
@@ -131,5 +233,101 @@ public sealed class ScreenFrame : IDisposable
             ScreenPixelFormat.Xbgr8888 => new ScreenPixelColor(span[offset], span[offset + 1], span[offset + 2]),
             _ => throw new InvalidOperationException($"Unsupported screen pixel format '{PixelFormat}'.")
         };
+    }
+
+    private bool IsValidPixel(ScreenPoint point)
+    {
+        if (!HasValidPixelMask)
+        {
+            return true;
+        }
+
+        var localX = point.X - LogicalBounds.X;
+        var localY = point.Y - LogicalBounds.Y;
+        return ValidPixelMask.Span[checked(localY * Width + localX)] != 0;
+    }
+}
+
+public sealed class ScreenFrameValidityIndex : IDisposable
+{
+    private int[]? _prefix;
+    private readonly int _prefixWidth;
+
+    private ScreenFrameValidityIndex(int[] prefix, int width, int height)
+    {
+        _prefix = prefix;
+        _prefixWidth = checked(width + 1);
+    }
+
+    public static ScreenFrameValidityIndex Create(ReadOnlySpan<byte> validPixelMask, int width, int height)
+    {
+        if (width <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(width), width, "Frame width must be positive.");
+        }
+
+        if (height <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(height), height, "Frame height must be positive.");
+        }
+
+        var pixelCount = checked(width * height);
+        if (validPixelMask.Length < pixelCount)
+        {
+            throw new ArgumentException("The valid-pixel mask is smaller than the declared frame dimensions.", nameof(validPixelMask));
+        }
+
+        var prefix = ArrayPool<int>.Shared.Rent(checked((width + 1) * (height + 1)));
+        try
+        {
+            var prefixWidth = width + 1;
+            for (var row = 1; row <= height; row++)
+            {
+                var rowSum = 0;
+                var maskOffset = checked((row - 1) * width);
+                var prefixOffset = checked(row * prefixWidth);
+                var previousOffset = checked((row - 1) * prefixWidth);
+                for (var column = 1; column <= width; column++)
+                {
+                    rowSum += validPixelMask[maskOffset + column - 1] == 0 ? 1 : 0;
+                    prefix[prefixOffset + column] = prefix[previousOffset + column] + rowSum;
+                }
+            }
+
+            return new ScreenFrameValidityIndex(prefix, width, height);
+        }
+        catch
+        {
+            ArrayPool<int>.Shared.Return(prefix);
+            throw;
+        }
+    }
+
+    public bool IsRectangleFullyValid(ScreenRect region, ScreenRect logicalBounds)
+    {
+        var prefix = _prefix ?? throw new ObjectDisposedException(nameof(ScreenFrameValidityIndex));
+        var left = checked(region.X - logicalBounds.X);
+        var top = checked(region.Y - logicalBounds.Y);
+        var right = checked(left + region.Width);
+        var bottom = checked(top + region.Height);
+        var bottomOffset = checked(bottom * _prefixWidth);
+        var topOffset = checked(top * _prefixWidth);
+        var invalidCount = prefix[bottomOffset + right]
+            - prefix[topOffset + right]
+            - prefix[bottomOffset + left]
+            + prefix[topOffset + left];
+        return invalidCount == 0;
+    }
+
+    public void Dispose()
+    {
+        var prefix = _prefix;
+        if (prefix is null)
+        {
+            return;
+        }
+
+        _prefix = null;
+        ArrayPool<int>.Shared.Return(prefix);
     }
 }

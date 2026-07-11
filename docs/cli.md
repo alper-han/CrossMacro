@@ -106,18 +106,43 @@ The first-class screen command is an ergonomic wrapper for pixel/color reads:
 
 ```bash
 crossmacro screen pixel 500 300
+crossmacro screen pixel 500 300 --timeout-ms 5000
 crossmacro screen pixel --relative 0 0 --json
 crossmacro screen wait-color 500 300 00FF00 --timeout-ms 5000
-crossmacro screen search-color 0 0 1920 1080 FF0000 --tolerance 26 --json
+crossmacro screen search-color 0 0 1920 1080 FF0000 --tolerance 26 --timeout-ms 5000 --json
+crossmacro screen search-image ./button.png --similarity 0.95
+crossmacro screen wait-image ./ready.png --timeout-ms 10000 --downsample 2
+crossmacro screen image-click ./button.png --button right
 ```
 
-- `screen pixel <x> <y>` prints one pixel color and includes coordinates/color in
-  JSON `data`.
+- `screen pixel <x> <y> [--timeout-ms <n>]` prints one pixel color and includes
+  coordinates/color in JSON `data`.
 - `screen pixel --relative <dx> <dy>` samples relative to the current cursor; it
   returns an unsupported error if no mouse position provider is available.
 - `screen wait-color <x> <y> <RRGGBB> [--timeout-ms <n>]` waits for a color.
-- `screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--tolerance <0..255>]`
-  searches the end-exclusive region `[x1, x2) x [y1, y2)`.
+- `screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--timeout-ms <n>] [--tolerance <0..255>]`
+  searches the end-exclusive region `[x1, x2) x [y1, y2)`. Timeout values are
+  milliseconds; `0` means no timeout.
+- `screen search-image <image-path> [--timeout-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware]`
+  searches for a native PNG template. A timeout is optional and has no default.
+- `screen wait-image <image-path> [--timeout-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware]`
+  polls until the template appears. The default timeout is 5000 milliseconds.
+- `screen image-click <image-path> [--timeout-ms <n>] [--button <left|right|middle>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware]`
+  searches for the template and clicks its center. The default button is
+  `left`; `right` and `middle` are optional. A timeout is optional and has no
+  default.
+- Image commands accept finite similarity values from `0.0` to `1.0`, defaulting
+  to `1.0`, and a downsample factor of at least `1`, defaulting to `1`.
+- Image matching defaults to `first` (`FirstThresholdMatch`): it scans
+  deterministic row-major bands and returns the first band containing a match.
+  `--matchmode best` scans the complete region and selects the best SAD score,
+  with deterministic Y/X tie-breaking. `--matchmode first` makes the default
+  explicit.
+- `--scale-aware` is disabled by default. When enabled, matching tries the
+  supported uniform scales `0.75`, `0.8`, `0.9`, `1.0`, `1.1`, `1.25`, and
+  `1.5`; it does not change the meaning of `--downsample`.
+- Image files must be native 8-bit PNG files. Other formats, including JPG, are
+  not imported.
 
 ## Screenshot command
 
@@ -335,10 +360,11 @@ receive `$NAME` literally instead of resolving a CrossMacro variable.
 
 ## Runtime clipboard, window, and screen steps
 
-CrossMacro's screen-reading commands are available on Windows desktop sessions,
-macOS 10.15+, native Linux X11, and Linux Wayland. Windows and macOS use native
-capture APIs; macOS requires Screen Recording permission. Linux backend details
-are documented in [`docs/linux.md`](linux.md).
+CrossMacro's screen-reading commands use the available platform capture provider
+on Windows desktop sessions, macOS 10.15+, native Linux X11, and Linux Wayland.
+Windows and macOS use native capture APIs; macOS requires Screen Recording
+permission. Linux backend details and Wayland provider limitations are documented
+in [`docs/linux.md`](linux.md).
 
 ```bash
 pixelcolor 500 300 mycolor
@@ -361,6 +387,9 @@ window setdesktopforwindow address 0x1234 2
 waitcolor 500 300 00FF00 5000 wait_ok
 waitcolor 500 300 $mycolor 5000 wait_ok
 pixelsearch 0 0 1920 1080 FF0000 found found_x found_y tolerance 26
+imagesearch button found found_x found_y similarity 0.95 downsample 2 timeout 5000
+imageclick button clicked click_x click_y button right similarity 0.95
+waitimage ready found found_x found_y timeout 10000
 ```
 
 - `pixelcolor <x> <y> [var]` samples one pixel at an absolute position.
@@ -393,13 +422,32 @@ pixelsearch 0 0 1920 1080 FF0000 found found_x found_y tolerance 26
   mutate the active window.
 - `window getdesktop <var>`, `window setdesktop <workspace>`, and
   `window setdesktopforwindow active|address <addr> <workspace>` manage workspaces.
+- `imagesearch [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [similarity <0..1>] [downsample <n>] [matchmode <first|best>] [scaleaware] [timeout <milliseconds>]`
+  searches a named PNG asset. Region bounds are end-exclusive. With result
+  variables, a miss stores `false` and `-1, -1`; without them, a miss fails the
+  step. `matchmode` defaults to `first`; `best` performs a full-region SAD
+  reduction. `scaleaware` is opt-in and uses the same supported scales as the
+  CLI.
+- `<ImageName>` is the embedded macro asset name, not a filesystem path; for
+  example, an imported `button.png` may be referenced as `button`.
+- `imageclick [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [button <left|right|middle>] [similarity <0..1>] [downsample <n>] [matchmode <first|best>] [timeout <milliseconds>]`
+  clicks the center of a matching template. The default button is `left`.
+- `waitimage [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [timeout <milliseconds>] [similarity <0..1>] [downsample <n>] [matchmode <first|best>]`
+  polls every 50 milliseconds until the template appears. Its default timeout is
+  5000 milliseconds. Result variables make a timeout store `false` and `-1, -1`.
 
 Target colors can be a canonical six-digit `RRGGBB` value with no `#`, or a
 `$var` reference to a color previously written by `pixelcolor`; bare variable
 names are not accepted in target color positions. Hex values are written back in
 uppercase. `pixelsearch` defaults to exact matching when tolerance is omitted;
-non-zero tolerance allows that many shades of difference per RGB channel. Image
-matching is not included.
+non-zero tolerance allows that many shades of difference per RGB channel.
+Image matching defaults to exact matching with similarity `1.0` and
+`FirstThresholdMatch`. The matcher checks cancellation and the configured
+timeout during both capture and CPU matching. A CLI search no-match is a
+successful JSON result with `Found: false` and null match coordinates; a timeout
+or capture/provider failure is an error result. Script result variables use
+`false` and `-1, -1` for a no-match timeout path, while fail-fast script forms
+raise an error.
 
 `waitcolor` polls every 50 ms by default and uses a 30 second default timeout
 when `timeout_ms` is omitted. If you pass a timeout, it is measured in

@@ -39,12 +39,21 @@ public class TriggerServiceTests : IDisposable
         _macroFileManager = Substitute.For<IMacroFileManager>();
         _macroPlayer = Substitute.For<IMacroPlayer>();
 
-        _service = new TriggerService(
-            _windowManager,
-            () => _profileManager,
-            _macroFileManager,
-            () => _macroPlayer,
-            _triggersFilePath);
+        var testSynchronizationContext = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(null);
+        try
+        {
+            _service = new TriggerService(
+                _windowManager,
+                () => _profileManager,
+                _macroFileManager,
+                () => _macroPlayer,
+                _triggersFilePath);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(testSynchronizationContext);
+        }
     }
 
     public void Dispose()

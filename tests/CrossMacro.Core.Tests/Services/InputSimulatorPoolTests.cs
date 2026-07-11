@@ -55,6 +55,17 @@ public class InputSimulatorPoolTests
     }
 
     [Fact]
+    public void Release_WhenCalledTwice_DisposesTheLeaseOnlyOnce()
+    {
+        var acquired = (FakeInputSimulator)_pool.Acquire(0, 0);
+
+        _pool.Release(acquired);
+        _pool.Release(acquired);
+
+        acquired.DisposeCalls.Should().Be(1);
+    }
+
+    [Fact]
     public void Dispose_CanBeCalledMultipleTimes()
     {
         // Act
@@ -82,6 +93,7 @@ public class InputSimulatorPoolTests
     {
         public List<(int Width, int Height)> InitializeCalls { get; } = [];
         public bool IsDisposed { get; private set; }
+        public int DisposeCalls { get; private set; }
 
         public string ProviderName => "Fake";
         public bool IsSupported => true;
@@ -100,6 +112,7 @@ public class InputSimulatorPoolTests
 
         public void Dispose()
         {
+            DisposeCalls++;
             IsDisposed = true;
         }
     }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Diagnostics;
@@ -15,6 +16,7 @@ public class InputSimulatorPool : IDisposable
 {
     private readonly Func<IInputSimulator> _factory;
     private readonly Lock _lock = new();
+    private readonly HashSet<IInputSimulator> _leasedDevices = new();
 
     private IInputSimulator? _warmRelativeDevice;
     private IInputSimulator? _warmAbsoluteDevice;
@@ -156,6 +158,7 @@ public class InputSimulatorPool : IDisposable
                 {
                     device = _warmAbsoluteDevice;
                     _warmAbsoluteDevice = null;
+                    _leasedDevices.Add(device);
                     Log.Information("[InputSimulatorPool] Acquired warm absolute device ({Width}x{Height})", screenWidth, screenHeight);
                 }
             }
@@ -165,6 +168,7 @@ public class InputSimulatorPool : IDisposable
                 {
                     device = _warmRelativeDevice;
                     _warmRelativeDevice = null;
+                    _leasedDevices.Add(device);
                     Log.Information("[InputSimulatorPool] Acquired warm relative device");
                 }
             }
@@ -180,6 +184,17 @@ public class InputSimulatorPool : IDisposable
         device = _factory();
         device.Initialize(screenWidth, screenHeight);
 
+        using (_lock.EnterScope())
+        {
+            if (_disposed)
+            {
+                device.Dispose();
+                throw new ObjectDisposedException(nameof(InputSimulatorPool));
+            }
+
+            _leasedDevices.Add(device);
+        }
+
         return device;
     }
 
@@ -190,6 +205,16 @@ public class InputSimulatorPool : IDisposable
     /// </summary>
     public void Release(IInputSimulator device, int screenWidth = 0, int screenHeight = 0)
     {
+        ArgumentNullException.ThrowIfNull(device);
+
+        using (_lock.EnterScope())
+        {
+            if (!_leasedDevices.Remove(device))
+            {
+                return;
+            }
+        }
+
         try
         {
             device.Dispose();
@@ -199,7 +224,10 @@ public class InputSimulatorPool : IDisposable
             Log.Debug(ex, "[InputSimulatorPool] Error disposing returned device");
         }
 
-        QueueWarmUpReplacement(screenWidth, screenHeight);
+        if (!_disposed)
+        {
+            QueueWarmUpReplacement(screenWidth, screenHeight);
+        }
     }
 
     private void QueueWarmUpReplacement(int screenWidth, int screenHeight)

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using CrossMacro.Core.Models;
 using CrossMacro.Platform.Abstractions;
+using CrossMacro.Infrastructure.Services.ScreenReading;
 
 namespace CrossMacro.Cli;
 
@@ -239,7 +240,10 @@ public enum ScreenCliAction
 {
     Pixel,
     WaitColor,
-    SearchColor
+    SearchColor,
+    SearchImage,
+    WaitImage,
+    ImageClick
 }
 
 public enum ScreenshotCliAction
@@ -261,14 +265,24 @@ public sealed record ScreenshotCliOptions(
 
 public sealed record ScreenCliOptions(
     ScreenCliAction Action,
-    int X,
-    int Y,
+    int X = 0,
+    int Y = 0,
     ScreenPixelColor? ExpectedColor = null,
     bool Relative = false,
     int? X2 = null,
     int? Y2 = null,
     int? TimeoutMs = null,
     int Tolerance = 0,
+    string? ImagePath = null,
+    int? RegionX = null,
+    int? RegionY = null,
+    int? RegionWidth = null,
+    int? RegionHeight = null,
+    double Similarity = 1.0,
+    int Downsample = 1,
+    ScreenImageMatchSelectionMode MatchMode = ScreenImageMatchSelectionMode.FirstThresholdMatch,
+    bool ScaleAware = false,
+    MouseButton Button = MouseButton.Left,
     bool JsonOutput = false,
     string? LogLevel = null)
     : CliCommandOptions(JsonOutput, LogLevel);

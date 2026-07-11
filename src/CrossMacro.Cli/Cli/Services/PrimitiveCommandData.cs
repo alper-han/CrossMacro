@@ -53,6 +53,38 @@ public sealed record ScreenSearchColorData(
     int Tolerance,
     string ProviderName);
 
+public sealed record ScreenSearchImageData(
+    bool Found,
+    int? X,
+    int? Y,
+    double? Score,
+    string ImagePath,
+    int? RegionX,
+    int? RegionY,
+    int? RegionWidth,
+    int? RegionHeight,
+    double Similarity,
+    int Downsample,
+    string MatchMode,
+    bool ScaleAware,
+    string ProviderName);
+
+public sealed record ScreenImageClickData(
+    int X,
+    int Y,
+    double Score,
+    string ImagePath,
+    int? RegionX,
+    int? RegionY,
+    int? RegionWidth,
+    int? RegionHeight,
+    double Similarity,
+    int Downsample,
+    string MatchMode,
+    bool ScaleAware,
+    string Button,
+    string ProviderName);
+
 public sealed record ScreenshotData(
     string? OutputPath,
     int Width,

@@ -2,6 +2,9 @@ using System;
 using CrossMacro.Core.Services;
 using CrossMacro.Cli.Commands;
 using CrossMacro.Cli.Services;
+using CrossMacro.Infrastructure.Services;
+using CrossMacro.Infrastructure.Services.Playback;
+using CrossMacro.Infrastructure.Services.ScreenCapture;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Abstractions.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,8 +16,6 @@ public static class CliServiceCollectionExtensions
     public static IServiceCollection AddCliServices(this IServiceCollection services)
     {
         // CLI runtime exposes simulator/capture as factories in platform registrars.
-        // Materialize concrete instances for preflight/doctor services that depend on direct interfaces.
-        services.AddTransient<IInputSimulator>(sp => sp.GetRequiredService<Func<IInputSimulator>>()());
         services.AddTransient<IInputCapture>(sp => sp.GetRequiredService<Func<IInputCapture>>()());
 
         services.AddSingleton<IMacroExecutionService, MacroExecutionService>();
@@ -46,7 +47,10 @@ public static class CliServiceCollectionExtensions
                 sp.GetService<IScreenReadingDiagnosticProvider>(),
                 sp.GetService<IMacOSScreenRecordingPermissionProbe>());
         });
-        services.AddSingleton<ICliPreflightService, CliPreflightService>();
+        services.AddSingleton<ICliPreflightService>(sp => new CliPreflightService(
+            sp.GetRequiredService<IDisplaySessionService>(),
+            sp.GetRequiredService<Func<IInputSimulator>>(),
+            sp.GetRequiredService<Func<IInputCapture>>()));
         services.AddSingleton<ISettingsCliService, SettingsCliService>();
         services.AddSingleton<IProfileCliService, ProfileCliService>();
         services.AddSingleton<ITextExpansionCliService, TextExpansionCliService>();
@@ -59,8 +63,15 @@ public static class CliServiceCollectionExtensions
         services.AddSingleton<IRunScriptExecutionService, RunScriptExecutionService>();
         services.AddSingleton<IClipboardCliService, ClipboardCliService>();
         services.AddSingleton<IWindowCliService, WindowCliService>();
-        services.AddSingleton<IScreenCliService, ScreenCliService>();
-        services.AddSingleton<IScreenshotCliService, ScreenshotCliService>();
+        services.AddSingleton<IScreenCliService>(sp => new ScreenCliService(
+            sp.GetService<IScreenPixelReader>(),
+            sp.GetService<IMousePositionProvider>(),
+            sp.GetService<Func<IInputSimulator>>(),
+            sp.GetService<InputSimulatorPool>(),
+            sp.GetService<IImageClickMovementResolver>(),
+            sp.GetRequiredService<IImageAssetCodec>()));
+        services.AddSingleton<IScreenshotCliService>(sp =>
+            new ScreenshotCliService(sp.GetRequiredService<IScreenshotCaptureService>()));
 
         services.AddSingleton<MacroValidateCommandHandler>();
         services.AddSingleton<MacroInfoCommandHandler>();

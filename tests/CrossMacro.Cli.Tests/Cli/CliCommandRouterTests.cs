@@ -1,6 +1,7 @@
 using System.IO;
 using CrossMacro.Cli;
 using CrossMacro.Core.Models;
+using CrossMacro.Infrastructure.Services.ScreenReading;
 
 namespace CrossMacro.Cli.Tests;
 
@@ -1221,7 +1222,7 @@ public class CliCommandRouterTests
         Assert.Contains("crossmacro clipboard get", usage);
         Assert.Contains("crossmacro clipboard clear", usage);
         Assert.Contains("crossmacro window active|list", usage);
-        Assert.Contains("crossmacro screen pixel|wait-color|search-color", usage);
+        Assert.Contains("crossmacro screen pixel|wait-color|search-color|search-image|wait-image|image-click", usage);
         Assert.Contains("crossmacro screenshot", usage);
         Assert.Contains("crossmacro profile", usage);
         Assert.Contains("crossmacro text-expansion", usage);
@@ -1315,19 +1316,62 @@ public class CliCommandRouterTests
     [Fact]
     public void Parse_WhenScreenCommands_ReturnTypedOptions()
     {
-        var pixel = _router.Parse(["screen", "pixel", "--relative", "-1", "2", "--json"]);
+        var pixel = _router.Parse(["screen", "pixel", "--relative", "-1", "2", "--timeout-ms", "400", "--json"]);
         var wait = _router.Parse(["screen", "wait-color", "3", "4", "00ff00", "--timeout-ms", "500"]);
-        var search = _router.Parse(["screen", "search-color", "0", "0", "10", "20", "FF0000", "--tolerance", "26"]);
+        var search = _router.Parse(["screen", "search-color", "0", "0", "10", "20", "FF0000", "--timeout-ms", "450", "--tolerance", "26"]);
+        var imageSearch = _router.Parse(["screen", "search-image", "/tmp/template.png", "--timeout-ms", "600", "--region", "1", "2", "30", "40", "--similarity", "0.9", "--downsample", "2", "--json"]);
+        var bestImageSearch = _router.Parse(["screen", "search-image", "/tmp/template.png", "--matchmode", "best"]);
+        var waitImage = _router.Parse(["screen", "wait-image", "/tmp/template.png", "--timeout-ms", "750", "--region", "2", "3", "40", "50", "--similarity", "0.8", "--downsample", "3"]);
+        var imageClick = _router.Parse(["screen", "image-click", "/tmp/template.png", "--timeout-ms", "650", "--button", "right", "--region", "4", "5", "60", "70", "--similarity", "0.7", "--downsample", "4"]);
 
         Assert.True(pixel.IsSuccess);
         var pixelOptions = Assert.IsType<ScreenCliOptions>(pixel.Options);
         Assert.True(pixelOptions.Relative);
         Assert.Equal(-1, pixelOptions.X);
+        Assert.Equal(400, pixelOptions.TimeoutMs);
         Assert.True(pixelOptions.JsonOutput);
         Assert.True(wait.IsSuccess);
         Assert.Equal(500, Assert.IsType<ScreenCliOptions>(wait.Options).TimeoutMs);
         Assert.True(search.IsSuccess);
-        Assert.Equal(26, Assert.IsType<ScreenCliOptions>(search.Options).Tolerance);
+        var searchOptions = Assert.IsType<ScreenCliOptions>(search.Options);
+        Assert.Equal(26, searchOptions.Tolerance);
+        Assert.Equal(450, searchOptions.TimeoutMs);
+        Assert.True(imageSearch.IsSuccess);
+        var imageSearchOptions = Assert.IsType<ScreenCliOptions>(imageSearch.Options);
+        Assert.Equal(ScreenCliAction.SearchImage, imageSearchOptions.Action);
+        Assert.Equal("/tmp/template.png", imageSearchOptions.ImagePath);
+        Assert.Equal(1, imageSearchOptions.RegionX);
+        Assert.Equal(2, imageSearchOptions.RegionY);
+        Assert.Equal(30, imageSearchOptions.RegionWidth);
+        Assert.Equal(40, imageSearchOptions.RegionHeight);
+        Assert.Equal(0.9, imageSearchOptions.Similarity);
+        Assert.Equal(2, imageSearchOptions.Downsample);
+        Assert.Equal(600, imageSearchOptions.TimeoutMs);
+        Assert.True(imageSearchOptions.JsonOutput);
+        Assert.Equal(ScreenImageMatchSelectionMode.FirstThresholdMatch, imageSearchOptions.MatchMode);
+        Assert.True(bestImageSearch.IsSuccess);
+        Assert.Equal(ScreenImageMatchSelectionMode.BestMatch, Assert.IsType<ScreenCliOptions>(bestImageSearch.Options).MatchMode);
+        Assert.True(waitImage.IsSuccess);
+        var waitImageOptions = Assert.IsType<ScreenCliOptions>(waitImage.Options);
+        Assert.Equal(ScreenCliAction.WaitImage, waitImageOptions.Action);
+        Assert.Equal(750, waitImageOptions.TimeoutMs);
+        Assert.Equal(2, waitImageOptions.RegionX);
+        Assert.Equal(3, waitImageOptions.RegionY);
+        Assert.Equal(40, waitImageOptions.RegionWidth);
+        Assert.Equal(50, waitImageOptions.RegionHeight);
+        Assert.Equal(0.8, waitImageOptions.Similarity);
+        Assert.Equal(3, waitImageOptions.Downsample);
+        Assert.True(imageClick.IsSuccess);
+        var imageClickOptions = Assert.IsType<ScreenCliOptions>(imageClick.Options);
+        Assert.Equal(ScreenCliAction.ImageClick, imageClickOptions.Action);
+        Assert.Equal(MouseButton.Right, imageClickOptions.Button);
+        Assert.Equal(4, imageClickOptions.RegionX);
+        Assert.Equal(5, imageClickOptions.RegionY);
+        Assert.Equal(60, imageClickOptions.RegionWidth);
+        Assert.Equal(70, imageClickOptions.RegionHeight);
+        Assert.Equal(0.7, imageClickOptions.Similarity);
+        Assert.Equal(4, imageClickOptions.Downsample);
+        Assert.Equal(650, imageClickOptions.TimeoutMs);
     }
 
     [Fact]
@@ -1337,6 +1381,49 @@ public class CliCommandRouterTests
 
         Assert.False(result.IsSuccess);
         Assert.Contains("--tolerance", result.ErrorMessage);
+    }
+
+    [Fact]
+    public void Parse_WhenScreenSearchImageMissingPath_ReturnsError()
+    {
+        var result = _router.Parse(["screen", "search-image", "--json"]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("screen search-image requires <image-path>.", result.ErrorMessage);
+        Assert.True(result.PrefersJsonOutput);
+    }
+
+	[Fact]
+	public void Parse_WhenScreenSearchImageInvalidOptions_ReturnsError()
+	{
+		var badSimilarity = _router.Parse(["screen", "search-image", "/tmp/template.png", "--similarity", "1.1"]);
+		var badSimilarityNaN = _router.Parse(["screen", "search-image", "/tmp/template.png", "--similarity", "NaN"]);
+		var badSimilarityInfinity = _router.Parse(["screen", "search-image", "/tmp/template.png", "--similarity", "Infinity"]);
+		var badSimilarityNegativeInfinity = _router.Parse(["screen", "search-image", "/tmp/template.png", "--similarity", "-Infinity"]);
+		var badDownsample = _router.Parse(["screen", "search-image", "/tmp/template.png", "--downsample", "0"]);
+		var badRegion = _router.Parse(["screen", "search-image", "/tmp/template.png", "--region", "1", "2", "0", "4"]);
+		var badWaitTimeout = _router.Parse(["screen", "wait-image", "/tmp/template.png", "--timeout-ms", "-1"]);
+        var badImageClickButton = _router.Parse(["screen", "image-click", "/tmp/template.png", "--button", "side"]);
+        var badMatchMode = _router.Parse(["screen", "search-image", "/tmp/template.png", "--matchmode", "middle"]);
+
+		Assert.False(badSimilarity.IsSuccess);
+		Assert.Contains("--similarity", badSimilarity.ErrorMessage);
+		Assert.False(badSimilarityNaN.IsSuccess);
+		Assert.Contains("--similarity", badSimilarityNaN.ErrorMessage);
+		Assert.False(badSimilarityInfinity.IsSuccess);
+		Assert.Contains("--similarity", badSimilarityInfinity.ErrorMessage);
+		Assert.False(badSimilarityNegativeInfinity.IsSuccess);
+		Assert.Contains("--similarity", badSimilarityNegativeInfinity.ErrorMessage);
+		Assert.False(badDownsample.IsSuccess);
+		Assert.Contains("--downsample", badDownsample.ErrorMessage);
+        Assert.False(badRegion.IsSuccess);
+        Assert.Contains("--region", badRegion.ErrorMessage);
+        Assert.False(badWaitTimeout.IsSuccess);
+        Assert.Contains("--timeout-ms", badWaitTimeout.ErrorMessage);
+        Assert.False(badImageClickButton.IsSuccess);
+        Assert.Contains("--button", badImageClickButton.ErrorMessage);
+        Assert.False(badMatchMode.IsSuccess);
+        Assert.Contains("--matchmode", badMatchMode.ErrorMessage);
     }
 
     [Fact]

@@ -36,6 +36,8 @@ namespace CrossMacro.Cli.Serialization;
 [JsonSerializable(typeof(ScreenPixelData))]
 [JsonSerializable(typeof(ScreenWaitColorData))]
 [JsonSerializable(typeof(ScreenSearchColorData))]
+[JsonSerializable(typeof(ScreenSearchImageData))]
+[JsonSerializable(typeof(ScreenImageClickData))]
 [JsonSerializable(typeof(ScreenshotData))]
 [JsonSerializable(typeof(ProfileData))]
 [JsonSerializable(typeof(ProfileListData))]

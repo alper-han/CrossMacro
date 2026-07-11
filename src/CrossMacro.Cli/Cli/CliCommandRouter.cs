@@ -42,6 +42,9 @@ public sealed class CliCommandRouter
         "--timeout-ms",
         "--relative",
         "--tolerance",
+        "--similarity",
+        "--downsample",
+        "--button",
         "--region",
         "--clipboard",
         "--all",
@@ -116,7 +119,7 @@ public sealed class CliCommandRouter
         "  crossmacro clipboard set --file <path> [--json] [--log-level <level>]",
         "  crossmacro clipboard clear [--json] [--log-level <level>]",
         "  crossmacro window active|list|search|wait|focus|close|move|resize|center|maximize|fullscreen|float|workspace ... [--json] [--log-level <level>]",
-        "  crossmacro screen pixel|wait-color|search-color ... [--json] [--log-level <level>]",
+        "  crossmacro screen pixel|wait-color|search-color|search-image|wait-image|image-click ... [--json] [--log-level <level>]",
         "  crossmacro screenshot ((--output|-o) <path>|--clipboard) [--region <x> <y> <width> <height>] [--json] [--log-level <level>]",
         string.Empty,
         "  crossmacro headless [--json] [--log-level <level>]",
@@ -668,11 +671,13 @@ public sealed class CliCommandRouter
         {
             return
                 "Usage:\n" +
-                "  crossmacro screen pixel <x> <y> [--json] [--log-level <level>]\n" +
-                "  crossmacro screen pixel --relative <dx> <dy> [--json] [--log-level <level>]\n" +
+                "  crossmacro screen pixel <x> <y> [--relative] [--timeout-ms <n>] [--json] [--log-level <level>]\n" +
                 "  crossmacro screen wait-color <x> <y> <RRGGBB> [--timeout-ms <n>] [--json] [--log-level <level>]\n" +
-                "  crossmacro screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--tolerance <0..255>] [--json] [--log-level <level>]\n\n" +
-                "Colors are 6-character RGB hex values. search-color bounds are end-exclusive.\n";
+                "  crossmacro screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--timeout-ms <n>] [--tolerance <0..255>] [--json] [--log-level <level>]\n" +
+    "  crossmacro screen search-image <image-path> [--timeout-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware] [--json] [--log-level <level>]\n" +
+    "  crossmacro screen wait-image <image-path> [--timeout-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware] [--json] [--log-level <level>]\n" +
+    "  crossmacro screen image-click <image-path> [--timeout-ms <n>] [--button <left|right|middle>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware] [--json] [--log-level <level>]\n\n" +
+                "Colors are 6-character RGB hex values. search-color bounds are end-exclusive. image commands read 8-bit PNG templates.\n";
         }
 
         if (topic.StartsWith("screen.", StringComparison.OrdinalIgnoreCase))

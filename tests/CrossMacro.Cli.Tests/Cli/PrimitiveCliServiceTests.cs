@@ -1,7 +1,10 @@
 using CrossMacro.Cli;
 using CrossMacro.Cli.Services;
+using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Infrastructure.Services.ScreenCapture;
+using CrossMacro.Infrastructure.Services.ScreenReading;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Cli.Tests;
@@ -125,10 +128,11 @@ public sealed class PrimitiveCliServiceTests
         var reader = new FakeScreenPixelReader();
         var service = new ScreenCliService(reader, new FakeMousePositionProvider { Position = (100, 200) });
 
-        var result = await service.ExecuteAsync(new ScreenCliOptions(ScreenCliAction.Pixel, 5, -10, Relative: true), CancellationToken.None);
+        var result = await service.ExecuteAsync(new ScreenCliOptions(ScreenCliAction.Pixel, 5, -10, Relative: true, TimeoutMs: 125), CancellationToken.None);
 
         Assert.True(result.Success);
         Assert.Equal(new ScreenPoint(105, 190), reader.LastPoint);
+        Assert.Equal(TimeSpan.FromMilliseconds(125), reader.LastPixelOptions.Timeout);
         var data = Assert.IsType<ScreenPixelData>(result.Data);
         Assert.Equal("123456", data.Color);
         Assert.True(data.Relative);
@@ -141,13 +145,342 @@ public sealed class PrimitiveCliServiceTests
         var service = new ScreenCliService(reader, new FakeMousePositionProvider());
 
         var wait = await service.ExecuteAsync(new ScreenCliOptions(ScreenCliAction.WaitColor, 1, 2, new ScreenPixelColor(0, 255, 0), TimeoutMs: 250), CancellationToken.None);
-        var search = await service.ExecuteAsync(new ScreenCliOptions(ScreenCliAction.SearchColor, 0, 0, new ScreenPixelColor(255, 0, 0), X2: 10, Y2: 20, Tolerance: 26), CancellationToken.None);
+        var search = await service.ExecuteAsync(new ScreenCliOptions(ScreenCliAction.SearchColor, 0, 0, new ScreenPixelColor(255, 0, 0), X2: 10, Y2: 20, Tolerance: 26, TimeoutMs: 275), CancellationToken.None);
 
         Assert.True(wait.Success);
         Assert.Equal(TimeSpan.FromMilliseconds(250), reader.LastWaitOptions.Timeout);
         Assert.True(search.Success);
         Assert.Equal(new ScreenRect(0, 0, 10, 20), reader.LastRegion);
         Assert.Equal(26, reader.LastTolerance);
+        Assert.Equal(TimeSpan.FromMilliseconds(275), reader.LastSearchOptions.Timeout);
+    }
+
+	[Fact]
+	public async Task Screen_SearchImage_DecodesPngAndForwardsOptionsToReader()
+	{
+        var imagePath = await WriteTemplatePngAsync();
+        try
+        {
+            var reader = new FakeScreenPixelReader
+            {
+                ImageMatch = new ScreenImageMatch(new ScreenPoint(7, 8), 0.95)
+            };
+            var service = new ScreenCliService(reader, new FakeMousePositionProvider());
+
+            var result = await service.ExecuteAsync(new ScreenCliOptions(
+                ScreenCliAction.SearchImage,
+                ImagePath: imagePath,
+                RegionX: 1,
+                RegionY: 2,
+                RegionWidth: 30,
+                RegionHeight: 40,
+                TimeoutMs: 123,
+                Similarity: 0.9,
+                Downsample: 2,
+                MatchMode: ScreenImageMatchSelectionMode.BestMatch), CancellationToken.None);
+
+            Assert.True(result.Success, string.Join("; ", result.Errors));
+            Assert.Equal(new ScreenRect(1, 2, 30, 40), reader.LastImageRegion);
+            Assert.NotNull(reader.LastImageTemplate);
+            Assert.Equal(1, reader.LastImageTemplate.Width);
+            Assert.Equal(1, reader.LastImageTemplate.Height);
+            Assert.Equal(TimeSpan.FromMilliseconds(123), reader.LastImageReadOptions.Timeout);
+            Assert.Equal(0.9, reader.LastImageOptions.MinimumSimilarity);
+            Assert.Equal(2, reader.LastImageOptions.DownsampleFactor);
+            Assert.Equal(ScreenImageMatchSelectionMode.BestMatch, reader.LastImageOptions.SelectionMode);
+            var data = Assert.IsType<ScreenSearchImageData>(result.Data);
+            Assert.True(data.Found);
+            Assert.Equal(7, data.X);
+            Assert.Equal(8, data.Y);
+            Assert.Equal(0.95, data.Score);
+            Assert.Equal(Path.GetFullPath(imagePath), data.ImagePath);
+            Assert.Equal("best", data.MatchMode);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+		}
+	}
+
+	[Fact]
+	public async Task Screen_SearchImage_WhenSimilarityIsNotFinite_ReturnsInvalidArguments()
+	{
+		var reader = new FakeScreenPixelReader();
+		var service = new ScreenCliService(reader, new FakeMousePositionProvider());
+
+		foreach (var similarity in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity })
+		{
+			var result = await service.ExecuteAsync(new ScreenCliOptions(
+				ScreenCliAction.SearchImage,
+				ImagePath: "/tmp/template.png",
+				Similarity: similarity), CancellationToken.None);
+
+			Assert.False(result.Success);
+			Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
+			Assert.Contains("Invalid options", result.Message);
+		}
+	}
+
+	[Fact]
+	public async Task Screen_SearchImage_WhenNoMatch_ReturnsFoundFalseData()
+	{
+        var imagePath = await WriteTemplatePngAsync();
+        try
+        {
+            var reader = new FakeScreenPixelReader { ImageSearchNoMatch = true };
+            var service = new ScreenCliService(reader, new FakeMousePositionProvider());
+
+            var result = await service.ExecuteAsync(new ScreenCliOptions(ScreenCliAction.SearchImage, ImagePath: imagePath), CancellationToken.None);
+
+            Assert.True(result.Success, string.Join("; ", result.Errors));
+            var data = Assert.IsType<ScreenSearchImageData>(result.Data);
+            Assert.False(data.Found);
+            Assert.Null(data.X);
+            Assert.Null(data.Y);
+            Assert.Null(data.Score);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public async Task Screen_SearchImage_WhenReaderReturnsCanceled_ReturnsCancelledFailure()
+    {
+        var imagePath = await WriteTemplatePngAsync();
+        try
+        {
+            var reader = new FakeScreenPixelReader
+            {
+                ImageSearchResult = ScreenReadResult<ScreenImageMatch>.Failure(
+                    ScreenReadErrorKind.Canceled,
+                    "image search canceled")
+            };
+            var service = new ScreenCliService(reader, new FakeMousePositionProvider());
+
+            var result = await service.ExecuteAsync(new ScreenCliOptions(ScreenCliAction.SearchImage, ImagePath: imagePath), CancellationToken.None);
+
+            Assert.False(result.Success);
+            Assert.Equal((int)CliExitCode.Cancelled, result.ExitCode);
+            Assert.Contains("image search canceled", result.Errors);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public async Task Screen_WaitImage_ForwardsRemainingDeadlineToImageSearch()
+    {
+        var imagePath = await WriteTemplatePngAsync();
+        try
+        {
+            var reader = new FakeScreenPixelReader { ImageSearchNoMatch = true };
+            var service = new ScreenCliService(reader, new FakeMousePositionProvider());
+
+            var result = await service.ExecuteAsync(new ScreenCliOptions(
+                ScreenCliAction.WaitImage,
+                ImagePath: imagePath,
+                TimeoutMs: 0), CancellationToken.None);
+
+            Assert.True(result.Success, string.Join("; ", result.Errors));
+            Assert.Equal(TimeSpan.Zero, reader.LastImageReadOptions.Timeout);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public async Task Screen_WaitImage_WhenMatchAppears_ReturnsFoundData()
+    {
+        var imagePath = await WriteTemplatePngAsync();
+        try
+        {
+            var reader = new FakeScreenPixelReader
+            {
+                ImageMatch = new ScreenImageMatch(new ScreenPoint(9, 10), 0.91)
+            };
+            var service = new ScreenCliService(reader, new FakeMousePositionProvider());
+
+            var result = await service.ExecuteAsync(new ScreenCliOptions(
+                ScreenCliAction.WaitImage,
+                ImagePath: imagePath,
+                TimeoutMs: 100,
+                RegionX: 3,
+                RegionY: 4,
+                RegionWidth: 50,
+                RegionHeight: 60,
+                Similarity: 0.85,
+                Downsample: 2), CancellationToken.None);
+
+            Assert.True(result.Success, string.Join("; ", result.Errors));
+            Assert.Equal(new ScreenRect(3, 4, 50, 60), reader.LastImageRegion);
+            Assert.Equal(0.85, reader.LastImageOptions.MinimumSimilarity);
+            Assert.Equal(2, reader.LastImageOptions.DownsampleFactor);
+            var data = Assert.IsType<ScreenSearchImageData>(result.Data);
+            Assert.True(data.Found);
+            Assert.Equal(9, data.X);
+            Assert.Equal(10, data.Y);
+            Assert.Equal(0.91, data.Score);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public async Task Screen_WaitImage_WhenTimeoutExpires_ReturnsFoundFalseData()
+    {
+        var imagePath = await WriteTemplatePngAsync();
+        try
+        {
+            var reader = new FakeScreenPixelReader { ImageSearchNoMatch = true };
+            var service = new ScreenCliService(reader, new FakeMousePositionProvider());
+
+            var result = await service.ExecuteAsync(new ScreenCliOptions(
+                ScreenCliAction.WaitImage,
+                ImagePath: imagePath,
+                TimeoutMs: 0), CancellationToken.None);
+
+            Assert.True(result.Success, string.Join("; ", result.Errors));
+            var data = Assert.IsType<ScreenSearchImageData>(result.Data);
+            Assert.False(data.Found);
+            Assert.Null(data.X);
+            Assert.Null(data.Y);
+            Assert.Null(data.Score);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public async Task Screen_ImageClick_WhenImageFound_ClicksTemplateCenter()
+    {
+        var imagePath = await WriteTemplatePngAsync(width: 3, height: 5);
+        try
+        {
+            var reader = new FakeScreenPixelReader
+            {
+                ImageMatch = new ScreenImageMatch(new ScreenPoint(20, 30), 0.97)
+            };
+            var input = new FakeInputSimulator();
+            var service = new ScreenCliService(reader, new FakeMousePositionProvider { Resolution = (1920, 1080) }, input);
+
+            var result = await service.ExecuteAsync(new ScreenCliOptions(
+                ScreenCliAction.ImageClick,
+                ImagePath: imagePath,
+                Button: MouseButton.Middle), CancellationToken.None);
+
+            Assert.True(result.Success, string.Join("; ", result.Errors));
+            Assert.Equal((1920, 1080), input.InitializedResolution);
+            Assert.Equal((21, 32), input.LastAbsoluteMove);
+            Assert.Null(input.LastRelativeMove);
+            Assert.Equal([MouseButtonCode.Middle, -MouseButtonCode.Middle], input.ButtonEvents);
+            Assert.True(input.Synced);
+            var data = Assert.IsType<ScreenImageClickData>(result.Data);
+            Assert.Equal(21, data.X);
+            Assert.Equal(32, data.Y);
+            Assert.Equal("Middle", data.Button);
+            Assert.Equal(0.97, data.Score);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public async Task Screen_ImageClick_WhenAbsoluteCoordinatesAreUnsupported_UsesRelativeMovement()
+    {
+        var imagePath = await WriteTemplatePngAsync(width: 3, height: 5);
+        try
+        {
+            var reader = new FakeScreenPixelReader
+            {
+                ImageMatch = new ScreenImageMatch(new ScreenPoint(20, 30), 0.97)
+            };
+            var input = new FakeInputSimulator { SupportsAbsoluteCoordinates = false };
+            var service = new ScreenCliService(reader, new FakeMousePositionProvider { Position = (10, 20) }, input);
+
+            var result = await service.ExecuteAsync(new ScreenCliOptions(
+                ScreenCliAction.ImageClick,
+                ImagePath: imagePath), CancellationToken.None);
+
+            Assert.True(result.Success, string.Join("; ", result.Errors));
+            Assert.Null(input.LastAbsoluteMove);
+            Assert.Equal((11, 12), input.LastRelativeMove);
+            Assert.Equal([MouseButtonCode.Left, -MouseButtonCode.Left], input.ButtonEvents);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public async Task Screen_ImageClick_WhenRelativeMovementCannotResolvePosition_ReturnsEnvironmentError(bool providerSupported, bool positionAvailable)
+    {
+        var imagePath = await WriteTemplatePngAsync();
+        try
+        {
+            var reader = new FakeScreenPixelReader();
+            var input = new FakeInputSimulator { SupportsAbsoluteCoordinates = false };
+            var service = new ScreenCliService(reader, new FakeMousePositionProvider { IsSupported = providerSupported, Position = positionAvailable ? (10, 20) : null }, input);
+
+            var result = await service.ExecuteAsync(new ScreenCliOptions(
+                ScreenCliAction.ImageClick,
+                ImagePath: imagePath), CancellationToken.None);
+
+            Assert.False(result.Success);
+            Assert.Equal((int)CliExitCode.EnvironmentError, result.ExitCode);
+            Assert.Empty(input.ButtonEvents);
+            Assert.Contains("requires absolute coordinate support", result.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public async Task Screen_SearchImage_WhenFileMissing_ReturnsInvalidArguments()
+    {
+        var service = new ScreenCliService(new FakeScreenPixelReader(), new FakeMousePositionProvider());
+
+        var result = await service.ExecuteAsync(new ScreenCliOptions(ScreenCliAction.SearchImage, ImagePath: Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}.png")), CancellationToken.None);
+
+        AssertInvalidArguments(result);
+        Assert.Contains("not found", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Screen_SearchImage_WhenTemplateExceedsSupportedDimensions_ReturnsInvalidArguments()
+    {
+        var imagePath = Path.Combine(Path.GetTempPath(), $"crossmacro-template-{Guid.NewGuid():N}.png");
+        await File.WriteAllBytesAsync(imagePath, CreateOversizedPngBytes());
+        try
+        {
+            var service = new ScreenCliService(new FakeScreenPixelReader(), new FakeMousePositionProvider());
+
+            var result = await service.ExecuteAsync(new ScreenCliOptions(ScreenCliAction.SearchImage, ImagePath: imagePath), CancellationToken.None);
+
+            AssertInvalidArguments(result);
+            Assert.Contains("not a supported PNG", result.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("maximum supported size of 7680x4320", result.Errors[0], StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
     }
 
     [Fact]
@@ -349,6 +682,39 @@ public sealed class PrimitiveCliServiceTests
         Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
     }
 
+    private static async Task<string> WriteTemplatePngAsync(int width = 1, int height = 1)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"crossmacro-template-{Guid.NewGuid():N}.png");
+        var pixels = new byte[checked(width * height * 3)];
+        Array.Fill<byte>(pixels, 0x56);
+        using var frame = new ScreenFrame(
+            new ScreenRect(0, 0, width, height),
+            width * 3,
+            ScreenPixelFormat.Rgb24,
+            pixels);
+        await using var output = File.Create(path);
+        ScreenFramePngEncoder.Encode(frame, output);
+        return path;
+    }
+
+    private static byte[] CreateOversizedPngBytes()
+    {
+        return
+        [
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+            0x00, 0x00, 0x00, 0x0D,
+            0x49, 0x48, 0x44, 0x52,
+            0x00, 0x00, 0x1E, 0x01,
+            0x00, 0x00, 0x00, 0x01,
+            0x08,
+            0x02,
+            0x00,
+            0x00,
+            0x00,
+            0x6C, 0xF7, 0xBC, 0x13
+        ];
+    }
+
     private sealed class FakeClipboardService : IClipboardService
     {
         public bool IsSupported { get; init; } = true;
@@ -390,17 +756,27 @@ public sealed class PrimitiveCliServiceTests
         public Task<bool> MoveWindowToWorkspaceByAddressAsync(string address, string workspace, CancellationToken cancellationToken = default) => Task.FromResult(true);
     }
 
-    private sealed class FakeScreenPixelReader : IScreenPixelReader
+    private sealed class FakeScreenPixelReader : IScreenPixelReader, IScreenImageSearchReader
     {
         public string ProviderName => "fake-screen";
         public bool IsSupported { get; init; } = true;
         public ScreenPoint LastPoint { get; private set; }
         public ScreenRect LastRegion { get; private set; }
+        public ScreenRect? LastImageRegion { get; private set; }
+        public ScreenFrame? LastImageTemplate { get; private set; }
+        public ScreenImageMatchOptions LastImageOptions { get; private set; } = ScreenImageMatchOptions.Default;
+        public ScreenReadOptions LastImageReadOptions { get; private set; }
         public int LastTolerance { get; private set; }
+        public ScreenReadOptions LastPixelOptions { get; private set; }
+        public ScreenReadOptions LastSearchOptions { get; private set; }
         public ScreenReadOptions LastWaitOptions { get; private set; }
+        public ScreenImageMatch ImageMatch { get; init; } = new(new ScreenPoint(1, 1), 1.0);
+        public bool ImageSearchNoMatch { get; init; }
+        public ScreenReadResult<ScreenImageMatch>? ImageSearchResult { get; init; }
         public Task<ScreenReadResult<ScreenPixelColor>> GetPixelAsync(ScreenPoint point, ScreenReadOptions options)
         {
             LastPoint = point;
+            LastPixelOptions = options;
             return Task.FromResult(ScreenReadResult<ScreenPixelColor>.Success(new ScreenPixelColor(0x12, 0x34, 0x56)));
         }
 
@@ -414,7 +790,28 @@ public sealed class PrimitiveCliServiceTests
         {
             LastRegion = region;
             LastTolerance = tolerance;
+            LastSearchOptions = options;
             return Task.FromResult(ScreenReadResult<ScreenPixelSearchMatch>.Success(new ScreenPixelSearchMatch(new ScreenPoint(region.X + 1, region.Y + 1), expected)));
+        }
+
+        public Task<ScreenReadResult<ScreenImageMatch>> SearchImageAsync(
+            ScreenRect? region,
+            ScreenFrame template,
+            ScreenImageMatchOptions options,
+            ScreenReadOptions readOptions)
+        {
+            LastImageRegion = region;
+            LastImageTemplate = template;
+            LastImageOptions = options;
+            LastImageReadOptions = readOptions;
+            if (ImageSearchResult is { } configuredResult)
+            {
+                return Task.FromResult(configuredResult);
+            }
+
+            return ImageSearchNoMatch
+                ? Task.FromResult(ScreenReadResult<ScreenImageMatch>.Failure(ScreenReadErrorKind.CaptureTimeout, "No image matching the template was found."))
+                : Task.FromResult(ScreenReadResult<ScreenImageMatch>.Success(ImageMatch));
         }
 
         public void Dispose()
@@ -440,6 +837,55 @@ public sealed class PrimitiveCliServiceTests
                 bounds.Width * 3,
                 ScreenPixelFormat.Rgb24,
                 pixels)));
+        }
+
+        public void Dispose()
+        {
+        }
+    }
+
+    private sealed class FakeInputSimulator : IInputSimulator, IInputSimulatorCapabilities
+    {
+        public string ProviderName => "fake-input";
+        public bool IsSupported { get; init; } = true;
+        public bool SupportsAbsoluteCoordinates { get; init; } = true;
+        public (int Width, int Height) InitializedResolution { get; private set; }
+        public (int X, int Y)? LastAbsoluteMove { get; private set; }
+        public (int X, int Y)? LastRelativeMove { get; private set; }
+        public List<int> ButtonEvents { get; } = [];
+        public bool Synced { get; private set; }
+
+        public void Initialize(int screenWidth = 0, int screenHeight = 0)
+        {
+            InitializedResolution = (screenWidth, screenHeight);
+        }
+
+        public void MoveAbsolute(int x, int y)
+        {
+            LastAbsoluteMove = (x, y);
+        }
+
+        public void MoveRelative(int dx, int dy)
+        {
+            LastRelativeMove = (dx, dy);
+        }
+
+        public void MouseButton(int button, bool pressed)
+        {
+            ButtonEvents.Add(pressed ? button : -button);
+        }
+
+        public void Scroll(int delta, bool isHorizontal = false)
+        {
+        }
+
+        public void KeyPress(int keyCode, bool pressed)
+        {
+        }
+
+        public void Sync()
+        {
+            Synced = true;
         }
 
         public void Dispose()
@@ -474,10 +920,11 @@ public sealed class PrimitiveCliServiceTests
     private sealed class FakeMousePositionProvider : IMousePositionProvider
     {
         public string ProviderName => "fake-mouse";
-        public bool IsSupported => true;
+        public bool IsSupported { get; init; } = true;
         public (int X, int Y)? Position { get; init; } = (0, 0);
+        public (int Width, int Height)? Resolution { get; init; } = (1920, 1080);
         public Task<(int X, int Y)?> GetAbsolutePositionAsync() => Task.FromResult(Position);
-        public Task<(int Width, int Height)?> GetScreenResolutionAsync() => Task.FromResult<(int Width, int Height)?>((1920, 1080));
+        public Task<(int Width, int Height)?> GetScreenResolutionAsync() => Task.FromResult(Resolution);
         public void Dispose()
         {
         }

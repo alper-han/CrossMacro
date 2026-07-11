@@ -7,6 +7,9 @@ using FluentAssertions;
 
 public class MacroFileManagerTests : IDisposable
 {
+    private const string TransparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=";
+    private const string BlackPngBase64 = TransparentPngBase64;
+
     private readonly MacroFileManager _manager;
     private readonly List<string> _tempFiles = new();
 
@@ -662,6 +665,251 @@ M,100,100";
     }
 
     [Fact]
+    public async Task SaveAsync_WhenScriptReferencesMissingImage_RejectsTheMacro()
+    {
+        var macro = CreateValidMacro("Dangling Image Reference");
+        macro.ScriptSteps = ["imagesearch Missing found found_x found_y"];
+        var filePath = GetTempFilePath();
+
+        var act = async () => await _manager.SaveAsync(macro, filePath);
+
+        await act.Should().ThrowAsync<InvalidDataException>()
+            .WithMessage("*image asset 'Missing' is not defined*");
+        File.Exists(filePath).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task LoadAsync_WhenScriptReferencesMissingImage_RejectsTheMacro()
+    {
+        var filePath = GetTempFilePath();
+        await File.WriteAllLinesAsync(filePath,
+        [
+            "# Name: Dangling Image Reference",
+            "# Format: CrossMacroFormatV2",
+            "[Script]",
+            "imagesearch Missing found found_x found_y",
+            "[Events]",
+            "M,0,0"
+        ]);
+
+        var act = async () => await _manager.LoadAsync(filePath);
+
+        await act.Should().ThrowAsync<InvalidDataException>()
+            .WithMessage("*image asset 'Missing' is not defined*");
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_RoundTrip_PreservesImageAssets()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Image Asset Round Trip",
+            Images = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["Target_1"] = TransparentPngBase64
+            },
+            ScriptSteps = ["click left"]
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        await _manager.SaveAsync(macro, filePath);
+        var saved = await File.ReadAllTextAsync(filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        saved.Should().Contain($"# Image: Target_1 = {TransparentPngBase64}");
+        saved.IndexOf("# Image: Target_1", StringComparison.Ordinal)
+            .Should().BeLessThan(saved.IndexOf("# Format: CrossMacroFormatV2", StringComparison.Ordinal));
+        loaded.Should().NotBeNull();
+        loaded!.Images.Should().Equal(macro.Images);
+        loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_RoundTrip_PreservesMultipleImagesDeterministically()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Multiple Image Asset Round Trip",
+            Images = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["Zeta"] = TransparentPngBase64,
+                ["Alpha_2"] = BlackPngBase64
+            },
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 0, Y = 0 }
+            }
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        await _manager.SaveAsync(macro, filePath);
+        var savedLines = await File.ReadAllLinesAsync(filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        savedLines.Should().ContainInOrder(
+            $"# Image: Alpha_2 = {BlackPngBase64}",
+            $"# Image: Zeta = {TransparentPngBase64}",
+            "# Format: CrossMacroFormatV2");
+        loaded.Should().NotBeNull();
+        loaded!.Images.Should().Equal(macro.Images);
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_RoundTrip_WithNoImages_DoesNotWriteImageHeaders()
+    {
+        // Arrange
+        var macro = CreateValidMacro("No Images Round Trip");
+        var filePath = GetTempFilePath();
+
+        // Act
+        await _manager.SaveAsync(macro, filePath);
+        var saved = await File.ReadAllTextAsync(filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        // Assert
+        saved.Should().NotContain("# Image:");
+        loaded.Should().NotBeNull();
+        loaded!.Images.Should().BeEmpty();
+        loaded.Events.Should().HaveCount(macro.Events.Count);
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenImageBase64IsInvalid_ThrowsAndDoesNotCreateFile()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Invalid Image Base64 Save",
+            Images = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["ValidTarget"] = TransparentPngBase64,
+                ["InvalidTarget"] = "not-base64",
+                ["WrappedTarget"] = $"{BlackPngBase64[..12]}\n{BlackPngBase64[12..]}"
+            },
+            Events = new List<MacroEvent>
+            {
+                new() { Type = EventType.MouseMove, X = 0, Y = 0 }
+            }
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        var act = async () => await _manager.SaveAsync(macro, filePath);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidDataException>();
+        File.Exists(filePath).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task LoadAsync_WhenImageMetadataIsMalformed_ThrowsBeforeLoadingEvents()
+    {
+        // Arrange
+        var filePath = GetTempFilePath();
+        await File.WriteAllLinesAsync(filePath,
+        [
+            "# Name: Malformed Image Metadata",
+            "# Image: MissingSeparator",
+            "# Image: Invalid-Name = iVBORw0KGgo=",
+            "# Image: ValidName = not-base64",
+            "# Format: CrossMacroFormatV2",
+            "[Events]",
+            "M,0,0"
+        ]);
+
+        // Act
+        var act = async () => await _manager.LoadAsync(filePath);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidDataException>()
+            .WithMessage("Malformed image metadata: missing '=' separator.");
+    }
+
+    [Fact]
+    public async Task LoadAsync_WhenImageMetadataIsOversized_ThrowsBeforeLoadingEvents()
+    {
+        // Arrange
+        var filePath = GetTempFilePath();
+        await File.WriteAllLinesAsync(filePath,
+        [
+            "# Name: Oversized Image Metadata",
+            $"# Image: Oversized = {Convert.ToBase64String(CreateOversizedPngBytes())}",
+            "# Format: CrossMacroFormatV2",
+            "[Events]",
+            "M,0,0"
+        ]);
+
+        // Act
+        var act = async () => await _manager.LoadAsync(filePath);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidDataException>();
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenImagePreflightFails_PreservesExistingDestination()
+    {
+        var filePath = GetTempFilePath();
+        const string original = "existing macro content";
+        await File.WriteAllTextAsync(filePath, original);
+        var macro = CreateValidMacro();
+        macro.Images = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["InvalidTarget"] = "not-base64"
+        };
+
+        var act = async () => await _manager.SaveAsync(macro, filePath);
+
+        await act.Should().ThrowAsync<InvalidDataException>();
+        (await File.ReadAllTextAsync(filePath)).Should().Be(original);
+        Directory.GetFiles(Path.GetDirectoryName(filePath)!, $"{Path.GetFileName(filePath)}.*.tmp")
+            .Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenDestinationExists_ReplacesItAtomically()
+    {
+        var filePath = GetTempFilePath();
+        await File.WriteAllTextAsync(filePath, "old content");
+
+        await _manager.SaveAsync(CreateValidMacro("replacement"), filePath);
+
+        (await File.ReadAllTextAsync(filePath)).Should().Contain("# Name: replacement");
+        Directory.GetFiles(Path.GetDirectoryName(filePath)!, $"{Path.GetFileName(filePath)}.*.tmp")
+            .Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenImagesPresentAndScriptInvalid_ThrowsAndDoesNotCreateFile()
+    {
+        // Arrange
+        var macro = new MacroSequence
+        {
+            Name = "Invalid Script With Images",
+            Images = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["Target_1"] = TransparentPngBase64
+            },
+            ScriptSteps = ["pixelcolor 1"]
+        };
+        var filePath = GetTempFilePath();
+
+        // Act
+        var act = async () => await _manager.SaveAsync(macro, filePath);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*Invalid pixelcolor syntax*");
+        File.Exists(filePath).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Load_WhenReadableScriptSectionPresent_RestoresScriptSteps()
     {
         // Arrange
@@ -1166,6 +1414,24 @@ M,abs,10,20";
         loaded.Should().NotBeNull();
         loaded!.TextInputBoundaries.Should().Equal(new TextInputBoundary(0, 2, "legacy text"));
         loaded.Events.Should().HaveCount(2);
+    }
+
+    private static byte[] CreateOversizedPngBytes()
+    {
+        return
+        [
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+            0x00, 0x00, 0x00, 0x0D,
+            0x49, 0x48, 0x44, 0x52,
+            0x00, 0x00, 0x1E, 0x01,
+            0x00, 0x00, 0x00, 0x01,
+            0x08,
+            0x02,
+            0x00,
+            0x00,
+            0x00,
+            0x6C, 0xF7, 0xBC, 0x13
+        ];
     }
 
     private sealed class TestKeyboardLayoutService : IKeyboardLayoutService

@@ -34,6 +34,11 @@ public class MacroSequence
     /// Optional editor metadata that preserves separate TextInput actions after they are expanded to key events.
     /// </summary>
     public List<TextInputBoundary> TextInputBoundaries { get; set; } = new();
+
+    /// <summary>
+    /// Named image assets stored as Base64 PNG strings.
+    /// </summary>
+    public Dictionary<string, string> Images { get; set; } = new(StringComparer.Ordinal);
     
     /// <summary>
     /// When the macro was created
@@ -166,6 +171,7 @@ public class MacroSequence
             Events = Events is null ? new List<MacroEvent>() : new List<MacroEvent>(Events),
             ScriptSteps = ScriptSteps is null ? new List<string>() : new List<string>(ScriptSteps),
             TextInputBoundaries = TextInputBoundaries is null ? new List<TextInputBoundary>() : new List<TextInputBoundary>(TextInputBoundaries),
+            Images = Images is null ? new Dictionary<string, string>(StringComparer.Ordinal) : new Dictionary<string, string>(Images, StringComparer.Ordinal),
             CreatedAt = CreatedAt,
             TotalDurationMs = TotalDurationMs,
             RecordedAt = RecordedAt,

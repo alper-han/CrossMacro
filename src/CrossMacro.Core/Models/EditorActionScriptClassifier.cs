@@ -27,6 +27,9 @@ public static class EditorActionScriptClassifier
             or EditorActionType.PixelColor
             or EditorActionType.WaitColor
             or EditorActionType.PixelSearch
+            or EditorActionType.ImageSearch
+            or EditorActionType.ImageClick
+            or EditorActionType.WaitImage
             or EditorActionType.ClipboardGet
             or EditorActionType.ClipboardSet
             or EditorActionType.ShellCommand

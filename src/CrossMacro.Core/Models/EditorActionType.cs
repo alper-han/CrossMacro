@@ -133,6 +133,21 @@ public enum EditorActionType
     PixelSearch,
 
     /// <summary>
+    /// Searches a screen region for a named image asset.
+    /// </summary>
+    ImageSearch,
+
+    /// <summary>
+    /// Searches a screen region for a named image asset and clicks its center.
+    /// </summary>
+    ImageClick,
+
+    /// <summary>
+    /// Waits until a named image asset appears in a screen region.
+    /// </summary>
+    WaitImage,
+
+    /// <summary>
     /// Reads clipboard text into a script variable.
     /// </summary>
     ClipboardGet,

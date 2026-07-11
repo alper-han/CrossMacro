@@ -61,6 +61,12 @@ public class EditorAction : INotifyPropertyChanged
     private string _screenFoundVariableName = "found";
     private string _screenFoundXVariableName = "found_x";
     private string _screenFoundYVariableName = "found_y";
+    private string _imageAssetName = string.Empty;
+    private double _imageSearchSimilarity = 1.0;
+    private int _imageSearchDownsample = 1;
+    private bool _imageSearchScaleAware;
+    private EditorImageMatchMode _imageSearchMatchMode;
+    private bool _imageSearchMatchModeWasExplicit;
     private ShellCommandMode _shellCommandMode = ShellCommandMode.Shell;
     private string _shellCommand = string.Empty;
     private string _shellStandardInput = string.Empty;
@@ -877,6 +883,42 @@ public class EditorAction : INotifyPropertyChanged
         set => SetScreenField(ref _screenFoundYVariableName, value?.Trim() ?? string.Empty);
     }
 
+    public string ImageAssetName
+    {
+        get => _imageAssetName;
+        set => SetScreenField(ref _imageAssetName, value?.Trim() ?? string.Empty);
+    }
+
+    public double ImageSearchSimilarity
+    {
+        get => _imageSearchSimilarity;
+        set => SetScreenField(ref _imageSearchSimilarity, value);
+    }
+
+    public int ImageSearchDownsample
+    {
+        get => _imageSearchDownsample;
+        set => SetScreenField(ref _imageSearchDownsample, value);
+    }
+
+    public bool ImageSearchScaleAware
+    {
+        get => _imageSearchScaleAware;
+        set => SetScreenField(ref _imageSearchScaleAware, value);
+    }
+
+    public EditorImageMatchMode ImageSearchMatchMode
+    {
+        get => _imageSearchMatchMode;
+        set => SetScreenField(ref _imageSearchMatchMode, value);
+    }
+
+    public bool ImageSearchMatchModeWasExplicit
+    {
+        get => _imageSearchMatchModeWasExplicit;
+        set => SetScreenField(ref _imageSearchMatchModeWasExplicit, value);
+    }
+
     public ShellCommandMode ShellCommandMode
     {
         get => _shellCommandMode;
@@ -1068,6 +1110,13 @@ public class EditorAction : INotifyPropertyChanged
         ScreenFoundVariableName = payload.ScreenFoundVariableName;
         ScreenFoundXVariableName = payload.ScreenFoundXVariableName;
         ScreenFoundYVariableName = payload.ScreenFoundYVariableName;
+        ImageAssetName = payload.ImageAssetName;
+        ImageSearchSimilarity = payload.ImageSearchSimilarity;
+        ImageSearchDownsample = payload.ImageSearchDownsample;
+        ImageSearchScaleAware = payload.ImageSearchScaleAware;
+        ImageSearchMatchMode = payload.ImageSearchMatchMode;
+        ImageSearchMatchModeWasExplicit = payload.ImageSearchMatchModeWasExplicit;
+        Button = payload.Button;
     }
     
     /// <summary>
@@ -1131,6 +1180,9 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.PixelColor => BuildPixelColorDisplayName(GetScreenReadingPayload()),
             EditorActionType.WaitColor => BuildWaitColorDisplayName(GetScreenReadingPayload()),
             EditorActionType.PixelSearch => BuildPixelSearchDisplayName(GetScreenReadingPayload()),
+            EditorActionType.ImageSearch => BuildImageSearchDisplayName(),
+            EditorActionType.ImageClick => BuildImageClickDisplayName(),
+            EditorActionType.WaitImage => BuildWaitImageDisplayName(),
             EditorActionType.ShellCommand => string.IsNullOrWhiteSpace(ShellCommand)
                 ? "Shell Command"
                 : $"Shell {ShellCommandMode}: \"{(ShellCommand.Length > 30 ? ShellCommand[..30] + "..." : ShellCommand)}\"",
@@ -1171,6 +1223,7 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.PixelColor => ValidatePixelColorFields(),
             EditorActionType.WaitColor => ValidateWaitColorFields(),
             EditorActionType.PixelSearch => ValidatePixelSearchFields(),
+            EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage => ValidateImageSearchFields(),
             EditorActionType.ClipboardGet => EditorActionScriptTokens.IsValidVariableName(ScriptVariableName),
             EditorActionType.ClipboardSet => !string.IsNullOrEmpty(Text),
             EditorActionType.ShellCommand => ValidateShellCommandFields(),
@@ -1219,6 +1272,9 @@ public class EditorAction : INotifyPropertyChanged
             _forHasStep = ForHasStep,
             _forStepType = ForStepType,
             _forStepValue = ForStepValue,
+            _imageAssetName = ImageAssetName,
+            _imageSearchSimilarity = ImageSearchSimilarity,
+            _imageSearchDownsample = ImageSearchDownsample,
             _shellCommandMode = ShellCommandMode,
             _shellCommand = ShellCommand,
             _shellStandardInput = ShellStandardInput,
@@ -1273,6 +1329,9 @@ public class EditorAction : INotifyPropertyChanged
             clone._screenFoundVariableName = ScreenFoundVariableName;
             clone._screenFoundXVariableName = ScreenFoundXVariableName;
             clone._screenFoundYVariableName = ScreenFoundYVariableName;
+            clone._imageAssetName = ImageAssetName;
+            clone._imageSearchSimilarity = ImageSearchSimilarity;
+            clone._imageSearchDownsample = ImageSearchDownsample;
         }
 
         return clone;
@@ -1307,6 +1366,9 @@ public class EditorAction : INotifyPropertyChanged
             or EditorActionType.PixelColor
             or EditorActionType.WaitColor
             or EditorActionType.PixelSearch
+            or EditorActionType.ImageSearch
+            or EditorActionType.ImageClick
+            or EditorActionType.WaitImage
             or EditorActionType.ClipboardGet
             or EditorActionType.ClipboardSet
             or EditorActionType.ShellCommand
@@ -1422,6 +1484,21 @@ public class EditorAction : INotifyPropertyChanged
             && payload.HasValidFoundCoordinateVariableNames();
     }
 
+    private bool ValidateImageSearchFields()
+    {
+        return EditorActionScriptTokens.IsValidVariableName(ImageAssetName)
+            && ScreenWidth > 0
+            && ScreenHeight > 0
+            && EditorActionScriptTokens.IsValidVariableName(ScreenFoundVariableName)
+            && EditorActionScriptTokens.IsValidVariableName(ScreenFoundXVariableName)
+            && EditorActionScriptTokens.IsValidVariableName(ScreenFoundYVariableName)
+            && double.IsFinite(ImageSearchSimilarity)
+            && ImageSearchSimilarity is >= 0.0 and <= 1.0
+            && ImageSearchDownsample >= 1
+            && (Type != EditorActionType.ImageClick
+                || Button is MouseButton.Left or MouseButton.Right or MouseButton.Middle);
+    }
+
     private bool ValidateShellCommandFields()
     {
         if (string.IsNullOrWhiteSpace(ShellCommand) || ShellRetries < 0 || ShellRetries > 10_000 || ShellBackoffMs < 0 || ShellTimeoutMs < 0)
@@ -1446,8 +1523,8 @@ public class EditorAction : INotifyPropertyChanged
             return false;
         }
 
-        return !ScreenshotUseRegion || (IsNonNegativeIntegerOrVariable(ScreenshotRegionX)
-            && IsNonNegativeIntegerOrVariable(ScreenshotRegionY)
+        return !ScreenshotUseRegion || (IsIntegerOrVariable(ScreenshotRegionX)
+            && IsIntegerOrVariable(ScreenshotRegionY)
             && IsPositiveIntegerOrVariable(ScreenshotRegionWidth)
             && IsPositiveIntegerOrVariable(ScreenshotRegionHeight));
     }
@@ -1477,11 +1554,10 @@ public class EditorAction : INotifyPropertyChanged
         };
     }
 
-    private static bool IsNonNegativeIntegerOrVariable(string token)
+    private static bool IsIntegerOrVariable(string token)
     {
-        return int.TryParse(token, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var value)
-            ? value >= 0
-            : token.StartsWith("$", StringComparison.Ordinal) && EditorActionScriptTokens.IsValidVariableName(token);
+        return int.TryParse(token, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _)
+            || token.StartsWith("$", StringComparison.Ordinal) && EditorActionScriptTokens.IsValidVariableName(token);
     }
 
     private static bool IsPositiveIntegerOrVariable(string token)
@@ -1521,6 +1597,24 @@ public class EditorAction : INotifyPropertyChanged
     private static string BuildPixelSearchDisplayName(EditorActionScreenReadingPayload payload)
     {
         return $"Pixel search {payload.FormatTargetColorToken()} in ({payload.ScreenLeft}, {payload.ScreenTop}, {payload.ScreenWidth}x{payload.ScreenHeight}) -> {payload.ScreenFoundVariableName}, {payload.ScreenFoundXVariableName}, {payload.ScreenFoundYVariableName}";
+    }
+
+    private string BuildImageSearchDisplayName()
+    {
+        var imageName = string.IsNullOrWhiteSpace(ImageAssetName) ? "image required" : ImageAssetName;
+        return $"Image search {imageName} in ({ScreenLeft}, {ScreenTop}, {ScreenWidth}x{ScreenHeight}) -> {ScreenFoundVariableName}, {ScreenFoundXVariableName}, {ScreenFoundYVariableName}";
+    }
+
+    private string BuildImageClickDisplayName()
+    {
+        var imageName = string.IsNullOrWhiteSpace(ImageAssetName) ? "image required" : ImageAssetName;
+        return $"Image click {imageName} in ({ScreenLeft}, {ScreenTop}, {ScreenWidth}x{ScreenHeight})";
+    }
+
+    private string BuildWaitImageDisplayName()
+    {
+        var imageName = string.IsNullOrWhiteSpace(ImageAssetName) ? "image required" : ImageAssetName;
+        return $"Wait image {imageName} ({ScreenTimeoutMs}ms) -> {ScreenFoundVariableName}, {ScreenFoundXVariableName}, {ScreenFoundYVariableName}";
     }
 
     private string BuildScreenshotDisplayName()

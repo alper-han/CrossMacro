@@ -161,6 +161,77 @@ public class EditorActionTests
         scroll.IsValid().Should().BeFalse();
     }
 
+    [Theory]
+    [InlineData(EditorActionType.ImageSearch)]
+    [InlineData(EditorActionType.ImageClick)]
+    [InlineData(EditorActionType.WaitImage)]
+    public void IsValid_ImageActionsUseStructuredFields(EditorActionType actionType)
+    {
+        var action = new EditorAction
+        {
+            Type = actionType,
+            ScreenWidth = EditorActionScreenReadingPayload.DefaultSearchScreenWidth,
+            ScreenHeight = EditorActionScreenReadingPayload.DefaultSearchScreenHeight,
+            ImageAssetName = "Target",
+            ScreenFoundVariableName = "found",
+            ScreenFoundXVariableName = "found_x",
+            ScreenFoundYVariableName = "found_y",
+            ScreenTimeoutMs = EditorActionScreenReadingPayload.DefaultTimeoutMs,
+            ImageSearchSimilarity = EditorActionScreenReadingPayload.DefaultImageSearchSimilarity,
+            ImageSearchDownsample = EditorActionScreenReadingPayload.DefaultImageSearchDownsample,
+            Button = MouseButton.Left
+        };
+
+        action.IsValid().Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsValid_ImageClickRejectsSideButtons()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ImageClick,
+            ScreenWidth = 100,
+            ScreenHeight = 100,
+            ImageAssetName = "Target",
+            ScreenFoundVariableName = "found",
+            ScreenFoundXVariableName = "found_x",
+            ScreenFoundYVariableName = "found_y",
+            Button = MouseButton.Side1
+        };
+
+        action.IsValid().Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.ImageSearch)]
+    [InlineData(EditorActionType.ImageClick)]
+    [InlineData(EditorActionType.WaitImage)]
+    public void ScreenReadingPayload_CoversImageActions(EditorActionType actionType)
+    {
+        EditorActionScreenReadingPayload.TryCreateDefault(actionType, out var defaults).Should().BeTrue();
+        defaults.ScreenWidth.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenWidth);
+        defaults.ScreenHeight.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenHeight);
+        defaults.ImageSearchSimilarity.Should().Be(1.0);
+        defaults.ImageSearchDownsample.Should().Be(1);
+        defaults.Button.Should().Be(MouseButton.Left);
+
+        var action = new EditorAction
+        {
+            Type = actionType,
+            ImageAssetName = "Target",
+            ScreenFoundVariableName = "found",
+            ScreenFoundXVariableName = "found_x",
+            ScreenFoundYVariableName = "found_y"
+        };
+
+        action.TryGetScreenReadingPayload(out var payload).Should().BeTrue();
+        payload.GetOutputVariableNames().Should().Equal("found", "found_x", "found_y");
+        payload.GetOutputVariableRole("found").Should().Be(EditorActionScreenReadingVariableRole.Boolean);
+        payload.GetOutputVariableRole("found_x").Should().Be(EditorActionScreenReadingVariableRole.Number);
+        payload.GetOutputVariableRole("found_y").Should().Be(EditorActionScreenReadingVariableRole.Number);
+    }
+
     [Fact]
     public void IsValid_WhenTextInputContainsOnlyWhitespaceOrLineBreaks_ReturnsTrue()
     {

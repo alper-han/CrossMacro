@@ -132,7 +132,17 @@ public sealed class ScreenshotCliService : IScreenshotCliService
                 return false;
             }
 
-            region = new ScreenRect(x, y, width, height);
+            try
+            {
+                region = new ScreenRect(x, y, width, height);
+            }
+            catch (OverflowException)
+            {
+                result = CliCommandExecutionResult.Fail(
+                    CliExitCode.InvalidArguments,
+                    "--region endpoint exceeds the supported screen coordinate range.");
+                return false;
+            }
         }
 
         result = null;

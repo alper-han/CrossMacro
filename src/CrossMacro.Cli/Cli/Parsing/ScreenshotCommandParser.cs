@@ -60,6 +60,16 @@ internal static class ScreenshotCommandParser
                 if (!int.TryParse(args[i + 4], out var rh) || rh <= 0)
                     return CliParseHelpers.Error($"Invalid region height: {args[i + 4]}", jsonOutput);
 
+                try
+                {
+                    _ = checked(rx + rw);
+                    _ = checked(ry + rh);
+                }
+                catch (OverflowException)
+                {
+                    return CliParseHelpers.Error("Region endpoint exceeds the supported screen coordinate range.", jsonOutput);
+                }
+
                 regionX = rx;
                 regionY = ry;
                 regionWidth = rw;

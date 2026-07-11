@@ -10,10 +10,24 @@ namespace CrossMacro.Cli.Services;
 public sealed class CliPreflightService : ICliPreflightService
 {
     private readonly IDisplaySessionService _displaySessionService;
-    private readonly IInputSimulator _inputSimulator;
-    private readonly IInputCapture _inputCapture;
+    private readonly Func<IInputSimulator> _inputSimulatorFactory;
+    private readonly Func<IInputCapture> _inputCaptureFactory;
     private readonly System.Func<bool> _isLinux;
     private readonly System.Func<string, string?> _getEnvironmentVariable;
+
+    public CliPreflightService(
+        IDisplaySessionService displaySessionService,
+        Func<IInputSimulator> inputSimulatorFactory,
+        Func<IInputCapture> inputCaptureFactory,
+        System.Func<bool>? isLinux = null,
+        System.Func<string, string?>? getEnvironmentVariable = null)
+    {
+        _displaySessionService = displaySessionService;
+        _inputSimulatorFactory = inputSimulatorFactory;
+        _inputCaptureFactory = inputCaptureFactory;
+        _isLinux = isLinux ?? OperatingSystem.IsLinux;
+        _getEnvironmentVariable = getEnvironmentVariable ?? System.Environment.GetEnvironmentVariable;
+    }
 
     public CliPreflightService(
         IDisplaySessionService displaySessionService,
@@ -21,12 +35,8 @@ public sealed class CliPreflightService : ICliPreflightService
         IInputCapture inputCapture,
         System.Func<bool>? isLinux = null,
         System.Func<string, string?>? getEnvironmentVariable = null)
+        : this(displaySessionService, () => inputSimulator, () => inputCapture, isLinux, getEnvironmentVariable)
     {
-        _displaySessionService = displaySessionService;
-        _inputSimulator = inputSimulator;
-        _inputCapture = inputCapture;
-        _isLinux = isLinux ?? OperatingSystem.IsLinux;
-        _getEnvironmentVariable = getEnvironmentVariable ?? System.Environment.GetEnvironmentVariable;
     }
 
     public Task<CliPreflightResult> CheckAsync(CliPreflightTarget target, CancellationToken cancellationToken)
@@ -69,23 +79,25 @@ public sealed class CliPreflightService : ICliPreflightService
 
         if (target == CliPreflightTarget.Play || target == CliPreflightTarget.Run)
         {
-            if (!_inputSimulator.IsSupported)
+            using var inputSimulator = _inputSimulatorFactory();
+            if (!inputSimulator.IsSupported)
             {
                 return Task.FromResult(CliPreflightResult.Fail(
                     CliExitCode.EnvironmentError,
                     "Preflight check failed: input simulation backend is unavailable.",
-                    [$"Input simulator provider is not supported: {_inputSimulator.ProviderName}"]));
+                    [$"Input simulator provider is not supported: {inputSimulator.ProviderName}"]));
             }
         }
 
         if (target == CliPreflightTarget.Record)
         {
-            if (!_inputCapture.IsSupported)
+            using var inputCapture = _inputCaptureFactory();
+            if (!inputCapture.IsSupported)
             {
                 return Task.FromResult(CliPreflightResult.Fail(
                     CliExitCode.EnvironmentError,
                     "Preflight check failed: input capture backend is unavailable.",
-                    [$"Input capture provider is not supported: {_inputCapture.ProviderName}"]));
+                    [$"Input capture provider is not supported: {inputCapture.ProviderName}"]));
             }
         }
 

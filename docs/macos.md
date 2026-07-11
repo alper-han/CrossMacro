@@ -40,7 +40,11 @@ CrossMacro needs two macOS privacy permissions for normal macro use:
   mouse events.
 
 Macros that read pixels from the screen also need **Screen Recording**. This is
-required for commands such as `pixelcolor`, `waitcolor`, and `pixelsearch`.
+required for commands such as `pixelcolor`, `waitcolor`, `pixelsearch`,
+`imagesearch`, `imageclick`, and `waitimage`. Image recognition imports native
+8-bit PNG templates only. Similarity defaults to `1.0`, downsample defaults to
+`1`, and `imageclick` uses the left button unless another supported button is
+selected.
 
 CrossMacro opens the relevant System Settings page when possible and asks macOS
 to add the current app to the permission list. In most cases, you only need to
@@ -87,7 +91,8 @@ Screen & System Audio Recording** (or **Screen Recording** on older macOS
 versions), enable **CrossMacro**.
 
 If you grant Screen Recording while CrossMacro is running, quit and reopen the
-app before testing `pixelcolor`, `waitcolor`, or `pixelsearch` again.
+app before testing `pixelcolor`, `waitcolor`, `pixelsearch`, or image commands
+again.
 
 ## Troubleshooting
 

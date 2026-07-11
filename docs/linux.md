@@ -131,10 +131,10 @@ If `setfacl` is missing, install your distro's `acl` package first.
 
 ## Linux screen reading
 
-Screen-reading commands are supported on native X11 and Wayland desktop
-sessions. On Wayland, CrossMacro uses the best available desktop capture path for
-the current session. Flatpak and other sandboxed runs may show a desktop capture
-permission prompt.
+Screen-reading commands use native X11 or an available Wayland desktop capture
+provider. On Wayland, CrossMacro selects the best available capture path for the
+current session. Flatpak and other sandboxed runs may show a desktop capture
+permission prompt, and provider availability varies by compositor and session.
 
 On portal-based desktops such as GNOME, select every monitor that contains pixels
 or regions the macro will read. The desktop portal owns this picker, so
@@ -143,10 +143,36 @@ selected. If playback asks for a pixel outside the selected monitor coverage,
 CrossMacro reports the selected bounds and requested coordinates so the capture
 source can be reselected intentionally.
 
+Image commands use the same screen capture providers as pixel and screenshot
+commands. On Wayland, a requested region can be stitched from the intersecting
+monitor outputs, including monitors with negative virtual coordinates. Areas in
+the bounding rectangle that belong to no monitor are voids, not black pixels.
+Pixel and image matching ignore those voids, and `imageclick` will not click a
+match whose template crosses a void. A request with no captured monitor pixels
+is reported as out of bounds. This documents the implemented capture behavior;
+compositor-specific live Wayland support still depends on the available provider,
+desktop permissions, and session setup.
+
 On KDE Wayland, packaged installs include the desktop-entry permission required
 for KWin screen capture. If doctor reports KWin ScreenShot2 permission denied,
 verify the installed CrossMacro `.desktop` file and restart CrossMacro from the
 packaged launcher.
+
+Image matching uses deterministic `FirstThresholdMatch` by default: it searches
+row-major bands and stops at the first band containing a threshold match.
+`BestMatch` is opt-in through the CLI `--matchmode best` option or script
+`matchmode best` token and scans the complete region for the best SAD score.
+Scale-aware matching is also opt-in (`--scale-aware` for CLI image commands;
+`scaleaware` for `imagesearch`) and tries only the supported uniform scales. The
+existing `downsample` setting remains an independent sampling factor and keeps
+its prior meaning. A no-match is not a monitor-gap match: CLI JSON reports a
+successful `Found: false` result, while script result variables use `false` and
+`-1, -1` where the command's result-variable form supports it.
+
+The optimized matcher avoids per-candidate validity-mask scans for fully covered
+Wayland frames. Compositions with monitor gaps retain an indexed validity check,
+so a candidate crossing a void remains rejected. Capture/provider availability,
+timeouts, and permissions still determine whether a live Wayland search can run.
 
 ## AppImage
 

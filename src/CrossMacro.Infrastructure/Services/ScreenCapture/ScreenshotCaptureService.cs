@@ -11,11 +11,13 @@ public sealed class ScreenshotCaptureService : IScreenshotCaptureService
 {
     private readonly IScreenFrameProvider? _screenFrameProvider;
     private readonly IImageClipboardService? _imageClipboardService;
+    private readonly IImageAssetCodec _imageAssetCodec;
 
-    public ScreenshotCaptureService(IScreenFrameProvider? screenFrameProvider, IImageClipboardService? imageClipboardService)
+    public ScreenshotCaptureService(IScreenFrameProvider? screenFrameProvider, IImageClipboardService? imageClipboardService, IImageAssetCodec? imageAssetCodec = null)
     {
         _screenFrameProvider = screenFrameProvider;
         _imageClipboardService = imageClipboardService;
+        _imageAssetCodec = imageAssetCodec ?? new ImageAssetCodec();
     }
 
     public async Task<ScreenshotCaptureResult> CaptureAsync(
@@ -121,7 +123,7 @@ public sealed class ScreenshotCaptureService : IScreenshotCaptureService
             captureResult.ErrorKind));
     }
 
-    private static (bool Success, string? OutputPath, ScreenshotCaptureResult? Failure) WriteOutput(string outputPath, ScreenFrame frame, byte[]? pngBytes)
+    private (bool Success, string? OutputPath, ScreenshotCaptureResult? Failure) WriteOutput(string outputPath, ScreenFrame frame, byte[]? pngBytes)
     {
         try
         {
@@ -180,18 +182,18 @@ public sealed class ScreenshotCaptureService : IScreenshotCaptureService
         }
     }
 
-    private static byte[] EncodeToPngBytes(ScreenFrame frame)
+    private byte[] EncodeToPngBytes(ScreenFrame frame)
     {
         using var pngStream = new MemoryStream();
-        ScreenFramePngEncoder.Encode(frame, pngStream);
+        _imageAssetCodec.EncodePng(frame, pngStream);
         return pngStream.ToArray();
     }
 
-    private static void WriteFrameToFile(ScreenFrame frame, string outputPath)
+    private void WriteFrameToFile(ScreenFrame frame, string outputPath)
     {
         EnsureOutputDirectory(outputPath);
         using var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
-        ScreenFramePngEncoder.Encode(frame, fileStream);
+        _imageAssetCodec.EncodePng(frame, fileStream);
     }
 
     private static void WriteBytesToFile(byte[] pngBytes, string outputPath)

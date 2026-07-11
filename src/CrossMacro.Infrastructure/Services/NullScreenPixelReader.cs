@@ -1,10 +1,11 @@
 using System.Threading.Tasks;
+using CrossMacro.Infrastructure.Services.ScreenReading;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
 
 /// <summary>No-op IScreenPixelReader for runtime scripts that do not use screen-reading steps.</summary>
-internal sealed class NullScreenPixelReader : IScreenPixelReader
+internal sealed class NullScreenPixelReader : IScreenPixelReader, IScreenImageSearchReader
 {
     public static readonly NullScreenPixelReader Instance = new();
 
@@ -32,6 +33,16 @@ internal sealed class NullScreenPixelReader : IScreenPixelReader
     {
         Core.Logging.Log.Warning("[NullScreenPixelReader] Screen reading is not available. SearchPixelAsync called.");
         return Task.FromResult(ScreenReadResult<ScreenPixelSearchMatch>.Failure(ScreenReadErrorKind.Unsupported, "Screen reading is not available."));
+    }
+
+    public Task<ScreenReadResult<ScreenImageMatch>> SearchImageAsync(
+        ScreenRect? region,
+        ScreenFrame template,
+        ScreenImageMatchOptions matchOptions,
+        ScreenReadOptions options)
+    {
+        Core.Logging.Log.Warning("[NullScreenPixelReader] Screen reading is not available. SearchImageAsync called.");
+        return Task.FromResult(ScreenReadResult<ScreenImageMatch>.Failure(ScreenReadErrorKind.Unsupported, "Screen reading is not available."));
     }
 
     public void Dispose()

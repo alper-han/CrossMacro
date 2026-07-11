@@ -99,6 +99,23 @@ public sealed class ScreenImageMatcherTests
     }
 
     [Fact]
+    public void FindMatch_ScaleAwareWithNonZeroFrameOrigin_UsesLocalCoordinates()
+    {
+        using var frame = CreateSolidFrame(new ScreenRect(10, 20, 32, 32), Red);
+        using var template = CreateSolidFrame(new ScreenRect(0, 0, 16, 16), Red);
+
+        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions
+        {
+            ScaleAware = true,
+            MinimumSimilarity = 1.0
+        });
+
+        Assert.Equal(new ScreenPoint(10, 20), match?.Point);
+        Assert.Equal(16, match?.MatchedWidth);
+        Assert.Equal(16, match?.MatchedHeight);
+    }
+
+    [Fact]
     public void FindMatch_ScaleAwareDisabledPreservesCoreResultAndDoesNotNormalizeScaleVariants()
     {
         using var frame = CreateFrame(new ScreenRect(0, 0, 2, 2), ScreenPixelFormat.Rgb24, [[Red, Green], [Blue, White]]);

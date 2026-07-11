@@ -358,7 +358,9 @@ public sealed class ScreenImageMatcher : IDisposable
             return MatchCandidate.None;
         }
 
-        var frameDown = CropAndDownsampleBy2(frame, minX, minY, regionW, regionH);
+        var frameLocalX = checked(minX - frameBounds.X);
+        var frameLocalY = checked(minY - frameBounds.Y);
+        var frameDown = CropAndDownsampleBy2(frame, frameLocalX, frameLocalY, regionW, regionH);
 
         int startXDown = 0;
         int endXDown = frameDown.Width - templateDown.Width + 1;

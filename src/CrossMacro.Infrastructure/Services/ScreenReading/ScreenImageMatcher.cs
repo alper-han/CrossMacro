@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Threading;
 using CrossMacro.Platform.Abstractions;
 
@@ -9,6 +10,9 @@ public sealed class ScreenImageMatcher : IDisposable
     private const int ColorChannelCount = 3;
     private const int MaxChannelDifference = byte.MaxValue;
     private const int CancellationCheckBlockBytes = 4096;
+    private const long ParallelPixelThreshold = 256_000;
+    private const int MinimumParallelRowWidth = 256;
+    private const int MinimumParallelRowCount = 4;
     internal const long MaxMatcherWork = 100_000_000;
     private const int MatcherRowBandHeight = 32;
     internal const long MaxTemplateCacheBytes = 64L * 1024 * 1024;
@@ -449,7 +453,8 @@ public sealed class ScreenImageMatcher : IDisposable
         int w = source.Width / 2;
         int h = source.Height / 2;
         byte[] pixels = new byte[w * h * ColorChannelCount];
-        for (int y = 0; y < h; y++)
+
+        void CopyRow(int y)
         {
             int sourceY = y * 2;
             int targetRowOffset = y * w * ColorChannelCount;
@@ -464,6 +469,19 @@ public sealed class ScreenImageMatcher : IDisposable
                 pixels[targetOffset + 2] = source.Pixels[sourceOffset + 2];
             }
         }
+
+        if (ShouldParallelizeRows(w, h))
+        {
+            Parallel.For(0, h, CopyRow);
+        }
+        else
+        {
+            for (int y = 0; y < h; y++)
+            {
+                CopyRow(y);
+            }
+        }
+
         return new RgbImage(w, h, pixels, w * ColorChannelCount);
     }
 
@@ -472,7 +490,8 @@ public sealed class ScreenImageMatcher : IDisposable
         int w = width / 2;
         int h = height / 2;
         byte[] pixels = new byte[w * h * ColorChannelCount];
-        for (int y = 0; y < h; y++)
+
+        void CopyRow(int y)
         {
             int sourceY = startY + y * 2;
             int targetRowOffset = y * w * ColorChannelCount;
@@ -487,6 +506,19 @@ public sealed class ScreenImageMatcher : IDisposable
                 pixels[targetOffset + 2] = source.Pixels[sourceOffset + 2];
             }
         }
+
+        if (ShouldParallelizeRows(w, h))
+        {
+            Parallel.For(0, h, CopyRow);
+        }
+        else
+        {
+            for (int y = 0; y < h; y++)
+            {
+                CopyRow(y);
+            }
+        }
+
         return new RgbImage(w, h, pixels, w * ColorChannelCount);
     }
 
@@ -1014,19 +1046,51 @@ public sealed class ScreenImageMatcher : IDisposable
         var bytesPerPixel = ScreenFrame.GetBytesPerPixel(frame.PixelFormat);
         var source = frame.Pixels.Span;
         var rowLength = checked(frame.Width * ColorChannelCount);
-        for (var y = 0; y < frame.Height; y++)
+
+        if (!ShouldParallelizeRows(frame.Width, frame.Height)
+            || !MemoryMarshal.TryGetArray(frame.Pixels, out var sourceSegment)
+            || sourceSegment.Array is not { } sourceArray)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            for (var x = 0; x < frame.Width; x++)
+            for (var y = 0; y < frame.Height; y++)
             {
-                var sourceOffset = checked(y * frame.Stride + x * bytesPerPixel);
-                var targetOffset = checked(y * rowLength + x * ColorChannelCount);
-                WriteNormalizedPixel(source, sourceOffset, frame.PixelFormat, target, targetOffset);
+                cancellationToken.ThrowIfCancellationRequested();
+                for (var x = 0; x < frame.Width; x++)
+                {
+                    var sourceOffset = checked(y * frame.Stride + x * bytesPerPixel);
+                    var targetOffset = checked(y * rowLength + x * ColorChannelCount);
+                    WriteNormalizedPixel(source, sourceOffset, frame.PixelFormat, target, targetOffset);
+                }
             }
+        }
+        else
+        {
+            void NormalizeRow(int y)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var sourceRowOffset = checked(sourceSegment.Offset + y * frame.Stride);
+                var targetRowOffset = checked(y * rowLength);
+                for (var x = 0; x < frame.Width; x++)
+                {
+                    var sourceOffset = checked(sourceRowOffset + x * bytesPerPixel);
+                    var targetOffset = checked(targetRowOffset + x * ColorChannelCount);
+                    WriteNormalizedPixel(sourceArray, sourceOffset, frame.PixelFormat, target, targetOffset);
+                }
+            }
+
+            Parallel.For(
+                0,
+                frame.Height,
+                new ParallelOptions { CancellationToken = cancellationToken },
+                NormalizeRow);
         }
 
         return new RgbImage(frame.Width, frame.Height, target, checked(frame.Width * ColorChannelCount));
     }
+
+    private static bool ShouldParallelizeRows(int width, int height) =>
+        width >= MinimumParallelRowWidth
+        && height >= MinimumParallelRowCount
+        && (long)width * height >= ParallelPixelThreshold;
 
     private static bool IsRegionValid(ScreenFrame frame, int x, int y, int width, int height)
     {

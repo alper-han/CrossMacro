@@ -6,6 +6,9 @@ namespace CrossMacro.Infrastructure.Services.ScreenCapture;
 
 public static class ScreenFramePngDecoder
 {
+    private const long ParallelPixelThreshold = 256_000;
+    private const int MinimumParallelRowWidth = 256;
+    private const int MinimumParallelRowCount = 4;
     private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
     public static ScreenFrame Decode(ReadOnlySpan<byte> pngBytes)
@@ -292,7 +295,8 @@ public static class ScreenFramePngDecoder
     private static byte[] ConvertToRgb(PngHeader header, byte[] source, int rowBytes)
     {
         var pixels = new byte[checked(header.Width * header.Height * 3)];
-        for (var y = 0; y < header.Height; y++)
+
+        void ConvertRow(int y)
         {
             var sourceRowOffset = checked(y * rowBytes);
             var targetRowOffset = checked(y * header.Width * 3);
@@ -322,8 +326,25 @@ public static class ScreenFramePngDecoder
             }
         }
 
+        if (ShouldParallelizeRows(header.Width, header.Height))
+        {
+            Parallel.For(0, header.Height, ConvertRow);
+        }
+        else
+        {
+            for (var y = 0; y < header.Height; y++)
+            {
+                ConvertRow(y);
+            }
+        }
+
         return pixels;
     }
+
+    private static bool ShouldParallelizeRows(int width, int height) =>
+        width >= MinimumParallelRowWidth
+        && height >= MinimumParallelRowCount
+        && (long)width * height >= ParallelPixelThreshold;
 
     private static int PaethPredictor(int left, int up, int upperLeft)
     {

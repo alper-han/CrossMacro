@@ -140,9 +140,7 @@
 
                     # Force dependency on libsystemd for runtime P/Invoke resolution
                     # This tells autoPatchelfHook to link systemd even though it's not a build-time dep
-                    if [ -f $out/lib/crossmacro-daemon/CrossMacro.Daemon ]; then
-                       patchelf --add-needed libsystemd.so.0 $out/lib/crossmacro-daemon/CrossMacro.Daemon
-                    fi
+                    patchelf --add-needed libsystemd.so.0 $out/lib/crossmacro-daemon/CrossMacro.Daemon
                   '';
 
                   meta = with pkgs.lib; {

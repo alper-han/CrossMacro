@@ -902,11 +902,11 @@ public sealed class RunScriptScreenReadRuntimeTests
     }
 
     [Fact]
-    public async Task SearchImageAsync_WhenMatchExceedsTimeout_ReturnsCaptureTimeout()
+    public async Task SearchImageAsync_WhenTimeoutExpiresBeforeBestMatch_ReturnsCaptureTimeout()
     {
-        using var frame = CreateSolidRgbFrame(new ScreenRect(0, 0, 1024, 128), Black);
-        using var template = CreateSolidRgbFrame(new ScreenRect(0, 0, 32, 8), Black);
-        using var reader = new ScreenPixelReader(new IgnoringCancellationFrameProvider(frame));
+        using var frame = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
+        using var template = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
+        using var reader = new ScreenPixelReader(new DelayedFrameProvider(frame));
 
         var result = await reader.SearchImageAsync(
             null,

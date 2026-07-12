@@ -292,7 +292,7 @@ public class MacroFileManager : IMacroFileManager
             pendingScriptStep = null;
         }
         
-        while (await lineReader.ReadLineAsync() is { } line)
+        while (await lineReader.ReadLineAsync().ConfigureAwait(false) is { } line)
         {
             lineNumber++;
             if (lineNumber > MaxMacroFileLines)
@@ -709,7 +709,9 @@ public class MacroFileManager : IMacroFileManager
     {
         private readonly StreamReader _reader;
         private readonly int _maxChars;
-        private readonly char[] _buffer = new char[1];
+        private readonly char[] _buffer = new char[4096];
+        private int _bufferPosition;
+        private int _bufferLength;
 
         public BoundedLineReader(StreamReader reader, int maxChars)
         {
@@ -720,32 +722,41 @@ public class MacroFileManager : IMacroFileManager
         public async Task<string?> ReadLineAsync()
         {
             var builder = new StringBuilder();
-            while (await _reader.ReadAsync(_buffer.AsMemory(0, 1)) > 0)
+            while (true)
             {
-                if (_buffer[0] == '\n')
+                if (_bufferPosition == _bufferLength)
                 {
-                    if (builder.Length > 0 && builder[^1] == '\r')
+                    _bufferLength = await _reader.ReadAsync(_buffer.AsMemory()).ConfigureAwait(false);
+                    _bufferPosition = 0;
+                    if (_bufferLength == 0)
                     {
-                        builder.Length--;
+                        return builder.Length == 0 ? null : builder.ToString();
                     }
-
-                    return builder.ToString();
                 }
 
-                if (builder.Length >= _maxChars)
+                var lineEnd = Array.IndexOf(_buffer, '\n', _bufferPosition, _bufferLength - _bufferPosition);
+                var segmentEnd = lineEnd >= 0 ? lineEnd : _bufferLength;
+                var segmentLength = segmentEnd - _bufferPosition;
+                if (builder.Length + segmentLength > _maxChars)
                 {
                     throw new InvalidDataException($"Macro line exceeds the maximum of {_maxChars} characters.");
                 }
 
-                builder.Append(_buffer[0]);
-            }
+                builder.Append(_buffer, _bufferPosition, segmentLength);
+                _bufferPosition = segmentEnd;
+                if (lineEnd < 0)
+                {
+                    continue;
+                }
 
-            if (builder.Length == 0)
-            {
-                return null;
-            }
+                _bufferPosition++;
+                if (builder.Length > 0 && builder[^1] == '\r')
+                {
+                    builder.Length--;
+                }
 
-            return builder.ToString();
+                return builder.ToString();
+            }
         }
     }
 

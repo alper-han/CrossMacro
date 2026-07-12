@@ -1,6 +1,8 @@
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Reflection;
+using Avalonia;
 using Avalonia.Controls;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
@@ -1760,6 +1762,31 @@ public class EditorViewModelTests
     }
 
     [Fact]
+    public void SelectedUnderlyingIndices_WhenListBoxReattaches_RestoresCollectionHandler()
+    {
+        var listBox = new ListBox { SelectionMode = SelectionMode.Multiple };
+        var selectedIndices = new ObservableCollection<int> { 0 };
+        ListBoxSelectedActionIndices.SetSelectedUnderlyingIndices(listBox, selectedIndices);
+
+        var behaviorType = typeof(ListBoxSelectedActionIndices);
+        var handlerProperty = (AvaloniaProperty<NotifyCollectionChangedEventHandler?>)behaviorType
+            .GetField("BoundSelectionChangedHandlerProperty", BindingFlags.NonPublic | BindingFlags.Static)!
+            .GetValue(null)!;
+        listBox.GetValue(handlerProperty).Should().NotBeNull();
+
+        behaviorType
+            .GetMethod("OnDetachedFromVisualTree", BindingFlags.NonPublic | BindingFlags.Static)!
+            .Invoke(null, [listBox, null]);
+        listBox.GetValue(handlerProperty).Should().BeNull();
+
+        var attachedHandler = behaviorType.GetMethod("OnAttachedToVisualTree", BindingFlags.NonPublic | BindingFlags.Static);
+        attachedHandler.Should().NotBeNull();
+        attachedHandler!.Invoke(null, [listBox, null]);
+
+        listBox.GetValue(handlerProperty).Should().NotBeNull();
+    }
+
+    [Fact]
     public void SelectedActionUnderlyingIndices_WhenSelectedActionEditRebuildsRows_PreservesSelectedAction()
     {
         var first = new EditorAction { Type = EditorActionType.MouseMove, X = 1, Y = 1 };
@@ -2308,6 +2335,85 @@ public class EditorViewModelTests
 
         _viewModel.Undo();
         _viewModel.Actions.Should().HaveCount(4);
+    }
+
+    [Fact]
+    public void RemoveSelectedActions_WhenMultipleRowsRemoved_RebuildsPresentationOnce()
+    {
+        var first = new EditorAction { Type = EditorActionType.MouseClick, X = 1, Y = 1 };
+        var second = new EditorAction { Type = EditorActionType.Delay, DelayMs = 20 };
+        var third = new EditorAction { Type = EditorActionType.KeyPress, KeyCode = 65 };
+        var fourth = new EditorAction { Type = EditorActionType.MouseClick, X = 4, Y = 4 };
+        _viewModel.Actions.Add(first);
+        _viewModel.Actions.Add(second);
+        _viewModel.Actions.Add(third);
+        _viewModel.Actions.Add(fourth);
+        _viewModel.SelectedActionUnderlyingIndices.Add(0);
+        _viewModel.SelectedActionUnderlyingIndices.Add(2);
+
+        var presentationResetCount = 0;
+        _viewModel.ActionListItems.CollectionChanged += (_, args) =>
+        {
+            if (args.Action == NotifyCollectionChangedAction.Reset)
+            {
+                presentationResetCount++;
+            }
+        };
+
+        _viewModel.RemoveSelectedActions();
+
+        presentationResetCount.Should().Be(1);
+        _viewModel.Actions.Should().Equal(second, fourth);
+        _viewModel.SelectedAction.Should().BeNull();
+        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _viewModel.CanUndo.Should().BeTrue();
+
+        _viewModel.Undo();
+        _viewModel.Actions.Select(action => action.Type).Should().Equal(
+            EditorActionType.MouseClick,
+            EditorActionType.Delay,
+            EditorActionType.KeyPress,
+            EditorActionType.MouseClick);
+        _viewModel.Actions.Select(action => action.X).Should().Equal(1, 0, 0, 4);
+    }
+
+    [Fact]
+    public void RemoveSelectedActions_WhenRemovingThousandsOfRows_PreservesUndoSnapshot()
+    {
+        var sequence = new MacroSequence { Name = "Large Macro" };
+        var converted = new List<EditorAction>(capacity: 5_000);
+        for (var index = 0; index < 5_000; index++)
+        {
+            converted.Add(new EditorAction { Type = EditorActionType.MouseMove, X = index, Y = index });
+        }
+
+        _converter.FromMacroSequenceWithDiagnostics(sequence)
+            .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
+        _viewModel.LoadMacroSequence(sequence);
+        _viewModel.ReplaceSelectedActionUnderlyingIndices(Enumerable.Range(0, 5_000).Where(index => index % 2 == 0));
+
+        var presentationResetCount = 0;
+        _viewModel.ActionListItems.CollectionChanged += (_, args) =>
+        {
+            if (args.Action == NotifyCollectionChangedAction.Reset)
+            {
+                presentationResetCount++;
+            }
+        };
+
+        _viewModel.RemoveSelectedActions();
+
+        presentationResetCount.Should().Be(1);
+        _viewModel.Actions.Should().HaveCount(2_500);
+        _viewModel.Actions[0].X.Should().Be(1);
+        _viewModel.Actions[^1].X.Should().Be(4_999);
+        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+
+        _viewModel.Undo();
+
+        _viewModel.Actions.Should().HaveCount(5_000);
+        _viewModel.Actions[0].X.Should().Be(0);
+        _viewModel.Actions[4_999].X.Should().Be(4_999);
     }
 
     [Fact]
@@ -2867,6 +2973,28 @@ public class EditorViewModelTests
         _viewModel.SelectedAction.Should().NotBeNull();
         _viewModel.SelectedAction!.ScreenX.Should().Be(10);
         _viewModel.SelectedAction.ScreenY.Should().Be(20);
+    }
+
+    [Fact]
+    public void Undo_AfterImageSearchMatchModeEdits_RestoresIntermediateState()
+    {
+        _viewModel.NewActionType = EditorActionType.ImageSearch;
+        _viewModel.AddAction();
+        var action = _viewModel.SelectedAction!;
+
+        action.ImageSearchMatchMode = EditorImageMatchMode.BestMatch;
+        action.ImageSearchMatchModeWasExplicit = true;
+
+        _viewModel.Undo();
+
+        _viewModel.SelectedAction.Should().NotBeNull();
+        _viewModel.SelectedAction!.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.BestMatch);
+        _viewModel.SelectedAction.ImageSearchMatchModeWasExplicit.Should().BeFalse();
+
+        _viewModel.Redo();
+
+        _viewModel.SelectedAction!.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.BestMatch);
+        _viewModel.SelectedAction.ImageSearchMatchModeWasExplicit.Should().BeTrue();
     }
 
     [Theory]
@@ -3521,6 +3649,141 @@ public class EditorViewModelTests
 
         // Assert
         _viewModel.LinkedLoadedMacroSessionId.Should().BeNull();
+    }
+
+    [Fact]
+    public void LoadMacroSequence_BatchesActionListPresentation()
+    {
+        var sequence = new MacroSequence { Name = "Loaded Macro" };
+        var converted = new List<EditorAction>
+        {
+            new() { Type = EditorActionType.MouseMove, X = 10, Y = 20 },
+            new() { Type = EditorActionType.MouseClick, X = 10, Y = 20 },
+            new() { Type = EditorActionType.Delay, DelayMs = 25 }
+        };
+        var addedRowCount = 0;
+        _converter.FromMacroSequenceWithDiagnostics(sequence)
+            .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
+        _viewModel.ActionListItems.CollectionChanged += (_, args) =>
+        {
+            if (args.Action == NotifyCollectionChangedAction.Add)
+            {
+                addedRowCount += args.NewItems?.Count ?? 0;
+            }
+        };
+
+        _viewModel.LoadMacroSequence(sequence);
+
+        addedRowCount.Should().Be(converted.Count);
+    }
+
+    [Fact]
+    public void LoadMacroSequence_WhenLoadingFiveThousandActions_PresentsEachActionOnce()
+    {
+        var sequence = new MacroSequence { Name = "Large Macro" };
+        var converted = new List<EditorAction>(capacity: 5_000);
+        for (var index = 0; index < 5_000; index++)
+        {
+            converted.Add(new EditorAction { Type = EditorActionType.MouseMove, X = index, Y = index });
+        }
+
+        var addedRowCount = 0;
+        _converter.FromMacroSequenceWithDiagnostics(sequence)
+            .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
+        _viewModel.ActionListItems.CollectionChanged += (_, args) =>
+        {
+            if (args.Action == NotifyCollectionChangedAction.Add)
+            {
+                addedRowCount += args.NewItems?.Count ?? 0;
+            }
+        };
+
+        _viewModel.LoadMacroSequence(sequence);
+
+        _viewModel.Actions.Should().HaveCount(5_000);
+        _viewModel.ActionListItems.Should().HaveCount(5_000);
+        addedRowCount.Should().Be(5_000);
+    }
+
+    [Fact]
+    public void UndoAndRedo_WhenRestoringActionSnapshot_RebuildsPresentationOnce()
+    {
+        var sequence = new MacroSequence { Name = "Large Macro" };
+        var converted = new List<EditorAction>(capacity: 250);
+        for (var index = 0; index < 250; index++)
+        {
+            converted.Add(new EditorAction { Type = EditorActionType.MouseMove, X = index, Y = index });
+        }
+
+        _converter.FromMacroSequenceWithDiagnostics(sequence)
+            .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
+        _viewModel.LoadMacroSequence(sequence);
+        _viewModel.AddAction();
+
+        var addedRowCount = 0;
+        _viewModel.ActionListItems.CollectionChanged += (_, args) =>
+        {
+            if (args.Action == NotifyCollectionChangedAction.Add)
+            {
+                addedRowCount += args.NewItems?.Count ?? 0;
+            }
+        };
+
+        _viewModel.Undo();
+
+        _viewModel.Actions.Should().HaveCount(250);
+        _viewModel.ActionListItems.Should().HaveCount(250);
+        _viewModel.Actions[249].X.Should().Be(249);
+        _viewModel.Actions[249].Y.Should().Be(249);
+        _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[0]);
+        _viewModel.CanUndo.Should().BeTrue();
+        _viewModel.CanRedo.Should().BeTrue();
+        addedRowCount.Should().Be(250);
+
+        addedRowCount = 0;
+        _viewModel.Redo();
+
+        _viewModel.Actions.Should().HaveCount(251);
+        _viewModel.ActionListItems.Should().HaveCount(251);
+        _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[0]);
+        _viewModel.CanUndo.Should().BeTrue();
+        _viewModel.CanRedo.Should().BeFalse();
+        addedRowCount.Should().Be(251);
+    }
+
+    [Fact]
+    public void UndoAndRedo_WhenRestoringFiveThousandActions_PreservesSnapshotContents()
+    {
+        var sequence = new MacroSequence { Name = "Large Macro" };
+        var converted = new List<EditorAction>(capacity: 5_000);
+        for (var index = 0; index < 5_000; index++)
+        {
+            converted.Add(new EditorAction { Type = EditorActionType.MouseMove, X = index, Y = index });
+        }
+
+        _converter.FromMacroSequenceWithDiagnostics(sequence)
+            .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
+        _viewModel.LoadMacroSequence(sequence);
+        _viewModel.AddAction();
+
+        _viewModel.Undo();
+
+        _viewModel.Actions.Should().HaveCount(5_000);
+        _viewModel.ActionListItems.Should().HaveCount(5_000);
+        _viewModel.Actions[0].X.Should().Be(0);
+        _viewModel.Actions[2_499].X.Should().Be(2_499);
+        _viewModel.Actions[4_999].X.Should().Be(4_999);
+        _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[0]);
+        _viewModel.CanUndo.Should().BeTrue();
+        _viewModel.CanRedo.Should().BeTrue();
+
+        _viewModel.Redo();
+
+        _viewModel.Actions.Should().HaveCount(5_001);
+        _viewModel.ActionListItems.Should().HaveCount(5_001);
+        _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[0]);
+        _viewModel.CanUndo.Should().BeTrue();
+        _viewModel.CanRedo.Should().BeFalse();
     }
 
     [Fact]

@@ -87,6 +87,8 @@ public partial class EditorViewModel
             && left.ImageSearchSimilarity.Equals(right.ImageSearchSimilarity)
             && left.ImageSearchDownsample == right.ImageSearchDownsample
             && left.ImageSearchScaleAware == right.ImageSearchScaleAware
+            && left.ImageSearchMatchMode == right.ImageSearchMatchMode
+            && left.ImageSearchMatchModeWasExplicit == right.ImageSearchMatchModeWasExplicit
             && left.ShellCommandMode == right.ShellCommandMode
             && string.Equals(left.ShellCommand, right.ShellCommand, StringComparison.Ordinal)
             && string.Equals(left.ShellStandardInput, right.ShellStandardInput, StringComparison.Ordinal)
@@ -1011,7 +1013,17 @@ public partial class EditorViewModel
         }
 
         SaveUndoState();
-        RemoveIndicesDescending(Actions, orderedIndices);
+        _isBatchUpdatingActions = true;
+        try
+        {
+            RemoveIndicesDescending(Actions, orderedIndices);
+        }
+        finally
+        {
+            _isBatchUpdatingActions = false;
+        }
+
+        RefreshActionCollectionState();
         ApplyPostRemoveSelection(selectedActionsBeforeRemoval, postRemoveSelectionPolicy);
         Status = Localize(statusKey);
         OnPropertyChanged(nameof(HasActions));
@@ -1099,6 +1111,23 @@ public partial class EditorViewModel
         SyncSelectedActionListItem();
     }
 
+    private void RestoreActionSnapshot(IReadOnlyList<EditorAction> state)
+    {
+        _isBatchUpdatingActions = true;
+        try
+        {
+            Actions.Clear();
+            foreach (var action in state)
+            {
+                Actions.Add(action);
+            }
+        }
+        finally
+        {
+            _isBatchUpdatingActions = false;
+        }
+    }
+
     public void Undo()
     {
         if (_undoStack.Count == 0)
@@ -1114,15 +1143,12 @@ public partial class EditorViewModel
             _redoStack.Push(currentState);
 
             var previousState = _undoStack.Pop();
-            Actions.Clear();
-            foreach (var action in previousState)
-            {
-                Actions.Add(action);
-            }
+            RestoreActionSnapshot(previousState);
 
             SelectedAction = Actions.FirstOrDefault();
             Status = Localize("Editor_StatusUndone");
 
+            RefreshActionCollectionState();
             OnPropertyChanged(nameof(CanUndo));
             OnPropertyChanged(nameof(CanRedo));
             OnPropertyChanged(nameof(HasActions));
@@ -1149,15 +1175,12 @@ public partial class EditorViewModel
             _undoStack.Push(currentState);
 
             var nextState = _redoStack.Pop();
-            Actions.Clear();
-            foreach (var action in nextState)
-            {
-                Actions.Add(action);
-            }
+            RestoreActionSnapshot(nextState);
 
             SelectedAction = Actions.FirstOrDefault();
             Status = Localize("Editor_StatusRedone");
 
+            RefreshActionCollectionState();
             OnPropertyChanged(nameof(CanUndo));
             OnPropertyChanged(nameof(CanRedo));
             OnPropertyChanged(nameof(HasActions));

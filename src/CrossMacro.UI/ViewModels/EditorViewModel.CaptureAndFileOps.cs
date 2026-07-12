@@ -856,21 +856,6 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
 
         ClearLoadedMacroSessionLink();
         SetSelectedImageAssetPreview(null);
-        Actions.Clear();
-        _imageAssets.Clear();
-        ImageAssetNames.Clear();
-        if (sequence.Images is { Count: > 0 })
-        {
-            foreach (var image in sequence.Images.OrderBy(image => image.Key, StringComparer.Ordinal))
-            {
-                _imageAssets[image.Key] = image.Value;
-                ImageAssetNames.Add(image.Key);
-            }
-        }
-
-        OnPropertyChanged(nameof(HasImageAssets));
-        MacroName = sequence.Name;
-
         var restoreResult = _converter.FromMacroSequenceWithDiagnostics(sequence);
         var editorActions = restoreResult.Actions;
         SetLoadWarnings(restoreResult.Warnings);
@@ -879,20 +864,41 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
             LoadWarnings.Add(Localize("Editor_StatusRestoreWarningFallback"));
         }
 
-        foreach (var action in editorActions)
+        _isBatchUpdatingActions = true;
+        try
         {
-            Actions.Add(action);
+            Actions.Clear();
+            _imageAssets.Clear();
+            ImageAssetNames.Clear();
+            if (sequence.Images is { Count: > 0 })
+            {
+                foreach (var image in sequence.Images.OrderBy(image => image.Key, StringComparer.Ordinal))
+                {
+                    _imageAssets[image.Key] = image.Value;
+                    ImageAssetNames.Add(image.Key);
+                }
+            }
+
+            MacroName = sequence.Name;
+            foreach (var action in editorActions)
+            {
+                Actions.Add(action);
+            }
+        }
+        finally
+        {
+            _isBatchUpdatingActions = false;
         }
 
+        OnPropertyChanged(nameof(HasImageAssets));
         var hasCurrentPositionMouseButtons = editorActions.Any(IsCurrentPositionMouseButtonAction);
         _skipInitialZeroZero = sequence.SkipInitialZeroZero || hasCurrentPositionMouseButtons;
         _skipInitialZeroZeroForcedByCurrentPosition = hasCurrentPositionMouseButtons;
         _skipInitialZeroZeroBeforeCurrentPositionForce = sequence.SkipInitialZeroZero;
 
         SelectedAction = Actions.FirstOrDefault();
-        RefreshSelectedImageAssetPreview();
         OnPropertyChanged(nameof(HasActions));
-        RefreshCurrentPositionConfiguration();
+        RefreshActionCollectionState();
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
     }

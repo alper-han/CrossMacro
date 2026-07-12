@@ -83,6 +83,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private bool _isApplyingVariableSuggestion;
     private bool _isSelectingFromActionList;
     private bool _isSynchronizingSelectedUnderlyingIndices;
+    private bool _isBatchUpdatingActions;
     private bool _disposed;
     private bool _usesDefaultMacroName = true;
     private bool _hideMouseMoves;
@@ -355,17 +356,13 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public bool ShowBatchFixedDelayInput => ShowBatchDelayProperties && !BatchDelayUseRandomDelay;
     public bool ShowBatchRandomDelayOptions => ShowBatchDelayProperties && BatchDelayUseRandomDelay;
     public bool CanRemoveSelectedActions => HasSelectedActions;
-    public bool CanDeleteHiddenEvents => Actions
-        .Select((action, index) => new { action, index })
-        .Any(item => IsHiddenByActiveFilters(item.action, IsInsideMouseDrag(item.index)));
+    public bool CanDeleteHiddenEvents => Actions.Any(action => IsHiddenByActiveFilters(action, isInsideDrag: false));
     public bool ShowDeleteHiddenEvents => (HideMouseMoves || HideShortWaits) && CanDeleteHiddenEvents;
     public bool CanHideMouseMoves => Actions.Any(action => action.Type == EditorActionType.MouseMove);
     public bool ShowHideMouseMovesToggle => HideMouseMoves || CanHideMouseMoves;
     public bool CanHideShortWaits => Actions.Any(IsShortWaitAction);
     public bool ShowHideShortWaitsToggle => HideShortWaits || CanHideShortWaits;
-    public bool CanSimplifyMovement => Actions
-        .Select((_, index) => TryGetCondensibleRun(index))
-        .Any(run => run != null);
+    public bool CanSimplifyMovement => HasCondensibleMovementRun();
     public bool ShowSimplifyMovementToggle => SimplifyMovement || CanSimplifyMovement;
     public bool CanDuplicateSelectedActions => HasSelectedActions;
     public bool CanMoveSelectedActionsUp => HasSelectedActions && SelectedActionUnderlyingIndices.Min() > 0;
@@ -1057,6 +1054,14 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             }
         }
 
+        if (!_isBatchUpdatingActions)
+        {
+            RefreshActionCollectionState();
+        }
+    }
+
+    private void RefreshActionCollectionState()
+    {
         UpdateActionIndices();
         UpdateActionListPresentation();
         RefreshCurrentPositionConfiguration();
@@ -1202,20 +1207,22 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
             var depth = 0;
             var blockStack = new Stack<EditorActionType>();
+            var isDragging = false;
 
             var hiddenEventCount = 0;
             for (var index = 0; index < Actions.Count; index++)
             {
                 var action = Actions[index];
-                var isInsideDrag = IsInsideMouseDrag(index);
+                var isInsideDrag = isDragging;
                 var isLowImportance = IsLowImportanceEditorEvent(action, isInsideDrag);
                 if (IsHiddenByActiveFilters(action, isInsideDrag))
                 {
                     hiddenEventCount++;
+                    UpdateMouseDragState(action, ref isDragging);
                     continue;
                 }
 
-                var condensedRun = SimplifyMovement
+                var condensedRun = SimplifyMovement && !isInsideDrag
                     ? TryGetCondensibleRun(index)
                     : null;
                 if (condensedRun != null)
@@ -1247,6 +1254,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                         : Localize("Editor_Action_EndBlockShort");
 
                     ActionListItems.Add(CreateActionListItem(action, index, depth, displayName, isLowImportance, condensedHiddenCount: 0));
+                    UpdateMouseDragState(action, ref isDragging);
                     continue;
                 }
 
@@ -1259,6 +1267,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                     blockStack.Push(action.Type);
                     depth++;
                 }
+
+                UpdateMouseDragState(action, ref isDragging);
             }
 
             if (HiddenEventCount != hiddenEventCount)
@@ -1290,7 +1300,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     private CondensibleRun? TryGetCondensibleRun(int startIndex)
     {
-        if (IsInsideMouseDrag(startIndex) || !IsMovementSimplificationCandidate(Actions[startIndex]))
+        if (!IsMovementSimplificationCandidate(Actions[startIndex]))
         {
             return null;
         }
@@ -1302,7 +1312,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         for (var index = startIndex; index < Actions.Count; index++)
         {
             var action = Actions[index];
-            if (IsInsideMouseDrag(index) || !IsMovementSimplificationCandidate(action))
+            if (!IsMovementSimplificationCandidate(action))
             {
                 break;
             }
@@ -1624,6 +1634,45 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private static bool IsShortWaitAction(EditorAction action)
     {
         return action is { Type: EditorActionType.Delay, UseRandomDelay: false, DelayMs: > 0 and < 10 };
+    }
+
+    private bool HasCondensibleMovementRun()
+    {
+        var isDragging = false;
+        var runLength = 0;
+        foreach (var action in Actions)
+        {
+            if (!isDragging && IsMovementSimplificationCandidate(action))
+            {
+                runLength++;
+                if (runLength >= 6)
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                runLength = 0;
+            }
+
+            UpdateMouseDragState(action, ref isDragging);
+        }
+
+        return false;
+    }
+
+    private static void UpdateMouseDragState(EditorAction action, ref bool isDragging)
+    {
+        switch (action.Type)
+        {
+            case EditorActionType.MouseDown:
+                isDragging = true;
+                break;
+            case EditorActionType.MouseUp:
+            case EditorActionType.MouseClick:
+                isDragging = false;
+                break;
+        }
     }
 
     private bool IsInsideMouseDrag(int actionIndex)

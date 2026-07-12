@@ -7,6 +7,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Selection;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using CrossMacro.UI.ViewModels;
 
@@ -39,6 +40,21 @@ public static class ListBoxSelectedActionIndices
             "IsWritingUserSelection",
             typeof(ListBoxSelectedActionIndices));
 
+    private static readonly AttachedProperty<bool> IsWritingSelectionToViewModelProperty =
+        AvaloniaProperty.RegisterAttached<ListBox, bool>(
+            "IsWritingSelectionToViewModel",
+            typeof(ListBoxSelectedActionIndices));
+
+    private static readonly AttachedProperty<bool> IsSelectionSyncPendingProperty =
+        AvaloniaProperty.RegisterAttached<ListBox, bool>(
+            "IsSelectionSyncPending",
+            typeof(ListBoxSelectedActionIndices));
+
+    private static readonly AttachedProperty<bool> AreSelectionHandlersAttachedProperty =
+        AvaloniaProperty.RegisterAttached<ListBox, bool>(
+            "AreSelectionHandlersAttached",
+            typeof(ListBoxSelectedActionIndices));
+
     public static readonly AttachedProperty<IList<int>?> SelectedUnderlyingIndicesProperty =
         AvaloniaProperty.RegisterAttached<ListBox, IList<int>?>(
             "SelectedUnderlyingIndices",
@@ -65,27 +81,45 @@ public static class ListBoxSelectedActionIndices
     {
         DetachHandlers(listBox, args.OldValue);
 
-        if (args.NewValue is IList<int>)
+        if (args.NewValue is IList<int> selectedUnderlyingIndices)
         {
-            if (args.NewValue is INotifyCollectionChanged newCollection)
-            {
-                NotifyCollectionChangedEventHandler newHandler = (_, _) => SyncListBoxSelection(listBox);
-                listBox.SetValue(BoundSelectionChangedHandlerProperty, newHandler);
-                newCollection.CollectionChanged += newHandler;
-            }
-
-            if (listBox.Items is INotifyCollectionChanged itemsCollection)
-            {
-                NotifyCollectionChangedEventHandler itemsHandler = (_, _) => SyncListBoxSelection(listBox);
-                listBox.SetValue(BoundItemsChangedHandlerProperty, itemsHandler);
-                itemsCollection.CollectionChanged += itemsHandler;
-            }
-
-            listBox.SelectionChanged += OnSelectionChanged;
-            listBox.AddHandler(InputElement.PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
             listBox.DetachedFromVisualTree += OnDetachedFromVisualTree;
+            listBox.AttachedToVisualTree += OnAttachedToVisualTree;
+            AttachSelectionHandlers(listBox, selectedUnderlyingIndices);
             SyncListBoxSelection(listBox);
         }
+    }
+
+    private static void AttachSelectionHandlers(ListBox listBox, IList<int> selectedUnderlyingIndices)
+    {
+        if (listBox.GetValue(AreSelectionHandlersAttachedProperty))
+        {
+            return;
+        }
+
+        if (selectedUnderlyingIndices is INotifyCollectionChanged selectedIndicesCollection)
+        {
+            NotifyCollectionChangedEventHandler selectedIndicesHandler = (_, _) =>
+            {
+                if (!listBox.GetValue(IsWritingSelectionToViewModelProperty))
+                {
+                    RequestListBoxSelectionSync(listBox);
+                }
+            };
+            listBox.SetValue(BoundSelectionChangedHandlerProperty, selectedIndicesHandler);
+            selectedIndicesCollection.CollectionChanged += selectedIndicesHandler;
+        }
+
+        if (listBox.Items is INotifyCollectionChanged itemsCollection)
+        {
+            NotifyCollectionChangedEventHandler itemsHandler = (_, _) => RequestListBoxSelectionSync(listBox);
+            listBox.SetValue(BoundItemsChangedHandlerProperty, itemsHandler);
+            itemsCollection.CollectionChanged += itemsHandler;
+        }
+
+        listBox.SelectionChanged += OnSelectionChanged;
+        listBox.AddHandler(InputElement.PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
+        listBox.SetValue(AreSelectionHandlersAttachedProperty, true);
     }
 
     private static void OnPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -179,15 +213,30 @@ public static class ListBoxSelectedActionIndices
     {
         if (sender is ListBox listBox)
         {
-            DetachHandlers(listBox, GetSelectedUnderlyingIndices(listBox));
+            DetachSelectionHandlers(listBox, GetSelectedUnderlyingIndices(listBox));
+        }
+    }
+
+    private static void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        if (sender is ListBox listBox && GetSelectedUnderlyingIndices(listBox) is { } selectedUnderlyingIndices)
+        {
+            AttachSelectionHandlers(listBox, selectedUnderlyingIndices);
+            SyncListBoxSelection(listBox);
         }
     }
 
     private static void DetachHandlers(ListBox listBox, object? boundCollection)
     {
+        DetachSelectionHandlers(listBox, boundCollection);
+        listBox.DetachedFromVisualTree -= OnDetachedFromVisualTree;
+        listBox.AttachedToVisualTree -= OnAttachedToVisualTree;
+    }
+
+    private static void DetachSelectionHandlers(ListBox listBox, object? boundCollection)
+    {
         listBox.SelectionChanged -= OnSelectionChanged;
         listBox.RemoveHandler(InputElement.PointerPressedEvent, OnPointerPressed);
-        listBox.DetachedFromVisualTree -= OnDetachedFromVisualTree;
 
         var oldHandler = listBox.GetValue(BoundSelectionChangedHandlerProperty);
         if (boundCollection is INotifyCollectionChanged oldCollection && oldHandler != null)
@@ -203,6 +252,8 @@ public static class ListBoxSelectedActionIndices
 
         listBox.SetValue(BoundSelectionChangedHandlerProperty, null);
         listBox.SetValue(BoundItemsChangedHandlerProperty, null);
+        listBox.SetValue(IsSelectionSyncPendingProperty, false);
+        listBox.SetValue(AreSelectionHandlersAttachedProperty, false);
     }
 
     private static void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -222,58 +273,67 @@ public static class ListBoxSelectedActionIndices
 
     private static void SyncSelectionToViewModel(ListBox listBox)
     {
-        var target = GetSelectedUnderlyingIndices(listBox);
-        if (target == null)
+        var wasWritingSelection = listBox.GetValue(IsWritingSelectionToViewModelProperty);
+        listBox.SetValue(IsWritingSelectionToViewModelProperty, true);
+        try
         {
-            return;
-        }
-
-        if (listBox.SelectedItems == null)
-        {
-            target.Clear();
-            return;
-        }
-
-        var selectedIndices = new List<int>();
-        foreach (var selectedItem in listBox.SelectedItems)
-        {
-            if (selectedItem is EditorActionListItem actionItem && actionItem.RepresentsSourceAction)
+            var target = GetSelectedUnderlyingIndices(listBox);
+            if (target == null)
             {
-                selectedIndices.Add(actionItem.UnderlyingIndex);
+                return;
+            }
+
+            if (listBox.SelectedItems == null)
+            {
+                target.Clear();
+                return;
+            }
+
+            var selectedIndices = new List<int>();
+            foreach (var selectedItem in listBox.SelectedItems)
+            {
+                if (selectedItem is EditorActionListItem actionItem && actionItem.RepresentsSourceAction)
+                {
+                    selectedIndices.Add(actionItem.UnderlyingIndex);
+                }
+            }
+
+            var normalizedSelectedIndices = selectedIndices
+                .Distinct()
+                .OrderBy(index => index)
+                .ToArray();
+
+            if (normalizedSelectedIndices.Length == 0
+                && target.Count > 0
+                && !listBox.GetValue(IsWritingUserSelectionProperty)
+                && !listBox.GetValue(IsWritingExplicitEmptySelectionProperty))
+            {
+                return;
+            }
+
+            if (normalizedSelectedIndices.Length > 0
+                && target.Count > normalizedSelectedIndices.Length
+                && !listBox.GetValue(IsWritingUserSelectionProperty)
+                && normalizedSelectedIndices.All(target.Contains))
+            {
+                return;
+            }
+
+            if (listBox.DataContext is EditorViewModel editorViewModel)
+            {
+                editorViewModel.ReplaceSelectedActionUnderlyingIndices(normalizedSelectedIndices);
+                return;
+            }
+
+            target.Clear();
+            foreach (var selectedIndex in normalizedSelectedIndices)
+            {
+                target.Add(selectedIndex);
             }
         }
-
-        var normalizedSelectedIndices = selectedIndices
-            .Distinct()
-            .OrderBy(index => index)
-            .ToArray();
-
-        if (normalizedSelectedIndices.Length == 0
-            && target.Count > 0
-            && !listBox.GetValue(IsWritingUserSelectionProperty)
-            && !listBox.GetValue(IsWritingExplicitEmptySelectionProperty))
+        finally
         {
-            return;
-        }
-
-        if (normalizedSelectedIndices.Length > 0
-            && target.Count > normalizedSelectedIndices.Length
-            && !listBox.GetValue(IsWritingUserSelectionProperty)
-            && normalizedSelectedIndices.All(target.Contains))
-        {
-            return;
-        }
-
-        if (listBox.DataContext is EditorViewModel editorViewModel)
-        {
-            editorViewModel.ReplaceSelectedActionUnderlyingIndices(normalizedSelectedIndices);
-            return;
-        }
-
-        target.Clear();
-        foreach (var selectedIndex in normalizedSelectedIndices)
-        {
-            target.Add(selectedIndex);
+            listBox.SetValue(IsWritingSelectionToViewModelProperty, wasWritingSelection);
         }
     }
 
@@ -321,6 +381,26 @@ public static class ListBoxSelectedActionIndices
         {
             listBox.SetValue(IsSynchronizingSelectionProperty, false);
         }
+    }
+
+    private static void RequestListBoxSelectionSync(ListBox listBox)
+    {
+        if (listBox.GetValue(IsSelectionSyncPendingProperty))
+        {
+            return;
+        }
+
+        listBox.SetValue(IsSelectionSyncPendingProperty, true);
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!listBox.GetValue(IsSelectionSyncPendingProperty))
+            {
+                return;
+            }
+
+            listBox.SetValue(IsSelectionSyncPendingProperty, false);
+            SyncListBoxSelection(listBox);
+        });
     }
 
     private static T? FindAncestor<T>(Visual? element)

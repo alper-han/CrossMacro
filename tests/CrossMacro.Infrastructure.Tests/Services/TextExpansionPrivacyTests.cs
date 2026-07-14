@@ -216,12 +216,39 @@ public class TextExpansionPrivacyTests
     }
 
     [Fact]
+    public async Task ExpandAsync_WhenClipboardVerificationSucceedsOnRetry_PastesReplacement()
+    {
+        var clipboardService = Substitute.For<IClipboardService>();
+        clipboardService.IsSupported.Returns(true);
+        clipboardService.GetTextAsync(Arg.Any<CancellationToken>()).Returns(
+            Task.FromResult<string?>("old-value"),
+            Task.FromResult<string?>("stale-host-clipboard"),
+            Task.FromResult<string?>("replacement"),
+            Task.FromResult<string?>("replacement"));
+        clipboardService.SetTextAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+
+        var keyboardLayoutService = Substitute.For<IKeyboardLayoutService>();
+        var inputSimulator = new UnicodeCapableTestInputSimulator();
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            keyboardLayoutService,
+            () => inputSimulator);
+
+        await executor.ExpandAsync(new TextExpansion(":a", "replacement"));
+
+        await clipboardService.Received(1).SetTextAsync("replacement", Arg.Any<CancellationToken>());
+        Assert.Contains(InputEventCode.KEY_V, inputSimulator.PressedKeys);
+        Assert.Empty(inputSimulator.TypedText);
+    }
+
+    [Fact]
     public async Task ExpandAsync_WhenClipboardVerificationFailsAfterWrite_RestoresOldClipboardBeforeDirectFallback()
     {
         var clipboardService = Substitute.For<IClipboardService>();
         clipboardService.IsSupported.Returns(true);
         clipboardService.GetTextAsync(Arg.Any<CancellationToken>()).Returns(
             Task.FromResult<string?>("old-value"),
+            Task.FromResult<string?>("stale-host-clipboard"),
             Task.FromResult<string?>("stale-host-clipboard"),
             Task.FromResult<string?>("replacement"));
         clipboardService.SetTextAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);

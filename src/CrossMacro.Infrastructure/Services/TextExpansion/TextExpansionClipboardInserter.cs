@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
@@ -47,7 +48,6 @@ internal sealed class TextExpansionClipboardInserter
                 return null;
             }
 
-            await Task.Delay(TextExpansionExecutionTimings.ClipboardWriteSettleDelay);
             if (!await VerifyClipboardContainsReplacementAsync(replacement))
             {
                 if (oldClipboard is not null)
@@ -135,13 +135,37 @@ internal sealed class TextExpansionClipboardInserter
 
     private async Task<bool> VerifyClipboardContainsReplacementAsync(string replacement)
     {
-        var currentClipboard = await ReadClipboardWithTimeoutAsync(TextExpansionExecutionTimings.ClipboardVerifyTimeout);
-        if (string.Equals(currentClipboard, replacement, StringComparison.Ordinal))
+        var startedAt = Stopwatch.GetTimestamp();
+        if (await ClipboardContainsReplacementAsync(replacement, TextExpansionExecutionTimings.ClipboardVerifyTimeout))
         {
             return true;
         }
 
+        var remaining = TextExpansionExecutionTimings.ClipboardVerifyTimeout - Stopwatch.GetElapsedTime(startedAt);
+        if (remaining > TimeSpan.Zero)
+        {
+            var retryDelay = remaining < TextExpansionExecutionTimings.ClipboardWriteSettleDelay
+                ? remaining
+                : TextExpansionExecutionTimings.ClipboardWriteSettleDelay;
+            await Task.Delay(retryDelay);
+            remaining = TextExpansionExecutionTimings.ClipboardVerifyTimeout - Stopwatch.GetElapsedTime(startedAt);
+            if (remaining > TimeSpan.Zero && await ClipboardContainsReplacementAsync(replacement, remaining))
+            {
+                return true;
+            }
+        }
+
         Log.Warning("Clipboard verification failed; paste skipped to avoid inserting stale clipboard content");
+        return false;
+    }
+
+    private async Task<bool> ClipboardContainsReplacementAsync(string replacement, TimeSpan timeout)
+    {
+        var currentClipboard = await ReadClipboardWithTimeoutAsync(timeout);
+        if (string.Equals(currentClipboard, replacement, StringComparison.Ordinal))
+        {
+            return true;
+        }
         return false;
     }
 

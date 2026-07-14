@@ -1,6 +1,6 @@
 using System;
 using System.Globalization;
-using Avalonia.Platform;
+using Avalonia;
 using CrossMacro.UI.Icons;
 using FluentAssertions;
 using Xunit;
@@ -10,18 +10,19 @@ namespace CrossMacro.UI.Tests.Icons;
 public sealed class AppIconsTests
 {
     [Fact]
-    public void GetAssetUri_ForEveryBundledIcon_ReturnsPngResourceUri()
+    public void GetImageSource_ForEveryBundledColorIcon_ReturnsGeneratedVectorImage()
     {
         foreach (var icon in Enum.GetValues<AppIcon>())
         {
-            var assetName = EmojiAppIcon.GetAssetName(icon);
-            if (assetName is null)
+            if (EmojiAppIcon.GetAssetName(icon) is null)
             {
                 continue;
             }
 
-            EmojiAppIcon.GetAssetUri(icon).Should().Be(
-                $"avares://CrossMacro.UI.Core/Assets/Emoji/NotoColorEmoji/Png/{assetName}.png");
+            var source = EmojiAppIcon.GetImageSource(icon);
+
+            source.Should().NotBeNull();
+            source!.Size.Should().Be(new Size(128, 128));
         }
     }
 
@@ -42,20 +43,9 @@ public sealed class AppIconsTests
     }
 
     [Fact]
-    public void BundledPngAssets_AreEmbeddedAndHavePngSignatures()
+    public void GetImageSource_WhenIconIsInfo_ReturnsInformationalVectorImage()
     {
-        foreach (var icon in Enum.GetValues<AppIcon>())
-        {
-            if (EmojiAppIcon.GetAssetName(icon) is null)
-            {
-                continue;
-            }
-
-            using var stream = new StandardAssetLoader().Open(new Uri(EmojiAppIcon.GetAssetUri(icon)), null);
-            var signature = new byte[8];
-            stream.ReadExactly(signature);
-            signature.Should().Equal(137, 80, 78, 71, 13, 10, 26, 10);
-        }
+        EmojiAppIcon.GetImageSource(AppIcon.Info).Should().NotBeNull();
     }
 
     [Fact]

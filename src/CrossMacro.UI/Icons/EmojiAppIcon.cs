@@ -1,22 +1,41 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
-using Avalonia.Platform;
+using CrossMacro.UI.Icons.Generated;
 
 namespace CrossMacro.UI.Icons;
 
 public sealed class EmojiAppIcon : Image
 {
-    private static readonly IReadOnlyDictionary<AppIcon, Lazy<Bitmap>> Sources = Enum.GetValues<AppIcon>()
-        .Select(icon => new { Icon = icon, AssetName = GetAssetName(icon) })
-        .Where(entry => entry.AssetName is not null)
-        .ToDictionary(
-            entry => entry.Icon,
-            entry => new Lazy<Bitmap>(() => LoadBitmap(GetAssetUri(entry.Icon))));
+    private static readonly IReadOnlyDictionary<AppIcon, Lazy<IImage>> Sources = new Dictionary<AppIcon, Lazy<IImage>>
+    {
+        [AppIcon.ArrowNorthEast] = CreateSource(ArrowNorthEastEmojiIcon.Picture),
+        [AppIcon.Calendar] = CreateSource(CalendarEmojiIcon.Picture),
+        [AppIcon.Cancel] = CreateSource(CancelEmojiIcon.Picture),
+        [AppIcon.Clipboard] = CreateSource(ClipboardEmojiIcon.Picture),
+        [AppIcon.Clock] = CreateSource(ClockEmojiIcon.Picture),
+        [AppIcon.Delete] = CreateSource(DeleteEmojiIcon.Picture),
+        [AppIcon.Edit] = CreateSource(EditEmojiIcon.Picture),
+        [AppIcon.EditNote] = CreateSource(EditNoteEmojiIcon.Picture),
+        [AppIcon.FolderOpen] = CreateSource(FolderOpenEmojiIcon.Picture),
+        [AppIcon.Info] = CreateSource(TipEmojiIcon.Picture),
+        [AppIcon.Keyboard] = CreateSource(KeyboardEmojiIcon.Picture),
+        [AppIcon.Location] = CreateSource(LocationEmojiIcon.Picture),
+        [AppIcon.Mouse] = CreateSource(MouseEmojiIcon.Picture),
+        [AppIcon.Play] = CreateSource(PlayEmojiIcon.Picture),
+        [AppIcon.Record] = CreateSource(RecordEmojiIcon.Picture),
+        [AppIcon.Save] = CreateSource(SaveEmojiIcon.Picture),
+        [AppIcon.Settings] = CreateSource(SettingsEmojiIcon.Picture),
+        [AppIcon.Stop] = CreateSource(StopEmojiIcon.Picture),
+        [AppIcon.Success] = CreateSource(SuccessEmojiIcon.Picture),
+        [AppIcon.Timer] = CreateSource(TimerEmojiIcon.Picture),
+        [AppIcon.Tip] = CreateSource(TipEmojiIcon.Picture),
+        [AppIcon.Tools] = CreateSource(ToolsEmojiIcon.Picture),
+        [AppIcon.Trigger] = CreateSource(TriggerEmojiIcon.Picture),
+        [AppIcon.Warning] = CreateSource(WarningEmojiIcon.Picture)
+    };
 
     public static readonly StyledProperty<AppIcon> IconProperty = AvaloniaProperty.Register<EmojiAppIcon, AppIcon>(
         nameof(Icon),
@@ -41,18 +60,12 @@ public sealed class EmojiAppIcon : Image
 
     private void UpdateSource()
     {
-        Source = Sources.TryGetValue(Icon, out var source) ? source.Value : null;
+        Source = GetImageSource(Icon);
     }
 
-    public static string GetAssetUri(AppIcon icon)
+    public static IImage? GetImageSource(AppIcon icon)
     {
-        var assetName = GetAssetName(icon);
-        if (assetName is null)
-        {
-            throw new ArgumentOutOfRangeException(nameof(icon), icon, "The icon does not have a bundled PNG asset.");
-        }
-
-        return $"avares://CrossMacro.UI.Core/Assets/Emoji/NotoColorEmoji/Png/{assetName}.png";
+        return Sources.TryGetValue(icon, out var source) ? source.Value : null;
     }
 
     public static string? GetAssetName(AppIcon icon)
@@ -86,9 +99,8 @@ public sealed class EmojiAppIcon : Image
         };
     }
 
-    private static Bitmap LoadBitmap(string uri)
+    private static Lazy<IImage> CreateSource(SkiaSharp.SKPicture picture)
     {
-        using var stream = AssetLoader.Open(new Uri(uri));
-        return new Bitmap(stream);
+        return new Lazy<IImage>(() => new StaticSkPictureImage(picture));
     }
 }

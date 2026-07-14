@@ -159,7 +159,7 @@
     <!-- Checkbox -->
                                             <CheckBox Grid.Column="0"
                                                       IsChecked="{Binding IsEnabled}"
-                                                      Command="{Binding #Root.((vm:TextExpansionViewModel)DataContext).ToggleExpansionCommand}"
+                                                      Command="{Binding #Root.((vm:TextExpansionViewModel)DataContext)?.ToggleExpansionCommand}"
                                                       CommandParameter="{Binding}"
                                                       VerticalAlignment="Center"
                                                       Margin="0,0,12,0"/>
@@ -200,7 +200,7 @@
                                                             <Border.IsVisible>
                                                                 <MultiBinding Converter="{x:Static BoolConverters.And}">
                                                                     <Binding Path="InsertionMode" Converter="{x:Static tabs:TextExpansionConverters.IsPasteMode}" FallbackValue="False"/>
-                                                                    <Binding Path="#Root.((vm:TextExpansionViewModel)DataContext).IsPasteMethodVisible" FallbackValue="False"/>
+                                                                    <Binding Path="#Root.((vm:TextExpansionViewModel)DataContext)?.IsPasteMethodVisible" FallbackValue="False"/>
                                                                 </MultiBinding>
                                                             </Border.IsVisible>
                                                             <TextBlock Text="{Binding Method, Converter={x:Static tabs:TextExpansionConverters.PasteMethodDisplayText}}"
@@ -216,7 +216,7 @@
                                                     Classes="row-action danger"
                                                     Background="Transparent"
                                                     Padding="8"
-                                                    Command="{Binding #Root.((vm:TextExpansionViewModel)DataContext).RemoveExpansionCommand}"
+                                                    Command="{Binding #Root.((vm:TextExpansionViewModel)DataContext)?.RemoveExpansionCommand}"
                                                     CommandParameter="{Binding}"
                                                     Cursor="Hand">
                                                 <icons:EmojiAppIcon Icon="Delete"

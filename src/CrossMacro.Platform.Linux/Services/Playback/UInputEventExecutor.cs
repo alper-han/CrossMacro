@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
-using CrossMacro.Infrastructure.Linux.Native.UInput;
+using CrossMacro.Platform.Linux.Native.UInput;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services.Playback;
 using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services.Playback;

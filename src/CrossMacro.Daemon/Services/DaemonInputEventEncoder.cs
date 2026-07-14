@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Infrastructure.Linux.Native.UInput;
+using CrossMacro.Platform.Linux.Native.UInput;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Daemon.Services;

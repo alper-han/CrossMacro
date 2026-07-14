@@ -1,7 +1,6 @@
 using System;
 using System.Runtime.Versioning;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Windows.Services;
 using CrossMacro.Platform.Windows.Services.ScreenReading;
@@ -13,7 +12,18 @@ namespace CrossMacro.Platform.Windows.DependencyInjection;
 [SupportedOSPlatform("windows")]
 public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
 {
-    public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Windows;
+    public static void RegisterCliClipboardServices(IServiceCollection services)
+    {
+        services.AddSingleton(sp => new StaMessageThread("CrossMacro_WindowsCliClipboard"));
+        services.AddSingleton<IClipboardService, WindowsCliClipboardService>();
+        services.AddSingleton<IImageClipboardService, WindowsCliImageClipboardService>();
+    }
+
+    public static void RegisterGuiImageClipboardServices(IServiceCollection services)
+    {
+        services.AddSingleton(sp => new StaMessageThread("CrossMacro_WindowsGuiClipboard"));
+        services.AddSingleton<IImageClipboardService, WindowsCliImageClipboardService>();
+    }
 
     public void RegisterPlatformServices(IServiceCollection services)
     {
@@ -23,7 +33,7 @@ public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
         services.AddSingleton<IEnvironmentInfoProvider, WindowsEnvironmentInfoProvider>();
         services.AddSingleton<IWindowManager, WindowsWindowManager>();
         services.AddSingleton<IPlaybackBehaviorPolicy>(
-            _ => new PlaybackBehaviorPolicy(useHybridAbsoluteDragMovement: false));
+            _ => new WindowsPlaybackBehaviorPolicy());
 
 #pragma warning disable CS8634 // Intentionally nullable for optional service
         services.AddSingleton<IExtensionStatusNotifier?>(sp => null);
@@ -35,8 +45,5 @@ public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
         services.AddSingleton<ICoordinateStrategyFactory, WindowsCoordinateStrategyFactory>();
         services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
 
-        services.AddSingleton(sp => new StaMessageThread("CrossMacro_WindowsCliClipboard"));
-        services.AddSingleton<IClipboardService, WindowsCliClipboardService>();
-        services.AddSingleton<IImageClipboardService, WindowsCliImageClipboardService>();
     }
 }

@@ -4,7 +4,7 @@ using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
 
-public sealed class RuntimeContext : IRuntimeContext
+public sealed class RuntimeContext : IRuntimeContext, IDisplayEnvironmentDiagnostic
 {
     private readonly Func<string, string?> _getEnvironmentVariable;
     private readonly Func<string, bool> _fileExists;
@@ -32,4 +32,7 @@ public sealed class RuntimeContext : IRuntimeContext
         (IsLinux && _fileExists("/.flatpak-info"));
 
     public string? SessionType => _getEnvironmentVariable("XDG_SESSION_TYPE");
+    public string? XdgSessionType => SessionType;
+    public string? Display => _getEnvironmentVariable("DISPLAY");
+    public string? WaylandDisplay => _getEnvironmentVariable("WAYLAND_DISPLAY");
 }

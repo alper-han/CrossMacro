@@ -3,8 +3,8 @@ using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Application.Automation;
 using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
 using CrossMacro.Cli;
 using CrossMacro.Cli.Services;
 using NSubstitute;
@@ -17,8 +17,8 @@ public class TriggerCliServiceTests
     [Fact]
     public async Task ListAsync_LoadsAndReturnsTaskList()
     {
-        var triggerService = Substitute.For<ITriggerService>();
-        triggerService.Tasks.Returns(new ObservableCollection<TriggerTask>
+        var triggerService = Substitute.For<IManageTrigger>();
+        triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask>
         {
             new()
             {
@@ -31,20 +31,20 @@ public class TriggerCliServiceTests
                 TargetProfileId = "dev",
                 IsEnabled = true
             }
-        });
+        }));
 
         var service = new TriggerCliService(triggerService);
         var result = await service.ListAsync(CancellationToken.None);
 
         Assert.True(result.Success);
-        await triggerService.Received(1).LoadAsync();
+        await triggerService.Received(1).ListAsync(CancellationToken.None);
     }
 
     [Fact]
     public async Task ExecuteAsync_Add_AddsAndSavesTask()
     {
-        var triggerService = Substitute.For<ITriggerService>();
-        triggerService.Tasks.Returns(new ObservableCollection<TriggerTask>());
+        var triggerService = Substitute.For<IManageTrigger>();
+        triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask>()));
         var service = new TriggerCliService(triggerService);
 
         var result = await service.ExecuteAsync(
@@ -71,7 +71,7 @@ public class TriggerCliServiceTests
         Assert.Equal(1000, taskData.GetProperty("cooldownMs").GetInt32());
         Assert.Equal(250, taskData.GetProperty("debounceMs").GetInt32());
 
-        triggerService.Received(1).AddTask(Arg.Is<TriggerTask>(task =>
+        await triggerService.Received(1).AddAsync(Arg.Is<TriggerTask>(task =>
             task.Name == "Demo Trigger"
             && task.Field == TriggerField.WindowTitle
             && task.MatchMode == TriggerMatchMode.Regex
@@ -82,7 +82,6 @@ public class TriggerCliServiceTests
             && task.CooldownMs == 1000
             && task.DebounceMs == 250
             && task.IsEnabled));
-        await triggerService.Received(1).SaveAsync();
     }
 
     [Fact]
@@ -99,8 +98,8 @@ public class TriggerCliServiceTests
             Action = TriggerAction.SwitchProfile,
             TargetProfileId = "old-profile"
         };
-        var triggerService = Substitute.For<ITriggerService>();
-        triggerService.Tasks.Returns(new ObservableCollection<TriggerTask> { task });
+        var triggerService = Substitute.For<IManageTrigger>();
+        triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask> { task }));
         var service = new TriggerCliService(triggerService);
 
         var result = await service.ExecuteAsync(
@@ -117,19 +116,18 @@ public class TriggerCliServiceTests
         Assert.Equal("new", taskData.GetProperty("value").GetString());
         Assert.Equal(500, taskData.GetProperty("cooldownMs").GetInt32());
 
-        triggerService.Received(1).UpdateTask(Arg.Is<TriggerTask>(updated =>
+        await triggerService.Received(1).UpdateAsync(Arg.Is<TriggerTask>(updated =>
             updated.Id == id
             && updated.Name == "New Name"
             && updated.Value == "new"
             && updated.CooldownMs == 500));
-        await triggerService.Received(1).SaveAsync();
     }
 
     [Fact]
     public async Task ExecuteAsync_RemoveMissingTask_ReturnsInvalidArguments()
     {
-        var triggerService = Substitute.For<ITriggerService>();
-        triggerService.Tasks.Returns(new ObservableCollection<TriggerTask>());
+        var triggerService = Substitute.For<IManageTrigger>();
+        triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask>()));
         var service = new TriggerCliService(triggerService);
 
         var result = await service.ExecuteAsync(
@@ -138,18 +136,17 @@ public class TriggerCliServiceTests
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
-        await triggerService.DidNotReceive().SaveAsync();
     }
 
     [Fact]
     public async Task ExecuteAsync_DisableExistingTask_SavesMutation()
     {
         var id = Guid.Parse("33333333-3333-3333-3333-333333333333");
-        var triggerService = Substitute.For<ITriggerService>();
-        triggerService.Tasks.Returns(new ObservableCollection<TriggerTask>
+        var triggerService = Substitute.For<IManageTrigger>();
+        triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask>
         {
             new() { Id = id, Name = "Trigger", Action = TriggerAction.SwitchProfile, TargetProfileId = "dev", IsEnabled = true }
-        });
+        }));
         var service = new TriggerCliService(triggerService);
 
         var result = await service.ExecuteAsync(
@@ -157,7 +154,6 @@ public class TriggerCliServiceTests
             CancellationToken.None);
 
         Assert.True(result.Success);
-        triggerService.Received(1).SetTaskEnabled(id, false);
-        await triggerService.Received(1).SaveAsync();
+        await triggerService.Received(1).SetEnabledAsync(new TaskRequest(id, false), CancellationToken.None);
     }
 }

@@ -30,7 +30,7 @@ internal static partial class User32
     [DllImport("user32.dll")]
     public static extern IntPtr DispatchMessage([In] ref MSG lpMsg);
 
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", SetLastError = true)]
     public static extern bool PostThreadMessage(uint threadId, uint msg, IntPtr wParam, IntPtr lParam);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]

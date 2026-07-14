@@ -9,6 +9,7 @@ using CrossMacro.Infrastructure.DependencyInjection;
 using CrossMacro.Infrastructure.Logging;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Infrastructure.Services.ScreenCapture;
+using CrossMacro.Infrastructure.Services.ScreenReading;
 using CrossMacro.Infrastructure.Services.Recording.Processors;
 using CrossMacro.Infrastructure.Services.TextExpansion;
 using CrossMacro.Platform.Abstractions;
@@ -32,7 +33,6 @@ public class RuntimeServiceCollectionExtensionsTests
 
         services.AddCrossMacroCommonRuntimeServices();
 
-        AssertImplementationRegistration<IRuntimeContext, RuntimeContext>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IRuntimeLogLevelService, RuntimeLogLevelService>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IShellCommandRunner>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IHotkeyConfigurationService, HotkeyConfigurationService>(services, ServiceLifetime.Singleton);
@@ -85,6 +85,7 @@ public class RuntimeServiceCollectionExtensionsTests
         AssertImplementationRegistration<IHotkeyMatcher, HotkeyMatcher>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IGlobalHotkeyService>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IScreenshotCaptureService>(services, ServiceLifetime.Singleton);
+        AssertImplementationRegistration<CrossMacro.Platform.Abstractions.IScreenReadingWarmupService, ScreenReadingWarmupService>(services, ServiceLifetime.Singleton);
 
         AssertImplementationRegistration<PlaybackValidator, PlaybackValidator>(services, ServiceLifetime.Transient);
         AssertFactoryRegistration<IMacroPlayer>(services, ServiceLifetime.Transient);

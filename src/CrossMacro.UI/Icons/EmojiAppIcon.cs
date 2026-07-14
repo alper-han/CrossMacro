@@ -3,18 +3,20 @@ using System.Collections.Generic;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Svg.Skia;
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 
 namespace CrossMacro.UI.Icons;
 
 public sealed class EmojiAppIcon : Image
 {
-    private static readonly IReadOnlyDictionary<AppIcon, Lazy<SvgSource>> Sources = Enum.GetValues<AppIcon>()
+    private static readonly IReadOnlyDictionary<AppIcon, Lazy<Bitmap>> Sources = Enum.GetValues<AppIcon>()
         .Select(icon => new { Icon = icon, AssetName = GetAssetName(icon) })
         .Where(entry => entry.AssetName is not null)
         .ToDictionary(
             entry => entry.Icon,
-            entry => new Lazy<SvgSource>(() => SvgSource.Load(GetAssetUri(entry.Icon), null)));
+            entry => new Lazy<Bitmap>(() => LoadBitmap(GetAssetUri(entry.Icon))));
 
     public static readonly StyledProperty<AppIcon> IconProperty = AvaloniaProperty.Register<EmojiAppIcon, AppIcon>(
         nameof(Icon),
@@ -27,7 +29,7 @@ public sealed class EmojiAppIcon : Image
 
     public EmojiAppIcon()
     {
-        Stretch = Avalonia.Media.Stretch.Uniform;
+        Stretch = Stretch.Uniform;
         UpdateSource();
     }
 
@@ -39,29 +41,18 @@ public sealed class EmojiAppIcon : Image
 
     private void UpdateSource()
     {
-        if (!Sources.TryGetValue(Icon, out var source))
-        {
-            Source = null;
-            return;
-        }
-
-        Source = new SvgImage
-        {
-            Source = source.Value
-        };
+        Source = Sources.TryGetValue(Icon, out var source) ? source.Value : null;
     }
 
     public static string GetAssetUri(AppIcon icon)
     {
         var assetName = GetAssetName(icon);
-        if (assetName == null)
+        if (assetName is null)
         {
-            throw new ArgumentOutOfRangeException(nameof(icon), icon, "The icon does not have a bundled SVG asset.");
+            throw new ArgumentOutOfRangeException(nameof(icon), icon, "The icon does not have a bundled PNG asset.");
         }
 
-        // Only trusted, bundled Avalonia resources are loaded through SvgSource. Do not pass
-        // user-provided SVG paths or arbitrary asset names into the SVG renderer.
-        return $"avares://CrossMacro.UI.Core/Assets/Emoji/NotoColorEmoji/Svg/{assetName}.svg";
+        return $"avares://CrossMacro.UI.Core/Assets/Emoji/NotoColorEmoji/Png/{assetName}.png";
     }
 
     public static string? GetAssetName(AppIcon icon)
@@ -93,5 +84,11 @@ public sealed class EmojiAppIcon : Image
             AppIcon.Trigger => "trigger",
             _ => null
         };
+    }
+
+    private static Bitmap LoadBitmap(string uri)
+    {
+        using var stream = AssetLoader.Open(new Uri(uri));
+        return new Bitmap(stream);
     }
 }

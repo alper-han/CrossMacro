@@ -11,6 +11,7 @@ namespace CrossMacro.Infrastructure.Services;
 
 public class HotkeyConfigurationService : IHotkeyConfigurationService
 {
+    private readonly object _pathLock = new();
     private string _configPath;
 
     public HotkeyConfigurationService() : this(null)
@@ -34,21 +35,27 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
 
     public HotkeySettings Load()
     {
+        string configPath;
+        lock (_pathLock)
+        {
+            configPath = _configPath;
+        }
+
         try
         {
-            if (File.Exists(_configPath))
+            if (File.Exists(configPath))
             {
-                var settings = FileBackedJsonStorage.Read(_configPath, CrossMacroJsonContext.Default.HotkeySettings);
+                var settings = FileBackedJsonStorage.Read(configPath, CrossMacroJsonContext.Default.HotkeySettings);
                 if (settings != null)
                 {
-                    Log.Information("Loaded hotkey configuration from {Path}", _configPath);
+                    Log.Information("Loaded hotkey configuration from {Path}", configPath);
                     return settings;
                 }
             }
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to load hotkey configuration from {Path}", _configPath);
+            Log.Error(ex, "Failed to load hotkey configuration from {Path}", configPath);
         }
 
         Log.Information("Using default hotkey configuration");
@@ -57,25 +64,31 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
 
     public async Task<HotkeySettings> LoadAsync()
     {
+        string configPath;
+        lock (_pathLock)
+        {
+            configPath = _configPath;
+        }
+
         try
         {
-            if (!File.Exists(_configPath))
+            if (!File.Exists(configPath))
             {
                 Log.Information("Using default hotkey configuration");
                 return new HotkeySettings();
             }
 
-            var settings = await FileBackedJsonStorage.ReadAsync(_configPath, CrossMacroJsonContext.Default.HotkeySettings)
+            var settings = await FileBackedJsonStorage.ReadAsync(configPath, CrossMacroJsonContext.Default.HotkeySettings)
                 .ConfigureAwait(false);
             if (settings != null)
             {
-                Log.Information("Loaded hotkey configuration from {Path}", _configPath);
+                Log.Information("Loaded hotkey configuration from {Path}", configPath);
                 return settings;
             }
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to load hotkey configuration from {Path}", _configPath);
+            Log.Error(ex, "Failed to load hotkey configuration from {Path}", configPath);
         }
 
         Log.Information("Using default hotkey configuration");
@@ -84,20 +97,53 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
 
     public Task ReloadAsync(string profileConfigDirectory)
     {
-        _configPath = Path.Combine(profileConfigDirectory, ConfigFileNames.Hotkeys);
+        lock (_pathLock)
+        {
+            _configPath = Path.Combine(profileConfigDirectory, ConfigFileNames.Hotkeys);
+        }
+
         return LoadAsync();
+    }
+
+    public HotkeyConfigurationSaveRequest CaptureSaveRequest(HotkeySettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+
+        string configPath;
+        lock (_pathLock)
+        {
+            configPath = _configPath;
+        }
+
+        return new HotkeyConfigurationSaveRequest(
+            configPath,
+            settings.RecordingHotkey,
+            settings.PlaybackHotkey,
+            settings.PauseHotkey);
     }
 
     public void Save(HotkeySettings settings)
     {
+        TrySave(CaptureSaveRequest(settings));
+    }
+
+    public bool TrySave(HotkeyConfigurationSaveRequest request)
+    {
         try
         {
-            FileBackedJsonStorage.Write(_configPath, settings, CrossMacroJsonContext.Default.HotkeySettings);
-            Log.Information("Saved hotkey configuration to {Path}", _configPath);
+            FileBackedJsonStorage.Write(request.ConfigPath, new HotkeySettings
+            {
+                RecordingHotkey = request.RecordingHotkey,
+                PlaybackHotkey = request.PlaybackHotkey,
+                PauseHotkey = request.PauseHotkey
+            }, CrossMacroJsonContext.Default.HotkeySettings);
+            Log.Information("Saved hotkey configuration to {Path}", request.ConfigPath);
+            return true;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to save hotkey configuration to {Path}", _configPath);
+            Log.Error(ex, "Failed to save hotkey configuration to {Path}", request.ConfigPath);
+            return false;
         }
     }
 }

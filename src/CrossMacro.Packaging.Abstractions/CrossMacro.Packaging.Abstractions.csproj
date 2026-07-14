@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <IsAotCompatible>true</IsAotCompatible>
     <Description>Thin packaging quick-setup abstractions shared by CrossMacro UI and Linux platform services.</Description>
   </PropertyGroup>
 

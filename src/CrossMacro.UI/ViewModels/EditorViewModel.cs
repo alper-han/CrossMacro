@@ -7,7 +7,6 @@ using System.Linq;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Platform.Abstractions;
-using CrossMacro.Infrastructure.Services.ScreenCapture;
 using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
 using CrossMacro.UI.Icons;
@@ -62,8 +61,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private readonly ILocalizationService _localizationService;
     private readonly EditorActionDisplayFormatter _actionDisplayFormatter;
     private readonly IScreenPixelReader? _screenPixelReader;
-    private readonly IImageAssetCodec _imageAssetCodec;
-    private readonly IImageAssetPreviewDecoder _imageAssetPreviewDecoder;
+    private readonly IImageAssetCodec? _imageAssetCodec;
+    private readonly IImageAssetPreviewDecoder? _imageAssetPreviewDecoder;
     private readonly IMacroPlayer _macroPlayer;
 
     private readonly Stack<List<EditorAction>> _undoStack = new(UndoStackLimit);
@@ -217,8 +216,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         _localizationService = localizationService ?? new LocalizationService();
         _actionDisplayFormatter = actionDisplayFormatter ?? new EditorActionDisplayFormatter(_localizationService);
         _screenPixelReader = screenPixelReader;
-        _imageAssetCodec = imageAssetCodec ?? new ImageAssetCodec();
-        _imageAssetPreviewDecoder = imageAssetPreviewDecoder ?? new ImageAssetPreviewDecoder(_imageAssetCodec);
+        _imageAssetCodec = imageAssetCodec;
+        _imageAssetPreviewDecoder = imageAssetPreviewDecoder;
         _macroPlayer = macroPlayer ?? throw new ArgumentNullException(nameof(macroPlayer));
         _macroName = _localizationService["Editor_DefaultMacroName"];
         _status = BuildStatus(EditorStatusKind.Ready);
@@ -356,11 +355,11 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public bool ShowBatchFixedDelayInput => ShowBatchDelayProperties && !BatchDelayUseRandomDelay;
     public bool ShowBatchRandomDelayOptions => ShowBatchDelayProperties && BatchDelayUseRandomDelay;
     public bool CanRemoveSelectedActions => HasSelectedActions;
-    public bool CanDeleteHiddenEvents => Actions.Any(action => IsHiddenByActiveFilters(action, isInsideDrag: false));
+    public bool CanDeleteHiddenEvents => Actions.Any(action => EditorActionListMetadata.IsHidden(action, HideMouseMoves, HideShortWaits));
     public bool ShowDeleteHiddenEvents => (HideMouseMoves || HideShortWaits) && CanDeleteHiddenEvents;
     public bool CanHideMouseMoves => Actions.Any(action => action.Type == EditorActionType.MouseMove);
     public bool ShowHideMouseMovesToggle => HideMouseMoves || CanHideMouseMoves;
-    public bool CanHideShortWaits => Actions.Any(IsShortWaitAction);
+    public bool CanHideShortWaits => Actions.Any(EditorActionListMetadata.IsShortWait);
     public bool ShowHideShortWaitsToggle => HideShortWaits || CanHideShortWaits;
     public bool CanSimplifyMovement => HasCondensibleMovementRun();
     public bool ShowSimplifyMovementToggle => SimplifyMovement || CanSimplifyMovement;
@@ -1214,11 +1213,11 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             {
                 var action = Actions[index];
                 var isInsideDrag = isDragging;
-                var isLowImportance = IsLowImportanceEditorEvent(action, isInsideDrag);
-                if (IsHiddenByActiveFilters(action, isInsideDrag))
+                var isLowImportance = EditorActionListMetadata.IsLowImportance(action, isInsideDrag);
+                if (EditorActionListMetadata.IsHidden(action, HideMouseMoves, HideShortWaits))
                 {
                     hiddenEventCount++;
-                    UpdateMouseDragState(action, ref isDragging);
+                    EditorActionListMetadata.UpdateDragState(action, ref isDragging);
                     continue;
                 }
 
@@ -1228,7 +1227,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                 if (condensedRun != null)
                 {
                     var representativeAction = Actions[condensedRun.RepresentativeIndex];
-                    var representativeIsLowImportance = IsLowImportanceEditorEvent(representativeAction, isInsideDrag: false);
+                    var representativeIsLowImportance = EditorActionListMetadata.IsLowImportance(representativeAction, isInsideDrag: false);
                     var representativeDisplayName = _actionDisplayFormatter.Format(representativeAction);
 
                     ActionListItems.Add(CreateActionListItem(
@@ -1254,7 +1253,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                         : Localize("Editor_Action_EndBlockShort");
 
                     ActionListItems.Add(CreateActionListItem(action, index, depth, displayName, isLowImportance, condensedHiddenCount: 0));
-                    UpdateMouseDragState(action, ref isDragging);
+                    EditorActionListMetadata.UpdateDragState(action, ref isDragging);
                     continue;
                 }
 
@@ -1268,7 +1267,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                     depth++;
                 }
 
-                UpdateMouseDragState(action, ref isDragging);
+                EditorActionListMetadata.UpdateDragState(action, ref isDragging);
             }
 
             if (HiddenEventCount != hiddenEventCount)
@@ -1300,7 +1299,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     private CondensibleRun? TryGetCondensibleRun(int startIndex)
     {
-        if (!IsMovementSimplificationCandidate(Actions[startIndex]))
+        if (!EditorActionListMetadata.IsMovementCandidate(Actions[startIndex]))
         {
             return null;
         }
@@ -1312,7 +1311,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         for (var index = startIndex; index < Actions.Count; index++)
         {
             var action = Actions[index];
-            if (!IsMovementSimplificationCandidate(action))
+            if (!EditorActionListMetadata.IsMovementCandidate(action))
             {
                 break;
             }
@@ -1350,7 +1349,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         bool isNoise,
         int condensedHiddenCount)
     {
-        var visualKind = GetActionVisualKind(action, isNoise);
+        var visualKind = EditorActionListMetadata.GetVisualKind(action, isNoise);
 
         var condensedHint = condensedHiddenCount > 0
             ? string.Format(
@@ -1367,71 +1366,11 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             displayName,
             condensedHint,
             visualKind,
-            IsImportantAction(action, isNoise),
-            IsCleanupEligibleAction(action, isNoise),
+            EditorActionListMetadata.IsImportant(action, isNoise),
+            EditorActionListMetadata.IsCleanupEligible(action, isNoise),
             condensedHiddenCount,
             representsSourceAction: true,
             isNoise);
-    }
-
-    private static EditorActionVisualKind GetActionVisualKind(EditorAction action, bool isNoise)
-    {
-        return action.Type switch
-        {
-            EditorActionType.Delay when isNoise => EditorActionVisualKind.Noise,
-            EditorActionType.MouseMove => EditorActionVisualKind.Movement,
-            EditorActionType.MouseClick
-                or EditorActionType.MouseDown
-                or EditorActionType.MouseUp
-                or EditorActionType.ScrollVertical
-                or EditorActionType.ScrollHorizontal => EditorActionVisualKind.Pointer,
-            EditorActionType.KeyPress
-                or EditorActionType.KeyDown
-                or EditorActionType.KeyUp => EditorActionVisualKind.Keyboard,
-            EditorActionType.TextInput => EditorActionVisualKind.Text,
-            EditorActionType.Delay => EditorActionVisualKind.Timing,
-            EditorActionType.SetVariable
-                or EditorActionType.ClipboardGet
-                or EditorActionType.ShellCommand
-                or EditorActionType.IncrementVariable
-                or EditorActionType.DecrementVariable => EditorActionVisualKind.Variable,
-            EditorActionType.ClipboardSet => EditorActionVisualKind.Text,
-            EditorActionType.PixelColor
-                or EditorActionType.WaitColor
-                or EditorActionType.PixelSearch
-                or EditorActionType.Screenshot => EditorActionVisualKind.Raw,
-            EditorActionType.RepeatBlockStart
-                or EditorActionType.IfBlockStart
-                or EditorActionType.ElseBlockStart
-                or EditorActionType.WhileBlockStart
-                or EditorActionType.ForBlockStart
-                or EditorActionType.BlockEnd
-                or EditorActionType.Break
-                or EditorActionType.Continue => EditorActionVisualKind.ControlFlow,
-            EditorActionType.RawScriptStep => EditorActionVisualKind.Raw,
-            _ => EditorActionVisualKind.Raw
-        };
-    }
-
-    private static bool IsImportantAction(EditorAction action, bool isNoise)
-    {
-        if (isNoise)
-        {
-            return false;
-        }
-
-        return action.Type switch
-        {
-            EditorActionType.MouseMove => false,
-            EditorActionType.Delay when !action.UseRandomDelay && action.DelayMs == 0 => false,
-            EditorActionType.Delay => true,
-            _ => true
-        };
-    }
-
-    private static bool IsCleanupEligibleAction(EditorAction action, bool isNoise)
-    {
-        return isNoise && (action.Type == EditorActionType.MouseMove || action.Type == EditorActionType.Delay);
     }
 
     private void SyncSelectedActionListItem()
@@ -1613,36 +1552,13 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         });
     }
 
-    private bool IsHiddenByActiveFilters(EditorAction action, bool isInsideDrag)
-    {
-        return (HideMouseMoves && action.Type == EditorActionType.MouseMove)
-            || (HideShortWaits && IsShortWaitAction(action));
-    }
-
-    private static bool IsLowImportanceEditorEvent(EditorAction action, bool isInsideDrag)
-    {
-        return (!isInsideDrag && action.Type == EditorActionType.MouseMove)
-            || IsShortWaitAction(action);
-    }
-
-    private static bool IsMovementSimplificationCandidate(EditorAction action)
-    {
-        return action.Type == EditorActionType.MouseMove
-            || IsShortWaitAction(action);
-    }
-
-    private static bool IsShortWaitAction(EditorAction action)
-    {
-        return action is { Type: EditorActionType.Delay, UseRandomDelay: false, DelayMs: > 0 and < 10 };
-    }
-
     private bool HasCondensibleMovementRun()
     {
         var isDragging = false;
         var runLength = 0;
         foreach (var action in Actions)
         {
-            if (!isDragging && IsMovementSimplificationCandidate(action))
+            if (!isDragging && EditorActionListMetadata.IsMovementCandidate(action))
             {
                 runLength++;
                 if (runLength >= 6)
@@ -1655,44 +1571,10 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                 runLength = 0;
             }
 
-            UpdateMouseDragState(action, ref isDragging);
+            EditorActionListMetadata.UpdateDragState(action, ref isDragging);
         }
 
         return false;
-    }
-
-    private static void UpdateMouseDragState(EditorAction action, ref bool isDragging)
-    {
-        switch (action.Type)
-        {
-            case EditorActionType.MouseDown:
-                isDragging = true;
-                break;
-            case EditorActionType.MouseUp:
-            case EditorActionType.MouseClick:
-                isDragging = false;
-                break;
-        }
-    }
-
-    private bool IsInsideMouseDrag(int actionIndex)
-    {
-        var isDragging = false;
-        for (var index = 0; index < actionIndex && index < Actions.Count; index++)
-        {
-            switch (Actions[index].Type)
-            {
-                case EditorActionType.MouseDown:
-                    isDragging = true;
-                    break;
-                case EditorActionType.MouseUp:
-                case EditorActionType.MouseClick:
-                    isDragging = false;
-                    break;
-            }
-        }
-
-        return isDragging;
     }
 
 }

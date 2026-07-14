@@ -11,7 +11,8 @@ public readonly record struct LinuxInputCapabilitySnapshot(
     bool DaemonHandshakeTimedOut,
     bool CanUseDirectUInput,
     bool CanReadInputEvents,
-    LinuxDaemonHandshakeProbeResult? DaemonHandshakeDiagnostic = null)
+    LinuxDaemonHandshakeProbeResult? DaemonHandshakeDiagnostic = null,
+    InputProviderMode? ResolvedMode = null)
 {
     public bool HasDirectInputAccess => CanUseDirectUInput && CanReadInputEvents;
 

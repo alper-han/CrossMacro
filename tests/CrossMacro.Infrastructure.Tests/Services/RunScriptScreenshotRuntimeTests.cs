@@ -2,6 +2,7 @@ using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Infrastructure.Services.Playback;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Infrastructure.Services.ScreenCapture;
 using CrossMacro.Platform.Abstractions;
 using FluentAssertions;

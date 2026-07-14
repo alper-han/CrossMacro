@@ -784,7 +784,7 @@ public partial class EditorViewModel
     {
         var indices = Actions
             .Select((action, index) => new { action, index })
-            .Where(item => IsHiddenByActiveFilters(item.action, IsInsideMouseDrag(item.index)))
+            .Where(item => EditorActionListMetadata.IsHidden(item.action, HideMouseMoves, HideShortWaits))
             .Select(item => item.index)
             .ToArray();
         if (indices.Length == 0)

@@ -602,7 +602,7 @@ public sealed class LinuxDisplaySessionServiceTests
         Func<string[]> getInputEventCandidates)
     {
         return CreateService(
-            new LinuxEnvironmentVariables(),
+            new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()),
             fileExists,
             canOpenForWrite,
             canOpenForRead,

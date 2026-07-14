@@ -8,7 +8,6 @@ using CrossMacro.UI.Localization;
 using CrossMacro.UI.ViewModels;
 using CrossMacro.Core;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.UI.Services;
@@ -42,7 +41,7 @@ public class TrayIconService : ITrayIconService
         _desktopLifetimeContext = desktopLifetimeContext;
         _viewModel = viewModel;
         _localizationService = localizationService;
-        _runtimeContext = runtimeContext ?? new RuntimeContext();
+        _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
     }
 
     public bool IsAvailable => _trayIcon != null;
@@ -57,7 +56,11 @@ public class TrayIconService : ITrayIconService
     /// Returns true if tray icon is supported in the current environment.
     /// Flatpak lacks StatusNotifierItem portal: https://github.com/flatpak/xdg-desktop-portal/issues/266
     /// </summary>
-    public static bool IsTraySupported() => IsTraySupported(new RuntimeContext());
+    [Obsolete("Use the overload accepting IRuntimeContext.")]
+    public static bool IsTraySupported()
+    {
+        throw new InvalidOperationException("IRuntimeContext must be supplied by composition.");
+    }
 
     public void Initialize()
     {

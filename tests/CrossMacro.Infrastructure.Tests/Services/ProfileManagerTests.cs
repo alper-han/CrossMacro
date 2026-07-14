@@ -93,6 +93,80 @@ public sealed class ProfileManagerTests : IDisposable
         expansions.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task InitializeAsync_WhenRegistryContainsTraversalProfileId_RejectsItBeforePathUse()
+    {
+        var registryPath = Path.Combine(_tempPath, ConfigFileNames.ProfileRegistry);
+        await WriteJsonAsync(
+            registryPath,
+            new ProfileRegistry
+            {
+                Profiles = [new ProfileInfo { Id = "../outside", Name = "Outside" }]
+            },
+            CrossMacroJsonContext.Default.ProfileRegistry);
+
+        var manager = new ProfileManager(_tempPath);
+
+        var act = () => manager.InitializeAsync();
+
+        await act.Should().ThrowAsync<InvalidDataException>()
+            .WithMessage("*unsupported path characters*");
+        Directory.Exists(Path.Combine(_tempPath, "outside")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WhenConfigRootHasSymlinkedAncestor_RejectsBeforeCreatingOutsideRoot()
+    {
+        var outsideRoot = Path.Combine(_tempPath, "outside-target");
+        var symlinkedAncestor = Path.Combine(_tempPath, "linked-parent");
+        var configRoot = Path.Combine(symlinkedAncestor, "config");
+        Directory.CreateDirectory(outsideRoot);
+        Directory.CreateSymbolicLink(symlinkedAncestor, outsideRoot);
+
+        var manager = new ProfileManager(configRoot);
+
+        var act = () => manager.InitializeAsync();
+
+        await act.Should().ThrowAsync<InvalidDataException>()
+            .WithMessage("*reparse point*");
+        Directory.Exists(Path.Combine(outsideRoot, "config")).Should().BeFalse();
+        File.Exists(Path.Combine(outsideRoot, ConfigFileNames.ProfileRegistry)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task InitializeAsync_MigratesLegacyTriggersIntoDefaultProfile()
+    {
+        await WriteJsonAsync(
+            Path.Combine(_tempPath, ConfigFileNames.Settings),
+            new AppSettings(),
+            CrossMacroJsonContext.Default.AppSettings);
+        var trigger = new TriggerTask
+        {
+            Name = "Legacy trigger",
+            Field = TriggerField.WindowTitle,
+            MatchMode = TriggerMatchMode.Contains,
+            Value = "Editor",
+            Action = TriggerAction.SwitchProfile
+        };
+        await WriteJsonAsync(
+            Path.Combine(_tempPath, ConfigFileNames.Triggers),
+            new List<TriggerTask> { trigger },
+            CrossMacroJsonContext.Default.ListTriggerTask);
+
+        var manager = new ProfileManager(_tempPath);
+        await manager.InitializeAsync();
+
+        var migratedPath = Path.Combine(
+            manager.GetProfileDirectory("default"),
+            ConfigFileNames.Triggers);
+        var migrated = await ReadJsonAsync(
+            migratedPath,
+            CrossMacroJsonContext.Default.ListTriggerTask);
+
+        migrated.Should().ContainSingle();
+        migrated[0].Should().BeEquivalentTo(trigger);
+    }
+
     private static async Task WriteJsonAsync<T>(string filePath, T value, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);

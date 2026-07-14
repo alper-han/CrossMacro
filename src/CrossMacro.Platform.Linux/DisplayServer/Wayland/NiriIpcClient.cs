@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Net.Sockets;
 using System.Text;
 using CrossMacro.Core.Logging;
+using CrossMacro.Platform.Linux.Services;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
@@ -22,6 +23,11 @@ internal sealed class NiriIpcClient : INiriIpcClient
         : this(
             Environment.GetEnvironmentVariable(SocketPathEnvironmentVariable),
             Environment.GetEnvironmentVariable(RuntimeDirectoryEnvironmentVariable))
+    {
+    }
+
+    public NiriIpcClient(LinuxEnvironmentSnapshot environment)
+        : this(environment.NiriSocket, environment.RuntimeDir)
     {
     }
 

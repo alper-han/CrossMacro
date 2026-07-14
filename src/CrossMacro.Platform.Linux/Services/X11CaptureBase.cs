@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Platform.Linux.Native.X11;
-using CrossMacro.Infrastructure.Linux.Native.UInput;
+using CrossMacro.Platform.Linux.Native.UInput;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Core.Logging;
 

@@ -8,25 +8,20 @@ using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
 
-public class ValidationResult
-{
-    public bool IsValid => Errors.Count == 0;
-    public List<string> Warnings { get; set; } = new();
-    public List<string> Errors { get; set; } = new();
-
-    public void AddWarning(string message) => Warnings.Add(message);
-    public void AddError(string message) => Errors.Add(message);
-}
-
-public class PlaybackValidator
+public class PlaybackValidator : IPlaybackValidator
 {
     private readonly IMousePositionProvider? _provider;
-    private readonly IKeyCodeMapper _keyCodeMapper;
+    private readonly PlaybackScriptValidator _scriptValidator;
 
-    public PlaybackValidator(IKeyCodeMapper keyCodeMapper, IMousePositionProvider? provider = null)
+    public PlaybackValidator(
+        IKeyCodeMapper keyCodeMapper,
+        IMousePositionProvider? provider = null,
+        PlaybackScriptValidator? scriptValidator = null,
+        IScriptValidationService? scriptValidationService = null)
     {
-        _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
+        ArgumentNullException.ThrowIfNull(keyCodeMapper);
         _provider = provider;
+        _scriptValidator = scriptValidator ?? new PlaybackScriptValidator(keyCodeMapper, scriptValidationService);
     }
 
     public ValidationResult Validate(MacroSequence macro)
@@ -142,20 +137,10 @@ public class PlaybackValidator
 
     private void ValidateScriptSteps(MacroSequence macro, ValidationResult result)
     {
-        var scriptSteps = macro.ScriptSteps
-            .Where(step => !string.IsNullOrWhiteSpace(step))
-            .Select((step, index) => new RunScriptStep(step, SourceIndex: index))
-            .ToList();
-        if (scriptSteps.Count == 0)
+        var error = _scriptValidator.Validate(macro);
+        if (error != null)
         {
-            return;
-        }
-
-        var compiler = new RunScriptCompiler(_keyCodeMapper);
-        var compileResult = compiler.Compile(scriptSteps);
-        if (!compileResult.Success)
-        {
-            result.AddError($"Macro script steps are invalid: {compileResult.ErrorMessage}");
+            result.AddError(error);
         }
     }
 

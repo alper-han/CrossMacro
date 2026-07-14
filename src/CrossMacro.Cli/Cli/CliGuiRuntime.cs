@@ -1,8 +1,6 @@
 using System;
 using System.Threading.Tasks;
-using CrossMacro.Infrastructure.Logging;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
 namespace CrossMacro.Cli;
@@ -12,29 +10,27 @@ namespace CrossMacro.Cli;
 /// </summary>
 public static class CliGuiRuntime
 {
-    private const string DefaultCliLogLevel = "Warning";
-
     public static async Task<int> RunAsync(
         string[] args,
-        IPlatformServiceRegistrar platformServiceRegistrar,
+        Action<IServiceCollection> configureGuiServices,
+        Action<IServiceCollection, CliRuntimeProfile> configureCliServices,
         Func<int> startGui,
         Func<string> getVersionString,
-        Func<IDisposable?> tryAcquireSingleInstanceGuard)
+        Func<IDisposable?> tryAcquireSingleInstanceGuard,
+        CliBootstrapCallbacks? bootstrapCallbacks = null)
     {
-        ArgumentNullException.ThrowIfNull(platformServiceRegistrar);
+        ArgumentNullException.ThrowIfNull(configureGuiServices);
+        ArgumentNullException.ThrowIfNull(configureCliServices);
         ArgumentNullException.ThrowIfNull(startGui);
         ArgumentNullException.ThrowIfNull(getVersionString);
         ArgumentNullException.ThrowIfNull(tryAcquireSingleInstanceGuard);
+        bootstrapCallbacks ??= CliBootstrapCallbacks.NoOp;
 
         try
         {
             var commandRouter = new CliCommandRouter();
             var parseResult = commandRouter.Parse(args);
-            var logLevel = parseResult.PrefersJsonOutput ? "Fatal" : SettingsService.TryLoadLogLevelEarly();
-            LoggerSetup.Initialize(
-                logLevel,
-                enableFileLogging: !parseResult.PrefersJsonOutput,
-                enableConsoleLogging: !parseResult.PrefersJsonOutput);
+            bootstrapCallbacks.ConfigureInitialLogging(parseResult);
 
             switch (parseResult.Kind)
             {
@@ -54,8 +50,8 @@ public static class CliGuiRuntime
                         throw new InvalidOperationException("Successful CLI parse result must include command options.");
                     }
 
-                    ConfigureCliLogging(parseResult.Options);
-                    return await RunCliModeAsync(platformServiceRegistrar, parseResult.Options, tryAcquireSingleInstanceGuard).ConfigureAwait(false);
+                    bootstrapCallbacks.ConfigureCommandLogging(parseResult.Options);
+                    return await RunCliModeAsync(configureCliServices, parseResult.Options, tryAcquireSingleInstanceGuard).ConfigureAwait(false);
                 default:
                     throw new InvalidOperationException($"Unsupported CLI parse result kind: {parseResult.Kind}");
             }
@@ -69,6 +65,25 @@ public static class CliGuiRuntime
         {
             Log.CloseAndFlush();
         }
+    }
+
+    [Obsolete("Use separate executable GUI and CLI composition callbacks.")]
+    public static Task<int> RunAsync(
+        string[] args,
+        IPlatformServiceRegistrar platformServiceRegistrar,
+        Func<int> startGui,
+        Func<string> getVersionString,
+        Func<IDisposable?> tryAcquireSingleInstanceGuard)
+    {
+        ArgumentNullException.ThrowIfNull(platformServiceRegistrar);
+        return RunAsync(
+            args,
+            platformServiceRegistrar.RegisterPlatformServices,
+            (services, _) => platformServiceRegistrar.RegisterPlatformServices(services),
+            startGui,
+            getVersionString,
+            tryAcquireSingleInstanceGuard,
+            CliBootstrapCallbacks.NoOp);
     }
 
     private static bool RequiresSingleInstanceGuard(CliCommandOptions options)
@@ -128,32 +143,14 @@ public static class CliGuiRuntime
         return (int)CliExitCode.InvalidArguments;
     }
 
-    private static void ConfigureCliLogging(CliCommandOptions options)
-    {
-        if (options.JsonOutput)
-        {
-            // Keep stdout clean for machine-readable JSON output.
-            LoggerSetup.SetLogLevel("Fatal");
-        }
-        else if (!string.IsNullOrWhiteSpace(options.LogLevel))
-        {
-            LoggerSetup.SetLogLevel(options.LogLevel);
-        }
-        else
-        {
-            // Keep CLI output focused unless user explicitly opts into a lower level.
-            LoggerSetup.SetLogLevel(DefaultCliLogLevel);
-        }
-    }
-
     private static async Task<int> RunCliModeAsync(
-        IPlatformServiceRegistrar platformServiceRegistrar,
+        Action<IServiceCollection, CliRuntimeProfile> configureServices,
         CliCommandOptions options,
         Func<IDisposable?> tryAcquireSingleInstanceGuard)
     {
         if (!RequiresSingleInstanceGuard(options))
         {
-            return await new CliHost(platformServiceRegistrar).RunAsync(options).ConfigureAwait(false);
+            return await new CliHost(static _ => { }, configureServices).RunAsync(options).ConfigureAwait(false);
         }
 
         using var cliInstanceGuard = tryAcquireSingleInstanceGuard();
@@ -170,6 +167,6 @@ public static class CliGuiRuntime
             return (int)CliExitCode.EnvironmentError;
         }
 
-        return await new CliHost(platformServiceRegistrar).RunAsync(options).ConfigureAwait(false);
+        return await new CliHost(static _ => { }, configureServices).RunAsync(options).ConfigureAwait(false);
     }
 }

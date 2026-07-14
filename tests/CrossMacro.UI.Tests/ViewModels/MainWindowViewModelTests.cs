@@ -4,9 +4,9 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Application.Automation;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.UI.Services;
 using CrossMacro.UI.ViewModels;
@@ -103,7 +103,7 @@ public class MainWindowViewModelTests
         _externalUrlOpener = Substitute.For<IExternalUrlOpener>();
         _filesViewModel = new FilesViewModel(_fileManager, _filesDialogService, _loadedMacroSession, _localizationService);
 
-        var textExpansionStorage = Substitute.For<ITextExpansionStorageService>();
+        var textExpansionStorage = Substitute.For<ITextExpansionStore>();
         var dialogService = Substitute.For<IDialogService>();
         var environmentInfo = Substitute.For<IEnvironmentInfoProvider>();
         environmentInfo.WindowManagerHandlesCloseButton.Returns(false);
@@ -146,7 +146,8 @@ public class MainWindowViewModelTests
             hotkeySettings,
             _externalUrlOpener,
             runtimeLogLevelService,
-            themeService);
+            themeService,
+            Substitute.For<IRuntimeContext>());
 
         var editorConverter = Substitute.For<IEditorActionConverter>();
         var editorValidator = Substitute.For<IEditorActionValidator>();
@@ -936,7 +937,7 @@ public class MainWindowViewModelTests
         var externalUrlOpener = Substitute.For<IExternalUrlOpener>();
         var filesViewModel = new FilesViewModel(fileManager, filesDialogService, loadedMacroSession, localizationService);
 
-        var textExpansionStorage = Substitute.For<ITextExpansionStorageService>();
+        var textExpansionStorage = Substitute.For<ITextExpansionStore>();
         var dialogService = Substitute.For<IDialogService>();
         var environmentInfo = Substitute.For<IEnvironmentInfoProvider>();
         environmentInfo.WindowManagerHandlesCloseButton.Returns(false);
@@ -983,6 +984,7 @@ public class MainWindowViewModelTests
             externalUrlOpener,
             runtimeLogLevelService,
             themeService,
+            Substitute.For<IRuntimeContext>(),
             localizationService);
 
         var editorConverter = Substitute.For<IEditorActionConverter>();

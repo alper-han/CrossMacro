@@ -24,19 +24,29 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
     private readonly bool _isNiri;
 
     public LinuxLayoutDetector()
-        : this(new NiriLayoutSource())
+        : this(LinuxEnvironmentVariables.CaptureCurrentSnapshot(), new NiriLayoutSource())
+    {
+    }
+
+    public LinuxLayoutDetector(ILinuxEnvironmentVariables environmentVariables)
+        : this((environmentVariables ?? throw new ArgumentNullException(nameof(environmentVariables))).CaptureSnapshot(), new NiriLayoutSource())
     {
     }
 
     internal LinuxLayoutDetector(NiriLayoutSource niriSource)
+        : this(LinuxEnvironmentVariables.CaptureCurrentSnapshot(), niriSource)
+    {
+    }
+
+    internal LinuxLayoutDetector(LinuxEnvironmentSnapshot environment, NiriLayoutSource niriSource)
     {
         _niriSource = niriSource ?? throw new ArgumentNullException(nameof(niriSource));
-        _isHyprland = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("HYPRLAND_INSTANCE_SIGNATURE"));
-        var desktop = Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP")?.ToUpperInvariant() ?? "";
-        var session = Environment.GetEnvironmentVariable("GDMSESSION")?.ToUpperInvariant() ?? "";
+        _isHyprland = !string.IsNullOrEmpty(environment.HyprlandInstanceSignature);
+        var desktop = environment.CurrentDesktop?.ToUpperInvariant() ?? "";
+        var session = environment.GdmSession?.ToUpperInvariant() ?? "";
         _isKde = desktop.Contains("KDE") || desktop.Contains("PLASMA");
         _isGnome = desktop.Contains("GNOME") || desktop.Contains("UNITY");
-        _isNiri = desktop.Contains("NIRI") || session.Contains("NIRI") || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("NIRI_SOCKET"));
+        _isNiri = desktop.Contains("NIRI") || session.Contains("NIRI") || !string.IsNullOrEmpty(environment.NiriSocket);
         
         if (_isHyprland)
             Log.Information("[LayoutDetector] Environment: Hyprland");

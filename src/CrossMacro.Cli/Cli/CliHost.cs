@@ -1,9 +1,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using CrossMacro.Cli.DependencyInjection;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Logging;
+using CrossMacro.Cli.DependencyInjection;
 using CrossMacro.Platform.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
@@ -12,11 +11,33 @@ namespace CrossMacro.Cli;
 
 public sealed class CliHost
 {
-    private readonly IPlatformServiceRegistrar _platformServiceRegistrar;
+    private readonly Action<IServiceCollection> _configureServices;
+    private readonly Action<IServiceCollection, CliRuntimeProfile> _configureRuntimeServices;
+    private readonly Action<CliCommandOptions> _configureHostLogging;
 
-    public CliHost(IPlatformServiceRegistrar platformServiceRegistrar)
+    public CliHost(Action<IServiceCollection> configureServices)
+        : this(configureServices, static (_, _) => { }, static _ => { })
     {
-        _platformServiceRegistrar = platformServiceRegistrar;
+    }
+
+    public CliHost(
+        Action<IServiceCollection> configureServices,
+        Action<IServiceCollection, CliRuntimeProfile> configureRuntimeServices,
+        Action<CliCommandOptions>? configureHostLogging = null)
+    {
+        _configureServices = configureServices ?? throw new ArgumentNullException(nameof(configureServices));
+        _configureRuntimeServices = configureRuntimeServices ?? throw new ArgumentNullException(nameof(configureRuntimeServices));
+        _configureHostLogging = configureHostLogging ?? (static _ => { });
+    }
+
+    [Obsolete("Use executable composition callbacks.")]
+    public CliHost(IPlatformServiceRegistrar platformServiceRegistrar)
+        : this(services =>
+        {
+            platformServiceRegistrar.RegisterPlatformServices(services);
+        })
+    {
+        ArgumentNullException.ThrowIfNull(platformServiceRegistrar);
     }
 
     public async Task<int> RunAsync(CliCommandOptions options)
@@ -25,11 +46,12 @@ public sealed class CliHost
 
         try
         {
-            ConfigureDirectHostLogging(options);
+            _configureHostLogging(options);
 
             var services = new ServiceCollection();
             var runtimeProfile = GetRuntimeProfile(options);
-            services.AddCrossMacroCliRuntimeServices(_platformServiceRegistrar, runtimeProfile);
+            _configureServices(services);
+            _configureRuntimeServices(services, runtimeProfile);
             services.AddCliServices();
 
             await using var provider = services.BuildServiceProvider();
@@ -101,14 +123,6 @@ public sealed class CliHost
         await provider.GetRequiredService<IProfileManager>()
             .InitializeAsync()
             .ConfigureAwait(false);
-    }
-
-    private static void ConfigureDirectHostLogging(CliCommandOptions options)
-    {
-        if (options.JsonOutput)
-        {
-            LoggerSetup.Initialize("Fatal", enableFileLogging: false, enableConsoleLogging: false);
-        }
     }
 
     private static bool RequiresProfileInitialization(CliCommandOptions options)

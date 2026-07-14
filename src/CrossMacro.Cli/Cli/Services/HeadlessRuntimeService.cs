@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Application.Runtime;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services.ScreenReading;
+using CrossMacro.Core.Logging;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Cli.Serialization;
 
@@ -19,6 +20,7 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
     private readonly ITextExpansionService _textExpansionService;
     private readonly IHeadlessHotkeyActionService _headlessHotkeyActionService;
     private readonly IScreenReadingWarmupService? _screenReadingWarmupService;
+    private readonly IRuntimeLifecycle _runtimeLifecycle;
 
     public HeadlessRuntimeService(
         IDisplaySessionService displaySessionService,
@@ -28,7 +30,8 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
         IShortcutService shortcutService,
         ITextExpansionService textExpansionService,
         IHeadlessHotkeyActionService headlessHotkeyActionService,
-        IScreenReadingWarmupService? screenReadingWarmupService = null)
+        IScreenReadingWarmupService? screenReadingWarmupService = null,
+        IRuntimeLifecycle? runtimeLifecycle = null)
     {
         _displaySessionService = displaySessionService;
         _settingsService = settingsService;
@@ -38,16 +41,76 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
         _textExpansionService = textExpansionService;
         _headlessHotkeyActionService = headlessHotkeyActionService;
         _screenReadingWarmupService = screenReadingWarmupService;
+        _runtimeLifecycle = runtimeLifecycle ?? CreateLifecycle(
+            globalHotkeyService,
+            schedulerService,
+            shortcutService,
+            textExpansionService,
+            headlessHotkeyActionService,
+            screenReadingWarmupService);
+    }
+
+    internal static IRuntimeLifecycle CreateLifecycle(
+        IGlobalHotkeyService globalHotkeyService,
+        ISchedulerService schedulerService,
+        IShortcutService shortcutService,
+        ITextExpansionService textExpansionService,
+        IHeadlessHotkeyActionService headlessHotkeyActionService,
+        IScreenReadingWarmupService? screenReadingWarmupService)
+    {
+        return new RuntimeLifecycle(
+        [
+            new RuntimeLifecycleStep("global hotkeys", _ =>
+            {
+                globalHotkeyService.Start();
+                return Task.CompletedTask;
+            }, _ =>
+            {
+                globalHotkeyService.Stop();
+                return Task.CompletedTask;
+            }),
+            new RuntimeLifecycleStep("scheduler", async _ =>
+            {
+                await schedulerService.LoadAsync().ConfigureAwait(false);
+                schedulerService.Start();
+            }, token => schedulerService.StopAsync(token)),
+            new RuntimeLifecycleStep("shortcuts", async _ =>
+            {
+                await shortcutService.LoadAsync().ConfigureAwait(false);
+                shortcutService.Start();
+            }, _ =>
+            {
+                shortcutService.Stop();
+                return Task.CompletedTask;
+            }),
+            new RuntimeLifecycleStep("text expansion", _ =>
+            {
+                textExpansionService.Start();
+                return Task.CompletedTask;
+            }, _ =>
+            {
+                if (textExpansionService.IsRunning)
+                {
+                    textExpansionService.Stop();
+                }
+
+                return Task.CompletedTask;
+            }),
+            new RuntimeLifecycleStep("headless hotkey actions", _ =>
+            {
+                headlessHotkeyActionService.Start();
+                return Task.CompletedTask;
+            }, token => headlessHotkeyActionService.StopAsync(token)),
+            new RuntimeLifecycleStep("screen reading warmup", token => screenReadingWarmupService == null
+                ? Task.CompletedTask
+                : screenReadingWarmupService.WarmUpPortalSessionAsync(token), _ => Task.CompletedTask)
+        ]);
     }
 
     public async Task<HeadlessRuntimeResult> RunAsync(CancellationToken cancellationToken)
     {
         var warnings = new List<string>();
-        var hotkeysStarted = false;
-        var schedulerStarted = false;
-        var shortcutsStarted = false;
-        var textExpansionStarted = false;
-        var hotkeyActionsStarted = false;
+        var lifecycle = _runtimeLifecycle;
 
         try
         {
@@ -61,27 +124,7 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
 
             _settingsService.Load();
 
-            _globalHotkeyService.Start();
-            hotkeysStarted = true;
-
-            await _schedulerService.LoadAsync();
-            _schedulerService.Start();
-            schedulerStarted = true;
-
-            await _shortcutService.LoadAsync();
-            _shortcutService.Start();
-            shortcutsStarted = true;
-
-            _textExpansionService.Start();
-            textExpansionStarted = _textExpansionService.IsRunning;
-
-            _headlessHotkeyActionService.Start();
-            hotkeyActionsStarted = _headlessHotkeyActionService.IsRunning;
-
-            if (_screenReadingWarmupService != null)
-            {
-                await _screenReadingWarmupService.WarmUpPortalSessionAsync(cancellationToken).ConfigureAwait(false);
-            }
+            await lifecycle.StartAsync(cancellationToken).ConfigureAwait(false);
 
             var data = new HeadlessRuntimeData(
                 _globalHotkeyService.IsRunning,
@@ -116,6 +159,16 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
                 Data = data
             };
         }
+        catch (OperationCanceledException)
+        {
+            return new HeadlessRuntimeResult
+            {
+                Success = false,
+                ExitCode = CliExitCode.Cancelled,
+                Message = "Headless mode interrupted.",
+                Warnings = warnings
+            };
+        }
         catch (Exception ex)
         {
             return Fail(
@@ -126,52 +179,17 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
         }
         finally
         {
-            if (hotkeyActionsStarted)
+            if (lifecycle != null)
             {
-                await TryStopAsync(() => _headlessHotkeyActionService.StopAsync(CancellationToken.None)).ConfigureAwait(false);
+                try
+                {
+                    await lifecycle.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Headless runtime shutdown failed");
+                }
             }
-
-            if (textExpansionStarted)
-            {
-                TryStop(() => _textExpansionService.Stop());
-            }
-
-            if (shortcutsStarted)
-            {
-                TryStop(() => _shortcutService.Stop());
-            }
-
-            if (schedulerStarted)
-            {
-                TryStop(() => _schedulerService.Stop());
-            }
-
-            if (hotkeysStarted)
-            {
-                TryStop(() => _globalHotkeyService.Stop());
-            }
-        }
-    }
-
-    private static void TryStop(Action stopAction)
-    {
-        try
-        {
-            stopAction();
-        }
-        catch
-        {
-        }
-    }
-
-    private static async Task TryStopAsync(Func<Task> stopAction)
-    {
-        try
-        {
-            await stopAction().ConfigureAwait(false);
-        }
-        catch
-        {
         }
     }
 

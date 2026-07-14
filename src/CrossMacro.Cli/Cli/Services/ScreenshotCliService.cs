@@ -3,19 +3,13 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services.ScreenCapture;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Cli.Services;
 
-public sealed class ScreenshotCliService : IScreenshotCliService
+public sealed partial class ScreenshotCliService : IScreenshotCliService
 {
     private readonly IScreenshotCaptureService _screenshotCaptureService;
-
-    public ScreenshotCliService(IScreenFrameProvider? screenFrameProvider, IImageClipboardService? imageClipboardService)
-        : this(new ScreenshotCaptureService(screenFrameProvider, imageClipboardService))
-    {
-    }
 
     public ScreenshotCliService(IScreenshotCaptureService screenshotCaptureService)
     {

@@ -48,7 +48,7 @@ public class MacOSPlatformServiceRegistrarTests
         Assert.IsType<MacOSInputCapture>(captureFactory());
         Assert.IsType<MacOSInputSimulator>(simulatorFactory());
         Assert.IsType<MacOSCoordinateStrategyFactory>(strategyFactory);
-        Assert.IsType<GenericDisplaySessionService>(displaySession);
+        Assert.IsType<CrossMacro.Platform.MacOS.Services.GenericDisplaySessionService>(displaySession);
         Assert.Null(notifier);
         Assert.False(policy.UseHybridAbsoluteDragMovement);
     }

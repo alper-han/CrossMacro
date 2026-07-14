@@ -7,7 +7,5 @@ namespace CrossMacro.Platform.Abstractions;
 /// </summary>
 public interface IPlatformServiceRegistrar
 {
-    PlatformClipboardRegistration ClipboardRegistration { get; }
-
     void RegisterPlatformServices(IServiceCollection services);
 }

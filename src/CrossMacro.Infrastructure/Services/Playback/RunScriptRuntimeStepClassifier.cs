@@ -12,7 +12,7 @@ internal static class RunScriptRuntimeStepClassifier
             || RunScriptSyntax.IsWindowStep(trimmed)
             || RunScriptSyntax.IsClipboardStep(trimmed)
             || RunScriptSyntax.IsShellStep(trimmed)
-            || RunScriptSyntax.IsScreenshotStep(trimmed)
+            || RunScriptPlatformSyntax.IsScreenshotStep(trimmed)
             || IsRuntimeDelayStep(trimmed)
             || IsRuntimeVariableStep(trimmed)
             || RunScriptSyntax.IsBreakCommand(trimmed)

@@ -16,13 +16,39 @@ public class LinuxPositionProviderFactory
 {
     private readonly IEnumerable<IPositionProviderSelector> _selectors;
     private readonly ILinuxEnvironmentDetector _environmentDetector;
+    private readonly ILinuxCapabilitySnapshotProvider? _snapshotProvider;
 
     public LinuxPositionProviderFactory(
         IEnumerable<IPositionProviderSelector> selectors,
+        ILinuxCapabilitySnapshotProvider snapshotProvider)
+        : this(selectors, null!, snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider)), true)
+    {
+    }
+
+    internal LinuxPositionProviderFactory(
+        IEnumerable<IPositionProviderSelector> selectors,
         ILinuxEnvironmentDetector environmentDetector)
+        : this(selectors, environmentDetector, null, true)
+    {
+    }
+
+    internal LinuxPositionProviderFactory(
+        IEnumerable<IPositionProviderSelector> selectors,
+        ILinuxEnvironmentDetector environmentDetector,
+        ILinuxCapabilitySnapshotProvider snapshotProvider)
+        : this(selectors, environmentDetector, snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider)), true)
+    {
+    }
+
+    private LinuxPositionProviderFactory(
+        IEnumerable<IPositionProviderSelector> selectors,
+        ILinuxEnvironmentDetector environmentDetector,
+        ILinuxCapabilitySnapshotProvider? snapshotProvider,
+        bool _)
     {
         _selectors = selectors ?? throw new ArgumentNullException(nameof(selectors));
-        _environmentDetector = environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector));
+        _environmentDetector = environmentDetector;
+        _snapshotProvider = snapshotProvider;
     }
 
     /// <summary>
@@ -30,7 +56,7 @@ public class LinuxPositionProviderFactory
     /// </summary>
     public IMousePositionProvider Create()
     {
-        var compositorType = _environmentDetector.DetectedCompositor;
+        var compositorType = _snapshotProvider?.GetSnapshot().Compositor ?? _environmentDetector!.DetectedCompositor;
         
         LoggingExtensions.LogOnce("LinuxPositionProviderFactory_Compositor", "[LinuxPositionProviderFactory] Compositor: {Compositor}", compositorType);
 

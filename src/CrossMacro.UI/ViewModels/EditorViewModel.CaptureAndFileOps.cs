@@ -17,7 +17,7 @@ public partial class EditorViewModel
 {
     private static async Task RunOnUiThreadAsync(Action action)
     {
-        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
         {
             action();
             return;
@@ -597,7 +597,12 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
             OnPropertyChanged(nameof(SkipInitialZeroZero));
         }
 
-        var sequence = _converter.ToMacroSequence(normalizedActions, MacroName, isAbsolute, skipInitialZeroZero);
+        var projection = new EditorMacroProjection(
+            normalizedActions,
+            MacroName,
+            isAbsolute,
+            skipInitialZeroZero);
+        var sequence = _converter.ToMacroSequence(projection);
         if (sequence == null)
         {
             return null;
@@ -757,9 +762,11 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
 
         try
         {
-            using var frame = await _imageAssetCodec.DecodeFileAsync(filePath);
+            var imageAssetCodec = _imageAssetCodec
+                ?? throw new InvalidOperationException("Image asset codec is not registered.");
+            using var frame = await imageAssetCodec.DecodeFileAsync(filePath);
             using var encoded = new MemoryStream();
-            _imageAssetCodec.EncodePng(frame, encoded);
+            imageAssetCodec.EncodePng(frame, encoded);
             var assetName = GenerateUniqueImageAssetName(Path.GetFileNameWithoutExtension(filePath));
             _imageAssets[assetName] = Convert.ToBase64String(encoded.ToArray());
             ImageAssetNames.Add(assetName);
@@ -772,7 +779,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
 
             Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusImageImported"), assetName);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException or ArgumentException or InvalidOperationException)
         {
             Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusImageImportError"), ex.Message);
         }

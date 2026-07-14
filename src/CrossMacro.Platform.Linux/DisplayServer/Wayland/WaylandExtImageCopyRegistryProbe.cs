@@ -1,10 +1,12 @@
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
+using CrossMacro.Platform.Linux.Services;
+
 internal static class WaylandExtImageCopyRegistryProbe
 {
-    public static ExtImageCopySupportResult Probe()
+    public static ExtImageCopySupportResult Probe(LinuxEnvironmentSnapshot environment)
     {
-        var waylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
+        var waylandDisplay = environment.WaylandDisplay;
         if (string.IsNullOrWhiteSpace(waylandDisplay))
         {
             return ExtImageCopySupportResult.Unsupported("WAYLAND_DISPLAY is not set; ext-image-copy-capture-v1 requires a Wayland session.");
@@ -32,5 +34,11 @@ internal static class WaylandExtImageCopyRegistryProbe
         }
 
         return ExtImageCopySupportResult.Supported();
+    }
+
+    [Obsolete("Use the snapshot-backed probe in production composition.", error: false)]
+    internal static ExtImageCopySupportResult Probe()
+    {
+        return Probe(LinuxEnvironmentVariables.CaptureCurrentSnapshot());
     }
 }

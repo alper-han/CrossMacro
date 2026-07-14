@@ -17,6 +17,19 @@ namespace CrossMacro.Platform.Windows.Tests.DependencyInjection;
 [SupportedOSPlatform("windows")]
 public class WindowsPlatformServiceRegistrarTests
 {
+    [Fact]
+    public void RegisterGuiImageClipboardServices_RegistersStaMessageThreadFactory()
+    {
+        var services = new ServiceCollection();
+
+        WindowsPlatformServiceRegistrar.RegisterGuiImageClipboardServices(services);
+
+        var descriptor = Assert.Single(services, service => service.ServiceType == typeof(StaMessageThread));
+        Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
+        Assert.Null(descriptor.ImplementationType);
+        Assert.NotNull(descriptor.ImplementationFactory);
+    }
+
     [WindowsFact]
     public void RegisterPlatformServices_RegistersKeyboardLayoutService()
     {
@@ -78,7 +91,7 @@ public class WindowsPlatformServiceRegistrarTests
 
         var displayDescriptor = services.LastOrDefault(s => s.ServiceType == typeof(IDisplaySessionService));
         Assert.NotNull(displayDescriptor);
-        Assert.Equal(typeof(GenericDisplaySessionService), displayDescriptor!.ImplementationType);
+        Assert.Equal(typeof(CrossMacro.Platform.Windows.Services.GenericDisplaySessionService), displayDescriptor!.ImplementationType);
     }
 
     [WindowsFact]

@@ -25,7 +25,8 @@ public class ProfileManager : IProfileManager
         ConfigFileNames.Hotkeys,
         ConfigFileNames.Shortcuts,
         ConfigFileNames.Schedules,
-        ConfigFileNames.TextExpansions
+        ConfigFileNames.TextExpansions,
+        ConfigFileNames.Triggers
     ];
 
     private static readonly string[] MigratedProfileConfigFiles =
@@ -33,7 +34,8 @@ public class ProfileManager : IProfileManager
         ConfigFileNames.Hotkeys,
         ConfigFileNames.Shortcuts,
         ConfigFileNames.Schedules,
-        ConfigFileNames.TextExpansions
+        ConfigFileNames.TextExpansions,
+        ConfigFileNames.Triggers
     ];
 
     private readonly string _configRootPath;
@@ -106,6 +108,8 @@ public class ProfileManager : IProfileManager
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
+            ValidateRootAncestors(_configRootPath, "Configuration root");
+            ValidateRootAncestors(_profilesRootPath, "Profiles root");
             Directory.CreateDirectory(_configRootPath);
             Directory.CreateDirectory(_profilesRootPath);
 
@@ -444,7 +448,64 @@ public class ProfileManager : IProfileManager
 
     public string GetProfileDirectory(string profileId)
     {
-        return Path.Combine(_profilesRootPath, profileId);
+        ValidateProfileId(profileId);
+
+        var profilesRoot = Path.GetFullPath(_profilesRootPath)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+        var profileDirectory = Path.GetFullPath(Path.Combine(profilesRoot, profileId));
+        if (!profileDirectory.StartsWith(profilesRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException($"Profile id '{profileId}' resolves outside the profiles directory.");
+        }
+
+        var current = new DirectoryInfo(profileDirectory);
+        while (current != null)
+        {
+            if (current.Exists && current.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            {
+                throw new InvalidDataException($"Profile path for '{profileId}' must not contain a reparse point.");
+            }
+
+            current = current.Parent;
+        }
+
+        return profileDirectory;
+    }
+
+    private static void ValidateProfileId(string? profileId)
+    {
+        if (string.IsNullOrWhiteSpace(profileId))
+        {
+            throw new InvalidDataException("Profile id cannot be empty.");
+        }
+
+        for (var index = 0; index < profileId.Length; index++)
+        {
+            var character = profileId[index];
+            var valid = character is >= 'a' and <= 'z'
+                or >= 'A' and <= 'Z'
+                or >= '0' and <= '9'
+                or '-';
+            if (!valid || (index == 0 && character == '-') || (index == profileId.Length - 1 && character == '-'))
+            {
+                throw new InvalidDataException($"Profile id '{profileId}' contains unsupported path characters.");
+            }
+        }
+    }
+
+    private static void ValidateRootAncestors(string path, string description)
+    {
+        var current = new DirectoryInfo(Path.GetFullPath(path));
+        while (current != null)
+        {
+            if (current.Exists && current.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            {
+                throw new InvalidDataException($"{description} path must not contain a reparse point.");
+            }
+
+            current = current.Parent;
+        }
     }
 
     private async Task<ProfileRegistry> LoadRegistryAsync()
@@ -576,6 +637,16 @@ public class ProfileManager : IProfileManager
 
     private void NormalizeRegistry()
     {
+        foreach (var profile in _registry.Profiles)
+        {
+            ValidateProfileId(profile.Id);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_registry.ActiveProfile))
+        {
+            ValidateProfileId(_registry.ActiveProfile);
+        }
+
         if (_registry.Profiles.Count == 0)
         {
             _registry.Profiles.Add(CreateDefaultProfileInfo());

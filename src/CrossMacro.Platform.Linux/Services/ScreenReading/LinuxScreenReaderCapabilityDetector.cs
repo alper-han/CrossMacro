@@ -13,9 +13,9 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
     private readonly IKWinScreenShotSupportProbe _kWinScreenShotProbe;
     private readonly GnomePositionProvider _gnomePositionProvider;
 
-    private readonly Lazy<LinuxScreenReaderCapabilitySnapshot> _snapshot;
+    private Lazy<LinuxScreenReaderCapabilitySnapshot> _snapshot;
 
-    public LinuxScreenReaderCapabilityDetector(GnomePositionProvider gnomePositionProvider)
+    internal LinuxScreenReaderCapabilityDetector(GnomePositionProvider gnomePositionProvider)
         : this(
             WaylandExtImageCopySupportProbe.Instance,
             new WlrScreencopyCapture(),
@@ -25,7 +25,7 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
     {
     }
 
-    public LinuxScreenReaderCapabilityDetector(
+    internal LinuxScreenReaderCapabilityDetector(
         IExtImageCopySupportProbe extImageCopyProbe,
         GnomePositionProvider gnomePositionProvider)
         : this(
@@ -37,7 +37,7 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
     {
     }
 
-    public LinuxScreenReaderCapabilityDetector(
+    internal LinuxScreenReaderCapabilityDetector(
         IExtImageCopySupportProbe extImageCopyProbe,
         IWlrScreencopySupportProbe wlrScreencopyProbe,
         IPortalScreenCastSupportProbe portalScreenCastProbe,
@@ -63,6 +63,11 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
     }
 
     public LinuxScreenReaderCapabilitySnapshot GetSnapshot() => _snapshot.Value;
+
+    public void InvalidateCache()
+    {
+        _snapshot = new Lazy<LinuxScreenReaderCapabilitySnapshot>(CreateSnapshot, LazyThreadSafetyMode.ExecutionAndPublication);
+    }
 
     private LinuxScreenReaderCapabilitySnapshot CreateSnapshot()
     {

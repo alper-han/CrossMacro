@@ -12,11 +12,12 @@ namespace CrossMacro.Infrastructure.Services;
 /// Manages pre-warmed IInputSimulator instances to eliminate device creation delays.
 /// The pool creates devices in advance so they're ready immediately when needed.
 /// </summary>
-public class InputSimulatorPool : IDisposable
+public class InputSimulatorPool : IInputSimulatorPool
 {
     private readonly Func<IInputSimulator> _factory;
     private readonly Lock _lock = new();
     private readonly HashSet<IInputSimulator> _leasedDevices = new();
+    private readonly HashSet<Task> _replacementTasks = new();
 
     private IInputSimulator? _warmRelativeDevice;
     private IInputSimulator? _warmAbsoluteDevice;
@@ -25,11 +26,27 @@ public class InputSimulatorPool : IDisposable
     private bool _disposed;
 
     private CancellationTokenSource? _warmUpCts;
+    private readonly CancellationTokenSource _shutdownCts = new();
 
     /// <summary>
     /// Indicates whether the pool has at least one warm device ready.
     /// </summary>
     public bool HasWarmDevice => _warmRelativeDevice != null || _warmAbsoluteDevice != null;
+
+    /// <summary>Completes when replacement work already queued by the pool has settled.</summary>
+    public Task Completion
+    {
+        get
+        {
+            Task[] tasks;
+            using (_lock.EnterScope())
+            {
+                tasks = [.. _replacementTasks];
+            }
+
+            return tasks.Length == 0 ? Task.CompletedTask : Task.WhenAll(tasks);
+        }
+    }
 
     public InputSimulatorPool(Func<IInputSimulator> factory)
     {
@@ -237,11 +254,11 @@ public class InputSimulatorPool : IDisposable
             return;
         }
 
-        _ = Task.Run(async () =>
+        var task = Task.Run(async () =>
         {
             try
             {
-                await WarmUpReplacementAsync(screenWidth, screenHeight);
+                await WarmUpReplacementAsync(screenWidth, screenHeight, _shutdownCts.Token);
             }
             catch (Exception ex)
             {
@@ -249,9 +266,32 @@ public class InputSimulatorPool : IDisposable
                 Log.Debug(ex, "[InputSimulatorPool] Replacement warm-up task faulted");
             }
         });
+
+        using (_lock.EnterScope())
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _replacementTasks.Add(task);
+        }
+
+        _ = task.ContinueWith(
+            completedTask =>
+            {
+                _ = completedTask.Exception;
+                using (_lock.EnterScope())
+                {
+                    _replacementTasks.Remove(completedTask);
+                }
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 
-    private async Task WarmUpReplacementAsync(int screenWidth, int screenHeight)
+    private async Task WarmUpReplacementAsync(int screenWidth, int screenHeight, CancellationToken cancellationToken)
     {
         if (_disposed) return;
 
@@ -259,7 +299,7 @@ public class InputSimulatorPool : IDisposable
         {
             bool needsAbsolute = screenWidth > 0 && screenHeight > 0;
 
-            await Task.Delay(50);
+            await Task.Delay(50, cancellationToken);
 
             if (_disposed)
             {
@@ -325,6 +365,7 @@ public class InputSimulatorPool : IDisposable
         var warmUpCts = Interlocked.Exchange(ref _warmUpCts, null);
         warmUpCts?.Cancel();
         warmUpCts?.Dispose();
+        _shutdownCts.Cancel();
 
         using (_lock.EnterScope())
         {
@@ -334,6 +375,8 @@ public class InputSimulatorPool : IDisposable
             _warmAbsoluteDevice?.Dispose();
             _warmAbsoluteDevice = null;
         }
+
+        _shutdownCts.Dispose();
 
         Log.Information("[InputSimulatorPool] Disposed");
     }

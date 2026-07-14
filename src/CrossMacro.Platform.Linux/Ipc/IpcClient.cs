@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Daemon.Contracts.Ipc;
@@ -88,17 +87,17 @@ public class IpcClient : IDisposable
                 handshakeCts.CancelAfter(HandshakeTimeoutMs);
                 var handshakeToken = handshakeCts.Token;
 
-                var opcode = (IpcOpCode)await ReadHandshakeByteAsync(_stream, handshakeToken);
+                var opcode = (IpcOpCode)await IpcHandshakeCodec.ReadByteAsync(_stream, handshakeToken);
                 if (opcode == IpcOpCode.Error)
                 {
-                    var msg = await ReadHandshakeStringAsync(_stream, handshakeToken);
+                    var msg = await IpcHandshakeCodec.ReadStringAsync(_stream, handshakeToken);
                     throw new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Daemon handshake error: {msg}");
                 }
                 if (opcode != IpcOpCode.Handshake)
                 {
                     throw new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Unexpected handshake opcode: {opcode}");
                 }
-                var version = await ReadHandshakeInt32Async(_stream, handshakeToken);
+                var version = await IpcHandshakeCodec.ReadInt32Async(_stream, handshakeToken);
                 if (version != IpcProtocol.ProtocolVersion)
                 {
                     throw new IpcClientException(
@@ -318,73 +317,6 @@ public class IpcClient : IDisposable
         }
 
         return false;
-    }
-
-    private static async Task<byte> ReadHandshakeByteAsync(Stream stream, CancellationToken token)
-    {
-        var buffer = new byte[1];
-        await ReadHandshakeExactlyAsync(stream, buffer, token);
-        return buffer[0];
-    }
-
-    private static async Task<int> ReadHandshakeInt32Async(Stream stream, CancellationToken token)
-    {
-        var buffer = new byte[sizeof(int)];
-        await ReadHandshakeExactlyAsync(stream, buffer, token);
-        return BitConverter.ToInt32(buffer);
-    }
-
-    private static async Task<string> ReadHandshakeStringAsync(Stream stream, CancellationToken token)
-    {
-        var byteCount = await ReadHandshake7BitEncodedIntAsync(stream, token);
-        if (byteCount < 0)
-        {
-            throw new IOException("Invalid handshake string length.");
-        }
-
-        if (byteCount == 0)
-        {
-            return string.Empty;
-        }
-
-        var buffer = new byte[byteCount];
-        await ReadHandshakeExactlyAsync(stream, buffer, token);
-        return Encoding.UTF8.GetString(buffer);
-    }
-
-    private static async Task<int> ReadHandshake7BitEncodedIntAsync(Stream stream, CancellationToken token)
-    {
-        var result = 0;
-        var shift = 0;
-
-        for (var index = 0; index < 5; index++)
-        {
-            var currentByte = await ReadHandshakeByteAsync(stream, token);
-            result |= (currentByte & 0x7F) << shift;
-            if ((currentByte & 0x80) == 0)
-            {
-                return result;
-            }
-
-            shift += 7;
-        }
-
-        throw new FormatException("Invalid 7-bit encoded handshake string length.");
-    }
-
-    private static async Task ReadHandshakeExactlyAsync(Stream stream, byte[] buffer, CancellationToken token)
-    {
-        var offset = 0;
-        while (offset < buffer.Length)
-        {
-            var read = await stream.ReadAsync(buffer.AsMemory(offset, buffer.Length - offset), token);
-            if (read == 0)
-            {
-                throw new EndOfStreamException("Daemon closed the connection during handshake.");
-            }
-
-            offset += read;
-        }
     }
 
     private void ReadLoop(CancellationToken token)

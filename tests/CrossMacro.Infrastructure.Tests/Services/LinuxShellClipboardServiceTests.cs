@@ -2,6 +2,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Platform.Linux.Clipboard;
+using LinuxShellClipboardService = CrossMacro.Platform.Linux.Clipboard.LinuxShellClipboardService;
 using NSubstitute;
 using Xunit;
 
@@ -10,12 +12,12 @@ namespace CrossMacro.Infrastructure.Tests.Services;
 [Collection("EnvironmentVariableSensitive")]
 public class LinuxShellClipboardServiceTests
 {
-    private readonly IProcessRunner _processRunner;
+    private readonly CrossMacro.Infrastructure.Services.IProcessRunner _processRunner;
     private readonly LinuxShellClipboardService _service;
 
     public LinuxShellClipboardServiceTests()
     {
-        _processRunner = Substitute.For<IProcessRunner>();
+        _processRunner = Substitute.For<CrossMacro.Infrastructure.Services.IProcessRunner>();
         _service = new LinuxShellClipboardService(_processRunner);
     }
 

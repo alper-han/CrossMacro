@@ -1,4 +1,4 @@
-using CrossMacro.Infrastructure.Linux.Native.UInput;
+using CrossMacro.Platform.Linux.Native.UInput;
 
 namespace CrossMacro.Platform.Linux.Tests.Native.UInput;
 

@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Application.Automation;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Cli.Serialization;
@@ -10,11 +12,12 @@ namespace CrossMacro.Cli.Services;
 
 public sealed class ShortcutCliService : IShortcutCliService
 {
-    private readonly IShortcutService _shortcutService;
+    private readonly IManageShortcut _manageShortcut;
+    private IReadOnlyList<ShortcutTask> _tasks = [];
 
-    public ShortcutCliService(IShortcutService shortcutService)
+    public ShortcutCliService(IManageShortcut manageShortcut)
     {
-        _shortcutService = shortcutService;
+        _manageShortcut = manageShortcut;
     }
 
     public async Task<CliCommandExecutionResult> ListAsync(CancellationToken cancellationToken)
@@ -22,8 +25,8 @@ public sealed class ShortcutCliService : IShortcutCliService
         return await TaskCliServiceHelpers.ListTasksAsync(
             taskKind: "shortcut",
             cancellationToken: cancellationToken,
-            loadAsync: () => _shortcutService.LoadAsync(),
-            getTasks: () => _shortcutService.Tasks,
+            loadAsync: async () => _tasks = (await _manageShortcut.ListAsync(cancellationToken).ConfigureAwait(false)).Tasks,
+            getTasks: () => _tasks,
             mapTask: x => new ShortcutTaskData(
                 x.Id,
                 x.Name,
@@ -50,10 +53,10 @@ public sealed class ShortcutCliService : IShortcutCliService
             taskKindLower: "shortcut",
             taskKindDisplay: "Shortcut",
             cancellationToken: cancellationToken,
-            loadAsync: () => _shortcutService.LoadAsync(),
-            getTasks: () => _shortcutService.Tasks,
+            loadAsync: async () => _tasks = (await _manageShortcut.ListAsync(cancellationToken).ConfigureAwait(false)).Tasks,
+            getTasks: () => _tasks,
             getTaskId: x => x.Id,
-            runTaskAsync: (parsedTaskId, cancellationToken) => _shortcutService.RunTaskAsync(parsedTaskId, cancellationToken),
+            runTaskAsync: (parsedTaskId, cancellationToken) => _manageShortcut.RunAsync(new TaskRequest(parsedTaskId), cancellationToken),
             mapTaskResult: task => new ShortcutTaskRunData(
                 task.Id,
                 task.Name,
@@ -95,11 +98,7 @@ public sealed class ShortcutCliService : IShortcutCliService
             task.IsEnabled = options.Enabled.Value;
         }
 
-        await _shortcutService.LoadAsync().ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        _shortcutService.AddTask(task);
-        cancellationToken.ThrowIfCancellationRequested();
-        await _shortcutService.SaveAsync().ConfigureAwait(false);
+        await _manageShortcut.AddAsync(task, cancellationToken).ConfigureAwait(false);
         return CliCommandExecutionResult.Ok($"Shortcut task added: {task.Name}.", MapTask(task));
     }
 
@@ -116,9 +115,7 @@ public sealed class ShortcutCliService : IShortcutCliService
         if (options.Enabled.HasValue) task.IsEnabled = options.Enabled.Value;
 
         cancellationToken.ThrowIfCancellationRequested();
-        _shortcutService.UpdateTask(task);
-        cancellationToken.ThrowIfCancellationRequested();
-        await _shortcutService.SaveAsync().ConfigureAwait(false);
+        await _manageShortcut.UpdateAsync(task, cancellationToken).ConfigureAwait(false);
         return CliCommandExecutionResult.Ok($"Shortcut task updated: {task.Name}.", MapTask(task));
     }
 
@@ -129,9 +126,7 @@ public sealed class ShortcutCliService : IShortcutCliService
 
         var task = parsed.Task!;
         cancellationToken.ThrowIfCancellationRequested();
-        _shortcutService.RemoveTask(task.Id);
-        cancellationToken.ThrowIfCancellationRequested();
-        await _shortcutService.SaveAsync().ConfigureAwait(false);
+        await _manageShortcut.RemoveAsync(new TaskRequest(task.Id), cancellationToken).ConfigureAwait(false);
         return CliCommandExecutionResult.Ok($"Shortcut task removed: {task.Name}.", MapTask(task));
     }
 
@@ -150,9 +145,7 @@ public sealed class ShortcutCliService : IShortcutCliService
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        _shortcutService.SetTaskEnabled(task.Id, enabled);
-        cancellationToken.ThrowIfCancellationRequested();
-        await _shortcutService.SaveAsync().ConfigureAwait(false);
+        await _manageShortcut.SetEnabledAsync(new TaskRequest(task.Id, enabled), cancellationToken).ConfigureAwait(false);
         task.IsEnabled = enabled;
         var verb = enabled ? "enabled" : "disabled";
         return CliCommandExecutionResult.Ok($"Shortcut task {verb}: {task.Name}.", MapTask(task));
@@ -166,35 +159,19 @@ public sealed class ShortcutCliService : IShortcutCliService
         var task = parsed.Task!;
         task.HotkeyString = options.Hotkey ?? string.Empty;
         cancellationToken.ThrowIfCancellationRequested();
-        _shortcutService.UpdateTask(task);
-        cancellationToken.ThrowIfCancellationRequested();
-        await _shortcutService.SaveAsync().ConfigureAwait(false);
+        await _manageShortcut.UpdateAsync(task, cancellationToken).ConfigureAwait(false);
         return CliCommandExecutionResult.Ok($"Shortcut task bound: {task.Name}.", MapTask(task));
     }
 
     private async Task<(ShortcutTask? Task, CliCommandExecutionResult? Result)> LoadAndFindAsync(string taskId, CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (!Guid.TryParse(taskId, out var parsedTaskId))
-        {
-            return (null, CliCommandExecutionResult.Fail(
-                CliExitCode.InvalidArguments,
-                "Invalid shortcut task id format.",
-                [$"Task id is not a valid GUID: {taskId}"]));
-        }
-
-        await _shortcutService.LoadAsync().ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        var task = _shortcutService.Tasks.FirstOrDefault(candidate => candidate.Id == parsedTaskId);
-        if (task is null)
-        {
-            return (null, CliCommandExecutionResult.Fail(
-                CliExitCode.InvalidArguments,
-                "Shortcut task not found.",
-                [$"No shortcut task found with id: {taskId}"]));
-        }
-
-        return (task, null);
+        return await TaskCliServiceHelpers.FindTaskAsync(
+            taskId,
+            "shortcut",
+            "Shortcut",
+            cancellationToken,
+            async () => _tasks = (await _manageShortcut.ListAsync(cancellationToken).ConfigureAwait(false)).Tasks,
+            task => task.Id);
     }
 
     private static void ApplyOptions(ShortcutTask task, ShortcutCliOptions options)

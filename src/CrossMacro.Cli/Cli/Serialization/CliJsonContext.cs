@@ -10,6 +10,7 @@ namespace CrossMacro.Cli.Serialization;
 [JsonSerializable(typeof(DoctorCheckOutput))]
 [JsonSerializable(typeof(RunScriptExecutionData))]
 [JsonSerializable(typeof(MacroSummaryData))]
+[JsonSerializable(typeof(MacroValidationData))]
 [JsonSerializable(typeof(MacroInfoData))]
 [JsonSerializable(typeof(MacroEventBreakdownData))]
 [JsonSerializable(typeof(RecordExecutionData))]

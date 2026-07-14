@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Channels;
 using CrossMacro.Core.Diagnostics;
 using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
@@ -32,6 +33,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     private readonly IHotkeyStringBuilder _hotkeyStringBuilder;
     private readonly IMouseButtonMapper _mouseButtonMapper;
     private readonly Func<IInputCapture>? _inputCaptureFactory;
+    private readonly HotkeyPersistenceQueue _persistenceQueue;
     
     // Hotkey mappings
     private HotkeyMapping _recordingHotkey = new();
@@ -75,6 +77,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         _hotkeyStringBuilder = hotkeyStringBuilder;
         _mouseButtonMapper = mouseButtonMapper;
         _inputCaptureFactory = inputCaptureFactory;
+        _persistenceQueue = new HotkeyPersistenceQueue(_configService, ReportPersistenceFailure);
         
         var settings = _configService.Load();
         UpdateHotkeys(settings.RecordingHotkey, settings.PlaybackHotkey, settings.PauseHotkey, save: false);
@@ -149,22 +152,12 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
         if (save)
         {
-            Task.Run(() => 
+            _persistenceQueue.Enqueue(_configService.CaptureSaveRequest(new HotkeySettings
             {
-                try
-                {
-                    _configService.Save(new HotkeySettings
-                    {
-                        RecordingHotkey = recordingHotkey,
-                        PlaybackHotkey = playbackHotkey,
-                        PauseHotkey = pauseHotkey
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "Failed to save hotkeys asynchronously");
-                }
-            });
+                RecordingHotkey = recordingHotkey,
+                PlaybackHotkey = playbackHotkey,
+                PauseHotkey = pauseHotkey
+            }));
         }
     }
 
@@ -392,6 +385,17 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
         _disposed = true;
         Stop();
+        _persistenceQueue.Dispose();
+    }
+
+    private void ReportPersistenceFailure(string errorMessage)
+    {
+        using (_lock.EnterScope())
+        {
+            LastError = errorMessage;
+        }
+
+        ErrorOccurred?.Invoke(this, errorMessage);
     }
 
     private void StartCapture_NoLock()
@@ -485,6 +489,60 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         finally
         {
             Interlocked.Exchange(ref _restartInProgress, 0);
+        }
+    }
+
+    private sealed class HotkeyPersistenceQueue : IDisposable
+    {
+        private readonly IHotkeyConfigurationService _configService;
+        private readonly Action<string> _reportFailure;
+        private readonly Channel<HotkeyConfigurationSaveRequest> _requests = Channel.CreateUnbounded<HotkeyConfigurationSaveRequest>();
+        private readonly Task _worker;
+        private int _disposed;
+
+        public HotkeyPersistenceQueue(IHotkeyConfigurationService configService, Action<string> reportFailure)
+        {
+            _configService = configService;
+            _reportFailure = reportFailure;
+            _worker = Task.Run(ProcessAsync);
+        }
+
+        public void Enqueue(HotkeyConfigurationSaveRequest request)
+        {
+            if (Volatile.Read(ref _disposed) != 0 || !_requests.Writer.TryWrite(request))
+            {
+                _reportFailure("Hotkey configuration save was discarded because the service is shutting down.");
+            }
+        }
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            {
+                return;
+            }
+
+            _requests.Writer.TryComplete();
+            _worker.GetAwaiter().GetResult();
+        }
+
+        private async Task ProcessAsync()
+        {
+            await foreach (var request in _requests.Reader.ReadAllAsync().ConfigureAwait(false))
+            {
+                try
+                {
+                    if (!_configService.TrySave(request))
+                    {
+                        _reportFailure($"Failed to save hotkey configuration to '{request.ConfigPath}'.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failed to save hotkey configuration asynchronously");
+                    _reportFailure($"Failed to save hotkey configuration to '{request.ConfigPath}': {ex.Message}");
+                }
+            }
         }
     }
 }

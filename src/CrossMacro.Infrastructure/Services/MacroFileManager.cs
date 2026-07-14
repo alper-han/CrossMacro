@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -9,6 +10,7 @@ using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Serialization;
 using CrossMacro.Infrastructure.Services.ScreenCapture;
+using Canonical = CrossMacro.Infrastructure.Persistence.Macros;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
@@ -27,12 +29,12 @@ public class MacroFileManager : IMacroFileManager
     private const string TrailingRandomDelayHeader = "# TrailingRandomDelayMs: ";
     private const string TextInputBoundaryHeader = "# TextInputBoundaryBase64: ";
     private const string ImageHeader = "# Image: ";
-    private const string ReadableFormatHeader = "# Format: CrossMacroFormatV2";
     private const string ScriptSectionHeader = "[Script]";
     private const string EventsSectionHeader = "[Events]";
     private const string ScriptContinuationPrefix = "| ";
     private readonly Func<IKeyCodeMapper> _keyCodeMapperFactory;
     private readonly IImageAssetCodec _imageAssetCodec;
+    private readonly IScriptValidationService? _scriptValidationService;
 
     private enum MacroFileReadSection
     {
@@ -41,10 +43,14 @@ public class MacroFileManager : IMacroFileManager
         Events
     }
 
-    public MacroFileManager(Func<IKeyCodeMapper> keyCodeMapperFactory, IImageAssetCodec? imageAssetCodec = null)
+    public MacroFileManager(
+        Func<IKeyCodeMapper> keyCodeMapperFactory,
+        IImageAssetCodec? imageAssetCodec = null,
+        IScriptValidationService? scriptValidationService = null)
     {
         _keyCodeMapperFactory = keyCodeMapperFactory ?? throw new ArgumentNullException(nameof(keyCodeMapperFactory));
         _imageAssetCodec = imageAssetCodec ?? new ImageAssetCodec();
+        _scriptValidationService = scriptValidationService;
     }
     
     /// <summary>
@@ -52,8 +58,14 @@ public class MacroFileManager : IMacroFileManager
     /// </summary>
     public async Task SaveAsync(MacroSequence macro, string filePath)
     {
-        if (macro == null)
-            throw new ArgumentNullException(nameof(macro));
+        var document = Canonical.PersistedMacroCodec.Encode(macro);
+        await SaveDocumentAsync(document, filePath).ConfigureAwait(false);
+    }
+
+    private async Task SaveDocumentAsync(Canonical.PersistedMacroDocument document, string filePath)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        var macro = Canonical.PersistedMacroCodec.Decode(document);
             
         if (string.IsNullOrWhiteSpace(filePath))
             throw new ArgumentException("File path cannot be empty", nameof(filePath));
@@ -86,6 +98,7 @@ public class MacroFileManager : IMacroFileManager
                     await writer.WriteLineAsync($"# Name: {macro.Name}");
                     await writer.WriteLineAsync($"# Created: {macro.CreatedAt:O}");
                     await writer.WriteLineAsync($"# DurationMs: {macro.TotalDurationMs}");
+                    await writer.WriteLineAsync($"# IsAbsolute: {macro.IsAbsoluteCoordinates}");
                     await writer.WriteLineAsync($"# SkipInitialZero: {macro.SkipInitialZeroZero}");
                     if (macro.TrailingDelayMs > 0)
                     {
@@ -111,7 +124,7 @@ public class MacroFileManager : IMacroFileManager
                         await writer.WriteLineAsync($"{ImageHeader}{image.Key} = {image.Value}");
                     }
 
-                    await writer.WriteLineAsync(ReadableFormatHeader);
+                    await writer.WriteLineAsync($"# Format: {document.Format}");
                     await writer.WriteLineAsync(ScriptSectionHeader);
                     foreach (var scriptStep in macro.ScriptSteps)
                     {
@@ -231,11 +244,11 @@ public class MacroFileManager : IMacroFileManager
             return;
         }
 
-        var compiler = new RunScriptCompiler(_keyCodeMapperFactory());
-        var result = compiler.Compile(steps);
-        if (!result.Success)
+        var validationService = _scriptValidationService ?? new ScriptValidationService(_keyCodeMapperFactory());
+        var diagnostic = validationService.Validate(steps).FirstOrDefault();
+        if (diagnostic is not null)
         {
-            throw new InvalidOperationException($"Cannot save invalid macro script steps: {result.ErrorMessage}");
+            throw new InvalidOperationException($"Cannot save invalid macro script steps: {diagnostic.Message}");
         }
     }
 
@@ -254,6 +267,11 @@ public class MacroFileManager : IMacroFileManager
     /// Loads a macro sequence from a custom text file (.macro)
     /// </summary>
     public async Task<MacroSequence?> LoadAsync(string filePath)
+    {
+        return await LoadRuntimeAsync(filePath).ConfigureAwait(false);
+    }
+
+    private async Task<MacroSequence?> LoadRuntimeAsync(string filePath)
     {
         if (string.IsNullOrWhiteSpace(filePath))
             throw new ArgumentException("File path cannot be empty", nameof(filePath));
@@ -355,6 +373,8 @@ public class MacroFileManager : IMacroFileManager
                     macro.CreatedAt = date;
                 else if (line.StartsWith("# DurationMs: ") && long.TryParse(line.Substring(14).Trim(), out var duration))
                     macro.TotalDurationMs = duration;
+                else if (line.StartsWith("# IsAbsolute: ") && bool.TryParse(line.Substring(14).Trim(), out var isAbsolute))
+                    macro.IsAbsoluteCoordinates = isAbsolute;
                 else if (line.StartsWith("# SkipInitialZero: ") && bool.TryParse(line.Substring(19).Trim(), out var skipZero))
                     macro.SkipInitialZeroZero = skipZero;
                 else if (line.StartsWith(TrailingDelayHeader, StringComparison.Ordinal)

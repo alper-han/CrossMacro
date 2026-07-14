@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Application.Automation;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Cli.Serialization;
@@ -10,11 +12,12 @@ namespace CrossMacro.Cli.Services;
 
 public sealed class TriggerCliService : ITriggerCliService
 {
-    private readonly ITriggerService _triggerService;
+    private readonly IManageTrigger _manageTrigger;
+    private IReadOnlyList<TriggerTask> _tasks = [];
 
-    public TriggerCliService(ITriggerService triggerService)
+    public TriggerCliService(IManageTrigger manageTrigger)
     {
-        _triggerService = triggerService;
+        _manageTrigger = manageTrigger;
     }
 
     public async Task<CliCommandExecutionResult> ListAsync(CancellationToken cancellationToken)
@@ -22,8 +25,8 @@ public sealed class TriggerCliService : ITriggerCliService
         return await TaskCliServiceHelpers.ListTasksAsync(
             taskKind: "trigger",
             cancellationToken: cancellationToken,
-            loadAsync: () => _triggerService.LoadAsync(),
-            getTasks: () => _triggerService.Tasks,
+            loadAsync: async () => _tasks = (await _manageTrigger.ListAsync(cancellationToken).ConfigureAwait(false)).Tasks,
+            getTasks: () => _tasks,
             mapTask: MapTask);
     }
 
@@ -62,13 +65,7 @@ public sealed class TriggerCliService : ITriggerCliService
             task.IsEnabled = options.Enabled.Value;
         }
 
-        await _triggerService.LoadAsync().ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        _triggerService.AddTask(task);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        await _triggerService.SaveAsync().ConfigureAwait(false);
+        await _manageTrigger.AddAsync(task, cancellationToken).ConfigureAwait(false);
         return CliCommandExecutionResult.Ok($"Trigger task added: {task.Name}.", MapTask(task));
     }
 
@@ -91,10 +88,7 @@ public sealed class TriggerCliService : ITriggerCliService
         if (options.Enabled.HasValue) task.IsEnabled = options.Enabled.Value;
 
         cancellationToken.ThrowIfCancellationRequested();
-        _triggerService.UpdateTask(task);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        await _triggerService.SaveAsync().ConfigureAwait(false);
+        await _manageTrigger.UpdateAsync(task, cancellationToken).ConfigureAwait(false);
         return CliCommandExecutionResult.Ok($"Trigger task updated: {task.Name}.", MapTask(task));
     }
 
@@ -105,10 +99,7 @@ public sealed class TriggerCliService : ITriggerCliService
 
         var task = parsed.Task!;
         cancellationToken.ThrowIfCancellationRequested();
-        _triggerService.RemoveTask(task.Id);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        await _triggerService.SaveAsync().ConfigureAwait(false);
+        await _manageTrigger.RemoveAsync(new TaskRequest(task.Id), cancellationToken).ConfigureAwait(false);
         return CliCommandExecutionResult.Ok($"Trigger task removed: {task.Name}.", MapTask(task));
     }
 
@@ -127,10 +118,7 @@ public sealed class TriggerCliService : ITriggerCliService
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        _triggerService.SetTaskEnabled(task.Id, enabled);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        await _triggerService.SaveAsync().ConfigureAwait(false);
+        await _manageTrigger.SetEnabledAsync(new TaskRequest(task.Id, enabled), cancellationToken).ConfigureAwait(false);
         task.IsEnabled = enabled;
         var verb = enabled ? "enabled" : "disabled";
         return CliCommandExecutionResult.Ok($"Trigger task {verb}: {task.Name}.", MapTask(task));
@@ -138,28 +126,13 @@ public sealed class TriggerCliService : ITriggerCliService
 
     private async Task<(TriggerTask? Task, CliCommandExecutionResult? Result)> LoadAndFindAsync(string taskId, CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (!Guid.TryParse(taskId, out var parsedTaskId))
-        {
-            return (null, CliCommandExecutionResult.Fail(
-                CliExitCode.InvalidArguments,
-                "Invalid trigger task id format.",
-                [$"Task id is not a valid GUID: {taskId}"]));
-        }
-
-        await _triggerService.LoadAsync().ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var task = _triggerService.Tasks.FirstOrDefault(candidate => candidate.Id == parsedTaskId);
-        if (task is null)
-        {
-            return (null, CliCommandExecutionResult.Fail(
-                CliExitCode.InvalidArguments,
-                "Trigger task not found.",
-                [$"No trigger task found with id: {taskId}"]));
-        }
-
-        return (task, null);
+        return await TaskCliServiceHelpers.FindTaskAsync(
+            taskId,
+            "trigger",
+            "Trigger",
+            cancellationToken,
+            async () => _tasks = (await _manageTrigger.ListAsync(cancellationToken).ConfigureAwait(false)).Tasks,
+            task => task.Id);
     }
 
     private static TriggerTaskData MapTask(TriggerTask task)

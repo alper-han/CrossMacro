@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Logging;
+using CrossMacro.Platform.Linux.Services;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
@@ -43,6 +44,17 @@ public sealed class HyprlandIpcClient : IDisposable
         {
             Log.Debug("[HyprlandIpcClient] Hyprland socket not available");
         }
+    }
+
+    public HyprlandIpcClient(LinuxEnvironmentSnapshot environment)
+    {
+        _socketPath = DiscoverSocketPath(environment.HyprlandInstanceSignature, environment.RuntimeDir);
+        IsAvailable = _socketPath != null;
+
+        if (IsAvailable)
+            Log.Information("[HyprlandIpcClient] Socket found: {SocketPath}", _socketPath);
+        else
+            Log.Debug("[HyprlandIpcClient] Hyprland socket not available");
     }
 
     /// <summary>
@@ -153,13 +165,16 @@ public sealed class HyprlandIpcClient : IDisposable
         }
     }
 
-    private static string? DiscoverSocketPath()
+    private static string? DiscoverSocketPath() => DiscoverSocketPath(
+        Environment.GetEnvironmentVariable("HYPRLAND_INSTANCE_SIGNATURE"),
+        Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR"));
+
+    private static string? DiscoverSocketPath(string? instanceSignature, string? runtimeDir)
     {
         // Check if running on Hyprland
-        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("HYPRLAND_INSTANCE_SIGNATURE")))
+        if (string.IsNullOrEmpty(instanceSignature))
             return null;
 
-        var runtimeDir = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
         if (string.IsNullOrEmpty(runtimeDir))
             return null;
 

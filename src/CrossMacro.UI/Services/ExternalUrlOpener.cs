@@ -4,7 +4,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.UI.Services;
@@ -15,9 +14,10 @@ public sealed class ExternalUrlOpener : IExternalUrlOpener
     private readonly Func<string, bool> _commandExists;
     private readonly IRuntimeContext _runtimeContext;
 
+    [Obsolete("Use the constructor accepting IRuntimeContext.")]
     public ExternalUrlOpener()
-        : this(new RuntimeContext())
     {
+        throw new InvalidOperationException("IRuntimeContext must be supplied by composition.");
     }
 
     public ExternalUrlOpener(IRuntimeContext runtimeContext)

@@ -2,7 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using CrossMacro.Core.Services;
 using CrossMacro.Platform.Linux.Native.X11;
-using CrossMacro.Infrastructure.Linux.Native.UInput;
+using CrossMacro.Platform.Linux.Native.UInput;
 using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services

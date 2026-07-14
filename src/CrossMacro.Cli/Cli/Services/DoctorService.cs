@@ -6,8 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Helpers;
-using CrossMacro.Infrastructure.Linux.Native.Evdev;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Abstractions.Diagnostics;
 using System.Text.Json.Nodes;
@@ -17,6 +15,8 @@ namespace CrossMacro.Cli.Services;
 public sealed partial class DoctorService : IDoctorService
 {
     private readonly IEnvironmentInfoProvider _environmentInfoProvider;
+    private readonly IDisplayEnvironmentDiagnostic? _displayEnvironmentDiagnostic;
+    private readonly IRuntimeContext? _runtimeContext;
     private readonly IDisplaySessionService _displaySessionService;
     private readonly Func<IInputSimulator> _inputSimulatorFactory;
     private readonly Func<IInputCapture> _inputCaptureFactory;
@@ -26,15 +26,49 @@ public sealed partial class DoctorService : IDoctorService
     private readonly Func<string, bool> _fileExists;
     private readonly Func<string, string?> _readAllTextIfExists;
     private readonly Func<string, bool> _canOpenForWrite;
-    private readonly ILinuxInputDeviceAccessProbe _inputDeviceAccessProbe;
+    private readonly Func<bool> _hasUsableReadableInputDevices;
     private readonly Func<bool> _isLinux;
     private readonly Func<bool> _isWindows;
     private readonly Func<bool> _isMacOS;
     private readonly Func<string, bool> _daemonHandshakeProbe;
     private readonly Func<string, LinuxDaemonSocketAccessResult> _daemonSocketAccessProbe;
     private readonly Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult> _daemonHandshakeDiagnosticProbe;
+    private readonly Func<string> _getConfigDirectory;
     private readonly IScreenReadingDiagnosticProvider? _screenReadingDiagnosticProvider;
     private readonly IMacOSScreenRecordingPermissionProbe? _macOSScreenRecordingPermissionProbe;
+
+    public DoctorService(
+        IRuntimeContext runtimeContext,
+        IDisplayEnvironmentDiagnostic displayEnvironmentDiagnostic,
+        IEnvironmentInfoProvider environmentInfoProvider,
+        IDisplaySessionService displaySessionService,
+        Func<IInputSimulator> inputSimulatorFactory,
+        Func<IInputCapture> inputCaptureFactory,
+        IMousePositionProvider mousePositionProvider,
+        IPermissionChecker? permissionChecker = null,
+        Func<string, bool>? daemonHandshakeProbe = null,
+        Func<string, LinuxDaemonSocketAccessResult>? daemonSocketAccessProbe = null,
+        Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null,
+        IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
+        IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
+        Func<string>? getConfigDirectory = null)
+        : this(
+            environmentInfoProvider,
+            displaySessionService,
+            inputSimulatorFactory,
+            inputCaptureFactory,
+            mousePositionProvider,
+            permissionChecker,
+            daemonHandshakeProbe,
+            daemonSocketAccessProbe,
+            daemonHandshakeDiagnosticProbe,
+            screenReadingDiagnosticProvider,
+            macOSScreenRecordingPermissionProbe,
+            getConfigDirectory)
+    {
+        _displayEnvironmentDiagnostic = displayEnvironmentDiagnostic ?? throw new ArgumentNullException(nameof(displayEnvironmentDiagnostic));
+        _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
+    }
 
     public DoctorService(
         IEnvironmentInfoProvider environmentInfoProvider,
@@ -47,7 +81,8 @@ public sealed partial class DoctorService : IDoctorService
         Func<string, LinuxDaemonSocketAccessResult>? daemonSocketAccessProbe = null,
         Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null,
         IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
-        IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null)
+        IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
+        Func<string>? getConfigDirectory = null)
         : this(
             environmentInfoProvider,
             displaySessionService,
@@ -69,7 +104,8 @@ public sealed partial class DoctorService : IDoctorService
             ReadAllTextIfExists,
             null,
             screenReadingDiagnosticProvider,
-            macOSScreenRecordingPermissionProbe)
+            macOSScreenRecordingPermissionProbe,
+            getConfigDirectory)
     {
     }
 
@@ -94,14 +130,15 @@ public sealed partial class DoctorService : IDoctorService
         Func<string, string?>? readAllTextIfExists = null,
         Func<bool>? hasUsableReadableInputDevices = null,
         IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
-        IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null)
+        IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
+        Func<string>? getConfigDirectory = null)
         : this(
             environmentInfoProvider,
             displaySessionService,
             getEnvironmentVariable,
             fileExists,
             canOpenForWrite,
-            new LinuxInputDeviceAccessProbe(hasUsableReadableInputDevices ?? (() => HasReadableInputEventAccess(canOpenForRead ?? CanOpenForRead, getInputEventCandidates ?? GetInputEventCandidates))),
+            hasUsableReadableInputDevices ?? (() => HasReadableInputEventAccess(canOpenForRead ?? CanOpenForRead, getInputEventCandidates ?? GetInputEventCandidates)),
             getInputEventCandidates ?? GetInputEventCandidates,
             inputSimulatorFactory,
             inputCaptureFactory,
@@ -115,7 +152,8 @@ public sealed partial class DoctorService : IDoctorService
             daemonHandshakeDiagnosticProbe,
             readAllTextIfExists,
             screenReadingDiagnosticProvider,
-            macOSScreenRecordingPermissionProbe)
+            macOSScreenRecordingPermissionProbe,
+            getConfigDirectory)
     {
     }
 
@@ -125,7 +163,7 @@ public sealed partial class DoctorService : IDoctorService
         Func<string, string?> getEnvironmentVariable,
         Func<string, bool> fileExists,
         Func<string, bool> canOpenForWrite,
-        ILinuxInputDeviceAccessProbe inputDeviceAccessProbe,
+        Func<bool> hasUsableReadableInputDevices,
         Func<string[]>? getInputEventCandidates,
         Func<IInputSimulator> inputSimulatorFactory,
         Func<IInputCapture> inputCaptureFactory,
@@ -139,7 +177,8 @@ public sealed partial class DoctorService : IDoctorService
         Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null,
         Func<string, string?>? readAllTextIfExists = null,
         IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
-        IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null)
+        IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
+        Func<string>? getConfigDirectory = null)
     {
         _environmentInfoProvider = environmentInfoProvider ?? throw new ArgumentNullException(nameof(environmentInfoProvider));
         _displaySessionService = displaySessionService ?? throw new ArgumentNullException(nameof(displaySessionService));
@@ -147,7 +186,7 @@ public sealed partial class DoctorService : IDoctorService
         _fileExists = fileExists ?? throw new ArgumentNullException(nameof(fileExists));
         _readAllTextIfExists = readAllTextIfExists ?? ReadAllTextIfExists;
         _canOpenForWrite = canOpenForWrite ?? throw new ArgumentNullException(nameof(canOpenForWrite));
-        _inputDeviceAccessProbe = inputDeviceAccessProbe ?? throw new ArgumentNullException(nameof(inputDeviceAccessProbe));
+        _hasUsableReadableInputDevices = hasUsableReadableInputDevices ?? throw new ArgumentNullException(nameof(hasUsableReadableInputDevices));
         ArgumentNullException.ThrowIfNull(getInputEventCandidates);
         _inputSimulatorFactory = inputSimulatorFactory ?? throw new ArgumentNullException(nameof(inputSimulatorFactory));
         _inputCaptureFactory = inputCaptureFactory ?? throw new ArgumentNullException(nameof(inputCaptureFactory));
@@ -159,6 +198,7 @@ public sealed partial class DoctorService : IDoctorService
         _daemonHandshakeProbe = daemonHandshakeProbe ?? ProbeDaemonHandshake;
         _daemonSocketAccessProbe = daemonSocketAccessProbe ?? ProbeDaemonSocketAccess;
         _daemonHandshakeDiagnosticProbe = daemonHandshakeDiagnosticProbe ?? ProbeDaemonHandshakeDiagnostic;
+        _getConfigDirectory = getConfigDirectory ?? GetCompatibleConfigDirectory;
         _screenReadingDiagnosticProvider = screenReadingDiagnosticProvider;
         _macOSScreenRecordingPermissionProbe = macOSScreenRecordingPermissionProbe;
     }
@@ -259,7 +299,7 @@ public sealed partial class DoctorService : IDoctorService
 
     private DoctorCheck BuildConfigPathCheck()
     {
-        var configDirectory = PathHelper.GetConfigDirectory();
+        var configDirectory = _getConfigDirectory();
 
         try
         {
@@ -286,6 +326,25 @@ public sealed partial class DoctorService : IDoctorService
                 Details = new JsonObject { ["configDirectory"] = configDirectory, ["error"] = ex.Message }
             };
         }
+    }
+
+    private static string GetCompatibleConfigDirectory()
+    {
+        var configBase = OperatingSystem.IsMacOS()
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Application Support")
+            : OperatingSystem.IsWindows()
+                ? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
+                : GetLinuxConfigBaseDirectory();
+
+        return Path.Combine(configBase, CrossMacro.Core.AppConstants.AppIdentifier);
+    }
+
+    private static string GetLinuxConfigBaseDirectory()
+    {
+        var xdgConfigHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+        return string.IsNullOrWhiteSpace(xdgConfigHome) || !Path.IsPathRooted(xdgConfigHome)
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config")
+            : xdgConfigHome;
     }
 
     private DoctorCheck BuildDisplaySessionCheck()

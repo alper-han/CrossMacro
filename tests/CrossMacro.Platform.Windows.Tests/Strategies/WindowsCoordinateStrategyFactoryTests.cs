@@ -18,7 +18,7 @@ public class WindowsCoordinateStrategyFactoryTests
 
         var strategy = factory.Create(useAbsoluteCoordinates: true, forceRelative: true, skipInitialZero: false);
 
-        Assert.IsType<RelativeCoordinateStrategy>(strategy);
+        Assert.IsType<CrossMacro.Platform.Windows.Strategies.RelativeCoordinateStrategy>(strategy);
     }
 
     [WindowsFact]
@@ -40,7 +40,7 @@ public class WindowsCoordinateStrategyFactoryTests
 
         var strategy = factory.Create(useAbsoluteCoordinates: false, forceRelative: false, skipInitialZero: false);
 
-        Assert.IsType<RelativeCoordinateStrategy>(strategy);
+        Assert.IsType<CrossMacro.Platform.Windows.Strategies.RelativeCoordinateStrategy>(strategy);
     }
 
     [WindowsFact]

@@ -2,7 +2,6 @@ using System;
 using System.Globalization;
 using CrossMacro.Core.Models;
 using CrossMacro.Platform.Abstractions;
-using CrossMacro.Infrastructure.Services.ScreenReading;
 
 namespace CrossMacro.Cli;
 
@@ -175,7 +174,7 @@ internal static class ScreenCommandParser
         int? regionHeight = null;
         var similarity = 1.0;
         var downsample = 1;
-        var matchMode = ScreenImageMatchSelectionMode.FirstThresholdMatch;
+        var matchMode = ScreenImageMatchMode.First;
         var scaleAware = false;
         int? timeoutMs = null;
         var button = MouseButton.Left;
@@ -213,9 +212,9 @@ internal static class ScreenCommandParser
                 if (++i >= args.Length) return CliParseHelpers.Error("Missing value for --matchmode.", jsonOutput);
                 matchMode = args[i].ToLowerInvariant() switch
                 {
-                    "first" => ScreenImageMatchSelectionMode.FirstThresholdMatch,
-                    "best" => ScreenImageMatchSelectionMode.BestMatch,
-                    _ => (ScreenImageMatchSelectionMode)(-1)
+                    "first" => ScreenImageMatchMode.First,
+                    "best" => ScreenImageMatchMode.Best,
+                    _ => (ScreenImageMatchMode)(-1)
                 };
                 if (!Enum.IsDefined(matchMode)) return CliParseHelpers.Error("--matchmode must be first or best", jsonOutput);
                 continue;

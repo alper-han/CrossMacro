@@ -51,7 +51,7 @@ public class LinuxCoordinateStrategyFactoryTests
         var result = _factory.Create(useAbsoluteCoordinates: true, forceRelative: true, skipInitialZero: false);
 
         // Assert
-        Assert.IsType<RelativeCoordinateStrategy>(result);
+        Assert.IsType<CrossMacro.Platform.Linux.Strategies.RelativeCoordinateStrategy>(result);
     }
 
     [LinuxFact]
@@ -80,7 +80,7 @@ public class LinuxCoordinateStrategyFactoryTests
         var result = _factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: false);
 
         // Assert
-        Assert.IsType<RelativeCoordinateStrategy>(result);
+        Assert.IsType<CrossMacro.Platform.Linux.Strategies.RelativeCoordinateStrategy>(result);
     }
 
     [LinuxFact]
@@ -92,7 +92,7 @@ public class LinuxCoordinateStrategyFactoryTests
 
         var result = _factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: true);
 
-        Assert.IsType<RelativeCoordinateStrategy>(result);
+        Assert.IsType<CrossMacro.Platform.Linux.Strategies.RelativeCoordinateStrategy>(result);
     }
 
     [LinuxFact]
@@ -106,7 +106,7 @@ public class LinuxCoordinateStrategyFactoryTests
         var result = _factory.Create(useAbsoluteCoordinates: false, forceRelative: false, skipInitialZero: false);
 
         // Assert
-        Assert.IsType<RelativeCoordinateStrategy>(result);
+        Assert.IsType<CrossMacro.Platform.Linux.Strategies.RelativeCoordinateStrategy>(result);
     }
 
     [LinuxFact]
@@ -120,7 +120,7 @@ public class LinuxCoordinateStrategyFactoryTests
         var result = _factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: false);
 
         // Assert
-        Assert.IsType<AbsoluteCoordinateStrategy>(result);
+        Assert.IsType<CrossMacro.Platform.Linux.Strategies.AbsoluteCoordinateStrategy>(result);
     }
 
     [LinuxFact]
@@ -134,7 +134,7 @@ public class LinuxCoordinateStrategyFactoryTests
         var result = _factory.Create(useAbsoluteCoordinates: false, forceRelative: false, skipInitialZero: false);
 
         // Assert
-        Assert.IsType<RelativeCoordinateStrategy>(result);
+        Assert.IsType<CrossMacro.Platform.Linux.Strategies.RelativeCoordinateStrategy>(result);
     }
 
     [LinuxFact]
@@ -149,7 +149,7 @@ public class LinuxCoordinateStrategyFactoryTests
         var result = factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: false);
 
         // Assert
-        Assert.IsType<RelativeCoordinateStrategy>(result);
+        Assert.IsType<CrossMacro.Platform.Linux.Strategies.RelativeCoordinateStrategy>(result);
     }
 
     [LinuxFact]

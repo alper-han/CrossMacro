@@ -1,5 +1,5 @@
 using System.IO;
-using CrossMacro.Infrastructure.Linux.Native.UInput;
+using CrossMacro.Platform.Linux.Native.UInput;
 
 namespace CrossMacro.Daemon.Services;
 

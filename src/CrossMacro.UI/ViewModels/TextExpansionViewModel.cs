@@ -5,9 +5,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
+using CrossMacro.Application.Automation;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
@@ -19,17 +19,19 @@ namespace CrossMacro.UI.ViewModels;
 /// </summary>
 public partial class TextExpansionViewModel : ViewModelBase, IDisposable
 {
-    private readonly ITextExpansionStorageService _storageService;
+    private readonly ITextExpansionStore _storageService = null!;
     private readonly IDialogService _dialogService;
     private readonly IEnvironmentInfoProvider _environmentInfoProvider;
     private readonly ILocalizationService _localizationService;
+    private readonly IManageTextExpansion? _manageTextExpansion;
 
     private string _triggerInput = string.Empty;
     private string _replacementInput = string.Empty;
     private ObservableCollection<TextExpansion> _expansions = new();
+    private readonly Dictionary<TextExpansion, bool> _managedEnabledState = new();
     
     public TextExpansionViewModel(
-        ITextExpansionStorageService storageService, 
+        ITextExpansionStore storageService,
         IDialogService dialogService,
         IEnvironmentInfoProvider environmentInfoProvider,
         ILocalizationService localizationService)
@@ -41,6 +43,20 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
         _localizationService.CultureChanged += OnCultureChanged;
         
         // Load existing expansions asynchronously
+        InitializationTask = LoadExpansionsAsync();
+    }
+
+    public TextExpansionViewModel(
+        IManageTextExpansion manageTextExpansion,
+        IDialogService dialogService,
+        IEnvironmentInfoProvider environmentInfoProvider,
+        ILocalizationService localizationService)
+    {
+        _manageTextExpansion = manageTextExpansion;
+        _dialogService = dialogService;
+        _environmentInfoProvider = environmentInfoProvider;
+        _localizationService = localizationService;
+        _localizationService.CultureChanged += OnCultureChanged;
         InitializationTask = LoadExpansionsAsync();
     }
 
@@ -66,11 +82,18 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
 
     private async Task LoadExpansionsAsync()
     {
-        var loadedExpansions = await _storageService.LoadAsync();
+        var loadedExpansions = _manageTextExpansion is not null
+            ? await _manageTextExpansion.ListAsync()
+            : await _storageService.LoadAsync();
         Expansions.Clear();
+        _managedEnabledState.Clear();
         foreach (var expansion in loadedExpansions)
         {
             Expansions.Add(expansion);
+            if (_manageTextExpansion is not null)
+            {
+                _managedEnabledState[expansion] = expansion.IsEnabled;
+            }
         }
 
         OnPropertyChanged(nameof(HasExpansions));
@@ -193,11 +216,17 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
             SelectedInsertionMode,
             SelectedDirectTypingMethod);
         
-        // Add to UI collection
-        Expansions.Insert(0, newExpansion);
-        
-        // Save to storage
-        await _storageService.SaveAsync(Expansions);
+        if (_manageTextExpansion is not null)
+        {
+            var addedExpansion = await _manageTextExpansion.AddAsync(newExpansion);
+            Expansions.Insert(0, addedExpansion);
+            _managedEnabledState[addedExpansion] = addedExpansion.IsEnabled;
+        }
+        else
+        {
+            Expansions.Insert(0, newExpansion);
+            await _storageService.SaveAsync(Expansions);
+        }
         
         // Notify HasExpansions property changed
         OnPropertyChanged(nameof(HasExpansions));
@@ -227,9 +256,19 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
             
         if (!confirmed) return;
 
-        if (Expansions.Remove(expansion))
+        if (Expansions.Contains(expansion))
         {
-            await _storageService.SaveAsync(Expansions);
+            if (_manageTextExpansion is not null)
+            {
+                await _manageTextExpansion.RemoveAsync(expansion.Trigger);
+                Expansions.Remove(expansion);
+                _managedEnabledState.Remove(expansion);
+            }
+            else
+            {
+                Expansions.Remove(expansion);
+                await _storageService.SaveAsync(Expansions);
+            }
             
             // Notify HasExpansions property changed
             OnPropertyChanged(nameof(HasExpansions));
@@ -243,9 +282,28 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
     {
         if (expansion == null) return;
         
-        // The IsEnabled property is bound TwoWay, so it's already updated in the object.
-        // We just need to persist the changes.
-        await _storageService.SaveAsync(Expansions);
+        if (_manageTextExpansion is not null)
+        {
+            var requestedEnabled = expansion.IsEnabled;
+            var previousEnabled = _managedEnabledState.TryGetValue(expansion, out var knownEnabled)
+                ? knownEnabled
+                : requestedEnabled;
+            try
+            {
+                var updatedExpansion = await _manageTextExpansion.SetEnabledAsync(expansion.Trigger, requestedEnabled);
+                expansion.IsEnabled = updatedExpansion.IsEnabled;
+                _managedEnabledState[expansion] = updatedExpansion.IsEnabled;
+            }
+            catch
+            {
+                expansion.IsEnabled = previousEnabled;
+                throw;
+            }
+        }
+        else
+        {
+            await _storageService.SaveAsync(Expansions);
+        }
     }
 
     public void Dispose()

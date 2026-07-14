@@ -13,6 +13,22 @@ using CrossMacro.TestInfrastructure;
 
 public class DaemonServiceTests
 {
+    [Fact]
+    public void DisposeOwnedResources_AttemptsCaptureVirtualDeviceAndAuditWhenOneFails()
+    {
+        var events = new List<string>();
+        var capture = new RecordingDisposable("capture", events, throwOnDispose: true);
+        var virtualDevice = new RecordingDisposable("virtual-device", events);
+        var audit = new RecordingDisposable("audit", events);
+
+        Program.DisposeOwnedResources(capture, virtualDevice, audit);
+
+        Assert.Equal(["capture", "virtual-device", "audit"], events);
+        Assert.Equal(1, capture.DisposeCalls);
+        Assert.Equal(1, virtualDevice.DisposeCalls);
+        Assert.Equal(1, audit.DisposeCalls);
+    }
+
     [LinuxFact]
     public async Task RunAsync_WhenTokenAlreadyCanceled_CompletesWithoutConnectionHandling()
     {
@@ -490,6 +506,32 @@ public class DaemonServiceTests
         public Task WaitForDisconnectAsync(TimeSpan timeout) => _disconnected.Task.WaitAsync(timeout);
     }
 
+    private sealed class RecordingDisposable : IDisposable
+    {
+        private readonly string _name;
+        private readonly List<string> _events;
+        private readonly bool _throwOnDispose;
+
+        public RecordingDisposable(string name, List<string> events, bool throwOnDispose = false)
+        {
+            _name = name;
+            _events = events;
+            _throwOnDispose = throwOnDispose;
+        }
+
+        public int DisposeCalls { get; private set; }
+
+        public void Dispose()
+        {
+            DisposeCalls++;
+            _events.Add(_name);
+            if (_throwOnDispose)
+            {
+                throw new InvalidOperationException($"{_name} dispose failed");
+            }
+        }
+    }
+
     private sealed class FakeVirtualDeviceManager : IVirtualDeviceManager
     {
         public void Configure(int width, int height)
@@ -515,7 +557,7 @@ public class DaemonServiceTests
 
     private sealed class FakeInputCaptureManager : IInputCaptureManager
     {
-        public CaptureStartResult StartCapture(bool captureMouse, bool captureKeyboard, Action<UInputNative.input_event> onEvent)
+        public CaptureStartResult StartCapture(bool captureMouse, bool captureKeyboard, Action<CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event> onEvent)
         {
             return CaptureStartResult.Started(startedDeviceCount: 1);
         }

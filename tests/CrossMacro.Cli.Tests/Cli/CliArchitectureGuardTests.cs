@@ -74,6 +74,23 @@ public class CliArchitectureGuardTests
         Assert.Contains(typeof(ICliCommandHandlerResolver), constructorParameters);
     }
 
+    [Fact]
+    public void DoctorService_ShouldNotReferenceInfrastructureHelpersOrPathHelper()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "src")))
+        {
+            directory = directory.Parent;
+        }
+
+        var repositoryRoot = directory?.FullName ?? throw new InvalidOperationException("Could not locate repository root.");
+        var doctorPath = Path.Combine(repositoryRoot, "src", "CrossMacro.Cli", "Cli", "Services", "DoctorService.cs");
+        var source = File.ReadAllText(doctorPath);
+
+        Assert.DoesNotContain("CrossMacro.Infrastructure.Helpers", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("PathHelper", source, StringComparison.Ordinal);
+    }
+
     private static bool HasAvaloniaType(Type type)
     {
         if (type.Namespace?.StartsWith("Avalonia", StringComparison.Ordinal) == true)

@@ -41,10 +41,10 @@ public sealed class CaptureForwardingCoordinatorTests
         {
             var forwarder = coordinator.CreateEventForwarder(generation, session);
             var forwardTask = Task.Factory.StartNew(
-                () => forwarder(new UInputNative.input_event
+                () => forwarder(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event
                 {
-                    type = UInputNative.EV_KEY,
-                    code = UInputNative.BTN_LEFT,
+                    type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY,
+                    code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT,
                     value = 1
                 }),
                 TaskCreationOptions.LongRunning);

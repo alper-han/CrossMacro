@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Daemon.Services;
 using CrossMacro.Core.Logging;
-using CrossMacro.Infrastructure.Linux.Native;
-using CrossMacro.Infrastructure.Linux.Native.Systemd;
+using CrossMacro.Platform.Linux.Native;
+using CrossMacro.Platform.Linux.Native.Systemd;
 
 namespace CrossMacro.Daemon;
 
@@ -72,9 +72,17 @@ public class DaemonService
     private static Socket CreateListeningSocket(string socketPath)
     {
         var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-        socket.Bind(new UnixDomainSocketEndPoint(socketPath));
-        socket.Listen(SingleClientListenBacklog);
-        return socket;
+        try
+        {
+            socket.Bind(new UnixDomainSocketEndPoint(socketPath));
+            socket.Listen(SingleClientListenBacklog);
+            return socket;
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
     }
 
     private async Task RunAcceptLoopAsync(Socket listeningSocket, CancellationToken token)

@@ -1,5 +1,6 @@
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Abstractions.Diagnostics;
+using CrossMacro.Platform.Linux.DisplayServer;
 using CrossMacro.Platform.Linux.DisplayServer.X11;
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
@@ -9,35 +10,61 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
     private readonly ILinuxEnvironmentDetector _environmentDetector;
     private readonly IRuntimeContext _runtimeContext;
     private readonly ILinuxScreenReaderCapabilityDetector _capabilityDetector;
+    private readonly ILinuxCapabilitySnapshotProvider? _snapshotProvider;
     private readonly IX11ScreenCaptureSupportProbe _x11SupportProbe;
+
+    internal LinuxScreenReadingDiagnosticProvider(
+        ILinuxEnvironmentDetector environmentDetector,
+        IRuntimeContext runtimeContext,
+        ILinuxScreenReaderCapabilityDetector capabilityDetector,
+        IX11ScreenCaptureSupportProbe x11SupportProbe)
+        : this(environmentDetector, runtimeContext, capabilityDetector, null, x11SupportProbe, true)
+    {
+    }
 
     public LinuxScreenReadingDiagnosticProvider(
         ILinuxEnvironmentDetector environmentDetector,
         IRuntimeContext runtimeContext,
         ILinuxScreenReaderCapabilityDetector capabilityDetector,
+        ILinuxCapabilitySnapshotProvider snapshotProvider,
         IX11ScreenCaptureSupportProbe x11SupportProbe)
+        : this(environmentDetector, runtimeContext, capabilityDetector, snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider)), x11SupportProbe, true)
+    {
+    }
+
+    private LinuxScreenReadingDiagnosticProvider(
+        ILinuxEnvironmentDetector environmentDetector,
+        IRuntimeContext runtimeContext,
+        ILinuxScreenReaderCapabilityDetector capabilityDetector,
+        ILinuxCapabilitySnapshotProvider? snapshotProvider,
+        IX11ScreenCaptureSupportProbe x11SupportProbe,
+        bool _)
     {
         _environmentDetector = environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector));
         _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
         _capabilityDetector = capabilityDetector ?? throw new ArgumentNullException(nameof(capabilityDetector));
+        _snapshotProvider = snapshotProvider;
         _x11SupportProbe = x11SupportProbe ?? throw new ArgumentNullException(nameof(x11SupportProbe));
     }
 
     public ScreenReadingDiagnosticSnapshot GetSnapshot()
     {
-        var order = LinuxScreenReaderBackendPolicy.GetOrder(_runtimeContext.IsFlatpak, _environmentDetector.DetectedCompositor);
-        var policyName = LinuxScreenReaderBackendPolicy.GetPolicyName(_runtimeContext.IsFlatpak, _environmentDetector.DetectedCompositor);
+        var capabilitySnapshot = _snapshotProvider?.GetSnapshot();
+        var compositor = capabilitySnapshot?.Compositor ?? _environmentDetector.DetectedCompositor;
+        var isFlatpak = capabilitySnapshot?.IsFlatpak ?? _runtimeContext.IsFlatpak;
+        var order = LinuxScreenReaderBackendPolicy.GetOrder(isFlatpak, compositor);
+        var policyName = LinuxScreenReaderBackendPolicy.GetPolicyName(isFlatpak, compositor);
 
-        if (_environmentDetector.IsX11)
+        if (capabilitySnapshot?.IsX11 == true || capabilitySnapshot is null && _environmentDetector.IsX11)
         {
-            return GetX11Snapshot();
+                return GetX11Snapshot(compositor);
         }
 
-        if (!_environmentDetector.IsWayland)
+        if (capabilitySnapshot?.IsWayland == false || capabilitySnapshot is null && !_environmentDetector.IsWayland)
         {
             return new ScreenReadingDiagnosticSnapshot(
                 IsSupportedSession: false,
-                SessionKind: _environmentDetector.DetectedCompositor.ToString(),
+                SessionKind: compositor.ToString(),
                 PolicyName: "UnsupportedLinuxSession",
                 PolicyOrder: [],
                 SelectedBackend: null,
@@ -48,15 +75,15 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
                 Remediation: "Use a Wayland or native X11 desktop session for Linux screen reading.");
         }
 
-        var capabilitySnapshot = _capabilityDetector.GetSnapshot();
-        var orderedCapabilities = order.Select(capabilitySnapshot.GetCapability).ToArray();
+        var screenSnapshot = capabilitySnapshot?.ScreenReading ?? _capabilityDetector.GetSnapshot();
+        var orderedCapabilities = order.Select(screenSnapshot.GetCapability).ToArray();
         var selected = orderedCapabilities.FirstOrDefault(capability => capability.IsAvailable);
         var hasSelected = selected.IsAvailable;
         var failure = hasSelected ? null : SelectFailure(orderedCapabilities);
 
         return new ScreenReadingDiagnosticSnapshot(
             IsSupportedSession: true,
-            SessionKind: _environmentDetector.DetectedCompositor.ToString(),
+            SessionKind: compositor.ToString(),
             PolicyName: policyName,
             PolicyOrder: FormatPolicyOrder(order),
             SelectedBackend: hasSelected ? selected.Backend.ToString() : null,
@@ -70,12 +97,12 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
     private static string[] FormatPolicyOrder(IReadOnlyList<LinuxScreenReaderBackend> order) =>
         order.Select(backend => backend.ToString()).ToArray();
 
-    private ScreenReadingDiagnosticSnapshot GetX11Snapshot()
+    private ScreenReadingDiagnosticSnapshot GetX11Snapshot(CompositorType compositor)
     {
         var support = _x11SupportProbe.ProbeSupport();
         return new ScreenReadingDiagnosticSnapshot(
             IsSupportedSession: true,
-            SessionKind: _environmentDetector.DetectedCompositor.ToString(),
+            SessionKind: compositor.ToString(),
             PolicyName: "NativeX11",
             PolicyOrder: ["X11"],
             SelectedBackend: support.IsSupported ? "X11" : null,

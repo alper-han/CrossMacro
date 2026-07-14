@@ -79,6 +79,61 @@ public class TriggerServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Stop_ExposesCompletionAndIsIdempotent()
+    {
+        _service.Start();
+        _service.Stop();
+        _service.Stop();
+
+        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2));
+
+        _service.Completion.IsCompletedSuccessfully.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task StopAsync_ConcurrentRestartKeepsReplacementMonitorAlive()
+    {
+        var oldMonitorStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var replacementStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var replacementPollGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pollCount = 0;
+
+        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+            .Returns(async callInfo =>
+            {
+                var token = callInfo.Arg<CancellationToken>();
+                if (Interlocked.Increment(ref pollCount) == 1)
+                {
+                    token.Register(() =>
+                    {
+                        _service.Start();
+                        replacementStarted.SetResult();
+                    });
+                    oldMonitorStarted.SetResult();
+                }
+                else
+                {
+                    await replacementPollGate.Task.WaitAsync(token);
+                }
+
+                return (WindowInfo?)new WindowInfo();
+            });
+
+        _service.Start();
+        await oldMonitorStarted.Task;
+
+        var stopTask = _service.StopAsync();
+        await replacementStarted.Task;
+        await stopTask;
+
+        _service.IsMonitoring.Should().BeTrue();
+
+        replacementPollGate.SetResult();
+        await _service.StopAsync();
+        _service.IsMonitoring.Should().BeFalse();
+    }
+
+    [Fact]
     public void AddTask_AddsToCollection()
     {
         var task = new TriggerTask();
@@ -666,6 +721,47 @@ public class TriggerServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadAsync_WithCapturedSynchronizationContext_CompletesBeforeDeferredCollectionUpdate()
+    {
+        var task = new TriggerTask { Name = "Captured Context Trigger", Value = "firefox" };
+        _service.AddTask(task);
+        await _service.SaveAsync();
+
+        var context = new DeferredSynchronizationContext();
+        var previousContext = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(context);
+        try
+        {
+            using var service2 = new TriggerService(
+                _windowManager, () => _profileManager, _macroFileManager, () => _macroPlayer, _triggersFilePath);
+            SynchronizationContext.SetSynchronizationContext(null);
+            try
+            {
+                var loadTask = Task.Run(service2.LoadAsync);
+                await context.PostObserved.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+                loadTask.IsCompleted.Should().BeFalse();
+                service2.Tasks.Should().BeEmpty();
+                context.PendingCallbacks.Should().Be(1);
+
+                context.Drain();
+                await loadTask.WaitAsync(TimeSpan.FromSeconds(2));
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(context);
+            }
+
+            service2.Tasks.Should().ContainSingle().Which.Name.Should().Be("Captured Context Trigger");
+            context.PendingCallbacks.Should().Be(0);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previousContext);
+        }
+    }
+
+    [Fact]
     public async Task ReloadAsync_LoadsFromNewProfileDirectory()
     {
         var task = new TriggerTask
@@ -692,5 +788,48 @@ public class TriggerServiceTests : IDisposable
 
         service2.Tasks.Should().HaveCount(1);
         service2.Tasks.First().Name.Should().Be("Profile Trigger");
+    }
+
+    private sealed class DeferredSynchronizationContext : SynchronizationContext
+    {
+        private readonly Queue<(SendOrPostCallback Callback, object? State)> _callbacks = new();
+
+        public TaskCompletionSource PostObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public int PendingCallbacks
+        {
+            get
+            {
+                lock (_callbacks)
+                {
+                    return _callbacks.Count;
+                }
+            }
+        }
+
+        public override void Post(SendOrPostCallback callback, object? state)
+        {
+            lock (_callbacks)
+            {
+                _callbacks.Enqueue((callback, state));
+            }
+
+            PostObserved.TrySetResult();
+        }
+
+        public void Drain()
+        {
+            while (true)
+            {
+                (SendOrPostCallback Callback, object? State) callback;
+                lock (_callbacks)
+                {
+                    if (_callbacks.Count == 0) return;
+                    callback = _callbacks.Dequeue();
+                }
+
+                callback.Callback(callback.State);
+            }
+        }
     }
 }

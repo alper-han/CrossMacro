@@ -144,6 +144,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
 
     private void OnInputReceived(object? sender, InputCaptureEventArgs e)
     {
+        MacroEvent? recordedEvent = null;
         using (_eventLock.EnterScope())
         {
             if (!_isRecording || _currentSequence == null || _stopwatch == null || _currentProcessor == null) return;
@@ -155,12 +156,18 @@ public class MacroRecorder : IMacroRecorder, IDisposable
                 if (macroEvent != null)
                 {
                     AddMacroEvent(macroEvent.Value);
+                    recordedEvent = macroEvent.Value;
                 }
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "[MacroRecorder] Error processing input event");
             }
+        }
+
+        if (recordedEvent.HasValue)
+        {
+            PublishRecordedEvent(recordedEvent.Value);
         }
     }
 
@@ -184,7 +191,18 @@ public class MacroRecorder : IMacroRecorder, IDisposable
                 _currentSequence.Events.Count, macroEvent.Type, macroEvent.X, macroEvent.Y,
                 macroEvent.KeyCode, macroEvent.Button, macroEvent.DelayMs);
 
+        }
+    }
+
+    private void PublishRecordedEvent(MacroEvent macroEvent)
+    {
+        try
+        {
             EventRecorded?.Invoke(this, macroEvent);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[MacroRecorder] EventRecorded subscriber threw");
         }
     }
 

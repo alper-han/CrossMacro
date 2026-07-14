@@ -1,5 +1,6 @@
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Linux.DisplayServer.Wayland.PortalPipeWire;
+using CrossMacro.Platform.Linux.Services;
 using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
 using Tmds.DBus.Protocol;
@@ -16,21 +17,33 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
     private const UnixFileMode OwnerOnlyFileMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
     private static readonly ScreenRect ProbeRegion = new(0, 0, 1, 1);
 
+    private readonly bool _isAppImageKde;
+    private readonly bool _isFlatpak;
+    private readonly bool _isKde;
+
+    internal KWinScreenShotCapture()
+        : this(LinuxEnvironmentVariables.CaptureCurrentSnapshot())
+    {
+    }
+
+    public KWinScreenShotCapture(LinuxEnvironmentSnapshot environment)
+    {
+        _isAppImageKde = !string.IsNullOrEmpty(environment.AppImage) && IsKde(environment.CurrentDesktop);
+        _isFlatpak = environment.IsFlatpak;
+        _isKde = _isAppImageKde || IsKde(environment.CurrentDesktop);
+    }
+
     public KWinScreenShotSupportResult ProbeSupport()
     {
-        bool isAppImageKde = IsAppImageKdeEnvironment();
-        if (isAppImageKde)
+        if (_isAppImageKde)
         {
             EnsureAppImageKdeDesktopFile();
         }
 
-        bool isFlatpak = File.Exists("/.flatpak-info");
-        bool isKde = isAppImageKde || IsKdeEnvironment();
-        
         int maxRetries;
-        if (isFlatpak) maxRetries = 1;
-        else if (isAppImageKde) maxRetries = 20;
-        else if (isKde) maxRetries = 6;
+        if (_isFlatpak) maxRetries = 1;
+        else if (_isAppImageKde) maxRetries = 20;
+        else if (_isKde) maxRetries = 6;
         else maxRetries = 1;
         
         int delayMs = 500;
@@ -45,7 +58,7 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
                 return KWinScreenShotSupportResult.Supported();
             }
 
-            if (isKde && result.ErrorKind != ScreenReadErrorKind.CaptureTimeout && i < maxRetries - 1)
+            if (_isKde && result.ErrorKind != ScreenReadErrorKind.CaptureTimeout && i < maxRetries - 1)
             {
                 Thread.Sleep(delayMs);
                 continue;
@@ -57,16 +70,9 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
         return KWinScreenShotSupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, "KWin ScreenShot2 is unavailable.");
     }
 
-    private static bool IsKdeEnvironment()
+    private static bool IsKde(string? currentDesktop)
     {
-        return Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP")?.Contains("KDE", StringComparison.OrdinalIgnoreCase) == true;
-    }
-
-    private static bool IsAppImageKdeEnvironment()
-    {
-        var appImage = Environment.GetEnvironmentVariable("APPIMAGE");
-        var isKde = Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP")?.Contains("KDE", StringComparison.OrdinalIgnoreCase) == true;
-        return !string.IsNullOrEmpty(appImage) && isKde;
+        return currentDesktop?.Contains("KDE", StringComparison.OrdinalIgnoreCase) == true;
     }
 
     private static void EnsureAppImageKdeDesktopFile()

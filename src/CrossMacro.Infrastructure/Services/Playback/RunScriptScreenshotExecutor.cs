@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Infrastructure.Services.ScreenCapture;
 using CrossMacro.Platform.Abstractions;
 
@@ -29,7 +30,7 @@ internal sealed class RunScriptScreenshotExecutor
         try
         {
             var resolvedStep = RunScriptRuntimeText.ResolveVariables(step, variables, $"Step {stepNumber}: ");
-            if (!RunScriptSyntax.TryParseScreenshotStep(resolvedStep, out var parsed, out var error))
+            if (!RunScriptPlatformSyntax.TryParseScreenshotStep(resolvedStep, out var parsed, out var error))
             {
                 throw new InvalidOperationException(error ?? "Invalid screenshot syntax.");
             }

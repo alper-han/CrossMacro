@@ -1,0 +1,9 @@
+# Name: Legacy Optional Metadata Fixture
+# Created: 2026-07-13T18:24:51.0000000Z
+# DurationMs: 20
+# SkipInitialZero: False
+# Format: CrossMacroFormatV2
+[Events]
+W,10
+M,4,5
+C,4,5,Left

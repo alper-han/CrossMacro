@@ -25,6 +25,33 @@ public class EditorActionConverter : IEditorActionConverter
         _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
         _runScriptCompiler = new RunScriptCompiler(_keyCodeMapper);
     }
+
+    /// <summary>
+    /// Converts the editor projection while retaining the existing conversion
+    /// implementation as the compatibility facade.
+    /// </summary>
+    public MacroSequence ToMacroSequence(EditorMacroProjection projection)
+    {
+        ArgumentNullException.ThrowIfNull(projection);
+        return ToMacroSequence(
+            projection.Actions,
+            projection.Name,
+            projection.IsAbsoluteCoordinates,
+            projection.SkipInitialZeroZero);
+    }
+
+    /// <summary>
+    /// Restores a runtime sequence into the editor projection boundary.
+    /// </summary>
+    public EditorMacroProjection FromMacroSequenceProjection(MacroSequence sequence)
+    {
+        ArgumentNullException.ThrowIfNull(sequence);
+        return new EditorMacroProjection(
+            FromMacroSequence(sequence),
+            sequence.Name,
+            sequence.IsAbsoluteCoordinates,
+            sequence.SkipInitialZeroZero);
+    }
     
     /// <inheritdoc/>
     public List<MacroEvent> ToMacroEvents(EditorAction action)
@@ -837,7 +864,7 @@ public class EditorActionConverter : IEditorActionConverter
     {
         var similarity = action.ImageSearchSimilarity.ToString("0.################", CultureInfo.InvariantCulture);
         var mode = action.ImageSearchMatchModeWasExplicit || action.ImageSearchMatchMode != EditorImageMatchMode.FirstThresholdMatch
-            ? $" matchmode {RunScriptSyntax.ToImageMatchModeToken(action.ImageSearchMatchMode)}"
+            ? $" matchmode {RunScriptPlatformSyntax.ToImageMatchModeToken(action.ImageSearchMatchMode)}"
             : string.Empty;
         var scaleAware = action.ImageSearchScaleAware ? $" {RunScriptSyntax.ImageSearchScaleAwareKeyword}" : string.Empty;
         return $" timeout {action.ScreenTimeoutMs} similarity {similarity} downsample {action.ImageSearchDownsample}{mode}{scaleAware}";
@@ -845,32 +872,42 @@ public class EditorActionConverter : IEditorActionConverter
 
     private static string BuildShellStep(EditorAction action)
     {
-        var command = QuoteShellField(action.ShellCommand);
-        var options = BuildShellOptions(action);
-        return action.ShellCommandMode switch
+        if (!action.TryGetShellPayload(out var payload))
         {
-            ShellCommandMode.ShellCapture => $"shell capture {command} {FormatShellCaptureTarget(action.ShellExitCodeVariableName)} {FormatShellCaptureTarget(action.ShellStandardOutputVariableName)} {FormatShellCaptureTarget(action.ShellStandardErrorVariableName)}{options}",
-            ShellCommandMode.ShellInput => $"shell input {QuoteShellField(action.ShellStandardInput)} {command}{options}",
-            ShellCommandMode.ShellCaptureInput => $"shell capture-input {QuoteShellField(action.ShellStandardInput)} {command} {FormatShellCaptureTarget(action.ShellExitCodeVariableName)} {FormatShellCaptureTarget(action.ShellStandardOutputVariableName)} {FormatShellCaptureTarget(action.ShellStandardErrorVariableName)}{options}",
+            throw new ArgumentException("Action type must be a shell command.", nameof(action));
+        }
+
+        var command = QuoteShellField(payload.Command);
+        var options = BuildShellOptions(payload);
+        return payload.Mode switch
+        {
+            ShellCommandMode.ShellCapture => $"shell capture {command} {FormatShellCaptureTarget(payload.ExitCodeVariableName)} {FormatShellCaptureTarget(payload.StandardOutputVariableName)} {FormatShellCaptureTarget(payload.StandardErrorVariableName)}{options}",
+            ShellCommandMode.ShellInput => $"shell input {QuoteShellField(payload.StandardInput)} {command}{options}",
+            ShellCommandMode.ShellCaptureInput => $"shell capture-input {QuoteShellField(payload.StandardInput)} {command} {FormatShellCaptureTarget(payload.ExitCodeVariableName)} {FormatShellCaptureTarget(payload.StandardOutputVariableName)} {FormatShellCaptureTarget(payload.StandardErrorVariableName)}{options}",
             _ => $"shell {command}{options}"
         };
     }
 
     private static string BuildScreenshotStep(EditorAction action)
     {
-        var parts = new List<string> { RunScriptSyntax.ScreenshotCommand };
-        if (action.ScreenshotUseRegion)
+        if (!action.TryGetScreenshotPayload(out var payload))
         {
-            parts.AddRange(["region", action.ScreenshotRegionX, action.ScreenshotRegionY, action.ScreenshotRegionWidth, action.ScreenshotRegionHeight]);
+            throw new ArgumentException("Action type must be a screenshot.", nameof(action));
         }
 
-        if (!string.IsNullOrWhiteSpace(action.ScreenshotOutputPath))
+        var parts = new List<string> { RunScriptSyntax.ScreenshotCommand };
+        if (payload.UseRegion)
+        {
+            parts.AddRange(["region", payload.RegionX, payload.RegionY, payload.RegionWidth, payload.RegionHeight]);
+        }
+
+        if (!string.IsNullOrWhiteSpace(payload.OutputPath))
         {
             parts.Add("output");
-            parts.Add(QuoteScreenshotOutputPath(action.ScreenshotOutputPath));
+            parts.Add(QuoteScreenshotOutputPath(payload.OutputPath));
         }
 
-        if (action.ScreenshotCopyToClipboard)
+        if (payload.CopyToClipboard)
         {
             parts.Add("clipboard");
         }
@@ -880,22 +917,27 @@ public class EditorActionConverter : IEditorActionConverter
 
     internal static string BuildWindowStep(EditorAction action)
     {
-        var selectorKind = string.IsNullOrWhiteSpace(action.WindowSelectorKind) ? "title" : action.WindowSelectorKind.Trim().ToLowerInvariant();
-        var selectorValue = QuoteWindowField(action.WindowSelectorValue);
-        var outputVariable = EditorActionScriptTokens.NormalizeVariableToken(action.WindowOutputVariable);
-        var workspace = QuoteWindowField(action.WindowWorkspace);
-
-        return action.WindowCommandMode switch
+        if (!action.TryGetWindowPayload(out var payload))
         {
-            WindowCommandMode.Active => $"window active {action.WindowActiveField} {outputVariable}",
+            throw new ArgumentException("Action type must be a window command.", nameof(action));
+        }
+
+        var selectorKind = string.IsNullOrWhiteSpace(payload.SelectorKind) ? "title" : payload.SelectorKind.Trim().ToLowerInvariant();
+        var selectorValue = QuoteWindowField(payload.SelectorValue);
+        var outputVariable = EditorActionScriptTokens.NormalizeVariableToken(payload.OutputVariable);
+        var workspace = QuoteWindowField(payload.Workspace);
+
+        return payload.Mode switch
+        {
+            WindowCommandMode.Active => $"window active {payload.ActiveField} {outputVariable}",
             WindowCommandMode.Search => $"window search {selectorKind} {selectorValue} {outputVariable}",
-            WindowCommandMode.Wait => $"window wait {selectorKind} {selectorValue} {action.WindowTimeoutMs} {outputVariable}",
+            WindowCommandMode.Wait => $"window wait {selectorKind} {selectorValue} {payload.TimeoutMs} {outputVariable}",
             WindowCommandMode.Focus when selectorKind == "active" => "window focus active",
             WindowCommandMode.Focus => $"window focus {selectorKind} {selectorValue}",
             WindowCommandMode.Close when selectorKind == "active" => "window close active",
             WindowCommandMode.Close => $"window close {selectorKind} {selectorValue}",
-            WindowCommandMode.Move => $"window move {action.WindowX} {action.WindowY}",
-            WindowCommandMode.Resize => $"window resize {action.WindowWidth} {action.WindowHeight}",
+            WindowCommandMode.Move => $"window move {payload.X} {payload.Y}",
+            WindowCommandMode.Resize => $"window resize {payload.Width} {payload.Height}",
             WindowCommandMode.Center => "window center active",
             WindowCommandMode.Maximize => "window maximize active",
             WindowCommandMode.Fullscreen => "window fullscreen active",
@@ -903,7 +945,7 @@ public class EditorActionConverter : IEditorActionConverter
             WindowCommandMode.WorkspaceGet => $"window getdesktop {outputVariable}",
             WindowCommandMode.WorkspaceSwitch => $"window setdesktop {workspace}",
             WindowCommandMode.WorkspaceMoveActive => $"window setdesktopforwindow active {workspace}",
-            WindowCommandMode.WorkspaceMoveWindow => $"window setdesktopforwindow address {action.WindowSelectorValue.Trim()} {workspace}",
+            WindowCommandMode.WorkspaceMoveWindow => $"window setdesktopforwindow address {payload.SelectorValue.Trim()} {workspace}",
             _ => "window active title $windowResult"
         };
     }
@@ -920,19 +962,19 @@ public class EditorActionConverter : IEditorActionConverter
             : value;
     }
 
-    private static string BuildShellOptions(EditorAction action)
+    private static string BuildShellOptions(EditorActionShellPayload payload)
     {
-        if (action.ShellTimeoutMs > 0)
+        if (payload.TimeoutMs > 0)
         {
-            return $" {action.ShellRetries} {action.ShellBackoffMs} {action.ShellTimeoutMs}";
+            return $" {payload.Retries} {payload.BackoffMs} {payload.TimeoutMs}";
         }
 
-        if (action.ShellBackoffMs > 0)
+        if (payload.BackoffMs > 0)
         {
-            return $" {action.ShellRetries} {action.ShellBackoffMs}";
+            return $" {payload.Retries} {payload.BackoffMs}";
         }
 
-        return action.ShellRetries > 0 ? $" {action.ShellRetries}" : string.Empty;
+        return payload.Retries > 0 ? $" {payload.Retries}" : string.Empty;
     }
 
     private static string FormatShellCaptureTarget(string target)
@@ -1499,7 +1541,7 @@ public class EditorActionConverter : IEditorActionConverter
                 continue;
             }
 
-            if (RunScriptSyntax.IsScreenshotStep(stepForType))
+            if (RunScriptPlatformSyntax.IsScreenshotStep(stepForType))
             {
                 if (TryParseScreenshotStep(stepForType, out var screenshotAction))
                 {
@@ -2013,12 +2055,12 @@ public class EditorActionConverter : IEditorActionConverter
     private static bool TryParseScreenshotStep(string step, out EditorAction action)
     {
         action = new EditorAction();
-        if (!RunScriptSyntax.IsScreenshotStep(step))
+        if (!RunScriptPlatformSyntax.IsScreenshotStep(step))
         {
             return false;
         }
 
-        if (!RunScriptSyntax.TryParseScreenshotStep(step, out var parsed, out _))
+        if (!RunScriptPlatformSyntax.TryParseScreenshotStep(step, out var parsed, out _))
         {
             return false;
         }
@@ -2836,9 +2878,9 @@ public class EditorActionConverter : IEditorActionConverter
                 continue;
             }
 
-            if (RunScriptSyntax.IsImageSearchMatchModeKeyword(tokens[index]))
+            if (RunScriptPlatformSyntax.IsImageSearchMatchModeKeyword(tokens[index]))
             {
-                if (index + 1 >= tokens.Length || !RunScriptSyntax.TryParseImageMatchMode(tokens[index + 1], out matchMode))
+                if (index + 1 >= tokens.Length || !RunScriptPlatformSyntax.TryParseImageMatchMode(tokens[index + 1], out matchMode))
                 {
                     return false;
                 }

@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services.ScreenReading;
+using CrossMacro.UI;
 using CrossMacro.UI.Services;
 using CrossMacro.UI.Startup;
 using NSubstitute;
@@ -12,6 +12,33 @@ namespace CrossMacro.UI.Tests.Services;
 
 public sealed class DesktopStartupRuntimeServiceTests
 {
+    [Fact]
+    public async Task CleanupAsync_AttemptsRuntimeViewModelAndProviderIndependently()
+    {
+        var events = new List<string>();
+
+        var error = await App.CleanupAsync(
+            () =>
+            {
+                events.Add("runtime");
+                throw new InvalidOperationException("runtime stop failed");
+            },
+            () =>
+            {
+                events.Add("view-model");
+                throw new InvalidOperationException("view-model dispose failed");
+            },
+            () =>
+            {
+                events.Add("provider");
+                return Task.FromException(new InvalidOperationException("provider dispose failed"));
+            });
+
+        Assert.Equal(["runtime", "view-model", "provider"], events);
+        Assert.NotNull(error);
+        Assert.Equal(3, error!.InnerExceptions.Count);
+    }
+
     [Fact]
     public void CreateDisplayPlan_WhenDisplayModeIsVisible_UsesNormalWindowWithLastWindowClose()
     {
@@ -108,7 +135,7 @@ public sealed class DesktopStartupRuntimeServiceTests
         var events = new List<string>();
         var guidance = new RecordingGuidanceService(events);
         var warmup = new RecordingWarmupService(events);
-        var service = CreateService(screenReadingWarmupService: warmup, portalScreenReadingGuidanceService: guidance);
+        var service = CreateService(screenReadingWarmup: warmup.WarmUpPortalSessionAsync, portalScreenReadingGuidanceService: guidance);
 
         await service.RunScreenReadingWarmupAsync();
 
@@ -121,7 +148,7 @@ public sealed class DesktopStartupRuntimeServiceTests
         var events = new List<string>();
         var guidance = new RecordingGuidanceService(events) { ThrowOnShow = true };
         var warmup = new RecordingWarmupService(events);
-        var service = CreateService(screenReadingWarmupService: warmup, portalScreenReadingGuidanceService: guidance);
+        var service = CreateService(screenReadingWarmup: warmup.WarmUpPortalSessionAsync, portalScreenReadingGuidanceService: guidance);
 
         await service.RunScreenReadingWarmupAsync();
 
@@ -133,7 +160,7 @@ public sealed class DesktopStartupRuntimeServiceTests
     {
         var events = new List<string>();
         var warmup = new RecordingWarmupService(events);
-        var service = CreateService(screenReadingWarmupService: warmup);
+        var service = CreateService(screenReadingWarmup: warmup.WarmUpPortalSessionAsync);
 
         await service.RunScreenReadingWarmupAsync();
 
@@ -145,7 +172,7 @@ public sealed class DesktopStartupRuntimeServiceTests
     {
         var events = new List<string>();
         var warmup = new RecordingWarmupService(events) { ThrowOnWarmup = true };
-        var service = CreateService(screenReadingWarmupService: warmup);
+        var service = CreateService(screenReadingWarmup: warmup.WarmUpPortalSessionAsync);
 
         await service.RunScreenReadingWarmupAsync();
 
@@ -160,7 +187,7 @@ public sealed class DesktopStartupRuntimeServiceTests
 
     private static DesktopStartupRuntimeService CreateService(
         IDesktopLifetimeContext? desktopLifetimeContext = null,
-        IScreenReadingWarmupService? screenReadingWarmupService = null,
+        Func<CancellationToken, Task>? screenReadingWarmup = null,
         IPortalScreenReadingGuidanceService? portalScreenReadingGuidanceService = null)
     {
         return new DesktopStartupRuntimeService(
@@ -172,7 +199,7 @@ public sealed class DesktopStartupRuntimeServiceTests
             getPositionProvider: () => null,
             desktopLifetimeContext: desktopLifetimeContext ?? Substitute.For<IDesktopLifetimeContext>(),
             inputSimulatorWarmupService: new InputSimulatorWarmupService(),
-            screenReadingWarmupService: screenReadingWarmupService,
+            screenReadingWarmup: screenReadingWarmup,
             portalScreenReadingGuidanceService: portalScreenReadingGuidanceService);
     }
 
@@ -201,7 +228,7 @@ public sealed class DesktopStartupRuntimeServiceTests
         }
     }
 
-    private sealed class RecordingWarmupService : IScreenReadingWarmupService
+    private sealed class RecordingWarmupService
     {
         private readonly List<string> _events;
 
@@ -212,7 +239,7 @@ public sealed class DesktopStartupRuntimeServiceTests
 
         public bool ThrowOnWarmup { get; init; }
 
-        public Task WarmUpPortalSessionAsync(CancellationToken cancellationToken = default)
+        public Task WarmUpPortalSessionAsync(CancellationToken cancellationToken)
         {
             _events.Add("warmup");
             if (ThrowOnWarmup)

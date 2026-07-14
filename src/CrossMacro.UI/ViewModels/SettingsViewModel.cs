@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Threading;
+using CrossMacro.Application.Profiles;
 using CrossMacro.Core.Diagnostics;
 using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
@@ -47,6 +47,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
     private readonly ILocalizationService _localizationService;
     private readonly IProfileManager? _profileManager;
     private readonly IDialogService? _dialogService;
+    private readonly IManageProfile? _manageProfile;
     
     private string _recordingHotkey;
     private string _playbackHotkey;
@@ -69,6 +70,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
 
     public event EventHandler<string>? ProfileOperationFailed;
     
+    [Obsolete("Use the constructor accepting IRuntimeContext.")]
     public SettingsViewModel(
         IGlobalHotkeyService hotkeyService,
         ISettingsService settingsService,
@@ -80,54 +82,22 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         ILocalizationService? localizationService = null,
         IRuntimeContext? runtimeContext = null,
         IProfileManager? profileManager = null,
-        IDialogService? dialogService = null)
+        IDialogService? dialogService = null,
+        IManageProfile? manageProfile = null)
+        : this(
+            hotkeyService,
+            settingsService,
+            textExpansionService,
+            hotkeySettings,
+            externalUrlOpener,
+            runtimeLogLevelService,
+            themeService,
+            runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext)),
+            localizationService,
+            profileManager,
+            dialogService,
+            manageProfile)
     {
-        ArgumentNullException.ThrowIfNull(runtimeLogLevelService);
-        ArgumentNullException.ThrowIfNull(themeService);
-
-        _hotkeyService = hotkeyService;
-        _settingsService = settingsService;
-        _textExpansionService = textExpansionService;
-        _hotkeySettings = hotkeySettings;
-        _externalUrlOpener = externalUrlOpener;
-        _runtimeContext = runtimeContext ?? new RuntimeContext();
-        _runtimeLogLevelService = runtimeLogLevelService;
-        _themeService = themeService;
-        _localizationService = localizationService ?? new LocalizationService();
-        _profileManager = profileManager;
-        _dialogService = dialogService;
-        
-        // Initialize hotkey properties
-        _recordingHotkey = _hotkeySettings.RecordingHotkey;
-        _playbackHotkey = _hotkeySettings.PlaybackHotkey;
-        _pauseHotkey = _hotkeySettings.PauseHotkey;
-        
-        // Initialize tray icon setting
-        _enableTrayIcon = _settingsService.Current.EnableTrayIcon;
-        _startMinimized = _settingsService.Current.StartMinimized;
-        
-        // Initialize log level setting
-        _selectedLogLevel = _settingsService.Current.LogLevel;
-
-        // Initialize theme setting
-        _selectedTheme = _settingsService.Current.Theme;
-
-        _selectedLanguage = NormalizeSupportedLanguage(_settingsService.Current.Language);
-        _settingsService.Current.Language = _selectedLanguage;
-        _availableLanguages = CreateLanguageOptions();
-        RefreshLanguageOptions();
-        
-        // Hide update settings if running as Flatpak
-        IsUpdateSettingsVisible = !_runtimeContext.IsFlatpak;
-
-        // Hide tray settings if tray is not supported (Flatpak sandbox blocks D-Bus StatusNotifierItem)
-        IsTraySettingsVisible = TrayIconService.IsTraySupported(_runtimeContext);
-
-        RefreshProfileState();
-        if (_profileManager != null)
-        {
-            _profileManager.ProfileChanged += OnProfileChanged;
-        }
     }
 
     public SettingsViewModel(
@@ -138,18 +108,46 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         IExternalUrlOpener externalUrlOpener,
         IRuntimeLogLevelService runtimeLogLevelService,
         IThemeService themeService,
-        IRuntimeContext runtimeContext)
-        : this(
-            hotkeyService,
-            settingsService,
-            textExpansionService,
-            hotkeySettings,
-            externalUrlOpener,
-            runtimeLogLevelService,
-            themeService,
-            null,
-            runtimeContext)
+        IRuntimeContext runtimeContext,
+        ILocalizationService? localizationService = null,
+        IProfileManager? profileManager = null,
+        IDialogService? dialogService = null,
+        IManageProfile? manageProfile = null)
     {
+        ArgumentNullException.ThrowIfNull(runtimeLogLevelService);
+        ArgumentNullException.ThrowIfNull(themeService);
+
+        _hotkeyService = hotkeyService;
+        _settingsService = settingsService;
+        _textExpansionService = textExpansionService;
+        _hotkeySettings = hotkeySettings;
+        _externalUrlOpener = externalUrlOpener;
+        _runtimeContext = runtimeContext;
+        _runtimeLogLevelService = runtimeLogLevelService;
+        _themeService = themeService;
+        _localizationService = localizationService ?? new LocalizationService();
+        _profileManager = profileManager;
+        _dialogService = dialogService;
+        _manageProfile = manageProfile;
+
+        _recordingHotkey = _hotkeySettings.RecordingHotkey;
+        _playbackHotkey = _hotkeySettings.PlaybackHotkey;
+        _pauseHotkey = _hotkeySettings.PauseHotkey;
+        _enableTrayIcon = _settingsService.Current.EnableTrayIcon;
+        _startMinimized = _settingsService.Current.StartMinimized;
+        _selectedLogLevel = _settingsService.Current.LogLevel;
+        _selectedTheme = _settingsService.Current.Theme;
+        _selectedLanguage = NormalizeSupportedLanguage(_settingsService.Current.Language);
+        _settingsService.Current.Language = _selectedLanguage;
+        _availableLanguages = CreateLanguageOptions();
+        RefreshLanguageOptions();
+        IsUpdateSettingsVisible = !_runtimeContext.IsFlatpak;
+        IsTraySettingsVisible = TrayIconService.IsTraySupported(_runtimeContext);
+        RefreshProfileState();
+        if (_profileManager != null)
+        {
+            _profileManager.ProfileChanged += OnProfileChanged;
+        }
     }
 
     public bool IsUpdateSettingsVisible { get; }
@@ -564,14 +562,16 @@ public class SettingsViewModel : ViewModelBase, IDisposable
     public async Task CreateProfileAsync()
     {
         var profileName = NewProfileName.Trim();
-        if (_profileManager is null || profileName.Length == 0)
+        if ((_profileManager is null && _manageProfile is null) || profileName.Length == 0)
         {
             return;
         }
 
         await RunProfileOperationAsync(async () =>
         {
-            var createdProfile = await _profileManager.CreateProfileAsync(profileName);
+            var createdProfile = _manageProfile is not null
+                ? (await _manageProfile.CreateAsync(new ProfileRequest(DisplayName: profileName))).Profile!
+                : await _profileManager!.CreateProfileAsync(profileName);
             RefreshProfileState(createdProfile.Id);
             NewProfileName = string.Empty;
         }, _localizationService["Settings_ProfileCreateFailed"]);
@@ -583,14 +583,21 @@ public class SettingsViewModel : ViewModelBase, IDisposable
     {
         var profileName = NewProfileName.Trim();
         var selectedProfile = SelectedProfile;
-        if (_profileManager is null || selectedProfile is null || profileName.Length == 0)
+        if ((_profileManager is null && _manageProfile is null) || selectedProfile is null || profileName.Length == 0)
         {
             return;
         }
 
         await RunProfileOperationAsync(async () =>
         {
-            await _profileManager.RenameProfileAsync(selectedProfile.Id, profileName);
+            if (_manageProfile is not null)
+            {
+                await _manageProfile.RenameAsync(new ProfileRequest(selectedProfile.Id, profileName));
+            }
+            else
+            {
+                await _profileManager!.RenameProfileAsync(selectedProfile.Id, profileName);
+            }
             RefreshProfileState(selectedProfile.Id);
             NewProfileName = string.Empty;
         }, _localizationService["Settings_ProfileRenameFailed"]);
@@ -601,7 +608,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
     public async Task DeleteSelectedProfileAsync()
     {
         var selectedProfile = SelectedProfile;
-        if (_profileManager is null || selectedProfile is null)
+        if ((_profileManager is null && _manageProfile is null) || selectedProfile is null)
         {
             return;
         }
@@ -628,7 +635,14 @@ public class SettingsViewModel : ViewModelBase, IDisposable
 
         await RunProfileOperationAsync(async () =>
         {
-            await _profileManager.DeleteProfileAsync(selectedProfile.Id);
+            if (_manageProfile is not null)
+            {
+                await _manageProfile.DeleteAsync(new ProfileRequest(Identifier: selectedProfile.Id));
+            }
+            else
+            {
+                await _profileManager!.DeleteProfileAsync(selectedProfile.Id);
+            }
             RefreshProfileState();
         }, _localizationService["Settings_ProfileDeleteFailed"]);
     }
@@ -638,14 +652,21 @@ public class SettingsViewModel : ViewModelBase, IDisposable
     public async Task SwitchProfileAsync()
     {
         var selectedProfile = SelectedProfile;
-        if (_profileManager is null || selectedProfile is null)
+        if ((_profileManager is null && _manageProfile is null) || selectedProfile is null)
         {
             return;
         }
 
         await RunProfileOperationAsync(async () =>
         {
-            await _profileManager.SwitchProfileAsync(selectedProfile.Id);
+            if (_manageProfile is not null)
+            {
+                await _manageProfile.SwitchAsync(new ProfileRequest(Identifier: selectedProfile.Id));
+            }
+            else
+            {
+                await _profileManager!.SwitchProfileAsync(selectedProfile.Id);
+            }
             RefreshProfileState(selectedProfile.Id);
             RefreshProfileSpecificSettings();
         }, _localizationService["Settings_ProfileSwitchFailed"]);

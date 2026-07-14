@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Core.Services.Playback;
 using CrossMacro.Core.Logging;
 using CrossMacro.Infrastructure.Services.Playback;
@@ -27,7 +28,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
     private readonly IImageAssetCodec _imageAssetCodec;
     private readonly PlaybackValidator _validator;
     private readonly Func<IInputSimulator>? _inputSimulatorFactory;
-    private readonly InputSimulatorPool? _simulatorPool;
+    private readonly IInputSimulatorPool? _simulatorPool;
     private readonly IPlaybackTimingService _timingService;
     private readonly Func<TimeSpan, CancellationToken, Task> _playbackWaitAsync;
     private readonly Func<Func<double>> _playbackElapsedMillisecondsFactory;
@@ -37,28 +38,26 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
     private readonly IPlaybackMouseButtonMapper _buttonMapper;
     private readonly IPlaybackBehaviorPolicy _playbackBehaviorPolicy;
     private readonly IKeyCodeMapper _keyCodeMapper;
+    private readonly MacroPlaybackEventCoordinator _eventCoordinator = new();
+    private readonly PlaybackDelayResolver _delayResolver = new();
+    private readonly PlaybackSessionResourceOwner _session;
 
     private IInputSimulator? _inputSimulator;
-    private int _simulatorReleased;
     private IEventExecutor? _eventExecutor;
     private IPlaybackCoordinator? _coordinator;
     private IButtonStateTracker? _buttonTracker;
     private IKeyStateTracker? _keyTracker;
 
-    private CancellationTokenSource? _cts;
     private bool _disposed;
 
     private int _cachedScreenWidth;
     private int _cachedScreenHeight;
     private bool _resolutionCached;
-    private int _acquiredSimulatorWidth;
-    private int _acquiredSimulatorHeight;
 
     private int _errorCount;
     private readonly Random _random = Random.Shared;
-    private readonly Dictionary<string, string> _runtimeVariables = new(StringComparer.OrdinalIgnoreCase);
+    private readonly IDictionary<string, string> _runtimeVariables;
 
-    private const int VirtualDeviceCreationDelayMs = 50;
     private const double MinEnforcedDelayMs = 1.0;
     private const int MaxPlaybackErrors = 10;
     private const int StabilizationEventCount = 25;
@@ -95,31 +94,14 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         public bool IsModifierKeyCode(int keyCode) => false;
     }
 
-    private static readonly int[] RestorableModifierKeys =
-    [
-        InputEventCode.KEY_LEFTCTRL,
-        InputEventCode.KEY_RIGHTCTRL,
-        InputEventCode.KEY_LEFTSHIFT,
-        InputEventCode.KEY_RIGHTSHIFT,
-        InputEventCode.KEY_LEFTALT,
-        InputEventCode.KEY_RIGHTALT,
-        InputEventCode.KEY_LEFTMETA,
-        InputEventCode.KEY_RIGHTMETA
-    ];
-
     // Pause support
-    private readonly ManualResetEventSlim _pauseEvent = new(true);
-    private volatile bool _isPaused;
-    private int _pauseResumeVersion;
-    private ushort[] _pausedButtons = Array.Empty<ushort>();
-    private int[] _pausedKeys = Array.Empty<int>();
 
     public bool IsPlaying { get; private set; }
     public int CurrentLoop { get; private set; }
     public int TotalLoops { get; private set; }
     public bool IsWaitingBetweenLoops { get; private set; }
-    public bool IsPaused => _isPaused;
-    public IReadOnlyDictionary<string, string> RuntimeVariables => _runtimeVariables;
+    public bool IsPaused => _session.IsPaused;
+    public IReadOnlyDictionary<string, string> RuntimeVariables => _session.RuntimeVariables;
 
     /// <summary>
     /// Creates a new MacroPlayer with full DI support.
@@ -135,7 +117,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         Func<IKeyStateTracker>? keyTrackerFactory = null,
         IPlaybackMouseButtonMapper? buttonMapper = null,
         Func<IInputSimulator>? inputSimulatorFactory = null,
-        InputSimulatorPool? simulatorPool = null,
+        IInputSimulatorPool? simulatorPool = null,
         IPlaybackBehaviorPolicy? playbackBehaviorPolicy = null,
         IScreenPixelReader? screenPixelReader = null,
         IKeyCodeMapper? keyCodeMapper = null,
@@ -169,6 +151,8 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         _keyTrackerFactory = keyTrackerFactory ?? (() => new KeyStateTracker());
         _buttonMapper = buttonMapper ?? new DefaultPlaybackMouseButtonMapper();
         _keyCodeMapper = keyCodeMapper ?? new RuntimeFallbackKeyCodeMapper();
+        _session = new PlaybackSessionResourceOwner(_playbackWaitAsync, _inputSimulatorFactory, _simulatorPool);
+        _runtimeVariables = _session.Variables;
 
         if (_positionProvider != null)
         {
@@ -188,16 +172,44 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         }
     }
 
+    [Obsolete("Use the IInputSimulatorPool constructor parameter.")]
+    public MacroPlayer(
+        IMousePositionProvider? positionProvider,
+        PlaybackValidator validator,
+        IPlaybackTimingService? timingService,
+        Func<TimeSpan, CancellationToken, Task>? playbackWaitAsync,
+        Func<Func<double>>? playbackElapsedMillisecondsFactory,
+        Func<IPlaybackCoordinator>? coordinatorFactory,
+        Func<IButtonStateTracker>? buttonTrackerFactory,
+        Func<IKeyStateTracker>? keyTrackerFactory,
+        IPlaybackMouseButtonMapper? buttonMapper,
+        Func<IInputSimulator>? inputSimulatorFactory,
+        InputSimulatorPool? simulatorPool,
+        IPlaybackBehaviorPolicy? playbackBehaviorPolicy,
+        IScreenPixelReader? screenPixelReader,
+        IKeyCodeMapper? keyCodeMapper,
+        IWindowManager? windowManager,
+        IClipboardService? clipboardService,
+        IShellCommandRunner? shellCommandRunner,
+        IScreenshotCaptureService? screenshotCaptureService,
+        IImageClickMovementResolver? imageClickMovementResolver,
+        IImageAssetCodec? imageAssetCodec)
+        : this(positionProvider, validator, timingService, playbackWaitAsync,
+            playbackElapsedMillisecondsFactory, coordinatorFactory, buttonTrackerFactory,
+            keyTrackerFactory, buttonMapper, inputSimulatorFactory,
+            (IInputSimulatorPool?)simulatorPool, playbackBehaviorPolicy, screenPixelReader,
+            keyCodeMapper, windowManager, clipboardService, shellCommandRunner,
+            screenshotCaptureService, imageClickMovementResolver, imageAssetCodec)
+    {
+    }
+
     #region IPlaybackPauseToken Implementation
 
-    bool IPlaybackPauseToken.IsPaused => _isPaused;
+    bool IPlaybackPauseToken.IsPaused => _session.IsPaused;
 
     async Task IPlaybackPauseToken.WaitIfPausedAsync(CancellationToken cancellationToken)
     {
-        if (_isPaused)
-        {
-            await Task.Run(() => _pauseEvent.Wait(cancellationToken), cancellationToken);
-        }
+        await _session.WaitIfPausedAsync(cancellationToken);
     }
 
     #endregion
@@ -231,11 +243,9 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         TotalLoops = infiniteLoop ? 0 : repeatCount;
         CurrentLoop = 1;
 
-        _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _session.Begin(cancellationToken);
+        _inputSimulator = null;
         IsPlaying = true;
-        _isPaused = false;
-        _pauseResumeVersion = 0;
-        _pauseEvent.Set();
         _errorCount = 0;
         _runtimeVariables.Clear();
 
@@ -245,13 +255,13 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         {
             if (macro.Events.Count == 0 && HasOnlyRuntimeScriptSteps(macro))
             {
-                await PlayRuntimeScriptOnlyLoopAsync(macro, options, normalizedSpeed, repeatCount, infiniteLoop, _cts.Token);
+                await PlayRuntimeScriptOnlyLoopAsync(macro, options, normalizedSpeed, repeatCount, infiniteLoop, _session.Token);
                 return;
             }
 
             if (macro.Events.Count == 0 && !HasRuntimeScriptSteps(macro))
             {
-                await ExecuteScreenReadScriptStepsAsync(macro, _cts.Token);
+                await ExecuteScreenReadScriptStepsAsync(macro, _session.Token);
                 return;
             }
 
@@ -264,28 +274,28 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
                 options.Loop, repeatCount, infiniteLoop);
 
             // Stabilization delay
-            await _playbackWaitAsync(TimeSpan.FromMilliseconds(50), _cts.Token);
-            _cts.Token.ThrowIfCancellationRequested();
+            await _playbackWaitAsync(TimeSpan.FromMilliseconds(50), _session.Token);
+            _session.Token.ThrowIfCancellationRequested();
 
             int iteration = 0;
-            while ((infiniteLoop || iteration < repeatCount) && !_cts.Token.IsCancellationRequested)
+            while ((infiniteLoop || iteration < repeatCount) && !_session.Token.IsCancellationRequested)
             {
                 CurrentLoop = iteration + 1;
                 Log.Information("[MacroPlayer] Starting playback iteration {Iteration}", iteration + 1);
 
                 if (iteration > 0)
                 {
-                    await _coordinator!.PrepareIterationAsync(iteration, macro, _inputSimulator!,
-                        _cachedScreenWidth, _cachedScreenHeight, _cts.Token);
+                        await _coordinator!.PrepareIterationAsync(iteration, macro, _inputSimulator!,
+                        _cachedScreenWidth, _cachedScreenHeight, _session.Token);
                 }
 
                 if (HasRuntimeScriptSteps(macro))
                 {
-                    await PlayOnceRuntimeScriptAsync(macro, normalizedSpeed, _cts.Token);
+                    await PlayOnceRuntimeScriptAsync(macro, normalizedSpeed, _session.Token);
                 }
                 else
                 {
-                    await PlayOnceAsync(macro, normalizedSpeed, _cts.Token);
+                    await PlayOnceAsync(macro, normalizedSpeed, _session.Token);
                 }
 
                 // Apply trailing delay after the macro completes (before next iteration or end)
@@ -295,24 +305,24 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
                     macro.TrailingDelayMinMs,
                     macro.TrailingDelayMaxMs);
 
-                if (trailingDelaySource > 0 && !_cts.Token.IsCancellationRequested)
+                if (trailingDelaySource > 0 && !_session.Token.IsCancellationRequested)
                 {
                     int trailingDelay = (int)(trailingDelaySource / normalizedSpeed);
                     if (trailingDelay > 0)
                     {
-                        await _timingService.WaitAsync(trailingDelay, this, _cts.Token);
+                        await _timingService.WaitAsync(trailingDelay, this, _session.Token);
                     }
                 }
 
                 bool hasNextIteration = infiniteLoop || iteration < repeatCount - 1;
 
-                if (hasNextIteration && !_cts.Token.IsCancellationRequested)
+                if (hasNextIteration && !_session.Token.IsCancellationRequested)
                 {
                     int delayMs = ResolveRepeatDelayMs(options);
                     if (delayMs > 0)
                     {
                         IsWaitingBetweenLoops = true;
-                        await _timingService.WaitAsync(delayMs, this, _cts.Token);
+                        await _timingService.WaitAsync(delayMs, this, _session.Token);
                         IsWaitingBetweenLoops = false;
                     }
                     else if ((iteration + 1) % IterationYieldInterval == 0)
@@ -378,28 +388,9 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         bool canCreateAbsoluteDevice = needsAbsoluteDevice && _resolutionCached;
         int deviceWidth = canCreateAbsoluteDevice ? _cachedScreenWidth : 0;
         int deviceHeight = canCreateAbsoluteDevice ? _cachedScreenHeight : 0;
-        _acquiredSimulatorWidth = deviceWidth;
-        _acquiredSimulatorHeight = deviceHeight;
-
-        if (_simulatorPool != null)
-        {
-            _inputSimulator = _simulatorPool.Acquire(deviceWidth, deviceHeight);
-            Volatile.Write(ref _simulatorReleased, 0);
-            Log.Information("[MacroPlayer] Acquired device from pool: {ProviderName}", _inputSimulator.ProviderName);
-            await _playbackWaitAsync(TimeSpan.FromMilliseconds(20), _cts!.Token);
-        }
-        else if (_inputSimulatorFactory != null)
-        {
-            _inputSimulator = _inputSimulatorFactory();
-            _inputSimulator.Initialize(deviceWidth, deviceHeight);
-            Volatile.Write(ref _simulatorReleased, 0);
-            Log.Information("[MacroPlayer] Input simulator created: {ProviderName}", _inputSimulator.ProviderName);
-            await _playbackWaitAsync(TimeSpan.FromMilliseconds(VirtualDeviceCreationDelayMs), _cts!.Token);
-        }
-        else
-        {
-            throw new InvalidOperationException("No input simulator pool or factory provided.");
-        }
+        await _session.AcquireAsync(deviceWidth, deviceHeight, _session.Token);
+        _inputSimulator = _session.Simulator;
+        Log.Information("[MacroPlayer] Acquired device: {ProviderName}", _inputSimulator!.ProviderName);
     }
 
     private void EnsureAbsolutePlaybackSupported(MacroSequence macro)
@@ -436,12 +427,13 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
             _buttonMapper,
             _coordinator,
             useHybridAbsoluteDragMovement: _playbackBehaviorPolicy.UseHybridAbsoluteDragMovement);
+        _session.AttachInputState(_eventExecutor, _buttonTracker, _keyTracker);
 
         _eventExecutor.Initialize(_cachedScreenWidth, _cachedScreenHeight);
 
         // Initialize coordinator for first iteration
         await _coordinator.InitializeAsync(macro, _inputSimulator!,
-            _cachedScreenWidth, _cachedScreenHeight, _cts!.Token);
+            _cachedScreenWidth, _cachedScreenHeight, _session.Token);
     }
 
     private async Task PlayOnceAsync(MacroSequence macro, double speedMultiplier, CancellationToken cancellationToken)
@@ -449,17 +441,25 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         bool useLegacyCurrentPositionInterpretation = MacroPositionSemantics.IsLegacyCurrentPositionMacro(macro);
         var state = new PlaybackRunState
         {
-            ObservedPauseResumeVersion = Volatile.Read(ref _pauseResumeVersion)
+            ObservedPauseResumeVersion = _session.PauseResumeVersion
         };
         int totalEvents = macro.Events.Count;
         var playbackElapsedMilliseconds = _playbackElapsedMillisecondsFactory();
 
         Log.Debug("[MacroPlayer] Starting playback of {Total} events at {Speed}x speed", totalEvents, speedMultiplier);
 
-        foreach (var ev in macro.Events)
-        {
-            await ExecutePlaybackEventAsync(macro, ev, speedMultiplier, playbackElapsedMilliseconds, state, useLegacyCurrentPositionInterpretation, totalEvents, cancellationToken);
-        }
+        await _eventCoordinator.ExecuteAsync(
+            macro,
+            (ev, token) => ExecutePlaybackEventAsync(
+                macro,
+                ev,
+                speedMultiplier,
+                playbackElapsedMilliseconds,
+                state,
+                useLegacyCurrentPositionInterpretation,
+                totalEvents,
+                token),
+            cancellationToken);
 
         Log.Debug("[MacroPlayer] Completed playback of {Total} events", totalEvents);
     }
@@ -469,7 +469,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         bool useLegacyCurrentPositionInterpretation = MacroPositionSemantics.IsLegacyCurrentPositionMacro(macro);
         var state = new PlaybackRunState
         {
-            ObservedPauseResumeVersion = Volatile.Read(ref _pauseResumeVersion)
+            ObservedPauseResumeVersion = _session.PauseResumeVersion
         };
         var playbackElapsedMilliseconds = _playbackElapsedMillisecondsFactory();
         var screenReadExecutor = new RunScriptScreenReadExecutor(
@@ -516,7 +516,8 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
                 token),
             ResolveDelayMs);
 
-        await runtimeExecutor.ExecuteAsync(executionRequest, cancellationToken);
+        var runtimeCoordinator = new RunScriptRuntimeCoordinator(runtimeExecutor);
+        await runtimeCoordinator.ExecuteAsync(executionRequest, cancellationToken);
     }
 
     private async Task PlayOnceWithScriptStepsAsync(MacroSequence macro, double speedMultiplier, CancellationToken cancellationToken)
@@ -524,7 +525,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         bool useLegacyCurrentPositionInterpretation = MacroPositionSemantics.IsLegacyCurrentPositionMacro(macro);
         var state = new PlaybackRunState
         {
-            ObservedPauseResumeVersion = Volatile.Read(ref _pauseResumeVersion)
+            ObservedPauseResumeVersion = _session.PauseResumeVersion
         };
         int totalEvents = macro.Events.Count;
         int eventIndex = 0;
@@ -605,11 +606,11 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (_isPaused)
+        if (_session.IsPaused)
         {
             Log.Debug("[MacroPlayer] Paused at event {Current}/{Total}", state.EventCount, totalEvents);
             var pausedStartMs = playbackElapsedMilliseconds();
-            await Task.Run(() => _pauseEvent.Wait(cancellationToken), cancellationToken);
+            await _session.WaitIfPausedAsync(cancellationToken);
             var pausedDurationMs = playbackElapsedMilliseconds() - pausedStartMs;
             if (state.HasTimelineAnchor)
             {
@@ -618,7 +619,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
             Log.Debug("[MacroPlayer] Resumed playback");
         }
 
-        int currentPauseResumeVersion = Volatile.Read(ref _pauseResumeVersion);
+        int currentPauseResumeVersion = _session.PauseResumeVersion;
         if (currentPauseResumeVersion != state.ObservedPauseResumeVersion)
         {
             state.ObservedPauseResumeVersion = currentPauseResumeVersion;
@@ -890,30 +891,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
 
     private int ResolveDelayMs(int fixedDelayMs, bool hasRandomDelay, int randomDelayMinMs, int randomDelayMaxMs)
     {
-        int randomDelay = 0;
-        if (hasRandomDelay)
-        {
-            int min = Math.Min(randomDelayMinMs, randomDelayMaxMs);
-            int max = Math.Max(randomDelayMinMs, randomDelayMaxMs);
-            if (min == max)
-            {
-                randomDelay = min;
-            }
-            else if (max == int.MaxValue)
-            {
-                randomDelay = (int)_random.NextInt64(min, (long)max + 1);
-            }
-            else
-            {
-                randomDelay = _random.Next(min, max + 1);
-            }
-        }
-
-        long totalDelay = (long)fixedDelayMs + randomDelay;
-        if (totalDelay <= 0)
-            return 0;
-
-        return totalDelay > int.MaxValue ? int.MaxValue : (int)totalDelay;
+        return _delayResolver.Resolve(fixedDelayMs, hasRandomDelay, randomDelayMinMs, randomDelayMaxMs);
     }
 
     private static Func<double> CreateRuntimeElapsedMillisecondsProvider()
@@ -924,119 +902,44 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
 
     public void Pause()
     {
-        if (IsPlaying && !_isPaused)
+        if (IsPlaying && !_session.IsPaused)
         {
-            _isPaused = true;
-
-            // Save state before releasing
-            _pausedButtons = _buttonTracker?.PressedButtons.ToArray() ?? Array.Empty<ushort>();
-            _pausedKeys = _keyTracker?.PressedKeys.ToArray() ?? Array.Empty<int>();
-
-            _eventExecutor?.ReleaseAll();
-            _pauseEvent.Reset();
+            _session.Pause();
 
             Log.Information("[MacroPlayer] Paused at loop {Loop}/{Total} (saved {ButtonCount} buttons, {KeyCount} keys)",
-                CurrentLoop, TotalLoops, _pausedButtons.Length, _pausedKeys.Length);
+                CurrentLoop, TotalLoops, 0, 0);
         }
     }
 
     public void Resume()
     {
-        if (IsPlaying && _isPaused)
+        if (IsPlaying && _session.IsPaused)
         {
-            _isPaused = false;
-
-            // Restore saved state
-            if (_inputSimulator != null)
-            {
-                _buttonTracker?.RestoreAll(_inputSimulator, _pausedButtons);
-
-                if (_keyTracker != null && _pausedKeys.Length > 0)
-                {
-                    var modifierKeys = _pausedKeys
-                        .Where(IsRestorableModifierKey)
-                        .ToArray();
-
-                    if (modifierKeys.Length > 0)
-                    {
-                        _keyTracker.RestoreAll(_inputSimulator, modifierKeys);
-                    }
-
-                    int skippedNonModifierCount = _pausedKeys.Length - modifierKeys.Length;
-                    if (skippedNonModifierCount > 0)
-                    {
-                        Log.Debug(
-                            "[MacroPlayer] Skipped restoring {Count} non-modifier key(s) on resume to avoid duplicate text input",
-                            skippedNonModifierCount);
-                    }
-                }
-            }
-
-            _pausedButtons = Array.Empty<ushort>();
-            _pausedKeys = Array.Empty<int>();
-
-            Interlocked.Increment(ref _pauseResumeVersion);
-            _pauseEvent.Set();
+            _session.Resume();
             Log.Information("[MacroPlayer] Resumed");
         }
-    }
-
-    private static bool IsRestorableModifierKey(int keyCode)
-    {
-        return Array.IndexOf(RestorableModifierKeys, keyCode) >= 0;
     }
 
     public void Stop()
     {
         Log.Information("[MacroPlayer] Stop requested");
-        _eventExecutor?.ReleaseAll();
-        _pauseEvent.Set();
-        _cts?.Cancel();
+        _session.Stop();
     }
 
     private void Cleanup(MacroSequence macro)
     {
-        _eventExecutor?.ReleaseAll();
-
         IsPlaying = false;
         CurrentLoop = 0;
         TotalLoops = 0;
         IsWaitingBetweenLoops = false;
 
+        _session.End();
         _eventExecutor?.Dispose();
         _eventExecutor = null;
         _coordinator = null;
         _buttonTracker = null;
         _keyTracker = null;
-
-        ReleaseSimulator();
-
-        _cts?.Dispose();
-        _cts = null;
-
         Log.Information("[MacroPlayer] ========== PLAYBACK ENDED ==========");
-    }
-
-    private void ReleaseSimulator()
-    {
-        var simulator = _inputSimulator;
-        if (simulator == null || Interlocked.Exchange(ref _simulatorReleased, 1) != 0)
-        {
-            return;
-        }
-
-        _inputSimulator = null;
-        if (_simulatorPool != null)
-        {
-            _simulatorPool.Release(simulator, _acquiredSimulatorWidth, _acquiredSimulatorHeight);
-        }
-        else
-        {
-            simulator.Dispose();
-        }
-
-        _acquiredSimulatorWidth = 0;
-        _acquiredSimulatorHeight = 0;
     }
 
     public void Dispose()
@@ -1047,10 +950,9 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         _disposed = true;
 
         Stop();
-        ReleaseSimulator();
+        _session.AttachInputState(null, null, null);
         _eventExecutor?.Dispose();
-        _cts?.Dispose();
-        _pauseEvent?.Dispose();
+        _session.Dispose();
 
         GC.SuppressFinalize(this);
     }

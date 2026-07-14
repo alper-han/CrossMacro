@@ -6,6 +6,41 @@ namespace CrossMacro.Core.Tests.Models;
 public class EditorActionTests
 {
     [Fact]
+    public void CommandPayloads_ProjectOnlyTheirOwnedEditorFields()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.Screenshot,
+            ScreenshotOutputPath = "capture.png",
+            ScreenshotCopyToClipboard = true,
+            ScreenshotUseRegion = true,
+            ScreenshotRegionX = "$x",
+            ScreenshotRegionY = "2",
+            ScreenshotRegionWidth = "30",
+            ScreenshotRegionHeight = "40",
+            ShellCommand = "echo ignored",
+            WindowSelectorValue = "ignored"
+        };
+
+        action.TryGetScreenshotPayload(out var screenshot).Should().BeTrue();
+        screenshot.OutputPath.Should().Be("capture.png");
+        screenshot.RegionWidth.Should().Be("30");
+        action.TryGetShellPayload(out _).Should().BeFalse();
+        action.TryGetWindowPayload(out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void CommandPayloads_RejectWrongActionTypeWithoutChangingTheFacade()
+    {
+        var action = new EditorAction { Type = EditorActionType.ShellCommand, ShellCommand = "echo ok" };
+
+        action.TryGetShellPayload(out var shell).Should().BeTrue();
+        shell.Command.Should().Be("echo ok");
+        action.TryGetScreenshotPayload(out _).Should().BeFalse();
+        action.TryGetWindowPayload(out _).Should().BeFalse();
+    }
+
+    [Fact]
     public void Clone_CreatesNewActionWithCopiedFields()
     {
         // Arrange

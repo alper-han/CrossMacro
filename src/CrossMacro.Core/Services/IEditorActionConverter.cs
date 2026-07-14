@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using CrossMacro.Core.Models;
 
@@ -9,6 +10,19 @@ namespace CrossMacro.Core.Services;
 /// </summary>
 public interface IEditorActionConverter
 {
+    /// <summary>
+    /// Converts an editor projection into the canonical runtime sequence.
+    /// </summary>
+    MacroSequence ToMacroSequence(EditorMacroProjection projection)
+    {
+        ArgumentNullException.ThrowIfNull(projection);
+        return ToMacroSequence(
+            projection.Actions,
+            projection.Name,
+            projection.IsAbsoluteCoordinates,
+            projection.SkipInitialZeroZero);
+    }
+
     /// <summary>
     /// Converts a single EditorAction to one or more MacroEvents.
     /// Some actions (like KeyPress) expand to multiple events.
@@ -34,6 +48,19 @@ public interface IEditorActionConverter
     /// <param name="isAbsolute">Whether coordinates are absolute.</param>
     /// <returns>A playable MacroSequence.</returns>
     MacroSequence ToMacroSequence(IEnumerable<EditorAction> actions, string name, bool isAbsolute, bool skipInitialZeroZero = false);
+
+    /// <summary>
+    /// Restores a runtime sequence into an editor projection.
+    /// </summary>
+    EditorMacroProjection FromMacroSequenceProjection(MacroSequence sequence)
+    {
+        ArgumentNullException.ThrowIfNull(sequence);
+        return new EditorMacroProjection(
+            FromMacroSequence(sequence),
+            sequence.Name,
+            sequence.IsAbsoluteCoordinates,
+            sequence.SkipInitialZeroZero);
+    }
     
     /// <summary>
     /// Converts a MacroSequence to a list of EditorActions for editing.

@@ -165,16 +165,25 @@ public sealed class ScreenReadingCliRuntimeTests
 
     private class MinimalPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
-        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
 
         public virtual void RegisterPlatformServices(IServiceCollection services)
         {
+            services.AddSingleton<IRuntimeContext, TestRuntimeContext>();
             services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
             services.AddSingleton<IEnvironmentInfoProvider, TestEnvironmentInfoProvider>();
             services.AddSingleton<ICoordinateStrategyFactory, TestCoordinateStrategyFactory>();
             services.AddSingleton<IKeyboardLayoutService, TestKeyboardLayoutService>();
             services.AddSingleton<IMousePositionProvider, TestMousePositionProvider>();
         }
+    }
+
+    private sealed class TestRuntimeContext : IRuntimeContext
+    {
+        public bool IsLinux => false;
+        public bool IsWindows => true;
+        public bool IsMacOS => false;
+        public bool IsFlatpak => false;
+        public string? SessionType => null;
     }
 
     private sealed class TestEnvironmentInfoProvider : IEnvironmentInfoProvider

@@ -107,6 +107,29 @@ public class HotkeyConfigurationServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CapturedSaveRequest_RetainsOriginalPathAfterProfileReload()
+    {
+        var firstProfile = Path.Combine(_tempPath, "first");
+        var secondProfile = Path.Combine(_tempPath, "second");
+        Directory.CreateDirectory(firstProfile);
+        Directory.CreateDirectory(secondProfile);
+        var service = new HotkeyConfigurationService(firstProfile);
+        var settings = new HotkeySettings
+        {
+            RecordingHotkey = "F1",
+            PlaybackHotkey = "F2",
+            PauseHotkey = "F3"
+        };
+
+        var request = service.CaptureSaveRequest(settings);
+        await service.ReloadAsync(secondProfile);
+        service.TrySave(request).Should().BeTrue();
+
+        File.Exists(Path.Combine(firstProfile, "hotkeys.json")).Should().BeTrue();
+        File.Exists(Path.Combine(secondProfile, "hotkeys.json")).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task SaveAndLoadAsync_RoundTrip_PreservesCustomHotkeys()
     {
         // Arrange

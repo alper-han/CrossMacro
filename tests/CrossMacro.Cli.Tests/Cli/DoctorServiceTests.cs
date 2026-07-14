@@ -66,7 +66,8 @@ public class DoctorServiceTests
         Func<string[]>? getInputEventCandidates = null,
         Func<bool>? hasUsableReadableInputDevices = null,
         IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
-        IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null)
+        IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
+        Func<string>? getConfigDirectory = null)
     {
         var simulatorInstance = simulator ?? CreateInputSimulator();
         var captureInstance = capture ?? CreateInputCapture();
@@ -93,7 +94,46 @@ public class DoctorServiceTests
             readAllTextIfExists ?? (_ => null),
             hasUsableReadableInputDevices,
             screenReadingDiagnosticProvider,
-            macOSScreenRecordingPermissionProbe);
+            macOSScreenRecordingPermissionProbe,
+            getConfigDirectory);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenConfigDirectoryResolverIsInjected_ReportsInjectedDirectory()
+    {
+        const string configDirectory = "/tmp/crossmacro-doctor-test-config";
+
+        var service = CreateService(
+            _ => null,
+            _ => false,
+            _ => false,
+            isLinux: () => false,
+            getConfigDirectory: () => configDirectory);
+
+        var report = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        var check = Assert.Single(report.Checks, x => x.Name == "config-path");
+        Assert.Equal(configDirectory, GetDetailsString(check, "configDirectory"));
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenInjectedConfigDirectoryCannotBeCreated_ReportsFailureDetails()
+    {
+        const string configDirectory = "/dev/null/crossmacro-doctor-test-config";
+
+        var service = CreateService(
+            _ => null,
+            _ => false,
+            _ => false,
+            isLinux: () => false,
+            getConfigDirectory: () => configDirectory);
+
+        var report = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        var check = Assert.Single(report.Checks, x => x.Name == "config-path");
+        Assert.Equal(DoctorCheckStatus.Fail, check.Status);
+        Assert.Equal(configDirectory, GetDetailsString(check, "configDirectory"));
+        Assert.NotNull(check.Details!["error"]);
     }
 
     private static string? GetDetailsString(DoctorCheck check, string propertyName)

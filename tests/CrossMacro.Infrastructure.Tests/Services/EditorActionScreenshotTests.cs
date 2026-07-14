@@ -168,6 +168,6 @@ public sealed class EditorActionScreenshotTests
     [InlineData("screenshot region 0 0 100 100 output \"path with spaces.png\" clipboard")]
     public void ValidateScreenshotStep_WhenOutputPathIsQuoted_ReturnsValid(string step)
     {
-        RunScriptSyntax.ValidateScreenshotStep(step).Should().BeNull();
+        RunScriptPlatformSyntax.ValidateScreenshotStep(step).Should().BeNull();
     }
 }

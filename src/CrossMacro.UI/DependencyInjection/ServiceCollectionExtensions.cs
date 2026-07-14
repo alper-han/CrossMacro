@@ -1,9 +1,9 @@
 using System;
+using CrossMacro.Application.Automation;
+using CrossMacro.Application.Profiles;
+using CrossMacro.Application.Runtime;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.DependencyInjection;
-using CrossMacro.Infrastructure.Services;
 using CrossMacro.Packaging.Abstractions;
-using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Abstractions.Diagnostics;
 using CrossMacro.UI.Startup;
 using CrossMacro.UI.Localization;
@@ -12,6 +12,7 @@ using CrossMacro.UI.ViewModels;
 using CrossMacro.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.UI.DependencyInjection;
 
@@ -24,69 +25,35 @@ public static class ServiceCollectionExtensions
     /// Main entry point - registers all services for the application.
     /// </summary>
     public static IServiceCollection AddCrossMacroServices(
-        this IServiceCollection services,
-        IPlatformServiceRegistrar platformServiceRegistrar)
+        this IServiceCollection services)
     {
-        services.AddCrossMacroGuiRuntimeServices(platformServiceRegistrar);
+        services.AddCrossMacroGuiRuntimeServices();
         services.AddViewModels();
-        
-        return services;
-    }
 
-    /// <summary>
-    /// Backward-compatible alias for GUI runtime service registration.
-    /// </summary>
-    public static IServiceCollection AddCrossMacroRuntimeServices(
-        this IServiceCollection services,
-        IPlatformServiceRegistrar platformServiceRegistrar)
-    {
-        return services.AddCrossMacroGuiRuntimeServices(platformServiceRegistrar);
+        return services;
     }
 
     /// <summary>
     /// Registers runtime services for GUI execution.
     /// </summary>
     public static IServiceCollection AddCrossMacroGuiRuntimeServices(
-        this IServiceCollection services,
-        IPlatformServiceRegistrar platformServiceRegistrar)
+        this IServiceCollection services)
     {
-        ArgumentNullException.ThrowIfNull(platformServiceRegistrar);
-
         services.TryAddSingleton(GuiStartupOptions.Default);
-        services.AddCommonServices();
-        platformServiceRegistrar.RegisterPlatformServices(services);
-        services.AddSharedPostPlatformServices(
-            clipboardMode: platformServiceRegistrar.ClipboardRegistration.GuiMode,
-            includeGuiOnlyServices: true);
-        
+        services.AddGuiOnlyServices();
+
+        services.AddSingleton<IManageProfile, ManageProfile>();
+        services.AddSingleton<IManageTextExpansion, ManageTextExpansion>();
+        services.AddSingleton<IManageSchedule, ManageSchedule>();
+        services.AddSingleton<IManageShortcut, ManageShortcut>();
+        services.AddSingleton<IManageTrigger, ManageTrigger>();
+
         return services;
     }
 
-    /// <summary>
-    /// Registers platform-agnostic core services.
-    /// </summary>
-    public static IServiceCollection AddCommonServices(this IServiceCollection services)
+    private static IServiceCollection AddGuiOnlyServices(this IServiceCollection services)
     {
-        return services.AddCrossMacroCommonRuntimeServices();
-    }
-
-    /// <summary>
-    /// Registers services that depend on platform services being registered first.
-    /// </summary>
-    public static IServiceCollection AddSharedPostPlatformServices(
-        this IServiceCollection services,
-        GuiClipboardRegistrationMode clipboardMode,
-        bool includeGuiOnlyServices = true,
-        bool allowAvaloniaClipboardFallback = true)
-    {
-        services.AddCrossMacroSharedPostPlatformRuntimeServices(
-            sp => sp.GetService<InputSimulatorPool>());
-
-        RegisterClipboardServices(services, clipboardMode, allowAvaloniaClipboardFallback);
-
-        if (includeGuiOnlyServices)
-        {
-            services.AddSingleton<IDesktopLifetimeContext, DesktopLifetimeContext>();
+        services.AddSingleton<IDesktopLifetimeContext, DesktopLifetimeContext>();
             services.AddSingleton<LocalizationService>();
             services.AddSingleton<ILocalizationService>(sp => sp.GetRequiredService<LocalizationService>());
             services.AddSingleton<EditorActionDisplayFormatter>();
@@ -97,7 +64,6 @@ public static class ServiceCollectionExtensions
                     sp.GetRequiredService<IDialogService>(),
                     sp.GetRequiredService<ISettingsService>(),
                     sp.GetService<IScreenReadingDiagnosticProvider>()));
-            services.AddSingleton<IUpdateService, GitHubUpdateService>();
             services.AddSingleton<IExternalUrlOpener, ExternalUrlOpener>();
             services.AddSingleton<IThemeService, ThemeService>();
             services.AddSingleton<Func<ISettingsService>>(sp => () => sp.GetRequiredService<ISettingsService>());
@@ -111,12 +77,15 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<Func<IFlatpakQuickSetupService?>>(sp => () => sp.GetService<IFlatpakQuickSetupService>());
             services.AddSingleton<Func<IAppImageQuickSetupService?>>(sp => () => sp.GetService<IAppImageQuickSetupService>());
             services.AddSingleton<Func<IPermissionChecker?>>(sp => () => sp.GetService<IPermissionChecker>());
-            services.AddSingleton<Func<InputSimulatorPool?>>(sp => () => sp.GetService<InputSimulatorPool>());
+            services.AddSingleton<Func<IInputSimulatorPool?>>(sp => () => sp.GetService<IInputSimulatorPool>());
             services.AddSingleton<Func<IMousePositionProvider?>>(sp => () => sp.GetService<IMousePositionProvider>());
             services.AddSingleton<DesktopStartupInitializationService>();
             services.AddSingleton<DesktopPermissionGateService>();
             services.AddSingleton<DesktopQuickSetupGateService>();
             services.AddSingleton<InputSimulatorWarmupService>();
+            services.AddSingleton<IRuntimeLifecycle>(sp =>
+                DesktopStartupRuntimeService.CreateLifecycle(
+                    () => sp.GetRequiredService<ITextExpansionService>()));
             services.AddSingleton<DesktopStartupRuntimeService>();
             services.AddSingleton<IDesktopStartupCoordinator>(sp =>
                 new DesktopStartupCoordinator(
@@ -124,45 +93,9 @@ public static class ServiceCollectionExtensions
                     sp.GetRequiredService<DesktopPermissionGateService>(),
                     sp.GetRequiredService<DesktopQuickSetupGateService>(),
                     sp.GetRequiredService<DesktopStartupRuntimeService>()));
-        }
-
         return services;
     }
 
-    private static void RegisterClipboardServices(
-        IServiceCollection services,
-        GuiClipboardRegistrationMode clipboardMode,
-        bool allowAvaloniaClipboardFallback)
-    {
-        services.AddSingleton<AvaloniaClipboardService>();
-
-        if (!allowAvaloniaClipboardFallback)
-        {
-            services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<AvaloniaClipboardService>());
-            return;
-        }
-
-        switch (clipboardMode)
-        {
-            case GuiClipboardRegistrationMode.AvaloniaOnly:
-                services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<AvaloniaClipboardService>());
-                return;
-            case GuiClipboardRegistrationMode.LinuxShellWithAvaloniaFallback:
-                services.AddSingleton<IProcessRunner, ProcessRunner>();
-                services.AddSingleton<FlatpakHostClipboardService>();
-                services.AddSingleton<LinuxShellClipboardService>();
-                services.AddSingleton<FlatpakHostImageClipboardService>();
-                services.AddSingleton<LinuxShellImageClipboardService>();
-                services.AddSingleton<IClipboardService, CompositeClipboardService>();
-                services.AddSingleton<IImageClipboardService>(sp =>
-                    sp.GetRequiredService<IRuntimeContext>().IsFlatpak
-                        ? sp.GetRequiredService<FlatpakHostImageClipboardService>()
-                        : sp.GetRequiredService<LinuxShellImageClipboardService>());
-                return;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(clipboardMode), clipboardMode, null);
-        }
-    }
 
     /// <summary>
     /// Registers all ViewModels.
@@ -173,7 +106,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<RecordingViewModel>();
         services.AddSingleton<PlaybackViewModel>();
         services.AddSingleton<FilesViewModel>();
-        services.AddSingleton<TextExpansionViewModel>();
+        services.AddSingleton<TextExpansionViewModel>(sp =>
+            new TextExpansionViewModel(
+                sp.GetRequiredService<IManageTextExpansion>(),
+                sp.GetRequiredService<IDialogService>(),
+                sp.GetRequiredService<IEnvironmentInfoProvider>(),
+                sp.GetRequiredService<ILocalizationService>()));
         services.AddSingleton<ScheduleViewModel>();
         services.AddSingleton<ShortcutViewModel>();
         services.AddSingleton<TriggerViewModel>();

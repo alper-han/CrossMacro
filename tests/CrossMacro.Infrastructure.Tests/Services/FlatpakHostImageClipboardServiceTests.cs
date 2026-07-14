@@ -6,6 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Platform.Linux.Clipboard;
+using FlatpakHostImageClipboardService = CrossMacro.Platform.Linux.Clipboard.FlatpakHostImageClipboardService;
 using CrossMacro.Platform.Abstractions;
 
 public sealed class FlatpakHostImageClipboardServiceTests
@@ -72,7 +74,7 @@ public sealed class FlatpakHostImageClipboardServiceTests
         Assert.False(service.IsSupported);
     }
 
-    private sealed class FakeProcessRunner : IProcessRunner
+    private sealed class FakeProcessRunner : CrossMacro.Infrastructure.Services.IProcessRunner
     {
         public Dictionary<string, bool> CheckResults { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, bool> HostCommandResults { get; } = new(StringComparer.Ordinal);

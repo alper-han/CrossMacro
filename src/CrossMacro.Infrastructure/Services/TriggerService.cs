@@ -29,6 +29,7 @@ public class TriggerService : ITriggerService
     private bool _isMonitoring;
     private bool _disposed;
     private CancellationTokenSource? _cts;
+    private Task _monitorTask = Task.CompletedTask;
 
     private string _triggersFilePath;
 
@@ -46,6 +47,17 @@ public class TriggerService : ITriggerService
 
     public ObservableCollection<TriggerTask> Tasks { get; } = new();
     public bool IsMonitoring => _isMonitoring;
+
+    public Task Completion
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _monitorTask;
+            }
+        }
+    }
 
     public event EventHandler<TriggerFiredEventArgs>? TriggerFired;
 
@@ -136,30 +148,42 @@ public class TriggerService : ITriggerService
     public void Start()
     {
         EnsureSyncContext();
-        CancellationToken ct;
+        Task monitorTask;
+        CancellationTokenSource monitorCts;
 
         lock (_lock)
         {
             if (_isMonitoring) return;
             _isMonitoring = true;
             _cts = new CancellationTokenSource();
-            ct = _cts.Token;
+            monitorCts = _cts;
+            _monitorTask = Task.Run(() => MonitorLoopAsync(monitorCts.Token));
+            monitorTask = _monitorTask;
         }
-
-        _ = Task.Run(() => MonitorLoopAsync(ct));
+        _ = ObserveMonitorTaskAsync(monitorTask, monitorCts);
     }
 
     public void Stop()
     {
+        _ = StopAsync();
+    }
+
+    public async Task StopAsync(CancellationToken cancellationToken = default)
+    {
         EnsureSyncContext();
         CancellationTokenSource? cts;
+        Task monitorTask;
 
         lock (_lock)
         {
-            if (!_isMonitoring) return;
+            if (!_isMonitoring)
+            {
+                return;
+            }
             _isMonitoring = false;
             cts = _cts;
             _cts = null;
+            monitorTask = _monitorTask;
         }
 
         if (cts == null) return;
@@ -167,8 +191,7 @@ public class TriggerService : ITriggerService
         try { cts.Cancel(); }
         catch (ObjectDisposedException) { }
 
-        // Dispose token source after confirming the monitoring loop has exited.
-        _ = CompleteStopAsync(cts);
+        await CompleteStopAsync(monitorTask, cts, cancellationToken).ConfigureAwait(false);
 
         lock (_lock)
         {
@@ -176,17 +199,34 @@ public class TriggerService : ITriggerService
         }
     }
 
-    private static async Task CompleteStopAsync(CancellationTokenSource cts)
+    private static async Task CompleteStopAsync(Task monitorTask, CancellationTokenSource cts, CancellationToken cancellationToken)
     {
         try
         {
-            // Brief yield so any in-flight MonitorLoopAsync await sees cancellation
-            // then re-enters its loop and observes IsCancellationRequested.
-            await Task.Yield();
+            await monitorTask.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch { }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            cts.Dispose();
+        }
+    }
 
-        cts.Dispose();
+    private static async Task ObserveMonitorTaskAsync(Task monitorTask, CancellationTokenSource cts)
+    {
+        try
+        {
+            await monitorTask.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Trigger monitoring loop faulted");
+        }
     }
 
     private async Task MonitorLoopAsync(CancellationToken ct)
@@ -443,8 +483,7 @@ public class TriggerService : ITriggerService
             task.LastStatus = finalMessage;
         }
 
-        if (_syncContext != null) _syncContext.Post(UpdateTaskState, null);
-        else UpdateTaskState(null);
+        await ExecuteOnCapturedContextAsync(UpdateTaskState).ConfigureAwait(false);
 
         RaiseTriggerFired(new TriggerFiredEventArgs(task, success, finalMessage));
     }
@@ -511,8 +550,7 @@ public class TriggerService : ITriggerService
                     }
                 }
 
-                if (_syncContext != null) _syncContext.Post(UpdateCollection, null);
-                else UpdateCollection(null);
+                await ExecuteOnCapturedContextAsync(UpdateCollection).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
@@ -540,10 +578,33 @@ public class TriggerService : ITriggerService
             }
         }
 
-        if (_syncContext != null) _syncContext.Post(ClearCollection, null);
-        else ClearCollection(null);
+        await ExecuteOnCapturedContextAsync(ClearCollection).ConfigureAwait(false);
 
         await LoadAsync().ConfigureAwait(false);
+    }
+
+    private async Task ExecuteOnCapturedContextAsync(SendOrPostCallback callback)
+    {
+        if (_syncContext == null || SynchronizationContext.Current == _syncContext)
+        {
+            callback(null);
+            return;
+        }
+
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _syncContext.Post(_ =>
+        {
+            try
+            {
+                callback(null);
+                completion.TrySetResult();
+            }
+            catch (Exception ex)
+            {
+                completion.TrySetException(ex);
+            }
+        }, null);
+        await completion.Task.ConfigureAwait(false);
     }
 
     public void Dispose()

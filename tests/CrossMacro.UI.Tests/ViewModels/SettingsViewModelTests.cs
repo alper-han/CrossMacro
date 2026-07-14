@@ -30,6 +30,7 @@ public class SettingsViewModelTests
     private readonly IExternalUrlOpener _externalUrlOpener;
     private readonly IRuntimeLogLevelService _runtimeLogLevelService;
     private readonly IThemeService _themeService;
+    private readonly IRuntimeContext _runtimeContext = new FakeRuntimeContext();
     private readonly HotkeySettings _hotkeySettings;
     private readonly SettingsViewModel _viewModel;
 
@@ -62,7 +63,8 @@ public class SettingsViewModelTests
             _hotkeySettings,
             _externalUrlOpener,
             _runtimeLogLevelService,
-            _themeService);
+            _themeService,
+            _runtimeContext);
     }
 
     [Fact]
@@ -88,6 +90,7 @@ public class SettingsViewModelTests
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
+            _runtimeContext,
             localizationService);
 
         vm.GlobalHotkeyService.Should().BeSameAs(_hotkeyService);
@@ -126,6 +129,7 @@ public class SettingsViewModelTests
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
+            _runtimeContext,
             localizationService);
 
         vm.SelectedLanguageOption = vm.AvailableLanguages.Single(option => option.Code == "ja");
@@ -149,6 +153,7 @@ public class SettingsViewModelTests
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
+            _runtimeContext,
             localizationService);
 
         var selectedBefore = vm.AvailableLanguages.Single(option => option.Code == "zh");
@@ -182,7 +187,8 @@ public class SettingsViewModelTests
             _hotkeySettings,
             _externalUrlOpener,
             _runtimeLogLevelService,
-            _themeService);
+            _themeService,
+            _runtimeContext);
 
         vm.SelectedLanguage.Should().Be("en");
         vm.SelectedLanguageOption!.Code.Should().Be("en");
@@ -198,7 +204,8 @@ public class SettingsViewModelTests
             _hotkeySettings,
             _externalUrlOpener,
             _runtimeLogLevelService,
-            null!);
+            null!,
+            _runtimeContext);
 
         act.Should().Throw<ArgumentNullException>();
     }
@@ -494,6 +501,7 @@ public class SettingsViewModelTests
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
+            _runtimeContext,
             profileManager: profileManager);
 
         vm.AvailableProfiles.Should().ContainSingle().Which.Name.Should().Be("Default");
@@ -543,7 +551,8 @@ public class SettingsViewModelTests
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
-            localizationService,
+            _runtimeContext,
+            localizationService: localizationService,
             profileManager: profileManager,
             dialogService: dialogService)
         {
@@ -583,7 +592,8 @@ public class SettingsViewModelTests
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
-            localizationService,
+            _runtimeContext,
+            localizationService: localizationService,
             profileManager: profileManager,
             dialogService: dialogService)
         {
@@ -614,6 +624,7 @@ public class SettingsViewModelTests
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
+            _runtimeContext,
             profileManager: profileManager);
 
         vm.Dispose();
@@ -640,6 +651,7 @@ public class SettingsViewModelTests
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
+            _runtimeContext,
             profileManager: profileManager);
         string? failureMessage = null;
         vm.ProfileOperationFailed += (_, message) => failureMessage = message;
@@ -674,6 +686,7 @@ public class SettingsViewModelTests
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
+            _runtimeContext,
             profileManager: profileManager);
 
         profileManager.ProfileChanged += Raise.Event<EventHandler<ProfileInfo>>(profileManager, workProfile);

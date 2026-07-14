@@ -26,7 +26,7 @@ public class ProgramCliContractTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var exitCode = await CliGuiRuntime.RunAsync(
+            var exitCode = await RunAsync(
                 ["--json"],
                 new NoOpPlatformServiceRegistrar(),
                 startGui: () => throw new InvalidOperationException("GUI must not start for CLI parse error."),
@@ -64,7 +64,7 @@ public class ProgramCliContractTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var exitCode = await CliGuiRuntime.RunAsync(
+            var exitCode = await RunAsync(
                 ["doctor", "--bad", "--json"],
                 new NoOpPlatformServiceRegistrar(),
                 startGui: () => throw new InvalidOperationException("GUI must not start for CLI parse error."),
@@ -103,7 +103,7 @@ public class ProgramCliContractTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var exitCode = await CliGuiRuntime.RunAsync(
+            var exitCode = await RunAsync(
                 ["run", "--json"],
                 new NoOpPlatformServiceRegistrar(),
                 startGui: () => throw new InvalidOperationException("GUI must not start for CLI parse error."),
@@ -141,7 +141,7 @@ public class ProgramCliContractTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var exitCode = await CliGuiRuntime.RunAsync(
+            var exitCode = await RunAsync(
                 ["doctor", "--json"],
                 new ThrowingPlatformServiceRegistrar(),
                 startGui: () => throw new InvalidOperationException("GUI must not start for CLI command."),
@@ -176,7 +176,7 @@ public class ProgramCliContractTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var exitCode = await CliGuiRuntime.RunAsync(
+            var exitCode = await RunAsync(
                 ["doctor", "--json"],
                 new CancelledPlatformServiceRegistrar(),
                 startGui: () => throw new InvalidOperationException("GUI must not start for CLI command."),
@@ -211,7 +211,7 @@ public class ProgramCliContractTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var exitCode = await CliGuiRuntime.RunAsync(
+            var exitCode = await RunAsync(
                 ["headless", "--json"],
                 new NoOpPlatformServiceRegistrar(),
                 startGui: () => throw new InvalidOperationException("GUI must not start for headless command."),
@@ -237,7 +237,7 @@ public class ProgramCliContractTests
         var guiStarted = false;
         using var dataHome = new TemporaryDataHomeScope();
 
-        var exitCode = await CliGuiRuntime.RunAsync(
+        var exitCode = await RunAsync(
             [],
             new NoOpPlatformServiceRegistrar(),
             startGui: () =>
@@ -254,16 +254,30 @@ public class ProgramCliContractTests
 
     private sealed class NoOpPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
-        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
 
         public void RegisterPlatformServices(IServiceCollection services)
         {
         }
     }
 
+    private static Task<int> RunAsync(
+        string[] args,
+        IPlatformServiceRegistrar registrar,
+        Func<int> startGui,
+        Func<string> getVersionString,
+        Func<IDisposable?> tryAcquireSingleInstanceGuard)
+    {
+        return CliGuiRuntime.RunAsync(
+            args,
+            registrar.RegisterPlatformServices,
+            (services, _) => registrar.RegisterPlatformServices(services),
+            startGui,
+            getVersionString,
+            tryAcquireSingleInstanceGuard);
+    }
+
     private sealed class ThrowingPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
-        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
 
         public void RegisterPlatformServices(IServiceCollection services)
         {
@@ -273,7 +287,6 @@ public class ProgramCliContractTests
 
     private sealed class CancelledPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
-        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
 
         public void RegisterPlatformServices(IServiceCollection services)
         {

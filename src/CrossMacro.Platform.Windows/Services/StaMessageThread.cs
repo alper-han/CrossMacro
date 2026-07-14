@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Threading;
@@ -12,10 +13,12 @@ namespace CrossMacro.Platform.Windows.Services;
 internal sealed class StaMessageThread : IDisposable
 {
     private readonly Thread _thread;
-    private readonly ConcurrentQueue<Action> _workQueue = new();
+    private readonly ConcurrentQueue<Action<Exception?>> _workQueue = new();
     private IntPtr _hwnd;
     private uint _threadId;
     private readonly AutoResetEvent _readyEvent = new(false);
+    private Exception? _startupException;
+    private int _isClosing;
 
     public IntPtr MessageWindowHandle => _hwnd;
 
@@ -30,6 +33,11 @@ internal sealed class StaMessageThread : IDisposable
         _thread.Start();
 
         _readyEvent.WaitOne();
+        if (_startupException is not null)
+        {
+            _readyEvent.Dispose();
+            throw new InvalidOperationException("Failed to initialize the Windows STA message thread.", _startupException);
+        }
     }
 
     private void Run()
@@ -50,7 +58,7 @@ internal sealed class StaMessageThread : IDisposable
 
             if (RegisterClassEx(ref wndClass) == 0)
             {
-                _readyEvent.Set();
+                ReportStartupFailure();
                 return;
             }
 
@@ -66,6 +74,13 @@ internal sealed class StaMessageThread : IDisposable
                 IntPtr.Zero,
                 wndClass.hInstance,
                 IntPtr.Zero);
+
+            if (_hwnd == IntPtr.Zero)
+            {
+                UnregisterClass(className, wndClass.hInstance);
+                ReportStartupFailure();
+                return;
+            }
 
             PeekMessage(out _, IntPtr.Zero, 0, 0, 0);
 
@@ -85,13 +100,7 @@ internal sealed class StaMessageThread : IDisposable
                     {
                         while (_workQueue.TryDequeue(out var action))
                         {
-                            try
-                            {
-                                action();
-                            }
-                            catch
-                            {
-                            }
+                            action(null);
                         }
                     }
                     else
@@ -112,16 +121,33 @@ internal sealed class StaMessageThread : IDisposable
         }
         finally
         {
+            FailPendingWork();
             OleUninitialize();
         }
     }
 
     public Task<T> InvokeAsync<T>(Func<T> action)
     {
+        if (Volatile.Read(ref _isClosing) != 0)
+        {
+            return Task.FromException<T>(new ObjectDisposedException(nameof(StaMessageThread)));
+        }
+
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
         
-        _workQueue.Enqueue(() =>
+        _workQueue.Enqueue(failure =>
         {
+            if (tcs.Task.IsCompleted)
+            {
+                return;
+            }
+
+            if (failure is not null)
+            {
+                tcs.TrySetException(failure);
+                return;
+            }
+
             try
             {
                 tcs.TrySetResult(action());
@@ -132,7 +158,11 @@ internal sealed class StaMessageThread : IDisposable
             }
         });
 
-        User32.PostThreadMessage(_threadId, User32.WM_APP, IntPtr.Zero, IntPtr.Zero);
+        if (Volatile.Read(ref _isClosing) != 0 ||
+            !User32.PostThreadMessage(_threadId, User32.WM_APP, IntPtr.Zero, IntPtr.Zero))
+        {
+            tcs.TrySetException(new Win32Exception(Marshal.GetLastWin32Error(), "Failed to queue work on the Windows STA message thread."));
+        }
 
         return tcs.Task;
     }
@@ -148,9 +178,30 @@ internal sealed class StaMessageThread : IDisposable
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _isClosing, 1) != 0)
+        {
+            return;
+        }
+
         User32.PostThreadMessage(_threadId, User32.WM_QUIT, IntPtr.Zero, IntPtr.Zero);
         _thread.Join(1000);
+        FailPendingWork();
         _readyEvent.Dispose();
+    }
+
+    private void ReportStartupFailure()
+    {
+        _startupException = new Win32Exception(Marshal.GetLastWin32Error());
+        _readyEvent.Set();
+    }
+
+    private void FailPendingWork()
+    {
+        var failure = new ObjectDisposedException(nameof(StaMessageThread));
+        while (_workQueue.TryDequeue(out var action))
+        {
+            action(failure);
+        }
     }
 
     private delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);

@@ -228,7 +228,7 @@ $publishArgs = @(
     '-r', $rid,
     '--self-contained', 'true',
     '-p:PublishAot=true',
-    '-p:PublishReadyToRun=true',
+    '-p:PublishReadyToRun=false',
     '-p:OptimizationPreference=Speed',
     '-p:StripSymbols=true',
     '-p:IlcTrimMetadata=true',

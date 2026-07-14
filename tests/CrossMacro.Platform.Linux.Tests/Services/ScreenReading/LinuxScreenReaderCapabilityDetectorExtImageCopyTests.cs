@@ -84,6 +84,24 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
     }
 
     [Fact]
+    public void CapabilityDetector_WhenInvalidated_ReprobesScreenBackends()
+    {
+        var probe = new MutableExtImageCopyProbe(ExtImageCopySupportResult.Unsupported("initial"));
+        var detector = new LinuxScreenReaderCapabilityDetector(
+            probe,
+            new FakeWlrScreencopySupportProbe(WlrScreencopySupportResult.Unsupported("wlr")),
+            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Unsupported("portal")),
+            new FakeKWinScreenShotSupportProbe(KWinScreenShotSupportResult.Unsupported("kwin")));
+
+        Assert.False(detector.GetSnapshot().ExtImageCopy.IsAvailable);
+        probe.Result = ExtImageCopySupportResult.Supported();
+
+        detector.InvalidateCache();
+
+        Assert.True(detector.GetSnapshot().ExtImageCopy.IsAvailable);
+    }
+
+    [Fact]
     public void CapabilityDetector_WhenWlrAndPortalProbesReturnMixedResults_MapsBothBackends()
     {
         var detector = new LinuxScreenReaderCapabilityDetector(
@@ -108,6 +126,13 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
     private sealed class ThrowingExtImageCopyProbe : IExtImageCopySupportProbe
     {
         public ExtImageCopySupportResult ProbeSupport() => throw new IOException("ext probe failed");
+    }
+
+    private sealed class MutableExtImageCopyProbe(ExtImageCopySupportResult result) : IExtImageCopySupportProbe
+    {
+        public ExtImageCopySupportResult Result { get; set; } = result;
+
+        public ExtImageCopySupportResult ProbeSupport() => Result;
     }
 
     private sealed class RecordingWlrProbe(WlrScreencopySupportResult result) : IWlrScreencopySupportProbe

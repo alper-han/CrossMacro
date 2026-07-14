@@ -6,6 +6,7 @@ using CrossMacro.Core.Logging;
 using CrossMacro.Core.Services;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
+using CrossMacro.Platform.Linux.Services;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
 {
@@ -385,9 +386,14 @@ export default class CrossMacroExtension extends Extension {
         public bool IsSupported { get; private set; }
 
         public GnomePositionProvider()
+            : this(LinuxEnvironmentVariables.CaptureCurrentSnapshot())
         {
-            var currentDesktop = Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP");
-            var session = Environment.GetEnvironmentVariable("GDMSESSION");
+        }
+
+        public GnomePositionProvider(LinuxEnvironmentSnapshot environment)
+        {
+            var currentDesktop = environment.CurrentDesktop;
+            var session = environment.GdmSession;
             
             IsSupported = (currentDesktop?.Contains("GNOME", StringComparison.OrdinalIgnoreCase) ?? false) || 
                           (session?.Contains("gnome", StringComparison.OrdinalIgnoreCase) ?? false);

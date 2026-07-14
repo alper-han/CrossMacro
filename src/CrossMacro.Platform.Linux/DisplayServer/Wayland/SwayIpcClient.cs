@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Logging;
+using CrossMacro.Platform.Linux.Services;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
@@ -26,6 +27,11 @@ public sealed class SwayIpcClient : ISwayIpcClient
 
     public SwayIpcClient()
         : this(Environment.GetEnvironmentVariable(SocketPathEnvironmentVariable))
+    {
+    }
+
+    public SwayIpcClient(LinuxEnvironmentSnapshot environment)
+        : this(environment.SwaySocket)
     {
     }
 

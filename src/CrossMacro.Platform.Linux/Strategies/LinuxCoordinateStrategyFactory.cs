@@ -1,4 +1,3 @@
-using CrossMacro.Infrastructure.Services.Recording.Strategies;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Linux.DisplayServer;
 using CrossMacro.Platform.Linux.Services;

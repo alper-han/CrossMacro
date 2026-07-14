@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Infrastructure.Linux.Native.UInput;
+using CrossMacro.Platform.Linux.Native.UInput;
 using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Daemon.Services;

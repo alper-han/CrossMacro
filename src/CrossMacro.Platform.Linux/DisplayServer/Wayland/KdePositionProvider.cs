@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using CrossMacro.Core.Logging;
 using CrossMacro.Core.Services;
 using CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
+using CrossMacro.Platform.Linux.Services;
 using Tmds.DBus.Protocol;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
@@ -38,8 +39,13 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
         public bool IsSupported { get; private set; }
 
         public KdePositionProvider()
+            : this(LinuxEnvironmentVariables.CaptureCurrentSnapshot())
+        {
+        }
+
+        public KdePositionProvider(LinuxEnvironmentSnapshot environment)
             : this(
-                string.Equals(Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP"), "KDE", StringComparison.OrdinalIgnoreCase),
+                string.Equals(environment.CurrentDesktop, "KDE", StringComparison.OrdinalIgnoreCase),
                 autoStartTracking: true)
         {
         }

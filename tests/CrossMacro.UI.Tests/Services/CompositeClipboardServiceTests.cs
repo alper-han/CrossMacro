@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
+using CrossMacro.Platform.Linux.Clipboard;
+using FlatpakHostClipboardService = CrossMacro.Platform.Linux.Clipboard.FlatpakHostClipboardService;
+using LinuxShellClipboardService = CrossMacro.Platform.Linux.Clipboard.LinuxShellClipboardService;
 using CrossMacro.UI.Services;
 using NSubstitute;
 
@@ -343,7 +346,7 @@ public class CompositeClipboardServiceTests
         Assert.True(runner.CheckCalls.Count >= 2);
     }
 
-    private sealed class FakeProcessRunner : IProcessRunner
+    private sealed class FakeProcessRunner : CrossMacro.Infrastructure.Services.IProcessRunner
     {
         public Dictionary<string, bool> CheckResults { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, bool> HostCommandResults { get; } = new(StringComparer.Ordinal);
@@ -448,22 +451,29 @@ public class CompositeClipboardServiceTests
         }
     }
 
-    private sealed class FakeClipboardService : IClipboardService
+    private sealed class FakeClipboardService : AvaloniaClipboardService
     {
+        public FakeClipboardService()
+            : base(Substitute.For<IDesktopLifetimeContext>())
+        {
+        }
+
         public bool Supported { get; init; }
         public string? ReadResult { get; init; }
         public bool ThrowOnRead { get; init; }
         public List<string> Writes { get; } = [];
 
-        public bool IsSupported => Supported;
+        public override bool IsSupported => Supported;
 
-        public Task SetTextAsync(string text, CancellationToken cancellationToken = default)
+        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public override Task SetTextAsync(string text, CancellationToken cancellationToken = default)
         {
             Writes.Add(text);
             return Task.CompletedTask;
         }
 
-        public Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
+        public override Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
         {
             if (ThrowOnRead)
             {

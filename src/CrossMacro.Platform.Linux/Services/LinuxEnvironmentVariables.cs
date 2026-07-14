@@ -3,19 +3,45 @@ namespace CrossMacro.Platform.Linux.Services;
 public sealed class LinuxEnvironmentVariables : ILinuxEnvironmentVariables
 {
     private readonly Func<string, string?> _getEnvironmentVariable;
+    private readonly Func<string, bool> _fileExists;
+    private readonly LinuxEnvironmentSnapshot? _fixedSnapshot;
 
+    public static LinuxEnvironmentSnapshot CaptureCurrentSnapshot()
+    {
+        return new LinuxEnvironmentVariables(Environment.GetEnvironmentVariable, File.Exists).CaptureSnapshot();
+    }
+
+    [Obsolete("Capture the Linux environment once at the composition boundary and pass the snapshot.", error: false)]
     public LinuxEnvironmentVariables()
-        : this(Environment.GetEnvironmentVariable)
+        : this(Environment.GetEnvironmentVariable, File.Exists)
     {
     }
 
+    public LinuxEnvironmentVariables(LinuxEnvironmentSnapshot snapshot)
+    {
+        _fixedSnapshot = snapshot;
+        _getEnvironmentVariable = static _ => null;
+        _fileExists = static _ => false;
+    }
+
     internal LinuxEnvironmentVariables(Func<string, string?> getEnvironmentVariable)
+        : this(getEnvironmentVariable, File.Exists)
+    {
+    }
+
+    internal LinuxEnvironmentVariables(Func<string, string?> getEnvironmentVariable, Func<string, bool> fileExists)
     {
         _getEnvironmentVariable = getEnvironmentVariable ?? throw new ArgumentNullException(nameof(getEnvironmentVariable));
+        _fileExists = fileExists ?? throw new ArgumentNullException(nameof(fileExists));
     }
 
     public LinuxEnvironmentSnapshot CaptureSnapshot()
     {
+        if (_fixedSnapshot is { } snapshot)
+        {
+            return snapshot;
+        }
+
         return new LinuxEnvironmentSnapshot(
             FlatpakId: _getEnvironmentVariable("FLATPAK_ID"),
             AppImage: _getEnvironmentVariable("APPIMAGE"),
@@ -29,6 +55,9 @@ public sealed class LinuxEnvironmentVariables : ILinuxEnvironmentVariables
             RuntimeDir: _getEnvironmentVariable("XDG_RUNTIME_DIR"),
             WayfireSocket: _getEnvironmentVariable("WAYFIRE_SOCKET"),
             SwaySocket: _getEnvironmentVariable("SWAYSOCK"),
-            WindowButtons: _getEnvironmentVariable("CROSSMACRO_WINDOW_BUTTONS"));
+            WindowButtons: _getEnvironmentVariable("CROSSMACRO_WINDOW_BUTTONS"),
+            CrossMacroFlatpak: _getEnvironmentVariable("CROSSMACRO_FLATPAK"),
+            FlatpakInfoExists: _fileExists("/.flatpak-info"),
+            NiriSocket: _getEnvironmentVariable("NIRI_SOCKET"));
     }
 }

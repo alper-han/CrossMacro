@@ -1,0 +1,17 @@
+# Name: Current Fixture
+# Created: 2026-07-13T18:24:51.0000000Z
+# DurationMs: 30
+# IsAbsolute: False
+# SkipInitialZero: True
+# TrailingDelayMs: 7
+# TrailingRandomDelayMs: 8,9
+# TextInputBoundaryBase64: eyJTdGFydEV2ZW50SW5kZXgiOjAsIkV2ZW50Q291bnQiOjEsIlRleHQiOiJoaSJ9
+# Image: Target = iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=
+# Format: CrossMacroFormatV2
+[Script]
+click left
+[Events]
+W,10
+M,rel,4,5
+WR,2,3
+C,rel,4,5,Left,CurrentPosition

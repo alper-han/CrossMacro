@@ -50,9 +50,9 @@ public sealed partial class DoctorService
 
     private DoctorCheck BuildLinuxDisplayVariablesCheck(bool verbose)
     {
-        var xdgSessionType = _getEnvironmentVariable("XDG_SESSION_TYPE");
-        var display = _getEnvironmentVariable("DISPLAY");
-        var waylandDisplay = _getEnvironmentVariable("WAYLAND_DISPLAY");
+        var xdgSessionType = _displayEnvironmentDiagnostic?.XdgSessionType ?? _getEnvironmentVariable("XDG_SESSION_TYPE");
+        var display = _displayEnvironmentDiagnostic?.Display ?? _getEnvironmentVariable("DISPLAY");
+        var waylandDisplay = _displayEnvironmentDiagnostic?.WaylandDisplay ?? _getEnvironmentVariable("WAYLAND_DISPLAY");
 
         var hasAnyDisplayVariable = !string.IsNullOrWhiteSpace(display) || !string.IsNullOrWhiteSpace(waylandDisplay);
         var hasSessionType = !string.IsNullOrWhiteSpace(xdgSessionType);
@@ -358,7 +358,7 @@ public sealed partial class DoctorService
 
         var daemonHandshakeOk = handshake.Succeeded;
 
-        var sessionType = _getEnvironmentVariable("XDG_SESSION_TYPE");
+        var sessionType = _runtimeContext?.SessionType ?? _getEnvironmentVariable("XDG_SESSION_TYPE");
         var isWaylandSession = string.Equals(sessionType, "wayland", StringComparison.OrdinalIgnoreCase);
         var isX11Session = string.Equals(sessionType, "x11", StringComparison.OrdinalIgnoreCase);
         var detectedEnvironment = _environmentInfoProvider.CurrentEnvironment;
@@ -372,7 +372,7 @@ public sealed partial class DoctorService
 
         var isX11 = isX11Session || detectedEnvironment == DisplayEnvironment.LinuxX11;
 
-        var isFlatpak = !string.IsNullOrWhiteSpace(_getEnvironmentVariable("FLATPAK_ID"));
+        var isFlatpak = _runtimeContext?.IsFlatpak ?? !string.IsNullOrWhiteSpace(_getEnvironmentVariable("FLATPAK_ID"));
         var gsrVirtualKeyboardDetected = LinuxGsrCompatibility.ContainsGsrVirtualKeyboard(
             _readAllTextIfExists(LinuxGsrCompatibility.InputDevicesPath));
 
@@ -399,7 +399,7 @@ public sealed partial class DoctorService
 
     private bool HasReadableInputEventAccess()
     {
-        return _inputDeviceAccessProbe.HasUsableReadableInputDevices();
+        return _hasUsableReadableInputDevices();
     }
 
     private string? ResolveAvailableSocketPath()

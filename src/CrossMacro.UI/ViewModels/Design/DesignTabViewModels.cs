@@ -67,7 +67,7 @@ public sealed class DesignTextExpansionViewModel : TextExpansionViewModel
     }
 
     internal DesignTextExpansionViewModel(DesignPreviewContext context)
-        : base(context.TextExpansionStorageService, context.DialogService, context.EnvironmentInfoProvider, context.LocalizationService)
+        : base(context.TextExpansionStore, context.DialogService, context.EnvironmentInfoProvider, context.LocalizationService)
     {
         TriggerInput = ":sync-ok";
         ReplacementInput = "Inventory sync completed successfully";
@@ -93,8 +93,8 @@ public sealed class DesignSettingsViewModel : SettingsViewModel
             context.ExternalUrlOpener,
             context.RuntimeLogLevelService,
             context.ThemeService,
-            context.LocalizationService,
-            context.RuntimeContext)
+            context.RuntimeContext,
+            context.LocalizationService)
     {
     }
 }

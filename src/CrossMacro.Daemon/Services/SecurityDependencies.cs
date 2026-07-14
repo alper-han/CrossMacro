@@ -76,6 +76,8 @@ public sealed class SecurityAuditLogger : ISecurityAuditLogger
 
     public void LogSimulation(uint uid, int pid, ushort type, ushort code, int value) =>
         _inner.LogSimulation(uid, pid, type, code, value);
+
+    public void Dispose() => _inner.Dispose();
 }
 
 public sealed class PeerCredentialsProvider : IPeerCredentialsProvider

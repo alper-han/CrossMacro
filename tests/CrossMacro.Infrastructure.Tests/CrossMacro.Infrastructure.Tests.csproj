@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Update="Fixtures/**/*.macro" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="FluentAssertions" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="NSubstitute" />
@@ -24,8 +28,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\CrossMacro.Application\CrossMacro.Application.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Core\CrossMacro.Core.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Platform.Abstractions\CrossMacro.Platform.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\CrossMacro.Platform.Linux\CrossMacro.Platform.Linux.csproj" />
   </ItemGroup>
 
   <ItemGroup>

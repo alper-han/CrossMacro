@@ -68,4 +68,36 @@ internal static class TaskCliServiceHelpers
             $"{taskKindDisplay} task executed.",
             data: mapTaskResult(task));
     }
+
+    public static async Task<(TTask? Task, CliCommandExecutionResult? Result)> FindTaskAsync<TTask>(
+        string taskId,
+        string taskKindLower,
+        string taskKindDisplay,
+        CancellationToken cancellationToken,
+        Func<Task<IReadOnlyList<TTask>>> loadAsync,
+        Func<TTask, Guid> getTaskId)
+        where TTask : class
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!Guid.TryParse(taskId, out var parsedTaskId))
+        {
+            return (null, CliCommandExecutionResult.Fail(
+                CliExitCode.InvalidArguments,
+                $"Invalid {taskKindLower} task id format.",
+                errors: [$"Task id is not a valid GUID: {taskId}"]));
+        }
+
+        var tasks = await loadAsync();
+        cancellationToken.ThrowIfCancellationRequested();
+        var task = tasks.FirstOrDefault(candidate => getTaskId(candidate) == parsedTaskId);
+        if (task is null)
+        {
+            return (null, CliCommandExecutionResult.Fail(
+                CliExitCode.InvalidArguments,
+                $"{taskKindDisplay} task not found.",
+                errors: [$"No {taskKindLower} task found with id: {taskId}"]));
+        }
+
+        return (task, null);
+    }
 }

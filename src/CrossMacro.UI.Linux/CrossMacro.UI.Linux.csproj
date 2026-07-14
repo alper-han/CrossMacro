@@ -4,11 +4,13 @@
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>CrossMacro.UI</AssemblyName>
     <Nullable>enable</Nullable>
+    <PublishAot Condition="'$(PublishAot)' == ''">false</PublishAot>
+    <IsAotCompatible>true</IsAotCompatible>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' != ''">
-    <PublishReadyToRun>false</PublishReadyToRun>
+    <PublishReadyToRun Condition="'$(PublishAot)' != 'true'">true</PublishReadyToRun>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
@@ -18,6 +20,7 @@
     <ProjectReference Include="..\CrossMacro.UI\CrossMacro.UI.csproj" />
     <ProjectReference Include="..\CrossMacro.Platform.Linux\CrossMacro.Platform.Linux.csproj" />
     <ProjectReference Include="..\CrossMacro.Cli\CrossMacro.Cli.csproj" />
+    <ProjectReference Include="..\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
     <ProjectReference Include="..\CrossMacro.Core\CrossMacro.Core.csproj" />
   </ItemGroup>
 
@@ -35,13 +38,6 @@
     <TrimmerRootAssembly Include="Avalonia.Fonts.Inter" />
     <TrimmerRootAssembly Include="Avalonia.X11" />
     <TrimmerRootAssembly Include="Avalonia.Wayland" />
-    <TrimmerRootAssembly Include="Svg.Controls.Skia.Avalonia" />
-    <TrimmerRootAssembly Include="Svg.Animation" />
-    <TrimmerRootAssembly Include="Svg.Custom" />
-    <TrimmerRootAssembly Include="Svg.Skia" />
-    <TrimmerRootAssembly Include="Svg.SceneGraph" />
-    <TrimmerRootAssembly Include="Svg.Model" />
-    <TrimmerRootAssembly Include="ShimSkiaSharp" />
     <TrimmerRootAssembly Include="Serilog" />
     <TrimmerRootAssembly Include="Serilog.Sinks.Console" />
     <TrimmerRootAssembly Include="Serilog.Sinks.File" />

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
+using CrossMacro.Application.Automation;
+using CrossMacro.Application.Runtime;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Logging;
@@ -11,6 +13,7 @@ using CrossMacro.Infrastructure.Services.ScreenReading;
 using CrossMacro.Infrastructure.Services.Recording.Processors;
 using CrossMacro.Infrastructure.Services.Recording.Strategies;
 using CrossMacro.Infrastructure.Services.TextExpansion;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.Core.Services.TextExpansion;
 using CrossMacro.Platform.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
@@ -45,7 +48,7 @@ public static class RuntimeServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddCrossMacroSharedPostPlatformRuntimeServices(
         this IServiceCollection services,
-        Func<IServiceProvider, InputSimulatorPool?> simulatorPoolResolver)
+        Func<IServiceProvider, IInputSimulatorPool?> simulatorPoolResolver)
     {
         ArgumentNullException.ThrowIfNull(simulatorPoolResolver);
 
@@ -73,7 +76,6 @@ public static class RuntimeServiceCollectionExtensions
     private static void RegisterRuntimePrimitiveServices(IServiceCollection services)
     {
         // Shared process-local runtime state and timing primitives.
-        services.TryAddSingleton<IRuntimeContext, RuntimeContext>();
         services.AddSingleton<IRuntimeLogLevelService, RuntimeLogLevelService>();
         services.AddSingleton<ITimeProvider, SystemTimeProvider>();
         services.TryAddSingleton<IShellCommandRunner>(sp =>
@@ -108,7 +110,7 @@ public static class RuntimeServiceCollectionExtensions
     {
         // Shared input parsing and mapping implementations that depend on the
         // moved platform/runtime contract allow-list rather than Core ownership.
-        services.AddSingleton<IKeyCodeMapper, KeyCodeMapper>();
+        services.TryAddSingleton<IKeyCodeMapper, KeyCodeMapper>();
         services.AddSingleton<Func<IKeyCodeMapper>>(sp => sp.GetRequiredService<IKeyCodeMapper>);
         services.AddSingleton<IMouseButtonMapper, MouseButtonMapper>();
         services.AddSingleton<IModifierStateTracker, ModifierStateTracker>();
@@ -121,11 +123,17 @@ public static class RuntimeServiceCollectionExtensions
     {
         // Macro saving validates script key names with the platform-aware mapper.
         services.AddSingleton<IMacroFileManager, MacroFileManager>();
+        services.AddSingleton<IScriptValidationService, ScriptValidationService>();
+        services.AddSingleton<IRunExecutionService>(sp => new RunScriptRuntimeService(
+            sp.GetRequiredService<Func<IMacroPlayer>>(),
+            sp.GetRequiredService<IKeyCodeMapper>(),
+            sp.GetService<IMousePositionProvider>()));
     }
 
     private static void RegisterScreenReadingServices(IServiceCollection services)
     {
         services.TryAddSingleton<IImageAssetCodec, ImageAssetCodec>();
+        services.TryAddSingleton<IImageAssetPreviewDecoder, ImageAssetPreviewDecoder>();
         services.TryAddSingleton<IScreenFrameProvider, UnsupportedScreenFrameProvider>();
         services.TryAddSingleton<IScreenshotCaptureService>(sp =>
             new ScreenshotCaptureService(
@@ -133,12 +141,22 @@ public static class RuntimeServiceCollectionExtensions
                 sp.GetService<IImageClipboardService>(),
                 sp.GetRequiredService<IImageAssetCodec>()));
         services.TryAddSingleton<IScreenPixelReader, ScreenPixelReader>();
-        services.TryAddSingleton<IScreenReadingWarmupService, ScreenReadingWarmupService>();
+        services.TryAddSingleton<IScreenImageAutomation>(sp =>
+            new ScreenImageAutomation(
+                sp.GetRequiredService<IScreenPixelReader>(),
+                sp.GetRequiredService<IImageAssetCodec>(),
+                sp.GetService<IMousePositionProvider>(),
+                sp.GetService<Func<IInputSimulator>>(),
+                sp.GetService<IInputSimulatorPool>(),
+                sp.GetRequiredService<IImageClickMovementResolver>()));
+        services.TryAddSingleton<CrossMacro.Platform.Abstractions.IScreenReadingWarmupService, ScreenReadingWarmupService>();
+        services.TryAddSingleton<CrossMacro.Infrastructure.Services.ScreenReading.IScreenReadingWarmupService>(sp =>
+            (CrossMacro.Infrastructure.Services.ScreenReading.IScreenReadingWarmupService)sp.GetRequiredService<CrossMacro.Platform.Abstractions.IScreenReadingWarmupService>());
     }
 
     private static void RegisterPlaybackAndHotkeyOrchestrationServices(
         IServiceCollection services,
-        Func<IServiceProvider, InputSimulatorPool?> simulatorPoolResolver)
+        Func<IServiceProvider, IInputSimulatorPool?> simulatorPoolResolver)
     {
         // Playback and hotkey orchestration run after platform wiring because
         // they require platform-provided capture, position, and simulation seams.
@@ -166,6 +184,7 @@ public static class RuntimeServiceCollectionExtensions
             new ImageClickMovementResolver(sp.GetRequiredService<IMousePositionProvider>()));
 
         services.AddTransient<PlaybackValidator>();
+        services.AddTransient<IPlaybackValidator>(sp => sp.GetRequiredService<PlaybackValidator>());
 
         services.AddTransient<IMacroPlayer>(sp =>
         {
@@ -215,6 +234,7 @@ public static class RuntimeServiceCollectionExtensions
     {
         // Shared text-expansion runtime services.
         services.AddSingleton<ITextExpansionStorageService, TextExpansionStorageService>();
+        services.AddSingleton<ITextExpansionStore>(sp => sp.GetRequiredService<ITextExpansionStorageService>());
         services.AddSingleton<IInputProcessor, InputProcessor>();
         services.AddSingleton<ITextBufferState, TextBufferState>();
         services.AddSingleton<ITextExpansionExecutor, TextExpansionExecutor>();

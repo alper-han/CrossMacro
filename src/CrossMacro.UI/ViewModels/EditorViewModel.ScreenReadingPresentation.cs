@@ -2,8 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using Avalonia;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using CrossMacro.Core.Models;
+using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -97,7 +101,9 @@ public partial class EditorViewModel
 
         try
         {
-            SetSelectedImageAssetPreview(_imageAssetPreviewDecoder.Decode(encoded, assetName));
+            var previewDecoder = _imageAssetPreviewDecoder
+                ?? throw new InvalidOperationException("Image asset preview decoder is not registered.");
+            SetSelectedImageAssetPreview(CreatePreviewBitmap(previewDecoder.Decode(encoded, assetName)));
         }
         catch (Exception ex) when (ex is InvalidDataException or NotSupportedException or ArgumentException or InvalidOperationException)
         {
@@ -120,6 +126,26 @@ public partial class EditorViewModel
         previous?.Dispose();
         OnPropertyChanged(nameof(SelectedImageAssetPreview));
         OnPropertyChanged(nameof(ShowSelectedImageAssetPreview));
+    }
+
+    private static WriteableBitmap CreatePreviewBitmap(ImageAssetPreview preview)
+    {
+        var pixels = preview.Pixels.ToArray();
+        var handle = GCHandle.Alloc(pixels, GCHandleType.Pinned);
+        try
+        {
+            return new WriteableBitmap(
+                PixelFormat.Bgra8888,
+                AlphaFormat.Opaque,
+                handle.AddrOfPinnedObject(),
+                new PixelSize(preview.Width, preview.Height),
+                new Vector(96, 96),
+                preview.Stride);
+        }
+        finally
+        {
+            handle.Free();
+        }
     }
 
     private string GetScreenReadingColorPreviewHex()

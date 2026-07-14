@@ -91,7 +91,33 @@ public class CliPreflightServiceTests
     }
 
     [Fact]
-    public async Task CheckAsync_WhenLinuxAndDisplayVariablesMissing_ReturnsEnvironmentError()
+    public async Task CheckAsync_WhenHeadlessLinuxDisplayVariablesAreMissing_ReturnsEnvironmentError()
+    {
+        var displaySession = Substitute.For<IDisplaySessionService>();
+        var inputSimulator = Substitute.For<IInputSimulator>();
+        var inputCapture = Substitute.For<IInputCapture>();
+        displaySession.IsSessionSupported(out Arg.Any<string>()).Returns(callInfo =>
+        {
+            callInfo[0] = string.Empty;
+            return true;
+        });
+
+        var service = new CliPreflightService(
+            displaySession,
+            inputSimulator,
+            inputCapture,
+            isLinux: () => true,
+            getEnvironmentVariable: _ => null);
+
+        var result = await service.CheckAsync(CliPreflightTarget.Headless, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(CliExitCode.EnvironmentError, result.ExitCode);
+        Assert.Contains("no active Linux display session", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task CheckAsync_WhenDisplayVariablesMissing_DelegatesToDisplayAndInputServices()
     {
         var displaySession = Substitute.For<IDisplaySessionService>();
         var inputSimulator = Substitute.For<IInputSimulator>();
@@ -113,6 +139,6 @@ public class CliPreflightServiceTests
 
         Assert.False(result.Success);
         Assert.Equal(CliExitCode.EnvironmentError, result.ExitCode);
-        Assert.Contains("no active Linux display session", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("input simulation backend is unavailable", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 }

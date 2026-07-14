@@ -91,8 +91,8 @@ if [ -n "${SUDO_USER:-}" ]; then
     sudo -u "$SUDO_USER" dotnet publish "$DAEMON_PROJECT" \
         -c Release \
         -p:PublishAot=true \
+        -p:PublishReadyToRun=false \
         -p:EnableCompressionInSingleFile=true \
-        -p:PublishReadyToRun=true \
         -p:OptimizationPreference=Speed \
         -p:StripSymbols=true \
         -p:IlcTrimMetadata=true \
@@ -106,8 +106,8 @@ else
     dotnet publish "$DAEMON_PROJECT" \
         -c Release \
         -p:PublishAot=true \
+        -p:PublishReadyToRun=false \
         -p:EnableCompressionInSingleFile=true \
-        -p:PublishReadyToRun=true \
         -p:OptimizationPreference=Speed \
         -p:StripSymbols=true \
         -p:IlcTrimMetadata=true \

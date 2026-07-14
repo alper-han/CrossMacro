@@ -1,8 +1,8 @@
 using Avalonia;
 using Avalonia.Media;
-using Avalonia.Svg.Skia;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.UI.Startup;
+using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using System;
 using System.Reflection;
@@ -15,15 +15,23 @@ public static class Program
 
     public static int RunGui(
         string[] args,
-        IPlatformServiceRegistrar platformServiceRegistrar,
+        Action<IServiceCollection> configureServices,
+        Func<AppBuilder, AppBuilder> configureAppBuilder)
+        => RunGui(args, configureServices, static _ => { }, configureAppBuilder);
+
+    public static int RunGui(
+        string[] args,
+        Action<IServiceCollection> configureServices,
+        Action<IServiceCollection> configureRuntimeServices,
         Func<AppBuilder, AppBuilder> configureAppBuilder)
     {
-        ArgumentNullException.ThrowIfNull(platformServiceRegistrar);
+        ArgumentNullException.ThrowIfNull(configureServices);
+        ArgumentNullException.ThrowIfNull(configureRuntimeServices);
         ArgumentNullException.ThrowIfNull(configureAppBuilder);
 
         var startupParseResult = GuiStartupOptionsParser.Parse(args);
 
-        var bootstrapContext = new GuiBootstrapContext(platformServiceRegistrar, startupParseResult.Options);
+        var bootstrapContext = new GuiBootstrapContext(configureServices, configureRuntimeServices, startupParseResult.Options);
         Log.Information("Starting CrossMacro application");
 
         return configureAppBuilder(BuildAvaloniaApp(bootstrapContext))
@@ -33,8 +41,6 @@ public static class Program
     // Avalonia configuration, don't remove; also used by visual designer.
     public static AppBuilder BuildAvaloniaApp(GuiBootstrapContext? bootstrapContext = null)
     {
-        GC.KeepAlive(typeof(SvgImageExtension).Assembly);
-
         var builder = bootstrapContext == null
             ? AppBuilder.Configure<App>()
             : AppBuilder.Configure(() => new App(bootstrapContext));

@@ -1,7 +1,6 @@
 using CrossMacro.Core.Logging;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Linux.Strategies;
-using CrossMacro.Infrastructure.Services.Recording.Strategies;
 
 namespace CrossMacro.Platform.Linux.Strategies.Selectors;
 

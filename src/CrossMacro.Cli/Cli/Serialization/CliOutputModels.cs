@@ -47,6 +47,11 @@ public sealed record MacroSummaryData(
     [property: JsonPropertyName("isAbsoluteCoordinates")] bool IsAbsoluteCoordinates
 );
 
+public sealed record MacroValidationData(
+    [property: JsonPropertyName("macroPath")] string MacroPath,
+    [property: JsonPropertyName("eventCount")] int EventCount
+);
+
 public sealed record MacroEventBreakdownData(
     [property: JsonPropertyName("mouseMove")] int MouseMove,
     [property: JsonPropertyName("buttonPress")] int ButtonPress,

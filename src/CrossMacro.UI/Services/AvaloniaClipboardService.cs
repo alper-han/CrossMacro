@@ -18,9 +18,9 @@ public class AvaloniaClipboardService : IClipboardService
         _desktopLifetimeContext = desktopLifetimeContext;
     }
 
-    public bool IsSupported => _desktopLifetimeContext.MainWindow?.Clipboard is not null;
+    public virtual bool IsSupported => _desktopLifetimeContext.MainWindow?.Clipboard is not null;
 
-    public async Task SetTextAsync(string text, CancellationToken cancellationToken = default)
+    public virtual async Task SetTextAsync(string text, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         Log.Debug("[AvaloniaClipboard] SetTextAsync called for length {Length}", text.Length);
@@ -62,7 +62,7 @@ public class AvaloniaClipboardService : IClipboardService
         }, DispatcherPriority.Normal, cancellationToken);
     }
 
-    public async Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
+    public virtual async Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         Log.Debug("[AvaloniaClipboard] GetTextAsync called");

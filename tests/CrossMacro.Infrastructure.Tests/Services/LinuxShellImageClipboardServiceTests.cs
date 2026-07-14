@@ -4,6 +4,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Infrastructure.Services;
+using CrossMacro.Platform.Linux.Clipboard;
+using LinuxShellImageClipboardService = CrossMacro.Platform.Linux.Clipboard.LinuxShellImageClipboardService;
 using NSubstitute;
 
 [Collection("EnvironmentVariableSensitive")]

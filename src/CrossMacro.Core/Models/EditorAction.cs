@@ -1118,6 +1118,15 @@ public class EditorAction : INotifyPropertyChanged
         ImageSearchMatchModeWasExplicit = payload.ImageSearchMatchModeWasExplicit;
         Button = payload.Button;
     }
+
+    public bool TryGetScreenshotPayload(out EditorActionScreenshotPayload payload) =>
+        EditorActionScreenshotPayload.TryCreate(this, out payload);
+
+    public bool TryGetShellPayload(out EditorActionShellPayload payload) =>
+        EditorActionShellPayload.TryCreate(this, out payload);
+
+    public bool TryGetWindowPayload(out EditorActionWindowPayload payload) =>
+        EditorActionWindowPayload.TryCreate(this, out payload);
     
     /// <summary>
     /// Gets a human-readable description of this action.

@@ -1,12 +1,14 @@
 using System;
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
+using CrossMacro.Application.Runtime;
 using CrossMacro.Core.Logging;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Services.ScreenReading;
+using CrossMacro.Platform.Abstractions;
 using CrossMacro.UI.Startup;
 using CrossMacro.UI.ViewModels;
 using CrossMacro.UI.Views;
@@ -27,24 +29,29 @@ internal sealed class DesktopStartupRuntimeService
     private readonly Func<ITrayIconService> _getTrayIconService;
     private readonly Func<ITextExpansionService> _getTextExpansionService;
     private readonly Func<MainWindowViewModel> _getMainWindowViewModel;
-    private readonly Func<InputSimulatorPool?> _getInputSimulatorPool;
+    private readonly Func<IInputSimulatorPool?> _getInputSimulatorPool;
     private readonly Func<IMousePositionProvider?> _getPositionProvider;
     private readonly IDesktopLifetimeContext _desktopLifetimeContext;
     private readonly InputSimulatorWarmupService _inputSimulatorWarmupService;
-    private readonly IScreenReadingWarmupService? _screenReadingWarmupService;
+    private readonly Func<CancellationToken, Task>? _screenReadingWarmup;
     private readonly IPortalScreenReadingGuidanceService? _portalScreenReadingGuidanceService;
+    private readonly IRuntimeLifecycle _runtimeLifecycle;
+    private readonly CancellationTokenSource _warmupCancellation = new();
+    private readonly List<Task> _warmupTasks = [];
+    private int _stopped;
 
     public DesktopStartupRuntimeService(
         Func<MainWindow> getMainWindow,
         Func<ITrayIconService> getTrayIconService,
         Func<ITextExpansionService> getTextExpansionService,
         Func<MainWindowViewModel> getMainWindowViewModel,
-        Func<InputSimulatorPool?> getInputSimulatorPool,
+        Func<IInputSimulatorPool?> getInputSimulatorPool,
         Func<IMousePositionProvider?> getPositionProvider,
         IDesktopLifetimeContext desktopLifetimeContext,
         InputSimulatorWarmupService inputSimulatorWarmupService,
-        IScreenReadingWarmupService? screenReadingWarmupService = null,
-        IPortalScreenReadingGuidanceService? portalScreenReadingGuidanceService = null)
+        Func<CancellationToken, Task>? screenReadingWarmup = null,
+        IPortalScreenReadingGuidanceService? portalScreenReadingGuidanceService = null,
+        IRuntimeLifecycle? runtimeLifecycle = null)
     {
         _getMainWindow = getMainWindow ?? throw new ArgumentNullException(nameof(getMainWindow));
         _getTrayIconService = getTrayIconService ?? throw new ArgumentNullException(nameof(getTrayIconService));
@@ -54,11 +61,35 @@ internal sealed class DesktopStartupRuntimeService
         _getPositionProvider = getPositionProvider ?? throw new ArgumentNullException(nameof(getPositionProvider));
         _desktopLifetimeContext = desktopLifetimeContext ?? throw new ArgumentNullException(nameof(desktopLifetimeContext));
         _inputSimulatorWarmupService = inputSimulatorWarmupService ?? throw new ArgumentNullException(nameof(inputSimulatorWarmupService));
-        _screenReadingWarmupService = screenReadingWarmupService;
+        _screenReadingWarmup = screenReadingWarmup;
         _portalScreenReadingGuidanceService = portalScreenReadingGuidanceService;
+        _runtimeLifecycle = runtimeLifecycle ?? CreateLifecycle(_getTextExpansionService);
     }
 
-    public void Start(
+    internal static IRuntimeLifecycle CreateLifecycle(Func<ITextExpansionService> getTextExpansionService)
+    {
+        ArgumentNullException.ThrowIfNull(getTextExpansionService);
+
+        return new RuntimeLifecycle(
+        [
+            new RuntimeLifecycleStep("text expansion", _ =>
+            {
+                getTextExpansionService().Start();
+                return Task.CompletedTask;
+            }, _ =>
+            {
+                var textExpansionService = getTextExpansionService();
+                if (textExpansionService.IsRunning)
+                {
+                    textExpansionService.Stop();
+                }
+
+                return Task.CompletedTask;
+            })
+        ]);
+    }
+
+    public async Task StartAsync(
         IClassicDesktopStyleApplicationLifetime desktop,
         DesktopStartupPreferences startupPreferences)
     {
@@ -75,25 +106,72 @@ internal sealed class DesktopStartupRuntimeService
         var inputSimulatorPool = _getInputSimulatorPool();
         if (inputSimulatorPool != null)
         {
-            _ = _inputSimulatorWarmupService.WarmUpAsync(inputSimulatorPool, _getPositionProvider());
+            _warmupTasks.Add(_inputSimulatorWarmupService.WarmUpAsync(
+                inputSimulatorPool,
+                _getPositionProvider(),
+                _warmupCancellation.Token));
         }
 
-        _getTextExpansionService().Start();
+        await _runtimeLifecycle.StartAsync(CancellationToken.None).ConfigureAwait(true);
+
         trayIconService.SetEnabled(startupPreferences.ShouldEnableTrayDuringStartup);
         mainWindowViewModel.TrayIconEnabledChanged += (_, enabled) => trayIconService.SetEnabled(enabled);
 
         var displayMode = ConfigureMainWindow(desktop, mainWindow, startupPreferences, trayIconService);
         ShowWindowForStartup(mainWindow, displayMode);
 
-        if (_screenReadingWarmupService != null)
+        if (_screenReadingWarmup != null)
         {
-            _ = RunScreenReadingWarmupAsync();
+            _warmupTasks.Add(RunScreenReadingWarmupAsync(_warmupCancellation.Token));
+        }
+
+    }
+
+    internal async Task StopAsync()
+    {
+        if (Interlocked.Exchange(ref _stopped, 1) != 0)
+        {
+            return;
+        }
+
+        var errors = new List<Exception>();
+        try
+        {
+            await _runtimeLifecycle.StopAsync(CancellationToken.None).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            errors.Add(ex);
+        }
+
+        _warmupCancellation.Cancel();
+        try
+        {
+            await Task.WhenAll(_warmupTasks).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            errors.Add(ex);
+        }
+        finally
+        {
+            _warmupCancellation.Dispose();
+        }
+
+        if (errors.Count > 0)
+        {
+            throw new AggregateException("Desktop runtime shutdown failed.", errors);
         }
     }
 
-    internal async Task RunScreenReadingWarmupAsync()
+    internal Task RunScreenReadingWarmupAsync() => RunScreenReadingWarmupAsync(CancellationToken.None);
+
+    private async Task RunScreenReadingWarmupAsync(CancellationToken cancellationToken)
     {
-        if (_screenReadingWarmupService == null)
+        if (_screenReadingWarmup == null)
         {
             return;
         }
@@ -102,6 +180,7 @@ internal sealed class DesktopStartupRuntimeService
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 await _portalScreenReadingGuidanceService.ShowBeforePortalWarmupAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -112,7 +191,7 @@ internal sealed class DesktopStartupRuntimeService
 
         try
         {
-            await _screenReadingWarmupService.WarmUpPortalSessionAsync().ConfigureAwait(false);
+            await _screenReadingWarmup(cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

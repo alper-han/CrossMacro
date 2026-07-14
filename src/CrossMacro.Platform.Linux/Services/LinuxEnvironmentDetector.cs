@@ -10,8 +10,9 @@ public class LinuxEnvironmentDetector : ILinuxEnvironmentDetector
 {
     private readonly Lazy<CompositorType> _compositor;
     
-    public LinuxEnvironmentDetector()
-        : this(new LinuxEnvironmentVariables())
+    [Obsolete("Use the snapshot-backed constructor in production composition.", error: false)]
+    internal LinuxEnvironmentDetector()
+        : this(new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()))
     {
     }
 

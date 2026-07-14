@@ -1,0 +1,8 @@
+# Name: Invalid Optional Metadata Fixture
+# Created: 2026-07-13T18:24:51.0000000Z
+# DurationMs: 10
+# IsAbsolute: not-a-boolean
+# TextInputBoundaryBase64: not-base64
+# Format: CrossMacroFormatV2
+[Events]
+M,1,2

@@ -5,4 +5,9 @@
   </PropertyGroup>
 
   <Target Name="AvaloniaStats" />
+
+  <Target Name="ValidateCrossMacroPublishModes" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(PublishAot)' == 'true' and '$(PublishReadyToRun)' == 'true'"
+           Text="CrossMacro publish profiles are mutually exclusive: PublishAot=true requires PublishReadyToRun=false." />
+  </Target>
 </Project>

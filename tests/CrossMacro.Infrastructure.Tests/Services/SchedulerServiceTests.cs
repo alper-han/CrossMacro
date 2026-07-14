@@ -48,6 +48,17 @@ public class SchedulerServiceTests
     }
 
     [Fact]
+    public async Task Stop_ExposesCompletionOfSchedulerLifetime()
+    {
+        _service.Start();
+        _service.Stop();
+
+        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2));
+
+        _service.Completion.IsCompletedSuccessfully.Should().BeTrue();
+    }
+
+    [Fact]
     public void AddTask_AddsToCollection()
     {
         var task = new ScheduledTask();

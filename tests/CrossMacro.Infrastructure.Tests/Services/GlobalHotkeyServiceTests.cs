@@ -65,6 +65,13 @@ public class GlobalHotkeyServiceTests
 
         _inputCapture = Substitute.For<IInputCapture>();
 
+        _config.CaptureSaveRequest(Arg.Any<HotkeySettings>())
+            .Returns(call => new HotkeyConfigurationSaveRequest(
+                "test-hotkeys.json",
+                call.Arg<HotkeySettings>().RecordingHotkey,
+                call.Arg<HotkeySettings>().PlaybackHotkey,
+                call.Arg<HotkeySettings>().PauseHotkey));
+        _config.TrySave(Arg.Any<HotkeyConfigurationSaveRequest>()).Returns(true);
 
         _service = new GlobalHotkeyService(
             _config, 
@@ -247,6 +254,75 @@ public class GlobalHotkeyServiceTests
         // GlobalHotkeyService.RecordingHotkeyCode property uses _recordingHotkey.MainKey
         // _recordingHotkey is set via _parser.Parse("Numpad0")
         Assert.Equal(82, _service.RecordingHotkeyCode);
+    }
+
+    [Fact]
+    public void UpdateHotkeys_QueuesSavesInUpdateOrder_AndDisposeFlushesQueue()
+    {
+        var saved = new List<string>();
+        _config.TrySave(Arg.Any<HotkeyConfigurationSaveRequest>())
+            .Returns(call =>
+            {
+                saved.Add(call.Arg<HotkeyConfigurationSaveRequest>().RecordingHotkey);
+                return true;
+            });
+
+        _service.UpdateHotkeys("F1", "F10", "F11");
+        _service.UpdateHotkeys("F2", "F10", "F11");
+        _service.UpdateHotkeys("F3", "F10", "F11");
+
+        _service.Dispose();
+
+        Assert.Equal(new[] { "F1", "F2", "F3" }, saved);
+    }
+
+    [Fact]
+    public async Task PendingSave_RetainsCapturedProfilePathAfterReload()
+    {
+        var currentPath = "profile-a/hotkeys.json";
+        var saveStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowSave = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        HotkeyConfigurationSaveRequest? request = null;
+
+        _config.CaptureSaveRequest(Arg.Any<HotkeySettings>())
+            .Returns(call => new HotkeyConfigurationSaveRequest(
+                currentPath,
+                call.Arg<HotkeySettings>().RecordingHotkey,
+                call.Arg<HotkeySettings>().PlaybackHotkey,
+                call.Arg<HotkeySettings>().PauseHotkey));
+        _config.TrySave(Arg.Any<HotkeyConfigurationSaveRequest>())
+            .Returns(call =>
+            {
+                request = call.Arg<HotkeyConfigurationSaveRequest>();
+                saveStarted.TrySetResult(true);
+                allowSave.Task.GetAwaiter().GetResult();
+                return true;
+            });
+
+        _service.UpdateHotkeys("F1", "F10", "F11");
+        await saveStarted.Task.WaitAsync(TestTimeout);
+        currentPath = "profile-b/hotkeys.json";
+        allowSave.TrySetResult(true);
+
+        _service.Dispose();
+
+        Assert.NotNull(request);
+        Assert.Equal("profile-a/hotkeys.json", request!.ConfigPath);
+    }
+
+    [Fact]
+    public async Task SaveFailure_SetsLastErrorAndRaisesErrorOccurred()
+    {
+        var observed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _config.TrySave(Arg.Any<HotkeyConfigurationSaveRequest>()).Returns(false);
+        _service.ErrorOccurred += (_, error) => observed.TrySetResult(error);
+
+        _service.UpdateHotkeys("F1", "F10", "F11");
+        var error = await observed.Task.WaitAsync(TestTimeout);
+        _service.Dispose();
+
+        Assert.Contains("Failed to save hotkey configuration", error);
+        Assert.Equal(error, _service.LastError);
     }
 
     [Fact]

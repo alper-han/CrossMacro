@@ -42,13 +42,12 @@ internal sealed class DesktopStartupCoordinator : IDesktopStartupCoordinator
             permissionGateResult.UnsupportedSessionReason,
             (lifetime, preferences) =>
             {
-                _runtimeService.Start(lifetime, preferences);
-                return Task.CompletedTask;
+                return _runtimeService.StartAsync(lifetime, preferences);
             });
 
         if (!handled)
         {
-            _runtimeService.Start(desktop, startupPreferences);
+            await _runtimeService.StartAsync(desktop, startupPreferences);
         }
     }
 }

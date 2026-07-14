@@ -244,7 +244,7 @@ internal sealed class RunScriptRuntimeExecutor
             return;
         }
 
-        if (RunScriptSyntax.IsScreenshotStep(step))
+        if (RunScriptPlatformSyntax.IsScreenshotStep(step))
         {
             await _screenshotExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken);
             return;

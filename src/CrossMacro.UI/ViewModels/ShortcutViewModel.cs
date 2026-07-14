@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
+using CrossMacro.Application.Automation;
 using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
@@ -23,6 +24,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     private readonly IDialogService _dialogService;
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ILocalizationService _localizationService;
+    private readonly IManageShortcut? _manageShortcut;
     private ShortcutTask? _selectedTask;
     private bool _disposed;
     
@@ -137,6 +139,17 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         // Load saved shortcuts and start listening
         InitializationTask = InitializeAsyncSafe();
     }
+
+    public ShortcutViewModel(
+        IManageShortcut manageShortcut,
+        IShortcutService shortcutService,
+        IDialogService dialogService,
+        IGlobalHotkeyService hotkeyService,
+        ILocalizationService localizationService)
+        : this(shortcutService, dialogService, hotkeyService, localizationService)
+    {
+        _manageShortcut = manageShortcut;
+    }
     
     private async Task InitializeAsyncSafe()
     {
@@ -164,13 +177,20 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     }
     
     [RelayCommand]
-    private void AddTask()
+    private async Task AddTaskAsync()
     {
         var task = new ShortcutTask
         {
             Name = string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_DefaultTaskName"], Tasks.Count + 1)
         };
-        _shortcutService.AddTask(task);
+        if (_manageShortcut is not null)
+        {
+            await _manageShortcut.AddAsync(task);
+        }
+        else
+        {
+            _shortcutService.AddTask(task);
+        }
         SelectedTask = task;
         OnPropertyChanged(nameof(TaskCountText));
     }
@@ -186,6 +206,17 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
             
         if (!confirmed) return;
         
+        if (_manageShortcut is not null)
+        {
+            var selectedTaskId = SelectedTask?.Id;
+            await _manageShortcut.RemoveAsync(new TaskRequest(task.Id));
+            SelectedTask = selectedTaskId is Guid id
+                ? Tasks.FirstOrDefault(candidate => candidate.Id == id) ?? Tasks.FirstOrDefault()
+                : Tasks.FirstOrDefault();
+            OnPropertyChanged(nameof(TaskCountText));
+            return;
+        }
+
         _shortcutService.RemoveTask(task.Id);
         if (SelectedTask?.Id == task.Id)
         {
@@ -233,7 +264,14 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            await _shortcutService.SaveAsync();
+            if (_manageShortcut is not null && SelectedTask is not null)
+            {
+                await _manageShortcut.UpdateAsync(SelectedTask);
+            }
+            else
+            {
+                await _shortcutService.SaveAsync();
+            }
             if (showSuccessStatus)
             {
                 RaiseStatus(_localizationService["Shortcut_StatusChangesSaved"]);
@@ -263,7 +301,26 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task TaskEnabledChangedAsync(ShortcutTask task)
     {
-        _shortcutService.SetTaskEnabled(task.Id, task.IsEnabled);
+        if (_manageShortcut is not null)
+        {
+            var selectedTaskId = SelectedTask?.Id;
+            try
+            {
+                await _manageShortcut.SetEnabledAsync(new TaskRequest(task.Id, task.IsEnabled));
+            }
+            finally
+            {
+                SelectedTask = selectedTaskId is Guid id
+                    ? Tasks.FirstOrDefault(candidate => candidate.Id == id)
+                    : null;
+            }
+            return;
+        }
+
+        if (_manageShortcut is null)
+        {
+            _shortcutService.SetTaskEnabled(task.Id, task.IsEnabled);
+        }
         await SaveChangesAsync(showSuccessStatus: false);
     }
     

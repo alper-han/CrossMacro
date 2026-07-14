@@ -1,4 +1,5 @@
 using CrossMacro.Platform.Abstractions;
+using CrossMacro.Platform.Linux.Services;
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 public sealed class ExtImageCopyCapture : IExtImageCopyCapture
@@ -81,14 +82,9 @@ public sealed class ExtImageCopyCapture : IExtImageCopyCapture
 
 public sealed class WaylandExtImageCopySupportProbe : IExtImageCopySupportProbe
 {
-    public static WaylandExtImageCopySupportProbe Instance { get; } = new();
+    public static WaylandExtImageCopySupportProbe Instance { get; } = CreateDefault();
 
     private readonly Func<ExtImageCopySupportResult> _probeSupport;
-
-    private WaylandExtImageCopySupportProbe()
-        : this(WaylandExtImageCopyRegistryProbe.Probe)
-    {
-    }
 
     internal WaylandExtImageCopySupportProbe(Func<ExtImageCopySupportResult> probeSupport)
     {
@@ -117,6 +113,12 @@ public sealed class WaylandExtImageCopySupportProbe : IExtImageCopySupportProbe
         {
             return ExtImageCopySupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
         }
+    }
+
+    private static WaylandExtImageCopySupportProbe CreateDefault()
+    {
+        var environment = LinuxEnvironmentVariables.CaptureCurrentSnapshot();
+        return new WaylandExtImageCopySupportProbe(() => WaylandExtImageCopyRegistryProbe.Probe(environment));
     }
 }
 

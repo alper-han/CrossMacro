@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using CrossMacro.Core.Models;
 using CrossMacro.Platform.Abstractions;
-using CrossMacro.Infrastructure.Services.ScreenReading;
 
 namespace CrossMacro.Cli;
 
@@ -280,7 +279,7 @@ public sealed record ScreenCliOptions(
     int? RegionHeight = null,
     double Similarity = 1.0,
     int Downsample = 1,
-    ScreenImageMatchSelectionMode MatchMode = ScreenImageMatchSelectionMode.FirstThresholdMatch,
+    ScreenImageMatchMode MatchMode = ScreenImageMatchMode.First,
     bool ScaleAware = false,
     MouseButton Button = MouseButton.Left,
     bool JsonOutput = false,

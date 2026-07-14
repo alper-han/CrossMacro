@@ -8,7 +8,8 @@ public class LinuxEnvironmentDetectorTests
     [Fact]
     public void DetectedCompositor_ShouldReturnStableValueAcrossReads()
     {
-        var detector = new LinuxEnvironmentDetector();
+        var detector = new LinuxEnvironmentDetector(
+            new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()));
 
         var first = detector.DetectedCompositor;
         var second = detector.DetectedCompositor;
@@ -19,7 +20,8 @@ public class LinuxEnvironmentDetectorTests
     [Fact]
     public void IsX11_ShouldMatchDetectedCompositor()
     {
-        var detector = new LinuxEnvironmentDetector();
+        var detector = new LinuxEnvironmentDetector(
+            new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()));
 
         Assert.Equal(detector.DetectedCompositor == CompositorType.X11, detector.IsX11);
     }
@@ -27,7 +29,8 @@ public class LinuxEnvironmentDetectorTests
     [Fact]
     public void IsWayland_ShouldMatchWaylandCompositorSet()
     {
-        var detector = new LinuxEnvironmentDetector();
+        var detector = new LinuxEnvironmentDetector(
+            new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()));
         var compositor = detector.DetectedCompositor;
 
         var expected = compositor == CompositorType.HYPRLAND

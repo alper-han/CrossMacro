@@ -8,7 +8,7 @@ using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Daemon.Services;
 
-public class SecurityService : ISecurityService
+public class SecurityService : ISecurityService, IDisposable
 {
     private static readonly TimeSpan AuthorizationCacheTtl = TimeSpan.FromMinutes(2);
     private readonly IRateLimiterService _rateLimiter;
@@ -77,6 +77,14 @@ public class SecurityService : ISecurityService
     public void LogSimulation(uint uid, int pid, ushort type, ushort code, int value)
     {
         _auditLogger.LogSimulation(uid, pid, type, code, value);
+    }
+
+    public void Dispose()
+    {
+        if (_auditLogger is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
     }
 
     private bool IsUidAuthorizationCached(uint uid)

@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\CrossMacro.Core\CrossMacro.Core.csproj" />
     <ProjectReference Include="..\CrossMacro.Platform.Abstractions\CrossMacro.Platform.Abstractions.csproj" />
+    <ProjectReference Include="..\CrossMacro.Application\CrossMacro.Application.csproj" />
 
   </ItemGroup>
 
@@ -17,6 +18,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <IsAotCompatible>true</IsAotCompatible>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 

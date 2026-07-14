@@ -1,4 +1,5 @@
 using CrossMacro.Core.Models;
+using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
 using FluentAssertions;
@@ -39,6 +40,30 @@ public class EditorActionConverterTests
         events[1].Type.Should().Be(EventType.KeyRelease);
         events[1].KeyCode.Should().Be(30);
         events[1].DelayMs.Should().Be(10);
+    }
+
+    [Fact]
+    public void EditorProjectionBoundary_PreservesSequenceConversionArguments()
+    {
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.MouseMove, X = 12, Y = 34, IsAbsolute = false }
+        };
+        var projection = new EditorMacroProjection(actions, "Projection", isAbsoluteCoordinates: false, skipInitialZeroZero: true);
+
+        var sequence = _converter.ToMacroSequence(projection);
+        var restored = _converter.FromMacroSequenceProjection(sequence);
+
+        sequence.Name.Should().Be("Projection");
+        sequence.IsAbsoluteCoordinates.Should().BeFalse();
+        sequence.SkipInitialZeroZero.Should().BeTrue();
+        restored.Actions.Should().ContainSingle();
+        restored.Actions[0].Type.Should().Be(EditorActionType.MouseMove);
+        restored.Actions[0].X.Should().Be(12);
+        restored.Actions[0].Y.Should().Be(34);
+        restored.Name.Should().Be("Projection");
+        restored.IsAbsoluteCoordinates.Should().BeFalse();
+        restored.SkipInitialZeroZero.Should().BeTrue();
     }
 
     [Fact]

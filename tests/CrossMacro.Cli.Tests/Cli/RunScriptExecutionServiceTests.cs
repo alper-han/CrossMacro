@@ -4,6 +4,7 @@ using CrossMacro.Core.Services.Playback;
 using CrossMacro.Cli;
 using CrossMacro.Cli.Services;
 using CrossMacro.Infrastructure.Services.Playback;
+using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
 using NSubstitute;
 using System.IO;
@@ -24,7 +25,7 @@ public class RunScriptExecutionServiceTests
         _keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
         _keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(false);
 
-        _service = new RunScriptExecutionService(() => _player, _keyCodeMapper);
+        _service = new RunScriptExecutionService(new RunScriptRuntimeService(() => _player, _keyCodeMapper));
     }
 
     [Fact]
@@ -328,14 +329,14 @@ public class RunScriptExecutionServiceTests
     public async Task ExecuteAsync_WhenLeadingDelayAndSpeedProvided_ScalesInitialDelayBeforePlayback()
     {
         var observedDelays = new List<TimeSpan>();
-        var service = new RunScriptExecutionService(
+        var service = new RunScriptExecutionService(new RunScriptRuntimeService(
             () => _player,
             _keyCodeMapper,
-            (duration, _) =>
+            delayAsync: (duration, _) =>
             {
                 observedDelays.Add(duration);
                 return Task.CompletedTask;
-            });
+            }));
 
         var result = await service.ExecuteAsync(new RunExecutionRequest
         {
@@ -897,7 +898,7 @@ public class RunScriptExecutionServiceTests
             ["sampled"] = "ABCDEF",
             ["found_x"] = "42"
         });
-        var service = new RunScriptExecutionService(() => player, _keyCodeMapper);
+        var service = new RunScriptExecutionService(new RunScriptRuntimeService(() => player, _keyCodeMapper));
 
         var result = await service.ExecuteAsync(new RunExecutionRequest
         {

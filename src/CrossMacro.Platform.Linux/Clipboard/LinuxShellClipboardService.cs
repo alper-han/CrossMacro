@@ -1,0 +1,152 @@
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using CrossMacro.Core.Logging;
+using CrossMacro.Core.Services;
+using CrossMacro.Platform.Abstractions;
+using CrossMacro.Platform.Linux.Services;
+
+namespace CrossMacro.Platform.Linux.Clipboard;
+
+/// <summary>
+/// Clipboard service that uses Linux command line tools (wl-copy, xclip) 
+/// to ensure reliable background operation where GUI frameworks fail.
+/// </summary>
+public class LinuxShellClipboardService : ILinuxClipboardService
+{
+    private readonly IProcessRunner _processRunner;
+    private enum ClipboardTool { Unknown, WlClipboard, Xclip, Xsel }
+    private ClipboardTool _tool = ClipboardTool.Unknown;
+    private bool _initialized = false;
+    private readonly LinuxEnvironmentSnapshot _environment;
+
+    public bool IsSupported => _tool != ClipboardTool.Unknown || !_initialized;
+
+    public LinuxShellClipboardService(IProcessRunner processRunner)
+        : this(processRunner, LinuxEnvironmentVariables.CaptureCurrentSnapshot())
+    {
+    }
+
+    public LinuxShellClipboardService(IProcessRunner processRunner, LinuxEnvironmentSnapshot environment)
+    {
+        _processRunner = processRunner;
+        _environment = environment;
+    }
+
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        if (_initialized) return;
+
+        // Check for Wayland first
+        if (!string.IsNullOrEmpty(_environment.WaylandDisplay))
+        {
+            if (await _processRunner.CheckCommandAsync("wl-copy", cancellationToken) &&
+                await _processRunner.CheckCommandAsync("wl-paste", cancellationToken))
+            {
+                _tool = ClipboardTool.WlClipboard;
+                Log.Information("[LinuxClipboard] Detected Wayland, using wl-clipboard");
+                _initialized = true;
+                return;
+            }
+        }
+
+        // Check for X11 tools
+        if (await _processRunner.CheckCommandAsync("xclip", cancellationToken))
+        {
+            _tool = ClipboardTool.Xclip;
+            Log.Information("[LinuxClipboard] Using xclip");
+            _initialized = true;
+            return;
+        }
+
+        if (await _processRunner.CheckCommandAsync("xsel", cancellationToken))
+        {
+            _tool = ClipboardTool.Xsel;
+            Log.Information("[LinuxClipboard] Using xsel");
+            _initialized = true;
+            return;
+        }
+
+        Log.Warning("[LinuxClipboard] No supported clipboard tool found (wl-copy/wl-paste, xclip, xsel missing)");
+        _initialized = true;
+    }
+
+    public async Task SetTextAsync(string text, CancellationToken cancellationToken = default)
+    {
+        await InitializeAsync(cancellationToken);
+
+        try
+        {
+            switch (_tool)
+            {
+                case ClipboardTool.WlClipboard:
+                    if (text.Length == 0)
+                    {
+                        await _processRunner.ExecuteCommandAsync("wl-copy", ["--clear"], cancellationToken);
+                    }
+                    else
+                    {
+                        await _processRunner.WriteClipboardInputAndCloseAsync("wl-copy", "--type text/plain", text, cancellationToken);
+                    }
+                    break;
+                case ClipboardTool.Xclip:
+                    await _processRunner.WriteClipboardInputAndCloseAsync("xclip", "-selection clipboard", text, cancellationToken);
+                    break;
+                case ClipboardTool.Xsel:
+                    await _processRunner.WriteClipboardInputAndCloseAsync("xsel", "--clipboard --input", text, cancellationToken);
+                    break;
+                default:
+                    throw new InvalidOperationException("No supported Linux clipboard tool is available.");
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to set clipboard text via shell");
+            throw;
+        }
+    }
+
+    public async Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
+    {
+        await InitializeAsync(cancellationToken);
+
+        try
+        {
+            return _tool switch
+            {
+                ClipboardTool.WlClipboard => await _processRunner.ReadCommandAsync("wl-paste", "--no-newline", cancellationToken),
+                ClipboardTool.Xclip => await _processRunner.ReadCommandAsync("xclip", "-selection clipboard -o", cancellationToken),
+                ClipboardTool.Xsel => await _processRunner.ReadCommandAsync("xsel", "--clipboard --output", cancellationToken),
+                _ => throw new InvalidOperationException("No supported Linux clipboard tool is available.")
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            if (_tool == ClipboardTool.WlClipboard && IsEmptyWlPasteResult(ex))
+            {
+                Log.Debug("[LinuxClipboard] Wayland clipboard is empty");
+                return string.Empty;
+            }
+
+            Log.Error(ex, "Failed to get clipboard text via shell");
+            throw;
+        }
+    }
+
+    private static bool IsEmptyWlPasteResult(Exception ex)
+    {
+        return ex is InvalidOperationException &&
+               ex.Message.Contains("Nothing is copied", StringComparison.Ordinal);
+    }
+
+}

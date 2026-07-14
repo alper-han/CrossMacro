@@ -23,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\CrossMacro.Application\CrossMacro.Application.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Cli\CrossMacro.Cli.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Core\CrossMacro.Core.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Daemon.Contracts\CrossMacro.Daemon.Contracts.csproj" />

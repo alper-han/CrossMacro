@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core;
+using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 
@@ -37,37 +38,37 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
 
             if (string.IsNullOrEmpty(task.MacroFilePath) || !File.Exists(task.MacroFilePath))
             {
-                SafeUpdate(() => 
+                await SafeUpdateAsync(() =>
                 {
                     task.LastStatus = "Macro file not found";
                     task.LastRunTime = _timeProvider.UtcNow;
                     UpdateScheduleAfterAttempt(task);
                 });
                 
-                TaskExecuted?.Invoke(this, new TaskExecutedEventArgs(task, false, "Macro file not found"));
+                RaiseTaskExecuted(new TaskExecutedEventArgs(task, false, "Macro file not found"));
                 return;
             }
             
             var macro = await _fileManager.LoadAsync(task.MacroFilePath);
             if (macro == null)
             {
-                SafeUpdate(() =>
+                await SafeUpdateAsync(() =>
                 {
                     task.LastStatus = "Failed to load macro";
                     task.LastRunTime = _timeProvider.UtcNow;
                     UpdateScheduleAfterAttempt(task);
                 });
-                TaskExecuted?.Invoke(this, new TaskExecutedEventArgs(task, false, "Failed to load macro"));
+                RaiseTaskExecuted(new TaskExecutedEventArgs(task, false, "Failed to load macro"));
                 return;
             }
             
             // Update status immediately before execution starts
-            SafeUpdate(() =>
+            await SafeUpdateAsync(() =>
             {
                 task.LastStatus = "Running...";
                 task.LastRunTime = _timeProvider.UtcNow;
             });
-            TaskStarting?.Invoke(this, task);
+            RaiseTaskStarting(task);
             
             // Create new player instance for this execution to avoid conflicts
             using var player = _playerFactory();
@@ -81,44 +82,44 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
             await player.PlayAsync(macro, options, cancellationToken);
             
             // Update status after successful completion
-            SafeUpdate(() =>
+            await SafeUpdateAsync(() =>
             {
                 task.LastRunTime = _timeProvider.UtcNow;
                 task.LastStatus = "Success";
                 UpdateScheduleAfterAttempt(task);
             });
             
-            TaskExecuted?.Invoke(this, new TaskExecutedEventArgs(task, true, "Executed successfully"));
+            RaiseTaskExecuted(new TaskExecutedEventArgs(task, true, "Executed successfully"));
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("progress"))
         {
             // Playback already in progress - reschedule for next interval
-            SafeUpdate(() =>
+            await SafeUpdateAsync(() =>
             {
                 task.LastStatus = "Skipped (playback busy)";
                 UpdateScheduleAfterAttempt(task);
             });
-            TaskExecuted?.Invoke(this, new TaskExecutedEventArgs(task, false, "Playback was busy, will retry"));
+            RaiseTaskExecuted(new TaskExecutedEventArgs(task, false, "Playback was busy, will retry"));
         }
         catch (OperationCanceledException)
         {
-            SafeUpdate(() =>
+            await SafeUpdateAsync(() =>
             {
                 task.LastStatus = "Cancelled";
                 task.LastRunTime = _timeProvider.UtcNow;
                 UpdateScheduleAfterAttempt(task);
             });
-            TaskExecuted?.Invoke(this, new TaskExecutedEventArgs(task, false, "Cancelled"));
+            RaiseTaskExecuted(new TaskExecutedEventArgs(task, false, "Cancelled"));
         }
         catch (Exception ex)
         {
-            SafeUpdate(() =>
+            await SafeUpdateAsync(() =>
             {
                 task.LastStatus = $"Error: {ex.Message}";
                 task.LastRunTime = _timeProvider.UtcNow;
                 UpdateScheduleAfterAttempt(task);
             });
-            TaskExecuted?.Invoke(this, new TaskExecutedEventArgs(task, false, ex.Message));
+            RaiseTaskExecuted(new TaskExecutedEventArgs(task, false, ex.Message));
         }
     }
 
@@ -137,15 +138,39 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
         }
     }
 
-    private void SafeUpdate(Action action)
+    private Task SafeUpdateAsync(Action action)
     {
-        if (_syncContext != null)
-        {
-            _syncContext.Post(_ => action(), null);
-        }
-        else
+        if (_syncContext == null || SynchronizationContext.Current == _syncContext)
         {
             action();
+            return Task.CompletedTask;
         }
+
+        var completion = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _syncContext.Post(_ =>
+        {
+            try
+            {
+                action();
+                completion.TrySetResult(null);
+            }
+            catch (Exception ex)
+            {
+                completion.TrySetException(ex);
+            }
+        }, null);
+        return completion.Task;
+    }
+
+    private void RaiseTaskStarting(ScheduledTask task)
+    {
+        try { TaskStarting?.Invoke(this, task); }
+        catch (Exception ex) { Log.Warning(ex, "[MacroScheduledTaskExecutor] TaskStarting subscriber threw"); }
+    }
+
+    private void RaiseTaskExecuted(TaskExecutedEventArgs args)
+    {
+        try { TaskExecuted?.Invoke(this, args); }
+        catch (Exception ex) { Log.Warning(ex, "[MacroScheduledTaskExecutor] TaskExecuted subscriber threw"); }
     }
 }

@@ -32,6 +32,9 @@ public interface ITriggerService : IDisposable
 
     bool IsMonitoring { get; }
 
+    /// <summary>Completes when the current monitoring loop has stopped.</summary>
+    Task Completion { get; }
+
     void AddTask(TriggerTask task);
     void RemoveTask(Guid id);
     void UpdateTask(TriggerTask task);
@@ -39,6 +42,9 @@ public interface ITriggerService : IDisposable
 
     void Start();
     void Stop();
+
+    /// <summary>Requests shutdown and exposes completion of the current monitoring lifetime.</summary>
+    Task StopAsync(CancellationToken cancellationToken = default);
 
     Task LoadAsync();
     Task SaveAsync();

@@ -6,6 +6,7 @@ using Avalonia;
 using Avalonia.Controls;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
+using CrossMacro.Infrastructure.Services.ScreenCapture;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.UI.Views.Tabs;
 using CrossMacro.UI.Localization;
@@ -182,6 +183,8 @@ public class EditorViewModelTests
 
         _validator.ValidateAll(Arg.Any<IEnumerable<EditorAction>>()).Returns((true, new List<string>()));
 
+        var imageAssetCodec = new ImageAssetCodec();
+
         _viewModel = new EditorViewModel(
             _converter,
             _validator,
@@ -192,7 +195,9 @@ public class EditorViewModelTests
             _macroPlayer,
             _localizationService,
             new EditorActionDisplayFormatter(_localizationService),
-            _screenPixelReader);
+            _screenPixelReader,
+            imageAssetCodec,
+            new ImageAssetPreviewDecoder(imageAssetCodec));
     }
 
     [Theory]
@@ -3094,6 +3099,42 @@ public class EditorViewModelTests
     }
 
     [Fact]
+    public async Task CaptureMouseAsync_WhenCaptureIsCancelled_ReportsCancellationAndClearsMode()
+    {
+        _viewModel.AddAction();
+        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<(int X, int Y)?>(null));
+
+        await _viewModel.CaptureMouseAsync();
+
+        _viewModel.CaptureMode.Should().Be(EditorViewModel.EditorCaptureMode.None);
+        _viewModel.Status.Should().Be("[Editor_StatusCaptureCancelled]");
+    }
+
+    [Fact]
+    public async Task CaptureMouseAsync_WhenCaptureFails_ReportsErrorAndClearsMode()
+    {
+        _viewModel.AddAction();
+        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<(int X, int Y)?>(new InvalidOperationException("capture failed")));
+
+        await _viewModel.CaptureMouseAsync();
+
+        _viewModel.CaptureMode.Should().Be(EditorViewModel.EditorCaptureMode.None);
+        _viewModel.Status.Should().Be("Editor_StatusCaptureError");
+    }
+
+    [Fact]
+    public void CancelCapture_CancelsNeutralCaptureServiceAndUpdatesEditorState()
+    {
+        _viewModel.CancelCapture();
+
+        _captureService.Received(1).CancelCapture();
+        _viewModel.CaptureMode.Should().Be(EditorViewModel.EditorCaptureMode.None);
+        _viewModel.Status.Should().Be("[Editor_StatusCaptureCancelled]");
+    }
+
+    [Fact]
     public async Task CaptureMouseAsync_WhenSelectedActionIsRelative_StoresCapturedPositionAsAbsoluteAction()
     {
         // Arrange
@@ -3892,7 +3933,7 @@ public class EditorViewModelTests
                 ScriptSteps = ["imagesearch 0 0 100 100 Target_1 found found_x found_y"]
             };
             _converter
-                .ToMacroSequence(Arg.Any<IEnumerable<EditorAction>>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<bool>())
+                .ToMacroSequence(Arg.Any<EditorMacroProjection>())
                 .Returns(generatedSequence);
             _dialogService
                 .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
@@ -4802,7 +4843,7 @@ public class EditorViewModelTests
             Events = [new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 10, Y = 10 }]
         };
         _converter
-            .ToMacroSequence(Arg.Any<IEnumerable<EditorAction>>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<bool>())
+            .ToMacroSequence(Arg.Any<EditorMacroProjection>())
             .Returns(generatedSequence);
 
         EditorMacroCreatedEventArgs? raisedArgs = null;
@@ -4833,7 +4874,7 @@ public class EditorViewModelTests
             Events = [new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 10, Y = 10 }]
         };
         _converter
-            .ToMacroSequence(Arg.Any<IEnumerable<EditorAction>>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<bool>())
+            .ToMacroSequence(Arg.Any<EditorMacroProjection>())
             .Returns(generatedSequence);
 
         // Act
@@ -4841,10 +4882,8 @@ public class EditorViewModelTests
 
         // Assert
         _converter.Received(1).ToMacroSequence(
-            Arg.Any<IEnumerable<EditorAction>>(),
-            Arg.Any<string>(),
-            true,
-            Arg.Any<bool>());
+            Arg.Is<EditorMacroProjection>(projection =>
+                projection.IsAbsoluteCoordinates && projection.Name == _viewModel.MacroName));
     }
 
     [Fact]
@@ -4860,31 +4899,27 @@ public class EditorViewModelTests
             .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
             .Returns("/tmp/editor-viewmodel-mixed-modes.macro");
 
-        IReadOnlyList<EditorAction>? capturedActions = null;
-        bool? capturedLegacyDefault = null;
+        EditorMacroProjection? capturedProjection = null;
         _converter
             .ToMacroSequence(
-                Arg.Do<IEnumerable<EditorAction>>(actions => capturedActions = actions.ToList()),
-                Arg.Any<string>(),
-                Arg.Do<bool>(isAbsolute => capturedLegacyDefault = isAbsolute),
-                Arg.Any<bool>())
+                Arg.Do<EditorMacroProjection>(projection => capturedProjection = projection))
             .Returns(new MacroSequence { Name = "Generated" });
 
         // Act
         await _viewModel.SaveMacroAsync();
 
         // Assert
-        capturedActions.Should().NotBeNull();
-        capturedActions!.Should().HaveCount(2);
-        capturedActions[0].Should().NotBeSameAs(absoluteMove);
-        capturedActions[0].IsAbsolute.Should().BeTrue();
-        capturedActions[0].X.Should().Be(100);
-        capturedActions[0].Y.Should().Be(200);
-        capturedActions[1].Should().NotBeSameAs(relativeMove);
-        capturedActions[1].IsAbsolute.Should().BeFalse();
-        capturedActions[1].X.Should().Be(5);
-        capturedActions[1].Y.Should().Be(-3);
-        capturedLegacyDefault.Should().BeTrue();
+        capturedProjection.Should().NotBeNull();
+        capturedProjection!.Actions.Should().HaveCount(2);
+        capturedProjection.Actions[0].Should().NotBeSameAs(absoluteMove);
+        capturedProjection.Actions[0].IsAbsolute.Should().BeTrue();
+        capturedProjection.Actions[0].X.Should().Be(100);
+        capturedProjection.Actions[0].Y.Should().Be(200);
+        capturedProjection.Actions[1].Should().NotBeSameAs(relativeMove);
+        capturedProjection.Actions[1].IsAbsolute.Should().BeFalse();
+        capturedProjection.Actions[1].X.Should().Be(5);
+        capturedProjection.Actions[1].Y.Should().Be(-3);
+        capturedProjection.IsAbsoluteCoordinates.Should().BeTrue();
     }
 
     [Fact]
@@ -4903,7 +4938,7 @@ public class EditorViewModelTests
             Events = [new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 0, Y = 0 }]
         };
         _converter
-            .ToMacroSequence(Arg.Any<IEnumerable<EditorAction>>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<bool>())
+            .ToMacroSequence(Arg.Any<EditorMacroProjection>())
             .Returns(generatedSequence);
 
         // Act
@@ -4911,10 +4946,8 @@ public class EditorViewModelTests
 
         // Assert
         _converter.Received(1).ToMacroSequence(
-            Arg.Any<IEnumerable<EditorAction>>(),
-            Arg.Any<string>(),
-            false,
-            true);
+            Arg.Is<EditorMacroProjection>(projection =>
+                !projection.IsAbsoluteCoordinates && projection.SkipInitialZeroZero));
     }
 
     [Fact]
@@ -4941,13 +4974,10 @@ public class EditorViewModelTests
             .ValidateAll(Arg.Do<IEnumerable<EditorAction>>(actions => validatedActions = actions.ToList()))
             .Returns((true, new List<string>()));
 
-        IReadOnlyList<EditorAction>? convertedActions = null;
+        EditorMacroProjection? convertedProjection = null;
         _converter
             .ToMacroSequence(
-                Arg.Do<IEnumerable<EditorAction>>(actions => convertedActions = actions.ToList()),
-                Arg.Any<string>(),
-                Arg.Any<bool>(),
-                Arg.Any<bool>())
+                Arg.Do<EditorMacroProjection>(projection => convertedProjection = projection))
             .Returns(new MacroSequence { Name = "Generated" });
 
         // Act
@@ -4961,10 +4991,11 @@ public class EditorViewModelTests
         validatedActions![0].IsAbsolute.Should().BeFalse();
         validatedActions[0].X.Should().Be(0);
         validatedActions[0].Y.Should().Be(0);
-        convertedActions.Should().ContainSingle().Which.Should().NotBeSameAs(currentPositionClick);
-        convertedActions![0].IsAbsolute.Should().BeFalse();
-        convertedActions[0].X.Should().Be(0);
-        convertedActions[0].Y.Should().Be(0);
+        convertedProjection.Should().NotBeNull();
+        convertedProjection!.Actions.Should().ContainSingle().Which.Should().NotBeSameAs(currentPositionClick);
+        convertedProjection.Actions[0].IsAbsolute.Should().BeFalse();
+        convertedProjection.Actions[0].X.Should().Be(0);
+        convertedProjection.Actions[0].Y.Should().Be(0);
     }
 
     [Fact]
@@ -4983,11 +5014,7 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(currentPositionClick);
 
         _converter
-            .ToMacroSequence(
-                Arg.Any<IEnumerable<EditorAction>>(),
-                Arg.Any<string>(),
-                Arg.Any<bool>(),
-                Arg.Any<bool>())
+            .ToMacroSequence(Arg.Any<EditorMacroProjection>())
             .Returns(new MacroSequence { Name = "Generated" });
 
         _dialogService
@@ -5019,11 +5046,7 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(currentPositionClick);
 
         _converter
-            .ToMacroSequence(
-                Arg.Any<IEnumerable<EditorAction>>(),
-                Arg.Any<string>(),
-                Arg.Any<bool>(),
-                Arg.Any<bool>())
+            .ToMacroSequence(Arg.Any<EditorMacroProjection>())
             .Returns((MacroSequence?)null);
 
         // Act
@@ -5059,7 +5082,7 @@ public class EditorViewModelTests
             ]
         };
         _converter
-            .ToMacroSequence(Arg.Any<IEnumerable<EditorAction>>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<bool>())
+            .ToMacroSequence(Arg.Any<EditorMacroProjection>())
             .Returns(generatedSequence);
 
         // Act
@@ -5067,10 +5090,8 @@ public class EditorViewModelTests
 
         // Assert
         _converter.Received(1).ToMacroSequence(
-            Arg.Any<IEnumerable<EditorAction>>(),
-            Arg.Any<string>(),
-            true,
-            true);
+            Arg.Is<EditorMacroProjection>(projection =>
+                projection.IsAbsoluteCoordinates && projection.SkipInitialZeroZero));
     }
 
     private static byte[] CreateOversizedPngBytes()

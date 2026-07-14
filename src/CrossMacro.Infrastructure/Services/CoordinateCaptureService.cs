@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Diagnostics;
@@ -58,22 +59,14 @@ public class CoordinateCaptureService : ICoordinateCaptureService
             capture.Configure(captureMouse: true, captureKeyboard: true);
             
             var tcs = new TaskCompletionSource<(int X, int Y)?>(TaskCreationOptions.RunContinuationsAsynchronously);
-            
-            capture.InputReceived += async (s, e) =>
+            var callbackTasks = new List<Task>();
+
+            capture.InputReceived += (s, e) =>
             {
-                // Cancel on ESC key (keycode 1)
-                if (e.Type == InputEventType.Key && e.Value == 1 && e.Code == InputEventCode.KEY_ESC)
+                var callback = ProcessMouseInputAsync(e, tcs);
+                lock (callbackTasks)
                 {
-                    tcs.TrySetResult(null);
-                    return;
-                }
-                
-                // Capture on any mouse button click or Enter key (keycode 28)
-                if ((e.Type == InputEventType.MouseButton && e.Value == 1) || // Button press
-                    (e.Type == InputEventType.Key && e.Value == 1 && e.Code == InputEventCode.KEY_ENTER))
-                {
-                    var position = await _positionProvider.GetAbsolutePositionAsync();
-                    tcs.TrySetResult(position);
+                    callbackTasks.Add(callback);
                 }
             };
 
@@ -94,7 +87,15 @@ public class CoordinateCaptureService : ICoordinateCaptureService
             using (captureCts.Token.Register(() => tcs.TrySetResult(null)))
             {
                 await capture.StartAsync(captureCts.Token);
-                return await tcs.Task;
+                var result = await tcs.Task;
+                Task[] pendingCallbacks;
+                lock (callbackTasks)
+                {
+                    pendingCallbacks = callbackTasks.ToArray();
+                }
+
+                await Task.WhenAll(pendingCallbacks);
+                return result;
             }
         }
         catch (OperationCanceledException)
@@ -115,6 +116,32 @@ public class CoordinateCaptureService : ICoordinateCaptureService
         finally
         {
             EndCapture(captureCts);
+        }
+    }
+
+    private async Task ProcessMouseInputAsync(
+        InputCaptureEventArgs input,
+        TaskCompletionSource<(int X, int Y)?> completion)
+    {
+        try
+        {
+            if (input.Type == InputEventType.Key && input.Value == 1 && input.Code == InputEventCode.KEY_ESC)
+            {
+                completion.TrySetResult(null);
+                return;
+            }
+
+            if ((input.Type == InputEventType.MouseButton && input.Value == 1)
+                || (input.Type == InputEventType.Key && input.Value == 1 && input.Code == InputEventCode.KEY_ENTER))
+            {
+                var position = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+                completion.TrySetResult(position);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[CoordinateCaptureService] Error processing mouse capture callback");
+            completion.TrySetResult(null);
         }
     }
     

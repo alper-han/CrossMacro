@@ -254,4 +254,18 @@ public class SettingsServiceTests : IDisposable
         // Assert
         act.Should().Throw<IOException>();
     }
+    [Fact]
+    public async Task SaveAsync_WhenWriteFails_Throws()
+    {
+        // Arrange
+        var blockingPath = Path.Combine(_tempPath, "not-a-directory");
+        File.WriteAllText(blockingPath, "blocking file");
+        var service = new SettingsService(blockingPath);
+
+        // Act
+        var act = async () => await service.SaveAsync();
+
+        // Assert
+        await act.Should().ThrowAsync<IOException>();
+    }
 }

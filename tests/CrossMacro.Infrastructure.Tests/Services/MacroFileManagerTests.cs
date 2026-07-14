@@ -38,6 +38,30 @@ public class MacroFileManagerTests : IDisposable
         return path;
     }
 
+    [Theory]
+    [InlineData("current.macro", false)]
+    [InlineData("legacy.macro", false)]
+    [InlineData("malformed-metadata.macro", false)]
+    public async Task GoldenFixture_LoadSaveLoad_PreservesSemanticFields(string fixtureName, bool expectedAbsolute)
+    {
+        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "Macros", fixtureName);
+        var first = await _manager.LoadAsync(fixturePath);
+
+        first.Should().NotBeNull();
+        first!.IsAbsoluteCoordinates.Should().Be(expectedAbsolute);
+        first.Events.Should().NotBeEmpty();
+        var savedPath = GetTempFilePath();
+        await _manager.SaveAsync(first, savedPath);
+        var second = await _manager.LoadAsync(savedPath);
+
+        second.Should().NotBeNull();
+        second!.Events.Should().BeEquivalentTo(first.Events);
+        second.ScriptSteps.Should().Equal(first.ScriptSteps);
+        second.TextInputBoundaries.Should().Equal(first.TextInputBoundaries);
+        second.TrailingDelayMs.Should().Be(first.TrailingDelayMs);
+        second.HasTrailingRandomDelay.Should().Be(first.HasTrailingRandomDelay);
+    }
+
     private static MacroFileManager CreateManager()
     {
         return new MacroFileManager(() => new KeyCodeMapper(new TestKeyboardLayoutService()));
@@ -83,6 +107,125 @@ M,0,0
                 new() { Type = EventType.ButtonRelease, X = 100, Y = 200, Button = MouseButton.Left, Timestamp = 150, DelayMs = 50 }
             }
         };
+    }
+
+    [Fact]
+    public void PersistedMacroDocument_RoundTrip_MapsEveryRuntimeField()
+    {
+        var macro = CreateValidMacro("Document boundary");
+        macro.Id = Guid.NewGuid();
+        macro.ScriptSteps = ["click left"];
+        macro.TextInputBoundaries = [new TextInputBoundary(0, 1, "hello")];
+        macro.Images = new Dictionary<string, string>(StringComparer.Ordinal) { ["Target"] = TransparentPngBase64 };
+        macro.RecordedAt = new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+        macro.ActualDuration = TimeSpan.FromMilliseconds(321);
+        macro.MouseMoveCount = 4;
+        macro.ClickCount = 5;
+        macro.EventsPerSecond = 6.5;
+        macro.IsAbsoluteCoordinates = true;
+        macro.SkipInitialZeroZero = true;
+        macro.TrailingDelayMs = 7;
+        macro.HasTrailingRandomDelay = true;
+        macro.TrailingDelayMinMs = 8;
+        macro.TrailingDelayMaxMs = 9;
+
+        var restored = PersistedMacroDocument.FromRuntime(macro).ToRuntime();
+
+        restored.Should().BeEquivalentTo(macro);
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_RoundTrip_UsesRealMacroFileForAllFormatMetadata()
+    {
+        var createdAt = new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Unspecified);
+        var macro = new MacroSequence
+        {
+            Id = Guid.NewGuid(),
+            Name = "Complete file metadata",
+            CreatedAt = createdAt,
+            TotalDurationMs = 45,
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            TrailingDelayMs = 17,
+            HasTrailingRandomDelay = true,
+            TrailingDelayMinMs = 23,
+            TrailingDelayMaxMs = 41,
+            ScriptSteps = ["click left"],
+            TextInputBoundaries = [new TextInputBoundary(0, 1, "hello")],
+            Images = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["Target"] = TransparentPngBase64
+            },
+            Events =
+            [
+                new MacroEvent
+                {
+                    Type = EventType.MouseMove,
+                    X = 10,
+                    Y = 20,
+                    Timestamp = 0,
+                    DelayMs = 0,
+                    CoordinateMode = MouseCoordinateMode.Relative
+                },
+                new MacroEvent
+                {
+                    Type = EventType.Click,
+                    X = 10,
+                    Y = 20,
+                    Button = MouseButton.Left,
+                    Timestamp = 45,
+                    DelayMs = 40,
+                    HasRandomDelay = true,
+                    RandomDelayMinMs = 5,
+                    RandomDelayMaxMs = 15,
+                    UseCurrentPosition = true
+                }
+            ],
+            RecordedAt = new DateTime(2024, 2, 3, 4, 5, 6, DateTimeKind.Utc),
+            ActualDuration = TimeSpan.FromMilliseconds(321),
+            MouseMoveCount = 9,
+            ClickCount = 8,
+            EventsPerSecond = 7.5
+        };
+        var filePath = GetTempFilePath();
+
+        await _manager.SaveAsync(macro, filePath);
+        var saved = await File.ReadAllTextAsync(filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        saved.Should().Contain("# Name: Complete file metadata");
+        saved.Should().Contain("# Created: 2024-01-02T03:04:05.0000000");
+        saved.Should().Contain("# DurationMs: 45");
+        saved.Should().Contain("# IsAbsolute: False");
+        saved.Should().Contain("# SkipInitialZero: True");
+        saved.Should().Contain("# TrailingDelayMs: 17");
+        saved.Should().Contain("# TrailingRandomDelayMs: 23,41");
+        saved.Should().Contain("# TextInputBoundaryBase64: ");
+        saved.Should().Contain($"# Image: Target = {TransparentPngBase64}");
+        saved.Should().Contain("# Format: CrossMacroFormatV2");
+
+        loaded.Should().NotBeNull();
+        loaded!.Name.Should().Be(macro.Name);
+        loaded.CreatedAt.Should().Be(createdAt);
+        loaded.TotalDurationMs.Should().Be(45);
+        loaded.IsAbsoluteCoordinates.Should().BeFalse();
+        loaded.SkipInitialZeroZero.Should().BeTrue();
+        loaded.TrailingDelayMs.Should().Be(17);
+        loaded.HasTrailingRandomDelay.Should().BeTrue();
+        loaded.TrailingDelayMinMs.Should().Be(23);
+        loaded.TrailingDelayMaxMs.Should().Be(41);
+        loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
+        loaded.TextInputBoundaries.Should().Equal(macro.TextInputBoundaries);
+        loaded.Images.Should().Equal(macro.Images);
+        loaded.Events.Should().BeEquivalentTo(macro.Events);
+
+        // The text grammar intentionally does not serialize runtime identity/statistics.
+        loaded.Id.Should().NotBe(macro.Id);
+        loaded.RecordedAt.Should().NotBe(macro.RecordedAt);
+        loaded.ActualDuration.Should().Be(TimeSpan.Zero);
+        loaded.MouseMoveCount.Should().Be(1);
+        loaded.ClickCount.Should().Be(1);
+        loaded.EventsPerSecond.Should().Be(0);
     }
 
     [Fact]
@@ -212,6 +355,22 @@ M,0,0
         // Assert
         loaded.Should().NotBeNull();
         loaded!.Name.Should().Be("Round Trip Test");
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_RoundTrip_PreservesAbsoluteCoordinateModeInFile()
+    {
+        var macro = CreateValidMacro("Absolute Coordinate File Round Trip");
+        macro.IsAbsoluteCoordinates = true;
+        var filePath = GetTempFilePath();
+
+        await _manager.SaveAsync(macro, filePath);
+        var saved = await File.ReadAllTextAsync(filePath);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        saved.Should().Contain("# IsAbsolute: True");
+        loaded.Should().NotBeNull();
+        loaded!.IsAbsoluteCoordinates.Should().BeTrue();
     }
 
     [Fact]

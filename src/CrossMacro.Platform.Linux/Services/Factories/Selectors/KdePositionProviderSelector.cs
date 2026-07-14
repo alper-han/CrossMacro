@@ -6,6 +6,13 @@ namespace CrossMacro.Platform.Linux.Services.Factories.Selectors;
 
 public class KdePositionProviderSelector : IPositionProviderSelector
 {
+    private readonly KdePositionProvider _provider;
+
+    public KdePositionProviderSelector(KdePositionProvider provider)
+    {
+        _provider = provider;
+    }
+
     public int Priority => 10;
 
     public bool CanHandle(CompositorType compositor)
@@ -15,6 +22,6 @@ public class KdePositionProviderSelector : IPositionProviderSelector
 
     public IMousePositionProvider Create()
     {
-        return new KdePositionProvider();
+        return _provider;
     }
 }

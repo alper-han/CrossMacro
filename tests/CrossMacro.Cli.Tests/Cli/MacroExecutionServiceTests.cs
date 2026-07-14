@@ -4,6 +4,7 @@ using CrossMacro.Core.Services.Playback;
 using CrossMacro.Cli;
 using CrossMacro.Cli.Services;
 using CrossMacro.Platform.Abstractions;
+using CrossMacro.Infrastructure.Services;
 using NSubstitute;
 using System.Text.Json;
 
@@ -21,7 +22,10 @@ public class MacroExecutionServiceTests
         _fileManager = Substitute.For<IMacroFileManager>();
         _player = Substitute.For<IMacroPlayer>();
         _keyCodeMapper = CreateKeyCodeMapper();
-        _service = new MacroExecutionService(_fileManager, () => _player, _keyCodeMapper);
+        _service = new MacroExecutionService(
+            _fileManager,
+            () => _player,
+            new PlaybackValidator(_keyCodeMapper, new NullMousePositionProvider("CLI Validation Provider")));
     }
 
     [Fact]

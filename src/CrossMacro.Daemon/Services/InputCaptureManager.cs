@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using CrossMacro.Infrastructure.Linux.Native;
-using CrossMacro.Infrastructure.Linux.Native.UInput;
-using CrossMacro.Infrastructure.Linux.Native.Evdev;
+using CrossMacro.Platform.Linux.Native;
+using CrossMacro.Platform.Linux.Native.UInput;
+using CrossMacro.Platform.Linux.Native.Evdev;
 using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Daemon.Services;
@@ -48,9 +48,10 @@ public class InputCaptureManager : IInputCaptureManager
 
             foreach (var dev in targetDevices)
             {
+                ILinuxCaptureReader? evReader = null;
                 try 
                 {
-                    var evReader = _readerFactory(dev);
+                    evReader = _readerFactory(dev);
                     evReader.EventReceived += (sender, e) => 
                     {
                         // Invoke callback. 
@@ -73,6 +74,15 @@ public class InputCaptureManager : IInputCaptureManager
                 }
                 catch (Exception ex)
                 {
+                    try
+                    {
+                        evReader?.Dispose();
+                    }
+                    catch (Exception disposeException)
+                    {
+                        Log.Warning("Failed to dispose capture reader for {Path}: {Msg}", dev.Path, disposeException.Message);
+                    }
+
                     Log.Warning("Failed to open {Path}: {Msg}", dev.Path, ex.Message);
                 }
             }

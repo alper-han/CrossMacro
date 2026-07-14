@@ -1,8 +1,7 @@
 using System;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Application.Profiles;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 
@@ -10,27 +9,40 @@ namespace CrossMacro.Cli.Services;
 
 public sealed class ProfileCliService : IProfileCliService
 {
-    private readonly IProfileManager _profileManager;
+    private readonly IManageProfile _manageProfile;
+    private readonly IProfileManager? _profileManager;
+
+    public ProfileCliService(IManageProfile manageProfile)
+    {
+        _manageProfile = manageProfile;
+    }
 
     public ProfileCliService(IProfileManager profileManager)
     {
         _profileManager = profileManager;
+        _manageProfile = new ManageProfile(profileManager);
     }
 
-    public Task<CliCommandExecutionResult> ListAsync(CancellationToken cancellationToken)
+    public ProfileCliService(IManageProfile manageProfile, IProfileManager profileManager)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var data = new ProfileListData(
-            _profileManager.Profiles.Select(ToData).ToList(),
-            _profileManager.ActiveProfile.Id);
-        return Task.FromResult(CliCommandExecutionResult.Ok($"{data.Profiles.Count} profile(s).", data));
+        _manageProfile = manageProfile;
+        _profileManager = profileManager;
     }
 
-    public Task<CliCommandExecutionResult> CurrentAsync(CancellationToken cancellationToken)
+    public async Task<CliCommandExecutionResult> ListAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var data = ToData(_profileManager.ActiveProfile);
-        return Task.FromResult(CliCommandExecutionResult.Ok($"Current profile: {data.Name} ({data.Id}).", data));
+        var result = await _manageProfile.ListAsync(cancellationToken).ConfigureAwait(false);
+        var data = new ProfileListData(result.Profiles.Select(profile => ToData(profile, string.Equals(profile.Id, result.ActiveProfileId, StringComparison.OrdinalIgnoreCase))).ToList(), result.ActiveProfileId);
+        return CliCommandExecutionResult.Ok($"{data.Profiles.Count} profile(s).", data);
+    }
+
+    public async Task<CliCommandExecutionResult> CurrentAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var result = await _manageProfile.CurrentAsync(cancellationToken).ConfigureAwait(false);
+        var data = ToData(result.Profile!, string.Equals(result.ActiveProfileId, result.Profile!.Id, StringComparison.OrdinalIgnoreCase));
+        return CliCommandExecutionResult.Ok($"Current profile: {data.Name} ({data.Id}).", data);
     }
 
     public async Task<CliCommandExecutionResult> CreateAsync(string name, CancellationToken cancellationToken)
@@ -38,8 +50,8 @@ public sealed class ProfileCliService : IProfileCliService
         cancellationToken.ThrowIfCancellationRequested();
         try
         {
-            var profile = await _profileManager.CreateProfileAsync(name).ConfigureAwait(false);
-            return CliCommandExecutionResult.Ok($"Profile created: {profile.Name} ({profile.Id}).", ToData(profile));
+            var profile = (await _manageProfile.CreateAsync(new ProfileRequest(DisplayName: name), cancellationToken).ConfigureAwait(false)).Profile!;
+            return CliCommandExecutionResult.Ok($"Profile created: {profile.Name} ({profile.Id}).", ToData(profile, true));
         }
         catch (OperationCanceledException)
         {
@@ -54,15 +66,17 @@ public sealed class ProfileCliService : IProfileCliService
     public async Task<CliCommandExecutionResult> SwitchAsync(string profileIdentifier, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (!TryResolveProfile(profileIdentifier, out var profile, out var error))
+        var lookup = await ResolveAsync(profileIdentifier, cancellationToken).ConfigureAwait(false);
+        if (lookup.Error is not null)
         {
-            return error;
+            return lookup.Error;
         }
+        var profile = lookup.Profile!;
 
         try
         {
-            await _profileManager.SwitchProfileAsync(profile.Id).ConfigureAwait(false);
-            return CliCommandExecutionResult.Ok($"Switched to profile: {profile.Name} ({profile.Id}).", ToData(profile, isActive: true));
+            var result = await _manageProfile.SwitchAsync(new ProfileRequest(Identifier: profile.Id), cancellationToken).ConfigureAwait(false);
+            return CliCommandExecutionResult.Ok($"Switched to profile: {profile.Name} ({profile.Id}).", ToData(profile, string.Equals(result.ActiveProfileId, profile.Id, StringComparison.OrdinalIgnoreCase)));
         }
         catch (OperationCanceledException)
         {
@@ -77,17 +91,18 @@ public sealed class ProfileCliService : IProfileCliService
     public async Task<CliCommandExecutionResult> RenameAsync(string profileIdentifier, string newName, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (!TryResolveProfile(profileIdentifier, out var profile, out var error))
+        var lookup = await ResolveAsync(profileIdentifier, cancellationToken).ConfigureAwait(false);
+        if (lookup.Error is not null)
         {
-            return error;
+            return lookup.Error;
         }
+        var profile = lookup.Profile!;
 
         try
         {
-            await _profileManager.RenameProfileAsync(profile.Id, newName).ConfigureAwait(false);
-            var renamed = _profileManager.Profiles.FirstOrDefault(candidate => string.Equals(candidate.Id, profile.Id, StringComparison.OrdinalIgnoreCase))
-                ?? new ProfileInfo { Id = profile.Id, Name = newName, CreatedAt = profile.CreatedAt };
-            return CliCommandExecutionResult.Ok($"Profile renamed: {renamed.Name} ({renamed.Id}).", ToData(renamed));
+            var result = await _manageProfile.RenameAsync(new ProfileRequest(profile.Id, newName), cancellationToken).ConfigureAwait(false);
+            var renamed = result.Profile!;
+            return CliCommandExecutionResult.Ok($"Profile renamed: {renamed.Name} ({renamed.Id}).", ToData(renamed, string.Equals(result.ActiveProfileId, renamed.Id, StringComparison.OrdinalIgnoreCase)));
         }
         catch (OperationCanceledException)
         {
@@ -110,14 +125,16 @@ public sealed class ProfileCliService : IProfileCliService
                 ["Pass --force to confirm profile deletion."]);
         }
 
-        if (!TryResolveProfile(profileIdentifier, out var profile, out var error))
+        var lookup = await ResolveAsync(profileIdentifier, cancellationToken).ConfigureAwait(false);
+        if (lookup.Error is not null)
         {
-            return error;
+            return lookup.Error;
         }
+        var profile = lookup.Profile!;
 
         try
         {
-            await _profileManager.DeleteProfileAsync(profile.Id).ConfigureAwait(false);
+            var result = await _manageProfile.DeleteAsync(new ProfileRequest(Identifier: profile.Id), cancellationToken).ConfigureAwait(false);
             return CliCommandExecutionResult.Ok($"Profile deleted: {profile.Name} ({profile.Id}).", ToData(profile, isActive: false));
         }
         catch (OperationCanceledException)
@@ -130,31 +147,24 @@ public sealed class ProfileCliService : IProfileCliService
         }
     }
 
-    private bool TryResolveProfile(
+    private async Task<(ProfileInfo? Profile, CliCommandExecutionResult? Error)> ResolveAsync(
         string profileIdentifier,
-        [NotNullWhen(true)] out ProfileInfo? profile,
-        [NotNullWhen(false)] out CliCommandExecutionResult? result)
+        CancellationToken cancellationToken)
     {
-        profile = _profileManager.Profiles.FirstOrDefault(candidate =>
+        var result = await _manageProfile.ListAsync(cancellationToken).ConfigureAwait(false);
+        var profile = result.Profiles.FirstOrDefault(candidate =>
             string.Equals(candidate.Id, profileIdentifier, StringComparison.OrdinalIgnoreCase)
             || string.Equals(candidate.Name, profileIdentifier, StringComparison.OrdinalIgnoreCase));
 
         if (profile is not null)
         {
-            result = null;
-            return true;
+            return (profile, null);
         }
 
-        result = CliCommandExecutionResult.Fail(
+        return (null, CliCommandExecutionResult.Fail(
             CliExitCode.InvalidArguments,
             "Profile not found.",
-            [$"Unknown profile: {profileIdentifier}"]);
-        return false;
-    }
-
-    private ProfileData ToData(ProfileInfo profile)
-    {
-        return ToData(profile, string.Equals(profile.Id, _profileManager.ActiveProfile.Id, StringComparison.OrdinalIgnoreCase));
+            [$"Unknown profile: {profileIdentifier}"]));
     }
 
     private static ProfileData ToData(ProfileInfo profile, bool isActive)

@@ -1,36 +1,26 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Abstractions;
+using CrossMacro.Application.Runtime;
 using CrossMacro.Cli.Serialization;
+using CrossMacro.Core.Models;
 
 namespace CrossMacro.Cli.Services;
 
 public sealed class RunScriptExecutionService : IRunScriptExecutionService
 {
-    private readonly RunStepCompiler _runStepCompiler;
-    private readonly RunSequenceExecutor _runSequenceExecutor;
-    private readonly PlaybackValidator _validator;
+    private readonly IRunExecutionService _runtimeService;
 
-    public RunScriptExecutionService(
-        Func<IMacroPlayer> macroPlayerFactory,
-        IKeyCodeMapper keyCodeMapper,
-        Func<TimeSpan, CancellationToken, Task>? delayAsync = null)
+    public RunScriptExecutionService(IRunExecutionService runtimeService)
     {
-        ArgumentNullException.ThrowIfNull(keyCodeMapper);
-
-        _runStepCompiler = new RunStepCompiler(keyCodeMapper);
-        _runSequenceExecutor = new RunSequenceExecutor(macroPlayerFactory, delayAsync);
-        _validator = new PlaybackValidator(
-            keyCodeMapper,
-            new NullMousePositionProvider("CLI Run Validation Provider"));
+        _runtimeService = runtimeService ?? throw new ArgumentNullException(nameof(runtimeService));
     }
 
-    public async Task<MacroExecutionResult> ExecuteAsync(RunExecutionRequest request, CancellationToken cancellationToken)
+    public async Task<MacroExecutionResult> ExecuteAsync(
+        RunExecutionRequest request,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
@@ -53,158 +43,94 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
             };
         }
 
-        var compileResult = _runStepCompiler.Compile(steps);
-        if (!compileResult.Success)
+        var result = await _runtimeService.ExecuteAsync(new Application.Runtime.RunExecutionRequest(
+            steps.Select(step => new RunScriptInputStep(step.Step, step.FileLineNumber, step.SourceIndex)).ToList(),
+            request.SpeedMultiplier,
+            request.CountdownSeconds,
+            request.DryRun), cancellationToken);
+
+        if (result.Status == RunExecutionStatus.InvalidArguments)
         {
             return new MacroExecutionResult
             {
                 Success = false,
                 ExitCode = CliExitCode.InvalidArguments,
                 Message = "Run script parsing failed.",
-                Errors = [compileResult.ErrorMessage]
+                Errors = result.Errors
             };
         }
 
-        var sequence = compileResult.Sequence!;
-        var validation = _validator.Validate(sequence);
-        if (!validation.IsValid)
+        var data = result.Sequence is null
+            ? null
+            : BuildData(result.Sequence, result.StepCount, result, result.RuntimeVariables);
+
+        return result.Status switch
         {
-            return new MacroExecutionResult
+            RunExecutionStatus.ValidationFailed => new MacroExecutionResult
             {
                 Success = false,
                 ExitCode = CliExitCode.ValidationError,
                 Message = "Run script validation failed.",
-                Errors = validation.Errors,
-                Warnings = validation.Warnings,
-                Data = BuildData(
-                    sequence,
-                    steps.Count,
-                    compileResult.InitialDelayMs,
-                    compileResult.InitialHasRandomDelay,
-                    compileResult.InitialRandomDelayMinMs,
-                    compileResult.InitialRandomDelayMaxMs)
-            };
-        }
-
-        if (request.DryRun)
-        {
-            return new MacroExecutionResult
-            {
-                Success = true,
-                ExitCode = CliExitCode.Success,
-                Message = "Run script parsed successfully (dry-run).",
-                Warnings = validation.Warnings,
-                Data = BuildData(
-                    sequence,
-                    steps.Count,
-                    compileResult.InitialDelayMs,
-                    compileResult.InitialHasRandomDelay,
-                    compileResult.InitialRandomDelayMinMs,
-                    compileResult.InitialRandomDelayMaxMs)
-            };
-        }
-
-        var executionResult = await _runSequenceExecutor.ExecuteAsync(
-            sequence,
-            request.SpeedMultiplier,
-            request.CountdownSeconds,
-            compileResult.InitialDelayMs,
-            compileResult.InitialHasRandomDelay,
-            compileResult.InitialRandomDelayMinMs,
-            compileResult.InitialRandomDelayMaxMs,
-            cancellationToken);
-
-        if (executionResult.Success)
-        {
-            return new MacroExecutionResult
-            {
-                Success = true,
-                ExitCode = CliExitCode.Success,
-                Message = "Run script execution complete.",
-                Warnings = validation.Warnings,
-                Data = BuildData(
-                    sequence,
-                    steps.Count,
-                    compileResult.InitialDelayMs,
-                    compileResult.InitialHasRandomDelay,
-                    compileResult.InitialRandomDelayMinMs,
-                    compileResult.InitialRandomDelayMaxMs,
-                    executionResult.RuntimeVariables)
-            };
-        }
-
-        if (executionResult.IsCancelled)
-        {
-            return new MacroExecutionResult
+                Errors = result.Errors,
+                Warnings = result.Warnings,
+                Data = data
+            },
+            RunExecutionStatus.Cancelled => new MacroExecutionResult
             {
                 Success = false,
                 ExitCode = CliExitCode.Cancelled,
                 Message = "Run script execution cancelled."
-            };
-        }
-
-        if (executionResult.IsAbsolutePlaybackUnsupported)
-        {
-            return new MacroExecutionResult
+            },
+            RunExecutionStatus.AbsolutePlaybackUnsupported => new MacroExecutionResult
             {
                 Success = false,
                 ExitCode = CliExitCode.RuntimeError,
                 Message = "Absolute coordinate playback is not supported in this session.",
                 Errors = ["This run script contains absolute mouse coordinates, but the active backend cannot play absolute coordinates. Use a backend/session with absolute coordinate support or change the script to use relative coordinates."],
-                Warnings = validation.Warnings,
-                Data = BuildData(
-                    sequence,
-                    steps.Count,
-                    compileResult.InitialDelayMs,
-                    compileResult.InitialHasRandomDelay,
-                    compileResult.InitialRandomDelayMinMs,
-                    compileResult.InitialRandomDelayMaxMs)
-            };
-        }
-
-        if (executionResult.IsInputInjectionPermissionRequired)
-        {
-            return new MacroExecutionResult
+                Warnings = result.Warnings,
+                Data = data
+            },
+            RunExecutionStatus.InputInjectionPermissionRequired => new MacroExecutionResult
             {
                 Success = false,
                 ExitCode = CliExitCode.EnvironmentError,
                 Message = "Playback permission is missing.",
-                Errors = [executionResult.ErrorMessage ?? "macOS playback permission is missing."],
-                Warnings = validation.Warnings,
-                Data = BuildData(
-                    sequence,
-                    steps.Count,
-                    compileResult.InitialDelayMs,
-                    compileResult.InitialHasRandomDelay,
-                    compileResult.InitialRandomDelayMinMs,
-                    compileResult.InitialRandomDelayMaxMs)
-            };
-        }
-
-        return new MacroExecutionResult
-        {
-            Success = false,
-            ExitCode = CliExitCode.RuntimeError,
-            Message = "Run script execution failed.",
-            Errors = [executionResult.ErrorMessage ?? "Unknown runtime error."],
-            Warnings = validation.Warnings,
-            Data = BuildData(
-                sequence,
-                steps.Count,
-                compileResult.InitialDelayMs,
-                compileResult.InitialHasRandomDelay,
-                compileResult.InitialRandomDelayMinMs,
-                compileResult.InitialRandomDelayMaxMs)
+                Errors = [result.ErrorMessage ?? "macOS playback permission is missing."],
+                Warnings = result.Warnings,
+                Data = data
+            },
+            RunExecutionStatus.Succeeded when request.DryRun => new MacroExecutionResult
+            {
+                Success = true,
+                ExitCode = CliExitCode.Success,
+                Message = "Run script parsed successfully (dry-run).",
+                Warnings = result.Warnings,
+                Data = data
+            },
+            RunExecutionStatus.Succeeded => new MacroExecutionResult
+            {
+                Success = true,
+                ExitCode = CliExitCode.Success,
+                Message = "Run script execution complete.",
+                Warnings = result.Warnings,
+                Data = data
+            },
+            _ => new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = CliExitCode.RuntimeError,
+                Message = "Run script execution failed.",
+                Errors = [result.ErrorMessage ?? "Unknown runtime error."],
+                Warnings = result.Warnings,
+                Data = data
+            }
         };
     }
 
     private static RunScriptExecutionData BuildData(
         MacroSequence sequence,
         int stepCount,
-        int initialDelayMs,
-        bool initialHasRandomDelay,
-        int initialRandomDelayMinMs,
-        int initialRandomDelayMaxMs,
+        Application.Runtime.RunExecutionResult result,
         IReadOnlyDictionary<string, string>? runtimeVariables = null)
     {
         var coordinateMode = MacroPositionSemantics.GetCoordinateModeSummary(sequence) switch
@@ -219,13 +145,12 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
             stepCount,
             sequence.EventCount,
             sequence.TotalDurationMs,
-            initialDelayMs,
-            initialHasRandomDelay,
-            initialRandomDelayMinMs,
-            initialRandomDelayMaxMs,
+            result.InitialDelayMs,
+            result.InitialHasRandomDelay,
+            result.InitialRandomDelayMinMs,
+            result.InitialRandomDelayMaxMs,
             sequence.TrailingDelayMs,
             coordinateMode,
-            runtimeVariables ?? new Dictionary<string, string>()
-        );
+            runtimeVariables ?? new Dictionary<string, string>());
     }
 }

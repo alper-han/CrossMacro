@@ -12,8 +12,22 @@ public sealed class CliPreflightService : ICliPreflightService
     private readonly IDisplaySessionService _displaySessionService;
     private readonly Func<IInputSimulator> _inputSimulatorFactory;
     private readonly Func<IInputCapture> _inputCaptureFactory;
-    private readonly System.Func<bool> _isLinux;
-    private readonly System.Func<string, string?> _getEnvironmentVariable;
+    private readonly Func<bool> _isLinux;
+    private readonly Func<string, string?> _getEnvironmentVariable;
+
+    public CliPreflightService(
+        IRuntimeContext runtimeContext,
+        IDisplaySessionService displaySessionService,
+        Func<IInputSimulator> inputSimulatorFactory,
+        Func<IInputCapture> inputCaptureFactory)
+        : this(
+            displaySessionService,
+            inputSimulatorFactory,
+            inputCaptureFactory,
+            () => (runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext))).IsLinux,
+            Environment.GetEnvironmentVariable)
+    {
+    }
 
     public CliPreflightService(
         IDisplaySessionService displaySessionService,
@@ -26,7 +40,7 @@ public sealed class CliPreflightService : ICliPreflightService
         _inputSimulatorFactory = inputSimulatorFactory;
         _inputCaptureFactory = inputCaptureFactory;
         _isLinux = isLinux ?? OperatingSystem.IsLinux;
-        _getEnvironmentVariable = getEnvironmentVariable ?? System.Environment.GetEnvironmentVariable;
+        _getEnvironmentVariable = getEnvironmentVariable ?? Environment.GetEnvironmentVariable;
     }
 
     public CliPreflightService(
@@ -57,24 +71,18 @@ public sealed class CliPreflightService : ICliPreflightService
                 errors));
         }
 
-        if (_isLinux())
+        if (target == CliPreflightTarget.Headless &&
+            _isLinux() &&
+            string.IsNullOrWhiteSpace(_getEnvironmentVariable("DISPLAY")) &&
+            string.IsNullOrWhiteSpace(_getEnvironmentVariable("WAYLAND_DISPLAY")))
         {
-            var display = _getEnvironmentVariable("DISPLAY");
-            var waylandDisplay = _getEnvironmentVariable("WAYLAND_DISPLAY");
-            var hasDisplayVariable =
-                !string.IsNullOrWhiteSpace(display) ||
-                !string.IsNullOrWhiteSpace(waylandDisplay);
-
-            if (!hasDisplayVariable)
-            {
-                return Task.FromResult(CliPreflightResult.Fail(
-                    CliExitCode.EnvironmentError,
-                    "Preflight check failed: no active Linux display session was detected.",
-                    [
-                        "DISPLAY and WAYLAND_DISPLAY are empty.",
-                        "Run command inside an interactive desktop session, or configure daemon/display access correctly."
-                    ]));
-            }
+            return Task.FromResult(CliPreflightResult.Fail(
+                CliExitCode.EnvironmentError,
+                "Preflight check failed: no active Linux display session was detected.",
+                [
+                    "DISPLAY and WAYLAND_DISPLAY are empty.",
+                    "Headless mode requires an interactive desktop session."
+                ]));
         }
 
         if (target == CliPreflightTarget.Play || target == CliPreflightTarget.Run)

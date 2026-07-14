@@ -1,5 +1,4 @@
 using System;
-using CrossMacro.Infrastructure.Services.Recording.Strategies;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Platform.Linux.Strategies.Selectors;

@@ -37,6 +37,12 @@ public interface ISchedulerService : IDisposable
     /// Whether the scheduler is running
     /// </summary>
     bool IsRunning { get; }
+
+    /// <summary>
+    /// Completes when the current timer loop and its serial execution have stopped.
+    /// <see cref="Stop"/> remains non-blocking for host shutdown compatibility.
+    /// </summary>
+    Task Completion { get; }
     
     /// <summary>
     /// Adds a new scheduled task
@@ -68,6 +74,9 @@ public interface ISchedulerService : IDisposable
     /// Stops the scheduler
     /// </summary>
     void Stop();
+
+    /// <summary>Requests shutdown and exposes completion of the current scheduler lifetime.</summary>
+    Task StopAsync(CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Saves tasks to persistent storage

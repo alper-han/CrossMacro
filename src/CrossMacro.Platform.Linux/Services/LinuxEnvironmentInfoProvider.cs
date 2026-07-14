@@ -13,8 +13,9 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
     private readonly CompositorType _compositor;
     private readonly bool _windowManagerHandlesCloseButton;
     
-    public LinuxEnvironmentInfoProvider()
-        : this(CompositorDetector.DetectCompositor(), new LinuxEnvironmentVariables().CaptureSnapshot().WindowButtons)
+    [Obsolete("Use the snapshot-backed constructor in production composition.", error: false)]
+    internal LinuxEnvironmentInfoProvider()
+        : this(CompositorDetector.DetectCompositor(), LinuxEnvironmentVariables.CaptureCurrentSnapshot().WindowButtons)
     {
     }
 
@@ -24,6 +25,13 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
         : this(
             (environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector))).DetectedCompositor,
             (environmentVariables ?? throw new ArgumentNullException(nameof(environmentVariables))).CaptureSnapshot().WindowButtons)
+    {
+    }
+
+    public LinuxEnvironmentInfoProvider(LinuxEnvironmentSnapshot environment)
+        : this(
+            CompositorDetector.ClassifyFromEnvironment(environment, OperatingSystem.IsLinux()),
+            environment.WindowButtons)
     {
     }
     

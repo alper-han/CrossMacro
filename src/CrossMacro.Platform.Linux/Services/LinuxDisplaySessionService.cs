@@ -17,16 +17,25 @@ namespace CrossMacro.Platform.Linux.Services
         private readonly ILinuxEnvironmentVariables _environmentVariables;
 
         public LinuxDisplaySessionService()
-            : this(new LinuxInputCapabilitySnapshotProvider(), new LinuxEnvironmentVariables())
+            : this(new LinuxInputCapabilitySnapshotProvider(), new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()))
         {
         }
 
         internal LinuxDisplaySessionService(
             ILinuxInputCapabilitySnapshotProvider snapshotProvider,
-            ILinuxEnvironmentVariables environmentVariables)
+            LinuxEnvironmentSnapshot environment)
         {
             _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
-            _environmentVariables = environmentVariables ?? throw new ArgumentNullException(nameof(environmentVariables));
+            _environmentVariables = new LinuxEnvironmentVariables(environment);
+        }
+
+        internal LinuxDisplaySessionService(
+            ILinuxInputCapabilitySnapshotProvider snapshotProvider,
+            ILinuxEnvironmentVariables environmentVariables)
+            : this(
+                snapshotProvider,
+                (environmentVariables ?? throw new ArgumentNullException(nameof(environmentVariables))).CaptureSnapshot())
+        {
         }
 
         public LinuxDisplaySessionService(
@@ -39,7 +48,7 @@ namespace CrossMacro.Platform.Linux.Services
                     LinuxInputProbeUtilities.CanOpenForRead,
                     LinuxInputCapabilityDetector.ProbeDaemonHandshakeWithinBudget,
                     LinuxInputProbeUtilities.GetInputEventCandidates),
-                new LinuxEnvironmentVariables())
+                new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()))
         {
         }
 
@@ -58,7 +67,7 @@ namespace CrossMacro.Platform.Linux.Services
                         ? LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success()
                         : LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(),
                     getInputEventCandidates),
-                new LinuxEnvironmentVariables())
+                new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()))
         {
         }
 
@@ -75,7 +84,7 @@ namespace CrossMacro.Platform.Linux.Services
                     canOpenForRead,
                     (socketPath, timeout) => MapDisplayProbeResult(daemonHandshakeProbe(socketPath, timeout)),
                     getInputEventCandidates),
-                new LinuxEnvironmentVariables())
+                new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()))
         {
         }
 
@@ -136,7 +145,7 @@ namespace CrossMacro.Platform.Linux.Services
             reason = string.Empty;
 
             var environment = _environmentVariables.CaptureSnapshot();
-            bool isFlatpak = !string.IsNullOrEmpty(environment.FlatpakId);
+            bool isFlatpak = environment.IsFlatpak;
 
             Log.Information("[LinuxDisplaySessionService] Checking Session Support. Flatpak: {IsFlatpak}, ID: {FlatpakId}",
                 isFlatpak, environment.FlatpakId ?? "null");

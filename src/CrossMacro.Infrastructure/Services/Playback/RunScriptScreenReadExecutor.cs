@@ -560,9 +560,9 @@ internal sealed class RunScriptScreenReadExecutor
 					continue;
 				}
 
-				if (RunScriptSyntax.IsImageSearchMatchModeKeyword(parts[index]))
+				if (RunScriptPlatformSyntax.IsImageSearchMatchModeKeyword(parts[index]))
 				{
-					if (index + 1 >= parts.Count || !RunScriptSyntax.TryParseImageMatchMode(parts[index + 1], out var parsedMode))
+					if (index + 1 >= parts.Count || !RunScriptPlatformSyntax.TryParseImageMatchMode(parts[index + 1], out var parsedMode))
 					{
 						throw new InvalidOperationException($"Step {stepNumber}: {command} failed: matchmode must be first or best.");
 					}

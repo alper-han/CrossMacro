@@ -13,4 +13,13 @@ public readonly record struct LinuxEnvironmentSnapshot(
     string? RuntimeDir,
     string? WayfireSocket,
     string? SwaySocket,
-    string? WindowButtons);
+    string? WindowButtons,
+    string? CrossMacroFlatpak = null,
+    bool FlatpakInfoExists = false,
+    string? NiriSocket = null)
+{
+    public bool IsFlatpak =>
+        !string.IsNullOrWhiteSpace(FlatpakId) ||
+        string.Equals(CrossMacroFlatpak, "1", StringComparison.Ordinal) ||
+        FlatpakInfoExists;
+}

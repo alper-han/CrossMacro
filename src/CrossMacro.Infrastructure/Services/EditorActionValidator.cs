@@ -12,13 +12,15 @@ namespace CrossMacro.Infrastructure.Services;
 /// <summary>
 /// Validates EditorAction instances with comprehensive rule checking.
 /// </summary>
-public class EditorActionValidator : IEditorActionValidator
+internal sealed class EditorActionProjectionValidator : IEditorActionValidator
 {
     private readonly IEditorActionConverter _validationConverter;
+    private readonly IScriptValidationService? _scriptValidationService;
 
-    public EditorActionValidator(IEditorActionConverter validationConverter)
+    public EditorActionProjectionValidator(IEditorActionConverter validationConverter, IScriptValidationService? scriptValidationService = null)
     {
         _validationConverter = validationConverter ?? throw new ArgumentNullException(nameof(validationConverter));
+        _scriptValidationService = scriptValidationService;
     }
     
     /// <inheritdoc/>
@@ -90,6 +92,28 @@ public class EditorActionValidator : IEditorActionValidator
             ValidateScriptCompilation(actionList, errors);
         }
         
+        return (errors.Count == 0, errors);
+    }
+
+    public (bool IsValid, List<string> Errors) ValidateEditorFields(IEnumerable<EditorAction> actions)
+    {
+        var actionList = actions.ToList();
+        var errors = new List<string>();
+        for (var index = 0; index < actionList.Count; index++)
+        {
+            var (isValid, error) = Validate(actionList[index]);
+            if (!isValid && error != null)
+            {
+                errors.Add($"Action {index + 1} ({actionList[index].Type}): {error}");
+            }
+        }
+
+        var structureValidation = ScriptBlockStructureValidator.Validate(actionList);
+        if (!structureValidation.IsValid)
+        {
+            errors.AddRange(structureValidation.Errors);
+        }
+
         return (errors.Count == 0, errors);
     }
     
@@ -239,7 +263,7 @@ public class EditorActionValidator : IEditorActionValidator
             && !RunScriptSyntax.IsClipboardStep(text)
             && !RunScriptSyntax.IsShellStep(text)
             && !RunScriptSyntax.IsScreenReadingStep(text)
-            && !RunScriptSyntax.IsScreenshotStep(text))
+            && !RunScriptPlatformSyntax.IsScreenshotStep(text))
         {
             return (true, null);
         }
@@ -679,6 +703,20 @@ public class EditorActionValidator : IEditorActionValidator
 
     private void ValidateScriptCompilation(IReadOnlyList<EditorAction> actions, List<string> errors)
     {
+        var scriptSteps = actions
+            .Where(action => action.Type == EditorActionType.RawScriptStep && !string.IsNullOrWhiteSpace(action.Text))
+            .Select((action, index) => new RunScriptStep(action.Text, SourceIndex: index))
+            .ToList();
+        if (scriptSteps.Count > 0 && _scriptValidationService is not null)
+        {
+            foreach (var diagnostic in _scriptValidationService.Validate(scriptSteps))
+            {
+                errors.Add($"Script: {diagnostic.Message}");
+            }
+
+            return;
+        }
+
         try
         {
             var firstCoordinateAction = actions.FirstOrDefault(action =>
@@ -707,5 +745,58 @@ public class EditorActionValidator : IEditorActionValidator
         return hasFlowControlScriptActions
             || hasOpaqueScriptActions
             || (hasStateScriptActions && !hasRuntimeEventActions);
+    }
+}
+
+/// <summary>
+/// Compatibility façade combining editor field/projection validation with the
+/// shared Infrastructure script-validation boundary.
+/// </summary>
+public sealed class EditorActionValidator : IEditorActionValidator
+{
+    private readonly EditorActionProjectionValidator _projectionValidator;
+    private readonly EditorActionScriptValidationAdapter _scriptAdapter;
+    private readonly IScriptValidationService? _scriptValidationService;
+
+    public EditorActionValidator(IEditorActionConverter validationConverter, IScriptValidationService? scriptValidationService = null)
+    {
+        _scriptValidationService = scriptValidationService;
+        _projectionValidator = new EditorActionProjectionValidator(validationConverter, scriptValidationService);
+        _scriptAdapter = new EditorActionScriptValidationAdapter(validationConverter, scriptValidationService);
+    }
+
+    public (bool IsValid, string? Error) Validate(EditorAction action)
+    {
+        if (action is null)
+        {
+            return (false, ValidationMessages.ActionCannotBeNull);
+        }
+
+        return action.Type == EditorActionType.RawScriptStep
+            && (RunScriptSyntax.IsWindowStep(action.Text)
+                || RunScriptSyntax.IsClipboardStep(action.Text)
+                || RunScriptSyntax.IsShellStep(action.Text)
+                || RunScriptSyntax.IsScreenReadingStep(action.Text)
+                || RunScriptPlatformSyntax.IsScreenshotStep(action.Text))
+            ? _scriptAdapter.ValidateAction(action)
+            : _projectionValidator.Validate(action);
+    }
+
+    public (bool IsValid, List<string> Errors) ValidateAll(IEnumerable<EditorAction> actions)
+    {
+        if (_scriptValidationService is null)
+        {
+            return _projectionValidator.ValidateAll(actions);
+        }
+
+        var actionList = actions.ToList();
+        var editorResult = _projectionValidator.ValidateEditorFields(actionList);
+        var errors = editorResult.Errors;
+        if (errors.Count == 0)
+        {
+            errors.AddRange(_scriptAdapter.Validate(actionList));
+        }
+
+        return (errors.Count == 0, errors);
     }
 }

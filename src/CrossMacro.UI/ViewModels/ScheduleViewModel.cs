@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
+using CrossMacro.Application.Automation;
 using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
@@ -23,6 +24,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     private readonly IDialogService _dialogService;
     private readonly ITimeProvider _timeProvider;
     private readonly ILocalizationService _localizationService;
+    private readonly IManageSchedule? _manageSchedule;
     private readonly object _initializeLock = new();
     private Task? _initializeTask;
     private ScheduledTask? _selectedTask;
@@ -260,6 +262,17 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         _schedulerService.Tasks?.CollectionChanged += OnTasksCollectionChanged;
         
     }
+
+    public ScheduleViewModel(
+        IManageSchedule manageSchedule,
+        ISchedulerService schedulerService,
+        IDialogService dialogService,
+        ITimeProvider timeProvider,
+        ILocalizationService localizationService)
+        : this(schedulerService, dialogService, timeProvider, localizationService)
+    {
+        _manageSchedule = manageSchedule;
+    }
     
     public Task InitializeAsync()
     {
@@ -472,7 +485,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     }
     
     [RelayCommand]
-    private void AddTask()
+    private async Task AddTaskAsync()
     {
         var task = new ScheduledTask
         {
@@ -481,7 +494,14 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             IntervalValue = 30,
             IntervalUnit = IntervalUnit.Seconds
         };
-        _schedulerService.AddTask(task);
+        if (_manageSchedule is not null)
+        {
+            await _manageSchedule.AddAsync(task);
+        }
+        else
+        {
+            _schedulerService.AddTask(task);
+        }
         SelectedTask = task;
         OnPropertyChanged(nameof(TaskCountText));
     }
@@ -497,6 +517,17 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             
         if (!confirmed) return;
         
+        if (_manageSchedule is not null)
+        {
+            var selectedTaskId = SelectedTask?.Id;
+            await _manageSchedule.RemoveAsync(new TaskRequest(task.Id));
+            SelectedTask = selectedTaskId is Guid id
+                ? Tasks.FirstOrDefault(candidate => candidate.Id == id) ?? Tasks.FirstOrDefault()
+                : Tasks.FirstOrDefault();
+            OnPropertyChanged(nameof(TaskCountText));
+            return;
+        }
+
         _schedulerService.RemoveTask(task.Id);
         if (SelectedTask?.Id == task.Id)
         {
@@ -545,7 +576,14 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            await _schedulerService.SaveAsync();
+            if (_manageSchedule is not null && SelectedTask is not null)
+            {
+                await _manageSchedule.UpdateAsync(SelectedTask);
+            }
+            else
+            {
+                await _schedulerService.SaveAsync();
+            }
             if (showSuccessStatus)
             {
                 RaiseStatus(_localizationService["Schedule_StatusChangesSaved"]);
@@ -576,13 +614,32 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             RaiseStatus(_localizationService["Schedule_StatusExtensionWarning"]);
         }
 
-        _schedulerService.SetTaskEnabled(task.Id, task.IsEnabled);
+        if (_manageSchedule is null)
+        {
+            _schedulerService.SetTaskEnabled(task.Id, task.IsEnabled);
+        }
     }
 
     [RelayCommand]
     private async Task TaskEnabledChangedAsync(ScheduledTask task)
     {
         OnTaskEnabledChanged(task);
+        if (_manageSchedule is not null)
+        {
+            var selectedTaskId = SelectedTask?.Id;
+            try
+            {
+                await _manageSchedule.SetEnabledAsync(new TaskRequest(task.Id, task.IsEnabled));
+            }
+            finally
+            {
+                SelectedTask = selectedTaskId is Guid id
+                    ? Tasks.FirstOrDefault(candidate => candidate.Id == id)
+                    : null;
+            }
+            return;
+        }
+
         await SaveChangesAsync(showSuccessStatus: false);
     }
     

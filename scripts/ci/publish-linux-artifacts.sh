@@ -160,7 +160,7 @@ dotnet publish "$UI_PROJECT" \
     -r "$RID" \
     --self-contained true \
     -p:PublishAot=true \
-    -p:PublishReadyToRun=true \
+    -p:PublishReadyToRun=false \
     -p:OptimizationPreference=Speed \
     -p:StripSymbols=true \
     -p:IlcTrimMetadata=true \
@@ -180,8 +180,8 @@ dotnet publish "$DAEMON_PROJECT" \
     -r "$RID" \
     "${DAEMON_ARGS[@]}" \
     -p:PublishAot=true \
+    -p:PublishReadyToRun=false \
     -p:EnableCompressionInSingleFile=true \
-    -p:PublishReadyToRun=true \
     -p:OptimizationPreference=Speed \
     -p:StripSymbols=true \
     -p:IlcTrimMetadata=true \

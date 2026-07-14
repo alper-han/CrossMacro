@@ -83,8 +83,8 @@ else
         -c Release \
         -r "$DAEMON_RID" \
         -p:PublishAot=true \
+        -p:PublishReadyToRun=false \
         -p:EnableCompressionInSingleFile=true \
-        -p:PublishReadyToRun=true \
         -p:OptimizationPreference=Speed \
         -p:StripSymbols=true \
         -p:IlcTrimMetadata=true \

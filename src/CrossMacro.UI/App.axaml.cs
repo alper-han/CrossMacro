@@ -8,16 +8,20 @@ using CrossMacro.Core.Services;
 using CrossMacro.UI.DependencyInjection;
 using CrossMacro.UI.Services;
 using CrossMacro.UI.Startup;
+using CrossMacro.UI.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace CrossMacro.UI;
 
-public partial class App : Application
+public partial class App : Avalonia.Application
 {
     private readonly GuiBootstrapContext? _bootstrapContext;
     private IServiceProvider? _serviceProvider;
+    private bool _shutdownStarted;
+    private bool _shutdownCompleted;
 
     public App()
     {
@@ -47,7 +51,9 @@ public partial class App : Application
 
         var services = new ServiceCollection();
         services.AddSingleton(_bootstrapContext.StartupOptions);
-        services.AddCrossMacroServices(_bootstrapContext.PlatformServiceRegistrar);
+        _bootstrapContext.ConfigureServices(services);
+        _bootstrapContext.ConfigureRuntimeServices(services);
+        services.AddCrossMacroServices();
         _serviceProvider = services.BuildServiceProvider();
     }
 
@@ -58,7 +64,7 @@ public partial class App : Application
             if (!Design.IsDesignMode && _bootstrapContext == null)
             {
                 throw new InvalidOperationException(
-                    "Platform service registrar is not configured. Start the app via a platform host project.");
+                    "Platform service composition is not configured. Start the app via a platform host project.");
             }
 
 
@@ -69,6 +75,7 @@ public partial class App : Application
 
             var desktopLifetime = (IClassicDesktopStyleApplicationLifetime)ApplicationLifetime;
             AttachDesktopLifetime(desktopLifetime);
+            desktopLifetime.ShutdownRequested += OnShutdownRequested;
             QueueDesktopStartup(desktopLifetime);
         }
 
@@ -118,6 +125,96 @@ public partial class App : Application
             Log.Error(ex, "Desktop startup failed");
             desktop.Shutdown(1);
         }
+    }
+
+    private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
+    {
+        if (_shutdownCompleted)
+        {
+            return;
+        }
+
+        e.Cancel = true;
+        if (_shutdownStarted)
+        {
+            return;
+        }
+
+        _shutdownStarted = true;
+        _ = CompleteShutdownAsync((IClassicDesktopStyleApplicationLifetime)sender!);
+    }
+
+    private async Task CompleteShutdownAsync(IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        var services = _serviceProvider;
+        if (services != null)
+        {
+            var cleanupError = await CleanupAsync(
+                () => services.GetService<DesktopStartupRuntimeService>()?.StopAsync() ?? Task.CompletedTask,
+                () => services.GetService<MainWindowViewModel>()?.Dispose(),
+                async () =>
+                {
+                    if (services is IAsyncDisposable asyncDisposable)
+                    {
+                        await asyncDisposable.DisposeAsync().ConfigureAwait(true);
+                    }
+                    else if (services is IDisposable disposable)
+                    {
+                        disposable.Dispose();
+                    }
+                }).ConfigureAwait(true);
+
+            if (cleanupError != null)
+            {
+                Log.Error(cleanupError, "Desktop shutdown cleanup failed");
+            }
+        }
+
+        desktop.ShutdownRequested -= OnShutdownRequested;
+        _shutdownCompleted = true;
+        desktop.Shutdown();
+    }
+
+    internal static async Task<AggregateException?> CleanupAsync(
+        Func<Task> stopRuntime,
+        Action disposeViewModel,
+        Func<Task> disposeProvider)
+    {
+        ArgumentNullException.ThrowIfNull(stopRuntime);
+        ArgumentNullException.ThrowIfNull(disposeViewModel);
+        ArgumentNullException.ThrowIfNull(disposeProvider);
+
+        var errors = new List<Exception>();
+        try
+        {
+            await stopRuntime().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            errors.Add(ex);
+        }
+
+        try
+        {
+            disposeViewModel();
+        }
+        catch (Exception ex)
+        {
+            errors.Add(ex);
+        }
+
+        try
+        {
+            await disposeProvider().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            errors.Add(ex);
+        }
+
+        return errors.Count == 0
+            ? null
+            : new AggregateException("Desktop shutdown cleanup failed.", errors);
     }
 
 }

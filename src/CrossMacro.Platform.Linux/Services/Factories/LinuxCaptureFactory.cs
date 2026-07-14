@@ -16,10 +16,27 @@ public class LinuxCaptureFactory
 {
     private readonly ILinuxEnvironmentDetector _environmentDetector;
     private readonly ILinuxInputCapabilityDetector _capabilityDetector;
+    private readonly ILinuxCapabilitySnapshotProvider? _snapshotProvider;
     private readonly Func<LinuxInputCapture> _legacyFactory;
     private readonly Func<LinuxIpcInputCapture> _ipcFactory;
     private readonly Func<X11InputCapture> _x11Factory;
     private readonly Func<X11InputCapture, bool> _x11IsSupported;
+
+    internal LinuxCaptureFactory(
+        ILinuxCapabilitySnapshotProvider snapshotProvider,
+        Func<LinuxInputCapture> legacyFactory,
+        Func<LinuxIpcInputCapture> ipcFactory,
+        Func<X11InputCapture> x11Factory)
+        : this(
+            null,
+            null,
+            snapshotProvider,
+            legacyFactory,
+            ipcFactory,
+            x11Factory,
+            static x11 => x11.IsSupported)
+    {
+    }
 
     public LinuxCaptureFactory(
         ILinuxEnvironmentDetector environmentDetector,
@@ -27,7 +44,7 @@ public class LinuxCaptureFactory
         Func<LinuxInputCapture> legacyFactory,
         Func<LinuxIpcInputCapture> ipcFactory,
         Func<X11InputCapture> x11Factory)
-        : this(environmentDetector, capabilityDetector, legacyFactory, ipcFactory, x11Factory, static x11 => x11.IsSupported)
+        : this(environmentDetector, capabilityDetector, null, legacyFactory, ipcFactory, x11Factory, static x11 => x11.IsSupported)
     {
     }
 
@@ -38,9 +55,32 @@ public class LinuxCaptureFactory
         Func<LinuxIpcInputCapture> ipcFactory,
         Func<X11InputCapture> x11Factory,
         Func<X11InputCapture, bool> x11IsSupported)
+        : this(environmentDetector, capabilityDetector, null, legacyFactory, ipcFactory, x11Factory, x11IsSupported)
     {
-        _environmentDetector = environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector));
-        _capabilityDetector = capabilityDetector ?? throw new ArgumentNullException(nameof(capabilityDetector));
+    }
+
+    internal LinuxCaptureFactory(
+        ILinuxEnvironmentDetector? environmentDetector,
+        ILinuxInputCapabilityDetector? capabilityDetector,
+        ILinuxCapabilitySnapshotProvider? snapshotProvider,
+        Func<LinuxInputCapture> legacyFactory,
+        Func<LinuxIpcInputCapture> ipcFactory,
+        Func<X11InputCapture> x11Factory,
+        Func<X11InputCapture, bool> x11IsSupported)
+    {
+        if (snapshotProvider is null && environmentDetector is null)
+        {
+            throw new ArgumentNullException(nameof(environmentDetector));
+        }
+
+        if (snapshotProvider is null && capabilityDetector is null)
+        {
+            throw new ArgumentNullException(nameof(capabilityDetector));
+        }
+
+        _environmentDetector = environmentDetector!;
+        _capabilityDetector = capabilityDetector!;
+        _snapshotProvider = snapshotProvider;
         _legacyFactory = legacyFactory ?? throw new ArgumentNullException(nameof(legacyFactory));
         _ipcFactory = ipcFactory ?? throw new ArgumentNullException(nameof(ipcFactory));
         _x11Factory = x11Factory ?? throw new ArgumentNullException(nameof(x11Factory));
@@ -53,6 +93,28 @@ public class LinuxCaptureFactory
     /// </summary>
     public IInputCapture Create()
     {
+        if (_snapshotProvider is not null)
+        {
+            var snapshot = _snapshotProvider.GetSnapshot();
+            var x11 = snapshot.IsX11 ? _x11Factory() : null;
+            var selection = LinuxBackendSelectionPolicy.SelectInput(
+                snapshot,
+                x11 is not null && _x11IsSupported(x11),
+                forCapture: true);
+
+            if (selection.Reason == "native-x11")
+            {
+                return x11!;
+            }
+
+            return selection.Mode switch
+            {
+                InputProviderMode.Daemon => _ipcFactory(),
+                InputProviderMode.Legacy => _legacyFactory(),
+                _ => new UnavailableInputCapture(BuildUnavailableCaptureMessage(snapshot))
+            };
+        }
+
         // 1. Wayland -> Check capabilities (Daemon or Legacy fallback)
         if (_environmentDetector.IsWayland)
         {
@@ -139,5 +201,14 @@ public class LinuxCaptureFactory
             ? "No usable Linux input capture backend is available: daemon backend unavailable."
             : "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.";
     }
+
+    private static string BuildUnavailableCaptureMessage(LinuxCapabilitySnapshot snapshot) =>
+        snapshot.Input.DaemonHandshakeDiagnostic?.Status switch
+        {
+            LinuxDaemonHandshakeStatus.PermissionDenied => "No usable Linux input capture backend is available: daemon socket permission denied and no readable input events were found.",
+            LinuxDaemonHandshakeStatus.Timeout => "No usable Linux input capture backend is available: daemon handshake timed out and no direct input fallback is available.",
+            _ when snapshot.Input.CanUseDirectUInput && !snapshot.Input.CanReadInputEvents => "No usable Linux input capture backend is available: direct input events are not readable.",
+            _ => "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found."
+        };
 
 }

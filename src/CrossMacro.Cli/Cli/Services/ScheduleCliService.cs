@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Application.Automation;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Cli.Serialization;
@@ -11,11 +13,12 @@ namespace CrossMacro.Cli.Services;
 
 public sealed class ScheduleCliService : IScheduleCliService
 {
-    private readonly ISchedulerService _schedulerService;
+    private readonly IManageSchedule _manageSchedule;
+    private IReadOnlyList<ScheduledTask> _tasks = [];
 
-    public ScheduleCliService(ISchedulerService schedulerService)
+    public ScheduleCliService(IManageSchedule manageSchedule)
     {
-        _schedulerService = schedulerService;
+        _manageSchedule = manageSchedule;
     }
 
     public async Task<CliCommandExecutionResult> ListAsync(CancellationToken cancellationToken)
@@ -23,8 +26,8 @@ public sealed class ScheduleCliService : IScheduleCliService
         return await TaskCliServiceHelpers.ListTasksAsync(
             taskKind: "schedule",
             cancellationToken: cancellationToken,
-            loadAsync: () => _schedulerService.LoadAsync(),
-            getTasks: () => _schedulerService.Tasks,
+            loadAsync: async () => _tasks = (await _manageSchedule.ListAsync(cancellationToken).ConfigureAwait(false)).Tasks,
+            getTasks: () => _tasks,
             mapTask: MapScheduleTask);
     }
 
@@ -35,10 +38,10 @@ public sealed class ScheduleCliService : IScheduleCliService
             taskKindLower: "schedule",
             taskKindDisplay: "Schedule",
             cancellationToken: cancellationToken,
-            loadAsync: () => _schedulerService.LoadAsync(),
-            getTasks: () => _schedulerService.Tasks,
+            loadAsync: async () => _tasks = (await _manageSchedule.ListAsync(cancellationToken).ConfigureAwait(false)).Tasks,
+            getTasks: () => _tasks,
             getTaskId: x => x.Id,
-            runTaskAsync: (parsedTaskId, cancellationToken) => _schedulerService.RunTaskAsync(parsedTaskId, cancellationToken),
+            runTaskAsync: (parsedTaskId, cancellationToken) => _manageSchedule.RunAsync(new TaskRequest(parsedTaskId), cancellationToken),
             mapTaskResult: task => new ScheduleTaskRunData(
                 task.Id,
                 task.Name,
@@ -86,11 +89,7 @@ public sealed class ScheduleCliService : IScheduleCliService
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        await _schedulerService.LoadAsync().ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        _schedulerService.AddTask(task);
-        cancellationToken.ThrowIfCancellationRequested();
-        await _schedulerService.SaveAsync().ConfigureAwait(false);
+        await _manageSchedule.AddAsync(task, cancellationToken).ConfigureAwait(false);
         return CliCommandExecutionResult.Ok($"Schedule task added: {task.Name}.", MapScheduleTask(task));
     }
 
@@ -110,9 +109,7 @@ public sealed class ScheduleCliService : IScheduleCliService
         if (options.Enabled.HasValue) task.IsEnabled = options.Enabled.Value;
 
         cancellationToken.ThrowIfCancellationRequested();
-        _schedulerService.UpdateTask(task);
-        cancellationToken.ThrowIfCancellationRequested();
-        await _schedulerService.SaveAsync().ConfigureAwait(false);
+        await _manageSchedule.UpdateAsync(task, cancellationToken).ConfigureAwait(false);
         return CliCommandExecutionResult.Ok($"Schedule task updated: {task.Name}.", MapScheduleTask(task));
     }
 
@@ -123,9 +120,7 @@ public sealed class ScheduleCliService : IScheduleCliService
 
         var task = parsed.Task!;
         cancellationToken.ThrowIfCancellationRequested();
-        _schedulerService.RemoveTask(task.Id);
-        cancellationToken.ThrowIfCancellationRequested();
-        await _schedulerService.SaveAsync().ConfigureAwait(false);
+        await _manageSchedule.RemoveAsync(new TaskRequest(task.Id), cancellationToken).ConfigureAwait(false);
         return CliCommandExecutionResult.Ok($"Schedule task removed: {task.Name}.", MapScheduleTask(task));
     }
 
@@ -144,9 +139,7 @@ public sealed class ScheduleCliService : IScheduleCliService
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        _schedulerService.SetTaskEnabled(task.Id, enabled);
-        cancellationToken.ThrowIfCancellationRequested();
-        await _schedulerService.SaveAsync().ConfigureAwait(false);
+        await _manageSchedule.SetEnabledAsync(new TaskRequest(task.Id, enabled), cancellationToken).ConfigureAwait(false);
         task.IsEnabled = enabled;
         var verb = enabled ? "enabled" : "disabled";
         return CliCommandExecutionResult.Ok($"Schedule task {verb}: {task.Name}.", MapScheduleTask(task));
@@ -168,27 +161,13 @@ public sealed class ScheduleCliService : IScheduleCliService
 
     private async Task<(ScheduledTask? Task, CliCommandExecutionResult? Result)> LoadAndFindAsync(string taskId, CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (!Guid.TryParse(taskId, out var parsedTaskId))
-        {
-            return (null, CliCommandExecutionResult.Fail(
-                CliExitCode.InvalidArguments,
-                "Invalid schedule task id format.",
-                [$"Task id is not a valid GUID: {taskId}"]));
-        }
-
-        await _schedulerService.LoadAsync().ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        var task = _schedulerService.Tasks.FirstOrDefault(candidate => candidate.Id == parsedTaskId);
-        if (task is null)
-        {
-            return (null, CliCommandExecutionResult.Fail(
-                CliExitCode.InvalidArguments,
-                "Schedule task not found.",
-                [$"No schedule task found with id: {taskId}"]));
-        }
-
-        return (task, null);
+        return await TaskCliServiceHelpers.FindTaskAsync(
+            taskId,
+            "schedule",
+            "Schedule",
+            cancellationToken,
+            async () => _tasks = (await _manageSchedule.ListAsync(cancellationToken).ConfigureAwait(false)).Tasks,
+            task => task.Id);
     }
 
     private static CliCommandExecutionResult? ApplyScheduleOptions(ScheduledTask task, ScheduleCliOptions options)

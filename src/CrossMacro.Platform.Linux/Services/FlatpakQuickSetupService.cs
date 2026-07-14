@@ -8,10 +8,10 @@ namespace CrossMacro.Platform.Linux.Services;
 
 internal sealed class FlatpakQuickSetupService : IFlatpakQuickSetupService
 {
-    private const string FlatpakIdKey = "FLATPAK_ID";
     private const string SessionTypeKey = "XDG_SESSION_TYPE";
 
     private readonly Func<string, string?> _getEnvironmentVariable;
+    private readonly LinuxEnvironmentSnapshot? _environment;
     private readonly LinuxQuickSetupExecutor _executor;
     private readonly IPrivilegedHostCommandLauncher _launcher;
 
@@ -25,6 +25,15 @@ internal sealed class FlatpakQuickSetupService : IFlatpakQuickSetupService
         _launcher = launcher ?? throw new ArgumentNullException(nameof(launcher));
     }
 
+    internal FlatpakQuickSetupService(
+        LinuxEnvironmentSnapshot environment,
+        LinuxQuickSetupExecutor executor,
+        IPrivilegedHostCommandLauncher launcher)
+        : this(static _ => null, executor, launcher)
+    {
+        _environment = environment;
+    }
+
     public bool IsApplicable()
     {
         if (!OperatingSystem.IsLinux())
@@ -32,12 +41,29 @@ internal sealed class FlatpakQuickSetupService : IFlatpakQuickSetupService
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(_getEnvironmentVariable(FlatpakIdKey)))
+        var environment = _environment ?? new LinuxEnvironmentSnapshot(
+            FlatpakId: _getEnvironmentVariable("FLATPAK_ID"),
+            AppImage: null,
+            UseDaemon: null,
+            SessionType: _getEnvironmentVariable(SessionTypeKey),
+            WaylandDisplay: null,
+            Display: null,
+            CurrentDesktop: null,
+            GdmSession: null,
+            HyprlandInstanceSignature: null,
+            RuntimeDir: null,
+            WayfireSocket: null,
+            SwaySocket: null,
+            WindowButtons: null,
+            CrossMacroFlatpak: _getEnvironmentVariable("CROSSMACRO_FLATPAK"),
+            FlatpakInfoExists: false);
+
+        if (!environment.IsFlatpak)
         {
             return false;
         }
 
-        var sessionType = _getEnvironmentVariable(SessionTypeKey);
+        var sessionType = environment.SessionType;
         if (!string.Equals(sessionType, "wayland", StringComparison.OrdinalIgnoreCase))
         {
             return false;

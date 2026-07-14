@@ -4,10 +4,9 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossMacro.Application.Automation;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Logging;
-using CrossMacro.Infrastructure.Services;
 using CrossMacro.UI.Localization;
 using CrossMacro.UI.Services;
 
@@ -24,12 +23,12 @@ internal sealed class DesignPreviewContext
         EnvironmentInfoProvider = new DesignEnvironmentInfoProvider();
         RuntimeContext = new DesignRuntimeContext();
         ExternalUrlOpener = new DesignExternalUrlOpener();
-        RuntimeLogLevelService = new RuntimeLogLevelService();
+        RuntimeLogLevelService = new DesignRuntimeLogLevelService();
         ThemeService = new DesignThemeService(SettingsService.Current.Theme);
         LocalizationService = new LocalizationService();
         DialogService = new DesignDialogService();
         LoadedMacroSession = new LoadedMacroSession(LocalizationService);
-        TextExpansionStorageService = new DesignTextExpansionStorageService();
+        TextExpansionStore = new DesignTextExpansionStore();
         TextExpansionService = new DesignTextExpansionService();
         SchedulerService = new DesignSchedulerService();
         ShortcutService = new DesignShortcutService();
@@ -59,7 +58,7 @@ internal sealed class DesignPreviewContext
 
     public DesignExternalUrlOpener ExternalUrlOpener { get; }
 
-    public RuntimeLogLevelService RuntimeLogLevelService { get; }
+    public DesignRuntimeLogLevelService RuntimeLogLevelService { get; }
 
     public DesignThemeService ThemeService { get; }
 
@@ -67,7 +66,7 @@ internal sealed class DesignPreviewContext
 
     public LoadedMacroSession LoadedMacroSession { get; }
 
-    public DesignTextExpansionStorageService TextExpansionStorageService { get; }
+    public DesignTextExpansionStore TextExpansionStore { get; }
 
     public DesignTextExpansionService TextExpansionService { get; }
 
@@ -128,6 +127,16 @@ internal sealed class DesignPreviewContext
             PlaybackHotkey = "Ctrl+Alt+P",
             PauseHotkey = "Ctrl+Alt+Space"
         };
+    }
+}
+
+internal sealed class DesignRuntimeLogLevelService : IRuntimeLogLevelService
+{
+    public string CurrentLogLevel { get; private set; } = "Information";
+
+    public void SetLogLevel(string logLevel)
+    {
+        CurrentLogLevel = logLevel;
     }
 }
 
@@ -420,9 +429,17 @@ internal sealed class DesignGlobalHotkeyService : IGlobalHotkeyService
 
     public bool IsRunning { get; private set; }
 
+    public Task Completion => Task.CompletedTask;
+
     public void Start() => IsRunning = true;
 
     public void Stop() => IsRunning = false;
+
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        Stop();
+        return Task.CompletedTask;
+    }
 
     public void UpdateHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey)
     {
@@ -512,12 +529,10 @@ internal sealed class DesignDialogService : IDialogService
     }
 }
 
-internal sealed class DesignTextExpansionStorageService : ITextExpansionStorageService
+internal sealed class DesignTextExpansionStore : ITextExpansionStore
 {
     private readonly object _sync = new();
     private List<TextExpansion> _expansions = new();
-
-    public List<TextExpansion> Load() => GetCurrent();
 
     public Task<List<TextExpansion>> LoadAsync() => Task.FromResult(GetCurrent());
 
@@ -540,8 +555,6 @@ internal sealed class DesignTextExpansionStorageService : ITextExpansionStorageS
             return _expansions.Select(CloneExpansion).ToList();
         }
     }
-
-    public string FilePath => "design://text-expansions.json";
 
     private static TextExpansion CloneExpansion(TextExpansion expansion)
     {
@@ -572,6 +585,8 @@ internal sealed class DesignSchedulerService : ISchedulerService
     public ObservableCollection<ScheduledTask> Tasks { get; }
 
     public bool IsRunning { get; private set; }
+
+    public Task Completion => Task.CompletedTask;
 
     public event EventHandler<TaskExecutedEventArgs>? TaskExecuted;
 
@@ -616,6 +631,12 @@ internal sealed class DesignSchedulerService : ISchedulerService
     public void Start() => IsRunning = true;
 
     public void Stop() => IsRunning = false;
+
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        Stop();
+        return Task.CompletedTask;
+    }
 
     public Task SaveAsync() => Task.CompletedTask;
 
@@ -840,6 +861,8 @@ internal sealed class DesignTriggerService : ITriggerService
 
     public bool IsMonitoring { get; private set; }
 
+    public Task Completion => Task.CompletedTask;
+
     public event EventHandler<TriggerFiredEventArgs>? TriggerFired { add { } remove { } }
 
     public void AddTask(TriggerTask task) => Tasks.Add(task);
@@ -861,6 +884,12 @@ internal sealed class DesignTriggerService : ITriggerService
     public void Start() => IsMonitoring = true;
 
     public void Stop() => IsMonitoring = false;
+
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        Stop();
+        return Task.CompletedTask;
+    }
 
     public Task LoadAsync() => Task.CompletedTask;
 

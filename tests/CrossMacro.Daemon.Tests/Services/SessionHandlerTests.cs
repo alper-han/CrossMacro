@@ -172,8 +172,8 @@ public sealed class SessionHandlerTests
         writer.Flush();
 
         writer.Write((byte)IpcOpCode.SimulateEvent);
-        writer.Write((ushort)UInputNative.EV_KEY);
-        writer.Write((ushort)UInputNative.BTN_LEFT);
+        writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
+        writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT);
         writer.Write(1);
         writer.Flush();
 
@@ -188,7 +188,7 @@ public sealed class SessionHandlerTests
 
         Assert.Equal((0, 0), virtualDevice.ConfigureCalls[0]);
         Assert.Contains((1920, 1080), virtualDevice.ConfigureCalls);
-        Assert.Contains((UInputNative.EV_KEY, UInputNative.BTN_LEFT, 1), virtualDevice.SentEvents);
+        Assert.Contains((CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT, 1), virtualDevice.SentEvents);
 
         Assert.Equal(1, captureManager.StartCaptureCalls);
         Assert.True(captureManager.LastCaptureMouse);
@@ -202,8 +202,8 @@ public sealed class SessionHandlerTests
             call =>
                 call.Uid == 1001u &&
                 call.Pid == 4321 &&
-                call.Type == UInputNative.EV_KEY &&
-                call.Code == UInputNative.BTN_LEFT &&
+                call.Type == CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY &&
+                call.Code == CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT &&
                 call.Value == 1);
     }
 
@@ -228,12 +228,12 @@ public sealed class SessionHandlerTests
         writer.Write((byte)IpcOpCode.SimulateEventBatch);
         writer.Write(3030);
         writer.Write(2);
-        writer.Write((ushort)UInputNative.EV_KEY);
+        writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
         writer.Write((ushort)InputEventCode.KEY_A);
         writer.Write(1);
         writer.Write(0);
-        writer.Write((ushort)UInputNative.EV_SYN);
-        writer.Write((ushort)UInputNative.SYN_REPORT);
+        writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_SYN);
+        writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.SYN_REPORT);
         writer.Write(0);
         writer.Write(0);
         writer.Flush();
@@ -245,7 +245,7 @@ public sealed class SessionHandlerTests
         await runTask.WaitAsync(TimeSpan.FromSeconds(2));
 
         Assert.Equal(
-            [(UInputNative.EV_KEY, (ushort)InputEventCode.KEY_A, 1), (UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0)],
+            [(CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, (ushort)InputEventCode.KEY_A, 1), (CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_SYN, CrossMacro.Platform.Linux.Native.UInput.UInputNative.SYN_REPORT, 0)],
             virtualDevice.SentEvents);
     }
 
@@ -305,7 +305,7 @@ public sealed class SessionHandlerTests
         writer.Write((byte)IpcOpCode.SimulateEventBatch);
         writer.Write(5050);
         writer.Write(1);
-        writer.Write((ushort)UInputNative.EV_KEY);
+        writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
         writer.Write((ushort)InputEventCode.KEY_A);
         writer.Write(1);
         writer.Write(-1);
@@ -344,7 +344,7 @@ public sealed class SessionHandlerTests
         writer.Write(6);
         for (var i = 0; i < 6; i++)
         {
-            writer.Write((ushort)UInputNative.EV_KEY);
+            writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
             writer.Write((ushort)InputEventCode.KEY_A);
             writer.Write(i % 2);
             writer.Write(1000);
@@ -462,7 +462,7 @@ public sealed class SessionHandlerTests
         StartCapture(reader, writer, requestId: 2020);
 
         writer.Write((byte)IpcOpCode.SimulateEvent);
-        writer.Write((ushort)UInputNative.EV_KEY);
+        writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
         writer.Write((byte)0x01);
         writer.Flush();
         socketPair.Client.Shutdown(SocketShutdown.Send);
@@ -602,16 +602,16 @@ public sealed class SessionHandlerTests
         Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
         Assert.Equal(202, reader.ReadInt32());
 
-        captureManager.Emit(new UInputNative.input_event
+        captureManager.Emit(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event
         {
-            type = UInputNative.EV_KEY,
-            code = UInputNative.BTN_LEFT,
+            type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY,
+            code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT,
             value = 1
         });
 
         Assert.Equal(IpcOpCode.InputEvent, (IpcOpCode)reader.ReadByte());
         Assert.Equal((byte)InputEventType.MouseButton, reader.ReadByte());
-        Assert.Equal((int)UInputNative.BTN_LEFT, reader.ReadInt32());
+        Assert.Equal((int)CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT, reader.ReadInt32());
         Assert.Equal(1, reader.ReadInt32());
         Assert.True(reader.ReadInt64() > 0);
 
@@ -625,10 +625,10 @@ public sealed class SessionHandlerTests
         var security = new FakeSecurityService();
         var virtualDevice = new FakeVirtualDeviceManager();
         var captureManager = new FakeInputCaptureManager();
-        captureManager.ConfigureEmitDuringStart(new UInputNative.input_event
+        captureManager.ConfigureEmitDuringStart(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event
         {
-            type = UInputNative.EV_KEY,
-            code = UInputNative.BTN_LEFT,
+            type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY,
+            code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT,
             value = 1
         });
         var handler = new SessionHandler(security, virtualDevice, captureManager);
@@ -662,7 +662,7 @@ public sealed class SessionHandlerTests
 
         Assert.Equal(IpcOpCode.InputEvent, (IpcOpCode)reader.ReadByte());
         Assert.Equal((byte)InputEventType.MouseButton, reader.ReadByte());
-        Assert.Equal((int)UInputNative.BTN_LEFT, reader.ReadInt32());
+        Assert.Equal((int)CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT, reader.ReadInt32());
         Assert.Equal(1, reader.ReadInt32());
         Assert.True(reader.ReadInt64() > 0);
 
@@ -755,9 +755,9 @@ public sealed class SessionHandlerTests
         var virtualDevice = new FakeVirtualDeviceManager();
         var captureManager = new FakeInputCaptureManager();
         captureManager.ConfigureEmitSequenceDuringStart(
-            new UInputNative.input_event { type = UInputNative.EV_KEY, code = 10, value = 1 },
-            new UInputNative.input_event { type = UInputNative.EV_KEY, code = 11, value = 1 },
-            new UInputNative.input_event { type = UInputNative.EV_KEY, code = 12, value = 1 });
+            new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event { type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, code = 10, value = 1 },
+            new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event { type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, code = 11, value = 1 },
+            new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event { type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, code = 12, value = 1 });
         var handler = new SessionHandler(security, virtualDevice, captureManager, maxBufferedCaptureEvents: 2);
 
         await using var socketPair = await UnixSocketPair.CreateAsync();
@@ -835,15 +835,15 @@ public sealed class SessionHandlerTests
         Assert.Equal(501, reader.ReadInt32());
 
         captureManager.ConfigureEmitPreviousAndCurrentEventsOnNextStart(
-            previousGenerationEvent: new UInputNative.input_event
+            previousGenerationEvent: new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event
             {
-                type = UInputNative.EV_KEY,
-                code = UInputNative.BTN_LEFT,
+                type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY,
+                code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT,
                 value = 1
             },
-            currentGenerationEvent: new UInputNative.input_event
+            currentGenerationEvent: new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event
             {
-                type = UInputNative.EV_KEY,
+                type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY,
                 code = 30,
                 value = 1
             });
@@ -856,7 +856,7 @@ public sealed class SessionHandlerTests
 
         Assert.Equal(IpcOpCode.InputEvent, (IpcOpCode)reader.ReadByte());
         Assert.Equal((byte)InputEventType.MouseButton, reader.ReadByte());
-        Assert.Equal((int)UInputNative.BTN_LEFT, reader.ReadInt32());
+        Assert.Equal((int)CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT, reader.ReadInt32());
         Assert.Equal(1, reader.ReadInt32());
         Assert.True(reader.ReadInt64() > 0);
 
@@ -911,18 +911,18 @@ public sealed class SessionHandlerTests
 
         await captureManager.WaitForStopCaptureCountAsync(expectedCount: 1, TimeSpan.FromSeconds(2));
 
-        captureManager.Emit(new UInputNative.input_event
+        captureManager.Emit(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event
         {
-            type = UInputNative.EV_KEY,
-            code = UInputNative.BTN_LEFT,
+            type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY,
+            code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT,
             value = 1
         });
 
         AssertNoMessageAvailable(stream, reader, TimeSpan.FromMilliseconds(200));
 
-        captureManager.ConfigureEmitDuringStart(new UInputNative.input_event
+        captureManager.ConfigureEmitDuringStart(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event
         {
-            type = UInputNative.EV_KEY,
+            type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY,
             code = 30,
             value = 1
         });
@@ -1131,8 +1131,8 @@ public sealed class SessionHandlerTests
         Assert.Equal(1818, reader.ReadInt32());
 
         writer.Write((byte)IpcOpCode.SimulateEvent);
-        writer.Write((ushort)UInputNative.EV_KEY);
-        writer.Write((ushort)UInputNative.BTN_LEFT);
+        writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
+        writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT);
         writer.Write(1);
         writer.Flush();
 
@@ -1141,7 +1141,7 @@ public sealed class SessionHandlerTests
         Assert.Equal(1, captureManager.StartCaptureCalls);
         Assert.True(captureManager.StopCaptureCalls >= 1);
         Assert.Single(virtualDevice.SentEvents);
-        Assert.Equal((UInputNative.EV_KEY, UInputNative.BTN_LEFT, 1), virtualDevice.SentEvents[0]);
+        Assert.Equal((CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT, 1), virtualDevice.SentEvents[0]);
         Assert.Empty(security.SimulationCalls);
         await AssertRemoteClosedAsync(stream, TimeSpan.FromSeconds(1));
     }
@@ -1180,7 +1180,7 @@ public sealed class SessionHandlerTests
         Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
         Assert.Equal(303, reader.ReadInt32());
 
-        captureManager.Emit(new UInputNative.input_event
+        captureManager.Emit(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event
         {
             type = 0x99,
             code = 123,
@@ -1279,15 +1279,15 @@ public sealed class SessionHandlerTests
     private sealed class FakeInputCaptureManager : IInputCaptureManager
     {
         private readonly object _sync = new();
-        private Action<UInputNative.input_event>? _onEvent;
+        private Action<CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event>? _onEvent;
         private readonly TaskCompletionSource _captureStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly List<StopCaptureWaiter> _stopCaptureWaiters = [];
         private bool _emitDuringStart;
-        private UInputNative.input_event _emitDuringStartEvent;
-        private UInputNative.input_event[]? _emitSequenceDuringStart;
+        private CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event _emitDuringStartEvent;
+        private CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event[]? _emitSequenceDuringStart;
         private bool _emitPreviousAndCurrentOnNextStart;
-        private UInputNative.input_event _previousGenerationStartEvent;
-        private UInputNative.input_event _currentGenerationStartEvent;
+        private CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event _previousGenerationStartEvent;
+        private CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event _currentGenerationStartEvent;
         private CaptureStartResult _startResult = CaptureStartResult.Started(startedDeviceCount: 1);
         private Exception? _startException;
 
@@ -1296,7 +1296,7 @@ public sealed class SessionHandlerTests
         public bool LastCaptureMouse { get; private set; }
         public bool LastCaptureKeyboard { get; private set; }
 
-        public CaptureStartResult StartCapture(bool captureMouse, bool captureKeyboard, Action<UInputNative.input_event> onEvent)
+        public CaptureStartResult StartCapture(bool captureMouse, bool captureKeyboard, Action<CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event> onEvent)
         {
             if (_startException != null)
             {
@@ -1350,7 +1350,7 @@ public sealed class SessionHandlerTests
             }
         }
 
-        public void Emit(UInputNative.input_event inputEvent)
+        public void Emit(CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event inputEvent)
         {
             _onEvent?.Invoke(inputEvent);
         }
@@ -1437,20 +1437,20 @@ public sealed class SessionHandlerTests
             public void Complete() => _completion.TrySetResult();
         }
 
-        public void ConfigureEmitDuringStart(UInputNative.input_event inputEvent)
+        public void ConfigureEmitDuringStart(CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event inputEvent)
         {
             _emitDuringStart = true;
             _emitDuringStartEvent = inputEvent;
         }
 
-        public void ConfigureEmitSequenceDuringStart(params UInputNative.input_event[] events)
+        public void ConfigureEmitSequenceDuringStart(params CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event[] events)
         {
             _emitSequenceDuringStart = events.Length == 0 ? null : events;
         }
 
         public void ConfigureEmitPreviousAndCurrentEventsOnNextStart(
-            UInputNative.input_event previousGenerationEvent,
-            UInputNative.input_event currentGenerationEvent)
+            CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event previousGenerationEvent,
+            CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event currentGenerationEvent)
         {
             _emitPreviousAndCurrentOnNextStart = true;
             _previousGenerationStartEvent = previousGenerationEvent;

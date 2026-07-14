@@ -2,8 +2,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CrossMacro.Core\CrossMacro.Core.csproj" />
+    <ProjectReference Include="..\CrossMacro.Application\CrossMacro.Application.csproj" />
     <ProjectReference Include="..\CrossMacro.Daemon.Contracts\CrossMacro.Daemon.Contracts.csproj" />
     <ProjectReference Include="..\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
+    <ProjectReference Include="..\CrossMacro.Platform.Linux\CrossMacro.Platform.Linux.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -16,12 +18,13 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(PublishAot)' == 'true'">
+    <PublishReadyToRun>false</PublishReadyToRun>
     <StripSymbols>true</StripSymbols>
     <IlcTrimMetadata>true</IlcTrimMetadata>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-    <PublishReadyToRun>true</PublishReadyToRun>
+    <PublishReadyToRun Condition="'$(PublishAot)' != 'true'">true</PublishReadyToRun>
     <OptimizationPreference>Speed</OptimizationPreference>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <DebugType>none</DebugType>

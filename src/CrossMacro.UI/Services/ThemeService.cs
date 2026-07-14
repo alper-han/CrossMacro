@@ -26,7 +26,7 @@ public sealed class ThemeService : IThemeService
     {
         error = string.Empty;
 
-        var resourceRoot = _resourceRoot ?? Application.Current?.Resources;
+            var resourceRoot = _resourceRoot ?? Avalonia.Application.Current?.Resources;
         var mergedDictionaries = resourceRoot?.MergedDictionaries;
         if (resourceRoot == null || mergedDictionaries == null)
         {

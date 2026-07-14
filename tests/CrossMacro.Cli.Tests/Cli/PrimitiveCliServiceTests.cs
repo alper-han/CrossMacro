@@ -177,7 +177,7 @@ public sealed class PrimitiveCliServiceTests
                 TimeoutMs: 123,
                 Similarity: 0.9,
                 Downsample: 2,
-                MatchMode: ScreenImageMatchSelectionMode.BestMatch), CancellationToken.None);
+                MatchMode: ScreenImageMatchMode.Best), CancellationToken.None);
 
             Assert.True(result.Success, string.Join("; ", result.Errors));
             Assert.Equal(new ScreenRect(1, 2, 30, 40), reader.LastImageRegion);
@@ -371,7 +371,8 @@ public sealed class PrimitiveCliServiceTests
                 ImageMatch = new ScreenImageMatch(new ScreenPoint(20, 30), 0.97)
             };
             var input = new FakeInputSimulator();
-            var service = new ScreenCliService(reader, new FakeMousePositionProvider { Resolution = (1920, 1080) }, input);
+            reader.ClickInput = input;
+            var service = new ScreenCliService(reader, new FakeMousePositionProvider { Resolution = (1920, 1080) });
 
             var result = await service.ExecuteAsync(new ScreenCliOptions(
                 ScreenCliAction.ImageClick,
@@ -407,7 +408,9 @@ public sealed class PrimitiveCliServiceTests
                 ImageMatch = new ScreenImageMatch(new ScreenPoint(20, 30), 0.97)
             };
             var input = new FakeInputSimulator { SupportsAbsoluteCoordinates = false };
-            var service = new ScreenCliService(reader, new FakeMousePositionProvider { Position = (10, 20) }, input);
+            reader.ClickPosition = (10, 20);
+            reader.ClickInput = input;
+            var service = new ScreenCliService(reader, new FakeMousePositionProvider { Position = (10, 20) });
 
             var result = await service.ExecuteAsync(new ScreenCliOptions(
                 ScreenCliAction.ImageClick,
@@ -434,7 +437,10 @@ public sealed class PrimitiveCliServiceTests
         {
             var reader = new FakeScreenPixelReader();
             var input = new FakeInputSimulator { SupportsAbsoluteCoordinates = false };
-            var service = new ScreenCliService(reader, new FakeMousePositionProvider { IsSupported = providerSupported, Position = positionAvailable ? (10, 20) : null }, input);
+            reader.ClickPositionSupported = providerSupported;
+            reader.ClickPosition = positionAvailable ? (10, 20) : null;
+            reader.ClickInput = input;
+            var service = new ScreenCliService(reader, new FakeMousePositionProvider { IsSupported = providerSupported, Position = positionAvailable ? (10, 20) : null });
 
             var result = await service.ExecuteAsync(new ScreenCliOptions(
                 ScreenCliAction.ImageClick,
@@ -500,8 +506,8 @@ public sealed class PrimitiveCliServiceTests
         var outputPath = Path.Combine(Path.GetTempPath(), $"crossmacro-shot-{Guid.NewGuid():N}.png");
         try
         {
-            var provider = new FakeScreenFrameProvider();
-            var service = new ScreenshotCliService(provider, new FakeImageClipboardService());
+            var capture = new FakeScreenshotCaptureService();
+            var service = new ScreenshotCliService(capture);
 
             var result = await service.ExecuteAsync(new ScreenshotCliOptions(
                 ScreenshotCliAction.Capture,
@@ -512,7 +518,7 @@ public sealed class PrimitiveCliServiceTests
                 RegionHeight: 1), CancellationToken.None);
 
             Assert.True(result.Success);
-            Assert.Equal(new ScreenRect(1, 2, 2, 1), provider.LastRegion);
+            Assert.Equal(new ScreenRect(1, 2, 2, 1), capture.LastRegion);
             Assert.True(File.Exists(outputPath));
             var bytes = await File.ReadAllBytesAsync(outputPath);
             Assert.Equal([0x89, 0x50, 0x4E, 0x47], bytes[..4]);
@@ -533,7 +539,7 @@ public sealed class PrimitiveCliServiceTests
     [Fact]
     public async Task Screenshot_UnsupportedProvider_ReturnsEnvironmentError()
     {
-        var service = new ScreenshotCliService(new FakeScreenFrameProvider { IsSupported = false }, new FakeImageClipboardService());
+        var service = new ScreenshotCliService(new FakeScreenshotCaptureService { IsSupported = false });
 
         var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture, "shot.png"), CancellationToken.None);
 
@@ -544,14 +550,14 @@ public sealed class PrimitiveCliServiceTests
     [Fact]
     public async Task Screenshot_Clipboard_CopiesPngAndReturnsData()
     {
-        var imageClipboard = new FakeImageClipboardService();
-        var service = new ScreenshotCliService(new FakeScreenFrameProvider(), imageClipboard);
+        var capture = new FakeScreenshotCaptureService();
+        var service = new ScreenshotCliService(capture);
 
         var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture, Clipboard: true), CancellationToken.None);
 
         Assert.True(result.Success);
-        Assert.NotNull(imageClipboard.PngBytes);
-        Assert.Equal([0x89, 0x50, 0x4E, 0x47], imageClipboard.PngBytes[..4]);
+        Assert.NotNull(capture.PngBytes);
+        Assert.Equal([0x89, 0x50, 0x4E, 0x47], capture.PngBytes[..4]);
         var data = Assert.IsType<ScreenshotData>(result.Data);
         Assert.Null(data.OutputPath);
         Assert.True(data.CopiedToClipboard);
@@ -561,8 +567,7 @@ public sealed class PrimitiveCliServiceTests
     public async Task Screenshot_ClipboardUnsupported_ReturnsEnvironmentError()
     {
         var service = new ScreenshotCliService(
-            new FakeScreenFrameProvider(),
-            new FakeImageClipboardService { IsSupported = false });
+            new FakeScreenshotCaptureService { ClipboardSupported = false });
 
         var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture, Clipboard: true), CancellationToken.None);
 
@@ -574,8 +579,7 @@ public sealed class PrimitiveCliServiceTests
     public async Task Screenshot_WhenImageClipboardToolIsMissing_ReturnsEnvironmentError()
     {
         var service = new ScreenshotCliService(
-            new FakeScreenFrameProvider(),
-            new FakeImageClipboardService { ThrowUnavailable = true });
+            new FakeScreenshotCaptureService { ClipboardSupported = false });
 
         var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture, Clipboard: true), CancellationToken.None);
 
@@ -587,8 +591,7 @@ public sealed class PrimitiveCliServiceTests
     public async Task Screenshot_WhenImageClipboardWriteFails_ReturnsRuntimeError()
     {
         var service = new ScreenshotCliService(
-            new FakeScreenFrameProvider(),
-            new FakeImageClipboardService { ThrowWriteFailure = true });
+            new FakeScreenshotCaptureService { ThrowClipboardWriteFailure = true });
 
         var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture, Clipboard: true), CancellationToken.None);
 
@@ -603,7 +606,7 @@ public sealed class PrimitiveCliServiceTests
         Directory.CreateDirectory(directoryPath);
         try
         {
-            var service = new ScreenshotCliService(new FakeScreenFrameProvider(), new FakeImageClipboardService());
+            var service = new ScreenshotCliService(new FakeScreenshotCaptureService());
 
             var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture, directoryPath), CancellationToken.None);
 
@@ -619,20 +622,20 @@ public sealed class PrimitiveCliServiceTests
     [Fact]
     public async Task Screenshot_WhenDestinationMissing_ReturnsInvalidArgumentsBeforeCapture()
     {
-        var provider = new FakeScreenFrameProvider();
-        var service = new ScreenshotCliService(provider, new FakeImageClipboardService());
+        var capture = new FakeScreenshotCaptureService();
+        var service = new ScreenshotCliService(capture);
 
         var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture), CancellationToken.None);
 
         AssertInvalidArguments(result);
-        Assert.Equal(0, provider.CaptureCalls);
+        Assert.Equal(0, capture.CaptureCalls);
     }
 
     [Fact]
     public async Task Screenshot_WhenRegionIsPartial_ReturnsInvalidArgumentsBeforeCapture()
     {
-        var provider = new FakeScreenFrameProvider();
-        var service = new ScreenshotCliService(provider, new FakeImageClipboardService());
+        var capture = new FakeScreenshotCaptureService();
+        var service = new ScreenshotCliService(capture);
 
         var result = await service.ExecuteAsync(new ScreenshotCliOptions(
             ScreenshotCliAction.Capture,
@@ -641,14 +644,14 @@ public sealed class PrimitiveCliServiceTests
             RegionY: 2), CancellationToken.None);
 
         AssertInvalidArguments(result);
-        Assert.Equal(0, provider.CaptureCalls);
+        Assert.Equal(0, capture.CaptureCalls);
     }
 
     [Fact]
     public async Task Screenshot_WhenRegionSizeIsInvalid_ReturnsInvalidArgumentsBeforeCapture()
     {
-        var provider = new FakeScreenFrameProvider();
-        var service = new ScreenshotCliService(provider, new FakeImageClipboardService());
+        var capture = new FakeScreenshotCaptureService();
+        var service = new ScreenshotCliService(capture);
 
         var result = await service.ExecuteAsync(new ScreenshotCliOptions(
             ScreenshotCliAction.Capture,
@@ -659,7 +662,7 @@ public sealed class PrimitiveCliServiceTests
             RegionHeight: 1), CancellationToken.None);
 
         AssertInvalidArguments(result);
-        Assert.Equal(0, provider.CaptureCalls);
+        Assert.Equal(0, capture.CaptureCalls);
     }
 
     [Fact]
@@ -756,7 +759,7 @@ public sealed class PrimitiveCliServiceTests
         public Task<bool> MoveWindowToWorkspaceByAddressAsync(string address, string workspace, CancellationToken cancellationToken = default) => Task.FromResult(true);
     }
 
-    private sealed class FakeScreenPixelReader : IScreenPixelReader, IScreenImageSearchReader
+    private sealed class FakeScreenPixelReader : IScreenPixelReader, IScreenImageSearchReader, IScreenImageAutomation
     {
         public string ProviderName => "fake-screen";
         public bool IsSupported { get; init; } = true;
@@ -773,6 +776,55 @@ public sealed class PrimitiveCliServiceTests
         public ScreenImageMatch ImageMatch { get; init; } = new(new ScreenPoint(1, 1), 1.0);
         public bool ImageSearchNoMatch { get; init; }
         public ScreenReadResult<ScreenImageMatch>? ImageSearchResult { get; init; }
+        public IInputSimulator? ClickInput { get; set; }
+        public bool ClickPositionSupported { get; set; } = true;
+        public (int X, int Y)? ClickPosition { get; set; } = (0, 0);
+        string IScreenImageAutomation.ProviderName => ProviderName;
+        bool IScreenImageAutomation.IsSupported => IsSupported;
+
+        public async Task<ScreenImageAutomationResult> SearchAsync(ScreenImageAutomationRequest request, CancellationToken cancellationToken)
+        {
+            ScreenFrame template;
+            try
+            {
+                template = await new ImageAssetCodec().DecodeFileAsync(request.ImagePath, cancellationToken);
+            }
+            catch (FileNotFoundException ex)
+            {
+                return ScreenImageAutomationResult.Failure(ScreenReadErrorKind.InvalidArguments, $"Image file was not found: {ex.Message}");
+            }
+            catch (InvalidDataException ex)
+            {
+                return ScreenImageAutomationResult.Failure(ScreenReadErrorKind.InvalidArguments, $"Image file is not a supported PNG: {ex.Message}");
+            }
+            var result = await SearchImageAsync(request.Region, template, ScreenImageMatchOptions.Create(request.Region, request.Similarity, request.Downsample, request.MatchMode == ScreenImageMatchMode.Best ? ScreenImageMatchSelectionMode.BestMatch : ScreenImageMatchSelectionMode.FirstThresholdMatch, request.ScaleAware), new ScreenReadOptions(request.Timeout, ScreenReadOptions.Default.PollInterval, cancellationToken));
+            return result.IsSuccess ? ScreenImageAutomationResult.FoundAt(result.Value.Point, result.Value.Score) : ScreenImageAutomationResult.Failure(result.ErrorKind!.Value, result.ErrorMessage!);
+        }
+
+        public Task<ScreenImageAutomationResult> WaitAsync(ScreenImageAutomationRequest request, CancellationToken cancellationToken) => SearchAsync(request, cancellationToken);
+
+        public async Task<ScreenImageAutomationResult> ClickAsync(ScreenImageAutomationRequest request, int buttonCode, CancellationToken cancellationToken)
+        {
+            var result = await SearchAsync(request, cancellationToken);
+            if (!result.IsSuccess || ClickInput is null) return result;
+            ClickInput.Initialize(1920, 1080);
+            if (ClickInput is IInputSimulatorCapabilities { SupportsAbsoluteCoordinates: false })
+            {
+                if (!ClickPositionSupported || ClickPosition is not { } position)
+                {
+                    return ScreenImageAutomationResult.Failure(ScreenReadErrorKind.Unsupported, "No supported IMousePositionProvider is available for relative movement.");
+                }
+                ClickInput.MoveRelative(result.Point!.Value.X + 1 - position.X, result.Point.Value.Y + 2 - position.Y);
+            }
+            else
+            {
+                ClickInput.MoveAbsolute(result.Point!.Value.X + 1, result.Point.Value.Y + 2);
+            }
+            ClickInput.MouseButton(buttonCode, true);
+            ClickInput.MouseButton(buttonCode, false);
+            ClickInput.Sync();
+            return ScreenImageAutomationResult.FoundAt(new ScreenPoint(result.Point.Value.X + 1, result.Point.Value.Y + 2), result.Score!.Value);
+        }
         public Task<ScreenReadResult<ScreenPixelColor>> GetPixelAsync(ScreenPoint point, ScreenReadOptions options)
         {
             LastPoint = point;
@@ -819,28 +871,64 @@ public sealed class PrimitiveCliServiceTests
         }
     }
 
-    private sealed class FakeScreenFrameProvider : IScreenFrameProvider
+    private sealed class FakeScreenshotCaptureService : IScreenshotCaptureService
     {
-        public string ProviderName => "fake-frame";
         public bool IsSupported { get; init; } = true;
+        public bool ClipboardSupported { get; init; } = true;
+        public bool ThrowClipboardWriteFailure { get; init; }
         public ScreenRect? LastRegion { get; private set; }
         public int CaptureCalls { get; private set; }
+        public byte[]? PngBytes { get; private set; }
 
-        public Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
+        public async Task<ScreenshotCaptureResult> CaptureAsync(
+            string? outputPath,
+            bool copyToClipboard,
+            ScreenRect? region,
+            CancellationToken cancellationToken)
         {
             CaptureCalls++;
             LastRegion = region;
-            var bounds = region ?? new ScreenRect(0, 0, 2, 1);
-            byte[] pixels = [0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00];
-            return Task.FromResult(ScreenReadResult<ScreenFrame>.Success(new ScreenFrame(
-                bounds,
-                bounds.Width * 3,
-                ScreenPixelFormat.Rgb24,
-                pixels)));
-        }
+            if (!IsSupported)
+            {
+                return ScreenshotCaptureResult.Fail(ScreenshotCaptureFailureKind.ProviderUnsupported, "Screenshot provider is not supported.", []);
+            }
 
-        public void Dispose()
-        {
+            if (copyToClipboard && !ClipboardSupported)
+            {
+                return ScreenshotCaptureResult.Fail(ScreenshotCaptureFailureKind.ClipboardUnsupported, "Image clipboard is not supported.", []);
+            }
+
+            if (ThrowClipboardWriteFailure)
+            {
+                return ScreenshotCaptureResult.Fail(ScreenshotCaptureFailureKind.ClipboardWriteFailed, "Clipboard write failed.", []);
+            }
+
+            if (outputPath is not null)
+            {
+                try
+                {
+                    await File.WriteAllBytesAsync(outputPath, [0x89, 0x50, 0x4E, 0x47], cancellationToken);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    return ScreenshotCaptureResult.Fail(ScreenshotCaptureFailureKind.FileWriteFailed, "Screenshot output could not be written.", [ex.Message]);
+                }
+            }
+
+            if (copyToClipboard)
+            {
+                PngBytes = [0x89, 0x50, 0x4E, 0x47];
+            }
+
+            var bounds = region ?? new ScreenRect(0, 0, 2, 1);
+            return ScreenshotCaptureResult.Ok(new ScreenshotCaptureData(
+                outputPath is null ? null : Path.GetFullPath(outputPath),
+                bounds.Width,
+                bounds.Height,
+                "png",
+                "fake-frame",
+                region.HasValue,
+                copyToClipboard));
         }
     }
 
@@ -890,30 +978,6 @@ public sealed class PrimitiveCliServiceTests
 
         public void Dispose()
         {
-        }
-    }
-
-    private sealed class FakeImageClipboardService : IImageClipboardService
-    {
-        public bool IsSupported { get; init; } = true;
-        public bool ThrowUnavailable { get; init; }
-        public bool ThrowWriteFailure { get; init; }
-        public byte[]? PngBytes { get; private set; }
-
-        public Task SetPngAsync(ReadOnlyMemory<byte> pngBytes, CancellationToken cancellationToken = default)
-        {
-            if (ThrowUnavailable)
-            {
-                throw new ImageClipboardUnavailableException("missing image clipboard tool");
-            }
-
-            if (ThrowWriteFailure)
-            {
-                throw new InvalidOperationException("write failed");
-            }
-
-            PngBytes = pngBytes.ToArray();
-            return Task.CompletedTask;
         }
     }
 

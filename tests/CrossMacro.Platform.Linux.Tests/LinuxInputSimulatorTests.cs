@@ -1,5 +1,5 @@
 using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Infrastructure.Linux.Native.UInput;
+using CrossMacro.Platform.Linux.Native.UInput;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.TestInfrastructure;
 using Xunit;

@@ -1,8 +1,8 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Text.Json;
+using CrossMacro.Application.Automation;
 using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
 using CrossMacro.Cli;
 using CrossMacro.Cli.Services;
 using NSubstitute;
@@ -14,8 +14,8 @@ public class ShortcutCliServiceTests
     [Fact]
     public async Task ListAsync_LoadsAndReturnsTaskList()
     {
-        var shortcutService = Substitute.For<IShortcutService>();
-        shortcutService.Tasks.Returns(new ObservableCollection<ShortcutTask>
+        var shortcutService = Substitute.For<IManageShortcut>();
+        shortcutService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask>
         {
             new()
             {
@@ -25,20 +25,20 @@ public class ShortcutCliServiceTests
                 MacroFilePath = "/tmp/a.macro",
                 IsEnabled = true
             }
-        });
+        }));
 
         var service = new ShortcutCliService(shortcutService);
         var result = await service.ListAsync(CancellationToken.None);
 
         Assert.True(result.Success);
-        await shortcutService.Received(1).LoadAsync();
+        await shortcutService.Received(1).ListAsync(CancellationToken.None);
     }
 
     [Fact]
     public async Task RunAsync_WithInvalidGuid_ReturnsInvalidArguments()
     {
-        var shortcuts = Substitute.For<IShortcutService>();
-        shortcuts.Tasks.Returns(new ObservableCollection<ShortcutTask>());
+        var shortcuts = Substitute.For<IManageShortcut>();
+        shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask>()));
 
         var service = new ShortcutCliService(shortcuts);
         var result = await service.RunAsync("invalid-guid", CancellationToken.None);
@@ -50,23 +50,23 @@ public class ShortcutCliServiceTests
     [Fact]
     public async Task RunAsync_WithMissingTask_ReturnsInvalidArguments()
     {
-        var shortcuts = Substitute.For<IShortcutService>();
-        shortcuts.Tasks.Returns(new ObservableCollection<ShortcutTask>());
+        var shortcuts = Substitute.For<IManageShortcut>();
+        shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask>()));
 
         var service = new ShortcutCliService(shortcuts);
         var result = await service.RunAsync("22222222-2222-2222-2222-222222222222", CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
-        await shortcuts.Received(1).LoadAsync();
+        await shortcuts.Received(1).ListAsync(CancellationToken.None);
     }
 
     [Fact]
     public async Task RunAsync_WithExistingTask_RunsTask()
     {
         var id = Guid.Parse("22222222-2222-2222-2222-222222222222");
-        var shortcuts = Substitute.For<IShortcutService>();
-        shortcuts.Tasks.Returns(new ObservableCollection<ShortcutTask>
+        var shortcuts = Substitute.For<IManageShortcut>();
+        shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask>
         {
             new()
             {
@@ -75,29 +75,22 @@ public class ShortcutCliServiceTests
                 MacroFilePath = "/tmp/a.macro",
                 HotkeyString = "F9"
             }
-        });
+        }));
 
         var service = new ShortcutCliService(shortcuts);
         var result = await service.RunAsync(id.ToString(), CancellationToken.None);
 
         Assert.True(result.Success);
-        await shortcuts.Received(1).RunTaskAsync(id, CancellationToken.None);
+        await shortcuts.Received(1).RunAsync(new TaskRequest(id), CancellationToken.None);
     }
 
     [Fact]
     public async Task RunAsync_WhenCancelledAfterLoad_DoesNotRunTask()
     {
         var id = Guid.NewGuid();
-        var shortcuts = Substitute.For<IShortcutService>();
+        var shortcuts = Substitute.For<IManageShortcut>();
         using var cts = new CancellationTokenSource();
-
-        shortcuts.LoadAsync().Returns(_ =>
-        {
-            cts.Cancel();
-            return Task.CompletedTask;
-        });
-
-        shortcuts.Tasks.Returns(new ObservableCollection<ShortcutTask>
+        var tasks = new ObservableCollection<ShortcutTask>
         {
             new()
             {
@@ -106,19 +99,25 @@ public class ShortcutCliServiceTests
                 MacroFilePath = "/tmp/a.macro",
                 HotkeyString = "F9"
             }
+        };
+
+        shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            cts.Cancel();
+            return Task.FromResult(new TaskCollectionResult<ShortcutTask>(tasks));
         });
 
         var service = new ShortcutCliService(shortcuts);
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => service.RunAsync(id.ToString(), cts.Token));
-        await shortcuts.DidNotReceive().RunTaskAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await shortcuts.DidNotReceive().RunAsync(Arg.Any<TaskRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteAsync_Add_AddsAndSavesTask()
     {
-        var shortcuts = Substitute.For<IShortcutService>();
-        shortcuts.Tasks.Returns(new ObservableCollection<ShortcutTask>());
+        var shortcuts = Substitute.For<IManageShortcut>();
+        shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask>()));
         var service = new ShortcutCliService(shortcuts);
 
         var result = await service.ExecuteAsync(
@@ -136,7 +135,7 @@ public class ShortcutCliServiceTests
         Assert.True(result.Success);
         var taskData = JsonSerializer.SerializeToElement(result.Data);
         Assert.False(taskData.GetProperty("randomRepeatDelay").GetBoolean());
-        shortcuts.Received(1).AddTask(Arg.Is<ShortcutTask>(task =>
+        await shortcuts.Received(1).AddAsync(Arg.Is<ShortcutTask>(task =>
             task.Name == "Demo"
             && task.MacroFilePath == "/tmp/demo.macro"
             && task.HotkeyString == "Ctrl+Alt+D"
@@ -144,7 +143,6 @@ public class ShortcutCliServiceTests
             && task.RepeatCount == 3
             && task.RepeatDelayMs == 250
             && task.IsEnabled));
-        await shortcuts.Received(1).SaveAsync();
     }
 
     [Fact]
@@ -152,8 +150,8 @@ public class ShortcutCliServiceTests
     {
         var id = Guid.Parse("22222222-2222-2222-2222-222222222222");
         var task = new ShortcutTask { Id = id, Name = "Old", MacroFilePath = "/tmp/old.macro", HotkeyString = "F7" };
-        var shortcuts = Substitute.For<IShortcutService>();
-        shortcuts.Tasks.Returns(new ObservableCollection<ShortcutTask> { task });
+        var shortcuts = Substitute.For<IManageShortcut>();
+        shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask> { task }));
         var service = new ShortcutCliService(shortcuts);
 
         var result = await service.ExecuteAsync(
@@ -170,13 +168,12 @@ public class ShortcutCliServiceTests
         Assert.True(taskData.GetProperty("randomRepeatDelay").GetBoolean());
         Assert.Equal(100, taskData.GetProperty("repeatDelayMinMs").GetInt32());
         Assert.Equal(200, taskData.GetProperty("repeatDelayMaxMs").GetInt32());
-        shortcuts.Received(1).UpdateTask(Arg.Is<ShortcutTask>(updated =>
+        await shortcuts.Received(1).UpdateAsync(Arg.Is<ShortcutTask>(updated =>
             updated.Id == id
             && updated.Name == "New"
             && updated.UseRandomRepeatDelay
             && updated.RepeatDelayMinMs == 100
             && updated.RepeatDelayMaxMs == 200));
-        await shortcuts.Received(1).SaveAsync();
     }
 
     [Fact]
@@ -184,8 +181,8 @@ public class ShortcutCliServiceTests
     {
         var id = Guid.Parse("22222222-2222-2222-2222-222222222222");
         var task = new ShortcutTask { Id = id, Name = "Shortcut", MacroFilePath = "/tmp/a.macro", HotkeyString = "F7" };
-        var shortcuts = Substitute.For<IShortcutService>();
-        shortcuts.Tasks.Returns(new ObservableCollection<ShortcutTask> { task });
+        var shortcuts = Substitute.For<IManageShortcut>();
+        shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask> { task }));
         var service = new ShortcutCliService(shortcuts);
 
         var result = await service.ExecuteAsync(
@@ -193,15 +190,14 @@ public class ShortcutCliServiceTests
             CancellationToken.None);
 
         Assert.True(result.Success);
-        shortcuts.Received(1).UpdateTask(Arg.Is<ShortcutTask>(updated => updated.Id == id && updated.HotkeyString == "Ctrl+Shift+M"));
-        await shortcuts.Received(1).SaveAsync();
+        await shortcuts.Received(1).UpdateAsync(Arg.Is<ShortcutTask>(updated => updated.Id == id && updated.HotkeyString == "Ctrl+Shift+M"));
     }
 
     [Fact]
     public async Task ExecuteAsync_RemoveMissingTask_ReturnsInvalidArguments()
     {
-        var shortcuts = Substitute.For<IShortcutService>();
-        shortcuts.Tasks.Returns(new ObservableCollection<ShortcutTask>());
+        var shortcuts = Substitute.For<IManageShortcut>();
+        shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask>()));
         var service = new ShortcutCliService(shortcuts);
 
         var result = await service.ExecuteAsync(
@@ -210,24 +206,22 @@ public class ShortcutCliServiceTests
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
-        await shortcuts.DidNotReceive().SaveAsync();
     }
 
     [Fact]
     public async Task ExecuteAsync_DisableExistingTask_SavesMutation()
     {
         var id = Guid.Parse("22222222-2222-2222-2222-222222222222");
-        var shortcuts = Substitute.For<IShortcutService>();
-        shortcuts.Tasks.Returns(new ObservableCollection<ShortcutTask>
+        var shortcuts = Substitute.For<IManageShortcut>();
+        shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask>
         {
             new() { Id = id, Name = "Shortcut", MacroFilePath = "/tmp/a.macro", HotkeyString = "F9" }
-        });
+        }));
         var service = new ShortcutCliService(shortcuts);
 
         var result = await service.ExecuteAsync(new ShortcutCliOptions(ShortcutCliAction.Disable, TaskId: id.ToString()), CancellationToken.None);
 
         Assert.True(result.Success);
-        shortcuts.Received(1).SetTaskEnabled(id, false);
-        await shortcuts.Received(1).SaveAsync();
+        await shortcuts.Received(1).SetEnabledAsync(new TaskRequest(id, false), CancellationToken.None);
     }
 }

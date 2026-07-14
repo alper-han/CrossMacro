@@ -2,7 +2,7 @@ using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Cli;
 using CrossMacro.Cli.Services;
-using CrossMacro.Infrastructure.Services.ScreenReading;
+using CrossMacro.Platform.Abstractions;
 using NSubstitute;
 
 namespace CrossMacro.Cli.Tests;
@@ -54,7 +54,7 @@ public class HeadlessRuntimeServiceTests
         textExpansion.Received(1).Start();
         hotkeyActions.Received(1).Start();
         hotkeys.Received(1).Stop();
-        scheduler.Received(1).Stop();
+        await scheduler.Received(1).StopAsync(Arg.Any<CancellationToken>());
         shortcuts.Received(1).Stop();
         textExpansion.Received(1).Stop();
         await hotkeyActions.Received(1).StopAsync(Arg.Any<CancellationToken>());

@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using CrossMacro.Core.Logging;
+using CrossMacro.Platform.Linux.Services;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
@@ -44,6 +45,20 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
     public WayfireIpcClient()
         : this(
             Environment.GetEnvironmentVariable,
+            File.Exists,
+            Directory.Exists,
+            Directory.GetFiles)
+    {
+    }
+
+    public WayfireIpcClient(LinuxEnvironmentSnapshot environment)
+        : this(
+            name => name switch
+            {
+                WayfireSocketEnvVar => environment.WayfireSocket,
+                RuntimeDirEnvVar => environment.RuntimeDir,
+                _ => null
+            },
             File.Exists,
             Directory.Exists,
             Directory.GetFiles)

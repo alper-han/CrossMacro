@@ -55,6 +55,17 @@ public class InputSimulatorPoolTests
     }
 
     [Fact]
+    public async Task Release_TracksReplacementWorkUntilItSettles()
+    {
+        var acquired = _pool.Acquire(0, 0);
+        _pool.Release(acquired);
+
+        await _pool.Completion.WaitAsync(TimeSpan.FromSeconds(2));
+
+        _pool.Completion.IsCompletedSuccessfully.Should().BeTrue();
+    }
+
+    [Fact]
     public void Release_WhenCalledTwice_DisposesTheLeaseOnlyOnce()
     {
         var acquired = (FakeInputSimulator)_pool.Acquire(0, 0);

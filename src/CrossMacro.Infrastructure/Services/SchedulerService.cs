@@ -25,11 +25,23 @@ public class SchedulerService : ISchedulerService
     private PeriodicTimer? _periodicTimer;
     private CancellationTokenSource? _cts;
     private Task? _timerTask;
+    private Task _completion = Task.CompletedTask;
     private bool _isRunning;
     private bool _disposed;
     
     public ObservableCollection<ScheduledTask> Tasks { get; } = new();
     public bool IsRunning => _isRunning;
+
+    public Task Completion
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _completion;
+            }
+        }
+    }
     
     public event EventHandler<TaskExecutedEventArgs>? TaskExecuted;
     public event EventHandler<ScheduledTask>? TaskStarting;
@@ -50,12 +62,14 @@ public class SchedulerService : ISchedulerService
 
     private void OnExecutorTaskExecuted(object? sender, TaskExecutedEventArgs e)
     {
-        TaskExecuted?.Invoke(this, e);
+        try { TaskExecuted?.Invoke(this, e); }
+        catch (Exception ex) { Log.Warning(ex, "[SchedulerService] TaskExecuted subscriber threw"); }
     }
 
     private void OnExecutorTaskStarting(object? sender, ScheduledTask e)
     {
-        TaskStarting?.Invoke(this, e);
+        try { TaskStarting?.Invoke(this, e); }
+        catch (Exception ex) { Log.Warning(ex, "[SchedulerService] TaskStarting subscriber threw"); }
     }
     
     public void AddTask(ScheduledTask task)
@@ -165,6 +179,7 @@ public class SchedulerService : ISchedulerService
             _cts = new CancellationTokenSource();
             _periodicTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
             _timerTask = RunTimerLoopAsync(_periodicTimer, _cts.Token);
+            _completion = _timerTask;
 
             timerTask = _timerTask;
             cts = _cts;
@@ -175,6 +190,11 @@ public class SchedulerService : ISchedulerService
     
     public void Stop()
     {
+        _ = StopAsync();
+    }
+
+    public async Task StopAsync(CancellationToken cancellationToken = default)
+    {
         Task? timerTask;
         PeriodicTimer? periodicTimer;
         CancellationTokenSource? cts;
@@ -183,7 +203,7 @@ public class SchedulerService : ISchedulerService
         {
             if (!_isRunning && _periodicTimer == null && _cts == null && _timerTask == null)
             {
-                return;
+                    return;
             }
 
             _isRunning = false;
@@ -212,7 +232,7 @@ public class SchedulerService : ISchedulerService
             return;
         }
 
-        _ = CompleteStopAsync(timerTask, cts);
+        await CompleteStopAsync(timerTask, cts, cancellationToken).ConfigureAwait(false);
     }
     
     private async Task RunTimerLoopAsync(PeriodicTimer timer, CancellationToken cancellationToken)
@@ -221,7 +241,7 @@ public class SchedulerService : ISchedulerService
         {
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
-                await CheckTasksAsync();
+                    await CheckTasksAsync(cancellationToken).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -271,17 +291,20 @@ public class SchedulerService : ISchedulerService
         }
     }
 
-    private static async Task CompleteStopAsync(Task timerTask, CancellationTokenSource? cts)
+    private static async Task CompleteStopAsync(Task timerTask, CancellationTokenSource? cts, CancellationToken cancellationToken)
     {
         try
         {
-            var completedTask = await Task.WhenAny(timerTask, Task.Delay(StopTimeout)).ConfigureAwait(false);
+            var completedTask = await Task.WhenAny(timerTask, Task.Delay(StopTimeout, cancellationToken)).ConfigureAwait(false);
             if (!ReferenceEquals(completedTask, timerTask))
             {
                 Log.Warning("[SchedulerService] Timer loop did not stop within {TimeoutMs}ms; shutdown will continue in background", StopTimeout.TotalMilliseconds);
             }
 
-            await timerTask.ConfigureAwait(false);
+            if (ReferenceEquals(completedTask, timerTask))
+            {
+                await timerTask.ConfigureAwait(false);
+            }
         }
         catch (OperationCanceledException) when (cts?.IsCancellationRequested == true)
         {
@@ -296,7 +319,7 @@ public class SchedulerService : ISchedulerService
         }
     }
     
-    private async Task CheckTasksAsync()
+    private async Task CheckTasksAsync(CancellationToken cancellationToken)
     {
         ScheduledTask[] tasksToRun;
         lock (_lock)
@@ -316,7 +339,7 @@ public class SchedulerService : ISchedulerService
         
         foreach (var task in tasksToRun)
         {
-            await _executor.ExecuteAsync(task);
+            await _executor.ExecuteAsync(task, cancellationToken).ConfigureAwait(false);
         }
     }
     

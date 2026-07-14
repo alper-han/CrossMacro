@@ -37,7 +37,7 @@ dotnet publish "$PROJECT_ROOT/src/CrossMacro.UI.MacOS/CrossMacro.UI.MacOS.csproj
     -r "$RID" \
     --self-contained true \
     -p:PublishAot=true \
-    -p:PublishReadyToRun=true \
+    -p:PublishReadyToRun=false \
     -p:OptimizationPreference=Speed \
     -p:StripSymbols=true \
     -p:IlcTrimMetadata=true \

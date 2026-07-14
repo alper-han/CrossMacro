@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
+using CrossMacro.Application.Automation;
 using CrossMacro.Core.Logging;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
@@ -26,6 +27,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     private readonly IDialogService _dialogService;
     private readonly ILocalizationService _localizationService;
     private readonly IWindowManager? _windowManager;
+    private readonly IManageTrigger? _manageTrigger;
     private TriggerTask? _selectedTask;
     private IReadOnlyList<ProfileInfo> _availableProfiles = [];
     private bool _isRefreshingWindows;
@@ -197,6 +199,18 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         InitializationTask = InitializeAsyncSafe();
     }
 
+    public TriggerViewModel(
+        IManageTrigger manageTrigger,
+        ITriggerService triggerService,
+        IProfileManager? profileManager,
+        IDialogService dialogService,
+        ILocalizationService localizationService,
+        IWindowManager? windowManager)
+        : this(triggerService, profileManager, dialogService, localizationService, windowManager)
+    {
+        _manageTrigger = manageTrigger;
+    }
+
     private async Task InitializeAsyncSafe()
     {
         try
@@ -231,7 +245,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private void AddTask()
+    private async Task AddTaskAsync()
     {
         var task = new TriggerTask
         {
@@ -240,7 +254,14 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
                 _localizationService["Trigger_DefaultTaskName"],
                 Tasks.Count + 1)
         };
-        _triggerService.AddTask(task);
+        if (_manageTrigger is not null)
+        {
+            await _manageTrigger.AddAsync(task);
+        }
+        else
+        {
+            _triggerService.AddTask(task);
+        }
         SelectedTask = task;
         OnPropertyChanged(nameof(TaskCountText));
     }
@@ -258,6 +279,17 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
                 task.Name));
 
         if (!confirmed) return;
+
+        if (_manageTrigger is not null)
+        {
+            var selectedTaskId = SelectedTask?.Id;
+            await _manageTrigger.RemoveAsync(new TaskRequest(task.Id));
+            SelectedTask = selectedTaskId is Guid id
+                ? Tasks.FirstOrDefault(candidate => candidate.Id == id) ?? Tasks.FirstOrDefault()
+                : Tasks.FirstOrDefault();
+            OnPropertyChanged(nameof(TaskCountText));
+            return;
+        }
 
         _triggerService.RemoveTask(task.Id);
         if (SelectedTask?.Id == task.Id)
@@ -350,7 +382,14 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            await _triggerService.SaveAsync();
+            if (_manageTrigger is not null && SelectedTask is not null)
+            {
+                await _manageTrigger.UpdateAsync(SelectedTask);
+            }
+            else
+            {
+                await _triggerService.SaveAsync();
+            }
             if (showSuccessStatus)
             {
                 RaiseStatus(_localizationService["Trigger_StatusChangesSaved"]);
@@ -378,7 +417,26 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task TaskEnabledChangedAsync(TriggerTask task)
     {
-        _triggerService.SetTaskEnabled(task.Id, task.IsEnabled);
+        if (_manageTrigger is not null)
+        {
+            var selectedTaskId = SelectedTask?.Id;
+            try
+            {
+                await _manageTrigger.SetEnabledAsync(new TaskRequest(task.Id, task.IsEnabled));
+            }
+            finally
+            {
+                SelectedTask = selectedTaskId is Guid id
+                    ? Tasks.FirstOrDefault(candidate => candidate.Id == id)
+                    : null;
+            }
+            return;
+        }
+
+        if (_manageTrigger is null)
+        {
+            _triggerService.SetTaskEnabled(task.Id, task.IsEnabled);
+        }
         await SaveChangesAsync(showSuccessStatus: false);
     }
 

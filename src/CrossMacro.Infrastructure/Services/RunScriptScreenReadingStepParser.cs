@@ -129,14 +129,14 @@ internal static class RunScriptScreenReadingStepParser
     public static bool IsImageSearchOptionKeyword(string value) =>
         RunScriptSyntax.IsImageSearchSimilarityKeyword(value)
         || RunScriptSyntax.IsImageSearchDownsampleKeyword(value)
-        || RunScriptSyntax.IsImageSearchMatchModeKeyword(value)
+        || RunScriptPlatformSyntax.IsImageSearchMatchModeKeyword(value)
         || RunScriptSyntax.IsImageSearchScaleAwareKeyword(value)
         || RunScriptSyntax.IsImageSearchTimeoutKeyword(value);
 
     public static bool IsImageMatchOptionKeyword(string value) =>
         RunScriptSyntax.IsImageSearchSimilarityKeyword(value)
         || RunScriptSyntax.IsImageSearchDownsampleKeyword(value)
-        || RunScriptSyntax.IsImageSearchMatchModeKeyword(value)
+        || RunScriptPlatformSyntax.IsImageSearchMatchModeKeyword(value)
         || RunScriptSyntax.IsImageSearchScaleAwareKeyword(value);
 
     private static bool TryValidatePixelColorStep(IReadOnlyList<string> parts, out string? error)
@@ -436,9 +436,9 @@ internal static class RunScriptScreenReadingStepParser
                 continue;
             }
 
-            if (RunScriptSyntax.IsImageSearchMatchModeKeyword(parts[index]))
+            if (RunScriptPlatformSyntax.IsImageSearchMatchModeKeyword(parts[index]))
             {
-                if (index + 1 >= parts.Count || !RunScriptSyntax.TryParseImageMatchMode(parts[index + 1], out _))
+                if (index + 1 >= parts.Count || !RunScriptPlatformSyntax.TryParseImageMatchMode(parts[index + 1], out _))
                 {
                     error = "Invalid imagesearch matchmode. Expected matchmode <first|best>.";
                     return true;
@@ -680,9 +680,9 @@ internal static class RunScriptScreenReadingStepParser
             return true;
         }
 
-        if (RunScriptSyntax.IsImageSearchMatchModeKeyword(parts[index]))
+        if (RunScriptPlatformSyntax.IsImageSearchMatchModeKeyword(parts[index]))
         {
-            if (index + 1 >= parts.Count || !RunScriptSyntax.TryParseImageMatchMode(parts[index + 1], out _))
+            if (index + 1 >= parts.Count || !RunScriptPlatformSyntax.TryParseImageMatchMode(parts[index + 1], out _))
             {
                 error = "Invalid image matchmode. Expected matchmode <first|best>.";
                 return false;

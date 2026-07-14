@@ -225,9 +225,9 @@ public sealed class RunScriptCompiler
                 : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
         }
 
-        if (RunScriptSyntax.IsScreenshotStep(trimmed))
+        if (RunScriptPlatformSyntax.IsScreenshotStep(trimmed))
         {
-            var screenshotError = RunScriptSyntax.ValidateScreenshotStep(trimmed);
+            var screenshotError = RunScriptPlatformSyntax.ValidateScreenshotStep(trimmed);
             return screenshotError != null
                 ? RunScriptCompileResult.Fail($"{source}: {screenshotError}")
                 : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
@@ -341,7 +341,7 @@ public sealed class RunScriptCompiler
             || RunScriptSyntax.IsWindowStep(trimmed)
             || RunScriptSyntax.IsClipboardStep(trimmed)
             || RunScriptSyntax.IsShellStep(trimmed)
-            || RunScriptSyntax.IsScreenshotStep(trimmed);
+            || RunScriptPlatformSyntax.IsScreenshotStep(trimmed);
     }
 
     private static bool IsRuntimeBackedCommand(string step)

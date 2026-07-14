@@ -1,10 +1,10 @@
 using System;
+using CrossMacro.Application.Automation;
+using CrossMacro.Application.Profiles;
+using CrossMacro.Application.Runtime;
 using CrossMacro.Core.Services;
 using CrossMacro.Cli.Commands;
 using CrossMacro.Cli.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Services.Playback;
-using CrossMacro.Infrastructure.Services.ScreenCapture;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Abstractions.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,6 +35,8 @@ public static class CliServiceCollectionExtensions
                 : socketPath => linuxDaemonSocketAccessProbe.Probe(new LinuxDaemonSocketProbeOptions(socketPath, "crossmacro"));
 
             return new DoctorService(
+                sp.GetRequiredService<IRuntimeContext>(),
+                sp.GetRequiredService<IDisplayEnvironmentDiagnostic>(),
                 sp.GetRequiredService<IEnvironmentInfoProvider>(),
                 sp.GetRequiredService<IDisplaySessionService>(),
                 sp.GetRequiredService<Func<IInputSimulator>>(),
@@ -48,28 +50,42 @@ public static class CliServiceCollectionExtensions
                 sp.GetService<IMacOSScreenRecordingPermissionProbe>());
         });
         services.AddSingleton<ICliPreflightService>(sp => new CliPreflightService(
+            sp.GetRequiredService<IRuntimeContext>(),
             sp.GetRequiredService<IDisplaySessionService>(),
             sp.GetRequiredService<Func<IInputSimulator>>(),
             sp.GetRequiredService<Func<IInputCapture>>()));
         services.AddSingleton<ISettingsCliService, SettingsCliService>();
+        services.AddSingleton<IManageProfile, ManageProfile>();
+        services.AddSingleton<IManageTextExpansion, ManageTextExpansion>();
+        services.AddSingleton<IManageShortcut, ManageShortcut>();
+        services.AddSingleton<IManageSchedule, ManageSchedule>();
+        services.AddSingleton<IManageTrigger, ManageTrigger>();
         services.AddSingleton<IProfileCliService, ProfileCliService>();
         services.AddSingleton<ITextExpansionCliService, TextExpansionCliService>();
-        services.AddSingleton<IScheduleCliService, ScheduleCliService>();
-        services.AddSingleton<IShortcutCliService, ShortcutCliService>();
-        services.AddSingleton<ITriggerCliService, TriggerCliService>();
+        services.AddSingleton<IScheduleCliService>(sp =>
+            new ScheduleCliService(sp.GetRequiredService<IManageSchedule>()));
+        services.AddSingleton<IShortcutCliService>(sp =>
+            new ShortcutCliService(sp.GetRequiredService<IManageShortcut>()));
+        services.AddSingleton<ITriggerCliService>(sp =>
+            new TriggerCliService(sp.GetRequiredService<IManageTrigger>()));
         services.AddSingleton<IRecordExecutionService, RecordExecutionService>();
         services.AddSingleton<IHeadlessHotkeyActionService, HeadlessHotkeyActionService>();
+        services.AddSingleton<IRuntimeLifecycle>(sp => HeadlessRuntimeService.CreateLifecycle(
+            sp.GetRequiredService<IGlobalHotkeyService>(),
+            sp.GetRequiredService<ISchedulerService>(),
+            sp.GetRequiredService<IShortcutService>(),
+            sp.GetRequiredService<ITextExpansionService>(),
+            sp.GetRequiredService<IHeadlessHotkeyActionService>(),
+            sp.GetService<IScreenReadingWarmupService>()));
         services.AddSingleton<IHeadlessRuntimeService, HeadlessRuntimeService>();
-        services.AddSingleton<IRunScriptExecutionService, RunScriptExecutionService>();
+        services.AddSingleton<IRunScriptExecutionService>(sp => new RunScriptExecutionService(
+            sp.GetRequiredService<IRunExecutionService>()));
         services.AddSingleton<IClipboardCliService, ClipboardCliService>();
         services.AddSingleton<IWindowCliService, WindowCliService>();
         services.AddSingleton<IScreenCliService>(sp => new ScreenCliService(
             sp.GetService<IScreenPixelReader>(),
             sp.GetService<IMousePositionProvider>(),
-            sp.GetService<Func<IInputSimulator>>(),
-            sp.GetService<InputSimulatorPool>(),
-            sp.GetService<IImageClickMovementResolver>(),
-            sp.GetRequiredService<IImageAssetCodec>()));
+            sp.GetService<IScreenImageAutomation>()));
         services.AddSingleton<IScreenshotCliService>(sp =>
             new ScreenshotCliService(sp.GetRequiredService<IScreenshotCaptureService>()));
 

@@ -165,36 +165,6 @@
     "hash": "sha256-WlaYsbTh/cn/6YaN9odNtfpp8hpN52unGgGlQum0M5E="
   },
   {
-    "pname": "Svg.Animation",
-    "version": "5.1.1",
-    "hash": "sha256-mXcfShsZh2D9r79feD8Btv2y7kBDjsqca+0sB0/bToc="
-  },
-  {
-    "pname": "Svg.Controls.Skia.Avalonia",
-    "version": "12.0.0.13",
-    "hash": "sha256-VuuF97bbrU3sBJG+A8da87pllN1qiu3qnBpM85kcF8Q="
-  },
-  {
-    "pname": "Svg.Custom",
-    "version": "5.1.1",
-    "hash": "sha256-0wxNoAJHEXM7aH3N6hqxlIiG2sGuMKiLWuSyE80zBgY="
-  },
-  {
-    "pname": "Svg.Model",
-    "version": "5.1.1",
-    "hash": "sha256-JnOJYoRZxnRKRdgiUbfwvz4PHDat2TyngCM7O/jN2YY="
-  },
-  {
-    "pname": "Svg.SceneGraph",
-    "version": "5.1.1",
-    "hash": "sha256-Uag4IC+BwBgw5Dawozpl4/km9cwuL8vLDTsVJtw9098="
-  },
-  {
-    "pname": "Svg.Skia",
-    "version": "5.1.1",
-    "hash": "sha256-P8TI6uzXppCtCBj0ctD9/T0AvDBj7O1NTXc2KGWNewk="
-  },
-  {
     "pname": "Tmds.DBus.Protocol",
     "version": "0.94.2",
     "hash": "sha256-ZUxaReVMikjf3VqjUSSTovcjDTWJO8jHNKrvj1dgHJI="

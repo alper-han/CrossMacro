@@ -14,6 +14,20 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 
 public class LinuxInputCapabilityDetectorTests
 {
+    [Fact]
+    public void IsWithinDaemonGracePeriod_IsDeterministicAtGraceAndFailureBoundaries()
+    {
+        var lastSuccess = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var grace = TimeSpan.FromSeconds(30);
+
+        Assert.True(LinuxInputCapabilityDetector.IsWithinDaemonGracePeriod(
+            lastSuccess.AddSeconds(30), lastSuccess, 2, grace, 3));
+        Assert.False(LinuxInputCapabilityDetector.IsWithinDaemonGracePeriod(
+            lastSuccess.AddSeconds(30).AddTicks(1), lastSuccess, 2, grace, 3));
+        Assert.False(LinuxInputCapabilityDetector.IsWithinDaemonGracePeriod(
+            lastSuccess.AddSeconds(1), lastSuccess, 3, grace, 3));
+    }
+
     [LinuxFact]
     public void DetermineMode_WhenDaemonHandshakeSucceeds_ReturnsDaemon()
     {
@@ -201,6 +215,44 @@ public class LinuxInputCapabilityDetectorTests
 
         Assert.Equal(InputProviderMode.Daemon, firstMode);
         Assert.Equal(InputProviderMode.Legacy, secondMode);
+        Assert.Equal(1, probeCount);
+    }
+
+    [LinuxFact]
+    public void GetSnapshot_PreservesDaemonThroughTransientFailuresThenUsesThresholdFallback()
+    {
+        var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var socketAvailable = true;
+        var probeCount = 0;
+
+        var detector = new LinuxInputCapabilityDetector(
+            fileExists: path => path == IpcProtocol.DefaultSocketPath && socketAvailable,
+            canOpenForWrite: _ => false,
+            canOpenForRead: _ => false,
+            daemonHandshakeProbe: (_, _) =>
+            {
+                probeCount++;
+                return probeCount == 1
+                    ? LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success()
+                    : LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(
+                        LinuxDaemonHandshakeStatus.UnexpectedError);
+            },
+            getInputEventCandidates: () => [],
+            utcNow: () => now);
+
+        Assert.Equal(InputProviderMode.Daemon, detector.DetermineMode());
+
+        socketAvailable = false;
+        now = now.AddSeconds(6);
+        Assert.Equal(InputProviderMode.Daemon, detector.GetSnapshot().ResolvedMode);
+
+        now = now.AddSeconds(6);
+        Assert.Equal(InputProviderMode.Daemon, detector.GetSnapshot().ResolvedMode);
+
+        now = now.AddSeconds(6);
+        var fallbackSnapshot = detector.GetSnapshot();
+
+        Assert.Equal(InputProviderMode.None, fallbackSnapshot.ResolvedMode);
         Assert.Equal(1, probeCount);
     }
 

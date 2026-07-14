@@ -9,7 +9,6 @@ using Xunit.Sdk;
 
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus;
 
-#pragma warning disable CS0618
 [Collection(nameof(DbusIntegrationSerialCollection))]
 public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
 {
@@ -284,4 +283,3 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         }
     }
 }
-#pragma warning restore CS0618

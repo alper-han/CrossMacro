@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.Core.Services.Playback;
-using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Cli.Serialization;
 
@@ -16,18 +15,16 @@ public sealed class MacroExecutionService : IMacroExecutionService
 {
     private readonly IMacroFileManager _macroFileManager;
     private readonly Func<IMacroPlayer> _macroPlayerFactory;
-    private readonly PlaybackValidator _validator;
+    private readonly IPlaybackValidator _validator;
 
     public MacroExecutionService(
         IMacroFileManager macroFileManager,
         Func<IMacroPlayer> macroPlayerFactory,
-        IKeyCodeMapper keyCodeMapper)
+        IPlaybackValidator validator)
     {
         _macroFileManager = macroFileManager ?? throw new ArgumentNullException(nameof(macroFileManager));
         _macroPlayerFactory = macroPlayerFactory ?? throw new ArgumentNullException(nameof(macroPlayerFactory));
-        _validator = new PlaybackValidator(
-            keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper)),
-            new NullMousePositionProvider("CLI Validation Provider"));
+        _validator = validator ?? throw new ArgumentNullException(nameof(validator));
     }
 
     public Task<MacroExecutionResult> ValidateAsync(string macroFilePath, CancellationToken cancellationToken)
@@ -181,11 +178,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
                 Message = "Macro validation failed.",
                 Errors = validation.Errors,
                 Warnings = validation.Warnings,
-                Data = new
-                {
-                    macroPath = macroFilePath,
-                    eventCount = macro.EventCount
-                }
+                Data = new MacroValidationData(macroFilePath, macro.EventCount)
             };
         }
 

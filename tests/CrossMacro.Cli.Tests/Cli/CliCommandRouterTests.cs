@@ -1348,9 +1348,9 @@ public class CliCommandRouterTests
         Assert.Equal(2, imageSearchOptions.Downsample);
         Assert.Equal(600, imageSearchOptions.TimeoutMs);
         Assert.True(imageSearchOptions.JsonOutput);
-        Assert.Equal(ScreenImageMatchSelectionMode.FirstThresholdMatch, imageSearchOptions.MatchMode);
+        Assert.Equal(ScreenImageMatchMode.First, imageSearchOptions.MatchMode);
         Assert.True(bestImageSearch.IsSuccess);
-        Assert.Equal(ScreenImageMatchSelectionMode.BestMatch, Assert.IsType<ScreenCliOptions>(bestImageSearch.Options).MatchMode);
+        Assert.Equal(ScreenImageMatchMode.Best, Assert.IsType<ScreenCliOptions>(bestImageSearch.Options).MatchMode);
         Assert.True(waitImage.IsSuccess);
         var waitImageOptions = Assert.IsType<ScreenCliOptions>(waitImage.Options);
         Assert.Equal(ScreenCliAction.WaitImage, waitImageOptions.Action);

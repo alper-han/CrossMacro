@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using CrossMacro.Application.Automation;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.UI.Services;
@@ -336,6 +337,26 @@ public class ScheduleViewModelTests
         // Assert
         _schedulerService.Received(1).SetTaskEnabled(task.Id, true);
         await _schedulerService.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public async Task TaskEnabledChangedCommand_WhenManaged_PersistsTheToggledTask()
+    {
+        var task = new ScheduledTask { IsEnabled = true };
+        _schedulerService.Tasks.Add(task);
+        var manager = Substitute.For<IManageSchedule>();
+        var timeProvider = Substitute.For<ITimeProvider>();
+        var viewModel = new ScheduleViewModel(manager, _schedulerService, _dialogService, timeProvider, _localizationService)
+        {
+            SelectedTask = task
+        };
+
+        await viewModel.TaskEnabledChangedCommand.ExecuteAsync(task);
+
+        await manager.Received(1).SetEnabledAsync(Arg.Is<TaskRequest>(request =>
+            request.Id == task.Id && request.Enabled == task.IsEnabled));
+        _schedulerService.DidNotReceive().SetTaskEnabled(Arg.Any<Guid>(), Arg.Any<bool>());
+        await _schedulerService.DidNotReceive().SaveAsync();
     }
 
     [Fact]

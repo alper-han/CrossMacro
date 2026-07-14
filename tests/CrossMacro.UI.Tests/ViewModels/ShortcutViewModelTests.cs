@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using CrossMacro.Application.Automation;
 using CrossMacro.Core.Models;
 using CrossMacro.Core.Services;
 using CrossMacro.UI.Services;
@@ -234,6 +235,26 @@ public class ShortcutViewModelTests
         // Assert
         _shortcutService.Received(1).SetTaskEnabled(task.Id, true);
         await _shortcutService.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public async Task TaskEnabledChangedCommand_WhenManaged_PersistsTheToggledTask()
+    {
+        var task = new ShortcutTask { IsEnabled = true };
+        _shortcutService.Tasks.Add(task);
+        var manager = Substitute.For<IManageShortcut>();
+        var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService)
+        {
+            SelectedTask = task
+        };
+        await viewModel.InitializationTask;
+
+        await viewModel.TaskEnabledChangedCommand.ExecuteAsync(task);
+
+        await manager.Received(1).SetEnabledAsync(Arg.Is<TaskRequest>(request =>
+            request.Id == task.Id && request.Enabled == task.IsEnabled));
+        _shortcutService.DidNotReceive().SetTaskEnabled(Arg.Any<Guid>(), Arg.Any<bool>());
+        await _shortcutService.DidNotReceive().SaveAsync();
     }
 
     [Fact]

@@ -10,6 +10,7 @@ using CrossMacro.Cli.DependencyInjection;
 using CrossMacro.Infrastructure.Logging;
 using CrossMacro.Platform.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CrossMacro.Cli.Tests;
 
@@ -30,7 +31,17 @@ public class CliHostTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var host = new CliHost(new MinimalPlatformServiceRegistrar());
+            var registrar = new MinimalPlatformServiceRegistrar();
+            var host = new CliHost(
+                ConfigureNoOpCliServices(registrar),
+                (services, profile) => services.AddCrossMacroCliRuntimeServices(registrar, profile),
+                static options =>
+                {
+                    if (options.JsonOutput)
+                    {
+                        LoggerSetup.Initialize("Fatal", enableFileLogging: false, enableConsoleLogging: false);
+                    }
+                });
             var exitCode = await host.RunAsync(new SettingsGetCliOptions(JsonOutput: true));
 
             Assert.True(exitCode == (int)CliExitCode.Success, $"Unexpected exit code: {exitCode}\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}");
@@ -59,7 +70,17 @@ public class CliHostTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var host = new CliHost(new SettingsOnlyPlatformServiceRegistrar());
+            var registrar = new SettingsOnlyPlatformServiceRegistrar();
+            var host = new CliHost(
+                ConfigureNoOpCliServices(registrar),
+                (services, profile) => services.AddCrossMacroCliRuntimeServices(registrar, profile),
+                static options =>
+                {
+                    if (options.JsonOutput)
+                    {
+                        LoggerSetup.Initialize("Fatal", enableFileLogging: false, enableConsoleLogging: false);
+                    }
+                });
             var exitCode = await host.RunAsync(new SettingsGetCliOptions(JsonOutput: true));
 
             Assert.True(exitCode == (int)CliExitCode.Success, $"Unexpected exit code: {exitCode}\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}");
@@ -88,7 +109,17 @@ public class CliHostTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var host = new CliHost(new SettingsOnlyPlatformServiceRegistrar());
+            var registrar = new SettingsOnlyPlatformServiceRegistrar();
+            var host = new CliHost(
+                ConfigureNoOpCliServices(registrar),
+                (services, profile) => services.AddCrossMacroCliRuntimeServices(registrar, profile),
+                static options =>
+                {
+                    if (options.JsonOutput)
+                    {
+                        LoggerSetup.Initialize("Fatal", enableFileLogging: false, enableConsoleLogging: false);
+                    }
+                });
             var exitCode = await host.RunAsync(new SettingsGetCliOptions(JsonOutput: true));
 
             Assert.True(exitCode == (int)CliExitCode.Success, $"Unexpected exit code: {exitCode}\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}");
@@ -126,6 +157,17 @@ public class CliHostTests
         }
     }
 
+    private static Action<IServiceCollection> ConfigureNoOpCliServices(IPlatformServiceRegistrar registrar)
+    {
+        return services =>
+        {
+            registrar.RegisterPlatformServices(services);
+            services.TryAddSingleton<IKeyboardLayoutService, TestKeyboardLayoutService>();
+            services.AddSingleton<IClipboardService, CrossMacro.Cli.Services.NoOpClipboardService>();
+            services.AddSingleton<IImageClipboardService, CrossMacro.Cli.Services.NoOpImageClipboardService>();
+        };
+    }
+
     [Fact]
     public async Task RunAsync_WhenRuntimeExceptionOccurs_ReturnsRuntimeErrorAsJson()
     {
@@ -141,7 +183,10 @@ public class CliHostTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var host = new CliHost(new ThrowingPlatformServiceRegistrar());
+            var registrar = new ThrowingPlatformServiceRegistrar();
+            var host = new CliHost(
+                services => registrar.RegisterPlatformServices(services),
+                (services, profile) => services.AddCrossMacroCliRuntimeServices(registrar, profile));
             var exitCode = await host.RunAsync(new DoctorCliOptions(JsonOutput: true));
 
             Assert.Equal((int)CliExitCode.RuntimeError, exitCode);
@@ -171,7 +216,10 @@ public class CliHostTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var host = new CliHost(new CancelledPlatformServiceRegistrar());
+            var registrar = new CancelledPlatformServiceRegistrar();
+            var host = new CliHost(
+                services => registrar.RegisterPlatformServices(services),
+                (services, profile) => services.AddCrossMacroCliRuntimeServices(registrar, profile));
             var exitCode = await host.RunAsync(new DoctorCliOptions(JsonOutput: true));
 
             Assert.Equal((int)CliExitCode.Cancelled, exitCode);
@@ -201,7 +249,6 @@ public class CliHostTests
 
     private sealed class ThrowingPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
-        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
 
         public void RegisterPlatformServices(IServiceCollection services)
         {
@@ -211,7 +258,6 @@ public class CliHostTests
 
     private sealed class SettingsOnlyPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
-        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
 
         public void RegisterPlatformServices(IServiceCollection services)
         {
@@ -221,7 +267,6 @@ public class CliHostTests
 
     private sealed class CancelledPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
-        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
 
         public void RegisterPlatformServices(IServiceCollection services)
         {
@@ -231,7 +276,6 @@ public class CliHostTests
 
     private sealed class MinimalPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
-        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
 
         public void RegisterPlatformServices(IServiceCollection services)
         {

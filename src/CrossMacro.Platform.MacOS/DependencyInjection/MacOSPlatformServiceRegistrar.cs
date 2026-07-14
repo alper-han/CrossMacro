@@ -1,7 +1,6 @@
 using System;
 using System.Runtime.Versioning;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.MacOS.Services;
 using CrossMacro.Platform.MacOS.Services.ScreenReading;
@@ -13,14 +12,12 @@ namespace CrossMacro.Platform.MacOS.DependencyInjection;
 [SupportedOSPlatform("macos")]
 public sealed class MacOSPlatformServiceRegistrar : IPlatformServiceRegistrar
 {
-    public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.MacOS;
-
     public void RegisterPlatformServices(IServiceCollection services)
     {
         services.AddSingleton<IKeyboardLayoutService, MacKeyboardLayoutService>();
         services.AddSingleton<IEnvironmentInfoProvider, MacOSEnvironmentInfoProvider>();
         services.AddSingleton<IPlaybackBehaviorPolicy>(
-            _ => new PlaybackBehaviorPolicy(useHybridAbsoluteDragMovement: false));
+            _ => new MacOSPlaybackBehaviorPolicy());
         services.AddSingleton<IMousePositionProvider, MacOSMousePositionProvider>();
         services.AddSingleton<IScreenFrameProvider, MacOSScreenFrameProvider>();
         services.AddSingleton<IMacOSScreenRecordingPermissionProbe, CoreGraphicsScreenRecordingPermissionProbe>();

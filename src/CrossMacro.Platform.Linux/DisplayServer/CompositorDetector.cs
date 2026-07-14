@@ -14,7 +14,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer
         /// </summary>
         private static readonly Lazy<CompositorType> _current = new(() =>
             ClassifyFromEnvironment(
-                new LinuxEnvironmentVariables().CaptureSnapshot(),
+                LinuxEnvironmentVariables.CaptureCurrentSnapshot(),
                 OperatingSystem.IsLinux()));
 
         /// <summary>

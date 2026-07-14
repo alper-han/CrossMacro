@@ -1,6 +1,7 @@
 namespace CrossMacro.Platform.Linux.Tests.DependencyInjection;
 
 using System.Linq;
+using System.Runtime.InteropServices;
 using CrossMacro.Core.Services;
 using CrossMacro.Infrastructure.Services;
 using CrossMacro.Packaging.Abstractions;
@@ -26,18 +27,16 @@ public class LinuxPlatformServiceRegistrarTests
 
         var registrar = new LinuxPlatformServiceRegistrar();
 
-        Assert.Equal(PlatformClipboardRegistration.Linux, registrar.ClipboardRegistration);
-
         registrar.RegisterPlatformServices(services);
 
-        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxEnvironmentDetector) && d.ImplementationType == typeof(LinuxEnvironmentDetector));
-        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxEnvironmentVariables) && d.ImplementationType == typeof(LinuxEnvironmentVariables));
+        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxEnvironmentDetector) && d.ImplementationFactory != null);
+        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxEnvironmentVariables) && d.ImplementationFactory == null && d.ImplementationInstance is LinuxEnvironmentVariables);
         Assert.Contains(services, d => d.ServiceType == typeof(ILinuxInputCapabilityDetector) && d.ImplementationType == typeof(LinuxInputCapabilityDetector));
         Assert.Contains(services, d => d.ServiceType == typeof(IPlatformStartupNotificationProvider) && d.ImplementationType == typeof(GsrCompatibilityService));
         Assert.Contains(services, d => d.ServiceType == typeof(ILinuxDaemonSocketAccessProbe) && d.ImplementationType == typeof(LinuxDaemonSocketAccessProbe));
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(LinuxInputProbeUtilities));
-        Assert.Contains(services, d => d.ServiceType == typeof(IEnvironmentInfoProvider) && d.ImplementationType == typeof(LinuxEnvironmentInfoProvider));
-        Assert.Contains(services, d => d.ServiceType == typeof(IDisplaySessionService) && d.ImplementationType == typeof(LinuxDisplaySessionService));
+        Assert.Contains(services, d => d.ServiceType == typeof(IEnvironmentInfoProvider) && d.ImplementationFactory != null);
+        Assert.Contains(services, d => d.ServiceType == typeof(IDisplaySessionService) && d.ImplementationFactory != null);
         Assert.Contains(services, d => d.ServiceType == typeof(IPermissionChecker) && d.ImplementationType == typeof(LinuxPermissionChecker));
         Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategyFactory) && d.ImplementationType == typeof(LinuxCoordinateStrategyFactory));
         Assert.Contains(services, d => d.ServiceType == typeof(IPlaybackBehaviorPolicy));
@@ -52,9 +51,36 @@ public class LinuxPlatformServiceRegistrarTests
         Assert.Contains(services, d => d.ServiceType == typeof(IPortalScreenCastSessionFactory) && d.ImplementationFactory != null);
         Assert.Contains(services, d => d.ServiceType == typeof(IX11ScreenCaptureSupportProbe) && d.ImplementationFactory != null);
         Assert.Contains(services, d => d.ServiceType == typeof(IX11ScreenCapture) && d.ImplementationType == typeof(X11ScreenCapture));
-        Assert.Contains(services, d => d.ServiceType == typeof(InputSimulatorPool));
+         Assert.Single(services, d => d.ServiceType == typeof(IInputSimulatorPool));
         Assert.Contains(services, d => d.ServiceType == typeof(Func<IInputSimulator>));
         Assert.Contains(services, d => d.ServiceType == typeof(Func<IInputCapture>));
+    }
+
+    [Fact]
+    public void RegisterPlatformServices_BindsTheProvidedEnvironmentSnapshot()
+    {
+        var environment = new LinuxEnvironmentSnapshot(
+            FlatpakId: "com.example.CrossMacro",
+            AppImage: null,
+            UseDaemon: "1",
+            SessionType: "wayland",
+            WaylandDisplay: "wayland-test",
+            Display: null,
+            CurrentDesktop: "GNOME",
+            GdmSession: "gnome",
+            HyprlandInstanceSignature: null,
+            RuntimeDir: "/run/user/1000",
+            WayfireSocket: null,
+            SwaySocket: null,
+            WindowButtons: "hide");
+        var services = new ServiceCollection();
+
+        new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services, environment);
+
+        using var provider = services.BuildServiceProvider();
+        var variables = provider.GetRequiredService<ILinuxEnvironmentVariables>();
+
+        Assert.Equal(environment, variables.CaptureSnapshot());
     }
 
     [Fact]
@@ -123,6 +149,19 @@ public class LinuxPlatformServiceRegistrarTests
         var services = new ServiceCollection();
         new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services);
 
+        var probe = Assert.Single(services, d => d.ServiceType == typeof(IKWinScreenShotSupportProbe));
+        var capture = Assert.Single(services, d => d.ServiceType == typeof(IKWinScreenShotCapture));
+
+        Assert.NotNull(probe.ImplementationFactory);
+        Assert.NotNull(capture.ImplementationFactory);
+    }
+
+    [KWinScreenShotRuntimeFact]
+    public void RegisterPlatformServices_KWinScreenShot2CaptureResolvesOnNativeHost()
+    {
+        var services = new ServiceCollection();
+        new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services);
+
         using var provider = services.BuildServiceProvider();
         var probe = provider.GetRequiredService<IKWinScreenShotSupportProbe>();
         var capture = provider.GetRequiredService<IKWinScreenShotCapture>();
@@ -145,5 +184,27 @@ public class LinuxPlatformServiceRegistrarTests
         Assert.IsType<X11ScreenCaptureSupportProbe>(probe);
         Assert.IsType<X11ScreenCapture>(capture);
         Assert.NotSame(probe, capture);
+    }
+}
+
+public sealed class KWinScreenShotRuntimeFactAttribute : FactAttribute
+{
+    public KWinScreenShotRuntimeFactAttribute()
+    {
+        if (!OperatingSystem.IsLinux() || !HasLibX11())
+        {
+            Skip = "Requires Linux with libX11.so.6 for native KWin registrar runtime resolution.";
+        }
+    }
+
+    private static bool HasLibX11()
+    {
+        if (!NativeLibrary.TryLoad("libX11.so.6", out var handle))
+        {
+            return false;
+        }
+
+        NativeLibrary.Free(handle);
+        return true;
     }
 }

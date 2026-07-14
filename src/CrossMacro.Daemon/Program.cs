@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using CrossMacro.Daemon.Services;
-using CrossMacro.Infrastructure.Linux.Native.Systemd;
+using CrossMacro.Platform.Linux.Native.Systemd;
 using CrossMacro.Infrastructure.Logging;
 using Serilog;
 using Serilog.Events;
@@ -49,11 +50,15 @@ class Program
 
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
 
+        SecurityService? security = null;
+        VirtualDeviceManager? virtualDevice = null;
+        InputCaptureManager? inputCapture = null;
+
         try
         {
-            ISecurityService security = new SecurityService();
-            IVirtualDeviceManager virtualDevice = new VirtualDeviceManager();
-            IInputCaptureManager inputCapture = new InputCaptureManager();
+            security = new SecurityService();
+            virtualDevice = new VirtualDeviceManager();
+            inputCapture = new InputCaptureManager();
             ISessionHandlerFactory sessionHandlerFactory = new SessionHandlerFactory(security, virtualDevice, inputCapture);
             ILinuxPermissionService permissionService = new LinuxPermissionService();
             IDaemonSocketPathResolver socketPathResolver = new DaemonSocketPathResolver();
@@ -64,6 +69,7 @@ class Program
                 sessionHandlerFactory);
 
             await service.RunAsync(cts.Token);
+
         }
         catch (OperationCanceledException)
         {
@@ -75,9 +81,38 @@ class Program
         }
         finally
         {
+            DisposeOwnedResources(inputCapture, virtualDevice, security);
             AppDomain.CurrentDomain.ProcessExit -= OnProcessExit;
             SystemdNotify.Stopping();
             Log.CloseAndFlush();
+        }
+    }
+
+    internal static void DisposeOwnedResources(
+        IDisposable? inputCapture,
+        IDisposable? virtualDevice,
+        IDisposable? security)
+    {
+        var errors = new List<Exception>();
+        if (inputCapture != null) TryDispose(inputCapture, errors);
+        if (virtualDevice != null) TryDispose(virtualDevice, errors);
+        if (security != null) TryDispose(security, errors);
+
+        if (errors.Count > 0)
+        {
+            Log.Error(new AggregateException("Daemon resource cleanup failed.", errors), "Daemon shutdown cleanup failed");
+        }
+    }
+
+    private static void TryDispose(IDisposable resource, ICollection<Exception> errors)
+    {
+        try
+        {
+            resource.Dispose();
+        }
+        catch (Exception ex)
+        {
+            errors.Add(ex);
         }
     }
 

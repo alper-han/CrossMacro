@@ -179,6 +179,10 @@ internal sealed class ScreenReadingSelectorFixture
             SnapshotCalls++;
             return _snapshot;
         }
+
+        public void InvalidateCache()
+        {
+        }
     }
 
     private sealed class NamedScreenFrameProvider : IScreenFrameProvider

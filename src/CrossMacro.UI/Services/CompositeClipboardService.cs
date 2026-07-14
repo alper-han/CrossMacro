@@ -3,34 +3,24 @@ using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Logging;
 using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
 using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.UI.Services;
 
 public class CompositeClipboardService : IClipboardService
 {
-    private readonly FlatpakHostClipboardService _flatpakHostService;
-    private readonly LinuxShellClipboardService _linuxService;
-    private readonly IClipboardService _avaloniaService;
+    private readonly IHostClipboardService _flatpakHostService;
+    private readonly ILinuxClipboardService _linuxService;
+    private readonly AvaloniaClipboardService _avaloniaService;
     private readonly IRuntimeContext _runtimeContext;
     private bool _linuxInitialized;
     private bool _flatpakHostInitialized;
     private bool _preferAvaloniaOnNativeX11;
 
     public CompositeClipboardService(
-        FlatpakHostClipboardService flatpakHostService,
-        LinuxShellClipboardService linuxService,
+        IHostClipboardService flatpakHostService,
+        ILinuxClipboardService linuxService,
         AvaloniaClipboardService avaloniaService,
-        IRuntimeContext runtimeContext)
-        : this(flatpakHostService, linuxService, (IClipboardService)avaloniaService, runtimeContext)
-    {
-    }
-
-    internal CompositeClipboardService(
-        FlatpakHostClipboardService flatpakHostService,
-        LinuxShellClipboardService linuxService,
-        IClipboardService avaloniaService,
         IRuntimeContext runtimeContext)
     {
         _flatpakHostService = flatpakHostService;

@@ -10,6 +10,7 @@ public sealed class LinuxScreenFrameProviderFactory
     private readonly ILinuxEnvironmentDetector _environmentDetector;
     private readonly IRuntimeContext _runtimeContext;
     private readonly ILinuxScreenReaderCapabilityDetector _capabilityDetector;
+    private readonly ILinuxCapabilitySnapshotProvider? _snapshotProvider;
     private readonly Func<ExtImageCopySupportResult, IScreenFrameProvider> _extFactory;
     private readonly Func<WlrScreencopySupportResult, IScreenFrameProvider> _wlrFactory;
     private readonly Func<PortalScreenCastSupportResult, IScreenFrameProvider> _portalFactory;
@@ -18,7 +19,7 @@ public sealed class LinuxScreenFrameProviderFactory
     private readonly IX11ScreenCaptureSupportProbe _x11SupportProbe;
     private readonly Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> _x11Factory;
 
-    public LinuxScreenFrameProviderFactory(
+    internal LinuxScreenFrameProviderFactory(
         ILinuxEnvironmentDetector environmentDetector,
         IRuntimeContext runtimeContext,
         ILinuxScreenReaderCapabilityDetector capabilityDetector,
@@ -29,10 +30,44 @@ public sealed class LinuxScreenFrameProviderFactory
         Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory,
         IX11ScreenCaptureSupportProbe x11SupportProbe,
         Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> x11Factory)
+        : this(environmentDetector, runtimeContext, capabilityDetector, null, extFactory, wlrFactory, portalFactory, kWinFactory, gnomeFactory, x11SupportProbe, x11Factory, true)
+    {
+    }
+
+    internal LinuxScreenFrameProviderFactory(
+        ILinuxEnvironmentDetector environmentDetector,
+        IRuntimeContext runtimeContext,
+        ILinuxScreenReaderCapabilityDetector capabilityDetector,
+        ILinuxCapabilitySnapshotProvider snapshotProvider,
+        Func<ExtImageCopySupportResult, IScreenFrameProvider> extFactory,
+        Func<WlrScreencopySupportResult, IScreenFrameProvider> wlrFactory,
+        Func<PortalScreenCastSupportResult, IScreenFrameProvider> portalFactory,
+        Func<KWinScreenShotSupportResult, IScreenFrameProvider> kWinFactory,
+        Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory,
+        IX11ScreenCaptureSupportProbe x11SupportProbe,
+        Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> x11Factory)
+        : this(environmentDetector, runtimeContext, capabilityDetector, snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider)), extFactory, wlrFactory, portalFactory, kWinFactory, gnomeFactory, x11SupportProbe, x11Factory, true)
+    {
+    }
+
+    private LinuxScreenFrameProviderFactory(
+        ILinuxEnvironmentDetector environmentDetector,
+        IRuntimeContext runtimeContext,
+        ILinuxScreenReaderCapabilityDetector capabilityDetector,
+        ILinuxCapabilitySnapshotProvider? snapshotProvider,
+        Func<ExtImageCopySupportResult, IScreenFrameProvider> extFactory,
+        Func<WlrScreencopySupportResult, IScreenFrameProvider> wlrFactory,
+        Func<PortalScreenCastSupportResult, IScreenFrameProvider> portalFactory,
+        Func<KWinScreenShotSupportResult, IScreenFrameProvider> kWinFactory,
+        Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory,
+        IX11ScreenCaptureSupportProbe x11SupportProbe,
+        Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> x11Factory,
+        bool _)
     {
         _environmentDetector = environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector));
         _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
         _capabilityDetector = capabilityDetector ?? throw new ArgumentNullException(nameof(capabilityDetector));
+        _snapshotProvider = snapshotProvider;
         _extFactory = extFactory ?? throw new ArgumentNullException(nameof(extFactory));
         _wlrFactory = wlrFactory ?? throw new ArgumentNullException(nameof(wlrFactory));
         _portalFactory = portalFactory ?? throw new ArgumentNullException(nameof(portalFactory));
@@ -42,7 +77,7 @@ public sealed class LinuxScreenFrameProviderFactory
         _x11Factory = x11Factory ?? throw new ArgumentNullException(nameof(x11Factory));
     }
 
-    public LinuxScreenFrameProviderFactory(
+    internal LinuxScreenFrameProviderFactory(
         ILinuxEnvironmentDetector environmentDetector,
         IRuntimeContext runtimeContext,
         ILinuxScreenReaderCapabilityDetector capabilityDetector,
@@ -68,12 +103,14 @@ public sealed class LinuxScreenFrameProviderFactory
 
     public IScreenFrameProvider Create()
     {
-        if (_environmentDetector.IsWayland)
+        var capabilitySnapshot = _snapshotProvider?.GetSnapshot();
+        var compositor = capabilitySnapshot?.Compositor ?? _environmentDetector.DetectedCompositor;
+        if (capabilitySnapshot?.IsWayland == true || capabilitySnapshot is null && _environmentDetector.IsWayland)
         {
-            return CreateWaylandProvider();
+            return CreateWaylandProvider(capabilitySnapshot);
         }
 
-        if (_environmentDetector.IsX11)
+        if (capabilitySnapshot?.IsX11 == true || capabilitySnapshot is null && _environmentDetector.IsX11)
         {
             return _x11Factory(_x11SupportProbe.ProbeSupport());
         }
@@ -83,10 +120,12 @@ public sealed class LinuxScreenFrameProviderFactory
             $"Linux screen reading is currently supported on Wayland and native X11. Detected compositor: {_environmentDetector.DetectedCompositor}.");
     }
 
-    private IScreenFrameProvider CreateWaylandProvider()
+    private IScreenFrameProvider CreateWaylandProvider(LinuxCapabilitySnapshot? centralizedSnapshot = null)
     {
-        var snapshot = _capabilityDetector.GetSnapshot();
-        var order = LinuxScreenReaderBackendPolicy.GetOrder(_runtimeContext.IsFlatpak, _environmentDetector.DetectedCompositor);
+        var snapshot = centralizedSnapshot?.ScreenReading ?? _capabilityDetector.GetSnapshot();
+        var isFlatpak = centralizedSnapshot?.IsFlatpak ?? _runtimeContext.IsFlatpak;
+        var compositor = centralizedSnapshot?.Compositor ?? _environmentDetector.DetectedCompositor;
+        var order = LinuxScreenReaderBackendPolicy.GetOrder(isFlatpak, compositor);
         var lastUnavailable = default(LinuxScreenReaderBackendCapability?);
         var permissionDenied = default(LinuxScreenReaderBackendCapability?);
 

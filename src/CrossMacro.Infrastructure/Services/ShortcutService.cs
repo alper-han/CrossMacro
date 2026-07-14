@@ -456,14 +456,7 @@ public class ShortcutService : IShortcutService
                     }
                 }
 
-                if (_syncContext != null)
-                {
-                    _syncContext.Post(UpdateCollection, null);
-                }
-                else
-                {
-                    UpdateCollection(null);
-                }
+                await ExecuteOnCapturedContextAsync(UpdateCollection).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
@@ -490,16 +483,33 @@ public class ShortcutService : IShortcutService
             }
         }
 
-        if (_syncContext != null)
-        {
-            _syncContext.Post(ClearCollection, null);
-        }
-        else
-        {
-            ClearCollection(null);
-        }
+        await ExecuteOnCapturedContextAsync(ClearCollection).ConfigureAwait(false);
 
         await LoadAsync().ConfigureAwait(false);
+    }
+
+    private async Task ExecuteOnCapturedContextAsync(SendOrPostCallback callback)
+    {
+        if (_syncContext == null || SynchronizationContext.Current == _syncContext)
+        {
+            callback(null);
+            return;
+        }
+
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _syncContext.Post(_ =>
+        {
+            try
+            {
+                callback(null);
+                completion.TrySetResult();
+            }
+            catch (Exception ex)
+            {
+                completion.TrySetException(ex);
+            }
+        }, null);
+        await completion.Task.ConfigureAwait(false);
     }
     
     public void Dispose()

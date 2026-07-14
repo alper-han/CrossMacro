@@ -1,6 +1,7 @@
 using System.Numerics;
 using CrossMacro.Platform.Abstractions;
 using CrossMacro.Platform.Linux.Native.X11;
+using CrossMacro.Platform.Linux.Services;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.X11;
 
@@ -232,6 +233,11 @@ public sealed class X11ScreenCaptureSupportProbe : IX11ScreenCaptureSupportProbe
     {
         _native = native ?? throw new ArgumentNullException(nameof(native));
         _getEnvironmentVariable = getEnvironmentVariable ?? throw new ArgumentNullException(nameof(getEnvironmentVariable));
+    }
+
+    internal X11ScreenCaptureSupportProbe(IX11NativeApi native, LinuxEnvironmentSnapshot environment)
+        : this(native, name => name == DisplayEnvironmentVariable ? environment.Display : null)
+    {
     }
 
     public X11ScreenCaptureSupportResult ProbeSupport()

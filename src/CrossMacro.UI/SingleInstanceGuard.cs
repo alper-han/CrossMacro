@@ -1,4 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Runtime.Versioning;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 
 namespace CrossMacro.UI;
@@ -7,9 +12,14 @@ internal sealed class SingleInstanceGuard : IDisposable
 {
     private const string GlobalPrefix = @"Global\";
     private const string LocalPrefix = @"Local\";
+    private static readonly Lock UnixLockGate = new();
+    private static readonly HashSet<string> HeldUnixLockPaths = [];
 
-    private readonly Mutex _mutex;
+    private readonly Mutex? _mutex;
+    private readonly FileStream? _lockFile;
+    private readonly string? _unixLockPath;
     private bool _hasHandle;
+    private int _disposed;
 
     private SingleInstanceGuard(Mutex mutex, bool hasHandle)
     {
@@ -17,9 +27,21 @@ internal sealed class SingleInstanceGuard : IDisposable
         _hasHandle = hasHandle;
     }
 
+    private SingleInstanceGuard(FileStream lockFile, string unixLockPath)
+    {
+        _lockFile = lockFile;
+        _unixLockPath = unixLockPath;
+        _hasHandle = true;
+    }
+
     public static SingleInstanceGuard? TryAcquire(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        if (OperatingSystem.IsLinux())
+        {
+            return TryAcquireUnixFileLock(name);
+        }
 
         var preferredName = GetPreferredMutexName(name);
 
@@ -47,6 +69,55 @@ internal sealed class SingleInstanceGuard : IDisposable
         }
 
         return null;
+    }
+
+    [SupportedOSPlatform("linux")]
+    private static SingleInstanceGuard? TryAcquireUnixFileLock(string name)
+    {
+        var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrWhiteSpace(homeDirectory))
+        {
+            return null;
+        }
+
+        var lockDirectory = Path.Combine(homeDirectory, ".cache", "crossmacro");
+        var lockName = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(name)));
+        var lockPath = Path.Combine(lockDirectory, $"{lockName}.lock");
+
+        lock (UnixLockGate)
+        {
+            if (!HeldUnixLockPaths.Add(lockPath))
+            {
+                return null;
+            }
+
+            try
+            {
+                Directory.CreateDirectory(lockDirectory);
+                var lockFile = new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite);
+                try
+                {
+                    lockFile.Lock(0, 1);
+                    return new SingleInstanceGuard(lockFile, lockPath);
+                }
+                catch (IOException)
+                {
+                    lockFile.Dispose();
+                    HeldUnixLockPaths.Remove(lockPath);
+                    return null;
+                }
+            }
+            catch (IOException)
+            {
+                HeldUnixLockPaths.Remove(lockPath);
+                return null;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                HeldUnixLockPaths.Remove(lockPath);
+                return null;
+            }
+        }
     }
 
     private static string GetPreferredMutexName(string name)
@@ -110,11 +181,16 @@ internal sealed class SingleInstanceGuard : IDisposable
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return;
+        }
+
         if (_hasHandle)
         {
             try
             {
-                _mutex.ReleaseMutex();
+                _mutex?.ReleaseMutex();
             }
             catch (ApplicationException)
             {
@@ -126,6 +202,37 @@ internal sealed class SingleInstanceGuard : IDisposable
             }
         }
 
-        _mutex.Dispose();
+        if (_lockFile is not null)
+        {
+            if (OperatingSystem.IsLinux())
+            {
+                UnlockUnixFile(_lockFile);
+            }
+
+            _lockFile.Dispose();
+
+            if (_unixLockPath is not null)
+            {
+                lock (UnixLockGate)
+                {
+                    HeldUnixLockPaths.Remove(_unixLockPath);
+                }
+            }
+        }
+
+        _mutex?.Dispose();
+    }
+
+    [SupportedOSPlatform("linux")]
+    private static void UnlockUnixFile(FileStream lockFile)
+    {
+        try
+        {
+            lockFile.Unlock(0, 1);
+        }
+        catch (IOException)
+        {
+            // The operating system already released the lock.
+        }
     }
 }

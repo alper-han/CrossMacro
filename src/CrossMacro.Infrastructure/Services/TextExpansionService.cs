@@ -129,18 +129,18 @@ public class TextExpansionService : ITextExpansionService
     {
         Log.Error("[TextExpansionService] Capture error: {Error}", error);
 
-        var shouldStop = false;
         lock (_lock)
         {
-            if (sender is IInputCapture capture)
+            if (sender is not IInputCapture capture ||
+                !_isRunning ||
+                !_captureLifecycle.IsCurrent(capture))
             {
-                shouldStop = _isRunning && _captureLifecycle.IsCurrent(capture);
+                return;
             }
-        }
 
-        if (shouldStop)
-        {
-            Stop();
+            CleanupCapture_NoLock();
+            _isRunning = false;
+            Log.Information("[TextExpansionService] Stopped");
         }
     }
 
@@ -157,17 +157,17 @@ public class TextExpansionService : ITextExpansionService
 
     private void OnCaptureFaulted(IInputCapture capture, Exception ex)
     {
-        bool shouldStop;
-        lock (_lock)
-        {
-            shouldStop = _isRunning && _captureLifecycle.IsCurrent(capture);
-        }
-
         Log.Error(ex, "[TextExpansionService] Capture startup failed");
 
-        if (shouldStop)
+        lock (_lock)
         {
-            Stop();
+            if (!_isRunning || !_captureLifecycle.IsCurrent(capture))
+            {
+                return;
+            }
+
+            CleanupCapture_NoLock();
+            _isRunning = false;
         }
     }
 

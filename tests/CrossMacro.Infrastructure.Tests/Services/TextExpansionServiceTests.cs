@@ -221,6 +221,57 @@ public class TextExpansionServiceTests
     }
 
     [Fact]
+    public void ModifierReleasePollInterval_UsesDirectTypingInterval()
+    {
+        Assert.Equal(
+            TextExpansionExecutionTimings.DirectTypingInterElementDelay,
+            TextExpansionExecutionTimings.ModifierReleasePollInterval);
+    }
+
+    [Fact]
+    public async Task Expansion_WhenModifierIsStillPressed_WaitsForReleaseBeforeExecuting()
+    {
+        _service.Start();
+
+        var expansion = new TextExpansion { Trigger = ":test", Replacement = "done" };
+        _storageService.GetCurrent().Returns(new List<TextExpansion> { expansion });
+        _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansion>>(), out Arg.Any<TextExpansion?>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = expansion;
+                return true;
+            });
+
+        var expansionStarted = new AsyncSignal();
+        _executor.ExpandAsync(Arg.Any<TextExpansion>())
+            .Returns(_ =>
+            {
+                expansionStarted.Signal();
+                return Task.CompletedTask;
+            });
+        var modifierReleaseWaitObserved = new AsyncSignal();
+        var modifierPressed = true;
+        _inputProcessor.AreModifiersPressed.Returns(_ =>
+        {
+            modifierReleaseWaitObserved.Signal();
+            return modifierPressed;
+        });
+
+        _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(
+            this,
+            new InputCaptureEventArgs { Type = InputEventType.Key, Code = 20, Value = 1 });
+        _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('t');
+
+        await modifierReleaseWaitObserved.WaitAsync(TestTimeout);
+        await _executor.DidNotReceive().ExpandAsync(Arg.Any<TextExpansion>());
+
+        modifierPressed = false;
+
+        await expansionStarted.WaitAsync(TestTimeout);
+        await _executor.Received(1).ExpandAsync(expansion);
+    }
+
+    [Fact]
     public async Task Start_WhenCaptureStartFaultsAsynchronously_StopsService()
     {
         var startTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

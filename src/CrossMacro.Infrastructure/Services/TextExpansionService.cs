@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Logging;
@@ -238,12 +239,17 @@ public class TextExpansionService : ITextExpansionService
         try
         {
             // Wait for Modifiers to be released (Safety)
-            var elapsed = TimeSpan.Zero;
-            while (_inputProcessor.AreModifiersPressed &&
-                   elapsed < TextExpansionExecutionTimings.ModifierReleaseTimeout)
+            var modifierWaitStartedAt = Stopwatch.GetTimestamp();
+            while (_inputProcessor.AreModifiersPressed)
             {
-                await Task.Delay(TextExpansionExecutionTimings.ModifierReleasePollInterval);
-                elapsed += TextExpansionExecutionTimings.ModifierReleasePollInterval;
+                var remaining = TextExpansionExecutionTimings.ModifierReleaseTimeout -
+                    Stopwatch.GetElapsedTime(modifierWaitStartedAt);
+                if (remaining <= TimeSpan.Zero)
+                {
+                    break;
+                }
+
+                await Task.Delay(GetPollDelay(remaining, TextExpansionExecutionTimings.ModifierReleasePollInterval));
             }
 
             await WaitForTriggerKeyReleaseAsync(triggerLastKeyCode).ConfigureAwait(false);
@@ -280,12 +286,17 @@ public class TextExpansionService : ITextExpansionService
             return;
         }
 
-        var elapsed = TimeSpan.Zero;
-        while (_inputProcessor.IsKeyPressed(keyCode) &&
-               elapsed < TextExpansionExecutionTimings.TriggerKeyReleaseWaitTimeout)
+        var triggerReleaseWaitStartedAt = Stopwatch.GetTimestamp();
+        while (_inputProcessor.IsKeyPressed(keyCode))
         {
-            await Task.Delay(TextExpansionExecutionTimings.DirectTypingInterElementDelay).ConfigureAwait(false);
-            elapsed += TextExpansionExecutionTimings.DirectTypingInterElementDelay;
+            var remaining = TextExpansionExecutionTimings.TriggerKeyReleaseWaitTimeout -
+                Stopwatch.GetElapsedTime(triggerReleaseWaitStartedAt);
+            if (remaining <= TimeSpan.Zero)
+            {
+                break;
+            }
+
+            await Task.Delay(GetPollDelay(remaining, TextExpansionExecutionTimings.DirectTypingInterElementDelay)).ConfigureAwait(false);
         }
 
         if (_inputProcessor.IsKeyPressed(keyCode))
@@ -307,5 +318,10 @@ public class TextExpansionService : ITextExpansionService
         {
             Log.Error(ex, "[TextExpansionService] Expansion failed");
         }
+    }
+
+    private static TimeSpan GetPollDelay(TimeSpan remaining, TimeSpan pollInterval)
+    {
+        return remaining < pollInterval ? remaining : pollInterval;
     }
 }

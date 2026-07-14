@@ -147,18 +147,25 @@ public class ProcessRunner : IProcessRunner
 
             if (exited)
             {
-                // Wrapper child may hold stderr pipe; don't block on it.
-                string error;
-                var completed = await Task.WhenAny(errorTask, Task.Delay(TimeSpan.FromMilliseconds(500)));
-                if (completed == errorTask)
+                // Wrapper child may hold stderr pipe; don't block on it if we succeeded.
+                string error = string.Empty;
+                if (proc.ExitCode != 0)
                 {
-                    error = await errorTask;
+                    var completed = await Task.WhenAny(errorTask, Task.Delay(TimeSpan.FromMilliseconds(500)));
+                    if (completed == errorTask)
+                    {
+                        error = await errorTask;
+                    }
+                    else
+                    {
+                        streamReadCts.Cancel();
+                        _ = ObserveCanceledReadAsync(errorTask);
+                    }
                 }
                 else
                 {
                     streamReadCts.Cancel();
                     _ = ObserveCanceledReadAsync(errorTask);
-                    error = string.Empty;
                 }
 
                 EnsureSuccessfulExit(proc, error);

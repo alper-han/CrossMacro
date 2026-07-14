@@ -1,6 +1,7 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 using System;
+using System.Diagnostics;
 using System.Threading;
 using CrossMacro.Infrastructure.Services;
 
@@ -86,6 +87,25 @@ public class ProcessRunnerTests
 
         Assert.Contains("sh", ex.Message, StringComparison.Ordinal);
         Assert.Contains("exited with code 11", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task WriteClipboardInputAndCloseAsync_WhenSuccessfulChildKeepsStderrOpen_DoesNotWaitForStderr()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return;
+        }
+
+        var runner = new ProcessRunner();
+        var startedAt = Stopwatch.GetTimestamp();
+
+        await runner.WriteClipboardInputAndCloseAsync(
+            "sh",
+            ["-c", "cat >/dev/null; (sleep 1) >&2 &"],
+            "hello");
+
+        Assert.True(Stopwatch.GetElapsedTime(startedAt) < TimeSpan.FromMilliseconds(400));
     }
 
     [Fact(Timeout = 5000)]

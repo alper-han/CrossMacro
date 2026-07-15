@@ -68,7 +68,9 @@ public class SettingsService : ISettingsService
             var settingsPath = Path.Combine(configDirectory, ConfigFileNames.Settings);
 
             if (!File.Exists(settingsPath))
+            {
                 return "Information";
+            }
 
             var json = File.ReadAllText(settingsPath);
             var settings = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.AppSettings);
@@ -96,7 +98,7 @@ public class SettingsService : ISettingsService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to load settings, using defaults");
+            Log.LogError(ex, "Failed to load settings, using defaults");
             _currentSettings = new AppSettings();
             NormalizeSettings(_currentSettings);
             return _currentSettings;
@@ -117,7 +119,7 @@ public class SettingsService : ISettingsService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to load settings, using defaults");
+            Log.LogError(ex, "Failed to load settings, using defaults");
             _currentSettings = new AppSettings();
             NormalizeSettings(_currentSettings);
             return _currentSettings;
@@ -155,7 +157,7 @@ public class SettingsService : ISettingsService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to save settings");
+            Log.LogError(ex, "Failed to save settings");
             throw;
         }
         finally
@@ -183,7 +185,7 @@ public class SettingsService : ISettingsService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to save settings");
+            Log.LogError(ex, "Failed to save settings");
             throw;
         }
         finally
@@ -207,7 +209,7 @@ public class SettingsService : ISettingsService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to reload profile settings, using defaults");
+            Log.LogError(ex, "Failed to reload profile settings, using defaults");
             SettingsMapper.ApplyProfile(_currentSettings, new ProfileSettings());
             NormalizeSettings(_currentSettings);
         }
@@ -292,17 +294,10 @@ public class SettingsService : ISettingsService
 
     private static void NormalizeSettings(AppSettings settings)
     {
-        settings.PlaybackSpeed = PlaybackOptions.NormalizeSpeedMultiplier(settings.PlaybackSpeed);
-        settings.LoopDelayMs = PlaybackOptions.NormalizeDelayMs(settings.LoopDelayMs);
-
-        var (loopDelayMinMs, loopDelayMaxMs) = PlaybackOptions.NormalizeDelayRange(
-            settings.LoopDelayMinMs,
-            settings.LoopDelayMaxMs);
-        settings.LoopDelayMinMs = loopDelayMinMs;
-        settings.LoopDelayMaxMs = loopDelayMaxMs;
+        settings.Normalize();
     }
 
-    private sealed record SaveSnapshot(
+    private sealed record class SaveSnapshot(
         string GlobalPath,
         string ProfilePath,
         GlobalSettings GlobalSettings,

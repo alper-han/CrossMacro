@@ -47,7 +47,7 @@ public class ThemeContrastComplianceTests
     private static (double R, double G, double B) ParseColor(string hex)
     {
         var normalized = hex.Trim();
-        if (normalized.StartsWith("#", StringComparison.Ordinal))
+        if (normalized.StartsWith('#'))
         {
             normalized = normalized[1..];
         }

@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.Strategies;
 
-public record StrategyContext(
+public record class StrategyContext(
     CompositorType Compositor,
     bool IsWayland,
     bool UseAbsoluteCoordinates,

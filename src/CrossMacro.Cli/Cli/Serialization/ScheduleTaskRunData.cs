@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Cli.Serialization;
 
-public sealed record ScheduleTaskRunData(
+public sealed record class ScheduleTaskRunData(
     [property: JsonPropertyName("id")] Guid Id,
     [property: JsonPropertyName("name")] string Name,
     [property: JsonPropertyName("enabled")] bool Enabled,

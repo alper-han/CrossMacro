@@ -67,7 +67,7 @@ public class EditorActionConverterTests
         var action = new EditorAction
         {
             Type = EditorActionType.MouseClick,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
             IsAbsolute = false,
             UseCurrentPosition = true,
             X = 120,
@@ -92,7 +92,7 @@ public class EditorActionConverterTests
         var action = new EditorAction
         {
             Type = EditorActionType.MouseDown,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
             IsAbsolute = false,
             UseCurrentPosition = true,
             X = 120,
@@ -117,7 +117,7 @@ public class EditorActionConverterTests
         var action = new EditorAction
         {
             Type = EditorActionType.MouseClick,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
             IsAbsolute = true,
             UseCurrentPosition = false,
             X = 120,
@@ -132,7 +132,7 @@ public class EditorActionConverterTests
         events[0].Type.Should().Be(EventType.Click);
         events[0].X.Should().Be(120);
         events[0].Y.Should().Be(240);
-        events[0].Button.Should().Be(MouseButton.Left);
+        events[0].Button.Should().Be(MacroMouseButton.Left);
         events[0].UseCurrentPosition.Should().BeFalse();
         events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
     }
@@ -192,7 +192,7 @@ public class EditorActionConverterTests
                 Type = EditorActionType.Delay,
                 UseRandomDelay = true,
                 RandomDelayMinMs = 50,
-                RandomDelayMaxMs = 120
+                RandomDelayMaxMs = 120,
             },
         };
 
@@ -278,9 +278,9 @@ public class EditorActionConverterTests
         var actions = new[]
         {
             new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = true, X = 10, Y = 20 },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, IsAbsolute = false, X = 3, Y = 4 },
-            new EditorAction { Type = EditorActionType.MouseDown, Button = MouseButton.Right, IsAbsolute = true, X = 30, Y = 40 },
-            new EditorAction { Type = EditorActionType.MouseUp, Button = MouseButton.Right, IsAbsolute = false, X = 5, Y = 6 },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, IsAbsolute = false, X = 3, Y = 4 },
+            new EditorAction { Type = EditorActionType.MouseDown, Button = MacroMouseButton.Right, IsAbsolute = true, X = 30, Y = 40 },
+            new EditorAction { Type = EditorActionType.MouseUp, Button = MacroMouseButton.Right, IsAbsolute = false, X = 5, Y = 6 },
         };
 
         // Act
@@ -300,9 +300,9 @@ public class EditorActionConverterTests
         // Arrange
         var actions = new[]
         {
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = true, X = 10, Y = 20 },
-            new EditorAction { Type = EditorActionType.MouseDown, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = true, X = 30, Y = 40 },
-            new EditorAction { Type = EditorActionType.MouseUp, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = true, X = 50, Y = 60 },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = true, X = 10, Y = 20 },
+            new EditorAction { Type = EditorActionType.MouseDown, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = true, X = 30, Y = 40 },
+            new EditorAction { Type = EditorActionType.MouseUp, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = true, X = 50, Y = 60 },
             new EditorAction { Type = EditorActionType.ScrollVertical, ScrollAmount = 1, IsAbsolute = true },
             new EditorAction { Type = EditorActionType.ScrollHorizontal, ScrollAmount = -1, IsAbsolute = true },
         };
@@ -321,8 +321,8 @@ public class EditorActionConverterTests
         events[2].UseCurrentPosition.Should().BeTrue();
         events[2].X.Should().Be(0);
         events[2].Y.Should().Be(0);
-        events[3].Button.Should().Be(MouseButton.ScrollUp);
-        events[4].Button.Should().Be(MouseButton.ScrollLeft);
+        events[3].Button.Should().Be(MacroMouseButton.ScrollUp);
+        events[4].Button.Should().Be(MacroMouseButton.ScrollLeft);
     }
 
     [Fact]
@@ -339,7 +339,7 @@ public class EditorActionConverterTests
         var clickEvent = new MacroEvent
         {
             Type = EventType.Click,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
             X = 3,
             Y = 4,
             CoordinateMode = MouseCoordinateMode.Relative,
@@ -365,12 +365,12 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             Events =
-            [
+            {
                 new MacroEvent { Type = EventType.KeyPress, KeyCode = 30, DelayMs = 12 },
                 new MacroEvent { Type = EventType.KeyRelease, KeyCode = 30, DelayMs = 0 },
                 new MacroEvent { Type = EventType.KeyPress, KeyCode = 48, DelayMs = 10 },
-                new MacroEvent { Type = EventType.KeyRelease, KeyCode = 48, DelayMs = 0 }
-            ],
+                new MacroEvent { Type = EventType.KeyRelease, KeyCode = 48, DelayMs = 0 },
+            },
         };
 
         // Act
@@ -628,7 +628,7 @@ public class EditorActionConverterTests
         var actions = new[]
         {
             new EditorAction { Type = EditorActionType.TextInput, Text = "one" },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, IsAbsolute = false, UseCurrentPosition = true },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, IsAbsolute = false, UseCurrentPosition = true },
             new EditorAction { Type = EditorActionType.TextInput, Text = "two" },
         };
 
@@ -641,7 +641,7 @@ public class EditorActionConverterTests
             EditorActionType.TextInput);
         restored[0].Text.Should().Be("one");
         restored[1].UseCurrentPosition.Should().BeTrue();
-        restored[1].Button.Should().Be(MouseButton.Left);
+        restored[1].Button.Should().Be(MacroMouseButton.Left);
         restored[2].Text.Should().Be("two");
     }
 
@@ -671,13 +671,13 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             Events =
-            [
+            {
                 new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 },
                 new MacroEvent { Type = EventType.KeyRelease, KeyCode = 30 },
                 new MacroEvent { Type = EventType.KeyPress, KeyCode = 48 },
                 new MacroEvent { Type = EventType.KeyRelease, KeyCode = 48 },
-            ],
-            TextInputBoundaries = [new TextInputBoundary(0, 99, "invalid")],
+            },
+            TextInputBoundaries = {new TextInputBoundary(0, 99, "invalid")},
         };
 
         var restored = _converter.FromMacroSequence(sequence);
@@ -696,13 +696,13 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             Events =
-            [
+            {
                 new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 },
                 new MacroEvent { Type = EventType.KeyRelease, KeyCode = 30 },
                 new MacroEvent { Type = EventType.KeyPress, KeyCode = 48 },
                 new MacroEvent { Type = EventType.KeyRelease, KeyCode = 48 },
-            ],
-            TextInputBoundaries = [new TextInputBoundary(0, 4, "stale")],
+            },
+            TextInputBoundaries = {new TextInputBoundary(0, 4, "stale")},
         };
 
         var restored = _converter.FromMacroSequence(sequence);
@@ -721,13 +721,13 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             Events =
-            [
+            {
                 new MacroEvent { Type = EventType.KeyPress, KeyCode = 1_000 + 'a', DelayMs = 25 },
                 new MacroEvent { Type = EventType.KeyRelease, KeyCode = 1_000 + 'a', DelayMs = 7 },
                 new MacroEvent { Type = EventType.KeyPress, KeyCode = 1_000 + 'b', DelayMs = 93 },
                 new MacroEvent { Type = EventType.KeyRelease, KeyCode = 1_000 + 'b', DelayMs = 11 },
-            ],
-            TextInputBoundaries = [new TextInputBoundary(0, 4, "ab")],
+            },
+            TextInputBoundaries = {new TextInputBoundary(0, 4, "ab")},
         };
 
         var restored = _converter.FromMacroSequence(sequence);
@@ -755,13 +755,13 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             Events =
-            [
+            {
                 new MacroEvent { Type = EventType.KeyPress, KeyCode = 1_000 + 'a', DelayMs = 25 },
                 new MacroEvent { Type = EventType.KeyRelease, KeyCode = 1_000 + 'a', DelayMs = 7 },
                 new MacroEvent { Type = EventType.KeyPress, KeyCode = 1_000 + 'b', DelayMs = 93 },
                 new MacroEvent { Type = EventType.KeyRelease, KeyCode = 1_000 + 'b', DelayMs = 11 },
-            ],
-            TextInputBoundaries = [new TextInputBoundary(0, 4, "ab")],
+            },
+            TextInputBoundaries = {new TextInputBoundary(0, 4, "ab")},
         };
 
         var restored = _converter.FromMacroSequence(sequence);
@@ -783,7 +783,7 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             Events =
-            [
+            {
                 new MacroEvent
                 {
                     Type = EventType.MouseMove,
@@ -792,9 +792,9 @@ public class EditorActionConverterTests
                     DelayMs = 0,
                     HasRandomDelay = true,
                     RandomDelayMinMs = 70,
-                    RandomDelayMaxMs = 130
-                }
-            ],
+                    RandomDelayMaxMs = 130,
+                },
+            },
         };
 
         // Act
@@ -817,11 +817,11 @@ public class EditorActionConverterTests
         {
             IsAbsoluteCoordinates = true,
             Events =
-            [
-                new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 120, Y = 220 },
-                new MacroEvent { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 130, Y = 230 },
-                new MacroEvent { Type = EventType.ButtonRelease, Button = MouseButton.Left, X = 140, Y = 240 }
-            ],
+            {
+                new MacroEvent { Type = EventType.Click, Button = MacroMouseButton.Left, X = 120, Y = 220 },
+                new MacroEvent { Type = EventType.ButtonPress, Button = MacroMouseButton.Left, X = 130, Y = 230 },
+                new MacroEvent { Type = EventType.ButtonRelease, Button = MacroMouseButton.Left, X = 140, Y = 240 },
+            },
         };
 
         // Act
@@ -840,10 +840,10 @@ public class EditorActionConverterTests
         {
             IsAbsoluteCoordinates = false,
             Events =
-            [
-                new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 0, Y = 0 },
-                new MacroEvent { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 5, Y = -3 }
-            ],
+            {
+                new MacroEvent { Type = EventType.Click, Button = MacroMouseButton.Left, X = 0, Y = 0 },
+                new MacroEvent { Type = EventType.ButtonPress, Button = MacroMouseButton.Left, X = 5, Y = -3 },
+            },
         };
 
         // Act
@@ -863,9 +863,9 @@ public class EditorActionConverterTests
             IsAbsoluteCoordinates = false,
             SkipInitialZeroZero = true,
             Events =
-            [
-                new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 0, Y = 0 }
-            ],
+            {
+                new MacroEvent { Type = EventType.Click, Button = MacroMouseButton.Left, X = 0, Y = 0 },
+            },
         };
 
         // Act
@@ -886,16 +886,16 @@ public class EditorActionConverterTests
         {
             IsAbsoluteCoordinates = false,
             Events =
-            [
+            {
                 new MacroEvent
                 {
                     Type = EventType.Click,
-                    Button = MouseButton.Left,
+                    Button = MacroMouseButton.Left,
                     X = 0,
                     Y = 0,
-                    UseCurrentPosition = true
-                }
-            ],
+                    UseCurrentPosition = true,
+                },
+            },
         };
 
         // Act
@@ -915,22 +915,22 @@ public class EditorActionConverterTests
         {
             IsAbsoluteCoordinates = true,
             Events =
-            [
+            {
                 new MacroEvent
                 {
                     Type = EventType.Click,
-                    Button = MouseButton.Left,
+                    Button = MacroMouseButton.Left,
                     X = 640,
                     Y = 480,
-                    UseCurrentPosition = true
+                    UseCurrentPosition = true,
                 },
                 new MacroEvent
                 {
                     Type = EventType.MouseMove,
                     X = 800,
-                    Y = 600
-                }
-            ],
+                    Y = 600,
+                },
+            },
         };
 
         // Act
@@ -953,46 +953,46 @@ public class EditorActionConverterTests
         {
             IsAbsoluteCoordinates = true,
             Events =
-            [
+            {
                 new MacroEvent
                 {
                     Type = EventType.MouseMove,
                     X = 100,
                     Y = 200,
-                    CoordinateMode = MouseCoordinateMode.Absolute
+                    CoordinateMode = MouseCoordinateMode.Absolute,
                 },
                 new MacroEvent
                 {
                     Type = EventType.Click,
-                    Button = MouseButton.Left,
+                    Button = MacroMouseButton.Left,
                     X = 5,
                     Y = -2,
-                    CoordinateMode = MouseCoordinateMode.Relative
+                    CoordinateMode = MouseCoordinateMode.Relative,
                 },
                 new MacroEvent
                 {
                     Type = EventType.ButtonPress,
-                    Button = MouseButton.Right,
+                    Button = MacroMouseButton.Right,
                     X = 300,
                     Y = 400,
-                    CoordinateMode = MouseCoordinateMode.Absolute
+                    CoordinateMode = MouseCoordinateMode.Absolute,
                 },
                 new MacroEvent
                 {
                     Type = EventType.ButtonRelease,
-                    Button = MouseButton.Right,
+                    Button = MacroMouseButton.Right,
                     X = -1,
                     Y = -1,
-                    CoordinateMode = MouseCoordinateMode.Relative
+                    CoordinateMode = MouseCoordinateMode.Relative,
                 },
                 new MacroEvent
                 {
                     Type = EventType.Click,
-                    Button = MouseButton.Middle,
+                    Button = MacroMouseButton.Middle,
                     UseCurrentPosition = true,
-                    CoordinateMode = MouseCoordinateMode.Absolute
-                }
-            ],
+                    CoordinateMode = MouseCoordinateMode.Absolute,
+                },
+            },
         };
 
         // Act
@@ -1022,10 +1022,10 @@ public class EditorActionConverterTests
         {
             IsAbsoluteCoordinates = true,
             Events =
-            [
+            {
                 new MacroEvent { Type = EventType.MouseMove, X = 10, Y = 20 },
-                new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 30, Y = 40 }
-            ],
+                new MacroEvent { Type = EventType.Click, Button = MacroMouseButton.Left, X = 30, Y = 40 },
+            },
         };
 
         // Act
@@ -1044,8 +1044,8 @@ public class EditorActionConverterTests
         {
             new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = true, X = 100, Y = 200 },
             new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = false, X = 5, Y = -3 },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, IsAbsolute = true, X = 300, Y = 400 },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Right, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, IsAbsolute = true, X = 300, Y = 400 },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Right, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.ScrollVertical, ScrollAmount = -1, IsAbsolute = true },
         };
 
@@ -1061,7 +1061,7 @@ public class EditorActionConverterTests
         sequence.Events[2].Type.Should().Be(EventType.Click);
         sequence.Events[3].UseCurrentPosition.Should().BeTrue();
         sequence.Events[3].CoordinateMode.Should().BeNull();
-        sequence.Events[4].Button.Should().Be(MouseButton.ScrollDown);
+        sequence.Events[4].Button.Should().Be(MacroMouseButton.ScrollDown);
         sequence.Events[4].CoordinateMode.Should().BeNull();
 
         restored.Should().HaveCount(5);
@@ -1083,7 +1083,7 @@ public class EditorActionConverterTests
         {
             new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = true, X = 100, Y = 200 },
             new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = false, X = 5, Y = -3 },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
         };
 
         try
@@ -1134,10 +1134,10 @@ public class EditorActionConverterTests
         {
             new EditorAction { Type = EditorActionType.SetVariable, Text = "mode=fast" },
             new EditorAction { Type = EditorActionType.IfBlockStart, Text = "$mode == fast" },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.BlockEnd },
             new EditorAction { Type = EditorActionType.ElseBlockStart },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Right, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Right, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
@@ -1147,7 +1147,7 @@ public class EditorActionConverterTests
         // Assert
         sequence.Events.Should().HaveCount(1);
         sequence.Events[0].Type.Should().Be(EventType.Click);
-        sequence.Events[0].Button.Should().Be(MouseButton.Left);
+        sequence.Events[0].Button.Should().Be(MacroMouseButton.Left);
     }
 
     [Fact]
@@ -1161,7 +1161,7 @@ public class EditorActionConverterTests
                 Type = EditorActionType.SetVariable,
                 ScriptVariableName = "i",
                 ScriptValueType = ScriptValueType.Number,
-                ScriptValue = "1"
+                ScriptValue = "1",
             },
         };
 
@@ -1210,10 +1210,10 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "clipboard get clipText",
-                "clipboard set hello $clipText"
-            ],
+                "clipboard set hello $clipText",
+            },
         };
 
         var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
@@ -1232,7 +1232,7 @@ public class EditorActionConverterTests
     {
         var sequence = new MacroSequence
         {
-            ScriptSteps = ["clipboard set literal $$clipText"],
+            ScriptSteps = {"clipboard set literal $$clipText"},
         };
 
         var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
@@ -1252,7 +1252,7 @@ public class EditorActionConverterTests
         {
             new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = true, X = 120, Y = 220 },
             new EditorAction { Type = EditorActionType.RepeatBlockStart, Text = "2" },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
@@ -1283,7 +1283,7 @@ public class EditorActionConverterTests
             new EditorAction
             {
                 Type = EditorActionType.MouseClick,
-                Button = MouseButton.Left,
+                Button = MacroMouseButton.Left,
                 UseCurrentPosition = true,
                 IsAbsolute = false,
             },
@@ -1292,7 +1292,7 @@ public class EditorActionConverterTests
                 Type = EditorActionType.MouseMove,
                 IsAbsolute = true,
                 X = 320,
-                Y = 240
+                Y = 240,
             },
         };
 
@@ -1331,7 +1331,7 @@ public class EditorActionConverterTests
             new EditorAction
             {
                 Type = EditorActionType.MouseClick,
-                Button = MouseButton.Left,
+                Button = MacroMouseButton.Left,
                 UseCurrentPosition = true,
                 IsAbsolute = false,
             },
@@ -1362,7 +1362,7 @@ public class EditorActionConverterTests
         var actions = new[]
         {
             new EditorAction { Type = EditorActionType.WhileBlockStart, Text = "$i < 2" },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
@@ -1395,7 +1395,7 @@ public class EditorActionConverterTests
                 ScriptRightOperandType = ScriptOperandType.Text,
                 ScriptRightOperand = "fast",
             },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
@@ -1405,7 +1405,7 @@ public class EditorActionConverterTests
         // Assert
         sequence.Events.Should().HaveCount(1);
         sequence.Events[0].Type.Should().Be(EventType.Click);
-        sequence.Events[0].Button.Should().Be(MouseButton.Left);
+        sequence.Events[0].Button.Should().Be(MacroMouseButton.Left);
     }
 
     [Fact]
@@ -1424,9 +1424,9 @@ public class EditorActionConverterTests
             new EditorAction
             {
                 Type = EditorActionType.MouseClick,
-                Button = MouseButton.Left,
+                Button = MacroMouseButton.Left,
                 UseCurrentPosition = true,
-                IsAbsolute = false
+                IsAbsolute = false,
             },
         };
 
@@ -1457,9 +1457,9 @@ public class EditorActionConverterTests
             new EditorAction
             {
                 Type = EditorActionType.MouseClick,
-                Button = MouseButton.Left,
+                Button = MacroMouseButton.Left,
                 UseCurrentPosition = true,
-                IsAbsolute = false
+                IsAbsolute = false,
             },
         };
 
@@ -1491,7 +1491,7 @@ public class EditorActionConverterTests
             new EditorAction
             {
                 Type = EditorActionType.MouseClick,
-                Button = MouseButton.Left,
+                Button = MacroMouseButton.Left,
                 UseCurrentPosition = true,
                 IsAbsolute = false,
             },
@@ -1534,7 +1534,7 @@ public class EditorActionConverterTests
             new EditorAction
             {
                 Type = EditorActionType.MouseClick,
-                Button = MouseButton.Left,
+                Button = MacroMouseButton.Left,
                 UseCurrentPosition = true,
                 IsAbsolute = false,
             },
@@ -1576,7 +1576,7 @@ public class EditorActionConverterTests
             new EditorAction
             {
                 Type = EditorActionType.MouseClick,
-                Button = MouseButton.Left,
+                Button = MacroMouseButton.Left,
                 UseCurrentPosition = true,
                 IsAbsolute = false,
             },
@@ -1624,7 +1624,7 @@ public class EditorActionConverterTests
                 ScriptRightOperandType = ScriptOperandType.Number,
                 ScriptRightOperand = "2",
             },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.BlockEnd },
             new EditorAction
             {
@@ -1639,7 +1639,7 @@ public class EditorActionConverterTests
                 ForStepType = ScriptNumericSourceType.Number,
                 ForStepValue = "1",
             },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
@@ -1666,10 +1666,10 @@ public class EditorActionConverterTests
         var loadedActions = _converter.FromMacroSequence(new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "set 1bad=0",
-                "click current left"
-            ],
+                "click current left",
+            },
         });
 
         loadedActions.Should().HaveCount(2);
@@ -1711,7 +1711,7 @@ public class EditorActionConverterTests
                 ForEndType = ScriptNumericSourceType.Number,
                 ForEndValue = "3",
             },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
@@ -1748,7 +1748,7 @@ public class EditorActionConverterTests
                 ForStepType = ScriptNumericSourceType.VariableReference,
                 ForStepValue = "$limit",
             },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
@@ -1776,9 +1776,9 @@ public class EditorActionConverterTests
                 ForEndType = ScriptNumericSourceType.Number,
                 ForEndValue = "3",
             },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.Break },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Right, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Right, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
@@ -1788,7 +1788,7 @@ public class EditorActionConverterTests
         // Assert
         sequence.Events.Should().HaveCount(1);
         sequence.Events[0].Type.Should().Be(EventType.Click);
-        sequence.Events[0].Button.Should().Be(MouseButton.Left);
+        sequence.Events[0].Button.Should().Be(MacroMouseButton.Left);
     }
 
     [Fact]
@@ -1806,9 +1806,9 @@ public class EditorActionConverterTests
                 ForEndType = ScriptNumericSourceType.Number,
                 ForEndValue = "3",
             },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.Continue },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Right, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Right, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
@@ -1817,7 +1817,7 @@ public class EditorActionConverterTests
 
         // Assert
         sequence.Events.Should().HaveCount(3);
-        sequence.Events.Should().OnlyContain(ev => ev.Type == EventType.Click && ev.Button == MouseButton.Left);
+        sequence.Events.Should().OnlyContain(ev => ev.Type == EventType.Click && ev.Button == MacroMouseButton.Left);
     }
 
     [Fact]
@@ -1827,7 +1827,7 @@ public class EditorActionConverterTests
         var actions = new[]
         {
             new EditorAction { Type = EditorActionType.Break },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
         };
 
         // Act
@@ -1854,7 +1854,7 @@ public class EditorActionConverterTests
             new EditorAction
             {
                 Type = EditorActionType.KeyPress,
-                KeyCode = 30
+                KeyCode = 30,
             },
         };
 
@@ -1887,7 +1887,7 @@ public class EditorActionConverterTests
                 ForEndType = ScriptNumericSourceType.Number,
                 ForEndValue = "3",
             },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
@@ -1915,9 +1915,9 @@ public class EditorActionConverterTests
                 ScriptValueType = ScriptValueType.Number,
                 ScriptValue = "1",
             },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.Delay, UseRandomDelay = true, RandomDelayMinMs = 10, RandomDelayMaxMs = 20 },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
         };
 
         // Act
@@ -1938,7 +1938,7 @@ public class EditorActionConverterTests
         {
             new EditorAction { Type = EditorActionType.RepeatBlockStart, Text = "1" },
             new EditorAction { Type = EditorActionType.Delay, UseRandomDelay = true, RandomDelayMinMs = 10, RandomDelayMaxMs = 20 },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
@@ -1970,7 +1970,7 @@ public class EditorActionConverterTests
             new EditorAction
             {
                 Type = EditorActionType.KeyPress,
-                KeyCode = 29
+                KeyCode = 29,
             },
         };
 
@@ -1992,15 +1992,15 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "set i 0",
                 "for i from 1 to 10 {",
                 "click left",
                 "}",
                 "repeat $n {",
                 "tap 30",
-                "}"
-            ],
+                "}",
+            },
         };
 
         // Act
@@ -2045,10 +2045,10 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "key down ctrl",
-                "key up ctrl"
-            ],
+                "key up ctrl",
+            },
         };
 
         // Act
@@ -2073,9 +2073,9 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
-                "tap enter"
-            ],
+            {
+                "tap enter",
+            },
         };
 
         // Act
@@ -2095,9 +2095,9 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
-                "scroll up"
-            ],
+            {
+                "scroll up",
+            },
         };
 
         // Act
@@ -2116,12 +2116,12 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "repeat 2 {",
                 "delay random 10..20",
                 "click left",
-                "}"
-            ],
+                "}",
+            },
         };
 
         // Act
@@ -2145,10 +2145,10 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "set name $$foo",
-                "click current left"
-            ],
+                "click current left",
+            },
         };
 
         // Act
@@ -2169,11 +2169,11 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "if $$foo == $$bar {",
                 "click left",
-                "}"
-            ],
+                "}",
+            },
         };
 
         // Act
@@ -2195,10 +2195,10 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "move absolute 200 300",
-                "click l"
-            ],
+                "click l",
+            },
         };
 
         // Act
@@ -2214,7 +2214,7 @@ public class EditorActionConverterTests
         actions[1].IsAbsolute.Should().BeTrue();
         actions[1].X.Should().Be(200);
         actions[1].Y.Should().Be(300);
-        actions[1].Button.Should().Be(MouseButton.Left);
+        actions[1].Button.Should().Be(MacroMouseButton.Left);
         actions[1].UseCurrentPosition.Should().BeFalse();
     }
 
@@ -2225,12 +2225,12 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "move abs 10 10",
                 "click left",
                 "move abs 20 20",
-                "click left"
-            ],
+                "click left",
+            },
         };
 
         // Act
@@ -2266,12 +2266,12 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "move abs 200 300",
                 "click left",
                 "move rel 5 -4",
-                "click right"
-            ],
+                "click right",
+            },
         };
 
         // Act
@@ -2305,7 +2305,7 @@ public class EditorActionConverterTests
             new EditorAction
             {
                 Type = EditorActionType.MouseClick,
-                Button = MouseButton.Left,
+                Button = MacroMouseButton.Left,
                 IsAbsolute = true,
                 X = 200,
                 Y = 300,
@@ -2335,10 +2335,10 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "down left",
-                "up left"
-            ],
+                "up left",
+            },
         };
 
         // Act
@@ -2368,10 +2368,10 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "move abs 120 240",
-                "click current left"
-            ],
+                "click current left",
+            },
         };
 
         // Act
@@ -2395,11 +2395,11 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "move abs 500 300",
                 "delay 50",
-                "click left"
-            ],
+                "click left",
+            },
         };
 
         // Act
@@ -2427,14 +2427,14 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "repeat 1 {",
                 "break",
                 "}",
                 "repeat 1 {",
                 "continue",
-                "}"
-            ],
+                "}",
+            },
         };
 
         // Act
@@ -2457,11 +2457,11 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "set i 0",
                 "tap ctrl+c",
-                "click left"
-            ],
+                "click left",
+            },
         };
 
         // Act
@@ -2484,12 +2484,12 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "pixelcolor 10 20 color",
                 "pixelcolor rel -1 2 relativeColor",
                 "waitcolor 11 22 00FFAA 2500 wait_ok",
-                "pixelsearch 0 0 3 3 123456 found x y tolerance 5"
-            ],
+                "pixelsearch 0 0 3 3 123456 found x y tolerance 5",
+            },
         };
 
         // Act
@@ -2570,7 +2570,7 @@ public class EditorActionConverterTests
                 ScreenFoundXVariableName = "x",
                 ScreenFoundYVariableName = "y",
                 ScreenTimeoutMs = 1400,
-                ScreenTolerance = 5
+                ScreenTolerance = 5,
             },
         };
 
@@ -2601,7 +2601,7 @@ public class EditorActionConverterTests
                 ScreenFoundYVariableName = "targetY",
                 ScreenTimeoutMs = 1500,
                 ImageSearchSimilarity = 0.875,
-                ImageSearchDownsample = 2
+                ImageSearchDownsample = 2,
             },
         };
 
@@ -2638,7 +2638,7 @@ public class EditorActionConverterTests
             {
                 Type = EditorActionType.ImageSearch,
                 ImageAssetName = "Target_1",
-                ImageSearchScaleAware = true
+                ImageSearchScaleAware = true,
             },
         };
 
@@ -2653,10 +2653,10 @@ public class EditorActionConverterTests
     }
 
     [Theory]
-    [InlineData(MouseButton.Left, "left")]
-    [InlineData(MouseButton.Right, "right")]
-    [InlineData(MouseButton.Middle, "middle")]
-    public void ToAndFromMacroSequence_WhenImageClickActionPresent_PreservesStructuredPayload(MouseButton button, string buttonToken)
+    [InlineData(MacroMouseButton.Left, "left")]
+    [InlineData(MacroMouseButton.Right, "right")]
+    [InlineData(MacroMouseButton.Middle, "middle")]
+    public void ToAndFromMacroSequence_WhenImageClickActionPresent_PreservesStructuredPayload(MacroMouseButton button, string buttonToken)
     {
         var actions = new[]
         {
@@ -2674,7 +2674,7 @@ public class EditorActionConverterTests
                 ScreenFoundYVariableName = "clickY",
                 ScreenTimeoutMs = 1600,
                 ImageSearchSimilarity = 0.75,
-                ImageSearchDownsample = 3
+                ImageSearchDownsample = 3,
             },
         };
 
@@ -2703,9 +2703,9 @@ public class EditorActionConverterTests
         restored.Actions[0].ImageSearchDownsample.Should().Be(3);
     }
 
-	[Fact]
-	public void ToAndFromMacroSequence_WhenWaitImageActionPresent_PreservesStructuredPayload()
-	{
+    [Fact]
+    public void ToAndFromMacroSequence_WhenWaitImageActionPresent_PreservesStructuredPayload()
+    {
         var actions = new[]
         {
             new EditorAction
@@ -2721,7 +2721,7 @@ public class EditorActionConverterTests
                 ScreenFoundYVariableName = "dialogY",
                 ScreenTimeoutMs = 2500,
                 ImageSearchSimilarity = 0.625,
-                ImageSearchDownsample = 2
+                ImageSearchDownsample = 2,
             },
         };
 
@@ -2745,29 +2745,29 @@ public class EditorActionConverterTests
         restored.Actions[0].ScreenFoundXVariableName.Should().Be("dialogX");
         restored.Actions[0].ScreenFoundYVariableName.Should().Be("dialogY");
         restored.Actions[0].ScreenTimeoutMs.Should().Be(2500);
-		restored.Actions[0].ImageSearchSimilarity.Should().Be(0.625);
-		restored.Actions[0].ImageSearchDownsample.Should().Be(2);
-	}
+        restored.Actions[0].ImageSearchSimilarity.Should().Be(0.625);
+        restored.Actions[0].ImageSearchDownsample.Should().Be(2);
+    }
 
-	[Theory]
-	[InlineData("imagesearch TargetImage similarity NaN")]
-	[InlineData("imagesearch TargetImage similarity Infinity")]
-	[InlineData("imagesearch TargetImage similarity -Infinity")]
-	public void FromMacroSequence_WhenImageSearchSimilarityIsNotFinite_RestoresRawScriptStep(string step)
-	{
-		var sequence = new MacroSequence { ScriptSteps = [step] };
+    [Theory]
+    [InlineData("imagesearch TargetImage similarity NaN")]
+    [InlineData("imagesearch TargetImage similarity Infinity")]
+    [InlineData("imagesearch TargetImage similarity -Infinity")]
+    public void FromMacroSequence_WhenImageSearchSimilarityIsNotFinite_RestoresRawScriptStep(string step)
+    {
+        var sequence = new MacroSequence { ScriptSteps = { step } };
 
-		var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
+        var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
 
-		result.RestoredFromScriptSteps.Should().BeTrue();
-		result.Warnings.Should().ContainSingle();
-		result.Actions.Should().ContainSingle().Which.Type.Should().Be(EditorActionType.RawScriptStep);
-		result.Actions[0].Text.Should().Be(step);
-	}
+        result.RestoredFromScriptSteps.Should().BeTrue();
+        result.Warnings.Should().ContainSingle();
+        result.Actions.Should().ContainSingle().Which.Type.Should().Be(EditorActionType.RawScriptStep);
+        result.Actions[0].Text.Should().Be(step);
+    }
 
-	[Fact]
-	public void ToAndFromMacroSequence_WhenScreenReadingActionsUseVariableTargetColors_PreservesVariableTargetColorMetadata()
-	{
+    [Fact]
+    public void ToAndFromMacroSequence_WhenScreenReadingActionsUseVariableTargetColors_PreservesVariableTargetColorMetadata()
+    {
         var actions = new[]
         {
             new EditorAction
@@ -2792,7 +2792,7 @@ public class EditorActionConverterTests
                 ScreenFoundVariableName = "found",
                 ScreenFoundXVariableName = "x",
                 ScreenFoundYVariableName = "y",
-                ScreenTolerance = 5
+                ScreenTolerance = 5,
             },
         };
 
@@ -2822,7 +2822,7 @@ public class EditorActionConverterTests
         // Arrange
         var sequence = new MacroSequence
         {
-            ScriptSteps = [step],
+            ScriptSteps = {step},
         };
 
         // Act
@@ -2851,7 +2851,7 @@ public class EditorActionConverterTests
             new EditorAction
             {
                 Type = EditorActionType.RawScriptStep,
-                Text = "tap ctrl+c"
+                Text = "tap ctrl+c",
             },
         };
 
@@ -2872,11 +2872,11 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "if $mode == a>=b {",
                 "click left",
-                "}"
-            ],
+                "}",
+            },
         };
 
         // Act
@@ -2898,11 +2898,11 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "if $color == 1c1c1c {",
                 "click left",
-                "}"
-            ],
+                "}",
+            },
         };
 
         var actions = _converter.FromMacroSequence(sequence);
@@ -2921,11 +2921,11 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "if $color == 000000 {",
                 "click left",
-                "}"
-            ],
+                "}",
+            },
         };
 
         var actions = _converter.FromMacroSequence(sequence);
@@ -2941,11 +2941,11 @@ public class EditorActionConverterTests
         var sequence = new MacroSequence
         {
             ScriptSteps =
-            [
+            {
                 "if $count > 100000 {",
                 "click left",
-                "}"
-            ],
+                "}",
+            },
         };
 
         var actions = _converter.FromMacroSequence(sequence);
@@ -2999,7 +2999,7 @@ public class EditorActionConverterTests
         int expectedBackoff,
         int expectedTimeout)
     {
-        var sequence = new MacroSequence { ScriptSteps = [step] };
+        var sequence = new MacroSequence { ScriptSteps = { step } };
 
         var actions = _converter.FromMacroSequence(sequence);
 
@@ -3019,7 +3019,7 @@ public class EditorActionConverterTests
     [Fact]
     public void FromMacroSequence_WhenShellLineIsInvalid_RestoresRawScriptStep()
     {
-        var sequence = new MacroSequence { ScriptSteps = ["shell capture \"echo ok\" onlyTwo targets"] };
+        var sequence = new MacroSequence { ScriptSteps = { "shell capture \"echo ok\" onlyTwo targets" } };
 
         var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
 
@@ -3038,7 +3038,7 @@ public class EditorActionConverterTests
     [InlineData(WindowCommandMode.Center, "window center active")]
     [InlineData(WindowCommandMode.Maximize, "window maximize active")]
     [InlineData(WindowCommandMode.Fullscreen, "window fullscreen active")]
-    [InlineData(WindowCommandMode.Float, "window float active")]
+    [InlineData(WindowCommandMode.Floating, "window float active")]
     [InlineData(WindowCommandMode.WorkspaceGet, "window getdesktop workspaceName")]
     [InlineData(WindowCommandMode.WorkspaceSwitch, "window setdesktop \"2\"")]
     [InlineData(WindowCommandMode.WorkspaceMoveActive, "window setdesktopforwindow active \"2\"")]
@@ -3053,7 +3053,7 @@ public class EditorActionConverterTests
     [Fact]
     public void FromMacroSequence_ForWindowSearchWithEscapedQuote_RestoresStructuredWindowCommand()
     {
-        var sequence = new MacroSequence { ScriptSteps = ["window search title \"Fire\\\"fox\" $addr"] };
+        var sequence = new MacroSequence { ScriptSteps = { "window search title \"Fire\\\"fox\" $addr" } };
 
         var action = _converter.FromMacroSequence(sequence).Should().ContainSingle().Subject;
 
@@ -3067,7 +3067,7 @@ public class EditorActionConverterTests
     [Fact]
     public void FromMacroSequence_WhenWindowLineIsInvalid_RestoresRawScriptStep()
     {
-        var sequence = new MacroSequence { ScriptSteps = ["window search title $missingTerm"] };
+        var sequence = new MacroSequence { ScriptSteps = { "window search title $missingTerm" } };
 
         var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
 

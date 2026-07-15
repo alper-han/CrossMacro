@@ -157,7 +157,7 @@ public sealed class X11ScreenCapture : IX11ScreenCapture
         if (ximage.Width < logicalBounds.Width || ximage.Height < logicalBounds.Height)
         {
             throw new InvalidOperationException(
-                $"X11 image dimensions {ximage.Width}x{ximage.Height} are smaller than requested region {logicalBounds.Width}x{logicalBounds.Height}.");
+                $"X11 image dimensions {ximage.Width.ToString(CultureInfo.InvariantCulture)}x{ximage.Height.ToString(CultureInfo.InvariantCulture)} are smaller than requested region {logicalBounds.Width.ToString(CultureInfo.InvariantCulture)}x{logicalBounds.Height.ToString(CultureInfo.InvariantCulture)}.");
         }
 
         ValidateRgbMasks(ximage);
@@ -194,7 +194,7 @@ public sealed class X11ScreenCapture : IX11ScreenCapture
         var bitCount = BitOperations.PopCount(mask);
         if (bitCount is <= 0 or > 16)
         {
-            throw new InvalidOperationException($"Unsupported X11 RGB channel mask 0x{mask:X}.");
+            throw new InvalidOperationException($"Unsupported X11 RGB channel mask 0x{mask.ToString("X", CultureInfo.InvariantCulture)}.");
         }
 
         var raw = (pixel & mask) >> BitOperations.TrailingZeroCount(mask);

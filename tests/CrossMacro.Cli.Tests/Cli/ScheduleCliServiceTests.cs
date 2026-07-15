@@ -14,7 +14,7 @@ public class ScheduleCliServiceTests
                 Id = Guid.NewGuid(),
                 Name = "Task 1",
                 MacroFilePath = "/tmp/a.macro",
-                IsEnabled = true
+                IsEnabled = true,
             },
         }));
 
@@ -38,7 +38,7 @@ public class ScheduleCliServiceTests
                 MacroFilePath = "/tmp/a.macro",
                 Type = ScheduleType.Weekly,
                 WeeklyDays = ScheduleDays.Weekdays,
-                WeeklyTime = new TimeSpan(9, 30, 0)
+                WeeklyTime = new TimeSpan(9, 30, 0),
             },
         }));
 
@@ -62,7 +62,7 @@ public class ScheduleCliServiceTests
                 Id = Guid.NewGuid(),
                 Name = "Interval task",
                 MacroFilePath = "/tmp/a.macro",
-                Type = ScheduleType.Interval
+                Type = ScheduleType.Interval,
             },
         }));
 
@@ -116,7 +116,7 @@ public class ScheduleCliServiceTests
             {
                 Id = id,
                 Name = "Task 1",
-                MacroFilePath = "/tmp/a.macro"
+                MacroFilePath = "/tmp/a.macro",
             },
         }));
 
@@ -143,7 +143,7 @@ public class ScheduleCliServiceTests
             {
                 Id = id,
                 Name = "Task 1",
-                MacroFilePath = "/tmp/a.macro"
+                MacroFilePath = "/tmp/a.macro",
             },
             }));
         });

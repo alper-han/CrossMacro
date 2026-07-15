@@ -42,7 +42,7 @@ internal sealed class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketAccessPro
         if (lstat(path, out var stat) is not 0)
         {
             var errno = Marshal.GetLastPInvokeError();
-            if (errno == ErrNo.ENOENT || errno == ErrNo.ENOTDIR)
+            if (errno is ErrNo.ENOENT or ErrNo.ENOTDIR)
             {
                 return new LinuxDaemonSocketMetadata(path, LinuxFileSystemEntryKind.Missing);
             }
@@ -159,8 +159,8 @@ internal sealed class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketAccessPro
 
     private static void ThrowForErrno(int errno, string target)
     {
-        var exception = new IOException($"Linux diagnostic probe failed for {target}: errno {errno}.");
-        if (errno == ErrNo.EACCES || errno == ErrNo.EPERM)
+        var exception = new IOException($"Linux diagnostic probe failed for {target}: errno {errno.ToString(CultureInfo.InvariantCulture)}.");
+        if (errno is ErrNo.EACCES or ErrNo.EPERM)
         {
             throw new UnauthorizedAccessException(exception.Message, exception);
         }

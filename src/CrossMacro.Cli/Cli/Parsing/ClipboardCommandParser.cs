@@ -36,7 +36,11 @@ internal static class ClipboardCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "clipboard.get", ref jsonOutput, ref logLevel, out var common))
             {
-                if (common is not null) return common;
+                if (common is not null)
+                {
+                    return common;
+                }
+
                 continue;
             }
 
@@ -54,7 +58,11 @@ internal static class ClipboardCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "clipboard.clear", ref jsonOutput, ref logLevel, out var common))
             {
-                if (common is not null) return common;
+                if (common is not null)
+                {
+                    return common;
+                }
+
                 continue;
             }
 
@@ -75,7 +83,11 @@ internal static class ClipboardCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "clipboard.set", ref jsonOutput, ref logLevel, out var common))
             {
-                if (common is not null) return common;
+                if (common is not null)
+                {
+                    return common;
+                }
+
                 continue;
             }
 
@@ -89,7 +101,7 @@ internal static class ClipboardCommandParser
                 continue;
             }
 
-            if (args[i].StartsWith("-", StringComparison.Ordinal))
+            if (args[i].StartsWith('-'))
             {
                 return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for clipboard set: {args[i]}", jsonOutput);
             }

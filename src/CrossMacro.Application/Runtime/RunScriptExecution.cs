@@ -1,2 +1,0 @@
-
-namespace CrossMacro.Application.Runtime;

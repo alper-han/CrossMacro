@@ -55,12 +55,12 @@ public sealed class CliParseResult
         IReadOnlyList<string>? errorDetails = null,
         bool prefersJsonOutput = false,
         bool showTopLevelUsageInTextMode = false) => new()
-    {
-        Kind = ParseResultKind.Error,
-        ErrorMessage = message,
-        ErrorDetails = errorDetails ?? EmptyErrorDetails,
-        PrefersJsonOutput = prefersJsonOutput,
-        ShowTopLevelUsageInTextMode = showTopLevelUsageInTextMode,
-    };
+        {
+            Kind = ParseResultKind.Error,
+            ErrorMessage = message,
+            ErrorDetails = errorDetails ?? EmptyErrorDetails,
+            PrefersJsonOutput = prefersJsonOutput,
+            ShowTopLevelUsageInTextMode = showTopLevelUsageInTextMode,
+        };
 
 }

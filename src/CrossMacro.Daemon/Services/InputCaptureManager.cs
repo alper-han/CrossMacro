@@ -93,15 +93,15 @@ public class InputCaptureManager : IInputCaptureManager
     {
         lock (_lock)
         {
-             if (_readers.Count > 0)
-             {
-                 foreach (var r in _readers)
-                 {
-                     r.Dispose();
-                 }
-                 _readers.Clear();
-                 Log.Information("[InputCaptureManager] Stopped capture");
-             }
+            if (_readers.Count > 0)
+            {
+                foreach (var r in _readers)
+                {
+                    r.Dispose();
+                }
+                _readers.Clear();
+                Log.Information("[InputCaptureManager] Stopped capture");
+            }
         }
     }
 
@@ -117,7 +117,7 @@ public class InputCaptureManager : IInputCaptureManager
             UInputNative.EV_KEY when UInputNative.IsMouseButton(inputEvent.code) => captureMouse,
             UInputNative.EV_KEY => captureKeyboard,
             UInputNative.EV_REL => captureMouse,
-            UInputNative.EV_ABS when inputEvent.code == UInputNative.ABS_X || inputEvent.code == UInputNative.ABS_Y => captureMouse,
+            UInputNative.EV_ABS when inputEvent.code is UInputNative.ABS_X or UInputNative.ABS_Y => captureMouse,
             UInputNative.EV_SYN => captureMouse,
             _ => false,
         };
@@ -135,8 +135,8 @@ public class InputCaptureManager : IInputCaptureManager
 
     internal interface ILinuxCaptureReader : IDisposable
     {
-        event Action<ILinuxCaptureReader, UInputNative.input_event>? EventReceived;
-        void Start();
+        public event Action<ILinuxCaptureReader, UInputNative.input_event>? EventReceived;
+        public void Start();
     }
 
     private sealed class EvdevCaptureReaderAdapter : ILinuxCaptureReader

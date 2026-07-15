@@ -19,7 +19,9 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
     public (bool IsValid, string? Error) Validate(EditorAction action)
     {
         if (action is null)
+        {
             return (false, ValidationMessages.ActionCannotBeNull);
+        }
 
         return action.Type switch
         {
@@ -67,7 +69,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
             var (isValid, error) = Validate(action);
             if (!isValid && error is not null)
             {
-                errors.Add($"Action {index + 1} ({action.Type}): {error}");
+                errors.Add($"Action {(index + 1).ToString(CultureInfo.InvariantCulture)} ({action.Type}): {error}");
             }
 
             index++;
@@ -96,7 +98,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
             var (isValid, error) = Validate(actionList[index]);
             if (!isValid && error is not null)
             {
-                errors.Add($"Action {index + 1} ({actionList[index].Type}): {error}");
+                errors.Add($"Action {(index + 1).ToString(CultureInfo.InvariantCulture)} ({actionList[index].Type}): {error}");
             }
         }
 
@@ -114,28 +116,42 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
         if (action.UseRandomDelay)
         {
             if (action.RandomDelayMinMs < 0 || action.RandomDelayMaxMs < 0)
+            {
                 return (false, ValidationMessages.DelayMustBeNonNegative);
+            }
 
             if (action.RandomDelayMaxMs < action.RandomDelayMinMs)
+            {
                 return (false, ValidationMessages.RandomDelayBoundsInvalid);
+            }
 
             if (action.RandomDelayMinMs is 0 && action.RandomDelayMaxMs is 0)
+            {
                 return (false, ValidationMessages.DelayMustBePositive);
+            }
 
             if (action.RandomDelayMaxMs > EditorActionValidationLimits.MaxDelayMs)
+            {
                 return (false, ValidationMessages.DelayTooLong);
+            }
 
             return (true, null);
         }
 
         if (action.DelayMs < 0)
+        {
             return (false, ValidationMessages.DelayMustBeNonNegative);
+        }
 
         if (action.DelayMs is 0)
+        {
             return (false, ValidationMessages.DelayMustBePositive);
+        }
 
         if (action.DelayMs > EditorActionValidationLimits.MaxDelayMs)
+        {
             return (false, ValidationMessages.DelayTooLong);
+        }
 
         return (true, null);
     }
@@ -143,10 +159,14 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
     private static (bool IsValid, string? Error) ValidateKeyAction(EditorAction action)
     {
         if (action.KeyCode <= 0)
+        {
             return (false, ValidationMessages.KeyCodeMustBePositive);
+        }
 
         if (action.KeyCode > EditorActionValidationLimits.MaxKeyCode)
+        {
             return (false, ValidationMessages.KeyCodeInvalid);
+        }
 
         return (true, null);
     }
@@ -154,10 +174,14 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
     private static (bool IsValid, string? Error) ValidateScroll(EditorAction action)
     {
         if (action.ScrollAmount is 0)
+        {
             return (false, ValidationMessages.ScrollAmountCannotBeZero);
+        }
 
         if (Math.Abs(action.ScrollAmount) > EditorActionValidationLimits.MaxScrollAmount)
+        {
             return (false, ValidationMessages.ScrollAmountTooLarge);
+        }
 
         return (true, null);
     }
@@ -169,17 +193,21 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
 
     private static (bool IsValid, string? Error) ValidateMouseButton(EditorAction action)
     {
-        if (!Enum.IsDefined(typeof(MouseButton), action.Button))
+        if (!Enum.IsDefined(typeof(MacroMouseButton), action.Button))
+        {
             return (false, ValidationMessages.InvalidMouseButton);
+        }
 
-        if (action.Button is MouseButton.ScrollUp or MouseButton.ScrollDown
-            or MouseButton.ScrollLeft or MouseButton.ScrollRight)
+        if (action.Button is MacroMouseButton.ScrollUp or MacroMouseButton.ScrollDown
+            or MacroMouseButton.ScrollLeft or MacroMouseButton.ScrollRight)
         {
             return (false, ValidationMessages.UseScrollActionForScrollButtons);
         }
 
         if (action.UseCurrentPosition && action.IsAbsolute)
+        {
             return (false, ValidationMessages.CurrentPositionClickMustNotUseCoordinates);
+        }
 
         return ValidateCoordinateBounds(action, requireRelativeNonZero: false);
     }
@@ -189,7 +217,9 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
         if (action.IsAbsolute)
         {
             if (action.X < 0 || action.Y < 0)
+            {
                 return (false, ValidationMessages.AbsoluteCoordsMustBeNonNegative);
+            }
 
             if (action.X > EditorActionValidationLimits.MaxAbsoluteCoordinate
                 || action.Y > EditorActionValidationLimits.MaxAbsoluteCoordinate)
@@ -200,7 +230,9 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
         else
         {
             if (requireRelativeNonZero && action.X is 0 && action.Y is 0)
+            {
                 return (false, ValidationMessages.RelativeMoveMustHaveValue);
+            }
 
             if (Math.Abs(action.X) > EditorActionValidationLimits.MaxRelativeCoordinateDelta
                 || Math.Abs(action.Y) > EditorActionValidationLimits.MaxRelativeCoordinateDelta)
@@ -230,7 +262,9 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
     private static (bool IsValid, string? Error) ValidateTextInput(EditorAction action)
     {
         if (string.IsNullOrEmpty(action.Text))
+        {
             return (false, ValidationMessages.TextInputRequired);
+        }
 
         return (true, null);
     }
@@ -303,7 +337,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
             }
         }
 
-        if (action.ShellRetries < 0 || action.ShellRetries > 10_000)
+        if (action.ShellRetries is < 0 or > 10_000)
         {
             return (false, "Shell retries must be between 0 and 10000.");
         }
@@ -369,7 +403,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
     private static bool IsIntegerOrVariable(string token)
     {
         return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-            || (token.StartsWith("$", StringComparison.Ordinal) && EditorActionScriptTokens.IsValidVariableName(token));
+            || (token.StartsWith('$') && EditorActionScriptTokens.IsValidVariableName(token));
     }
 
     private static bool HasCheckedRegionEndpoints(int left, int top, int width, int height)
@@ -390,7 +424,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
     {
         return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
             ? value > 0
-            : token.StartsWith("$", StringComparison.Ordinal) && EditorActionScriptTokens.IsValidVariableName(token);
+            : token.StartsWith('$') && EditorActionScriptTokens.IsValidVariableName(token);
     }
 
     private static bool IsValidShellCaptureTarget(string target)
@@ -681,7 +715,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
         }
 
         if (action.Type is EditorActionType.ImageClick
-&& action.Button is not (MouseButton.Left or MouseButton.Right or MouseButton.Middle))
+&& action.Button is not (MacroMouseButton.Left or MacroMouseButton.Right or MacroMouseButton.Middle))
         {
             return (false, "Image click button must be left, right, or middle.");
         }

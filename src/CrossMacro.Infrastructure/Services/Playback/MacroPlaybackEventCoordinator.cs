@@ -6,7 +6,7 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 /// </summary>
 internal sealed class MacroPlaybackEventCoordinator
 {
-    public async Task ExecuteAsync(
+    public static async Task ExecuteAsync(
         MacroSequence macro,
         Func<MacroEvent, CancellationToken, Task> executeEventAsync,
         CancellationToken cancellationToken)
@@ -17,7 +17,7 @@ internal sealed class MacroPlaybackEventCoordinator
         foreach (var ev in macro.Events)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await executeEventAsync(ev, cancellationToken);
+            await executeEventAsync(ev, cancellationToken).ConfigureAwait(false);
         }
     }
 }

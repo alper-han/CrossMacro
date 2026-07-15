@@ -20,15 +20,15 @@ internal sealed class InputCaptureLifecycle
         Func<IInputCapture> inputCaptureFactory,
         bool captureMouse,
         bool captureKeyboard,
-        EventHandler<InputCaptureEventArgs> onInputReceived,
-        EventHandler<string> onError,
+        EventHandler<CapturedInputEventArgs> onInputReceived,
+        EventHandler<InputCaptureErrorEventArgs> onError,
         Action<IInputCapture> onStarted,
         Action<IInputCapture, Exception> onFault)
     {
         var capture = inputCaptureFactory();
         capture.Configure(captureMouse, captureKeyboard);
         capture.InputReceived += onInputReceived;
-        capture.Error += onError;
+        capture.CaptureError += onError;
 
         var captureCts = new CancellationTokenSource();
         _capture = capture;
@@ -41,8 +41,8 @@ internal sealed class InputCaptureLifecycle
     }
 
     public void Cleanup(
-        EventHandler<InputCaptureEventArgs> onInputReceived,
-        EventHandler<string> onError,
+        EventHandler<CapturedInputEventArgs> onInputReceived,
+        EventHandler<InputCaptureErrorEventArgs> onError,
         Action<Exception> onStopError)
     {
         var capture = _capture;
@@ -66,8 +66,8 @@ internal sealed class InputCaptureLifecycle
             if (capture is not null)
             {
                 capture.InputReceived -= onInputReceived;
-                capture.Error -= onError;
-                capture.Stop();
+                capture.CaptureError -= onError;
+                capture.StopCapture();
                 capture.Dispose();
             }
         }

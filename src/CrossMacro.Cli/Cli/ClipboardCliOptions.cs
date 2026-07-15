@@ -1,6 +1,6 @@
 namespace CrossMacro.Cli;
 
-public sealed record ClipboardCliOptions(
+public sealed record class ClipboardCliOptions(
     ClipboardCliAction Action,
     string? Text = null,
     string? FilePath = null,

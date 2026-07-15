@@ -28,7 +28,7 @@ public static class ValidationMessages
     public const string RelativeMoveMustHaveValue = "Relative move must have non-zero X or Y";
     public const string RelativeMoveTooLarge = "Relative movement too large (max: ±10000)";
 
-    // MouseButton
+    // MacroMouseButton
     public const string InvalidMouseButton = "Invalid mouse button";
     public const string UseScrollActionForScrollButtons = "Use Scroll action for scroll buttons";
     public const string CurrentPositionClickMustNotUseCoordinates = "Current-position click must not carry coordinates";

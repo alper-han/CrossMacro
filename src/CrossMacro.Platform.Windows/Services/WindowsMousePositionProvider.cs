@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Windows.Services;
 
-public class WindowsMousePositionProvider : IMousePositionProvider
+public sealed class WindowsMousePositionProvider : IMousePositionProvider
 {
     public string ProviderName => "Windows GetCursorPos";
     public bool IsSupported => OperatingSystem.IsWindows();

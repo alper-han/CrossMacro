@@ -8,11 +8,12 @@ public sealed class PortalScreenCastSession : IDisposable
 
     public PortalScreenCastSession(
         string sessionHandle,
-        IReadOnlyList<PortalStream> streams,
+        IReadOnlyList<PortalStreamDescriptor> streams,
         SafeFileHandle pipeWireRemote,
         IDisposable? owner = null,
         string? restoreToken = null)
     {
+        ArgumentNullException.ThrowIfNull(streams);
         if (string.IsNullOrWhiteSpace(sessionHandle))
         {
             throw new ArgumentException("Portal sessions require a handle.", nameof(sessionHandle));
@@ -32,13 +33,13 @@ public sealed class PortalScreenCastSession : IDisposable
 
     public string SessionHandle { get; }
 
-    public IReadOnlyList<PortalStream> Streams { get; }
+    public IReadOnlyList<PortalStreamDescriptor> Streams { get; }
 
     public SafeFileHandle PipeWireRemote { get; }
 
     public string? RestoreToken { get; }
 
-    public PortalStream PrimaryStream => Streams[0];
+    public PortalStreamDescriptor PrimaryStream => Streams[0];
 
     public void Dispose()
     {

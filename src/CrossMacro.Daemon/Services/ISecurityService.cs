@@ -11,26 +11,26 @@ public interface ISecurityService
     /// Performs PeerCreds check, Root check, Rate Limit check, Group check, and Polkit check.
     /// </summary>
     /// <returns>Tuple of (UID, PID) if authorized; null if rejected.</returns>
-    Task<(uint Uid, int Pid)?> ValidateConnectionAsync(Socket client);
+    public Task<(uint Uid, int Pid)?> ValidateConnectionAsync(Socket client);
 
     /// <summary>
     /// Logs a disconnection event.
     /// </summary>
-    void LogDisconnect(uint uid, int pid, TimeSpan duration);
+    public void LogDisconnect(uint uid, int pid, TimeSpan duration);
 
     /// <summary>
     /// Logs a capture start event.
     /// </summary>
-    void LogCaptureStart(uint uid, int pid, bool mouse, bool kb);
+    public void LogCaptureStart(uint uid, int pid, bool mouse, bool kb);
 
     /// <summary>
     /// Logs a capture stop event.
     /// </summary>
-    void LogCaptureStop(uint uid, int pid);
+    public void LogCaptureStop(uint uid, int pid);
 
     /// <summary>
     /// Logs a simulated input event.
     /// </summary>
-    void LogSimulation(uint uid, int pid, ushort type, ushort code, int value);
+    public void LogSimulation(uint uid, int pid, ushort type, ushort code, int value);
 
 }

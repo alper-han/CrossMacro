@@ -3,7 +3,9 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 internal sealed class WaylandWlrFrameState
 {
+#pragma warning disable S1450
     private readonly FrameDispatcher _dispatcher;
+#pragma warning restore S1450
 
     public WaylandWlrFrameState()
     {

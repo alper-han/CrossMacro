@@ -29,7 +29,9 @@ public class KeyStateTracker : IKeyStateTracker
     public void ReleaseAll(IInputSimulator simulator)
     {
         if (_pressedKeys.IsEmpty)
+        {
             return;
+        }
 
         Log.Information("[KeyStateTracker] Releasing {Count} pressed keys", _pressedKeys.Count);
 
@@ -45,7 +47,7 @@ public class KeyStateTracker : IKeyStateTracker
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[KeyStateTracker] Failed to release key: {KeyCode}", keyCode);
+                Log.LogError(ex, "[KeyStateTracker] Failed to release key: {KeyCode}", keyCode);
             }
         }
     }
@@ -62,7 +64,7 @@ public class KeyStateTracker : IKeyStateTracker
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[KeyStateTracker] Failed to re-press key: {KeyCode}", keyCode);
+                Log.LogError(ex, "[KeyStateTracker] Failed to re-press key: {KeyCode}", keyCode);
             }
         }
     }

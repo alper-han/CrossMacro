@@ -31,7 +31,7 @@ internal static class Program
 
     private static void ConfigurePlatformServices(IServiceCollection services, LinuxEnvironmentSnapshot environment)
     {
-        new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services, environment);
+        LinuxPlatformServiceRegistrar.RegisterPlatformServices(services, environment);
         services.AddSingleton<IRuntimeContext>(new LinuxRuntimeContext(environment));
         services.AddSingleton<IDisplayEnvironmentDiagnostic>(sp =>
             (IDisplayEnvironmentDiagnostic)sp.GetRequiredService<IRuntimeContext>());

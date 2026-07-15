@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Cli.Serialization;
 
-public sealed record RunScriptExecutionData(
+public sealed record class RunScriptExecutionData(
     [property: JsonPropertyName("stepCount")] int StepCount,
     [property: JsonPropertyName("eventCount")] int EventCount,
     [property: JsonPropertyName("totalDurationMs")] long TotalDurationMs,

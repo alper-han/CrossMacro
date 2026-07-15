@@ -9,45 +9,45 @@ public interface IMacroPlayer : IDisposable
     /// <summary>
     /// Whether playback is currently active
     /// </summary>
-    bool IsPlaying { get; }
+    public bool IsPlaying { get; }
 
     /// <summary>
     /// Whether playback is currently paused
     /// </summary>
-    bool IsPaused { get; }
+    public bool IsPaused { get; }
 
     /// <summary>
     /// Current loop iteration (1-based)
     /// </summary>
-    int CurrentLoop { get; }
+    public int CurrentLoop { get; }
 
     /// <summary>
     /// Total number of loops (0 = infinite)
     /// </summary>
-    int TotalLoops { get; }
+    public int TotalLoops { get; }
 
     /// <summary>
     /// Whether the player is currently waiting between loop iterations
     /// </summary>
-    bool IsWaitingBetweenLoops { get; }
+    public bool IsWaitingBetweenLoops { get; }
 
     /// <summary>
     /// Plays a macro sequence
     /// </summary>
-    Task PlayAsync(MacroSequence macro, PlaybackOptions? options = null, CancellationToken cancellationToken = default);
+    public Task PlayAsync(MacroSequence macro, PlaybackOptions? options = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Stops the currently playing macro
     /// </summary>
-    void Stop();
+    public void StopPlayback();
 
     /// <summary>
     /// Pauses the currently playing macro
     /// </summary>
-    void Pause();
+    public void Pause();
 
     /// <summary>
     /// Resumes the paused macro
     /// </summary>
-    void Resume();
+    public void ResumePlayback();
 }

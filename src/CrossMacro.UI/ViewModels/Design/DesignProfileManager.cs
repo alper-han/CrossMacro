@@ -18,7 +18,7 @@ internal sealed class DesignProfileManager : IProfileManager
 
     public IReadOnlyList<ProfileInfo> Profiles { get; }
 
-    public event EventHandler<ProfileInfo>? ProfileChanged
+    public event EventHandler<ProfileChangedEventArgs>? ProfileChanged
     {
         add { }
         remove { }

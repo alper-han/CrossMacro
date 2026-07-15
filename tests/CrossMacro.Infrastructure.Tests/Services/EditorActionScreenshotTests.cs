@@ -54,7 +54,7 @@ public sealed class EditorActionScreenshotTests
     {
         var sequence = new MacroSequence
         {
-            ScriptSteps = ["screenshot region 0 0 100 100 output \"path with spaces.png\" clipboard"],
+            ScriptSteps = {"screenshot region 0 0 100 100 output \"path with spaces.png\" clipboard"},
         };
 
         var action = _converter.FromMacroSequence(sequence).Should().ContainSingle().Subject;
@@ -72,7 +72,7 @@ public sealed class EditorActionScreenshotTests
     {
         var sequence = new MacroSequence
         {
-            ScriptSteps = ["screenshot output \"C:\\\\shots\\\\say \\\"hi\\\".png\""],
+            ScriptSteps = {"screenshot output \"C:\\\\shots\\\\say \\\"hi\\\".png\""},
         };
 
         var action = _converter.FromMacroSequence(sequence).Should().ContainSingle().Subject;
@@ -86,7 +86,7 @@ public sealed class EditorActionScreenshotTests
     {
         var sequence = new MacroSequence
         {
-            ScriptSteps = ["screenshot output simple.png"],
+            ScriptSteps = {"screenshot output simple.png"},
         };
 
         var action = _converter.FromMacroSequence(sequence).Should().ContainSingle().Subject;
@@ -101,7 +101,7 @@ public sealed class EditorActionScreenshotTests
     {
         var sequence = new MacroSequence
         {
-            ScriptSteps = ["screenshot output \"unterminated path"],
+            ScriptSteps = {"screenshot output \"unterminated path"},
         };
 
         var action = _converter.FromMacroSequence(sequence).Should().ContainSingle().Subject;

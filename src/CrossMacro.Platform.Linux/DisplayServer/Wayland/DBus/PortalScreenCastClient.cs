@@ -212,20 +212,20 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         return string.IsNullOrWhiteSpace(result) ? null : result;
     }
 
-    internal static IReadOnlyList<PortalStream> ParseStreams(IReadOnlyDictionary<string, VariantValue> results)
+    internal static IReadOnlyList<PortalStreamDescriptor> ParseStreams(IReadOnlyDictionary<string, VariantValue> results)
     {
         if (!results.TryGetValue("streams", out var streamsValue))
         {
             throw new PortalScreenCastException(ScreenReadErrorKind.CaptureFailed, "Portal Start response did not include streams.");
         }
 
-        var streams = new List<PortalStream>();
+        var streams = new List<PortalStreamDescriptor>();
         for (var i = 0; i < streamsValue.Count; i++)
         {
             var stream = streamsValue.GetItem(i);
             var nodeId = stream.GetItem(0).GetUInt32();
             var properties = UnboxDictionary(stream.GetItem(1));
-            streams.Add(new PortalStream(nodeId, properties));
+            streams.Add(new PortalStreamDescriptor(nodeId, properties));
         }
 
         if (streams.Count is 0)

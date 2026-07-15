@@ -5,7 +5,7 @@ internal static class PortalStreamGeometry
 {
     private const uint MonitorSourceType = 1;
 
-    public static PortalStreamValidationResult ValidateMonitorStreams(IReadOnlyList<PortalStream> streams, ScreenRect? requestedRegion = null)
+    public static PortalStreamValidationResult ValidateMonitorStreams(IReadOnlyList<PortalStreamDescriptor> streams, ScreenRect? requestedRegion = null)
     {
         if (streams.Count is 0)
         {
@@ -57,15 +57,7 @@ internal static class PortalStreamGeometry
 
     public static IReadOnlyList<PortalMonitorStream> GetIntersectingStreams(IReadOnlyList<PortalMonitorStream> streams, ScreenRect region)
     {
-        var result = new List<PortalMonitorStream>();
-        foreach (var stream in streams)
-        {
-            if (Intersects(stream.Bounds, region))
-            {
-                result.Add(stream);
-            }
-        }
-
+        var result = streams.Where(stream => Intersects(stream.Bounds, region)).ToList();
         return result;
     }
 
@@ -85,14 +77,14 @@ internal static class PortalStreamGeometry
         return true;
     }
 
-    private static PortalStreamValidationResult ValidateMonitorStream(PortalStream stream, int index)
+    private static PortalStreamValidationResult ValidateMonitorStream(PortalStreamDescriptor stream, int index)
     {
         var properties = stream.Properties;
         if (!TryReadSourceType(properties, out var sourceType))
         {
             return PortalStreamValidationResult.Failure(
                 ScreenReadErrorKind.CaptureFailed,
-                $"Portal stream {index} did not include source_type. CrossMacro cannot route coordinates without monitor source metadata.");
+                $"Portal stream {index.ToString(CultureInfo.InvariantCulture)} did not include source_type. CrossMacro cannot route coordinates without monitor source metadata.");
         }
 
         if (sourceType != MonitorSourceType)
@@ -106,14 +98,14 @@ internal static class PortalStreamGeometry
         {
             return PortalStreamValidationResult.Failure(
                 ScreenReadErrorKind.CaptureFailed,
-                $"Portal monitor stream {index} did not include a valid position. CrossMacro cannot route coordinates without monitor geometry.");
+                $"Portal monitor stream {index.ToString(CultureInfo.InvariantCulture)} did not include a valid position. CrossMacro cannot route coordinates without monitor geometry.");
         }
 
         if (!TryReadSize(properties, out var width, out var height))
         {
             return PortalStreamValidationResult.Failure(
                 ScreenReadErrorKind.CaptureFailed,
-                $"Portal monitor stream {index} did not include a valid positive size. CrossMacro cannot route coordinates without monitor geometry.");
+                $"Portal monitor stream {index.ToString(CultureInfo.InvariantCulture)} did not include a valid positive size. CrossMacro cannot route coordinates without monitor geometry.");
         }
 
         return PortalStreamValidationResult.Success(new PortalMonitorStream(stream, TryReadId(properties), new ScreenRect(x, y, width, height)));
@@ -222,9 +214,8 @@ internal static class PortalStreamGeometry
             var nextY = region.Bottom;
             var intervals = new List<(int Left, int Right)>();
 
-            foreach (var stream in streams)
+            foreach (var bounds in streams.Select(stream => stream.Bounds))
             {
-                var bounds = stream.Bounds;
                 if (bounds.Y > currentY && bounds.Y < nextY)
                 {
                     nextY = bounds.Y;
@@ -281,5 +272,5 @@ internal static class PortalStreamGeometry
         string.Join(", ", streams.Select(stream => FormatBounds(stream.Bounds)));
 
     private static string FormatBounds(ScreenRect bounds) =>
-        $"({bounds.X},{bounds.Y},{bounds.Width}x{bounds.Height})";
+        $"({bounds.X.ToString(CultureInfo.InvariantCulture)},{bounds.Y.ToString(CultureInfo.InvariantCulture)},{bounds.Width.ToString(CultureInfo.InvariantCulture)}x{bounds.Height.ToString(CultureInfo.InvariantCulture)})";
 }

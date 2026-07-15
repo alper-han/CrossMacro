@@ -2,7 +2,7 @@ namespace CrossMacro.Platform.Windows.Services.ScreenReading;
 
 internal interface IWindowsScreenCaptureBackend
 {
-    ScreenRect GetVirtualScreenBounds();
+    public ScreenRect GetVirtualScreenBounds();
 
-    WindowsScreenCaptureFrame Capture(ScreenRect region, CancellationToken cancellationToken);
+    public WindowsScreenCaptureFrame Capture(ScreenRect region, CancellationToken cancellationToken);
 }

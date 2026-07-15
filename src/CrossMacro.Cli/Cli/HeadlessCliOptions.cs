@@ -1,4 +1,4 @@
 namespace CrossMacro.Cli;
 
-public sealed record HeadlessCliOptions(bool JsonOutput = false, string? LogLevel = null)
+public sealed record class HeadlessCliOptions(bool JsonOutput = false, string? LogLevel = null)
     : CliCommandOptions(JsonOutput, LogLevel);

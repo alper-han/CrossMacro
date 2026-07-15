@@ -84,7 +84,10 @@ public static unsafe class XkbNative
         byte* buffer = stackalloc byte[64];
         int len = xkb_state_key_get_utf8(state, keycode, buffer, 64);
 
-        if (len <= 0) return string.Empty;
+        if (len <= 0)
+        {
+            return string.Empty;
+        }
 
         return System.Text.Encoding.UTF8.GetString(buffer, len);
     }

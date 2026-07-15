@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Cli.Serialization;
 
-public sealed record ShortcutTaskRunData(
+public sealed record class ShortcutTaskRunData(
     [property: JsonPropertyName("id")] Guid Id,
     [property: JsonPropertyName("name")] string Name,
     [property: JsonPropertyName("enabled")] bool Enabled,

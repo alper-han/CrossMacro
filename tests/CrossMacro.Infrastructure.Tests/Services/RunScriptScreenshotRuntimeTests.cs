@@ -46,7 +46,7 @@ public sealed class RunScriptScreenshotRuntimeTests
             inputSimulatorFactory: () => throw new InvalidOperationException("simulator should not be acquired"));
         var macro = new MacroSequence
         {
-            ScriptSteps = ["screenshot output simple.png"],
+            ScriptSteps = {"screenshot output simple.png"},
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);

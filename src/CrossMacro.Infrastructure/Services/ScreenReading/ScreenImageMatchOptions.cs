@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Services.ScreenReading;
 
-public sealed record ScreenImageMatchOptions
+public sealed record class ScreenImageMatchOptions
 {
     public static ScreenImageMatchOptions Default { get; } = new();
 

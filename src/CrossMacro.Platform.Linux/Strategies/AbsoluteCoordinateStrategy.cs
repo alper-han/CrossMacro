@@ -8,7 +8,7 @@ public class AbsoluteCoordinateStrategy : ICoordinateStrategy
     private int _currentY;
     private CancellationTokenSource? _syncCts;
     private Task? _syncTask;
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
 
     public AbsoluteCoordinateStrategy(IMousePositionProvider positionProvider)
     {
@@ -17,8 +17,8 @@ public class AbsoluteCoordinateStrategy : ICoordinateStrategy
 
     public async Task InitializeAsync(CancellationToken ct)
     {
-        var pos = await _positionProvider.GetAbsolutePositionAsync();
-        if (pos.HasValue)
+        var pos = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+        if (pos is not null)
         {
             _currentX = pos.Value.X;
             _currentY = pos.Value.Y;
@@ -41,9 +41,9 @@ public class AbsoluteCoordinateStrategy : ICoordinateStrategy
         {
             while (!token.IsCancellationRequested)
             {
-                await Task.Delay(100, token);
-                var pos = await _positionProvider.GetAbsolutePositionAsync();
-                if (pos.HasValue)
+                await Task.Delay(100, token).ConfigureAwait(false);
+                var pos = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+                if (pos is not null)
                 {
                     lock (_lock)
                     {
@@ -56,24 +56,35 @@ public class AbsoluteCoordinateStrategy : ICoordinateStrategy
                 }
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+            // expected when the sync loop is cancelled via the cancellation token.
+        }
         catch (Exception ex)
         {
-            Log.Error(ex, "[AbsoluteCoordinateStrategy] Sync loop error");
+            Log.LogError(ex, "[AbsoluteCoordinateStrategy] Sync loop error");
         }
     }
 
-    public (int X, int Y) ProcessPosition(InputCaptureEventArgs e)
+    public (int X, int Y) ProcessPosition(CapturedInputEvent e)
     {
         lock (_lock)
         {
             if (e.Type is InputEventType.Sync)
+            {
                 return (0, 0);
+            }
 
             if (e.Type is InputEventType.MouseMove)
             {
-                if (e.Code == InputEventCode.REL_X) _currentX += e.Value;
-                else if (e.Code == InputEventCode.REL_Y) _currentY += e.Value;
+                if (e.Code == InputEventCode.REL_X)
+                {
+                    _currentX += e.Value;
+                }
+                else if (e.Code == InputEventCode.REL_Y)
+                {
+                    _currentY += e.Value;
+                }
             }
 
             return (_currentX, _currentY);

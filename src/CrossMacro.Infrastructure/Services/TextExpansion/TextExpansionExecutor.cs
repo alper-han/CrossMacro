@@ -4,7 +4,6 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion;
 public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable
 {
     private readonly Func<IInputSimulator> _inputSimulatorFactory;
-    private readonly TextExpansionKeyDispatcher _keyDispatcher;
     private readonly TextExpansionClipboardInserter _clipboardInserter;
     private readonly TextExpansionDirectTypingInserter _directTypingInserter;
     private readonly Lock _simulatorLock = new();
@@ -22,9 +21,8 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable
         ArgumentNullException.ThrowIfNull(inputSimulatorFactory);
 
         _inputSimulatorFactory = inputSimulatorFactory;
-        _keyDispatcher = new TextExpansionKeyDispatcher();
-        _clipboardInserter = new TextExpansionClipboardInserter(clipboardService, _keyDispatcher);
-        _directTypingInserter = new TextExpansionDirectTypingInserter(layoutService, _keyDispatcher);
+        _clipboardInserter = new TextExpansionClipboardInserter(clipboardService);
+        _directTypingInserter = new TextExpansionDirectTypingInserter(layoutService);
     }
 
     public async Task ExpandAsync(TextExpansionModel expansion)
@@ -44,28 +42,28 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable
 
             if (expansion.InsertionMode is TextInsertionMode.DirectTyping)
             {
-                await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length);
-                await Task.Delay(TextExpansionExecutionTimings.TriggerBackspaceSettleDelay);
+                await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length).ConfigureAwait(false);
+                await Task.Delay(TextExpansionExecutionTimings.TriggerBackspaceSettleDelay).ConfigureAwait(false);
                 Log.Debug("Inserting expansion using direct typing mode");
                 await _directTypingInserter.InsertAsync(
                     inputSimulator,
                     expansion.Replacement,
-                    expansion.DirectTypingMethod);
+                    expansion.DirectTypingMethod).ConfigureAwait(false);
                 return;
             }
 
-            var preparedPaste = await _clipboardInserter.TryPrepareAsync(expansion.Replacement);
+            var preparedPaste = await _clipboardInserter.TryPrepareAsync(expansion.Replacement).ConfigureAwait(false);
             if (preparedPaste is not null)
             {
                 try
                 {
-                    await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length);
-                    await Task.Delay(TextExpansionExecutionTimings.TriggerBackspaceSettleDelay);
-                    await _clipboardInserter.CommitAsync(inputSimulator, preparedPaste, expansion.Method);
+                    await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length).ConfigureAwait(false);
+                    await Task.Delay(TextExpansionExecutionTimings.TriggerBackspaceSettleDelay).ConfigureAwait(false);
+                    await TextExpansionClipboardInserter.CommitAsync(inputSimulator, preparedPaste, expansion.Method).ConfigureAwait(false);
                 }
                 finally
                 {
-                    await _clipboardInserter.RestoreAsync(preparedPaste);
+                    await _clipboardInserter.RestoreAsync(preparedPaste).ConfigureAwait(false);
                 }
 
                 return;
@@ -78,16 +76,16 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable
                 _directTypingInserter.ValidateSupport(inputSimulator, expansion.Replacement);
             }
 
-            await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length);
-            await Task.Delay(TextExpansionExecutionTimings.TriggerBackspaceSettleDelay);
+            await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length).ConfigureAwait(false);
+            await Task.Delay(TextExpansionExecutionTimings.TriggerBackspaceSettleDelay).ConfigureAwait(false);
             await _directTypingInserter.InsertAsync(
                 inputSimulator,
                 expansion.Replacement,
-                expansion.DirectTypingMethod);
+                expansion.DirectTypingMethod).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error executing expansion");
+            Log.LogError(ex, "Error executing expansion");
         }
     }
 
@@ -135,12 +133,12 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable
         }
     }
 
-    private async Task BackspaceTriggerAsync(IInputSimulator inputSimulator, int triggerLength)
+    private static async Task BackspaceTriggerAsync(IInputSimulator inputSimulator, int triggerLength)
     {
         Log.Debug("Backspacing {Length} chars", triggerLength);
         for (var i = 0; i < triggerLength; i++)
         {
-            await _keyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_BACKSPACE);
+            await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_BACKSPACE).ConfigureAwait(false);
         }
     }
 }

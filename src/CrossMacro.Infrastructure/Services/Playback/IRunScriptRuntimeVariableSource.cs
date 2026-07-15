@@ -3,5 +3,5 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 
 public interface IRunScriptRuntimeVariableSource
 {
-    IReadOnlyDictionary<string, string> RuntimeVariables { get; }
+    public IReadOnlyDictionary<string, string> RuntimeVariables { get; }
 }

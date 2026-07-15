@@ -5,7 +5,7 @@ public partial class EditorViewModel
 {
     private WriteableBitmap? _selectedImageAssetPreview;
 
-    public IReadOnlyList<EditorActionScreenTargetColorSource> ScreenTargetColorSources => EditorScreenTargetColorSources;
+    public static IReadOnlyList<EditorActionScreenTargetColorSource> ScreenTargetColorSources => EditorScreenTargetColorSources;
     public IReadOnlyList<EditorImageMatchMode> ImageMatchModes { get; } = Enum.GetValues<EditorImageMatchMode>();
     public bool ShowPixelColorFields => (SelectedAction?.Type) is EditorActionType.PixelColor;
     public bool ShowWaitColorFields => (SelectedAction?.Type) is EditorActionType.WaitColor;

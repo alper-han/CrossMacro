@@ -6,7 +6,7 @@ namespace CrossMacro.Platform.Windows.Strategies;
 /// Uses GetCursorPos to get true absolute coordinates directly from Windows,
 /// avoiding drift from accumulated relative deltas.
 /// </summary>
-public class WindowsAbsoluteCoordinateStrategy : ICoordinateStrategy
+public sealed class WindowsAbsoluteCoordinateStrategy : ICoordinateStrategy
 {
     private readonly IMousePositionProvider _positionProvider;
     private int _lastX;
@@ -19,21 +19,25 @@ public class WindowsAbsoluteCoordinateStrategy : ICoordinateStrategy
 
     public async Task InitializeAsync(CancellationToken ct)
     {
-        var pos = await _positionProvider.GetAbsolutePositionAsync();
-        if (pos.HasValue)
+        var pos = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+        if (pos is not null)
         {
             _lastX = pos.Value.X;
             _lastY = pos.Value.Y;
         }
     }
 
-    public (int X, int Y) ProcessPosition(InputCaptureEventArgs e)
+    public (int X, int Y) ProcessPosition(CapturedInputEvent e)
     {
         if (e.Type is InputEventType.Sync)
+        {
             return (0, 0);
+        }
 
         if (e.Type is not InputEventType.MouseMove)
+        {
             return (_lastX, _lastY);
+        }
 
         if (User32.GetCursorPos(out POINT pt))
         {

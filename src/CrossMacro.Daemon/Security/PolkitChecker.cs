@@ -79,7 +79,7 @@ public static class PolkitChecker
                 process.Start();
 
                 // Wait for pkcheck with timeout (user might need to enter password)
-                var completed = await Task.Run(() => process.WaitForExit(PkcheckTimeoutMs));
+                var completed = await Task.Run(() => process.WaitForExit(PkcheckTimeoutMs)).ConfigureAwait(false);
                 if (!completed)
                 {
                     Log.Warning("[Polkit] pkcheck timed out");
@@ -88,7 +88,7 @@ public static class PolkitChecker
                 }
 
                 var exitCode = process.ExitCode;
-                var stderr = await process.StandardError.ReadToEndAsync();
+                var stderr = await process.StandardError.ReadToEndAsync().ConfigureAwait(false);
 
                 if (IsTransientProcessSubjectError(exitCode, stderr) && attempt <= MaxTransientSubjectRetries)
                 {
@@ -96,7 +96,7 @@ public static class PolkitChecker
                         "[Polkit] Transient process-subject failure from pkcheck (exit={Code}): {Stderr}. Retrying.",
                         exitCode,
                         stderr.Trim());
-                    await Task.Delay(TransientSubjectRetryDelay);
+                    await Task.Delay(TransientSubjectRetryDelay).ConfigureAwait(false);
                     continue;
                 }
 

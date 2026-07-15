@@ -11,7 +11,7 @@ public class PersistedMacroDocument
     public const string CurrentFormat = "CrossMacroFormatV2";
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
-    public string Format => $"CrossMacroFormatV{SchemaVersion}";
+    public string Format => $"CrossMacroFormatV{SchemaVersion.ToString(CultureInfo.InvariantCulture)}";
     public Guid Id { get; init; }
     public string Name { get; init; } = MacroNameDefaults.UnnamedMacroName;
     public List<PersistedMacroEvent> Events { get; init; } = new();
@@ -39,7 +39,7 @@ public class PersistedMacroDocument
         {
             Id = macro.Id,
             Name = macro.Name,
-            Events = macro.Events is null ? new List<PersistedMacroEvent>() : macro.Events.ConvertAll(PersistedMacroEvent.FromRuntime),
+            Events = macro.Events is null ? new List<PersistedMacroEvent>() : macro.Events.Select(PersistedMacroEvent.FromRuntime).ToList(),
             ScriptSteps = macro.ScriptSteps is null ? new List<string>() : new List<string>(macro.ScriptSteps),
             TextInputBoundaries = macro.TextInputBoundaries is null
                 ? new List<TextInputBoundary>()
@@ -65,14 +65,10 @@ public class PersistedMacroDocument
 
     public MacroSequence ToRuntime()
     {
-        return new MacroSequence
+        var sequence = new MacroSequence
         {
             Id = Id,
             Name = Name,
-            Events = Events.ConvertAll(static ev => ev.ToRuntime()),
-            ScriptSteps = new List<string>(ScriptSteps),
-            TextInputBoundaries = new List<TextInputBoundary>(TextInputBoundaries),
-            Images = new Dictionary<string, string>(Images, StringComparer.Ordinal),
             CreatedAt = CreatedAt,
             TotalDurationMs = TotalDurationMs,
             RecordedAt = RecordedAt,
@@ -87,5 +83,11 @@ public class PersistedMacroDocument
             TrailingDelayMinMs = TrailingDelayMinMs,
             TrailingDelayMaxMs = TrailingDelayMaxMs,
         };
+
+        sequence.ReplaceEvents(Events.ConvertAll(static ev => ev.ToRuntime()));
+        sequence.ReplaceScriptSteps(ScriptSteps);
+        sequence.ReplaceTextInputBoundaries(TextInputBoundaries);
+        sequence.ReplaceImages(Images);
+        return sequence;
     }
 }

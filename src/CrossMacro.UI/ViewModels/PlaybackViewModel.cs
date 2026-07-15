@@ -11,7 +11,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
     private readonly ILoadedMacroSession _loadedMacroSession;
     private readonly ILocalizationService _localizationService;
     private readonly IDialogService? _dialogService;
-    private readonly Random _random = Random.Shared;
+    private readonly Func<int, int, int> _randomInclusive;
 
     private double _playbackSpeed = 1.0;
     private bool _isLooping;
@@ -54,12 +54,24 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         ILoadedMacroSession loadedMacroSession,
         ILocalizationService? localizationService = null,
         IDialogService? dialogService = null)
+        : this(player, settingsService, loadedMacroSession, localizationService, dialogService, RandomNumberGeneratorUtility.GetInt32Inclusive)
+    {
+    }
+
+    internal PlaybackViewModel(
+        IMacroPlayer player,
+        ISettingsService settingsService,
+        ILoadedMacroSession loadedMacroSession,
+        ILocalizationService? localizationService,
+        IDialogService? dialogService,
+        Func<int, int, int> randomInclusive)
     {
         _player = player;
         _settingsService = settingsService;
         _loadedMacroSession = loadedMacroSession;
         _localizationService = localizationService ?? new LocalizationService();
         _dialogService = dialogService;
+        _randomInclusive = randomInclusive ?? throw new ArgumentNullException(nameof(randomInclusive));
         _playbackStatus = _localizationService["Playback_StatusReady"];
 
         // Initialize playback settings from saved settings
@@ -141,7 +153,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
                     _localizationService.CurrentCulture,
                     _localizationService["Playback_SequenceCycleInfinite"],
                     Math.Max(1, _sequenceCycle))
-                : $"{Math.Max(1, _sequenceCycle)}/{Math.Max(1, _sequenceTotalCycles)}";
+                : $"{Math.Max(1, _sequenceCycle).ToString(CultureInfo.InvariantCulture)}/{Math.Max(1, _sequenceTotalCycles).ToString(CultureInfo.InvariantCulture)}";
             var repeatCount = Math.Max(1, _sequenceMacroRepeatCount);
             var repeatText = string.Empty;
 
@@ -534,7 +546,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
             IsPlaying = true;
             IsPaused = false;
 
-            await WaitForCountdownAsync(_playbackCts.Token);
+            await WaitForCountdownAsync(_playbackCts.Token).ConfigureAwait(false);
             if (_stopRequested)
             {
                 return;
@@ -544,11 +556,11 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
 
             if (executionPlan.UsesSequence)
             {
-                await PlaySequentialCycleAsync(sequenceSnapshot, _playbackCts.Token);
+                await PlaySequentialCycleAsync(sequenceSnapshot, _playbackCts.Token).ConfigureAwait(false);
             }
             else
             {
-                await PlaySingleMacroModeAsync(activeMacro, playbackMode, _playbackCts.Token);
+                await PlaySingleMacroModeAsync(activeMacro, playbackMode, _playbackCts.Token).ConfigureAwait(false);
             }
 
             if (!_stopRequested)
@@ -572,7 +584,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
                 {
                     await _dialogService.ShowMessageAsync(
                         _localizationService["Playback_AbsoluteCoordinatesUnsupportedTitle"],
-                        _localizationService["Playback_AbsoluteCoordinatesUnsupportedMessage"]);
+                        _localizationService["Playback_AbsoluteCoordinatesUnsupportedMessage"]).ConfigureAwait(false);
                 }
             }
             else if (ex is InputInjectionPermissionRequiredException)
@@ -586,7 +598,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
                 {
                     await _dialogService.ShowMessageAsync(
                         _localizationService["Playback_PermissionRequiredTitle"],
-                        _localizationService["Playback_PermissionRequiredMessage"]);
+                        _localizationService["Playback_PermissionRequiredMessage"]).ConfigureAwait(false);
                 }
             }
             else
@@ -617,7 +629,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         _statusUpdateTimer?.Stop();
         _playbackCts?.Cancel();
         IsPaused = false;
-        _player.Stop();
+        _player.StopPlayback();
         PlaybackStatus = _localizationService["Playback_StatusStopped"];
 
         if (_playbackCts is null)
@@ -635,7 +647,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
 
         if (_player.IsPaused)
         {
-            _player.Resume();
+            _player.ResumePlayback();
             IsPaused = false;
             UpdatePlaybackStatus();
         }
@@ -720,7 +732,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         for (var i = countdown; i > 0; i--)
         {
             PlaybackStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Playback_StatusStartingIn"], i);
-            await Task.Delay(1000, cancellationToken);
+            await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
             if (_stopRequested)
             {
                 return;
@@ -734,7 +746,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         CancellationToken cancellationToken)
     {
         UpdatePlaybackStatus();
-        await _player.PlayAsync(macro, BuildSingleMacroPlaybackOptions(), cancellationToken);
+        await _player.PlayAsync(macro, BuildSingleMacroPlaybackOptions(), cancellationToken).ConfigureAwait(false);
         if (_stopRequested)
         {
             return;
@@ -780,7 +792,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
                     SelectLiveMacroBySessionId(item.SessionId);
                     UpdatePlaybackStatus();
 
-                    await _player.PlayAsync(item.Macro, BuildSequenceMacroPlaybackOptions(item), cancellationToken);
+                    await _player.PlayAsync(item.Macro, BuildSequenceMacroPlaybackOptions(item), cancellationToken).ConfigureAwait(false);
                     if (_stopRequested)
                     {
                         return;
@@ -800,7 +812,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
                 {
                     _isWaitingBetweenSequenceCycles = true;
                     UpdatePlaybackStatus();
-                    await Task.Delay(cycleDelay, cancellationToken);
+                    await Task.Delay(cycleDelay, cancellationToken).ConfigureAwait(false);
                     _isWaitingBetweenSequenceCycles = false;
                 }
             }
@@ -842,12 +854,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
             return min;
         }
 
-        if (max == int.MaxValue)
-        {
-            return (int)_random.NextInt64(min, (long)max + 1);
-        }
-
-        return _random.Next(min, max + 1);
+        return min == max ? min : _randomInclusive(min, max);
     }
 
     private void ResetSequenceState()
@@ -907,12 +914,12 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
     {
         if (!UseRandomLoopDelay)
         {
-            return $"{LoopDelayMs ?? 0} ms";
+            return $"{(LoopDelayMs ?? 0).ToString(CultureInfo.InvariantCulture)} ms";
         }
 
         var min = LoopDelayMinMs ?? 0;
         var max = LoopDelayMaxMs ?? 0;
-        return min == max ? $"{min} ms" : $"{min}-{max} ms";
+        return min == max ? $"{min.ToString(CultureInfo.InvariantCulture)} ms" : $"{min.ToString(CultureInfo.InvariantCulture)}-{max.ToString(CultureInfo.InvariantCulture)} ms";
     }
 
     private bool TryPersistSettingChange(Action rollback, params string[] propertyNames)
@@ -926,7 +933,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            await _settingsService.SaveAsync();
+            await _settingsService.SaveAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -939,7 +946,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
                 }
             }
 
-            Log.Error(ex, "[PlaybackViewModel] Failed to persist playback settings");
+            Log.LogError(ex, "[PlaybackViewModel] Failed to persist playback settings");
         }
     }
 }

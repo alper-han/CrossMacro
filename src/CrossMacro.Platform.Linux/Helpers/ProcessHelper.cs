@@ -28,7 +28,10 @@ public static class ProcessHelper
             {
                 var output = process.StandardOutput.ReadToEnd();
                 process.WaitForExit();
-                if (process.ExitCode is 0) return output.Trim();
+                if (process.ExitCode is 0)
+                {
+                    return output.Trim();
+                }
             }
         }
         catch (System.ComponentModel.Win32Exception)
@@ -37,7 +40,7 @@ public static class ProcessHelper
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to execute command: {Command} {Arguments}", fileName, arguments);
+            Log.LogError(ex, "Failed to execute command: {Command} {Arguments}", fileName, arguments);
         }
         return null;
     }
@@ -47,10 +50,14 @@ public static class ProcessHelper
     /// </summary>
     public static string GetProcessName(int pid)
     {
-        if (pid <= 0) return string.Empty;
+        if (pid <= 0)
+        {
+            return string.Empty;
+        }
+
         try
         {
-            var commPath = $"/proc/{pid}/comm";
+            var commPath = $"/proc/{pid.ToString(CultureInfo.InvariantCulture)}/comm";
             if (System.IO.File.Exists(commPath))
             {
                 return System.IO.File.ReadAllText(commPath).Trim();

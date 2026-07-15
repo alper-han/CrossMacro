@@ -15,6 +15,7 @@ public class LinuxKeyboardLayoutService : IKeyboardLayoutService, IDisposable
         ILinuxKeyCodeMapper keyCodeMapper,
         IXkbStateManager xkbState)
     {
+        ArgumentNullException.ThrowIfNull(layoutDetector);
         _keyCodeMapper = keyCodeMapper;
         _xkbState = xkbState;
 

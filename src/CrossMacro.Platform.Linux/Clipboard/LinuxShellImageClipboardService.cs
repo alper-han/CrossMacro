@@ -36,7 +36,7 @@ public sealed class LinuxShellImageClipboardService : IImageClipboardService
         }
 
         if (!string.IsNullOrEmpty(_environment.WaylandDisplay) &&
-            await _processRunner.CheckCommandAsync("wl-copy", cancellationToken))
+            await _processRunner.CheckCommandAsync("wl-copy", cancellationToken).ConfigureAwait(false))
         {
             _tool = ClipboardTool.WlClipboard;
             Log.Information("[LinuxImageClipboard] Detected Wayland, using wl-copy");
@@ -44,7 +44,7 @@ public sealed class LinuxShellImageClipboardService : IImageClipboardService
             return;
         }
 
-        if (await _processRunner.CheckCommandAsync("xclip", cancellationToken))
+        if (await _processRunner.CheckCommandAsync("xclip", cancellationToken).ConfigureAwait(false))
         {
             _tool = ClipboardTool.Xclip;
             Log.Information("[LinuxImageClipboard] Using xclip");
@@ -88,7 +88,7 @@ public sealed class LinuxShellImageClipboardService : IImageClipboardService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to set image clipboard via shell");
+            Log.LogError(ex, "Failed to set image clipboard via shell");
             throw;
         }
     }

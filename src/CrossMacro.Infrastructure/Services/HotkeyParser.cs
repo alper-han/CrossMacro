@@ -18,7 +18,9 @@ public class HotkeyParser : IHotkeyParser
         var mapping = new HotkeyMapping();
 
         if (string.IsNullOrWhiteSpace(hotkeyString))
+        {
             return mapping;
+        }
 
         foreach (var part in hotkeyString.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {

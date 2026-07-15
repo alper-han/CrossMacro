@@ -164,7 +164,7 @@ public partial class EditorViewModel
         return false;
     }
 
-    private void NormalizeCoordinateAction(EditorAction sourceAction)
+    private static void NormalizeCoordinateAction(EditorAction sourceAction)
     {
         if (!UsesCoordinateFields(sourceAction.Type))
         {
@@ -204,6 +204,44 @@ public partial class EditorViewModel
         _lastPropertyEditAction = null;
         _lastPropertyEditName = null;
         _lastPropertyEditUndoAt = DateTimeOffset.MinValue;
+    }
+
+    private void SetSelectedImageSearchScaleAware(bool value)
+    {
+        var action = SelectedAction;
+        if (action is null || action.ImageSearchScaleAware == value)
+        {
+            return;
+        }
+
+        if (!ShouldCoalescePropertyUndo(action, nameof(EditorAction.ImageSearchScaleAware)))
+        {
+            SaveUndoState(_lastKnownState);
+        }
+
+        action.SetImageSearchScaleAware(value);
+        RememberCurrentState();
+        UpdateActionListPresentation();
+        OnPropertyChanged(nameof(SelectedImageSearchScaleAware));
+    }
+
+    private void SetSelectedImageSearchMatchMode(EditorImageMatchMode value)
+    {
+        var action = SelectedAction;
+        if (action is null || action.ImageSearchMatchMode == value)
+        {
+            return;
+        }
+
+        if (!ShouldCoalescePropertyUndo(action, nameof(EditorAction.ImageSearchMatchMode)))
+        {
+            SaveUndoState(_lastKnownState);
+        }
+
+        action.SetImageSearchMatchMode(value);
+        RememberCurrentState();
+        UpdateActionListPresentation();
+        OnPropertyChanged(nameof(SelectedImageSearchMatchMode));
     }
 
     private bool ShouldCoalescePropertyUndo(EditorAction? action, string propertyName)
@@ -600,7 +638,7 @@ public partial class EditorViewModel
             ImageSearchSimilarity = EditorActionScreenReadingPayload.DefaultImageSearchSimilarity,
             ImageSearchDownsample = EditorActionScreenReadingPayload.DefaultImageSearchDownsample,
             ImageSearchScaleAware = EditorActionScreenReadingPayload.DefaultImageSearchScaleAware,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
         };
 
         if (EditorActionScreenReadingPayload.TryCreateDefault(NewActionType, out var screenReadingPayload))
@@ -646,7 +684,7 @@ public partial class EditorViewModel
             Type = EditorActionType.MouseClick,
             IsAbsolute = false,
             UseCurrentPosition = true,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
             X = 0,
             Y = 0,
         };

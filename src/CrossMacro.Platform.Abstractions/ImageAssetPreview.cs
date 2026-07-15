@@ -4,20 +4,9 @@ public sealed class ImageAssetPreview
 {
     public ImageAssetPreview(int width, int height, int stride, ReadOnlyMemory<byte> pixels)
     {
-        if (width <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(width));
-        }
-
-        if (height <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(height));
-        }
-
-        if (stride < checked(width * 4))
-        {
-            throw new ArgumentOutOfRangeException(nameof(stride));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
+        ArgumentOutOfRangeException.ThrowIfLessThan(stride, checked(width * 4));
 
         if (pixels.Length < checked(stride * height))
         {

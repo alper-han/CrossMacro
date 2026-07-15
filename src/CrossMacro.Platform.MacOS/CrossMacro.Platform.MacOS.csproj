@@ -15,4 +15,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="CrossMacro.Platform.MacOS.Tests" />
+  </ItemGroup>
+
 </Project>

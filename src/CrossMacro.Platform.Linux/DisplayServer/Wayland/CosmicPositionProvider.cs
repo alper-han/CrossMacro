@@ -59,7 +59,7 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[CosmicPositionProvider] Failed to get screen resolution");
+            Log.LogError(ex, "[CosmicPositionProvider] Failed to get screen resolution");
             return null;
         }
     }
@@ -80,8 +80,8 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
             var usableOutputs = outputs
                 .Where(static output => output.Enabled &&
                                         !output.IsMirrored &&
-                                        output.Position.HasValue &&
-                                        output.CurrentMode.HasValue &&
+output.Position is not null &&
+output.CurrentMode is not null &&
                                         output.Scale > 0)
                 .Select(static output => output.ToLogicalRectangle())
                 .Where(static rectangle => rectangle.Width > 0 && rectangle.Height > 0)
@@ -145,13 +145,13 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
                 continue;
             }
 
-            if (line is "modes {")
+            if (string.Equals(line, "modes {", StringComparison.Ordinal))
             {
                 inModes = true;
                 continue;
             }
 
-            if (line is "}")
+            if (string.Equals(line, "}", StringComparison.Ordinal))
             {
                 if (inModes)
                 {
@@ -272,15 +272,8 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
             return null;
         }
 
-        foreach (var line in content.Split('\n', StringSplitOptions.TrimEntries))
-        {
-            if (!string.IsNullOrWhiteSpace(line))
-            {
-                return line;
-            }
-        }
-
-        return null;
+        return content.Split('\n', StringSplitOptions.TrimEntries)
+            .FirstOrDefault(line => !string.IsNullOrWhiteSpace(line));
     }
 
     public void Dispose()

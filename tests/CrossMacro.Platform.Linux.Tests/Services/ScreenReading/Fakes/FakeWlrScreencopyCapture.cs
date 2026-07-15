@@ -42,7 +42,7 @@ internal sealed class FakeWlrScreencopyCapture : IWlrScreencopyCapture
         {
             await Task.Delay(DelayBeforeResult)
                 .WaitAsync(options.Timeout ?? Timeout.InfiniteTimeSpan, options.CancellationToken)
-                .ConfigureAwait(false);
+                ;
         }
 
         if (CaptureException is not null)

@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.MacOS.Services.ScreenReading;
 
-internal sealed record MacOSCapturedImage(
+internal sealed record class MacOSCapturedImage(
     int Width,
     int Height,
     int BitsPerComponent,

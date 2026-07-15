@@ -3,7 +3,7 @@ namespace CrossMacro.Daemon.Services;
 
 public interface IPeerCredentialsProvider
 {
-    (uint Uid, uint Gid, int Pid)? GetCredentials(Socket socket);
-    string? GetProcessExecutable(int pid);
-    bool IsUserInGroup(uint uid, string groupName);
+    public (uint Uid, uint Gid, int Pid)? GetCredentials(Socket socket);
+    public string? GetProcessExecutable(int pid);
+    public bool IsUserInGroup(uint uid, string groupName);
 }

@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 
 internal sealed class LinuxQuickSetupScriptBuilder
 {
-    public string Build(LinuxQuickSetupScriptOptions options)
+    public static string Build(LinuxQuickSetupScriptOptions options)
     {
         var script = new StringBuilder();
         script.Append("set -eu; ");

@@ -10,7 +10,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         var position = (X: 0, Y: 0);
         var resolution = (Width: 0, Height: 0);
 
-        await using var bus = await CreatePrivateSessionBusAsync();
+        await using var bus = (await CreatePrivateSessionBusAsync());
         using var serviceConnection = bus.CreateConnection();
         using var clientConnection = bus.CreateConnection();
 
@@ -66,7 +66,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
     {
         var position = (X: 0, Y: 0);
 
-        await using var bus = await CreatePrivateSessionBusAsync();
+        await using var bus = (await CreatePrivateSessionBusAsync());
         using var serviceConnection = bus.CreateConnection();
         using var clientConnection = bus.CreateConnection();
 
@@ -105,7 +105,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
     {
         var position = (X: 0, Y: 0);
 
-        await using var bus = await CreatePrivateSessionBusAsync();
+        await using var bus = (await CreatePrivateSessionBusAsync());
         using var serviceConnection = bus.CreateConnection();
         using var clientConnection = bus.CreateConnection();
 
@@ -144,7 +144,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         const string expectedUuid = "crossmacro@zynix.net";
         string? receivedUuid = null;
 
-        await using var bus = await CreatePrivateSessionBusAsync();
+        await using var bus = (await CreatePrivateSessionBusAsync());
         using var serviceConnection = bus.CreateConnection();
         using var clientConnection = bus.CreateConnection();
 
@@ -184,7 +184,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         const string expectedScriptName = "42";
         string? receivedScriptName = null;
 
-        await using var bus = await CreatePrivateSessionBusAsync();
+        await using var bus = (await CreatePrivateSessionBusAsync());
         using var serviceConnection = bus.CreateConnection();
         using var clientConnection = bus.CreateConnection();
 

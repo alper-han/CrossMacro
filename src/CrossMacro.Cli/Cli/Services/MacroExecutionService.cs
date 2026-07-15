@@ -40,7 +40,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
         MacroSequence? macro;
         try
         {
-            macro = await _macroFileManager.LoadAsync(macroFilePath);
+            macro = await _macroFileManager.LoadAsync(macroFilePath).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -135,7 +135,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
         MacroSequence? macro;
         try
         {
-            macro = await _macroFileManager.LoadAsync(macroFilePath);
+            macro = await _macroFileManager.LoadAsync(macroFilePath).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -188,7 +188,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
         {
             if (countdownSeconds > 0)
             {
-                await Task.Delay(TimeSpan.FromSeconds(countdownSeconds), cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(countdownSeconds), cancellationToken).ConfigureAwait(false);
             }
 
             using var player = _macroPlayerFactory();
@@ -196,14 +196,14 @@ public sealed class MacroExecutionService : IMacroExecutionService
             {
                 try
                 {
-                    player.Stop();
+                    player.StopPlayback();
                 }
                 catch
                 {
                 }
             });
 
-            await player.PlayAsync(macro, options, cancellationToken);
+            await player.PlayAsync(macro, options, cancellationToken).ConfigureAwait(false);
 
             return new MacroExecutionResult
             {

@@ -3,7 +3,7 @@ namespace CrossMacro.Packaging.Abstractions;
 
 public interface IFlatpakQuickSetupService
 {
-    bool IsApplicable();
+    public bool IsApplicable();
 
-    Task<QuickSetupResult> RunAsync(CancellationToken cancellationToken = default);
+    public Task<QuickSetupResult> RunAsync(CancellationToken cancellationToken = default);
 }

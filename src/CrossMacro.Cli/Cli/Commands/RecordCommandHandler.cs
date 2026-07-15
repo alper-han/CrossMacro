@@ -14,7 +14,7 @@ public sealed class RecordCommandHandler : CliCommandHandlerBase<RecordCliOption
 
     protected override async Task<CliCommandExecutionResult> ExecuteAsync(RecordCliOptions options, CancellationToken cancellationToken)
     {
-        var preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Record, cancellationToken);
+        var preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Record, cancellationToken).ConfigureAwait(false);
         if (!preflight.Success)
         {
             return CliCommandExecutionResult.Fail(preflight.ExitCode, preflight.Message, preflight.Errors, preflight.Warnings);
@@ -28,7 +28,7 @@ public sealed class RecordCommandHandler : CliCommandHandlerBase<RecordCliOption
             CoordinateMode = options.CoordinateMode,
             SkipInitialZero = options.SkipInitialZero,
             DurationSeconds = options.DurationSeconds,
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
 
         return result.Success
             ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings)

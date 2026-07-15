@@ -28,7 +28,7 @@ public class IpcClient : IDisposable
     private const int HandshakeTimeoutMs = 5000;
     private static readonly TimeSpan SimulationBatchAckGracePeriod = TimeSpan.FromSeconds(2);
 
-    public event EventHandler<InputCaptureEventArgs>? InputReceived;
+    public event EventHandler<CapturedInputEvent>? InputReceived;
     public event EventHandler<string>? ErrorOccurred;
 
     public bool IsConnected => _socket?.Connected ?? false;
@@ -46,17 +46,20 @@ public class IpcClient : IDisposable
         var gateAcquired = false;
         try
         {
-            await _connectGate.WaitAsync(token);
+            await _connectGate.WaitAsync(token).ConfigureAwait(false);
             gateAcquired = true;
 
-            if (IsConnected) return;
+            if (IsConnected)
+            {
+                return;
+            }
 
             var socketPath = _socketPathResolver();
 
             try
             {
                 _socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-                await _socket.ConnectAsync(new UnixDomainSocketEndPoint(socketPath), token);
+                await _socket.ConnectAsync(new UnixDomainSocketEndPoint(socketPath), token).ConfigureAwait(false);
 
                 // Handshake uses explicit timeout to avoid hanging forever on partial connections.
                 _socket.ReceiveTimeout = HandshakeTimeoutMs;
@@ -78,22 +81,22 @@ public class IpcClient : IDisposable
                 handshakeCts.CancelAfter(HandshakeTimeoutMs);
                 var handshakeToken = handshakeCts.Token;
 
-                var opcode = (IpcOpCode)await IpcHandshakeCodec.ReadByteAsync(_stream, handshakeToken);
+                var opcode = (IpcOpCode)await IpcHandshakeCodec.ReadByteAsync(_stream, handshakeToken).ConfigureAwait(false);
                 if (opcode is IpcOpCode.Error)
                 {
-                    var msg = await IpcHandshakeCodec.ReadStringAsync(_stream, handshakeToken);
+                    var msg = await IpcHandshakeCodec.ReadStringAsync(_stream, handshakeToken).ConfigureAwait(false);
                     throw new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Daemon handshake error: {msg}");
                 }
                 if (opcode is not IpcOpCode.Handshake)
                 {
                     throw new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Unexpected handshake opcode: {opcode}");
                 }
-                var version = await IpcHandshakeCodec.ReadInt32Async(_stream, handshakeToken);
+                var version = await IpcHandshakeCodec.ReadInt32Async(_stream, handshakeToken).ConfigureAwait(false);
                 if (version != IpcProtocol.ProtocolVersion)
                 {
                     throw new IpcClientException(
                         IpcClientFailureReason.ProtocolMismatch,
-                        $"Protocol version mismatch. Daemon: {version}, Client: {IpcProtocol.ProtocolVersion}");
+                        $"Protocol version mismatch. Daemon: {version.ToString(CultureInfo.InvariantCulture)}, Client: {IpcProtocol.ProtocolVersion.ToString(CultureInfo.InvariantCulture)}");
                 }
 
                 // Reset to infinite timeout for normal long-running event stream reads.
@@ -106,7 +109,7 @@ public class IpcClient : IDisposable
                 _cts = new CancellationTokenSource();
                 _readTask = Task.Run(() => ReadLoop(_cts.Token));
 
-                await _captureCommandGate.WaitAsync(token);
+                await _captureCommandGate.WaitAsync(token).ConfigureAwait(false);
                 try
                 {
                     PendingCaptureStartRegistration? replayPendingStart = null;
@@ -257,9 +260,9 @@ public class IpcClient : IDisposable
 
         throw new IpcClientException(
             IpcClientFailureReason.SocketNotFound,
-            $"Daemon socket not found. Checked:\n" +
+            "Daemon socket not found. Checked:\n" +
             $"  - {IpcProtocol.DefaultSocketPath}\n" +
-            $"Is the CrossMacro daemon service running?");
+            "Is the CrossMacro daemon service running?");
     }
 
     private static void ProbeSocketPathAccess(string socketPath)
@@ -325,7 +328,7 @@ public class IpcClient : IDisposable
 
                         Log.Debug("[IpcClient] RX: InputEvent Type={Type} Code={Code} Value={Value}", type, code, value);
 
-                        InputReceived?.Invoke(this, new InputCaptureEventArgs
+                        InputReceived?.Invoke(this, new CapturedInputEvent
                         {
                             Type = type,
                             Code = code,
@@ -367,7 +370,7 @@ public class IpcClient : IDisposable
         {
             if (!token.IsCancellationRequested)
             {
-                Log.Error(ex, "[IpcClient] Read loop error");
+                Log.LogError(ex, "[IpcClient] Read loop error");
                 var failedPendingStart = _pendingCaptureStarts.TryFailCurrent(
                     new IpcClientException(
                         IpcClientFailureReason.ConnectFailed,
@@ -397,7 +400,7 @@ public class IpcClient : IDisposable
 
     private async Task EnterCaptureCommandGateAsync(CancellationToken token)
     {
-        await _captureCommandGate.WaitAsync(token);
+        await _captureCommandGate.WaitAsync(token).ConfigureAwait(false);
     }
 
     private void ExitCaptureCommandGate()
@@ -442,15 +445,15 @@ public class IpcClient : IDisposable
                         return;
                     }
 
-                        if (command.Type is CaptureCommandType.Start)
-                        {
-                            var previousTransportCommand = _captureCoordinator.GetTransportCommand();
-                            pendingStart = _pendingCaptureStarts.Begin(
-                                command,
-                                notifyOnFailure: true,
-                                forceReconcileOnFailure: true,
-                                previousTransportCommand: previousTransportCommand);
-                        }
+                    if (command.Type is CaptureCommandType.Start)
+                    {
+                        var previousTransportCommand = _captureCoordinator.GetTransportCommand();
+                        pendingStart = _pendingCaptureStarts.Begin(
+                            command,
+                            notifyOnFailure: true,
+                            forceReconcileOnFailure: true,
+                            previousTransportCommand: previousTransportCommand);
+                    }
 
                     _captureCoordinator.MarkCommandIssued(command);
                     commandToSend = command;
@@ -517,7 +520,7 @@ public class IpcClient : IDisposable
             CaptureCommand commandToSend = default;
             var joinedExistingPendingStart = false;
 
-            await EnterCaptureCommandGateAsync(token);
+            await EnterCaptureCommandGateAsync(token).ConfigureAwait(false);
             try
             {
                 lock (_captureLock)
@@ -613,7 +616,7 @@ public class IpcClient : IDisposable
 
             try
             {
-                await waitTask.WaitAsync(token);
+                await waitTask.WaitAsync(token).ConfigureAwait(false);
             }
             catch (Exception ex) when (ShouldRetrySharedPendingStartFailure(
                 ex,
@@ -791,7 +794,7 @@ public class IpcClient : IDisposable
         {
             throw new ArgumentOutOfRangeException(
                 nameof(steps),
-                $"Simulation batch contains {steps.Length} events, exceeding the maximum of {IpcProtocol.MaxSimulationBatchEvents}.");
+                $"Simulation batch contains {steps.Length.ToString(CultureInfo.InvariantCulture)} events, exceeding the maximum of {IpcProtocol.MaxSimulationBatchEvents.ToString(CultureInfo.InvariantCulture)}.");
         }
 
         if (!IsConnected)
@@ -842,7 +845,7 @@ public class IpcClient : IDisposable
             {
                 throw new IpcClientException(
                     IpcClientFailureReason.Timeout,
-                    $"Timed out waiting for simulation batch acknowledgement after {acknowledgementTimeout.TotalMilliseconds:0}ms.");
+                    $"Timed out waiting for simulation batch acknowledgement after {acknowledgementTimeout.TotalMilliseconds.ToString("0", CultureInfo.InvariantCulture)}ms.");
             }
 
             completion.Task.GetAwaiter().GetResult();
@@ -928,7 +931,7 @@ public class IpcClient : IDisposable
 
     private void HandleSendFailure(Exception ex, IpcOpCode op, bool throwOnFailure)
     {
-        Log.Error(ex, "Failed to send IPC message: {OpCode}", op);
+        Log.LogError(ex, "Failed to send IPC message: {OpCode}", op);
         lock (_captureLock)
         {
             _captureCoordinator.MarkTransportStopped();
@@ -1065,7 +1068,7 @@ public class IpcClient : IDisposable
             {
                 // Ensure callbacks are dispatched only after any in-flight capture command
                 // exits its gate, avoiding re-entrant waits on the same gate.
-                await EnterCaptureCommandGateAsync(CancellationToken.None);
+                await EnterCaptureCommandGateAsync(CancellationToken.None).ConfigureAwait(false);
                 gateAcquired = true;
             }
             catch (ObjectDisposedException)
@@ -1129,6 +1132,7 @@ public class IpcClient : IDisposable
         }
         catch (ObjectDisposedException)
         {
+            // expected when CTS was already disposed concurrently during shutdown.
         }
     }
 
@@ -1145,6 +1149,7 @@ public class IpcClient : IDisposable
         }
         catch (ObjectDisposedException)
         {
+            // expected when disposable was already disposed concurrently.
         }
     }
 
@@ -1182,7 +1187,7 @@ public class IpcClient : IDisposable
             {
                 try
                 {
-                    await ConnectAsync(token);
+                    await ConnectAsync(token).ConfigureAwait(false);
                     Log.Information("[IpcClient] Reconnected to daemon");
                     return;
                 }
@@ -1195,12 +1200,13 @@ public class IpcClient : IDisposable
                     Log.Warning(ex, "[IpcClient] Reconnect attempt failed");
                 }
 
-                await Task.Delay(delay, token);
+                await Task.Delay(delay, token).ConfigureAwait(false);
                 delay = TimeSpan.FromMilliseconds(Math.Min(maxDelay.TotalMilliseconds, delay.TotalMilliseconds * 2));
             }
         }
         catch (OperationCanceledException)
         {
+            // expected when the reconnect loop is cancelled during shutdown.
         }
         finally
         {
@@ -1213,10 +1219,7 @@ public class IpcClient : IDisposable
 
     private void ThrowIfDisposed()
     {
-        if (_disposed)
-        {
-            throw new ObjectDisposedException(nameof(IpcClient));
-        }
+        ObjectDisposedException.ThrowIf(_disposed, this);
     }
 
     public void Dispose()
@@ -1305,7 +1308,7 @@ public class IpcClient : IDisposable
                     return;
                 }
 
-                await EnterCaptureCommandGateAsync(transportToken);
+                await EnterCaptureCommandGateAsync(transportToken).ConfigureAwait(false);
                 try
                 {
                     _ = TryDispatchReconcileCommandUnderGate();
@@ -1317,9 +1320,11 @@ public class IpcClient : IDisposable
             }
             catch (OperationCanceledException)
             {
+                // expected when the reconciliation task is cancelled during shutdown.
             }
             catch (ObjectDisposedException)
             {
+                // expected when captures are torn down concurrently and already disposed.
             }
             catch (Exception ex)
             {
@@ -1334,7 +1339,7 @@ public class IpcClient : IDisposable
         if (_pendingCaptureStarts.TryComplete(startedRequestId, out var completedStart))
         {
             _ = completedStart.Completion.TrySetResult(true);
-            StartDeferredCaptureReconcile();
+            _ = StartDeferredCaptureReconcile();
             return;
         }
 
@@ -1397,7 +1402,7 @@ public class IpcClient : IDisposable
 
         if (shouldReconcile && !TryReconcileCaptureStateNow())
         {
-            StartDeferredCaptureReconcile();
+            _ = StartDeferredCaptureReconcile();
         }
 
         if (failureContext.NotifyOnFailure)

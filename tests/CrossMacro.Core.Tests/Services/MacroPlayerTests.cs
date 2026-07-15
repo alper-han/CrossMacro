@@ -120,7 +120,7 @@ public class MacroPlayerTests
         var player = new MacroPlayer(_positionProvider, _validator);
 
         // Act
-        var act = () => player.Stop();
+        var act = () => player.StopPlayback();
 
         // Assert
         act.Should().NotThrow();
@@ -146,7 +146,7 @@ public class MacroPlayerTests
         var player = new MacroPlayer(_positionProvider, _validator);
 
         // Act
-        player.Resume();
+        player.ResumePlayback();
 
         // Assert
         player.IsPaused.Should().BeFalse();
@@ -184,11 +184,10 @@ public class MacroPlayerTests
 
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 100, Y = 100 },
-                new() { Type = EventType.ButtonPress, Button = MouseButton.Left },
-                new() { Type = EventType.KeyPress, KeyCode = 30 }
+                new() { Type = EventType.ButtonPress, Button = MacroMouseButton.Left },
+                new() { Type = EventType.KeyPress, KeyCode = 30 },
             },
         };
 
@@ -199,7 +198,7 @@ public class MacroPlayerTests
         // Verify MoveRelative (default mode)
         simulator.Received().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
 
-        // Verify MouseButton
+        // Verify MacroMouseButton
         simulator.Received().MouseButton(Arg.Any<int>(), pressed: true);
 
         // Verify KeyPress
@@ -221,9 +220,8 @@ public class MacroPlayerTests
 
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.MouseMove, X = 10, Y = 10 }
+            Events = {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10 },
             },
         };
 
@@ -256,9 +254,8 @@ public class MacroPlayerTests
 
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.MouseMove, X = 10, Y = 10 }
+            Events = {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10 },
             },
         };
 
@@ -290,9 +287,8 @@ public class MacroPlayerTests
 
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.MouseMove, X = 10, Y = 10 }
+            Events = {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10 },
             },
         };
 
@@ -326,8 +322,7 @@ public class MacroPlayerTests
 
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 },
                 new()
                 {
@@ -337,8 +332,8 @@ public class MacroPlayerTests
                     DelayMs = 30,
                     HasRandomDelay = true,
                     RandomDelayMinMs = 20,
-                    RandomDelayMaxMs = 20
-                }
+                    RandomDelayMaxMs = 20,
+                },
             },
         };
 
@@ -371,10 +366,9 @@ public class MacroPlayerTests
         var macro = new MacroSequence
         {
             SkipInitialZeroZero = true,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 40 },
-                new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 0 }
+                new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 0 },
             },
         };
 
@@ -416,9 +410,8 @@ public class MacroPlayerTests
             HasTrailingRandomDelay = true,
             TrailingDelayMinMs = 25,
             TrailingDelayMaxMs = 25,
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 }
+            Events = {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 },
             },
         };
 
@@ -445,10 +438,9 @@ public class MacroPlayerTests
 
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 10, Y = 10 },
-                new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 }
+                new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 },
             },
         };
 
@@ -466,7 +458,7 @@ public class MacroPlayerTests
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*already in progress*");
 
-        player.Stop();
+        player.StopPlayback();
         timing.ContinueWait.TrySetResult(true);
         await firstPlayback;
     }
@@ -502,11 +494,10 @@ public class MacroPlayerTests
 
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 1, Y = 1, DelayMs = 0 },
                 new() { Type = EventType.MouseMove, X = 2, Y = 2, DelayMs = 40 },
-                new() { Type = EventType.MouseMove, X = 3, Y = 3, DelayMs = 40 }
+                new() { Type = EventType.MouseMove, X = 3, Y = 3, DelayMs = 40 },
             },
         };
 
@@ -522,7 +513,7 @@ public class MacroPlayerTests
         await pauseObserved.WaitAsync(TestTimeout);
         playbackTask.IsCompleted.Should().BeFalse();
 
-        player.Resume();
+        player.ResumePlayback();
         player.IsPaused.Should().BeFalse();
 
         await playbackTask;
@@ -574,12 +565,11 @@ public class MacroPlayerTests
 
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 },
                 new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 },
                 new() { Type = EventType.MouseMove, X = 30, Y = 30, DelayMs = 40 },
-                new() { Type = EventType.MouseMove, X = 40, Y = 40, DelayMs = 40 }
+                new() { Type = EventType.MouseMove, X = 40, Y = 40, DelayMs = 40 },
             },
         };
 
@@ -590,7 +580,7 @@ public class MacroPlayerTests
 
         playbackTask.IsCompleted.Should().BeFalse();
 
-        player.Resume();
+        player.ResumePlayback();
         await playbackTask;
 
         // Assert
@@ -625,10 +615,9 @@ public class MacroPlayerTests
 
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 },
-                new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 100 }
+                new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 100 },
             },
         };
 
@@ -672,11 +661,10 @@ public class MacroPlayerTests
 
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 },
                 new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 },
-                new() { Type = EventType.MouseMove, X = 30, Y = 30, DelayMs = 40 }
+                new() { Type = EventType.MouseMove, X = 30, Y = 30, DelayMs = 40 },
             },
         };
 
@@ -719,11 +707,10 @@ public class MacroPlayerTests
 
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 },
                 new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 100 },
-                new() { Type = EventType.MouseMove, X = 30, Y = 30, DelayMs = 100 }
+                new() { Type = EventType.MouseMove, X = 30, Y = 30, DelayMs = 100 },
             },
         };
 
@@ -768,11 +755,10 @@ public class MacroPlayerTests
 
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 },
                 new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 },
-                new() { Type = EventType.MouseMove, X = 30, Y = 30, DelayMs = 40 }
+                new() { Type = EventType.MouseMove, X = 30, Y = 30, DelayMs = 40 },
             },
         };
 
@@ -828,12 +814,11 @@ public class MacroPlayerTests
 
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 },
                 new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 },
                 new() { Type = EventType.MouseMove, X = 30, Y = 30, DelayMs = 40 },
-                new() { Type = EventType.MouseMove, X = 40, Y = 40, DelayMs = 40 }
+                new() { Type = EventType.MouseMove, X = 40, Y = 40, DelayMs = 40 },
             },
         };
 
@@ -842,7 +827,7 @@ public class MacroPlayerTests
         await pausedAtSecondEvent.WaitAsync(TestTimeout);
         playbackTask.IsCompleted.Should().BeFalse();
 
-        player.Resume();
+        player.ResumePlayback();
         await secondWaitEntered.WaitAsync(TestTimeout);
         await playbackTask;
 
@@ -871,7 +856,7 @@ public class MacroPlayerTests
             {
                 clock.AdvanceBy(130);
                 player.Pause();
-                player.Resume();
+                player.ResumePlayback();
             }
 
             return Task.CompletedTask;
@@ -879,12 +864,11 @@ public class MacroPlayerTests
 
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 },
                 new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 },
                 new() { Type = EventType.MouseMove, X = 30, Y = 30, DelayMs = 40 },
-                new() { Type = EventType.MouseMove, X = 40, Y = 40, DelayMs = 40 }
+                new() { Type = EventType.MouseMove, X = 40, Y = 40, DelayMs = 40 },
             },
         };
 
@@ -927,12 +911,11 @@ public class MacroPlayerTests
 
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.KeyPress, KeyCode = InputEventCode.KEY_A, DelayMs = 0 },
                 new() { Type = EventType.KeyRelease, KeyCode = InputEventCode.KEY_A, DelayMs = 80 },
                 new() { Type = EventType.KeyPress, KeyCode = InputEventCode.KEY_B, DelayMs = 80 },
-                new() { Type = EventType.KeyRelease, KeyCode = InputEventCode.KEY_B, DelayMs = 80 }
+                new() { Type = EventType.KeyRelease, KeyCode = InputEventCode.KEY_B, DelayMs = 80 },
             },
         };
 
@@ -942,7 +925,7 @@ public class MacroPlayerTests
         player.Pause();
         releaseWait.Signal();
         await paused.WaitAsync(TestTimeout);
-        player.Resume();
+        player.ResumePlayback();
         await playbackTask;
 
         // Assert
@@ -980,10 +963,9 @@ public class MacroPlayerTests
 
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.KeyPress, KeyCode = InputEventCode.KEY_LEFTCTRL, DelayMs = 0 },
-                new() { Type = EventType.KeyRelease, KeyCode = InputEventCode.KEY_LEFTCTRL, DelayMs = 100 }
+                new() { Type = EventType.KeyRelease, KeyCode = InputEventCode.KEY_LEFTCTRL, DelayMs = 100 },
             },
         };
 
@@ -993,7 +975,7 @@ public class MacroPlayerTests
         player.Pause();
         releaseWait.Signal();
         await paused.WaitAsync(TestTimeout);
-        player.Resume();
+        player.ResumePlayback();
         await playbackTask;
 
         // Assert
@@ -1015,9 +997,8 @@ public class MacroPlayerTests
         {
             IsAbsoluteCoordinates = false,
             SkipInitialZeroZero = true,
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.Click, Button = MouseButton.Left, UseCurrentPosition = true }
+            Events = {
+                new() { Type = EventType.Click, Button = MacroMouseButton.Left, UseCurrentPosition = true },
             },
         };
 
@@ -1047,9 +1028,8 @@ public class MacroPlayerTests
         {
             IsAbsoluteCoordinates = false,
             SkipInitialZeroZero = true,
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.Click, Button = MouseButton.Left, UseCurrentPosition = true }
+            Events = {
+                new() { Type = EventType.Click, Button = MacroMouseButton.Left, UseCurrentPosition = true },
             },
         };
 
@@ -1081,16 +1061,15 @@ public class MacroPlayerTests
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = true,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new()
                 {
                     Type = EventType.Click,
-                    Button = MouseButton.Left,
+                    Button = MacroMouseButton.Left,
                     X = 999,
                     Y = 777,
-                    UseCurrentPosition = true
-                }
+                    UseCurrentPosition = true,
+                },
             },
         };
 
@@ -1114,22 +1093,21 @@ public class MacroPlayerTests
         {
             IsAbsoluteCoordinates = false,
             SkipInitialZeroZero = true,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new()
                 {
                     Type = EventType.MouseMove,
                     X = 100,
                     Y = 200,
-                    CoordinateMode = MouseCoordinateMode.Absolute
+                    CoordinateMode = MouseCoordinateMode.Absolute,
                 },
                 new()
                 {
                     Type = EventType.MouseMove,
                     X = 10,
                     Y = -5,
-                    CoordinateMode = MouseCoordinateMode.Relative
-                }
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                },
             },
         };
 
@@ -1153,29 +1131,28 @@ public class MacroPlayerTests
         {
             IsAbsoluteCoordinates = false,
             SkipInitialZeroZero = true,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new()
                 {
                     Type = EventType.Click,
-                    Button = MouseButton.Left,
-                    UseCurrentPosition = true
+                    Button = MacroMouseButton.Left,
+                    UseCurrentPosition = true,
                 },
                 new()
                 {
                     Type = EventType.MouseMove,
                     X = 100,
                     Y = 200,
-                    CoordinateMode = MouseCoordinateMode.Absolute
+                    CoordinateMode = MouseCoordinateMode.Absolute,
                 },
                 new()
                 {
                     Type = EventType.Click,
-                    Button = MouseButton.Right,
+                    Button = MacroMouseButton.Right,
                     X = 10,
                     Y = -5,
-                    CoordinateMode = MouseCoordinateMode.Relative
-                }
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                },
             },
         };
 
@@ -1207,15 +1184,14 @@ public class MacroPlayerTests
         {
             IsAbsoluteCoordinates = true,
             SkipInitialZeroZero = true,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new()
                 {
                     Type = EventType.MouseMove,
                     X = 10,
                     Y = -5,
-                    CoordinateMode = MouseCoordinateMode.Relative
-                }
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                },
             },
         };
 
@@ -1239,15 +1215,14 @@ public class MacroPlayerTests
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = false,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new()
                 {
                     Type = EventType.MouseMove,
                     X = 100,
                     Y = 200,
-                    CoordinateMode = MouseCoordinateMode.Absolute
-                }
+                    CoordinateMode = MouseCoordinateMode.Absolute,
+                },
             },
         };
 
@@ -1276,15 +1251,14 @@ public class MacroPlayerTests
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = false,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new()
                 {
                     Type = EventType.MouseMove,
                     X = 100,
                     Y = 200,
-                    CoordinateMode = MouseCoordinateMode.Absolute
-                }
+                    CoordinateMode = MouseCoordinateMode.Absolute,
+                },
             },
         };
 
@@ -1315,15 +1289,15 @@ public class MacroPlayerTests
         {
             IsAbsoluteCoordinates = false,
             Events =
-            [
+            {
                 new MacroEvent
                 {
                     Type = EventType.MouseMove,
                     X = 3,
                     Y = 3,
-                    CoordinateMode = MouseCoordinateMode.Relative
-                }
-            ],
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                },
+            },
         };
 
         await player.PlayAsync(macro);
@@ -1346,23 +1320,22 @@ public class MacroPlayerTests
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = false,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new()
                 {
                     Type = EventType.MouseMove,
                     X = 3,
                     Y = 3,
-                    CoordinateMode = MouseCoordinateMode.Relative
+                    CoordinateMode = MouseCoordinateMode.Relative,
                 },
                 new()
                 {
                     Type = EventType.Click,
-                    Button = MouseButton.Left,
+                    Button = MacroMouseButton.Left,
                     X = 100,
                     Y = 200,
-                    CoordinateMode = MouseCoordinateMode.Absolute
-                }
+                    CoordinateMode = MouseCoordinateMode.Absolute,
+                },
             },
         };
 
@@ -1385,15 +1358,14 @@ public class MacroPlayerTests
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = false,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new()
                 {
                     Type = EventType.MouseMove,
                     X = 3,
                     Y = 3,
-                    CoordinateMode = MouseCoordinateMode.Relative
-                }
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                },
             },
         };
 
@@ -1414,16 +1386,15 @@ public class MacroPlayerTests
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = true,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new()
                 {
                     Type = EventType.Click,
-                    Button = MouseButton.Left,
+                    Button = MacroMouseButton.Left,
                     UseCurrentPosition = true,
                     X = 100,
-                    Y = 200
-                }
+                    Y = 200,
+                },
             },
         };
 
@@ -1445,22 +1416,21 @@ public class MacroPlayerTests
         {
             IsAbsoluteCoordinates = false,
             SkipInitialZeroZero = true,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new()
                 {
                     Type = EventType.MouseMove,
                     X = 1000,
                     Y = 1000,
-                    CoordinateMode = MouseCoordinateMode.Absolute
+                    CoordinateMode = MouseCoordinateMode.Absolute,
                 },
                 new()
                 {
                     Type = EventType.MouseMove,
                     X = 3,
                     Y = 3,
-                    CoordinateMode = MouseCoordinateMode.Relative
-                }
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                },
             },
         };
 
@@ -1493,12 +1463,11 @@ public class MacroPlayerTests
 
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 1, Y = 1, DelayMs = 0 },
                 new() { Type = EventType.MouseMove, X = 2, Y = 2, DelayMs = 50 },
                 new() { Type = EventType.MouseMove, X = 3, Y = 3, DelayMs = 50 },
-                new() { Type = EventType.MouseMove, X = 4, Y = 4, DelayMs = 50 }
+                new() { Type = EventType.MouseMove, X = 4, Y = 4, DelayMs = 50 },
             },
         };
 
@@ -1539,9 +1508,12 @@ public class MacroPlayerTests
             new() { Type = EventType.MouseMove, X = 0, Y = 0, DelayMs = 0 },
         };
         for (int i = 1; i <= 4; i++)
+        {
             events.Add(new MacroEvent { Type = EventType.MouseMove, X = i * 10, Y = i * 10, DelayMs = sourceDelayMs });
+        }
 
-        var macro = new MacroSequence { Events = events };
+        var macro = new MacroSequence();
+        macro.ReplaceEvents(events);
 
         await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = speed });
 
@@ -1579,9 +1551,13 @@ public class MacroPlayerTests
             new() { Type = EventType.MouseMove, X = 0, Y = 0, DelayMs = 0 },
         };
         for (int i = 1; i <= 4; i++)
+        {
             events.Add(new MacroEvent { Type = EventType.MouseMove, X = i * 10, Y = i * 10, DelayMs = sourceDelayMs });
+        }
 
-        await player.PlayAsync(new MacroSequence { Events = events }, new PlaybackOptions { SpeedMultiplier = speed });
+        var macro = new MacroSequence();
+        macro.ReplaceEvents(events);
+        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = speed });
 
         timing.WaitCalls.Should().NotBeEmpty();
     }
@@ -1608,14 +1584,13 @@ public class MacroPlayerTests
 
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 0, Y = 0, DelayMs = 0 },
                 new() { Type = EventType.MouseMove, X = 1, Y = 1, DelayMs = 100 },
                 new() { Type = EventType.MouseMove, X = 2, Y = 2, DelayMs = 100 },
                 new() { Type = EventType.MouseMove, X = 3, Y = 3, DelayMs = 100 },
                 new() { Type = EventType.MouseMove, X = 4, Y = 4, DelayMs = 100 },
-                new() { Type = EventType.MouseMove, X = 5, Y = 5, DelayMs = 100 }
+                new() { Type = EventType.MouseMove, X = 5, Y = 5, DelayMs = 100 },
             },
         };
 

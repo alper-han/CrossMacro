@@ -3,17 +3,17 @@ namespace CrossMacro.Platform.Linux.Native.UInput;
 
 public interface IUInputDevice : IDisposable
 {
-    bool SupportsAbsoluteCoordinates { get; }
+    public bool SupportsAbsoluteCoordinates { get; }
 
-    void CreateVirtualInputDevice();
+    public void CreateVirtualInputDevice();
 
-    void Move(int dx, int dy);
+    public void Move(int dx, int dy);
 
-    void MoveAbsolute(int x, int y);
+    public void MoveAbsolute(int x, int y);
 
-    void EmitButton(int buttonCode, bool pressed);
+    public void EmitButton(int buttonCode, bool pressed);
 
-    void EmitKey(int keyCode, bool pressed);
+    public void EmitKey(int keyCode, bool pressed);
 
-    void SendEvent(ushort type, ushort code, int value);
+    public void SendEvent(ushort type, ushort code, int value);
 }

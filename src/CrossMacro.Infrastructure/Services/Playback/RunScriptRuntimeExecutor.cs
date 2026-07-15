@@ -51,7 +51,7 @@ internal sealed class RunScriptRuntimeExecutor
             .Select(step => step.Trim())
             .ToList();
 
-        await ExecuteRangeAsync(steps, 0, steps.Count, request, cancellationToken);
+        await ExecuteRangeAsync(steps, 0, steps.Count, request, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<LoopControlSignal> ExecuteRangeAsync(
@@ -87,9 +87,9 @@ internal sealed class RunScriptRuntimeExecutor
                 }
 
                 var signal = EvaluateCondition(ifCondition)
-                    ? await ExecuteRangeAsync(steps, trueStart, trueEnd, request, cancellationToken)
+                    ? await ExecuteRangeAsync(steps, trueStart, trueEnd, request, cancellationToken).ConfigureAwait(false)
                     : falseStart >= 0
-                        ? await ExecuteRangeAsync(steps, falseStart, falseEnd, request, cancellationToken)
+                        ? await ExecuteRangeAsync(steps, falseStart, falseEnd, request, cancellationToken).ConfigureAwait(false)
                         : LoopControlSignal.None;
                 if (signal is not LoopControlSignal.None)
                 {
@@ -112,7 +112,7 @@ internal sealed class RunScriptRuntimeExecutor
                         throw new InvalidOperationException("Runtime while loop iteration limit exceeded (100000). Check loop exit condition.");
                     }
 
-                    var signal = await ExecuteRangeAsync(steps, bodyStart, bodyEnd, request, cancellationToken);
+                    var signal = await ExecuteRangeAsync(steps, bodyStart, bodyEnd, request, cancellationToken).ConfigureAwait(false);
                     if (signal is LoopControlSignal.Break)
                     {
                         break;
@@ -134,7 +134,7 @@ internal sealed class RunScriptRuntimeExecutor
                 var bodyEnd = FindBlockEnd(steps, bodyStart, end);
                 for (var i = 0; i < repeatCount; i++)
                 {
-                    var signal = await ExecuteRangeAsync(steps, bodyStart, bodyEnd, request, cancellationToken);
+                    var signal = await ExecuteRangeAsync(steps, bodyStart, bodyEnd, request, cancellationToken).ConfigureAwait(false);
                     if (signal is LoopControlSignal.Break)
                     {
                         break;
@@ -162,7 +162,7 @@ internal sealed class RunScriptRuntimeExecutor
                 for (var i = forStart; forStep > 0 ? i <= forEnd : i >= forEnd; i += forStep)
                 {
                     _runtimeVariables[forVariableName] = i.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                    var signal = await ExecuteRangeAsync(steps, bodyStart, bodyEnd, request, cancellationToken);
+                    var signal = await ExecuteRangeAsync(steps, bodyStart, bodyEnd, request, cancellationToken).ConfigureAwait(false);
                     if (signal is LoopControlSignal.Break)
                     {
                         break;
@@ -188,7 +188,7 @@ internal sealed class RunScriptRuntimeExecutor
                 return LoopControlSignal.Continue;
             }
 
-            await ExecuteCommandAsync(step, index + 1, request, cancellationToken);
+            await ExecuteCommandAsync(step, index + 1, request, cancellationToken).ConfigureAwait(false);
             index++;
         }
 
@@ -212,31 +212,31 @@ internal sealed class RunScriptRuntimeExecutor
     {
         if (RunScriptScreenReadExecutor.IsScreenReadingStep(step))
         {
-            await _screenReadExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken, request.ImageAssets);
+            await _screenReadExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken, request.ImageAssets).ConfigureAwait(false);
             return;
         }
 
         if (RunScriptWindowExecutor.IsWindowStep(step))
         {
-            await _windowExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken);
+            await _windowExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken).ConfigureAwait(false);
             return;
         }
 
         if (RunScriptSyntax.IsClipboardStep(step))
         {
-            await _clipboardExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken);
+            await _clipboardExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken).ConfigureAwait(false);
             return;
         }
 
         if (RunScriptSyntax.IsShellStep(step))
         {
-            await _shellExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken);
+            await _shellExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken).ConfigureAwait(false);
             return;
         }
 
         if (RunScriptPlatformSyntax.IsScreenshotStep(step))
         {
-            await _screenshotExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken);
+            await _screenshotExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -244,7 +244,7 @@ internal sealed class RunScriptRuntimeExecutor
         {
             if (delayMs > 0)
             {
-                await _timingService.WaitAsync((int)(delayMs / request.SpeedMultiplier), _pauseToken, cancellationToken);
+                await _timingService.WaitAsync((int)(delayMs / request.SpeedMultiplier), _pauseToken, cancellationToken).ConfigureAwait(false);
             }
 
             return;
@@ -260,12 +260,12 @@ internal sealed class RunScriptRuntimeExecutor
         var compileResult = compiler.Compile([new RunScriptStep(resolvedStep)]);
         if (!compileResult.Success || compileResult.Sequence is null)
         {
-            throw new InvalidOperationException($"Step {stepNumber}: {compileResult.ErrorMessage}");
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {compileResult.ErrorMessage}");
         }
 
         foreach (var ev in compileResult.Sequence.Events)
         {
-            await request.ExecuteEventAsync(ev, cancellationToken);
+            await request.ExecuteEventAsync(ev, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -376,7 +376,7 @@ internal sealed class RunScriptRuntimeExecutor
     {
         condition = string.Empty;
         var prefix = keyword + " ";
-        if (!step.EndsWith("{", StringComparison.Ordinal) || !step.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        if (!step.EndsWith('{') || !step.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -388,7 +388,7 @@ internal sealed class RunScriptRuntimeExecutor
     private bool TryParseRepeatHeader(string step, out int count)
     {
         count = 0;
-        if (!step.EndsWith("{", StringComparison.Ordinal) || !step.StartsWith("repeat ", StringComparison.OrdinalIgnoreCase))
+        if (!step.EndsWith('{') || !step.StartsWith("repeat ", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -408,7 +408,7 @@ internal sealed class RunScriptRuntimeExecutor
         start = 0;
         end = 0;
         stepValue = 0;
-        if (!step.EndsWith("{", StringComparison.Ordinal) || !step.StartsWith("for ", StringComparison.OrdinalIgnoreCase))
+        if (!step.EndsWith('{') || !step.StartsWith("for ", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -462,7 +462,7 @@ internal sealed class RunScriptRuntimeExecutor
         for (var i = start; i < end; i++)
         {
             var step = steps[i];
-            if (step.EndsWith("{", StringComparison.Ordinal)
+            if (step.EndsWith('{')
                 && (step.StartsWith("if ", StringComparison.OrdinalIgnoreCase)
                     || RunScriptSyntax.IsElseHeader(step)
                     || step.StartsWith("while ", StringComparison.OrdinalIgnoreCase)

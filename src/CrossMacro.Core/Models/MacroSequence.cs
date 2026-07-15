@@ -19,23 +19,67 @@ public class MacroSequence
     /// <summary>
     /// List of events in the macro
     /// </summary>
-    public List<MacroEvent> Events { get; set; } = new(10000);
+    public IList<MacroEvent> Events { get; } = new List<MacroEvent>(10000);
 
     /// <summary>
     /// Optional source script steps that produced this macro.
     /// Used by the editor to restore structured script actions on reload.
     /// </summary>
-    public List<string> ScriptSteps { get; set; } = new();
+    public IList<string> ScriptSteps { get; } = new List<string>();
 
     /// <summary>
     /// Optional editor metadata that preserves separate TextInput actions after they are expanded to key events.
     /// </summary>
-    public List<TextInputBoundary> TextInputBoundaries { get; set; } = new();
+    public IList<TextInputBoundary> TextInputBoundaries { get; } = new List<TextInputBoundary>();
 
     /// <summary>
     /// Named image assets stored as Base64 PNG strings.
     /// </summary>
-    public Dictionary<string, string> Images { get; set; } = new(StringComparer.Ordinal);
+    public IDictionary<string, string> Images { get; } = new Dictionary<string, string>(StringComparer.Ordinal);
+
+    public void ReplaceEvents(IEnumerable<MacroEvent> events)
+    {
+        ArgumentNullException.ThrowIfNull(events);
+        var replacement = events.ToList();
+        Events.Clear();
+        foreach (var macroEvent in replacement)
+        {
+            Events.Add(macroEvent);
+        }
+    }
+
+    public void ReplaceScriptSteps(IEnumerable<string> scriptSteps)
+    {
+        ArgumentNullException.ThrowIfNull(scriptSteps);
+        var replacement = scriptSteps.ToList();
+        ScriptSteps.Clear();
+        foreach (var scriptStep in replacement)
+        {
+            ScriptSteps.Add(scriptStep);
+        }
+    }
+
+    public void ReplaceTextInputBoundaries(IEnumerable<TextInputBoundary> textInputBoundaries)
+    {
+        ArgumentNullException.ThrowIfNull(textInputBoundaries);
+        var replacement = textInputBoundaries.ToList();
+        TextInputBoundaries.Clear();
+        foreach (var boundary in replacement)
+        {
+            TextInputBoundaries.Add(boundary);
+        }
+    }
+
+    public void ReplaceImages(IEnumerable<KeyValuePair<string, string>> images)
+    {
+        ArgumentNullException.ThrowIfNull(images);
+        var replacement = images.ToList();
+        Images.Clear();
+        foreach (var image in replacement)
+        {
+            Images.Add(image.Key, image.Value);
+        }
+    }
 
     /// <summary>
     /// When the macro was created
@@ -117,10 +161,14 @@ public class MacroSequence
     public bool IsValid()
     {
         if ((Events is null || Events.Count is 0) && !HasScriptSteps())
+        {
             return false;
+        }
 
         if (Events is not null && !Events.All(IsEventTimingValid))
+        {
             return false;
+        }
 
         return !HasTrailingRandomDelay
             || (TrailingDelayMinMs >= 0 && TrailingDelayMaxMs >= TrailingDelayMinMs);
@@ -129,10 +177,14 @@ public class MacroSequence
     private static bool IsEventTimingValid(MacroEvent ev)
     {
         if (ev.Timestamp < 0 || ev.DelayMs < 0)
+        {
             return false;
+        }
 
         if (!ev.HasRandomDelay)
+        {
             return true;
+        }
 
         return ev.RandomDelayMinMs >= 0 && ev.RandomDelayMaxMs >= ev.RandomDelayMinMs;
     }
@@ -153,7 +205,7 @@ public class MacroSequence
             return;
         }
 
-        TotalDurationMs = Events.Last().Timestamp;
+        TotalDurationMs = Events[^1].Timestamp;
     }
 
     /// <summary>
@@ -161,14 +213,10 @@ public class MacroSequence
     /// </summary>
     public MacroSequence Clone()
     {
-        return new MacroSequence
+        var clone = new MacroSequence
         {
             Id = Id,
             Name = Name,
-            Events = Events is null ? new List<MacroEvent>() : new List<MacroEvent>(Events),
-            ScriptSteps = ScriptSteps is null ? new List<string>() : new List<string>(ScriptSteps),
-            TextInputBoundaries = TextInputBoundaries is null ? new List<TextInputBoundary>() : new List<TextInputBoundary>(TextInputBoundaries),
-            Images = Images is null ? new Dictionary<string, string>(StringComparer.Ordinal) : new Dictionary<string, string>(Images, StringComparer.Ordinal),
             CreatedAt = CreatedAt,
             TotalDurationMs = TotalDurationMs,
             RecordedAt = RecordedAt,
@@ -183,5 +231,11 @@ public class MacroSequence
             TrailingDelayMinMs = TrailingDelayMinMs,
             TrailingDelayMaxMs = TrailingDelayMaxMs,
         };
+
+        clone.ReplaceEvents(Events);
+        clone.ReplaceScriptSteps(ScriptSteps);
+        clone.ReplaceTextInputBoundaries(TextInputBoundaries);
+        clone.ReplaceImages(Images);
+        return clone;
     }
 }

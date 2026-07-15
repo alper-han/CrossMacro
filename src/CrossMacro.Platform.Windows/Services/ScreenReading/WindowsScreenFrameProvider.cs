@@ -30,14 +30,14 @@ public sealed class WindowsScreenFrameProvider : IScreenFrameProvider
 
         if (!IsSupported)
         {
-            return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(
+            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.Unsupported,
                 "Windows GDI screen reading is available only on Windows desktop sessions."));
         }
 
         if (options.CancellationToken.IsCancellationRequested)
         {
-            return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(
+            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.Canceled,
                 "Windows GDI screen capture was canceled before it started."));
         }
@@ -48,13 +48,13 @@ public sealed class WindowsScreenFrameProvider : IScreenFrameProvider
             var captureRegion = region ?? virtualScreen;
             if (!virtualScreen.Contains(captureRegion))
             {
-                return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(
+                return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
                     ScreenReadErrorKind.OutOfBounds,
                     $"Requested region {captureRegion} is outside Windows virtual screen bounds {virtualScreen}."));
             }
 
             var captured = _captureBackend.Capture(captureRegion, options.CancellationToken);
-            return Task.FromResult(ScreenReadResult<ScreenFrame>.Success(new ScreenFrame(
+            return Task.FromResult(ScreenReadResultFactory.Success<ScreenFrame>(new ScreenFrame(
                 captured.LogicalBounds,
                 captured.Stride,
                 captured.PixelFormat,
@@ -62,13 +62,13 @@ public sealed class WindowsScreenFrameProvider : IScreenFrameProvider
         }
         catch (OperationCanceledException)
         {
-            return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(
+            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.Canceled,
                 "Windows GDI screen capture was canceled."));
         }
         catch (Exception ex) when (ex is ArgumentException or ArithmeticException or ExternalException or Win32Exception or InvalidOperationException)
         {
-            return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(
+            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.CaptureFailed,
                 ex.Message));
         }

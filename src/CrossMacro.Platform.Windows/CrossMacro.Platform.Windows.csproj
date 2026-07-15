@@ -18,4 +18,8 @@
     <PackageReference Include="Serilog" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="CrossMacro.Platform.Windows.Tests" />
+  </ItemGroup>
+
 </Project>

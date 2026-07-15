@@ -85,7 +85,7 @@ public class TrayIconService : ITrayIconService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to initialize tray icon");
+            Log.LogError(ex, "Failed to initialize tray icon");
             _isEnabled = false;
         }
     }
@@ -305,7 +305,7 @@ public class TrayIconService : ITrayIconService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error toggling recording from tray");
+            Log.LogError(ex, "Error toggling recording from tray");
         }
     }
 
@@ -318,7 +318,7 @@ public class TrayIconService : ITrayIconService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error toggling playback from tray");
+            Log.LogError(ex, "Error toggling playback from tray");
         }
     }
 
@@ -338,7 +338,7 @@ public class TrayIconService : ITrayIconService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error stopping from tray");
+            Log.LogError(ex, "Error stopping from tray");
         }
     }
 
@@ -358,7 +358,7 @@ public class TrayIconService : ITrayIconService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error exiting application from tray");
+            Log.LogError(ex, "Error exiting application from tray");
         }
     }
 

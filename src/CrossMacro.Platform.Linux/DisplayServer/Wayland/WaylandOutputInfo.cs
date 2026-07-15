@@ -3,8 +3,10 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 internal sealed class WaylandOutputInfo
 {
+#pragma warning disable S1450
     private readonly OutputDispatcher _dispatcher;
     private readonly OutputDispatcher _xdgOutputDispatcher;
+#pragma warning restore S1450
 
     public WaylandOutputInfo(uint globalName, IntPtr proxy)
     {

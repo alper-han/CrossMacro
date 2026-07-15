@@ -119,7 +119,11 @@ public class AuditLogger
     /// </summary>
     public void LogSimulation(uint uid, int pid, ushort type, ushort code, int value)
     {
-        if (!_logSimulations) return;
+        if (!_logSimulations)
+        {
+            return;
+        }
+
         WriteEntry(uid, pid, "SIMULATE", $"type={type} code={code} value={value}");
     }
 
@@ -211,7 +215,10 @@ public class AuditLogger
     {
         try
         {
-            if (!File.Exists(_logPath)) return;
+            if (!File.Exists(_logPath))
+            {
+                return;
+            }
 
             var fileInfo = new FileInfo(_logPath);
             if (fileInfo.Length > _maxFileSizeBytes)
@@ -226,7 +233,11 @@ public class AuditLogger
                     var newPath = $"{_logPath}.{i}";
                     if (File.Exists(oldPath))
                     {
-                        if (File.Exists(newPath)) File.Delete(newPath);
+                        if (File.Exists(newPath))
+                        {
+                            File.Delete(newPath);
+                        }
+
                         File.Move(oldPath, newPath);
                     }
                 }

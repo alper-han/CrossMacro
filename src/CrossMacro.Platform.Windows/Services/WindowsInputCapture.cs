@@ -1,7 +1,13 @@
 
 namespace CrossMacro.Platform.Windows.Services;
 
-public class WindowsInputCapture : IInputCapture
+internal interface IWindowsHookInstaller
+{
+    IntPtr InstallMouseHook(IntPtr moduleHandle, User32.HookProc hookProc);
+    IntPtr InstallKeyboardHook(IntPtr moduleHandle, User32.HookProc hookProc);
+}
+
+public sealed class WindowsInputCapture : IInputCapture
 {
     private const uint LowLevelKeyboardHookFlagExtended = 0x01;
     private const uint LowLevelKeyboardHookFlagLowerIntegrityInjected = 0x02;
@@ -14,8 +20,8 @@ public class WindowsInputCapture : IInputCapture
     public string ProviderName => "Windows Hooks";
     public bool IsSupported => OperatingSystem.IsWindows();
 
-    public event EventHandler<InputCaptureEventArgs>? InputReceived;
-    public event EventHandler<string>? Error;
+    public event EventHandler<CapturedInputEventArgs>? InputReceived;
+    public event EventHandler<InputCaptureErrorEventArgs>? CaptureError;
 
     private bool _captureMouse;
     private bool _captureKeyboard;
@@ -33,11 +39,20 @@ public class WindowsInputCapture : IInputCapture
     private readonly string _sessionWindowClassName = $"CrossMacroSessionSwitch_{Guid.NewGuid():N}";
     private bool _sessionNotificationRegistered;
 
-    private Thread? _messagePumpThread;
     private uint _messagePumpThreadId;
     private CancellationTokenRegistration _startCancellationRegistration;
+    private readonly IWindowsHookInstaller _hookInstaller;
 
+    public WindowsInputCapture()
+        : this(new DefaultWindowsHookInstaller())
+    {
+    }
 
+    internal WindowsInputCapture(IWindowsHookInstaller hookInstaller)
+    {
+        ArgumentNullException.ThrowIfNull(hookInstaller);
+        _hookInstaller = hookInstaller;
+    }
 
     public void Configure(bool captureMouse, bool captureKeyboard)
     {
@@ -53,7 +68,7 @@ public class WindowsInputCapture : IInputCapture
 
         var startupTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        _messagePumpThread = new Thread(() =>
+        var messagePumpThread = new Thread(() =>
         {
             try
             {
@@ -113,7 +128,7 @@ public class WindowsInputCapture : IInputCapture
             {
                 if (!startupTcs.TrySetException(ex) && !startupTcs.Task.IsCanceled)
                 {
-                    Error?.Invoke(this, $"Message pump error: {ex.Message}");
+                    CaptureError?.Invoke(this, new InputCaptureErrorEventArgs($"Message pump error: {ex.Message}"));
                 }
             }
             finally
@@ -124,20 +139,20 @@ public class WindowsInputCapture : IInputCapture
             }
         });
 
-        _messagePumpThread.IsBackground = true;
-        _messagePumpThread.Start();
+        messagePumpThread.IsBackground = true;
+        messagePumpThread.Start();
 
         _startCancellationRegistration.Dispose();
         _startCancellationRegistration = ct.Register(() =>
         {
             startupTcs.TrySetCanceled(ct);
-            Stop();
+            StopCapture();
         });
 
         return startupTcs.Task;
     }
 
-    public void Stop()
+    public void StopCapture()
     {
         _startCancellationRegistration.Dispose();
 
@@ -147,11 +162,20 @@ public class WindowsInputCapture : IInputCapture
         }
     }
 
-    protected virtual IntPtr InstallMouseHook(IntPtr moduleHandle)
-        => User32.SetWindowsHookEx(User32.WH_MOUSE_LL, _mouseProc!, moduleHandle, 0);
+    private IntPtr InstallMouseHook(IntPtr moduleHandle)
+        => _hookInstaller.InstallMouseHook(moduleHandle, _mouseProc!);
 
-    protected virtual IntPtr InstallKeyboardHook(IntPtr moduleHandle)
-        => User32.SetWindowsHookEx(User32.WH_KEYBOARD_LL, _keyboardProc!, moduleHandle, 0);
+    private IntPtr InstallKeyboardHook(IntPtr moduleHandle)
+        => _hookInstaller.InstallKeyboardHook(moduleHandle, _keyboardProc!);
+
+    private sealed class DefaultWindowsHookInstaller : IWindowsHookInstaller
+    {
+        public IntPtr InstallMouseHook(IntPtr moduleHandle, User32.HookProc hookProc)
+            => User32.SetWindowsHookEx(User32.WH_MOUSE_LL, hookProc, moduleHandle, 0);
+
+        public IntPtr InstallKeyboardHook(IntPtr moduleHandle, User32.HookProc hookProc)
+            => User32.SetWindowsHookEx(User32.WH_KEYBOARD_LL, hookProc, moduleHandle, 0);
+    }
 
     private void RegisterSessionNotificationWindow()
     {
@@ -227,7 +251,7 @@ public class WindowsInputCapture : IInputCapture
     {
         if (IsSessionRecoveryMessage(msg, wParam))
         {
-            Error?.Invoke(this, "Recovery: Windows session unlocked; restarting input capture.");
+            CaptureError?.Invoke(this, new InputCaptureErrorEventArgs("Recovery: Windows session unlocked; restarting input capture."));
         }
 
         return User32.DefWindowProc(hwnd, msg, wParam, lParam);
@@ -250,7 +274,7 @@ public class WindowsInputCapture : IInputCapture
 
     public void Dispose()
     {
-        Stop();
+        StopCapture();
     }
 
     private IntPtr MouseHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
@@ -316,7 +340,7 @@ public class WindowsInputCapture : IInputCapture
 
                     if (deltaX is not 0)
                     {
-                        var xArgs = new InputCaptureEventArgs
+                        var xArgs = new CapturedInputEvent
                         {
                             Type = InputEventType.MouseMove,
                             Code = InputEventCode.REL_X,
@@ -324,12 +348,12 @@ public class WindowsInputCapture : IInputCapture
                             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                             DeviceName = "VirtualMouse",
                         };
-                        InputReceived?.Invoke(this, xArgs);
+                        InputReceived?.Invoke(this, new CapturedInputEventArgs(xArgs));
                     }
 
                     if (deltaY is not 0)
                     {
-                        var yArgs = new InputCaptureEventArgs
+                        var yArgs = new CapturedInputEvent
                         {
                             Type = InputEventType.MouseMove,
                             Code = InputEventCode.REL_Y,
@@ -337,13 +361,13 @@ public class WindowsInputCapture : IInputCapture
                             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                             DeviceName = "VirtualMouse",
                         };
-                        InputReceived?.Invoke(this, yArgs);
+                        InputReceived?.Invoke(this, new CapturedInputEventArgs(yArgs));
                     }
 
                     // Emit SYNC to flush the movement buffer in MacroRecorder
                     if (deltaX is not 0 || deltaY is not 0)
                     {
-                        var syncArgs = new InputCaptureEventArgs
+                        var syncArgs = new CapturedInputEvent
                         {
                             Type = InputEventType.Sync,
                             Code = 0,
@@ -351,7 +375,7 @@ public class WindowsInputCapture : IInputCapture
                             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                             DeviceName = "VirtualMouse",
                         };
-                        InputReceived?.Invoke(this, syncArgs);
+                        InputReceived?.Invoke(this, new CapturedInputEventArgs(syncArgs));
                     }
 
                     evdevCode = 0;
@@ -360,13 +384,21 @@ public class WindowsInputCapture : IInputCapture
 
             if (evdevCode is not 0)
             {
-                // Mouse buttons should use MouseButton type, not Key
-                var eventType = (type == InputEventCode.EV_KEY && evdevCode >= 272 && evdevCode <= 279)
-                    ? InputEventType.MouseButton
-                    : (type == InputEventCode.EV_REL && evdevCode == InputEventCode.REL_WHEEL) ? InputEventType.MouseScroll
-                    : (InputEventType)type;
+                InputEventType eventType;
+                if (type == InputEventCode.EV_KEY && evdevCode >= 272 && evdevCode <= 279)
+                {
+                    eventType = InputEventType.MouseButton;
+                }
+                else if (type == InputEventCode.EV_REL && evdevCode == InputEventCode.REL_WHEEL)
+                {
+                    eventType = InputEventType.MouseScroll;
+                }
+                else
+                {
+                    eventType = (InputEventType)type;
+                }
 
-                var args = new InputCaptureEventArgs
+                var args = new CapturedInputEvent
                 {
                     Type = eventType,
                     Code = evdevCode,
@@ -374,7 +406,7 @@ public class WindowsInputCapture : IInputCapture
                     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                     DeviceName = "VirtualMouse",
                 };
-                InputReceived?.Invoke(this, args);
+                InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
             }
         }
         return User32.CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
@@ -392,8 +424,8 @@ public class WindowsInputCapture : IInputCapture
                 return User32.CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
             }
 
-            bool isDown = (msg == User32.WM_KEYDOWN || msg == User32.WM_SYSKEYDOWN);
-            bool isUp = (msg == User32.WM_KEYUP || msg == User32.WM_SYSKEYUP);
+            bool isDown = msg is User32.WM_KEYDOWN or User32.WM_SYSKEYDOWN;
+            bool isUp = msg is User32.WM_KEYUP or User32.WM_SYSKEYUP;
 
             if (isDown || isUp)
             {
@@ -403,7 +435,7 @@ public class WindowsInputCapture : IInputCapture
                 if (isDown)
                 {
                     Log.Debug("[WindowsInputCapture] KeyDown: VK={VK} (0x{VKHex}), Scan={Scan}, Flags={Flags}, Mapped={Evdev}",
-                        hookStruct.vkCode, hookStruct.vkCode.ToString("X"), hookStruct.scanCode, hookStruct.flags, evdevCode);
+                        hookStruct.vkCode, hookStruct.vkCode.ToString("X", CultureInfo.InvariantCulture), hookStruct.scanCode, hookStruct.flags, evdevCode);
                 }
 
                 // Handle Extended Keys (distinguish Numpad vs Standard)
@@ -428,7 +460,7 @@ public class WindowsInputCapture : IInputCapture
 
                 if (evdevCode is not 0)
                 {
-                    var args = new InputCaptureEventArgs
+                    var args = new CapturedInputEvent
                     {
                         Type = (InputEventType)InputEventCode.EV_KEY,
                         Code = (ushort)evdevCode,
@@ -436,11 +468,11 @@ public class WindowsInputCapture : IInputCapture
                         Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                         DeviceName = "VirtualKeyboard",
                     };
-                    InputReceived?.Invoke(this, args);
+                    InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
                 }
                 else if (isDown)
                 {
-                    Log.Warning("[WindowsInputCapture] Unmapped key: VK={VK} (0x{VKHex})", hookStruct.vkCode, hookStruct.vkCode.ToString("X"));
+                    Log.Warning("[WindowsInputCapture] Unmapped key: VK={VK} (0x{VKHex})", hookStruct.vkCode, hookStruct.vkCode.ToString("X", CultureInfo.InvariantCulture));
                 }
             }
         }

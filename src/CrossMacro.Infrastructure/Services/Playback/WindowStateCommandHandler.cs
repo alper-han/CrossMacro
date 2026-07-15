@@ -9,12 +9,16 @@ internal sealed class WindowStateCommandHandler : IWindowCommandHandler
     public string? Validate(string[] parts)
     {
         if (parts.Length >= 3 && !parts[2].Equals("active", StringComparison.OrdinalIgnoreCase))
+        {
             return $"Syntax: window {_state} [active]";
+        }
+
         return null;
     }
     public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowQueryService query, IWindowMutationService mutator, IWorkspaceManagementService workspace, CancellationToken cancellationToken)
     {
-        _ = _state switch {
+        _ = _state switch
+        {
             "fullscreen" => await mutator.FullscreenActiveWindowAsync(cancellationToken).ConfigureAwait(false),
             "maximize" => await mutator.MaximizeActiveWindowAsync(cancellationToken).ConfigureAwait(false),
             "float" => await mutator.FloatActiveWindowAsync(cancellationToken).ConfigureAwait(false),

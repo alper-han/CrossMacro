@@ -1,6 +1,6 @@
 namespace CrossMacro.Cli;
 
-public sealed record ProfileCliOptions(
+public sealed record class ProfileCliOptions(
     ProfileCliAction Action,
     string? ProfileIdentifier = null,
     string? NewName = null,

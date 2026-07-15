@@ -10,10 +10,10 @@ public static class TriggerTabConverters
     /// True when the trigger action is SwitchProfile — used to surface the target profile picker.
     /// </summary>
     public static readonly IValueConverter IsSwitchProfileConverter =
-        new FuncValueConverter<TriggerAction, bool>(action => action is TriggerAction.SwitchProfile);
+        new FuncValueConverter<TriggerOperation, bool>(action => action is TriggerOperation.SwitchProfile);
 
     public static readonly IValueConverter IsRunMacroConverter =
-        new FuncValueConverter<TriggerAction, bool>(action => action is TriggerAction.RunMacro);
+        new FuncValueConverter<TriggerOperation, bool>(action => action is TriggerOperation.RunMacro);
 
     /// <summary>
     /// True when the trigger field requires match-mode + value entry (i.e. not None/Interval).

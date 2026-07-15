@@ -10,15 +10,15 @@ public interface ILinuxEnvironmentDetector
     /// Gets the detected compositor type.
     /// Result is cached after first detection.
     /// </summary>
-    CompositorType DetectedCompositor { get; }
+    public CompositorType DetectedCompositor { get; }
 
     /// <summary>
     /// Determines if the current session is Wayland-based.
     /// </summary>
-    bool IsWayland { get; }
+    public bool IsWayland { get; }
 
     /// <summary>
     /// Determines if the current session is X11-based.
     /// </summary>
-    bool IsX11 { get; }
+    public bool IsX11 { get; }
 }

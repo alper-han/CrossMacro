@@ -98,7 +98,7 @@ public static class MacOSPermissionChecker
         // Opens System Settings directly to Accessibility privacy section
         Process.Start(new ProcessStartInfo
         {
-            FileName = "open",
+            FileName = "/usr/bin/open",
             Arguments = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
             UseShellExecute = false,
         });
@@ -108,7 +108,7 @@ public static class MacOSPermissionChecker
     {
         Process.Start(new ProcessStartInfo
         {
-            FileName = "open",
+            FileName = "/usr/bin/open",
             Arguments = "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent",
             UseShellExecute = false,
         });

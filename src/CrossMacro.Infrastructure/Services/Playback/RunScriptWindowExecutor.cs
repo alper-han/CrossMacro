@@ -65,11 +65,15 @@ internal sealed class RunScriptWindowExecutor
         }
 
         if (parts.Length < 2 || !parts[0].Equals(CommandToken, StringComparison.OrdinalIgnoreCase))
+        {
             return $"Invalid window syntax: '{step}'.";
+        }
 
         var sub = parts[1].ToLowerInvariant();
         if (!_handlers.TryGetValue(sub, out var handler))
+        {
             return $"Unknown window sub-command '{sub}'. Expected: {string.Join(", ", _handlers.Keys)}.";
+        }
 
         return handler.Validate(parts);
     }
@@ -83,7 +87,7 @@ internal sealed class RunScriptWindowExecutor
         IDictionary<string, string> variables,
         CancellationToken cancellationToken)
     {
-        var resolvedStep = RunScriptRuntimeText.ResolveVariables(step, variables, $"Step {stepNumber}: ");
+        var resolvedStep = RunScriptRuntimeText.ResolveVariables(step, variables, $"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: ");
 
         string[] parts;
         try
@@ -92,19 +96,25 @@ internal sealed class RunScriptWindowExecutor
         }
         catch (FormatException ex)
         {
-            throw new InvalidOperationException($"Step {stepNumber}: Invalid window syntax: '{resolvedStep}'. {ex.Message}", ex);
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Invalid window syntax: '{resolvedStep}'. {ex.Message}", ex);
         }
 
         if (parts.Length < 2 || !parts[0].Equals(CommandToken, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException($"Step {stepNumber}: Invalid window syntax: '{resolvedStep}'.");
+        {
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Invalid window syntax: '{resolvedStep}'.");
+        }
 
         var sub = parts[1].ToLowerInvariant();
         if (!_handlers.TryGetValue(sub, out var handler))
-            throw new InvalidOperationException($"Step {stepNumber}: Unknown window sub-command '{sub}'.");
+        {
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Unknown window sub-command '{sub}'.");
+        }
 
         var error = handler.Validate(parts);
         if (error is not null)
-            throw new InvalidOperationException($"Step {stepNumber}: {error}");
+        {
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {error}");
+        }
 
         await handler.ExecuteAsync(parts, variables, stepNumber, _queryService, _mutationService, _workspaceService, cancellationToken).ConfigureAwait(false);
     }

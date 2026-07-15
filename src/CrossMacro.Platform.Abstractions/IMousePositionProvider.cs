@@ -1,36 +1,35 @@
 
-namespace CrossMacro.Platform.Abstractions
+namespace CrossMacro.Platform.Abstractions;
+
+/// <summary>
+/// Interface for mouse position providers across different platforms
+/// </summary>
+public interface IMousePositionProvider : IDisposable
 {
     /// <summary>
-    /// Interface for mouse position providers across different platforms
+    /// Name of the position provider (e.g., "Hyprland IPC", "KDE DBus")
     /// </summary>
-    public interface IMousePositionProvider : IDisposable
-    {
-        /// <summary>
-        /// Name of the position provider (e.g., "Hyprland IPC", "KDE DBus")
-        /// </summary>
-        string ProviderName { get; }
+    public string ProviderName { get; }
 
-        /// <summary>
-        /// Whether this provider is supported on the current system
-        /// </summary>
-        bool IsSupported { get; }
+    /// <summary>
+    /// Whether this provider is supported on the current system
+    /// </summary>
+    public bool IsSupported { get; }
 
-        /// <summary>
-        /// Get the current absolute mouse position asynchronously
-        /// </summary>
-        /// <returns>Tuple of (X, Y) coordinates, or null if unavailable</returns>
-        Task<(int X, int Y)?> GetAbsolutePositionAsync();
+    /// <summary>
+    /// Get the current absolute mouse position asynchronously
+    /// </summary>
+    /// <returns>Tuple of (X, Y) coordinates, or null if unavailable</returns>
+    public Task<(int X, int Y)?> GetAbsolutePositionAsync();
 
-        /// <summary>
-        /// Get the screen resolution asynchronously
-        /// </summary>
-        /// <returns>Tuple of (Width, Height), or null if unavailable</returns>
-        Task<(int Width, int Height)?> GetScreenResolutionAsync();
+    /// <summary>
+    /// Get the screen resolution asynchronously
+    /// </summary>
+    /// <returns>Tuple of (Width, Height), or null if unavailable</returns>
+    public Task<(int Width, int Height)?> GetScreenResolutionAsync();
 
-        /// <summary>
-        /// Task that completes when the provider is fully initialized
-        /// </summary>
-        Task<bool> InitializationTask => Task.FromResult(true);
-    }
+    /// <summary>
+    /// Task that completes when the provider is fully initialized
+    /// </summary>
+    public Task<bool> InitializationTask => Task.FromResult(true);
 }

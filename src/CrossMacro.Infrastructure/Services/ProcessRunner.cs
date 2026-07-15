@@ -19,13 +19,16 @@ public class ProcessRunner : IProcessRunner
                 CreateNoWindow = true,
             });
 
-            if (proc is null) return false;
+            if (proc is null)
+            {
+                return false;
+            }
 
             var outputTask = proc.StandardOutput.ReadToEndAsync(cancellationToken);
             var errorTask = proc.StandardError.ReadToEndAsync(cancellationToken);
-            await WaitForExitOrKillAsync(proc, cancellationToken);
-            await outputTask;
-            await errorTask;
+            await WaitForExitOrKillAsync(proc, cancellationToken).ConfigureAwait(false);
+            await outputTask.ConfigureAwait(false);
+            await errorTask.ConfigureAwait(false);
             return proc.ExitCode is 0;
         }
         catch (OperationCanceledException)
@@ -42,7 +45,7 @@ public class ProcessRunner : IProcessRunner
     {
         using var proc = CreateProcess(command, redirectStandardInput: true);
         proc.StartInfo.Arguments = args;
-        await RunCommandProcessAsync(proc, input, cancellationToken);
+        await RunCommandProcessAsync(proc, input, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task RunCommandAsync(string command, string[] args, string input, CancellationToken cancellationToken = default)
@@ -53,14 +56,14 @@ public class ProcessRunner : IProcessRunner
             proc.StartInfo.ArgumentList.Add(arg);
         }
 
-        await RunCommandProcessAsync(proc, input, cancellationToken);
+        await RunCommandProcessAsync(proc, input, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task WriteClipboardInputAndCloseAsync(string command, string args, string input, CancellationToken cancellationToken = default)
     {
         var proc = CreateProcess(command, redirectStandardInput: true);
         proc.StartInfo.Arguments = args;
-        await WriteClipboardInputAndCloseProcessAsync(proc, input, cancellationToken);
+        await WriteClipboardInputAndCloseProcessAsync(proc, input, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task WriteClipboardInputAndCloseAsync(string command, string[] args, string input, CancellationToken cancellationToken = default)
@@ -71,7 +74,7 @@ public class ProcessRunner : IProcessRunner
             proc.StartInfo.ArgumentList.Add(arg);
         }
 
-        await WriteClipboardInputAndCloseProcessAsync(proc, input, cancellationToken);
+        await WriteClipboardInputAndCloseProcessAsync(proc, input, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task WriteClipboardInputAndCloseAsync(string command, string[] args, ReadOnlyMemory<byte> input, CancellationToken cancellationToken = default)
@@ -82,7 +85,7 @@ public class ProcessRunner : IProcessRunner
             proc.StartInfo.ArgumentList.Add(arg);
         }
 
-        await WriteClipboardInputAndCloseProcessAsync(proc, input, cancellationToken);
+        await WriteClipboardInputAndCloseProcessAsync(proc, input, cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task RunCommandProcessAsync(Process proc, string input, CancellationToken cancellationToken)
@@ -91,8 +94,8 @@ public class ProcessRunner : IProcessRunner
         var errorTask = proc.StandardError.ReadToEndAsync(cancellationToken);
         try
         {
-            await proc.StandardInput.WriteAsync(input.AsMemory(), cancellationToken);
-            await proc.StandardInput.FlushAsync(cancellationToken);
+            await proc.StandardInput.WriteAsync(input.AsMemory(), cancellationToken).ConfigureAwait(false);
+            await proc.StandardInput.FlushAsync(cancellationToken).ConfigureAwait(false);
         }
         catch
         {
@@ -102,14 +105,14 @@ public class ProcessRunner : IProcessRunner
 
         proc.StandardInput.Close();
 
-        await WaitForExitOrKillAsync(proc, cancellationToken);
-        var error = await errorTask;
+        await WaitForExitOrKillAsync(proc, cancellationToken).ConfigureAwait(false);
+        var error = await errorTask.ConfigureAwait(false);
         EnsureSuccessfulExit(proc, error);
     }
 
     private static async Task WriteClipboardInputAndCloseProcessAsync(Process proc, string input, CancellationToken cancellationToken)
     {
-        await WriteClipboardInputAndCloseProcessAsync(proc, Encoding.UTF8.GetBytes(input), cancellationToken);
+        await WriteClipboardInputAndCloseProcessAsync(proc, Encoding.UTF8.GetBytes(input), cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task WriteClipboardInputAndCloseProcessAsync(Process proc, ReadOnlyMemory<byte> input, CancellationToken cancellationToken)
@@ -120,8 +123,8 @@ public class ProcessRunner : IProcessRunner
         {
             proc.Start();
             errorTask = proc.StandardError.ReadToEndAsync(streamReadCts.Token);
-            await proc.StandardInput.BaseStream.WriteAsync(input, cancellationToken);
-            await proc.StandardInput.BaseStream.FlushAsync(cancellationToken);
+            await proc.StandardInput.BaseStream.WriteAsync(input, cancellationToken).ConfigureAwait(false);
+            await proc.StandardInput.BaseStream.FlushAsync(cancellationToken).ConfigureAwait(false);
             proc.StandardInput.Close();
 
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
@@ -129,7 +132,7 @@ public class ProcessRunner : IProcessRunner
             var exited = false;
             try
             {
-                await proc.WaitForExitAsync(linked.Token);
+                await proc.WaitForExitAsync(linked.Token).ConfigureAwait(false);
                 exited = true;
             }
             catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
@@ -146,10 +149,10 @@ public class ProcessRunner : IProcessRunner
                 string error = string.Empty;
                 if (proc.ExitCode is not 0)
                 {
-                    var completed = await Task.WhenAny(errorTask, Task.Delay(TimeSpan.FromMilliseconds(500)));
+                    var completed = await Task.WhenAny(errorTask, Task.Delay(TimeSpan.FromMilliseconds(500))).ConfigureAwait(false);
                     if (completed == errorTask)
                     {
-                        error = await errorTask;
+                        error = await errorTask.ConfigureAwait(false);
                     }
                     else
                     {
@@ -188,7 +191,7 @@ public class ProcessRunner : IProcessRunner
     {
         try
         {
-            await readTask;
+            await readTask.ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -208,9 +211,9 @@ public class ProcessRunner : IProcessRunner
         proc.Start();
         var outputTask = proc.StandardOutput.ReadToEndAsync(cancellationToken);
         var errorTask = proc.StandardError.ReadToEndAsync(cancellationToken);
-        await WaitForExitOrKillAsync(proc, cancellationToken);
-        await outputTask;
-        var error = await errorTask;
+        await WaitForExitOrKillAsync(proc, cancellationToken).ConfigureAwait(false);
+        await outputTask.ConfigureAwait(false);
+        var error = await errorTask.ConfigureAwait(false);
         EnsureSuccessfulExit(proc, error);
     }
 
@@ -218,7 +221,7 @@ public class ProcessRunner : IProcessRunner
     {
         using var proc = CreateProcess(command, redirectStandardInput: false, redirectStandardOutput: true);
         proc.StartInfo.Arguments = args;
-        return await ReadCommandProcessAsync(proc, cancellationToken);
+        return await ReadCommandProcessAsync(proc, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<string> ReadCommandAsync(string command, string[] args, CancellationToken cancellationToken = default)
@@ -229,7 +232,7 @@ public class ProcessRunner : IProcessRunner
             proc.StartInfo.ArgumentList.Add(arg);
         }
 
-        return await ReadCommandProcessAsync(proc, cancellationToken);
+        return await ReadCommandProcessAsync(proc, cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task<string> ReadCommandProcessAsync(Process proc, CancellationToken cancellationToken)
@@ -237,9 +240,9 @@ public class ProcessRunner : IProcessRunner
         proc.Start();
         var resultTask = proc.StandardOutput.ReadToEndAsync(cancellationToken);
         var errorTask = proc.StandardError.ReadToEndAsync(cancellationToken);
-        await WaitForExitOrKillAsync(proc, cancellationToken);
-        var result = await resultTask;
-        var error = await errorTask;
+        await WaitForExitOrKillAsync(proc, cancellationToken).ConfigureAwait(false);
+        var result = await resultTask.ConfigureAwait(false);
+        var error = await errorTask.ConfigureAwait(false);
         EnsureSuccessfulExit(proc, error);
         return result;
     }
@@ -259,7 +262,7 @@ public class ProcessRunner : IProcessRunner
                 RedirectStandardOutput = redirectStandardOutput,
                 RedirectStandardError = redirectStandardError,
                 UseShellExecute = false,
-                CreateNoWindow = true
+                CreateNoWindow = true,
             },
         };
     }
@@ -268,7 +271,7 @@ public class ProcessRunner : IProcessRunner
     {
         try
         {
-            await process.WaitForExitAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -300,8 +303,8 @@ public class ProcessRunner : IProcessRunner
         }
 
         var message = string.IsNullOrWhiteSpace(error)
-            ? $"Command '{process.StartInfo.FileName}' exited with code {process.ExitCode}."
-            : $"Command '{process.StartInfo.FileName}' exited with code {process.ExitCode}: {error.Trim()}";
+            ? $"Command '{process.StartInfo.FileName}' exited with code {process.ExitCode.ToString(CultureInfo.InvariantCulture)}."
+            : $"Command '{process.StartInfo.FileName}' exited with code {process.ExitCode.ToString(CultureInfo.InvariantCulture)}: {error.Trim()}";
         throw new InvalidOperationException(message);
     }
 }

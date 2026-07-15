@@ -1,6 +1,6 @@
 namespace CrossMacro.Cli.Services;
 
-public sealed record ScreenSearchImageData(
+public sealed record class ScreenSearchImageData(
     bool Found,
     int? X,
     int? Y,

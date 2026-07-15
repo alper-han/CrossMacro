@@ -3,7 +3,7 @@ namespace CrossMacro.UI.Services;
 
 public interface IThemeService
 {
-    IReadOnlyList<string> AvailableThemes { get; }
-    string CurrentTheme { get; }
-    bool TryApplyTheme(string themeName, out string error);
+    public IReadOnlyList<string> AvailableThemes { get; }
+    public string CurrentTheme { get; }
+    public bool TryApplyTheme(string themeName, out string themeError);
 }

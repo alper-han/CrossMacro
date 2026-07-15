@@ -5,5 +5,5 @@ public readonly record struct LinuxBackendSelection(
     bool CaptureSupported,
     string Reason)
 {
-    public bool IsSupported => Reason is "native-x11" || Mode is not InputProviderMode.None;
+    public bool IsSupported => string.Equals(Reason, "native-x11", StringComparison.Ordinal) || Mode is not InputProviderMode.None;
 }

@@ -3,21 +3,21 @@ namespace CrossMacro.Platform.Abstractions;
 
 public interface IInputSimulator : IDisposable
 {
-    string ProviderName { get; }
+    public string ProviderName { get; }
 
-    bool IsSupported { get; }
+    public bool IsSupported { get; }
 
-    void Initialize(int screenWidth = 0, int screenHeight = 0);
+    public void Initialize(int screenWidth = 0, int screenHeight = 0);
 
-    void MoveAbsolute(int x, int y);
+    public void MoveAbsolute(int x, int y);
 
-    void MoveRelative(int dx, int dy);
+    public void MoveRelative(int dx, int dy);
 
-    void MouseButton(int button, bool pressed);
+    public void MouseButton(int button, bool pressed);
 
-    void Scroll(int delta, bool isHorizontal = false);
+    public void Scroll(int delta, bool isHorizontal = false);
 
-    void KeyPress(int keyCode, bool pressed);
+    public void KeyPress(int keyCode, bool pressed);
 
-    void Sync();
+    public void Sync();
 }

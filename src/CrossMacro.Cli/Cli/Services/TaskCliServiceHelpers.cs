@@ -11,7 +11,7 @@ internal static class TaskCliServiceHelpers
         Func<TTask, TResult> mapTask)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        await loadAsync();
+        await loadAsync().ConfigureAwait(false);
 
         var tasks = getTasks()
             .Select(mapTask)
@@ -43,7 +43,7 @@ internal static class TaskCliServiceHelpers
                 errors: [$"Task id is not a valid GUID: {taskId}"]);
         }
 
-        await loadAsync();
+        await loadAsync().ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
 
         var task = getTasks().FirstOrDefault(x => getTaskId(x) == parsedTaskId);
@@ -56,7 +56,7 @@ internal static class TaskCliServiceHelpers
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        await runTaskAsync(parsedTaskId, cancellationToken);
+        await runTaskAsync(parsedTaskId, cancellationToken).ConfigureAwait(false);
 
         return CliCommandExecutionResult.Ok(
             $"{taskKindDisplay} task executed.",
@@ -81,7 +81,7 @@ internal static class TaskCliServiceHelpers
                 errors: [$"Task id is not a valid GUID: {taskId}"]));
         }
 
-        var tasks = await loadAsync();
+        var tasks = await loadAsync().ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         var task = tasks.FirstOrDefault(candidate => getTaskId(candidate) == parsedTaskId);
         if (task is null)

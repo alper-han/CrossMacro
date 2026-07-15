@@ -10,7 +10,7 @@ public class SchedulerService : ISchedulerService
 
     private readonly IScheduledTaskRepository _repository;
     private readonly IScheduledTaskExecutor _executor;
-    private readonly ITimeProvider _timeProvider;
+    private readonly TimeProvider _timeProvider;
     private readonly SynchronizationContext? _syncContext;
     private readonly Lock _lock = new();
 
@@ -36,12 +36,12 @@ public class SchedulerService : ISchedulerService
     }
 
     public event EventHandler<TaskExecutedEventArgs>? TaskExecuted;
-    public event EventHandler<ScheduledTask>? TaskStarting;
+    public event EventHandler<ScheduledTaskStartingEventArgs>? TaskStarting;
 
     public SchedulerService(
         IScheduledTaskRepository repository,
         IScheduledTaskExecutor executor,
-        ITimeProvider timeProvider)
+        TimeProvider timeProvider)
     {
         _repository = repository;
         _executor = executor;
@@ -58,7 +58,7 @@ public class SchedulerService : ISchedulerService
         catch (Exception ex) { Log.Warning(ex, "[SchedulerService] TaskExecuted subscriber threw"); }
     }
 
-    private void OnExecutorTaskStarting(object? sender, ScheduledTask e)
+    private void OnExecutorTaskStarting(object? sender, ScheduledTaskStartingEventArgs e)
     {
         try { TaskStarting?.Invoke(this, e); }
         catch (Exception ex) { Log.Warning(ex, "[SchedulerService] TaskStarting subscriber threw"); }
@@ -71,7 +71,7 @@ public class SchedulerService : ISchedulerService
             Tasks.Add(task);
             if (task.IsEnabled)
             {
-                task.CalculateNextRunTime(_timeProvider.UtcNow);
+                task.CalculateNextRunTime(_timeProvider.GetUtcNow().UtcDateTime);
             }
         }
     }
@@ -95,6 +95,7 @@ public class SchedulerService : ISchedulerService
             var existing = Tasks.FirstOrDefault(t => t.Id == task.Id);
             if (existing is not null)
             {
+                task.Normalize();
                 // Update properties instead of replacing the object instance
                 // This preserves references in the UI (e.g., SelectedTask)
                 existing.Name = task.Name;
@@ -109,9 +110,12 @@ public class SchedulerService : ISchedulerService
                 existing.ScheduledDateTime = task.ScheduledDateTime;
                 existing.WeeklyDays = task.WeeklyDays;
                 existing.WeeklyTime = task.WeeklyTime;
+                existing.LastRunTime = task.LastRunTime;
+                existing.NextRunTime = task.NextRunTime;
+                existing.LastStatus = task.LastStatus;
 
                 // Update IsEnabled last as it might trigger recalculations
-                existing.IsEnabled = task.IsEnabled;
+                existing.TrySetEnabled(task.IsEnabled);
             }
         }
     }
@@ -123,10 +127,10 @@ public class SchedulerService : ISchedulerService
             var task = Tasks.FirstOrDefault(t => t.Id == id);
             if (task is not null)
             {
-                task.IsEnabled = enabled;
+                task.TrySetEnabled(enabled);
                 if (enabled)
                 {
-                    task.CalculateNextRunTime(_timeProvider.UtcNow);
+                    task.CalculateNextRunTime(_timeProvider.GetUtcNow().UtcDateTime);
                 }
                 else
                 {
@@ -149,7 +153,7 @@ public class SchedulerService : ISchedulerService
         if (task is not null)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await _executor.ExecuteAsync(task, cancellationToken);
+            await _executor.ExecuteAsync(task, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -180,7 +184,7 @@ public class SchedulerService : ISchedulerService
         _ = ObserveTimerLoopAsync(timerTask!, cts!);
     }
 
-    public void Stop()
+    public void StopScheduler()
     {
         _ = StopAsync();
     }
@@ -195,7 +199,7 @@ public class SchedulerService : ISchedulerService
         {
             if (!_isRunning && _periodicTimer is null && _cts is null && _timerTask is null)
             {
-                    return;
+                return;
             }
 
             _isRunning = false;
@@ -231,9 +235,9 @@ public class SchedulerService : ISchedulerService
     {
         try
         {
-            while (await timer.WaitForNextTickAsync(cancellationToken))
+            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
             {
-                    await CheckTasksAsync(cancellationToken).ConfigureAwait(false);
+                await CheckTasksAsync(cancellationToken).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -266,7 +270,7 @@ public class SchedulerService : ISchedulerService
                 }
             }
 
-            Log.Error(ex, "[SchedulerService] Timer loop faulted and scheduler was stopped");
+            Log.LogError(ex, "[SchedulerService] Timer loop faulted and scheduler was stopped");
 
             if (shouldCleanup)
             {
@@ -316,9 +320,9 @@ public class SchedulerService : ISchedulerService
         ScheduledTask[] tasksToRun;
         lock (_lock)
         {
-            var now = _timeProvider.UtcNow;
+            var now = _timeProvider.GetUtcNow().UtcDateTime;
             tasksToRun = Tasks
-                .Where(t => t.IsEnabled && t.NextRunTime.HasValue && t.NextRunTime.Value <= now)
+                .Where(t => t.IsEnabled && t.NextRunTime is not null && t.NextRunTime.Value <= now)
                 .ToArray();
 
             // Clear NextRunTime immediately to prevent duplicate triggers
@@ -344,18 +348,18 @@ public class SchedulerService : ISchedulerService
             tasksToSave = Tasks.ToArray();
         }
 
-        await _repository.SaveAsync(tasksToSave);
+        await _repository.SaveAsync(tasksToSave).ConfigureAwait(false);
     }
 
     public async Task LoadAsync()
     {
-        var tasks = await _repository.LoadAsync();
+        var tasks = await _repository.LoadAsync().ConfigureAwait(false);
 
         await ExecuteOnCapturedContextAsync(() =>
         {
             lock (_lock)
             {
-                var now = _timeProvider.UtcNow;
+                var now = _timeProvider.GetUtcNow().UtcDateTime;
                 Tasks.Clear();
                 foreach (var task in tasks)
                 {
@@ -367,6 +371,7 @@ public class SchedulerService : ISchedulerService
 
                     try
                     {
+                        task.Normalize();
                         if (!task.IsEnabled)
                         {
                             task.NextRunTime = null;
@@ -377,7 +382,7 @@ public class SchedulerService : ISchedulerService
                         }
                         else if (task.Type is ScheduleType.SpecificTime)
                         {
-                            if (!task.ScheduledDateTime.HasValue)
+                            if (task.ScheduledDateTime is null)
                             {
                                 task.IsEnabled = false;
                                 task.NextRunTime = null;
@@ -390,7 +395,7 @@ public class SchedulerService : ISchedulerService
 
                             // Always recompute from ScheduledDateTime, ignoring persisted NextRunTime.
                             task.CalculateNextRunTime(now);
-                            if (!task.NextRunTime.HasValue || task.NextRunTime.Value < now)
+                            if (task.NextRunTime is null || task.NextRunTime.Value < now)
                             {
                                 task.IsEnabled = false;
                                 task.NextRunTime = null;
@@ -458,12 +463,16 @@ public class SchedulerService : ISchedulerService
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
+
         _disposed = true;
 
         _executor.TaskExecuted -= OnExecutorTaskExecuted;
         _executor.TaskStarting -= OnExecutorTaskStarting;
 
-        Stop();
+        StopScheduler();
     }
 }

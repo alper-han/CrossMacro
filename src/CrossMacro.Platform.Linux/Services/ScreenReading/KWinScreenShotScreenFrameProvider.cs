@@ -27,14 +27,14 @@ public sealed class KWinScreenShotScreenFrameProvider : IScreenFrameProvider
 
         if (!_support.IsSupported)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 _support.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
                 _support.ErrorMessage ?? "KDE KWin ScreenShot2 is unavailable.");
         }
 
         if (region is null)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.Unsupported,
                 "KDE KWin ScreenShot2 screen reading currently requires a bounded region.");
         }
@@ -65,7 +65,7 @@ public sealed class KWinScreenShotScreenFrameProvider : IScreenFrameProvider
         var frame = captureResult.Frame;
         if (frame is null)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.CaptureFailed, "Successful KDE KWin ScreenShot2 capture did not include a frame.");
+            return ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, "Successful KDE KWin ScreenShot2 capture did not include a frame.");
         }
 
         return LinuxScreenFrameProviderResults.CreateSharedFrame(frame.LogicalBounds, frame.Stride, frame.PixelFormat, frame.Pixels, frame);

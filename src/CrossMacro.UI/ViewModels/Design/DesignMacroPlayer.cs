@@ -21,7 +21,7 @@ internal sealed class DesignMacroPlayer : IMacroPlayer
         return Task.CompletedTask;
     }
 
-    public void Stop()
+    public void StopPlayback()
     {
         CurrentLoop = 0;
         TotalLoops = 0;
@@ -31,7 +31,7 @@ internal sealed class DesignMacroPlayer : IMacroPlayer
 
     public void Pause() => IsPaused = true;
 
-    public void Resume() => IsPaused = false;
+    public void ResumePlayback() => IsPaused = false;
 
     public void Dispose()
     {

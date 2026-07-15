@@ -3,7 +3,7 @@ namespace CrossMacro.Cli.Tests;
 
 public class CliCommandRouterTests
 {
-    private readonly CliCommandRouter _router = new();
+    private readonly CliCommandRouterAccessor _router = new();
 
     [Fact]
     public void Parse_WhenNoArgs_StartsGui()
@@ -1112,7 +1112,7 @@ public class CliCommandRouterTests
         Assert.Equal(TriggerField.WindowTitle, options.Field);
         Assert.Equal(TriggerMatchMode.Regex, options.MatchMode);
         Assert.Equal(".*Firefox.*", options.Value);
-        Assert.Equal(TriggerAction.SwitchProfile, options.TriggerActionVal);
+        Assert.Equal(TriggerOperation.SwitchProfile, options.TriggerActionVal);
         Assert.Equal("dev", options.TargetProfileId);
         Assert.Equal(TriggerFireMode.OnceOnChange, options.FireMode);
         Assert.Equal(1000, options.CooldownMs);
@@ -1360,7 +1360,7 @@ public class CliCommandRouterTests
         Assert.True(imageClick.IsSuccess);
         var imageClickOptions = Assert.IsType<ScreenCliOptions>(imageClick.Options);
         Assert.Equal(ScreenCliAction.ImageClick, imageClickOptions.Action);
-        Assert.Equal(MouseButton.Right, imageClickOptions.Button);
+        Assert.Equal(MacroMouseButton.Right, imageClickOptions.Button);
         Assert.Equal(4, imageClickOptions.RegionX);
         Assert.Equal(5, imageClickOptions.RegionY);
         Assert.Equal(60, imageClickOptions.RegionWidth);
@@ -1389,29 +1389,29 @@ public class CliCommandRouterTests
         Assert.True(result.PrefersJsonOutput);
     }
 
-	[Fact]
-	public void Parse_WhenScreenSearchImageInvalidOptions_ReturnsError()
-	{
-		var badSimilarity = _router.Parse(["screen", "search-image", "/tmp/template.png", "--similarity", "1.1"]);
-		var badSimilarityNaN = _router.Parse(["screen", "search-image", "/tmp/template.png", "--similarity", "NaN"]);
-		var badSimilarityInfinity = _router.Parse(["screen", "search-image", "/tmp/template.png", "--similarity", "Infinity"]);
-		var badSimilarityNegativeInfinity = _router.Parse(["screen", "search-image", "/tmp/template.png", "--similarity", "-Infinity"]);
-		var badDownsample = _router.Parse(["screen", "search-image", "/tmp/template.png", "--downsample", "0"]);
-		var badRegion = _router.Parse(["screen", "search-image", "/tmp/template.png", "--region", "1", "2", "0", "4"]);
-		var badWaitTimeout = _router.Parse(["screen", "wait-image", "/tmp/template.png", "--timeout-ms", "-1"]);
+    [Fact]
+    public void Parse_WhenScreenSearchImageInvalidOptions_ReturnsError()
+    {
+        var badSimilarity = _router.Parse(["screen", "search-image", "/tmp/template.png", "--similarity", "1.1"]);
+        var badSimilarityNaN = _router.Parse(["screen", "search-image", "/tmp/template.png", "--similarity", "NaN"]);
+        var badSimilarityInfinity = _router.Parse(["screen", "search-image", "/tmp/template.png", "--similarity", "Infinity"]);
+        var badSimilarityNegativeInfinity = _router.Parse(["screen", "search-image", "/tmp/template.png", "--similarity", "-Infinity"]);
+        var badDownsample = _router.Parse(["screen", "search-image", "/tmp/template.png", "--downsample", "0"]);
+        var badRegion = _router.Parse(["screen", "search-image", "/tmp/template.png", "--region", "1", "2", "0", "4"]);
+        var badWaitTimeout = _router.Parse(["screen", "wait-image", "/tmp/template.png", "--timeout-ms", "-1"]);
         var badImageClickButton = _router.Parse(["screen", "image-click", "/tmp/template.png", "--button", "side"]);
         var badMatchMode = _router.Parse(["screen", "search-image", "/tmp/template.png", "--matchmode", "middle"]);
 
-		Assert.False(badSimilarity.IsSuccess);
-		Assert.Contains("--similarity", badSimilarity.ErrorMessage, StringComparison.Ordinal);
-		Assert.False(badSimilarityNaN.IsSuccess);
-		Assert.Contains("--similarity", badSimilarityNaN.ErrorMessage, StringComparison.Ordinal);
-		Assert.False(badSimilarityInfinity.IsSuccess);
-		Assert.Contains("--similarity", badSimilarityInfinity.ErrorMessage, StringComparison.Ordinal);
-		Assert.False(badSimilarityNegativeInfinity.IsSuccess);
-		Assert.Contains("--similarity", badSimilarityNegativeInfinity.ErrorMessage, StringComparison.Ordinal);
-		Assert.False(badDownsample.IsSuccess);
-		Assert.Contains("--downsample", badDownsample.ErrorMessage, StringComparison.Ordinal);
+        Assert.False(badSimilarity.IsSuccess);
+        Assert.Contains("--similarity", badSimilarity.ErrorMessage, StringComparison.Ordinal);
+        Assert.False(badSimilarityNaN.IsSuccess);
+        Assert.Contains("--similarity", badSimilarityNaN.ErrorMessage, StringComparison.Ordinal);
+        Assert.False(badSimilarityInfinity.IsSuccess);
+        Assert.Contains("--similarity", badSimilarityInfinity.ErrorMessage, StringComparison.Ordinal);
+        Assert.False(badSimilarityNegativeInfinity.IsSuccess);
+        Assert.Contains("--similarity", badSimilarityNegativeInfinity.ErrorMessage, StringComparison.Ordinal);
+        Assert.False(badDownsample.IsSuccess);
+        Assert.Contains("--downsample", badDownsample.ErrorMessage, StringComparison.Ordinal);
         Assert.False(badRegion.IsSuccess);
         Assert.Contains("--region", badRegion.ErrorMessage, StringComparison.Ordinal);
         Assert.False(badWaitTimeout.IsSuccess);
@@ -1469,5 +1469,12 @@ public class CliCommandRouterTests
         Assert.False(result.IsSuccess);
         Assert.Contains("--output", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Contains("--clipboard", result.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    private sealed class CliCommandRouterAccessor
+    {
+        public CliParseResult Parse(string[] args) => CliCommandRouter.Parse(args);
+
+        public string GetUsage(string? topic = null) => CliCommandRouter.GetUsage(topic);
     }
 }

@@ -17,29 +17,29 @@ internal sealed class NullScreenPixelReader : IScreenPixelReader, IScreenImageSe
     public Task<ScreenReadResult<ScreenPixelColor>> GetPixelAsync(ScreenPoint point, ScreenReadOptions options)
     {
         Core.Logging.Log.Warning("[NullScreenPixelReader] Screen reading is not available. GetPixelAsync called.");
-        return Task.FromResult(ScreenReadResult<ScreenPixelColor>.Failure(ScreenReadErrorKind.Unsupported, "Screen reading is not available."));
+        return Task.FromResult(ScreenReadResultFactory.Failure<ScreenPixelColor>(ScreenReadErrorKind.Unsupported, "Screen reading is not available."));
     }
 
     public Task<ScreenReadResult<ScreenPixelColor>> WaitForPixelAsync(ScreenPoint point, ScreenPixelColor expected, ScreenReadOptions options)
     {
         Core.Logging.Log.Warning("[NullScreenPixelReader] Screen reading is not available. WaitForPixelAsync called.");
-        return Task.FromResult(ScreenReadResult<ScreenPixelColor>.Failure(ScreenReadErrorKind.Unsupported, "Screen reading is not available."));
+        return Task.FromResult(ScreenReadResultFactory.Failure<ScreenPixelColor>(ScreenReadErrorKind.Unsupported, "Screen reading is not available."));
     }
 
     public Task<ScreenReadResult<ScreenPixelSearchMatch>> SearchPixelAsync(ScreenRect region, ScreenPixelColor expected, int tolerance, ScreenReadOptions options)
     {
         Core.Logging.Log.Warning("[NullScreenPixelReader] Screen reading is not available. SearchPixelAsync called.");
-        return Task.FromResult(ScreenReadResult<ScreenPixelSearchMatch>.Failure(ScreenReadErrorKind.Unsupported, "Screen reading is not available."));
+        return Task.FromResult(ScreenReadResultFactory.Failure<ScreenPixelSearchMatch>(ScreenReadErrorKind.Unsupported, "Screen reading is not available."));
     }
 
     public Task<ScreenReadResult<ScreenImageMatch>> SearchImageAsync(
         ScreenRect? region,
-        ScreenFrame template,
+        ScreenFrame imageTemplate,
         ScreenImageMatchOptions matchOptions,
         ScreenReadOptions options)
     {
         Core.Logging.Log.Warning("[NullScreenPixelReader] Screen reading is not available. SearchImageAsync called.");
-        return Task.FromResult(ScreenReadResult<ScreenImageMatch>.Failure(ScreenReadErrorKind.Unsupported, "Screen reading is not available."));
+        return Task.FromResult(ScreenReadResultFactory.Failure<ScreenImageMatch>(ScreenReadErrorKind.Unsupported, "Screen reading is not available."));
     }
 
     public void Dispose()

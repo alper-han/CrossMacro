@@ -197,12 +197,12 @@ internal sealed class ScreenReadingSelectorFixture
         {
             if (_support is { IsSupported: false } support)
             {
-                return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(
+                return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
                     support.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
                     support.ErrorMessage ?? "Test provider is unavailable."));
             }
 
-            return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(
+            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.CaptureFailed,
                 "Test provider does not capture frames."));
         }

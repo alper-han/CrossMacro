@@ -1,4 +1,4 @@
 
 namespace CrossMacro.UI.ViewModels;
 
-public sealed record WeeklyPresetOption(ScheduleDays? Value, string DisplayName);
+public sealed record class WeeklyPresetOption(ScheduleDays? Value, string DisplayName);

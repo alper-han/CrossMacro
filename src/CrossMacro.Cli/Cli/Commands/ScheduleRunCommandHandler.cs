@@ -12,6 +12,6 @@ public sealed class ScheduleRunCommandHandler : CliCommandHandlerBase<ScheduleRu
 
     protected override async Task<CliCommandExecutionResult> ExecuteAsync(ScheduleRunCliOptions options, CancellationToken cancellationToken)
     {
-        return await _scheduleCliService.RunAsync(options.TaskId, cancellationToken);
+        return await _scheduleCliService.RunAsync(options.TaskId, cancellationToken).ConfigureAwait(false);
     }
 }

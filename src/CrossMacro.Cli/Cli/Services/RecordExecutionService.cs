@@ -65,7 +65,7 @@ public sealed class RecordExecutionService : IRecordExecutionService
         }
 
         var warnings = new List<string>();
-        var captureMode = await ResolveCaptureModeAsync(request.CoordinateMode, warnings, cancellationToken);
+        var captureMode = await ResolveCaptureModeAsync(request.CoordinateMode, warnings, cancellationToken).ConfigureAwait(false);
         var forceRelative = captureMode is RecordCoordinateMode.Relative;
         var skipInitialZero = forceRelative && request.SkipInitialZero;
 
@@ -105,7 +105,7 @@ public sealed class RecordExecutionService : IRecordExecutionService
 
         try
         {
-            var startupOutcome = await WaitForStartupOutcomeAsync(startupOutcomeTask, cancellationToken);
+            var startupOutcome = await WaitForStartupOutcomeAsync(startupOutcomeTask, cancellationToken).ConfigureAwait(false);
             if (startupOutcome.State is StartupOutcomeState.Canceled)
             {
                 cancelledBeforeStart = true;
@@ -119,11 +119,11 @@ public sealed class RecordExecutionService : IRecordExecutionService
                 startupCompletedSuccessfully = true;
                 if (request.DurationSeconds > 0)
                 {
-                    await _delayAsync(TimeSpan.FromSeconds(request.DurationSeconds), cancellationToken);
+                    await _delayAsync(TimeSpan.FromSeconds(request.DurationSeconds), cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
-                    await _delayAsync(Timeout.InfiniteTimeSpan, cancellationToken);
+                    await _delayAsync(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
@@ -157,8 +157,8 @@ public sealed class RecordExecutionService : IRecordExecutionService
 
         if (!startupCompletedSuccessfully)
         {
-            var settledStartupOutcome = await TryGetStartupOutcomeAsync(startupOutcomeTask, StartupOutcomeSettleWindow);
-            if (settledStartupOutcome.HasValue)
+            var settledStartupOutcome = await TryGetStartupOutcomeAsync(startupOutcomeTask, StartupOutcomeSettleWindow).ConfigureAwait(false);
+            if (settledStartupOutcome is not null)
             {
                 var outcome = settledStartupOutcome.Value;
                 if (outcome.State is StartupOutcomeState.Faulted)
@@ -204,7 +204,7 @@ public sealed class RecordExecutionService : IRecordExecutionService
             try
             {
                 sequence!.Name = Path.GetFileNameWithoutExtension(request.OutputFilePath);
-                await _macroFileManager.SaveAsync(sequence, request.OutputFilePath);
+                await _macroFileManager.SaveAsync(sequence, request.OutputFilePath).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -256,14 +256,14 @@ public sealed class RecordExecutionService : IRecordExecutionService
     {
         if (startupOutcomeTask.IsCompleted)
         {
-            return await startupOutcomeTask;
+            return await startupOutcomeTask.ConfigureAwait(false);
         }
 
-        var completedTask = await Task.WhenAny(startupOutcomeTask, _delayAsync(Timeout.InfiniteTimeSpan, cancellationToken));
+        var completedTask = await Task.WhenAny(startupOutcomeTask, _delayAsync(Timeout.InfiniteTimeSpan, cancellationToken)).ConfigureAwait(false);
 
         if (ReferenceEquals(completedTask, startupOutcomeTask))
         {
-            return await startupOutcomeTask;
+            return await startupOutcomeTask.ConfigureAwait(false);
         }
 
         if (cancellationToken.IsCancellationRequested)
@@ -311,12 +311,12 @@ public sealed class RecordExecutionService : IRecordExecutionService
     {
         if (startupOutcomeTask.IsCompleted)
         {
-            return await startupOutcomeTask;
+            return await startupOutcomeTask.ConfigureAwait(false);
         }
 
         using var timeoutCancellation = new CancellationTokenSource();
         var timeoutTask = _delayAsync(timeout, timeoutCancellation.Token);
-        var completedTask = await Task.WhenAny(startupOutcomeTask, timeoutTask);
+        var completedTask = await Task.WhenAny(startupOutcomeTask, timeoutTask).ConfigureAwait(false);
         if (!ReferenceEquals(completedTask, startupOutcomeTask))
         {
             return null;
@@ -326,13 +326,13 @@ public sealed class RecordExecutionService : IRecordExecutionService
 
         try
         {
-            await timeoutTask;
+            await timeoutTask.ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
         }
 
-        return await startupOutcomeTask;
+        return await startupOutcomeTask.ConfigureAwait(false);
     }
 
     private async Task<RecordCoordinateMode> ResolveCaptureModeAsync(
@@ -347,7 +347,7 @@ public sealed class RecordExecutionService : IRecordExecutionService
 
         if (requestedMode is RecordCoordinateMode.Absolute)
         {
-            var absoluteSupported = await CanUseAbsoluteModeAsync(cancellationToken);
+            var absoluteSupported = await CanUseAbsoluteModeAsync(cancellationToken).ConfigureAwait(false);
             if (absoluteSupported)
             {
                 return RecordCoordinateMode.Absolute;
@@ -358,7 +358,7 @@ public sealed class RecordExecutionService : IRecordExecutionService
         }
 
         // Auto: prefer absolute when available.
-        return await CanUseAbsoluteModeAsync(cancellationToken)
+        return await CanUseAbsoluteModeAsync(cancellationToken).ConfigureAwait(false)
             ? RecordCoordinateMode.Absolute
             : RecordCoordinateMode.Relative;
     }
@@ -372,8 +372,8 @@ public sealed class RecordExecutionService : IRecordExecutionService
 
         try
         {
-            var position = await _mousePositionProvider.GetAbsolutePositionAsync();
-            return position.HasValue;
+            var position = await _mousePositionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+            return position is not null;
         }
         catch (OperationCanceledException)
         {

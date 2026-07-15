@@ -41,21 +41,31 @@ public class UInputEventExecutor : IEventExecutor
 
     public void EmitButton(ushort button, bool pressed)
     {
-        if (_device is null) return;
+        if (_device is null)
+        {
+            return;
+        }
 
         _device.EmitButton(button, pressed);
 
         if (pressed)
+        {
             _pressedButtons.TryAdd(button, 0);
+        }
         else
+        {
             _pressedButtons.TryRemove(button, out _);
+        }
 
         Log.Debug("[UInputEventExecutor] Button: {Button} State={State}", button, pressed ? "Pressed" : "Released");
     }
 
     public void EmitScroll(int value)
     {
-        if (_device is null) return;
+        if (_device is null)
+        {
+            return;
+        }
 
         _device.SendEvent(UInputNative.EV_REL, UInputNative.REL_WHEEL, value);
         _device.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
@@ -65,21 +75,31 @@ public class UInputEventExecutor : IEventExecutor
 
     public void EmitKey(int keyCode, bool pressed)
     {
-        if (_device is null) return;
+        if (_device is null)
+        {
+            return;
+        }
 
         _device.EmitKey(keyCode, pressed);
 
         if (pressed)
+        {
             _pressedKeys.TryAdd(keyCode, 0);
+        }
         else
+        {
             _pressedKeys.TryRemove(keyCode, out _);
+        }
 
         Log.Debug("[UInputEventExecutor] Key: {KeyCode} State={State}", keyCode, pressed ? "Pressed" : "Released");
     }
 
     public void ReleaseAll()
     {
-        if (_device is null) return;
+        if (_device is null)
+        {
+            return;
+        }
 
         // Release all tracked buttons
         var buttonsToRelease = _pressedButtons.Keys.ToArray();
@@ -93,7 +113,7 @@ public class UInputEventExecutor : IEventExecutor
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[UInputEventExecutor] Failed to release button {Button}", button);
+                Log.LogError(ex, "[UInputEventExecutor] Failed to release button {Button}", button);
             }
         }
 
@@ -121,7 +141,7 @@ public class UInputEventExecutor : IEventExecutor
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[UInputEventExecutor] Failed to release key {KeyCode}", keyCode);
+                Log.LogError(ex, "[UInputEventExecutor] Failed to release key {KeyCode}", keyCode);
             }
         }
 
@@ -158,9 +178,14 @@ public class UInputEventExecutor : IEventExecutor
 
             case EventType.MouseMove:
                 if (coordinateMode is MouseCoordinateMode.Absolute)
+                {
                     MoveAbsolute(ev.X, ev.Y);
+                }
                 else if (coordinateMode is MouseCoordinateMode.Relative)
+                {
                     MoveRelative(ev.X, ev.Y);
+                }
+
                 break;
 
             case EventType.Click:
@@ -181,10 +206,10 @@ public class UInputEventExecutor : IEventExecutor
     {
         switch (ev.Button)
         {
-            case MouseButton.ScrollUp:
+            case MacroMouseButton.ScrollUp:
                 EmitScroll(1);
                 break;
-            case MouseButton.ScrollDown:
+            case MacroMouseButton.ScrollDown:
                 EmitScroll(-1);
                 break;
             default:
@@ -195,22 +220,26 @@ public class UInputEventExecutor : IEventExecutor
         }
     }
 
-    private static ushort MapButton(MouseButton button)
+    private static ushort MapButton(MacroMouseButton button)
     {
         return button switch
         {
-            MouseButton.Left => UInputNative.BTN_LEFT,
-            MouseButton.Right => UInputNative.BTN_RIGHT,
-            MouseButton.Middle => UInputNative.BTN_MIDDLE,
-            MouseButton.Side1 => UInputNative.BTN_SIDE,
-            MouseButton.Side2 => UInputNative.BTN_EXTRA,
+            MacroMouseButton.Left => UInputNative.BTN_LEFT,
+            MacroMouseButton.Right => UInputNative.BTN_RIGHT,
+            MacroMouseButton.Middle => UInputNative.BTN_MIDDLE,
+            MacroMouseButton.Side1 => UInputNative.BTN_SIDE,
+            MacroMouseButton.Side2 => UInputNative.BTN_EXTRA,
             _ => UInputNative.BTN_LEFT,
         };
     }
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
+
         _disposed = true;
 
         ReleaseAll();

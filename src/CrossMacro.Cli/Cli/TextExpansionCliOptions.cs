@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Cli;
 
-public sealed record TextExpansionCliOptions(
+public sealed record class TextExpansionCliOptions(
     TextExpansionCliAction Action,
     string? Trigger = null,
     string? Replacement = null,

@@ -7,6 +7,7 @@ public class X11RelativeStrategySelector : ICoordinateStrategySelector
 
     public bool CanHandle(StrategyContext context)
     {
+        ArgumentNullException.ThrowIfNull(context);
         // Handle X11 explicitly or as fallback for non-Wayland
         return !context.IsWayland && !context.UseAbsoluteCoordinates;
     }

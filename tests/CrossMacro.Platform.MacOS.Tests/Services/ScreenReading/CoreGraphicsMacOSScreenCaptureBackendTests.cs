@@ -152,7 +152,7 @@ public sealed class CoreGraphicsMacOSScreenCaptureBackendTests
 
     private static void WritePixel(byte[] pixels, int width, int x, int y, byte[] pixel, int? bytesPerRow = null)
     {
-        var offset = (y * (bytesPerRow ?? width * 4)) + (x * 4);
+        var offset = (y * (bytesPerRow ?? (width * 4))) + (x * 4);
         Array.Copy(pixel, 0, pixels, offset, 4);
     }
 

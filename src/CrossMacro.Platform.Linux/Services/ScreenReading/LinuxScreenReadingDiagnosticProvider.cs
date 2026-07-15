@@ -53,7 +53,7 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
 
         if ((capabilitySnapshot?.IsX11) is true || (capabilitySnapshot is null && _environmentDetector.IsX11))
         {
-                return GetX11Snapshot(compositor);
+            return GetX11Snapshot(compositor);
         }
 
         if ((capabilitySnapshot?.IsWayland) is false || (capabilitySnapshot is null && !_environmentDetector.IsWayland))

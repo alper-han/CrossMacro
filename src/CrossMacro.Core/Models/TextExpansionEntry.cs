@@ -3,7 +3,7 @@ namespace CrossMacro.Core.Models;
 /// <summary>
 /// Represents a text expansion entry - a trigger that expands to replacement text
 /// </summary>
-public class TextExpansion
+public class TextExpansionEntry
 {
     /// <summary>
     /// The trigger text that will be replaced (e.g., ":mail")
@@ -38,14 +38,14 @@ public class TextExpansion
     /// <summary>
     /// Creates a new text expansion
     /// </summary>
-    public TextExpansion()
+    public TextExpansionEntry()
     {
     }
 
     /// <summary>
     /// Creates a new text expansion with the specified trigger and replacement
     /// </summary>
-    public TextExpansion(
+    public TextExpansionEntry(
         string trigger,
         string replacement,
         bool isEnabled = true,

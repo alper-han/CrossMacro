@@ -8,7 +8,9 @@ public sealed class WindowsWindowManager : IWindowManager
     public Task<WindowInfo?> GetActiveWindowAsync(CancellationToken cancellationToken = default)
     {
         if (!IsSupported)
+        {
             return Task.FromResult<WindowInfo?>(null);
+        }
 
         var hwnd = User32.GetForegroundWindow();
         return Task.FromResult(hwnd == IntPtr.Zero ? null : MapWindow(hwnd));
@@ -17,13 +19,17 @@ public sealed class WindowsWindowManager : IWindowManager
     public Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken = default)
     {
         if (!IsSupported)
+        {
             return Task.FromResult<IReadOnlyList<WindowInfo>>([]);
+        }
 
         var windows = new List<WindowInfo>();
         User32.EnumWindows((hwnd, _) =>
         {
             if (IsRealDesktopWindow(hwnd))
+            {
                 windows.Add(MapWindow(hwnd));
+            }
 
             return true;
         }, IntPtr.Zero);
@@ -34,10 +40,14 @@ public sealed class WindowsWindowManager : IWindowManager
     public Task<bool> FocusWindowByAddressAsync(string address, CancellationToken cancellationToken = default)
     {
         if (!IsSupported)
+        {
             return Task.FromResult(false);
+        }
 
         if (!TryParseHwnd(address, out var hwnd))
+        {
             return Task.FromResult(false);
+        }
 
         return Task.FromResult(FocusWindow(hwnd));
     }
@@ -45,10 +55,14 @@ public sealed class WindowsWindowManager : IWindowManager
     public Task<bool> FocusWindowByTitleAsync(string titleSubstring, CancellationToken cancellationToken = default)
     {
         if (!IsSupported)
+        {
             return Task.FromResult(false);
+        }
 
         if (string.IsNullOrWhiteSpace(titleSubstring))
+        {
             return Task.FromResult(false);
+        }
 
         var hwnd = FindWindow(info => info.Title.Contains(titleSubstring, StringComparison.OrdinalIgnoreCase));
         return Task.FromResult(hwnd != IntPtr.Zero && FocusWindow(hwnd));
@@ -57,10 +71,14 @@ public sealed class WindowsWindowManager : IWindowManager
     public Task<bool> FocusWindowByClassAsync(string classSubstring, CancellationToken cancellationToken = default)
     {
         if (!IsSupported)
+        {
             return Task.FromResult(false);
+        }
 
         if (string.IsNullOrWhiteSpace(classSubstring))
+        {
             return Task.FromResult(false);
+        }
 
         var hwnd = FindWindow(info => info.Class.Contains(classSubstring, StringComparison.OrdinalIgnoreCase));
         return Task.FromResult(hwnd != IntPtr.Zero && FocusWindow(hwnd));
@@ -69,10 +87,14 @@ public sealed class WindowsWindowManager : IWindowManager
     public Task<bool> CloseWindowByAddressAsync(string address, CancellationToken cancellationToken = default)
     {
         if (!IsSupported)
+        {
             return Task.FromResult(false);
+        }
 
         if (!TryParseHwnd(address, out var hwnd) || !User32.IsWindow(hwnd))
+        {
             return Task.FromResult(false);
+        }
 
         return Task.FromResult(User32.PostMessage(hwnd, User32.WM_CLOSE, IntPtr.Zero, IntPtr.Zero));
     }
@@ -80,10 +102,14 @@ public sealed class WindowsWindowManager : IWindowManager
     public Task<bool> CloseWindowByTitleAsync(string titleSubstring, CancellationToken cancellationToken = default)
     {
         if (!IsSupported)
+        {
             return Task.FromResult(false);
+        }
 
         if (string.IsNullOrWhiteSpace(titleSubstring))
+        {
             return Task.FromResult(false);
+        }
 
         var hwnd = FindWindow(info => info.Title.Contains(titleSubstring, StringComparison.OrdinalIgnoreCase));
         return Task.FromResult(hwnd != IntPtr.Zero && User32.PostMessage(hwnd, User32.WM_CLOSE, IntPtr.Zero, IntPtr.Zero));
@@ -92,10 +118,14 @@ public sealed class WindowsWindowManager : IWindowManager
     public Task<bool> MoveActiveWindowAsync(int x, int y, CancellationToken cancellationToken = default)
     {
         if (!IsSupported)
+        {
             return Task.FromResult(false);
+        }
 
         if (!TryGetActiveWindowPlacement(out var placement))
+        {
             return Task.FromResult(false);
+        }
 
         return Task.FromResult(User32.SetWindowPos(
             placement.Hwnd,
@@ -110,10 +140,14 @@ public sealed class WindowsWindowManager : IWindowManager
     public Task<bool> ResizeActiveWindowAsync(int width, int height, CancellationToken cancellationToken = default)
     {
         if (!IsSupported)
+        {
             return Task.FromResult(false);
+        }
 
         if (width <= 0 || height <= 0 || !TryGetActiveWindowPlacement(out var placement))
+        {
             return Task.FromResult(false);
+        }
 
         return Task.FromResult(User32.SetWindowPos(
             placement.Hwnd,
@@ -134,10 +168,14 @@ public sealed class WindowsWindowManager : IWindowManager
     public Task<bool> FloatActiveWindowAsync(CancellationToken cancellationToken = default)
     {
         if (!IsSupported)
+        {
             return Task.FromResult(false);
+        }
 
         if (!TryGetForegroundWindow(out var hwnd))
+        {
             return Task.FromResult(false);
+        }
 
         var exStyle = GetExtendedStyle(hwnd);
         var insertAfter = (exStyle & User32.WS_EX_TOPMOST) == 0 ? User32.HWND_TOPMOST : User32.HWND_NOTOPMOST;
@@ -154,18 +192,26 @@ public sealed class WindowsWindowManager : IWindowManager
     public Task<bool> CenterActiveWindowAsync(CancellationToken cancellationToken = default)
     {
         if (!IsSupported)
+        {
             return Task.FromResult(false);
+        }
 
         if (!TryGetActiveWindowPlacement(out var placement))
+        {
             return Task.FromResult(false);
+        }
 
         var monitor = User32.MonitorFromWindow(placement.Hwnd, User32.MONITOR_DEFAULTTONEAREST);
         if (monitor == IntPtr.Zero)
+        {
             return Task.FromResult(false);
+        }
 
         var monitorInfo = new User32.MONITORINFO { cbSize = (uint)Marshal.SizeOf<User32.MONITORINFO>() };
         if (!User32.GetMonitorInfoW(monitor, ref monitorInfo))
+        {
             return Task.FromResult(false);
+        }
 
         var work = monitorInfo.rcWork;
         var x = work.left + ((work.right - work.left - placement.VisibleWidth) / 2);
@@ -184,10 +230,14 @@ public sealed class WindowsWindowManager : IWindowManager
     public Task<string?> GetActiveWorkspaceAsync(CancellationToken cancellationToken = default)
     {
         if (!IsSupported)
+        {
             return Task.FromResult<string?>(null);
+        }
 
         if (!TryGetForegroundWindow(out var hwnd))
+        {
             return Task.FromResult<string?>(null);
+        }
 
         return Task.FromResult(GetWindowDesktopId(hwnd));
     }
@@ -198,10 +248,14 @@ public sealed class WindowsWindowManager : IWindowManager
     public Task<bool> MoveActiveWindowToWorkspaceAsync(string workspace, CancellationToken cancellationToken = default)
     {
         if (!IsSupported)
+        {
             return Task.FromResult(false);
+        }
 
         if (!TryGetForegroundWindow(out var hwnd))
+        {
             return Task.FromResult(false);
+        }
 
         return Task.FromResult(MoveWindowToWorkspace(hwnd, workspace));
     }
@@ -209,17 +263,25 @@ public sealed class WindowsWindowManager : IWindowManager
     public Task<bool> MoveWindowToWorkspaceByAddressAsync(string address, string workspace, CancellationToken cancellationToken = default)
     {
         if (!IsSupported)
+        {
             return Task.FromResult(false);
+        }
 
         if (!TryParseHwnd(address, out var hwnd))
+        {
             return Task.FromResult(false);
+        }
 
         return Task.FromResult(MoveWindowToWorkspace(hwnd, workspace));
     }
 
     private static string GetProcessName(int pid)
     {
-        if (pid <= 0) return string.Empty;
+        if (pid <= 0)
+        {
+            return string.Empty;
+        }
+
         try
         {
             using var process = System.Diagnostics.Process.GetProcessById(pid);
@@ -243,7 +305,7 @@ public sealed class WindowsWindowManager : IWindowManager
 
         return new WindowInfo
         {
-            Address = hwnd.ToInt64().ToString(),
+            Address = hwnd.ToInt64().ToString(CultureInfo.InvariantCulture),
             Title = title,
             Class = className,
             Pid = processId <= int.MaxValue ? (int)processId : -1,
@@ -265,17 +327,25 @@ public sealed class WindowsWindowManager : IWindowManager
     private static bool IsRealDesktopWindow(IntPtr hwnd)
     {
         if (!User32.IsWindowVisible(hwnd))
+        {
             return false;
+        }
 
         if (Dwmapi.DwmGetWindowAttribute(hwnd, Dwmapi.DWMWA_CLOAKED, out int cloaked, sizeof(int)) is 0 && cloaked is not 0)
+        {
             return false;
+        }
 
         var exStyle = GetExtendedStyle(hwnd);
         if ((exStyle & User32.WS_EX_TOOLWINDOW) != 0)
+        {
             return false;
+        }
 
         if ((exStyle & User32.WS_EX_APPWINDOW) != 0)
+        {
             return User32.GetWindowTextLengthW(hwnd) > 0;
+        }
 
         var walk = User32.GetAncestor(hwnd, User32.GA_ROOTOWNER);
         while (true)
@@ -291,7 +361,9 @@ public sealed class WindowsWindowManager : IWindowManager
         }
 
         if (walk != hwnd)
+        {
             return false;
+        }
 
         return User32.GetWindowTextLengthW(hwnd) > 0;
     }
@@ -300,7 +372,9 @@ public sealed class WindowsWindowManager : IWindowManager
     {
         placement = default;
         if (!TryGetForegroundWindow(out var hwnd) || !User32.GetWindowRect(hwnd, out var outerBounds))
+        {
             return false;
+        }
 
         var visibleBounds = GetVisibleBounds(hwnd);
         placement = new WindowPlacement(hwnd, outerBounds, visibleBounds);
@@ -316,10 +390,14 @@ public sealed class WindowsWindowManager : IWindowManager
     private static Task<bool> ShowActiveWindow(int command)
     {
         if (!OperatingSystem.IsWindows())
+        {
             return Task.FromResult(false);
+        }
 
         if (!TryGetForegroundWindow(out var hwnd))
+        {
             return Task.FromResult(false);
+        }
 
         return Task.FromResult(User32.ShowWindow(hwnd, command));
     }
@@ -327,7 +405,9 @@ public sealed class WindowsWindowManager : IWindowManager
     private static RECT GetVisibleBounds(IntPtr hwnd)
     {
         if (Dwmapi.DwmGetWindowAttribute(hwnd, Dwmapi.DWMWA_EXTENDED_FRAME_BOUNDS, out RECT bounds, Marshal.SizeOf<RECT>()) is 0)
+        {
             return bounds;
+        }
 
         return User32.GetWindowRect(hwnd, out bounds) ? bounds : default;
     }
@@ -336,7 +416,9 @@ public sealed class WindowsWindowManager : IWindowManager
     {
         var length = User32.GetWindowTextLengthW(hwnd);
         if (length <= 0)
+        {
             return string.Empty;
+        }
 
         var buffer = new StringBuilder(length + 1);
         var copied = User32.GetWindowTextW(hwnd, buffer, buffer.Capacity);
@@ -357,7 +439,9 @@ public sealed class WindowsWindowManager : IWindowManager
         User32.EnumWindows((hwnd, _) =>
         {
             if (!IsRealDesktopWindow(hwnd) || !predicate(MapWindow(hwnd)))
+            {
                 return true;
+            }
 
             found = hwnd;
             return false;
@@ -369,7 +453,9 @@ public sealed class WindowsWindowManager : IWindowManager
     private static bool FocusWindow(IntPtr hwnd)
     {
         if (!User32.IsWindow(hwnd))
+        {
             return false;
+        }
 
         var currentThread = Kernel32.GetCurrentThreadId();
         var targetThread = User32.GetWindowThreadProcessId(hwnd, out _);
@@ -387,13 +473,19 @@ public sealed class WindowsWindowManager : IWindowManager
             User32.LockSetForegroundWindow(User32.LSFW_UNLOCK);
 
             if (targetThread != 0 && targetThread != currentThread)
+            {
                 attachedToTarget = User32.AttachThreadInput(currentThread, targetThread, fAttach: true);
+            }
 
             if (foregroundThread != 0 && foregroundThread != currentThread && foregroundThread != targetThread)
+            {
                 attachedToForeground = User32.AttachThreadInput(currentThread, foregroundThread, fAttach: true);
+            }
 
             if (User32.IsIconic(hwnd))
+            {
                 User32.ShowWindow(hwnd, User32.SW_RESTORE);
+            }
 
             User32.BringWindowToTop(hwnd);
             var focused = User32.SetForegroundWindow(hwnd);
@@ -404,13 +496,19 @@ public sealed class WindowsWindowManager : IWindowManager
         finally
         {
             if (attachedToForeground)
+            {
                 User32.AttachThreadInput(currentThread, foregroundThread, fAttach: false);
+            }
 
             if (attachedToTarget)
+            {
                 User32.AttachThreadInput(currentThread, targetThread, fAttach: false);
+            }
 
             if (timeoutRead)
+            {
                 User32.SystemParametersInfo(User32.SPI_SETFOREGROUNDLOCKTIMEOUT, 0, new IntPtr(oldTimeout), 0);
+            }
         }
     }
 
@@ -430,7 +528,9 @@ public sealed class WindowsWindowManager : IWindowManager
     private static bool MoveWindowToWorkspace(IntPtr hwnd, string workspace)
     {
         if (!User32.IsWindow(hwnd) || !Guid.TryParse(workspace, out var desktopId))
+        {
             return false;
+        }
 
         try
         {
@@ -446,8 +546,10 @@ public sealed class WindowsWindowManager : IWindowManager
     private static bool TryParseHwnd(string address, out IntPtr hwnd)
     {
         hwnd = IntPtr.Zero;
-        if (!long.TryParse(address, out var handleVal))
+        if (!long.TryParse(address, CultureInfo.InvariantCulture, out var handleVal))
+        {
             return false;
+        }
 
         hwnd = new IntPtr(handleVal);
         return hwnd != IntPtr.Zero;
@@ -456,7 +558,9 @@ public sealed class WindowsWindowManager : IWindowManager
     private static VirtualDesktopManager CreateVirtualDesktopManager()
     {
         if (!OperatingSystem.IsWindows())
+        {
             throw new PlatformNotSupportedException("Windows Virtual Desktop Manager is available only on Windows.");
+        }
 
         return VirtualDesktopManager.Create();
     }
@@ -468,11 +572,15 @@ public sealed class WindowsWindowManager : IWindowManager
     {
         var monitor = User32.MonitorFromWindow(hwnd, User32.MONITOR_DEFAULTTONEAREST);
         if (monitor == IntPtr.Zero)
+        {
             return false;
+        }
 
         var monitorInfo = new User32.MONITORINFO { cbSize = (uint)Marshal.SizeOf<User32.MONITORINFO>() };
         if (!User32.GetMonitorInfoW(monitor, ref monitorInfo))
+        {
             return false;
+        }
 
         var monitorBounds = monitorInfo.rcMonitor;
         return visibleBounds.left <= monitorBounds.left

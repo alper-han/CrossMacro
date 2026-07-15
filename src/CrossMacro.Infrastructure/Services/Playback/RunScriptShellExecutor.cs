@@ -31,13 +31,13 @@ internal sealed class RunScriptShellExecutor
 
         if (!TryParse(step, out var options, out var error) || options == null)
         {
-            throw new InvalidOperationException($"Step {stepNumber}: {error}");
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {error}");
         }
 
         var resolvedCommand = ResolveRequiredText(options.Command, variables, stepNumber, "Shell command");
         var resolvedInput = options.StandardInput is null
             ? null
-            : RunScriptRuntimeText.ResolveVariables(options.StandardInput, variables, $"Step {stepNumber}: ");
+            : RunScriptRuntimeText.ResolveVariables(options.StandardInput, variables, $"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: ");
         var request = new ShellCommandRequest(resolvedCommand, resolvedInput, OutputLimitChars);
         var timeout = options.TimeoutMs > 0
             ? TimeSpan.FromMilliseconds(options.TimeoutMs)
@@ -71,7 +71,7 @@ internal sealed class RunScriptShellExecutor
                 if (attempt == totalAttempts)
                 {
                     throw new TimeoutException(
-                        $"Step {stepNumber}: shell command attempt {attempt}/{totalAttempts} timed out after {options.TimeoutMs} ms.",
+                        $"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: shell command attempt {attempt.ToString(CultureInfo.InvariantCulture)}/{totalAttempts.ToString(CultureInfo.InvariantCulture)} timed out after {options.TimeoutMs.ToString(CultureInfo.InvariantCulture)} ms.",
                         ex);
                 }
             }
@@ -94,10 +94,10 @@ internal sealed class RunScriptShellExecutor
         int stepNumber,
         string label)
     {
-        var resolved = RunScriptRuntimeText.ResolveVariables(text, variables, $"Step {stepNumber}: ");
+        var resolved = RunScriptRuntimeText.ResolveVariables(text, variables, $"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: ");
         if (string.IsNullOrWhiteSpace(resolved))
         {
-            throw new InvalidOperationException($"Step {stepNumber}: {label} cannot be empty.");
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {label} cannot be empty.");
         }
 
         return resolved;
@@ -133,7 +133,7 @@ internal sealed class RunScriptShellExecutor
             ? Truncate(result.StandardOutput.Trim())
             : Truncate(result.StandardError.Trim());
         var streamName = string.IsNullOrWhiteSpace(result.StandardError) ? "stdout" : "stderr";
-        var message = $"Step {stepNumber}: shell command attempt {attempt}/{totalAttempts} exited with code {result.ExitCode}.";
+        var message = $"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: shell command attempt {attempt.ToString(CultureInfo.InvariantCulture)}/{totalAttempts.ToString(CultureInfo.InvariantCulture)} exited with code {result.ExitCode.ToString(CultureInfo.InvariantCulture)}.";
         if (!string.IsNullOrWhiteSpace(diagnostics))
         {
             message += $" {streamName}: {diagnostics}";
@@ -447,7 +447,7 @@ internal sealed class RunScriptShellExecutor
         return $"Syntax: {CommandToken} \"<command>\" [retries] [backoff_ms] [timeout_ms] | {CommandToken} capture \"<command>\" exitVar stdoutVar stderrVar [retries] [backoff_ms] [timeout_ms] | {CommandToken} input \"<stdin text>\" \"<command>\" [retries] [backoff_ms] [timeout_ms] | {CommandToken} capture-input \"<stdin text>\" \"<command>\" exitVar stdoutVar stderrVar [retries] [backoff_ms] [timeout_ms]";
     }
 
-    private sealed record ShellCommandOptions(
+    private sealed record class ShellCommandOptions(
         string Command,
         string? StandardInput,
         ShellCaptureTargets? CaptureTargets,
@@ -455,7 +455,7 @@ internal sealed class RunScriptShellExecutor
         int BackoffMs,
         int TimeoutMs);
 
-    private sealed record ShellCaptureTargets(
+    private sealed record class ShellCaptureTargets(
         string ExitCodeVariable,
         string StandardOutputVariable,
         string StandardErrorVariable);

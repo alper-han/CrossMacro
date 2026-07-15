@@ -13,11 +13,11 @@ internal sealed class DesignThemeService : IThemeService
 
     public string CurrentTheme { get; private set; }
 
-    public bool TryApplyTheme(string themeName, out string error)
+    public bool TryApplyTheme(string themeName, out string themeError)
     {
         ThemeCatalog.TryResolve(themeName, out var descriptor);
         CurrentTheme = descriptor.Name;
-        error = string.Empty;
+        themeError = string.Empty;
         return true;
     }
 }

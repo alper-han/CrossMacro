@@ -14,11 +14,13 @@ public class WaylandAbsoluteStrategySelector : ICoordinateStrategySelector
 
     public bool CanHandle(StrategyContext context)
     {
+        ArgumentNullException.ThrowIfNull(context);
         return context.IsWayland && context.UseAbsoluteCoordinates;
     }
 
     public ICoordinateStrategy Create(StrategyContext context)
     {
+        ArgumentNullException.ThrowIfNull(context);
         if (!_positionProvider.IsSupported)
         {
             Log.Warning(

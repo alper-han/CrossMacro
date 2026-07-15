@@ -34,7 +34,7 @@ public class LinuxPlatformServiceRegistrarTests
         Assert.Contains(services, d => d.ServiceType == typeof(IPortalScreenCastSessionFactory) && d.ImplementationFactory is not null);
         Assert.Contains(services, d => d.ServiceType == typeof(IX11ScreenCaptureSupportProbe) && d.ImplementationFactory is not null);
         Assert.Contains(services, d => d.ServiceType == typeof(IX11ScreenCapture) && d.ImplementationType == typeof(X11ScreenCapture));
-         Assert.Single(services, d => d.ServiceType == typeof(IInputSimulatorPool));
+        Assert.Single(services, d => d.ServiceType == typeof(IInputSimulatorPool));
         Assert.Contains(services, d => d.ServiceType == typeof(Func<IInputSimulator>));
         Assert.Contains(services, d => d.ServiceType == typeof(Func<IInputCapture>));
     }
@@ -58,7 +58,7 @@ public class LinuxPlatformServiceRegistrarTests
             WindowButtons: "hide");
         var services = new ServiceCollection();
 
-        new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services, environment);
+        LinuxPlatformServiceRegistrar.RegisterPlatformServices(services, environment);
 
         using var provider = services.BuildServiceProvider();
         var variables = provider.GetRequiredService<ILinuxEnvironmentVariables>();

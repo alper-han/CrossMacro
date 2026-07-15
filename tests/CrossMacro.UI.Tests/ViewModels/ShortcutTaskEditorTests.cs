@@ -1,0 +1,69 @@
+namespace CrossMacro.UI.Tests.ViewModels;
+
+public class ShortcutTaskEditorTests
+{
+    [Fact]
+    public void LoadAndApplyToCore_PreservesAllPersistedFields()
+    {
+        var source = new ShortcutTask
+        {
+            Name = "Original",
+            MacroFilePath = "macro",
+            HotkeyString = "F9",
+            PlaybackSpeed = 1.5,
+            IsEnabled = true,
+            LoopEnabled = true,
+            RepeatCount = 3,
+            RepeatDelayMs = 100,
+            UseRandomRepeatDelay = true,
+            RepeatDelayMinMs = 10,
+            RepeatDelayMaxMs = 200,
+            LastStatus = "Success",
+            LastTriggeredTime = DateTime.UtcNow,
+        };
+        var editor = new ShortcutTaskEditor();
+        editor.Load(source);
+
+        var saved = editor.ToCore();
+
+        saved.Should().BeEquivalentTo(source);
+    }
+
+    [Fact]
+    public void Rollback_RestoresBufferedShortcutChanges()
+    {
+        var source = new ShortcutTask
+        {
+            Name = "Original",
+            MacroFilePath = "macro",
+            HotkeyString = "F9",
+            PlaybackSpeed = 1.5,
+            LastStatus = "Success",
+        };
+        var editor = new ShortcutTaskEditor();
+        editor.Load(source);
+
+        editor.Name = "Changed";
+        editor.PlaybackSpeed = 2.0;
+
+        editor.Rollback();
+
+        editor.Name.Should().Be("Original");
+        editor.PlaybackSpeed.Should().Be(1.5);
+        source.Name.Should().Be("Original");
+        source.PlaybackSpeed.Should().Be(1.5);
+    }
+
+    [Fact]
+    public void RuntimeStatusSync_UsesEditorStateWithoutChangingConfiguration()
+    {
+        var source = new ShortcutTask { Name = "Macro", MacroFilePath = "file", HotkeyString = "F9" };
+        var editor = new ShortcutTaskEditor();
+        editor.Load(source);
+
+        editor.SyncRuntimeStatus(DateTime.UtcNow, "Running");
+
+        editor.Name.Should().Be("Macro");
+        editor.LastStatus.Should().Be("Running");
+    }
+}

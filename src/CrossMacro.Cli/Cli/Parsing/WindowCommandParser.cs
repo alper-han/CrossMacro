@@ -39,7 +39,11 @@ internal static class WindowCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, helpTopic, ref jsonOutput, ref logLevel, out var common))
             {
-                if (common is not null) return common;
+                if (common is not null)
+                {
+                    return common;
+                }
+
                 continue;
             }
 
@@ -60,21 +64,37 @@ internal static class WindowCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, helpTopic, ref jsonOutput, ref logLevel, out var common))
             {
-                if (common is not null) return common;
+                if (common is not null)
+                {
+                    return common;
+                }
+
                 continue;
             }
 
             if (string.Equals(args[i], "--timeout-ms", StringComparison.OrdinalIgnoreCase) && requireTimeout)
             {
-                if (!CliParseHelpers.TryReadInt(args, ref i, out var parsedTimeout, out var timeoutError)) return CliParseHelpers.Error(timeoutError, jsonOutput);
-                if (parsedTimeout < 0) return CliParseHelpers.Error("--timeout-ms must be >= 0", jsonOutput);
+                if (!CliParseHelpers.TryReadInt(args, ref i, out var parsedTimeout, out var timeoutError))
+                {
+                    return CliParseHelpers.Error(timeoutError, jsonOutput);
+                }
+
+                if (parsedTimeout < 0)
+                {
+                    return CliParseHelpers.Error("--timeout-ms must be >= 0", jsonOutput);
+                }
+
                 timeoutMs = parsedTimeout;
                 continue;
             }
 
             if (TryReadSelector(args, ref i, allowAddress, allowClass, allowTitle, ref selector, out var selectorError))
             {
-                if (!string.IsNullOrEmpty(selectorError)) return CliParseHelpers.Error(selectorError, jsonOutput);
+                if (!string.IsNullOrEmpty(selectorError))
+                {
+                    return CliParseHelpers.Error(selectorError, jsonOutput);
+                }
+
                 continue;
             }
 
@@ -102,15 +122,27 @@ internal static class WindowCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, helpTopic, ref jsonOutput, ref logLevel, out var common))
             {
-                if (common is not null) return common;
+                if (common is not null)
+                {
+                    return common;
+                }
+
                 continue;
             }
 
             if (string.Equals(args[i], "--active", StringComparison.OrdinalIgnoreCase))
             {
                 active = true;
-                if (!TryReadOperandInt(args, ref i, firstName, out first, out var firstError)) return CliParseHelpers.Error(firstError, jsonOutput);
-                if (!TryReadOperandInt(args, ref i, secondName, out second, out var secondError)) return CliParseHelpers.Error(secondError, jsonOutput);
+                if (!TryReadOperandInt(args, ref i, firstName, out first, out var firstError))
+                {
+                    return CliParseHelpers.Error(firstError, jsonOutput);
+                }
+
+                if (!TryReadOperandInt(args, ref i, secondName, out second, out var secondError))
+                {
+                    return CliParseHelpers.Error(secondError, jsonOutput);
+                }
+
                 continue;
             }
 
@@ -141,7 +173,11 @@ internal static class WindowCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, helpTopic, ref jsonOutput, ref logLevel, out var common))
             {
-                if (common is not null) return common;
+                if (common is not null)
+                {
+                    return common;
+                }
+
                 continue;
             }
 
@@ -186,7 +222,11 @@ internal static class WindowCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "window.workspace.get", ref jsonOutput, ref logLevel, out var common))
             {
-                if (common is not null) return common;
+                if (common is not null)
+                {
+                    return common;
+                }
+
                 continue;
             }
 
@@ -205,11 +245,15 @@ internal static class WindowCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, helpTopic, ref jsonOutput, ref logLevel, out var common))
             {
-                if (common is not null) return common;
+                if (common is not null)
+                {
+                    return common;
+                }
+
                 continue;
             }
 
-            if (workspace is null && !args[i].StartsWith("-", StringComparison.Ordinal))
+            if (workspace is null && !args[i].StartsWith('-'))
             {
                 workspace = args[i];
                 continue;
@@ -233,17 +277,25 @@ internal static class WindowCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "window.workspace.move-window", ref jsonOutput, ref logLevel, out var common))
             {
-                if (common is not null) return common;
+                if (common is not null)
+                {
+                    return common;
+                }
+
                 continue;
             }
 
             if (string.Equals(args[i], "--address", StringComparison.OrdinalIgnoreCase))
             {
-                if (!CliParseHelpers.TryReadNonEmptyString(args, ref i, out address, out var addressError)) return CliParseHelpers.Error(addressError, jsonOutput);
+                if (!CliParseHelpers.TryReadNonEmptyString(args, ref i, out address, out var addressError))
+                {
+                    return CliParseHelpers.Error(addressError, jsonOutput);
+                }
+
                 continue;
             }
 
-            if (workspace is null && !args[i].StartsWith("-", StringComparison.Ordinal))
+            if (workspace is null && !args[i].StartsWith('-'))
             {
                 workspace = args[i];
                 continue;
@@ -316,9 +368,21 @@ internal static class WindowCommandParser
     private static string BuildSelectorUsage(bool address, bool title, bool @class)
     {
         var values = new System.Collections.Generic.List<string>();
-        if (address) values.Add("--address <id>");
-        if (title) values.Add("--title <text>");
-        if (@class) values.Add("--class <text>");
+        if (address)
+        {
+            values.Add("--address <id>");
+        }
+
+        if (title)
+        {
+            values.Add("--title <text>");
+        }
+
+        if (@class)
+        {
+            values.Add("--class <text>");
+        }
+
         return string.Join(" or ", values);
     }
 }

@@ -1,25 +1,24 @@
 
-namespace CrossMacro.Platform.Linux.DisplayServer
+namespace CrossMacro.Platform.Linux.DisplayServer;
+
+/// <summary>
+/// Fallback position provider using "Corner Reset" hack
+/// TODO: Implement position tracking via corner reset.
+/// </summary>
+public class FallbackPositionProvider : IMousePositionProvider
 {
-    /// <summary>
-    /// Fallback position provider using "Corner Reset" hack
-    /// TODO: Implement position tracking via corner reset.
-    /// </summary>
-    public class FallbackPositionProvider : IMousePositionProvider
+    public string ProviderName => "None (Relative Only)";
+    public bool IsSupported => false;
+
+    public Task<(int X, int Y)?> GetAbsolutePositionAsync()
     {
-        public string ProviderName => "None (Relative Only)";
-        public bool IsSupported => false;
-
-        public Task<(int X, int Y)?> GetAbsolutePositionAsync()
-        {
-            return Task.FromResult<(int X, int Y)?>(null);
-        }
-
-        public Task<(int Width, int Height)?> GetScreenResolutionAsync()
-        {
-            return Task.FromResult<(int Width, int Height)?>(null);
-        }
-
-        public void Dispose() { }
+        return Task.FromResult<(int X, int Y)?>(null);
     }
+
+    public Task<(int Width, int Height)?> GetScreenResolutionAsync()
+    {
+        return Task.FromResult<(int Width, int Height)?>(null);
+    }
+
+    public void Dispose() { }
 }

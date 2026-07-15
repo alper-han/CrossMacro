@@ -14,7 +14,7 @@ public sealed class X11ScreenCaptureTests
                 Height = 1,
                 RedMask = new UIntPtr(0x00FF0000UL),
                 GreenMask = new UIntPtr(0x0000FF00UL),
-                BlueMask = new UIntPtr(0x000000FFUL)
+                BlueMask = new UIntPtr(0x000000FFUL),
             },
         };
         native.Pixels[(0, 0)] = new UIntPtr(0x00112233UL);
@@ -67,7 +67,7 @@ public sealed class X11ScreenCaptureTests
                 Height = 1,
                 RedMask = UIntPtr.Zero,
                 GreenMask = UIntPtr.Zero,
-                BlueMask = UIntPtr.Zero
+                BlueMask = UIntPtr.Zero,
             },
         };
         using var capture = CreateCapture(native);

@@ -1,6 +1,6 @@
 namespace CrossMacro.Cli.Services;
 
-public sealed record TextExpansionData(
+public sealed record class TextExpansionData(
     string Trigger,
     string Replacement,
     bool IsEnabled,

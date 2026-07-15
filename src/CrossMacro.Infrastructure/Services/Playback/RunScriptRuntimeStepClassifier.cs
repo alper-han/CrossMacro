@@ -34,7 +34,7 @@ internal static class RunScriptRuntimeStepClassifier
 
     private static bool IsRuntimeBlockHeader(string step)
     {
-        return step.EndsWith("{", StringComparison.Ordinal)
+        return step.EndsWith('{')
             && (step.StartsWith("if ", StringComparison.OrdinalIgnoreCase)
                 || step.StartsWith("while ", StringComparison.OrdinalIgnoreCase)
                 || step.StartsWith("repeat ", StringComparison.OrdinalIgnoreCase)

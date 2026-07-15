@@ -6,15 +6,6 @@ namespace CrossMacro.Core.Services;
 /// </summary>
 public static class RunScriptSyntax
 {
-    public readonly record struct ScreenshotStep(
-        string? OutputPath,
-        bool CopyToClipboard,
-        bool UseRegion,
-        string RegionX,
-        string RegionY,
-        string RegionWidth,
-        string RegionHeight);
-
     public const string ElseBlockHeader = "else {";
     public const string BlockEndToken = "}";
     public const string BreakCommand = "break";
@@ -37,7 +28,7 @@ public static class RunScriptSyntax
     public const string ShellCommand = "shell";
     public const string ScreenshotCommand = "screenshot";
 
-    public static List<string> SplitQuotedTokens(string input)
+    public static IReadOnlyList<string> SplitQuotedTokens(string input)
     {
         ArgumentNullException.ThrowIfNull(input);
 
@@ -46,29 +37,21 @@ public static class RunScriptSyntax
         char? quote = null;
         var tokenStarted = false;
 
-        for (var index = 0; index < input.Length; index++)
+        var index = 0;
+        while (index < input.Length)
         {
             var character = input[index];
 
-            if (character == '\\'
-                && quote is not null
-                && index + 1 < input.Length
-                && input[index + 1] is '"' or '\'' or '\\')
+            if (TryAppendEscapedCharacter(input, ref index, quote, current))
             {
                 tokenStarted = true;
-                current.Append(input[++index]);
                 continue;
             }
 
             if (quote is null && char.IsWhiteSpace(character))
             {
-                if (tokenStarted)
-                {
-                    tokens.Add(current.ToString());
-                    current.Clear();
-                    tokenStarted = false;
-                }
-
+                FlushToken(tokens, current, ref tokenStarted);
+                index++;
                 continue;
             }
 
@@ -78,18 +61,21 @@ public static class RunScriptSyntax
                 if (quote == character)
                 {
                     quote = null;
+                    index++;
                     continue;
                 }
 
                 if (quote is null)
                 {
                     quote = character;
+                    index++;
                     continue;
                 }
             }
 
             tokenStarted = true;
             current.Append(character);
+            index++;
         }
 
         if (quote is not null)
@@ -103,6 +89,38 @@ public static class RunScriptSyntax
         }
 
         return tokens;
+    }
+
+    private static bool TryAppendEscapedCharacter(
+        string input,
+        ref int index,
+        char? quote,
+        StringBuilder current)
+    {
+        if (input[index] != '\\'
+            || quote is null
+            || index + 1 >= input.Length
+            || input[index + 1] is not '"' and not '\'' and not '\\')
+        {
+            return false;
+        }
+
+        index++;
+        current.Append(input[index]);
+        index++;
+        return true;
+    }
+
+    private static void FlushToken(List<string> tokens, StringBuilder current, ref bool tokenStarted)
+    {
+        if (!tokenStarted)
+        {
+            return;
+        }
+
+        tokens.Add(current.ToString());
+        current.Clear();
+        tokenStarted = false;
     }
 
     private static readonly string[] ScreenReadingCommands =
@@ -156,15 +174,7 @@ public static class RunScriptSyntax
         }
 
         var trimmedStep = step.TrimStart();
-        foreach (var command in ScreenReadingCommands)
-        {
-            if (StartsWithCommandToken(trimmedStep, command))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return ScreenReadingCommands.Any(command => StartsWithCommandToken(trimmedStep, command));
     }
 
     public static bool IsScreenReadingCommandToken(string? token)
@@ -175,15 +185,7 @@ public static class RunScriptSyntax
         }
 
         var trimmedToken = token.Trim();
-        foreach (var command in ScreenReadingCommands)
-        {
-            if (string.Equals(trimmedToken, command, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return ScreenReadingCommands.Any(command => string.Equals(trimmedToken, command, StringComparison.OrdinalIgnoreCase));
     }
 
     public static bool IsPixelSearchToleranceKeyword(string? token)
@@ -251,6 +253,9 @@ public static class RunScriptSyntax
 
     public static bool StartsWithCommandToken(string step, string command)
     {
+        ArgumentNullException.ThrowIfNull(step);
+        ArgumentNullException.ThrowIfNull(command);
+
         return step.StartsWith(command, StringComparison.OrdinalIgnoreCase)
             && (step.Length == command.Length || char.IsWhiteSpace(step[command.Length]));
     }

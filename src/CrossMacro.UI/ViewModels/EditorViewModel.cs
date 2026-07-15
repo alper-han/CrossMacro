@@ -160,7 +160,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             }),
             ("Editor_ActionGroup_Window", new[]
             {
-                EditorActionType.WindowCommand
+                EditorActionType.WindowCommand,
             }),
         };
     private static readonly IReadOnlyList<EditorActionScreenTargetColorSource> EditorScreenTargetColorSources =
@@ -263,6 +263,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasSelectedAction));
+            OnPropertyChanged(nameof(SelectedImageSearchScaleAware));
+            OnPropertyChanged(nameof(SelectedImageSearchMatchMode));
             OnPropertyChanged(nameof(SelectedActionIsAbsolute));
             OnPropertyChanged(nameof(SelectedActionIsRelative));
             NotifyVisibilityChanged();
@@ -335,6 +337,19 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     }
 
     public bool HasSelectedAction => _selectedAction is not null;
+
+    public bool SelectedImageSearchScaleAware
+    {
+        get => SelectedAction?.ImageSearchScaleAware ?? false;
+        set => SetSelectedImageSearchScaleAware(value);
+    }
+
+    public EditorImageMatchMode SelectedImageSearchMatchMode
+    {
+        get => SelectedAction?.ImageSearchMatchMode ?? EditorImageMatchMode.FirstThresholdMatch;
+        set => SetSelectedImageSearchMatchMode(value);
+    }
+
     public bool HasSelectedActions => SelectedActionUnderlyingIndices.Count > 0;
     public int SelectedActionCount => SelectedActionUnderlyingIndices.Count;
     public bool ShowSingleSelectedActionProperties => HasSelectedAction && SelectedActionCount <= 1;
@@ -640,20 +655,20 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public bool RequiresSkipInitialZeroZero => Actions.Any(IsCurrentPositionMouseButtonAction);
     public bool CanEditSkipInitialZeroZero => !RequiresSkipInitialZeroZero;
 
-    public IEnumerable<EditorActionType> ActionTypes => Enum.GetValues<EditorActionType>();
-    public IReadOnlyList<EditorActionType> AddableActionTypes => EditorAddableActionTypes;
+    public static IEnumerable<EditorActionType> ActionTypes => Enum.GetValues<EditorActionType>();
+    public static IReadOnlyList<EditorActionType> AddableActionTypes => EditorAddableActionTypes;
 
     public string FormatActionType(EditorActionType actionType) => _actionDisplayFormatter.FormatActionType(actionType);
-    public IEnumerable<MouseButton> MouseButtons => Enum.GetValues<MouseButton>().Where(button => button is not MouseButton.None);
-    public IReadOnlyList<MouseButton> ImageClickButtons { get; } =
-        [MouseButton.Left, MouseButton.Right, MouseButton.Middle];
-    public IEnumerable<ScriptValueType> ScriptValueTypes => Enum.GetValues<ScriptValueType>();
-    public IEnumerable<ScriptNumericSourceType> ScriptNumericSourceTypes => Enum.GetValues<ScriptNumericSourceType>();
-    public IEnumerable<ScriptOperandType> ScriptOperandTypes => Enum.GetValues<ScriptOperandType>();
+    public static IEnumerable<MacroMouseButton> MouseButtons => Enum.GetValues<MacroMouseButton>().Where(button => button is not MacroMouseButton.None);
+    public IReadOnlyList<MacroMouseButton> ImageClickButtons { get; } =
+        [MacroMouseButton.Left, MacroMouseButton.Right, MacroMouseButton.Middle];
+    public static IEnumerable<ScriptValueType> ScriptValueTypes => Enum.GetValues<ScriptValueType>();
+    public static IEnumerable<ScriptNumericSourceType> ScriptNumericSourceTypes => Enum.GetValues<ScriptNumericSourceType>();
+    public static IEnumerable<ScriptOperandType> ScriptOperandTypes => Enum.GetValues<ScriptOperandType>();
     public IEnumerable<ShellCommandModeOption> ShellCommandModes => Enum.GetValues<ShellCommandMode>()
         .Select(v => new ShellCommandModeOption(v, Localize($"Enum_ShellCommandMode_{v}")));
     public IEnumerable<WindowCommandModeOption> WindowCommandModes => Enum.GetValues<WindowCommandMode>()
-        .Select(v => new WindowCommandModeOption(v, Localize($"Enum_WindowCommandMode_{v}")));
+        .Select(v => new WindowCommandModeOption(v, Localize($"Enum_WindowCommandMode_{(v is WindowCommandMode.Floating ? "Float" : v)}")));
     public IReadOnlyList<string> WindowSearchSelectorKinds { get; } = ["title", "class"];
     public IReadOnlyList<string> WindowFocusSelectorKinds { get; } = ["active", "title", "class", "address"];
     public IReadOnlyList<string> WindowCloseSelectorKinds { get; } = ["active", "title", "address"];
@@ -1017,23 +1032,17 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         {
             if (e.OldItems is not null)
             {
-                foreach (var item in e.OldItems.OfType<EditorAction>())
+                foreach (var item in e.OldItems.OfType<EditorAction>().Where(item => _subscribedActions.Remove(item)))
                 {
-                    if (_subscribedActions.Remove(item))
-                    {
-                        item.PropertyChanged -= OnAnyActionPropertyChanged;
-                    }
+                    item.PropertyChanged -= OnAnyActionPropertyChanged;
                 }
             }
 
             if (e.NewItems is not null)
             {
-                foreach (var item in e.NewItems.OfType<EditorAction>())
+                foreach (var item in e.NewItems.OfType<EditorAction>().Where(item => _subscribedActions.Add(item)))
                 {
-                    if (_subscribedActions.Add(item))
-                    {
-                        item.PropertyChanged += OnAnyActionPropertyChanged;
-                    }
+                    item.PropertyChanged += OnAnyActionPropertyChanged;
                 }
             }
         }
@@ -1172,7 +1181,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             var stepPreview = warning.Step.Length > 120
                 ? warning.Step[..120] + "..."
                 : warning.Step;
-            LoadWarnings.Add($"Step {warning.StepIndex}: {warning.Message} ({stepPreview})");
+            LoadWarnings.Add($"Step {warning.StepIndex.ToString(CultureInfo.InvariantCulture)}: {warning.Message} ({stepPreview})");
         }
     }
 
@@ -1280,7 +1289,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private sealed record CondensibleRun(int EndIndex, int RepresentativeIndex, int HiddenCount);
+    private sealed record class CondensibleRun(int EndIndex, int RepresentativeIndex, int HiddenCount);
 
     private CondensibleRun? TryGetCondensibleRun(int startIndex)
     {

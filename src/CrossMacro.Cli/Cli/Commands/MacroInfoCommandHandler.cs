@@ -14,7 +14,7 @@ public sealed class MacroInfoCommandHandler : CliCommandHandlerBase<MacroInfoCli
         MacroInfoCliOptions options,
         CancellationToken cancellationToken)
     {
-        var result = await _macroExecutionService.GetInfoAsync(options.MacroFilePath, cancellationToken);
+        var result = await _macroExecutionService.GetInfoAsync(options.MacroFilePath, cancellationToken).ConfigureAwait(false);
 
         return result.Success
             ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings)

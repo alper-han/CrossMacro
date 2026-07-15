@@ -43,9 +43,9 @@ public sealed class PortalScreenCastCapture : IPortalScreenCastCapture
     }
 
     public Task<PortalScreenCastCaptureResult> CaptureSupportedAsync(ScreenReadOptions options) =>
-        CaptureSupportedAsync(requestedRegion: null, options);
+        CaptureSupportedAsync(region: null, options);
 
-    public async Task<PortalScreenCastCaptureResult> CaptureSupportedAsync(ScreenRect? requestedRegion, ScreenReadOptions options)
+    public async Task<PortalScreenCastCaptureResult> CaptureSupportedAsync(ScreenRect? region, ScreenReadOptions options)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -56,7 +56,7 @@ public sealed class PortalScreenCastCapture : IPortalScreenCastCapture
 
         try
         {
-            var sessionResult = await GetOrStartSessionAsync(requestedRegion, options).ConfigureAwait(false);
+            var sessionResult = await GetOrStartSessionAsync(region, options).ConfigureAwait(false);
             if (!sessionResult.IsSuccess)
             {
                 return PortalScreenCastCaptureResult.Failure(
@@ -64,7 +64,7 @@ public sealed class PortalScreenCastCapture : IPortalScreenCastCapture
                     sessionResult.ErrorMessage ?? "XDG Desktop Portal ScreenCast session failed.");
             }
 
-            return await CaptureSessionAsync(sessionResult.Session ?? throw new InvalidOperationException("Successful portal session did not include a session."), requestedRegion, options).ConfigureAwait(false);
+            return await CaptureSessionAsync(sessionResult.Session ?? throw new InvalidOperationException("Successful portal session did not include a session."), region, options).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -95,14 +95,14 @@ public sealed class PortalScreenCastCapture : IPortalScreenCastCapture
         _sessionLock.Dispose();
     }
 
-    private async Task<PortalScreenCastSessionResult> GetOrStartSessionAsync(ScreenRect? requestedRegion, ScreenReadOptions options)
+    private async Task<PortalScreenCastSessionResult> GetOrStartSessionAsync(ScreenRect? region, ScreenReadOptions options)
     {
         await _sessionLock.WaitAsync(options.CancellationToken).ConfigureAwait(false);
         try
         {
             if (_session is not null)
             {
-                var cachedValidation = PortalStreamGeometry.ValidateMonitorStreams(_session.Streams, requestedRegion);
+                var cachedValidation = PortalStreamGeometry.ValidateMonitorStreams(_session.Streams, region);
                 if (cachedValidation.IsSuccess)
                 {
                     return PortalScreenCastSessionResult.Success(_session);
@@ -117,7 +117,7 @@ public sealed class PortalScreenCastCapture : IPortalScreenCastCapture
                 }
             }
 
-            var sessionResult = await _sessionFactory.StartSessionAsync(requestedRegion, options).ConfigureAwait(false);
+            var sessionResult = await _sessionFactory.StartSessionAsync(region, options).ConfigureAwait(false);
             if (sessionResult.IsSuccess)
             {
                 _session = sessionResult.Session ?? throw new InvalidOperationException("Successful portal session did not include a session.");
@@ -131,9 +131,9 @@ public sealed class PortalScreenCastCapture : IPortalScreenCastCapture
         }
     }
 
-    private async Task<PortalScreenCastCaptureResult> CaptureSessionAsync(PortalScreenCastSession session, ScreenRect? requestedRegion, ScreenReadOptions options)
+    private async Task<PortalScreenCastCaptureResult> CaptureSessionAsync(PortalScreenCastSession session, ScreenRect? region, ScreenReadOptions options)
     {
-        var validation = PortalStreamGeometry.ValidateMonitorStreams(session.Streams, requestedRegion);
+        var validation = PortalStreamGeometry.ValidateMonitorStreams(session.Streams, region);
         if (!validation.IsSuccess)
         {
             DisposeCachedSession();
@@ -142,7 +142,7 @@ public sealed class PortalScreenCastCapture : IPortalScreenCastCapture
                 validation.ErrorMessage ?? "XDG Desktop Portal ScreenCast returned unusable monitor metadata.");
         }
 
-        var targetBounds = requestedRegion ?? validation.SelectedBounds ?? throw new InvalidOperationException("Validated portal streams did not include monitor bounds.");
+        var targetBounds = region ?? validation.SelectedBounds ?? throw new InvalidOperationException("Validated portal streams did not include monitor bounds.");
         var streams = PortalStreamGeometry.GetIntersectingStreams(validation.Streams, targetBounds);
         if (streams.Count is 0)
         {

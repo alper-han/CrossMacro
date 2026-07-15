@@ -21,7 +21,9 @@ public class MacroFileManagerTests : IDisposable
             try
             {
                 if (File.Exists(file))
+                {
                     File.Delete(file);
+                }
             }
             catch { /* Ignore cleanup errors */ }
         }
@@ -96,11 +98,10 @@ M,0,0
         {
             Name = name,
             IsAbsoluteCoordinates = true,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 100, Y = 200, Timestamp = 0, DelayMs = 0 },
-                new() { Type = EventType.ButtonPress, X = 100, Y = 200, Button = MouseButton.Left, Timestamp = 100, DelayMs = 100 },
-                new() { Type = EventType.ButtonRelease, X = 100, Y = 200, Button = MouseButton.Left, Timestamp = 150, DelayMs = 50 }
+                new() { Type = EventType.ButtonPress, X = 100, Y = 200, Button = MacroMouseButton.Left, Timestamp = 100, DelayMs = 100 },
+                new() { Type = EventType.ButtonRelease, X = 100, Y = 200, Button = MacroMouseButton.Left, Timestamp = 150, DelayMs = 50 },
             },
         };
     }
@@ -110,9 +111,9 @@ M,0,0
     {
         var macro = CreateValidMacro("Document boundary");
         macro.Id = Guid.NewGuid();
-        macro.ScriptSteps = ["click left"];
-        macro.TextInputBoundaries = [new TextInputBoundary(0, 1, "hello")];
-        macro.Images = new Dictionary<string, string>(StringComparer.Ordinal) { ["Target"] = TransparentPngBase64 };
+        macro.ReplaceScriptSteps(["click left"]);
+        macro.ReplaceTextInputBoundaries([new TextInputBoundary(0, 1, "hello")]);
+        macro.ReplaceImages(new Dictionary<string, string>(StringComparer.Ordinal) { ["Target"] = TransparentPngBase64 });
         macro.RecordedAt = new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc);
         macro.ActualDuration = TimeSpan.FromMilliseconds(321);
         macro.MouseMoveCount = 4;
@@ -146,14 +147,13 @@ M,0,0
             HasTrailingRandomDelay = true,
             TrailingDelayMinMs = 23,
             TrailingDelayMaxMs = 41,
-            ScriptSteps = ["click left"],
-            TextInputBoundaries = [new TextInputBoundary(0, 1, "hello")],
-            Images = new Dictionary<string, string>(StringComparer.Ordinal)
-            {
+            ScriptSteps = {"click left"},
+            TextInputBoundaries = {new TextInputBoundary(0, 1, "hello")},
+            Images = {
                 ["Target"] = TransparentPngBase64,
             },
             Events =
-            [
+            {
                 new MacroEvent
                 {
                     Type = EventType.MouseMove,
@@ -168,15 +168,15 @@ M,0,0
                     Type = EventType.Click,
                     X = 10,
                     Y = 20,
-                    Button = MouseButton.Left,
+                    Button = MacroMouseButton.Left,
                     Timestamp = 45,
                     DelayMs = 40,
                     HasRandomDelay = true,
                     RandomDelayMinMs = 5,
                     RandomDelayMaxMs = 15,
-                    UseCurrentPosition = true
+                    UseCurrentPosition = true,
                 },
-            ],
+            },
             RecordedAt = new DateTime(2024, 2, 3, 4, 5, 6, DateTimeKind.Utc),
             ActualDuration = TimeSpan.FromMilliseconds(321),
             MouseMoveCount = 9,
@@ -313,7 +313,9 @@ M,0,0
         {
             // Cleanup
             if (Directory.Exists(tempDir))
+            {
                 Directory.Delete(tempDir, recursive: true);
+            }
         }
     }
 
@@ -395,9 +397,8 @@ M,0,0
         var macro = new MacroSequence
         {
             Name = "Move Test",
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.MouseMove, X = 500, Y = 600, Timestamp = 0, DelayMs = 0 }
+            Events = {
+                new() { Type = EventType.MouseMove, X = 500, Y = 600, Timestamp = 0, DelayMs = 0 },
             },
         };
         var filePath = GetTempFilePath();
@@ -420,10 +421,9 @@ M,0,0
         var macro = new MacroSequence
         {
             Name = "Keyboard Test",
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.KeyPress, KeyCode = 30, Timestamp = 0, DelayMs = 0 },
-                new() { Type = EventType.KeyRelease, KeyCode = 30, Timestamp = 50, DelayMs = 50 }
+                new() { Type = EventType.KeyRelease, KeyCode = 30, Timestamp = 50, DelayMs = 50 },
             },
         };
         var filePath = GetTempFilePath();
@@ -447,11 +447,10 @@ M,0,0
         var macro = new MacroSequence
         {
             Name = "Delay Test",
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 0, Y = 0, Timestamp = 0, DelayMs = 0 },
                 new() { Type = EventType.MouseMove, X = 100, Y = 100, Timestamp = 500, DelayMs = 500 },
-                new() { Type = EventType.MouseMove, X = 200, Y = 200, Timestamp = 1500, DelayMs = 1000 }
+                new() { Type = EventType.MouseMove, X = 200, Y = 200, Timestamp = 1500, DelayMs = 1000 },
             },
         };
         var filePath = GetTempFilePath();
@@ -472,10 +471,9 @@ M,0,0
         var macro = new MacroSequence
         {
             Name = "Button Test",
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.ButtonPress, X = 100, Y = 200, Button = MouseButton.Right, Timestamp = 0, DelayMs = 0 },
-                new() { Type = EventType.ButtonRelease, X = 100, Y = 200, Button = MouseButton.Right, Timestamp = 100, DelayMs = 100 }
+            Events = {
+                new() { Type = EventType.ButtonPress, X = 100, Y = 200, Button = MacroMouseButton.Right, Timestamp = 0, DelayMs = 0 },
+                new() { Type = EventType.ButtonRelease, X = 100, Y = 200, Button = MacroMouseButton.Right, Timestamp = 100, DelayMs = 100 },
             },
         };
         var filePath = GetTempFilePath();
@@ -485,8 +483,8 @@ M,0,0
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded!.Events[0].Button.Should().Be(MouseButton.Right);
-        loaded.Events[1].Button.Should().Be(MouseButton.Right);
+        loaded!.Events[0].Button.Should().Be(MacroMouseButton.Right);
+        loaded.Events[1].Button.Should().Be(MacroMouseButton.Right);
     }
 
     [Fact]
@@ -498,16 +496,15 @@ M,0,0
             Name = "Current Position Test",
             IsAbsoluteCoordinates = false,
             SkipInitialZeroZero = true,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new()
                 {
                     Type = EventType.Click,
                     X = 0,
                     Y = 0,
-                    Button = MouseButton.Left,
-                    UseCurrentPosition = true
-                }
+                    Button = MacroMouseButton.Left,
+                    UseCurrentPosition = true,
+                },
             },
         };
         var filePath = GetTempFilePath();
@@ -691,8 +688,7 @@ C,rel,0,0,Left";
         var macro = new MacroSequence
         {
             Name = "Random Delay Test",
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 0, Y = 0, Timestamp = 0, DelayMs = 0 },
                 new()
                 {
@@ -703,8 +699,8 @@ C,rel,0,0,Left";
                     DelayMs = 40,
                     HasRandomDelay = true,
                     RandomDelayMinMs = 60,
-                    RandomDelayMaxMs = 120
-                }
+                    RandomDelayMaxMs = 120,
+                },
             },
         };
         var filePath = GetTempFilePath();
@@ -732,9 +728,8 @@ C,rel,0,0,Left";
             HasTrailingRandomDelay = true,
             TrailingDelayMinMs = 25,
             TrailingDelayMaxMs = 75,
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.MouseMove, X = 0, Y = 0, Timestamp = 0, DelayMs = 0 }
+            Events = {
+                new() { Type = EventType.MouseMove, X = 0, Y = 0, Timestamp = 0, DelayMs = 0 },
             },
         };
         var filePath = GetTempFilePath();
@@ -787,15 +782,14 @@ M,100,100";
         {
             Name = "Script Step Round Trip",
             ScriptSteps =
-            [
+            {
                 "set i 0",
                 "for i from 1 to 10 {",
                 "click left",
                 "}",
-            ],
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.Click, Button = MouseButton.Left, DelayMs = 0 }
+            },
+            Events = {
+                new() { Type = EventType.Click, Button = MacroMouseButton.Left, DelayMs = 0 },
             },
         };
         var filePath = GetTempFilePath();
@@ -823,7 +817,7 @@ M,100,100";
     public async Task SaveAsync_WhenScriptReferencesMissingImage_RejectsTheMacro()
     {
         var macro = CreateValidMacro("Dangling Image Reference");
-        macro.ScriptSteps = ["imagesearch Missing found found_x found_y"];
+        macro.ReplaceScriptSteps(["imagesearch Missing found found_x found_y"]);
         var filePath = GetTempFilePath();
 
         var act = async () => await _manager.SaveAsync(macro, filePath);
@@ -860,11 +854,10 @@ M,100,100";
         var macro = new MacroSequence
         {
             Name = "Image Asset Round Trip",
-            Images = new Dictionary<string, string>(StringComparer.Ordinal)
-            {
+            Images = {
                 ["Target_1"] = TransparentPngBase64,
             },
-            ScriptSteps = ["click left"],
+            ScriptSteps = {"click left"},
         };
         var filePath = GetTempFilePath();
 
@@ -889,14 +882,12 @@ M,100,100";
         var macro = new MacroSequence
         {
             Name = "Multiple Image Asset Round Trip",
-            Images = new Dictionary<string, string>(StringComparer.Ordinal)
-            {
+            Images = {
                 ["Zeta"] = TransparentPngBase64,
                 ["Alpha_2"] = BlackPngBase64,
             },
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.MouseMove, X = 0, Y = 0 }
+            Events = {
+                new() { Type = EventType.MouseMove, X = 0, Y = 0 },
             },
         };
         var filePath = GetTempFilePath();
@@ -941,15 +932,13 @@ M,100,100";
         var macro = new MacroSequence
         {
             Name = "Invalid Image Base64 Save",
-            Images = new Dictionary<string, string>(StringComparer.Ordinal)
-            {
+            Images = {
                 ["ValidTarget"] = TransparentPngBase64,
                 ["InvalidTarget"] = "not-base64",
                 ["WrappedTarget"] = $"{BlackPngBase64[..12]}\n{BlackPngBase64[12..]}",
             },
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.MouseMove, X = 0, Y = 0 }
+            Events = {
+                new() { Type = EventType.MouseMove, X = 0, Y = 0 },
             },
         };
         var filePath = GetTempFilePath();
@@ -1014,10 +1003,10 @@ M,100,100";
         const string original = "existing macro content";
         await File.WriteAllTextAsync(filePath, original);
         var macro = CreateValidMacro();
-        macro.Images = new Dictionary<string, string>(StringComparer.Ordinal)
+        macro.ReplaceImages(new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["InvalidTarget"] = "not-base64",
-        };
+        });
 
         var act = async () => await _manager.SaveAsync(macro, filePath);
 
@@ -1047,11 +1036,10 @@ M,100,100";
         var macro = new MacroSequence
         {
             Name = "Invalid Script With Images",
-            Images = new Dictionary<string, string>(StringComparer.Ordinal)
-            {
+            Images = {
                 ["Target_1"] = TransparentPngBase64,
             },
-            ScriptSteps = ["pixelcolor 1"],
+            ScriptSteps = {"pixelcolor 1"},
         };
         var filePath = GetTempFilePath();
 
@@ -1137,7 +1125,7 @@ KP,65
         var macro = new MacroSequence
         {
             Name = "Embedded Newline Script Step Round Trip",
-            ScriptSteps = ["type first line\npath C:\\Users\\me"],
+            ScriptSteps = {"type first line\npath C:\\Users\\me"},
         };
         var filePath = GetTempFilePath();
 
@@ -1164,10 +1152,10 @@ KP,65
         {
             Name = "Script Only Round Trip",
             ScriptSteps =
-            [
+            {
                 "pixelcolor 10 20 color",
-                "pixelsearch 0 0 3 3 123456 x y"
-            ],
+                "pixelsearch 0 0 3 3 123456 x y",
+            },
         };
         var filePath = GetTempFilePath();
 
@@ -1194,9 +1182,9 @@ KP,65
         {
             Name = "Script Special Characters Round Trip",
             ScriptSteps =
-            [
-                "type [demo], #1, C:\\Temp\\macro.txt"
-            ],
+            {
+                "type [demo], #1, C:\\Temp\\macro.txt",
+            },
         };
         var filePath = GetTempFilePath();
 
@@ -1220,7 +1208,7 @@ KP,65
         var macro = new MacroSequence
         {
             Name = "Invalid Script Step Macro",
-            ScriptSteps = ["pixelcolor 1"],
+            ScriptSteps = {"pixelcolor 1"},
         };
         var filePath = GetTempFilePath();
 
@@ -1243,7 +1231,7 @@ KP,65
         var macro = new MacroSequence
         {
             Name = "Runtime Mapped Key Script",
-            ScriptSteps = [scriptStep],
+            ScriptSteps = {scriptStep},
         };
         var filePath = GetTempFilePath();
 
@@ -1263,18 +1251,17 @@ KP,65
         var macro = new MacroSequence
         {
             Name = "Text Boundary Round Trip",
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.KeyPress, KeyCode = 65 },
                 new() { Type = EventType.KeyRelease, KeyCode = 65 },
                 new() { Type = EventType.KeyPress, KeyCode = 66 },
                 new() { Type = EventType.KeyRelease, KeyCode = 66 },
             },
             TextInputBoundaries =
-            [
+            {
                 new TextInputBoundary(0, 2, "a,b $1"),
-                new TextInputBoundary(2, 2, "çok satırlı\nmetin")
-            ],
+                new TextInputBoundary(2, 2, "çok satırlı\nmetin"),
+            },
         };
         var filePath = GetTempFilePath();
 
@@ -1329,10 +1316,9 @@ C,5,6,Right";
         {
             Name = "Mixed Explicit Modes",
             IsAbsoluteCoordinates = false,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 100, Y = 200, CoordinateMode = MouseCoordinateMode.Absolute },
-                new() { Type = EventType.MouseMove, X = 10, Y = 20, CoordinateMode = MouseCoordinateMode.Relative }
+                new() { Type = EventType.MouseMove, X = 10, Y = 20, CoordinateMode = MouseCoordinateMode.Relative },
             },
         };
         var filePath = GetTempFilePath();
@@ -1359,11 +1345,10 @@ C,5,6,Right";
         {
             Name = "Mixed Explicit And Legacy Fallback",
             IsAbsoluteCoordinates = false,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 100, Y = 200, CoordinateMode = MouseCoordinateMode.Absolute },
                 new() { Type = EventType.MouseMove, X = 10, Y = 20 },
-                new() { Type = EventType.Click, X = 5, Y = 6, Button = MouseButton.Left }
+                new() { Type = EventType.Click, X = 5, Y = 6, Button = MacroMouseButton.Left },
             },
         };
         var filePath = GetTempFilePath();
@@ -1395,11 +1380,10 @@ C,5,6,Right";
         {
             Name = "Explicit Button Modes",
             IsAbsoluteCoordinates = true,
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.ButtonPress, X = 1, Y = 2, Button = MouseButton.Left, CoordinateMode = MouseCoordinateMode.Absolute },
-                new() { Type = EventType.ButtonRelease, X = 3, Y = 4, Button = MouseButton.Right, CoordinateMode = MouseCoordinateMode.Relative },
-                new() { Type = EventType.Click, X = 5, Y = 6, Button = MouseButton.Middle, CoordinateMode = MouseCoordinateMode.Relative }
+            Events = {
+                new() { Type = EventType.ButtonPress, X = 1, Y = 2, Button = MacroMouseButton.Left, CoordinateMode = MouseCoordinateMode.Absolute },
+                new() { Type = EventType.ButtonRelease, X = 3, Y = 4, Button = MacroMouseButton.Right, CoordinateMode = MouseCoordinateMode.Relative },
+                new() { Type = EventType.Click, X = 5, Y = 6, Button = MacroMouseButton.Middle, CoordinateMode = MouseCoordinateMode.Relative },
             },
         };
         var filePath = GetTempFilePath();
@@ -1429,17 +1413,16 @@ C,5,6,Right";
             Name = "Current Position No Mode",
             IsAbsoluteCoordinates = false,
             SkipInitialZeroZero = true,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new()
                 {
                     Type = EventType.Click,
                     X = 0,
                     Y = 0,
-                    Button = MouseButton.Left,
+                    Button = MacroMouseButton.Left,
                     UseCurrentPosition = true,
-                    CoordinateMode = MouseCoordinateMode.Relative
-                }
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                },
             },
         };
         var filePath = GetTempFilePath();
@@ -1466,16 +1449,15 @@ C,5,6,Right";
         {
             Name = "Scroll No Mode",
             IsAbsoluteCoordinates = false,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new()
                 {
                     Type = EventType.Click,
                     X = 0,
                     Y = 0,
-                    Button = MouseButton.ScrollDown,
-                    CoordinateMode = MouseCoordinateMode.Absolute
-                }
+                    Button = MacroMouseButton.ScrollDown,
+                    CoordinateMode = MouseCoordinateMode.Absolute,
+                },
             },
         };
         var filePath = GetTempFilePath();
@@ -1490,7 +1472,7 @@ C,5,6,Right";
         saved.Should().NotContain("C,abs,0,0,ScrollDown");
         loaded.Should().NotBeNull();
         loaded!.Events.Should().ContainSingle();
-        loaded.Events[0].Button.Should().Be(MouseButton.ScrollDown);
+        loaded.Events[0].Button.Should().Be(MacroMouseButton.ScrollDown);
         loaded.Events[0].CoordinateMode.Should().BeNull();
     }
 

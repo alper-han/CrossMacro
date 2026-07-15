@@ -149,7 +149,7 @@ internal sealed class WaylandLibrary : IDisposable
         var pending = _displayDispatchPending(display);
         if (pending < 0)
         {
-            throw new IOException($"wl_display_dispatch_pending failed errno={Marshal.GetLastPInvokeError()}.");
+            throw new IOException($"wl_display_dispatch_pending failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
         }
 
         while (true)
@@ -163,7 +163,7 @@ internal sealed class WaylandLibrary : IDisposable
                     var flushResult = _displayFlush(display);
                     if (flushResult < 0 && Marshal.GetLastPInvokeError() != ErrnoWouldBlock)
                     {
-                        throw new IOException($"wl_display_flush failed errno={Marshal.GetLastPInvokeError()}.");
+                        throw new IOException($"wl_display_flush failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
                     }
 
                     var pollFd = new PollFd
@@ -173,7 +173,7 @@ internal sealed class WaylandLibrary : IDisposable
                     };
                     if (pollFd.FileDescriptor < 0)
                     {
-                        throw new IOException($"wl_display_get_fd failed errno={Marshal.GetLastPInvokeError()}.");
+                        throw new IOException($"wl_display_get_fd failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
                     }
 
                     var result = poll(ref pollFd, new IntPtr(1), cancellation.GetPollTimeoutMilliseconds());
@@ -184,7 +184,7 @@ internal sealed class WaylandLibrary : IDisposable
                             continue;
                         }
 
-                        throw new IOException($"poll on Wayland display failed errno={Marshal.GetLastPInvokeError()}.");
+                        throw new IOException($"poll on Wayland display failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
                     }
 
                     if (result is 0)
@@ -204,7 +204,7 @@ internal sealed class WaylandLibrary : IDisposable
 
                     if (_displayReadEvents(display) < 0)
                     {
-                        throw new IOException($"wl_display_read_events failed errno={Marshal.GetLastPInvokeError()}.");
+                        throw new IOException($"wl_display_read_events failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
                     }
 
                     readEvents = true;
@@ -219,7 +219,7 @@ internal sealed class WaylandLibrary : IDisposable
 
                 if (_displayDispatchPending(display) < 0)
                 {
-                    throw new IOException($"wl_display_dispatch_pending failed errno={Marshal.GetLastPInvokeError()}.");
+                    throw new IOException($"wl_display_dispatch_pending failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
                 }
 
                 return;
@@ -227,14 +227,16 @@ internal sealed class WaylandLibrary : IDisposable
 
             if (_displayDispatchPending(display) < 0)
             {
-                throw new IOException($"wl_display_dispatch_pending failed errno={Marshal.GetLastPInvokeError()}.");
+                throw new IOException($"wl_display_dispatch_pending failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
             }
         }
     }
 
     private sealed class SyncCallback : IDisposable
     {
+#pragma warning disable S1450
         private readonly CallbackDispatcher _dispatcher;
+#pragma warning restore S1450
         private readonly WaylandInterfaceHandle _interface;
 
         public SyncCallback()

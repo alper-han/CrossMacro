@@ -21,4 +21,8 @@
     <PackageReference Include="Tmds.DBus.Protocol" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="CrossMacro.Platform.Linux.Tests" />
+  </ItemGroup>
+
 </Project>

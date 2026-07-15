@@ -1,4 +1,4 @@
 
 namespace CrossMacro.UI.ViewModels;
 
-public sealed record ShellCommandModeOption(ShellCommandMode Value, string DisplayName);
+public sealed record class ShellCommandModeOption(ShellCommandMode Value, string DisplayName);

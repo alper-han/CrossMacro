@@ -29,7 +29,7 @@ public class CoordinateCaptureServiceTests
         var captureTask = service.CaptureMousePositionAsync();
         await capture.ConfiguredSignal.WaitAsync(TestTimeout);
 
-        capture.EmitInput(new InputCaptureEventArgs
+        capture.EmitInput(new CapturedInputEvent
         {
             Type = InputEventType.Key,
             Code = InputEventCode.KEY_ENTER,
@@ -53,7 +53,7 @@ public class CoordinateCaptureServiceTests
         var captureTask = service.CaptureMousePositionAsync();
         await capture.ConfiguredSignal.WaitAsync(TestTimeout);
 
-        capture.EmitInput(new InputCaptureEventArgs
+        capture.EmitInput(new CapturedInputEvent
         {
             Type = InputEventType.Key,
             Code = InputEventCode.KEY_ESC,
@@ -75,7 +75,7 @@ public class CoordinateCaptureServiceTests
         var captureTask = service.CaptureKeyCodeAsync();
         await capture.ConfiguredSignal.WaitAsync(TestTimeout);
 
-        capture.EmitInput(new InputCaptureEventArgs
+        capture.EmitInput(new CapturedInputEvent
         {
             Type = InputEventType.Key,
             Code = InputEventCode.KEY_ESC,
@@ -151,7 +151,7 @@ public class CoordinateCaptureServiceTests
         firstResult.Should().BeNull();
         service.IsCapturing.Should().BeTrue();
 
-        secondCapture.EmitInput(new InputCaptureEventArgs
+        secondCapture.EmitInput(new CapturedInputEvent
         {
             Type = InputEventType.Key,
             Code = InputEventCode.KEY_ENTER,
@@ -174,8 +174,8 @@ public class CoordinateCaptureServiceTests
         public bool LastCaptureMouse { get; private set; }
         public bool LastCaptureKeyboard { get; private set; }
 
-        public event EventHandler<InputCaptureEventArgs>? InputReceived;
-        public event EventHandler<string>? Error
+        public event EventHandler<CapturedInputEventArgs>? InputReceived;
+        public event EventHandler<InputCaptureErrorEventArgs>? CaptureError
         {
             add { }
             remove { }
@@ -204,13 +204,13 @@ public class CoordinateCaptureServiceTests
             return Task.CompletedTask;
         }
 
-        public void Stop()
+        public void StopCapture()
         {
         }
 
-        public void EmitInput(InputCaptureEventArgs args)
+        public void EmitInput(CapturedInputEvent args)
         {
-            InputReceived?.Invoke(this, args);
+            InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
         }
 
         public void Dispose()

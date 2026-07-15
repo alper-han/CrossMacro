@@ -3,9 +3,9 @@ namespace CrossMacro.Infrastructure.Services.ScreenReading;
 
 public interface IScreenImageSearchReader
 {
-    Task<ScreenReadResult<ScreenImageMatch>> SearchImageAsync(
+    public Task<ScreenReadResult<ScreenImageMatch>> SearchImageAsync(
         ScreenRect? region,
-        ScreenFrame template,
+        ScreenFrame imageTemplate,
         ScreenImageMatchOptions options,
         ScreenReadOptions readOptions);
 }

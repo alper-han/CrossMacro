@@ -736,7 +736,7 @@ internal static class RunScriptScreenReadingStepParser
 
     private static bool IsValidImageName(string value)
     {
-        return !value.StartsWith("$", StringComparison.Ordinal)
+        return !value.StartsWith('$')
             && EditorActionScriptTokens.IsValidVariableName(value);
     }
 
@@ -758,7 +758,7 @@ internal static class RunScriptScreenReadingStepParser
             return true;
         }
 
-        if (token.StartsWith("$", StringComparison.Ordinal))
+        if (token.StartsWith('$'))
         {
             if (EditorActionScriptTokens.IsValidVariableName(token))
             {

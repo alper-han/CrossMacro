@@ -5,7 +5,7 @@ public sealed class CliCommandRouter
 {
     private delegate CliParseResult ParseCommandDelegate(string[] args);
 
-    private sealed record RootCommandDescriptor(
+    private sealed record class RootCommandDescriptor(
         string CanonicalToken,
         ParseCommandDelegate Parse,
         params string[] Aliases);
@@ -139,7 +139,7 @@ public sealed class CliCommandRouter
         "--wayland",
     ];
 
-    public CliParseResult Parse(string[] args)
+    public static CliParseResult Parse(string[] args)
     {
         if (args is null || args.Length is 0)
         {
@@ -203,7 +203,7 @@ public sealed class CliCommandRouter
             showTopLevelUsageInTextMode: true);
     }
 
-    public string GetUsage(string? topic = null)
+    public static string GetUsage(string? topic = null)
     {
         if (!string.IsNullOrWhiteSpace(topic))
         {
@@ -288,7 +288,7 @@ public sealed class CliCommandRouter
 
         if (string.Equals(topic, "settings", StringComparison.OrdinalIgnoreCase))
         {
-            var keys = string.Join("\n", SettingsCliService.GetSupportedKeys().Select(k => $"  - {k}"));
+            var keys = string.Join('\n', SettingsCliService.GetSupportedKeys().Select(k => $"  - {k}"));
 
             return
                 "Usage:\n" +
@@ -310,7 +310,7 @@ public sealed class CliCommandRouter
 
         if (string.Equals(topic, "settings.get", StringComparison.OrdinalIgnoreCase))
         {
-            var keys = string.Join("\n", SettingsCliService.GetSupportedKeys().Select(k => $"  - {k}"));
+            var keys = string.Join('\n', SettingsCliService.GetSupportedKeys().Select(k => $"  - {k}"));
 
             return
                 "Usage:\n" +
@@ -330,7 +330,7 @@ public sealed class CliCommandRouter
 
         if (string.Equals(topic, "settings.set", StringComparison.OrdinalIgnoreCase))
         {
-            var keys = string.Join("\n", SettingsCliService.GetSupportedKeys().Select(k => $"  - {k}"));
+            var keys = string.Join('\n', SettingsCliService.GetSupportedKeys().Select(k => $"  - {k}"));
 
             return
                 "Usage:\n" +
@@ -727,21 +727,14 @@ public sealed class CliCommandRouter
             return true;
         }
 
-        foreach (var prefix in KnownGuiStartupOptionPrefixes)
-        {
-            if (string.Equals(firstToken, prefix, StringComparison.OrdinalIgnoreCase)
-                || firstToken.StartsWith($"{prefix}=", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return KnownGuiStartupOptionPrefixes.Any(prefix =>
+            string.Equals(firstToken, prefix, StringComparison.OrdinalIgnoreCase)
+            || firstToken.StartsWith($"{prefix}=", StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool LooksLikeOptionToken(string token)
     {
-        return token.StartsWith("-", StringComparison.Ordinal);
+        return token.StartsWith('-');
     }
 
     private static bool IsStandaloneCliOptionToken(string token)
@@ -753,7 +746,7 @@ public sealed class CliCommandRouter
     {
         return
             "Usage:\n" +
-            string.Join("\n", TopLevelUsageSections) +
+            string.Join('\n', TopLevelUsageSections) +
             "\n\nDetailed Help:\n" +
             "  crossmacro <command> --help\n" +
             "  Example: crossmacro settings --help\n\n" +

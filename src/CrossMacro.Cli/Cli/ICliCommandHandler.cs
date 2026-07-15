@@ -3,7 +3,7 @@ namespace CrossMacro.Cli;
 
 public interface ICliCommandHandler
 {
-    bool CanHandle(CliCommandOptions options);
+    public bool CanHandle(CliCommandOptions options);
 
-    Task<CliCommandExecutionResult> ExecuteAsync(CliCommandOptions options, CancellationToken cancellationToken);
+    public Task<CliCommandExecutionResult> ExecuteAsync(CliCommandOptions options, CancellationToken cancellationToken);
 }

@@ -57,5 +57,5 @@ global using System.Threading.Channels;
 global using System.Threading.Tasks;
 global using System.Threading;
 global using System;
-global using TextExpansionModel = CrossMacro.Core.Models.TextExpansion;
+global using TextExpansionModel = CrossMacro.Core.Models.TextExpansionEntry;
 global using static CrossMacro.Infrastructure.Services.Playback.WindowCommandHelpers;

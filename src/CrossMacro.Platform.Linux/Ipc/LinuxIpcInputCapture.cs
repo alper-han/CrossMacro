@@ -44,15 +44,15 @@ public class LinuxIpcInputCapture : IInputCapture
 
     public bool IsSupported => !_disposed && (_client.IsConnected || IsProbeSupported());
 
-    public event EventHandler<InputCaptureEventArgs>? InputReceived;
-    public event EventHandler<string>? Error;
+    public event EventHandler<CapturedInputEventArgs>? InputReceived;
+    public event EventHandler<InputCaptureErrorEventArgs>? CaptureError;
 
     public LinuxIpcInputCapture(IpcClient client, string? consumerId = null, Func<bool>? isSupportedProbe = null)
     {
         _client = client;
         _isSupportedProbe = isSupportedProbe ?? (() => true);
         _consumerId = string.IsNullOrWhiteSpace(consumerId)
-            ? $"linux-ipc-capture-{Interlocked.Increment(ref _captureInstanceSequence)}"
+            ? $"linux-ipc-capture-{Interlocked.Increment(ref _captureInstanceSequence).ToString(CultureInfo.InvariantCulture)}"
             : consumerId;
 
         _client.InputReceived += OnClientInputReceived;
@@ -95,7 +95,7 @@ public class LinuxIpcInputCapture : IInputCapture
         {
             if (startupAttempt.PendingStartTask is not null)
             {
-                await startupAttempt.PendingStartTask.WaitAsync(ct);
+                await startupAttempt.PendingStartTask.WaitAsync(ct).ConfigureAwait(false);
             }
 
             RegisterStopOnCancellation(ct, throwIfAlreadyCanceled: false);
@@ -111,7 +111,7 @@ public class LinuxIpcInputCapture : IInputCapture
             await StartCaptureWithStartupPolicyAsync(
                 startupAttempt.CaptureMouse,
                 startupAttempt.CaptureKeyboard,
-                startLifetimeCts.Token);
+                startLifetimeCts.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException ex)
         {
@@ -166,7 +166,7 @@ public class LinuxIpcInputCapture : IInputCapture
         }
     }
 
-    public void Stop()
+    public void StopCapture()
     {
         bool shouldStopClient = false;
         CancellationTokenSource? pendingStartLifetimeCts = null;
@@ -197,14 +197,14 @@ public class LinuxIpcInputCapture : IInputCapture
         _stopRegistration.Dispose();
     }
 
-    private void OnClientInputReceived(object? sender, InputCaptureEventArgs e)
+    private void OnClientInputReceived(object? sender, CapturedInputEvent e)
     {
-        InputReceived?.Invoke(this, e);
+        InputReceived?.Invoke(this, new CapturedInputEventArgs(e));
     }
 
     private void OnClientErrorOccurred(object? sender, string error)
     {
-        Error?.Invoke(this, error);
+        CaptureError?.Invoke(this, new InputCaptureErrorEventArgs(error));
     }
 
     private static string GetStartupFailureMessage(Exception ex)
@@ -236,7 +236,7 @@ public class LinuxIpcInputCapture : IInputCapture
     {
         while (!_client.IsConnected)
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(50), token);
+            await Task.Delay(TimeSpan.FromMilliseconds(50), token).ConfigureAwait(false);
         }
     }
 
@@ -316,7 +316,7 @@ public class LinuxIpcInputCapture : IInputCapture
         {
             try
             {
-                await _client.ConnectAsync(token);
+                await _client.ConnectAsync(token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -332,7 +332,7 @@ public class LinuxIpcInputCapture : IInputCapture
         {
             try
             {
-                await _client.StartCaptureAsync(_consumerId, captureMouse, captureKeyboard, token);
+                await _client.StartCaptureAsync(_consumerId, captureMouse, captureKeyboard, token).ConfigureAwait(false);
                 return;
             }
             catch (OperationCanceledException)
@@ -351,7 +351,7 @@ public class LinuxIpcInputCapture : IInputCapture
                     ex,
                     "[LinuxIpcInputCapture] Lost daemon connection while waiting for capture start acknowledgement for {ConsumerId}; waiting for reconnect",
                     _consumerId);
-                await WaitForDaemonReconnectAsync(token);
+                await WaitForDaemonReconnectAsync(token).ConfigureAwait(false);
             }
         }
     }
@@ -389,7 +389,7 @@ public class LinuxIpcInputCapture : IInputCapture
     private void RegisterStopOnCancellation(CancellationToken ct, bool throwIfAlreadyCanceled)
     {
         _stopRegistration.Dispose();
-        var stopRegistration = ct.Register(Stop);
+        var stopRegistration = ct.Register(StopCapture);
         if (throwIfAlreadyCanceled && ct.IsCancellationRequested)
         {
             stopRegistration.Dispose();
@@ -413,15 +413,13 @@ public class LinuxIpcInputCapture : IInputCapture
         }
         catch (ObjectDisposedException)
         {
+            // expected when CTS was already disposed concurrently during shutdown.
         }
     }
 
     private void ThrowIfDisposed()
     {
-        if (_disposed)
-        {
-            throw new ObjectDisposedException(nameof(LinuxIpcInputCapture));
-        }
+        ObjectDisposedException.ThrowIf(_disposed, this);
     }
 
     public void Dispose()
@@ -436,7 +434,7 @@ public class LinuxIpcInputCapture : IInputCapture
             _disposed = true;
         }
 
-        Stop();
+        StopCapture();
         _stopRegistration.Dispose();
         _client.InputReceived -= OnClientInputReceived;
         _client.ErrorOccurred -= OnClientErrorOccurred;

@@ -2,13 +2,13 @@ namespace CrossMacro.Platform.Abstractions;
 
 public interface IMacOSPermissionChecker : IPermissionChecker
 {
-    MacOSPermissionStatus GetCurrentStatus();
-    bool IsPermissionGranted(MacOSPermissionRequirement requirement);
-    bool IsListenEventAccessGranted();
-    bool IsListenEventListedOrGranted();
-    bool IsPostEventAccessGranted();
-    bool RequestPermission(MacOSPermissionRequirement requirement);
-    bool RequestListenEventAccess();
-    bool RequestPostEventAccess();
-    void OpenInputMonitoringSettings();
+    public MacOSPermissionStatus GetCurrentStatus();
+    public bool IsPermissionGranted(MacOSPermissionRequirement requirement);
+    public bool IsListenEventAccessGranted();
+    public bool IsListenEventListedOrGranted();
+    public bool IsPostEventAccessGranted();
+    public bool RequestPermission(MacOSPermissionRequirement requirement);
+    public bool RequestListenEventAccess();
+    public bool RequestPostEventAccess();
+    public void OpenInputMonitoringSettings();
 }

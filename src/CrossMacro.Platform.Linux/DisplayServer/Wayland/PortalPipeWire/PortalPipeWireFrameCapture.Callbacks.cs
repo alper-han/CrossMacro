@@ -40,7 +40,7 @@ internal sealed partial class PortalPipeWireFrameCapture
         if (state == -1)
         {
             var message = Marshal.PtrToStringAnsi(error) ?? "PipeWire stream entered error state.";
-            capture._error = $"{message} nodeId={capture._nodeId} size={capture._width}x{capture._height}";
+            capture._error = $"{message} nodeId={capture._nodeId.ToString(CultureInfo.InvariantCulture)} size={capture._width.ToString(CultureInfo.InvariantCulture)}x{capture._height.ToString(CultureInfo.InvariantCulture)}";
             capture._lib.ThreadLoopSignal(capture._threadLoop, waitForAccept: false);
         }
     }
@@ -162,7 +162,7 @@ internal sealed partial class PortalPipeWireFrameCapture
         var stride = chunk.Stride > 0 ? chunk.Stride : _width * PipeWireConstants.Xrgb8888BytesPerPixel;
         if (stride < checked(_width * PipeWireConstants.Xrgb8888BytesPerPixel))
         {
-            FailCopy($"PipeWire frame stride {stride} is smaller than the expected row width for {_width} pixels.");
+            FailCopy($"PipeWire frame stride {stride.ToString(CultureInfo.InvariantCulture)} is smaller than the expected row width for {_width.ToString(CultureInfo.InvariantCulture)} pixels.");
             return;
         }
 
@@ -178,7 +178,7 @@ internal sealed partial class PortalPipeWireFrameCapture
         var chunkSize = chunk.Size > 0 ? Math.Min(chunk.Size, available) : available;
         if (chunkSize < checked((uint)bytes))
         {
-            FailCopy($"PipeWire frame chunk is too small for the declared frame. offset={offset} size={chunk.Size} maxsize={data0.MaxSize} required={bytes}.");
+            FailCopy($"PipeWire frame chunk is too small for the declared frame. offset={offset.ToString(CultureInfo.InvariantCulture)} size={chunk.Size.ToString(CultureInfo.InvariantCulture)} maxsize={data0.MaxSize.ToString(CultureInfo.InvariantCulture)} required={bytes.ToString(CultureInfo.InvariantCulture)}.");
             return;
         }
 

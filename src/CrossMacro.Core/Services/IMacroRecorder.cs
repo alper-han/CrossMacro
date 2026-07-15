@@ -3,13 +3,13 @@ namespace CrossMacro.Core.Services;
 
 public interface IMacroRecorder : IDisposable
 {
-    bool IsRecording { get; }
+    public bool IsRecording { get; }
 
-    event EventHandler<MacroEvent>? EventRecorded;
+    public event EventHandler<MacroEventRecordedEventArgs>? EventRecorded;
 
-    Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, IEnumerable<int>? ignoredKeys = null, bool forceRelative = false, bool skipInitialZero = false, CancellationToken cancellationToken = default);
+    public Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, IEnumerable<int>? ignoredKeys = null, bool forceRelative = false, bool skipInitialZero = false, CancellationToken cancellationToken = default);
 
-    MacroSequence StopRecording();
+    public MacroSequence StopRecording();
 
-    MacroSequence? GetCurrentRecording();
+    public MacroSequence? GetCurrentRecording();
 }

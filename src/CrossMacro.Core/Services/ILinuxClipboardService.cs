@@ -3,5 +3,5 @@ namespace CrossMacro.Core.Services;
 
 public interface ILinuxClipboardService : IClipboardService
 {
-    Task InitializeAsync(CancellationToken cancellationToken = default);
+    public Task InitializeAsync(CancellationToken cancellationToken = default);
 }

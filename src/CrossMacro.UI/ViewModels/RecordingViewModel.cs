@@ -217,7 +217,9 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         set
         {
             if (value && !IsForceRelativeSupported)
+            {
                 value = false;
+            }
 
             if (_forceRelativeCoordinates != value)
             {
@@ -292,7 +294,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void OnEventRecorded(object? sender, MacroEvent e)
+    private void OnEventRecorded(object? sender, MacroEventRecordedEventArgs e)
     {
         var sessionId = Volatile.Read(ref _activeCounterUpdateSessionId);
         if (sessionId == 0)
@@ -302,14 +304,16 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
         Dispatcher.UIThread.Post(() =>
         {
-            ApplyLiveCounterUpdate(sessionId, e);
+            ApplyLiveCounterUpdate(sessionId, e.MacroEvent);
         });
     }
 
     public async Task StartRecordingAsync()
     {
         if (!CanStartRecording || !CanStartRecordingExternal)
+        {
             return;
+        }
 
         try
         {
@@ -330,7 +334,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
                 IsKeyboardRecordingEnabled,
                 ignoredKeys,
                 forceRelative: ForceRelativeCoordinates,
-                skipInitialZero: SkipInitialZeroZero);
+                skipInitialZero: SkipInitialZeroZero).ConfigureAwait(false);
 
             IsRecording = true;
             ClearEventCounters();
@@ -354,7 +358,9 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     public MacroSequence? StopRecording()
     {
         if (!IsRecording)
+        {
             return null;
+        }
 
         MacroSequence? macro;
         try
@@ -364,7 +370,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[RecordingViewModel] StopRecording failed");
+            Log.LogError(ex, "[RecordingViewModel] StopRecording failed");
             RecordingStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Recording_StatusError"], ex.Message);
             IsRecording = false;
             return null;
@@ -378,7 +384,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[RecordingViewModel] Failed to re-enable playback/pause hotkeys");
+                Log.LogError(ex, "[RecordingViewModel] Failed to re-enable playback/pause hotkeys");
             }
         }
 
@@ -405,7 +411,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             // Keep recording result intact; only downstream synchronization failed.
-            Log.Error(ex, "[RecordingViewModel] RecordingCompleted handler failed");
+            Log.LogError(ex, "[RecordingViewModel] RecordingCompleted handler failed");
         }
 
         return macro;
@@ -487,9 +493,13 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     public void ToggleRecording()
     {
         if (IsRecording)
+        {
             StopRecording();
+        }
         else if (CanStartRecording && CanStartRecordingExternal)
+        {
             _ = StartRecordingAsync();
+        }
     }
 
     private void OnCanToggleRecordingChanged()
@@ -500,7 +510,11 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
+
         _disposed = true;
 
         // Unsubscribe from events to prevent memory leaks
@@ -591,7 +605,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            await _settingsService.SaveAsync();
+            await _settingsService.SaveAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -609,7 +623,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
                 }
             }
 
-            Log.Error(ex, "[RecordingViewModel] Failed to persist recording settings");
+            Log.LogError(ex, "[RecordingViewModel] Failed to persist recording settings");
         }
     }
 }

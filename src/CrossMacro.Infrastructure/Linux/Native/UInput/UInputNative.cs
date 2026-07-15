@@ -125,6 +125,6 @@ public static class UInputNative
 
     public static bool IsMouseButton(ushort code)
     {
-        return code >= BTN_LEFT && code <= BTN_TASK;
+        return code is >= BTN_LEFT and <= BTN_TASK;
     }
 }

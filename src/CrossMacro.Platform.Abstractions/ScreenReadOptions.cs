@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Abstractions;
 
 public readonly record struct ScreenReadOptions
 {
-    public static readonly ScreenReadOptions Default = new();
+    public static readonly ScreenReadOptions Default;
 
     public ScreenReadOptions(TimeSpan? timeout = null, TimeSpan? pollInterval = null, CancellationToken cancellationToken = default)
     {

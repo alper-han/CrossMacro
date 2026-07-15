@@ -12,6 +12,6 @@ public sealed class ShortcutRunCommandHandler : CliCommandHandlerBase<ShortcutRu
 
     protected override async Task<CliCommandExecutionResult> ExecuteAsync(ShortcutRunCliOptions options, CancellationToken cancellationToken)
     {
-        return await _shortcutCliService.RunAsync(options.TaskId, cancellationToken);
+        return await _shortcutCliService.RunAsync(options.TaskId, cancellationToken).ConfigureAwait(false);
     }
 }

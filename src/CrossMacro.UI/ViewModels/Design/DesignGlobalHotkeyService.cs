@@ -39,7 +39,7 @@ internal sealed class DesignGlobalHotkeyService : IGlobalHotkeyService
         remove { }
     }
 
-    public event EventHandler<string>? ErrorOccurred
+    public event EventHandler<GlobalHotkeyErrorEventArgs>? ErrorOccurred
     {
         add { }
         remove { }
@@ -49,15 +49,15 @@ internal sealed class DesignGlobalHotkeyService : IGlobalHotkeyService
 
     public bool IsRunning { get; private set; }
 
-    public Task Completion => Task.CompletedTask;
+    public static Task Completion => Task.CompletedTask;
 
     public void Start() => IsRunning = true;
 
-    public void Stop() => IsRunning = false;
+    public void StopHotkeyService() => IsRunning = false;
 
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
-        Stop();
+        StopHotkeyService();
         return Task.CompletedTask;
     }
 

@@ -55,8 +55,8 @@ public sealed class ProfileManagerTests : IDisposable
             CrossMacroJsonContext.Default.ListScheduledTask);
         await WriteJsonAsync(
             Path.Combine(defaultDirectory, ConfigFileNames.TextExpansions),
-            new List<TextExpansion> { new(":mail", "me@example.com") },
-            CrossMacroJsonContext.Default.ListTextExpansion);
+            new List<TextExpansionEntry> { new(":mail", "me@example.com") },
+            CrossMacroJsonContext.Default.ListTextExpansionEntry);
 
         var created = await manager.CreateProfileAsync("Clean Profile");
         var createdDirectory = manager.GetProfileDirectory(created.Id);
@@ -75,7 +75,7 @@ public sealed class ProfileManagerTests : IDisposable
             CrossMacroJsonContext.Default.ListScheduledTask);
         var expansions = await ReadJsonAsync(
             Path.Combine(createdDirectory, ConfigFileNames.TextExpansions),
-            CrossMacroJsonContext.Default.ListTextExpansion);
+            CrossMacroJsonContext.Default.ListTextExpansionEntry);
 
         profileSettings.Should().BeEquivalentTo(new ProfileSettings());
         hotkeys.Should().BeEquivalentTo(new HotkeySettings());
@@ -92,7 +92,7 @@ public sealed class ProfileManagerTests : IDisposable
             registryPath,
             new ProfileRegistry
             {
-                Profiles = [new ProfileInfo { Id = "../outside", Name = "Outside" }],
+                Profiles = { new ProfileInfo { Id = "../outside", Name = "Outside" } },
             },
             CrossMacroJsonContext.Default.ProfileRegistry);
 
@@ -137,7 +137,7 @@ public sealed class ProfileManagerTests : IDisposable
             Field = TriggerField.WindowTitle,
             MatchMode = TriggerMatchMode.Contains,
             Value = "Editor",
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
         };
         await WriteJsonAsync(
             Path.Combine(_tempPath, ConfigFileNames.Triggers),

@@ -6,7 +6,7 @@ namespace CrossMacro.Platform.Abstractions;
 /// </summary>
 public interface IUnicodeTextInputSimulator
 {
-    bool SupportsUnicodeTextInput { get; }
+    public bool SupportsUnicodeTextInput { get; }
 
-    void TypeText(string text);
+    public void TypeText(string text);
 }

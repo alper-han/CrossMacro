@@ -254,7 +254,7 @@ hasUsableReadableInputDevices: null,
         };
     }
 
-    private DoctorCheck BuildPlatformCheck()
+    private static DoctorCheck BuildPlatformCheck()
     {
         var description = RuntimeInformation.OSDescription;
         return new DoctorCheck
@@ -266,7 +266,7 @@ hasUsableReadableInputDevices: null,
             {
                 ["osDescription"] = description,
                 ["osArchitecture"] = RuntimeInformation.OSArchitecture.ToString(),
-                ["processArchitecture"] = RuntimeInformation.ProcessArchitecture.ToString()
+                ["processArchitecture"] = RuntimeInformation.ProcessArchitecture.ToString(),
             },
         };
     }
@@ -281,7 +281,7 @@ hasUsableReadableInputDevices: null,
             Details = new JsonObject
             {
                 ["currentEnvironment"] = _environmentInfoProvider.CurrentEnvironment.ToString(),
-                ["wmHandlesCloseButton"] = _environmentInfoProvider.WindowManagerHandlesCloseButton
+                ["wmHandlesCloseButton"] = _environmentInfoProvider.WindowManagerHandlesCloseButton,
             },
         };
     }
@@ -348,7 +348,7 @@ hasUsableReadableInputDevices: null,
             Details = new JsonObject
             {
                 ["supported"] = supported,
-                ["reason"] = string.IsNullOrWhiteSpace(reason) ? null : reason
+                ["reason"] = string.IsNullOrWhiteSpace(reason) ? null : reason,
             },
         };
     }
@@ -371,7 +371,7 @@ hasUsableReadableInputDevices: null,
                     ? new JsonObject
                     {
                         ["provider"] = simulator.ProviderName,
-                        ["supported"] = isSupported
+                        ["supported"] = isSupported,
                     }
                     : null,
             };
@@ -406,7 +406,7 @@ hasUsableReadableInputDevices: null,
                     ? new JsonObject
                     {
                         ["provider"] = capture.ProviderName,
-                        ["supported"] = isSupported
+                        ["supported"] = isSupported,
                     }
                     : null,
             };
@@ -438,7 +438,7 @@ hasUsableReadableInputDevices: null,
                 ? new JsonObject
                 {
                     ["provider"] = _mousePositionProvider.ProviderName,
-                    ["supported"] = isSupported
+                    ["supported"] = isSupported,
                 }
                 : null,
         };
@@ -547,7 +547,7 @@ hasUsableReadableInputDevices: null,
                 ? new JsonObject
                 {
                     ["listenEventGranted"] = status.ListenEventGranted,
-                    ["listenEventApiAvailable"] = status.ListenEventApiAvailable
+                    ["listenEventApiAvailable"] = status.ListenEventApiAvailable,
                 }
                 : null,
         });
@@ -563,7 +563,7 @@ hasUsableReadableInputDevices: null,
                 ? new JsonObject
                 {
                     ["postEventGranted"] = status.PostEventGranted,
-                    ["postEventApiAvailable"] = status.PostEventApiAvailable
+                    ["postEventApiAvailable"] = status.PostEventApiAvailable,
                 }
                 : null,
         });
@@ -599,7 +599,7 @@ hasUsableReadableInputDevices: null,
                         ? new JsonObject
                         {
                             ["probeAvailable"] = true,
-                            ["preflightApiAvailable"] = false
+                            ["preflightApiAvailable"] = false,
                         }
                         : null,
                 };
@@ -617,7 +617,7 @@ hasUsableReadableInputDevices: null,
                     ? new JsonObject
                     {
                         ["screenRecordingGranted"] = granted,
-                        ["preflightApiAvailable"] = true
+                        ["preflightApiAvailable"] = true,
                     }
                     : null,
             };

@@ -10,5 +10,5 @@ public interface IDisplaySessionService
     /// </summary>
     /// <param name="reason">The reason why the session is not supported, if applicable.</param>
     /// <returns>True if the session is supported; otherwise, false.</returns>
-    bool IsSessionSupported(out string reason);
+    public bool IsSessionSupported(out string reason);
 }

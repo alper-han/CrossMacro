@@ -162,6 +162,7 @@ internal sealed class PendingCaptureStartRegistry
         }
     }
 
+#pragma warning disable RCS1210, S4586
     public Task? TryGetPendingTask()
     {
         lock (_lock)
@@ -175,6 +176,7 @@ internal sealed class PendingCaptureStartRegistry
             return pendingStart.Completion.Task;
         }
     }
+#pragma warning restore RCS1210, S4586
 
     public void MarkSubscriptionRemoved(string consumerId)
     {

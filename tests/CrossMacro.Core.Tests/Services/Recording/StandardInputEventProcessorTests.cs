@@ -21,8 +21,8 @@ public class StandardInputEventProcessorTests
     public void Process_MouseMove_ShouldReturnEvent_WhenRecordingMouse()
     {
         // Arrange
-        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((10, 20));
-        var args = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
+        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((10, 20));
+        var args = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
@@ -41,8 +41,8 @@ public class StandardInputEventProcessorTests
     {
         // Arrange
         _processor.Configure(recordMouse: true, recordKeyboard: true, ignoredKeys: null, isAbsoluteCoordinates: isAbsoluteCoordinates);
-        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((10, 20));
-        var args = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
+        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((10, 20));
+        var args = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
@@ -57,8 +57,8 @@ public class StandardInputEventProcessorTests
     {
         // Arrange
         _processor.Configure(recordMouse: false, recordKeyboard: true, ignoredKeys: null);
-        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((10, 20));
-        var args = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
+        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((10, 20));
+        var args = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
@@ -71,8 +71,8 @@ public class StandardInputEventProcessorTests
     public void Process_MouseMove_ShouldReturnNull_WhenZeroDelta()
     {
         // Arrange
-        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((0, 0));
-        var args = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 0 };
+        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((0, 0));
+        var args = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 0 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
@@ -89,7 +89,7 @@ public class StandardInputEventProcessorTests
     public void Process_KeyEvent_ShouldReturnEvent_WhenRecordingKeyboard()
     {
         // Arrange
-        var args = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 30, Value = 1 }; // KEY_A press
+        var args = new CapturedInputEvent { Type = InputEventType.Key, Code = 30, Value = 1 }; // KEY_A press
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
@@ -105,7 +105,7 @@ public class StandardInputEventProcessorTests
     {
         // Arrange
         _processor.Configure(recordMouse: true, recordKeyboard: false, ignoredKeys: null);
-        var args = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 30, Value = 1 };
+        var args = new CapturedInputEvent { Type = InputEventType.Key, Code = 30, Value = 1 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
@@ -120,7 +120,7 @@ public class StandardInputEventProcessorTests
         // Arrange
         var ignoredKeys = new HashSet<int> { 30 }; // Ignore KEY_A
         _processor.Configure(recordMouse: true, recordKeyboard: true, ignoredKeys: ignoredKeys);
-        var args = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 30, Value = 1 };
+        var args = new CapturedInputEvent { Type = InputEventType.Key, Code = 30, Value = 1 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
@@ -133,7 +133,7 @@ public class StandardInputEventProcessorTests
     public void Process_KeyRelease_ShouldReturnKeyReleaseEvent()
     {
         // Arrange
-        var args = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 30, Value = 0 }; // KEY_A release
+        var args = new CapturedInputEvent { Type = InputEventType.Key, Code = 30, Value = 0 }; // KEY_A release
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
@@ -147,7 +147,7 @@ public class StandardInputEventProcessorTests
     public void Process_KeyRepeat_ShouldReturnNull()
     {
         // Arrange - value 2 = repeat
-        var args = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 30, Value = 2 };
+        var args = new CapturedInputEvent { Type = InputEventType.Key, Code = 30, Value = 2 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
@@ -164,8 +164,8 @@ public class StandardInputEventProcessorTests
     public void Process_MouseButton_ShouldReturnButtonPressEvent()
     {
         // Arrange
-        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((100, 100));
-        var args = new InputCaptureEventArgs { Type = InputEventType.MouseButton, Code = InputEventCode.BTN_LEFT, Value = 1 };
+        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((100, 100));
+        var args = new CapturedInputEvent { Type = InputEventType.MouseButton, Code = InputEventCode.BTN_LEFT, Value = 1 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
@@ -173,7 +173,7 @@ public class StandardInputEventProcessorTests
         // Assert
         result.Should().NotBeNull();
         result.Value.Type.Should().Be(EventType.ButtonPress);
-        result.Value.Button.Should().Be(MouseButton.Left);
+        result.Value.Button.Should().Be(MacroMouseButton.Left);
     }
 
     [Theory]
@@ -183,8 +183,8 @@ public class StandardInputEventProcessorTests
     {
         // Arrange
         _processor.Configure(recordMouse: true, recordKeyboard: true, ignoredKeys: null, isAbsoluteCoordinates: isAbsoluteCoordinates);
-        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((100, 100));
-        var args = new InputCaptureEventArgs { Type = InputEventType.MouseButton, Code = InputEventCode.BTN_LEFT, Value = 1 };
+        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((100, 100));
+        var args = new CapturedInputEvent { Type = InputEventType.MouseButton, Code = InputEventCode.BTN_LEFT, Value = 1 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
@@ -198,8 +198,8 @@ public class StandardInputEventProcessorTests
     public void Process_MouseButton_ShouldReturnButtonReleaseEvent()
     {
         // Arrange
-        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((100, 100));
-        var args = new InputCaptureEventArgs { Type = InputEventType.MouseButton, Code = InputEventCode.BTN_LEFT, Value = 0 };
+        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((100, 100));
+        var args = new CapturedInputEvent { Type = InputEventType.MouseButton, Code = InputEventCode.BTN_LEFT, Value = 0 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
@@ -217,8 +217,8 @@ public class StandardInputEventProcessorTests
     public void Process_MouseScroll_ShouldReturnScrollUpEvent()
     {
         // Arrange
-        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((100, 100));
-        var args = new InputCaptureEventArgs { Type = InputEventType.MouseScroll, Code = 0, Value = 1 };
+        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((100, 100));
+        var args = new CapturedInputEvent { Type = InputEventType.MouseScroll, Code = 0, Value = 1 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
@@ -226,7 +226,7 @@ public class StandardInputEventProcessorTests
         // Assert
         result.Should().NotBeNull();
         result.Value.Type.Should().Be(EventType.Click);
-        result.Value.Button.Should().Be(MouseButton.ScrollUp);
+        result.Value.Button.Should().Be(MacroMouseButton.ScrollUp);
         result.Value.CoordinateMode.Should().BeNull();
     }
 
@@ -234,28 +234,28 @@ public class StandardInputEventProcessorTests
     public void Process_MouseScroll_ShouldReturnScrollDownEvent()
     {
         // Arrange
-        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((100, 100));
-        var args = new InputCaptureEventArgs { Type = InputEventType.MouseScroll, Code = 0, Value = -1 };
+        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((100, 100));
+        var args = new CapturedInputEvent { Type = InputEventType.MouseScroll, Code = 0, Value = -1 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert
         result.Should().NotBeNull();
-        result.Value.Button.Should().Be(MouseButton.ScrollDown);
+        result.Value.Button.Should().Be(MacroMouseButton.ScrollDown);
         result.Value.CoordinateMode.Should().BeNull();
     }
 
     [Fact]
     public void Process_MouseScroll_ShouldReturnHorizontalScrollEvents()
     {
-        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((100, 100));
-        var args = new InputCaptureEventArgs { Type = InputEventType.MouseScroll, Code = InputEventCode.REL_HWHEEL, Value = 1 };
+        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((100, 100));
+        var args = new CapturedInputEvent { Type = InputEventType.MouseScroll, Code = InputEventCode.REL_HWHEEL, Value = 1 };
 
         var result = _processor.Process(args, timestamp: 1000);
 
         result.Should().NotBeNull();
-        result.Value.Button.Should().Be(MouseButton.ScrollRight);
+        result.Value.Button.Should().Be(MacroMouseButton.ScrollRight);
     }
 
     #endregion
@@ -266,8 +266,8 @@ public class StandardInputEventProcessorTests
     public void Process_Sync_ShouldFlushBufferedDeltas()
     {
         // Arrange
-        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((15, 25));
-        var args = new InputCaptureEventArgs { Type = InputEventType.Sync, Code = 0, Value = 0 };
+        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((15, 25));
+        var args = new CapturedInputEvent { Type = InputEventType.Sync, Code = 0, Value = 0 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
@@ -286,8 +286,8 @@ public class StandardInputEventProcessorTests
     {
         // Arrange
         _processor.Configure(recordMouse: true, recordKeyboard: true, ignoredKeys: null, isAbsoluteCoordinates: isAbsoluteCoordinates);
-        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((15, 25));
-        var args = new InputCaptureEventArgs { Type = InputEventType.Sync, Code = 0, Value = 0 };
+        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((15, 25));
+        var args = new CapturedInputEvent { Type = InputEventType.Sync, Code = 0, Value = 0 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
@@ -301,8 +301,8 @@ public class StandardInputEventProcessorTests
     public void Process_Sync_ShouldReturnNull_WhenZeroDeltas()
     {
         // Arrange
-        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((0, 0));
-        var args = new InputCaptureEventArgs { Type = InputEventType.Sync, Code = 0, Value = 0 };
+        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((0, 0));
+        var args = new CapturedInputEvent { Type = InputEventType.Sync, Code = 0, Value = 0 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
@@ -317,8 +317,8 @@ public class StandardInputEventProcessorTests
     public void Process_UnknownInputType_ShouldReturnNull()
     {
         // Arrange
-        _strategy.ProcessPosition(Arg.Any<InputCaptureEventArgs>()).Returns((50, 60));
-        var args = new InputCaptureEventArgs { Type = InputEventType.Unknown, Code = 999, Value = 1 };
+        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((50, 60));
+        var args = new CapturedInputEvent { Type = InputEventType.Unknown, Code = 999, Value = 1 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);

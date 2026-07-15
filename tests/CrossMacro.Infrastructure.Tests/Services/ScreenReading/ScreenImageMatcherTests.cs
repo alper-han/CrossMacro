@@ -305,9 +305,9 @@ public sealed class ScreenImageMatcherTests
         Assert.Null(match);
     }
 
-	[Fact]
+    [Fact]
     public void FindMatch_WhenSimilarityMeetsThreshold_ReturnsScoreFromNormalizedSad()
-	{
+    {
         using var frame = CreateFrame(
             new ScreenRect(0, 0, 2, 2),
             ScreenPixelFormat.Rgb24,
@@ -319,10 +319,10 @@ public sealed class ScreenImageMatcherTests
 
         var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { MinimumSimilarity = 0.9 });
 
-		Assert.NotNull(match);
-		Assert.Equal(new ScreenPoint(0, 0), match.Value.Point);
-		Assert.Equal(1.0 - (255.0 / (2 * 2 * 3 * 255.0)), match.Value.Score, precision: 12);
-	}
+        Assert.NotNull(match);
+        Assert.Equal(new ScreenPoint(0, 0), match.Value.Point);
+        Assert.Equal(1.0 - (255.0 / (2 * 2 * 3 * 255.0)), match.Value.Score, precision: 12);
+    }
 
     [Fact]
     public void FindMatch_WhenSadEqualsIntegerThreshold_IncludesCandidate()
@@ -366,24 +366,24 @@ public sealed class ScreenImageMatcherTests
         Assert.Equal(new ScreenImageMatch(new ScreenPoint(0, 0), 0.0), match);
     }
 
-	[Fact]
-	public void FindMatch_WhenSimilarityIsNotFinite_ThrowsArgumentOutOfRangeException()
-	{
-		using var frame = CreateFrame(new ScreenRect(0, 0, 1, 1), ScreenPixelFormat.Rgb24, [[Black]]);
-		using var template = CreateFrame(new ScreenRect(0, 0, 1, 1), ScreenPixelFormat.Rgb24, [[Black]]);
+    [Fact]
+    public void FindMatch_WhenSimilarityIsNotFinite_ThrowsArgumentOutOfRangeException()
+    {
+        using var frame = CreateFrame(new ScreenRect(0, 0, 1, 1), ScreenPixelFormat.Rgb24, [[Black]]);
+        using var template = CreateFrame(new ScreenRect(0, 0, 1, 1), ScreenPixelFormat.Rgb24, [[Black]]);
 
-		foreach (var similarity in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity })
-		{
-			Assert.Throws<ArgumentOutOfRangeException>(() =>
-			{
-				_ = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { MinimumSimilarity = similarity });
-			});
-		}
-	}
+        foreach (var similarity in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity })
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+            {
+                _ = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { MinimumSimilarity = similarity });
+            });
+        }
+    }
 
-	[Fact]
-	public void FindMatch_WhenSearchRegionIsBounded_ReturnsAbsoluteCoordinateInsideRegion()
-	{
+    [Fact]
+    public void FindMatch_WhenSearchRegionIsBounded_ReturnsAbsoluteCoordinateInsideRegion()
+    {
         using var frame = CreateFrame(
             new ScreenRect(10, 20, 5, 4),
             ScreenPixelFormat.Bgra8888,

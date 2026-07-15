@@ -1,3 +1,3 @@
 namespace CrossMacro.Cli;
 
-public abstract record CliCommandOptions(bool JsonOutput, string? LogLevel = null);
+public abstract record class CliCommandOptions(bool JsonOutput, string? LogLevel = null);

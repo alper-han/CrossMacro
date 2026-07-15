@@ -9,20 +9,20 @@ public interface ITextBufferState
     /// <summary>
     /// Appends a character to the buffer.
     /// </summary>
-    void Append(char c);
+    public void Append(char c);
 
     /// <summary>
     /// Handles backspace (removing last character).
     /// </summary>
-    void Backspace();
+    public void Backspace();
 
     /// <summary>
     /// Clears the buffer.
     /// </summary>
-    void Clear();
+    public void Clear();
 
     /// <summary>
     /// Checks if the current buffer ends with any of the active triggers.
     /// </summary>
-    bool TryGetMatch(IEnumerable<Models.TextExpansion> expansions, out Models.TextExpansion? match);
+    public bool TryGetMatch(IEnumerable<Models.TextExpansionEntry> expansions, out Models.TextExpansionEntry? match);
 }

@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Cli;
 
-public sealed record RunCliOptions(
+public sealed record class RunCliOptions(
     IReadOnlyList<string> Steps,
     string? StepFilePath = null,
     double SpeedMultiplier = 1.0,

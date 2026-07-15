@@ -7,7 +7,7 @@ public class TextExpansionCliServiceTests
     public async Task AddAsync_WithDuplicateTrigger_ReturnsInvalidArguments()
     {
         var storage = Substitute.For<ITextExpansionStorageService>();
-        storage.LoadAsync().Returns(new List<TextExpansion> { new(":mail", "old") });
+        storage.LoadAsync().Returns(new List<TextExpansionEntry> { new(":mail", "old") });
         var service = new TextExpansionCliService(storage, CreateProfileManager());
 
         var result = await service.AddAsync(
@@ -21,14 +21,14 @@ public class TextExpansionCliServiceTests
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
-        await storage.DidNotReceive().SaveAsync(Arg.Any<IEnumerable<TextExpansion>>());
+        await storage.DidNotReceive().SaveAsync(Arg.Any<IEnumerable<TextExpansionEntry>>());
     }
 
     [Fact]
     public async Task TestAsync_WithExistingTrigger_ReturnsExpansionWithoutSaving()
     {
         var storage = Substitute.For<ITextExpansionStorageService>();
-        storage.LoadAsync().Returns(new List<TextExpansion> { new(":mail", "me@example.com") });
+        storage.LoadAsync().Returns(new List<TextExpansionEntry> { new(":mail", "me@example.com") });
         var service = new TextExpansionCliService(storage, CreateProfileManager());
 
         var result = await service.TestAsync(":mail", profileIdentifier: null, CancellationToken.None);
@@ -37,14 +37,14 @@ public class TextExpansionCliServiceTests
         var data = Assert.IsType<TextExpansionTestData>(result.Data);
         Assert.True(data.Found);
         Assert.Equal("me@example.com", data.Expansion?.Replacement);
-        await storage.DidNotReceive().SaveAsync(Arg.Any<IEnumerable<TextExpansion>>());
+        await storage.DidNotReceive().SaveAsync(Arg.Any<IEnumerable<TextExpansionEntry>>());
     }
 
     [Fact]
     public async Task ListAsync_WithProfile_ReloadsProfileThenRestoresActiveProfile()
     {
         var storage = Substitute.For<ITextExpansionStorageService>();
-        storage.LoadAsync().Returns(new List<TextExpansion>());
+        storage.LoadAsync().Returns(new List<TextExpansionEntry>());
         var profileManager = CreateProfileManager();
         var service = new TextExpansionCliService(storage, profileManager);
 

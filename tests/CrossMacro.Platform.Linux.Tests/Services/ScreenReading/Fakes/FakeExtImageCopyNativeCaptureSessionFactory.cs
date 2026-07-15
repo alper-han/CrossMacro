@@ -26,7 +26,7 @@ internal sealed class FakeExtImageCopyNativeCaptureSessionFactory : IExtImageCop
         {
             await Task.Delay(DelayBeforeResult)
                 .WaitAsync(options.Timeout ?? Timeout.InfiniteTimeSpan, options.CancellationToken)
-                .ConfigureAwait(false);
+                ;
         }
 
         return _result;

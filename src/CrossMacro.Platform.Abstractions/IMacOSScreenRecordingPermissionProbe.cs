@@ -2,7 +2,7 @@ namespace CrossMacro.Platform.Abstractions;
 
 public interface IMacOSScreenRecordingPermissionProbe
 {
-    bool IsPreflightAvailable { get; }
+    public bool IsPreflightAvailable { get; }
 
-    bool IsGranted();
+    public bool IsGranted();
 }

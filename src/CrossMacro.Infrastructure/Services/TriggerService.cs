@@ -113,6 +113,9 @@ public class TriggerService : ITriggerService
                 existing.Action = task.Action;
                 existing.TargetProfileId = task.TargetProfileId;
                 existing.FireMode = task.FireMode;
+                existing.MacroFilePath = task.MacroFilePath;
+                existing.CooldownMs = task.CooldownMs;
+                existing.DebounceMs = task.DebounceMs;
                 existing.IsEnabled = task.IsEnabled;
             }
         }
@@ -126,8 +129,11 @@ public class TriggerService : ITriggerService
             var task = Tasks.FirstOrDefault(t => t.Id == id);
             if (task is not null)
             {
-                task.IsEnabled = enabled;
-                if (!enabled) _wasMatching.Remove(id);
+                task.TrySetEnabled(enabled);
+                if (!enabled)
+                {
+                    _wasMatching.Remove(id);
+                }
             }
         }
     }
@@ -140,7 +146,11 @@ public class TriggerService : ITriggerService
 
         lock (_lock)
         {
-            if (_isMonitoring) return;
+            if (_isMonitoring)
+            {
+                return;
+            }
+
             _isMonitoring = true;
             _cts = new CancellationTokenSource();
             monitorCts = _cts;
@@ -150,7 +160,7 @@ public class TriggerService : ITriggerService
         _ = ObserveMonitorTaskAsync(monitorTask, monitorCts);
     }
 
-    public void Stop()
+    public void StopMonitoring()
     {
         _ = StopAsync();
     }
@@ -173,7 +183,10 @@ public class TriggerService : ITriggerService
             monitorTask = _monitorTask;
         }
 
-        if (cts is null) return;
+        if (cts is null)
+        {
+            return;
+        }
 
         try { cts.Cancel(); }
         catch (ObjectDisposedException) { }
@@ -212,7 +225,7 @@ public class TriggerService : ITriggerService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Trigger monitoring loop faulted");
+            Log.LogError(ex, "Trigger monitoring loop faulted");
         }
     }
 
@@ -249,7 +262,11 @@ public class TriggerService : ITriggerService
     /// </summary>
     internal async Task PollOnceAsync(CancellationToken ct)
     {
-        if (_windowManager is null) return;
+        if (_windowManager is null)
+        {
+            return;
+        }
+
         WindowInfo? window;
         try
         {
@@ -349,7 +366,10 @@ or TriggerFireMode.OnEnter)
                 }
             }
 
-            if (!shouldFire) continue;
+            if (!shouldFire)
+            {
+                continue;
+            }
 
             await ExecuteActionAsync(task, ct).ConfigureAwait(false);
         }
@@ -375,7 +395,8 @@ or TriggerFireMode.OnEnter)
         {
             return true;
         }
-        else if (task.Field is TriggerField.Workspace)
+
+        if (task.Field is TriggerField.Workspace)
         {
             actual = workspace;
         }
@@ -392,7 +413,10 @@ or TriggerFireMode.OnEnter)
             actual = window?.Title;
         }
 
-        if (string.IsNullOrEmpty(actual)) return false;
+        if (string.IsNullOrEmpty(actual))
+        {
+            return false;
+        }
 
         // Prevent ReDoS on user-defined pattern.
         if (task.MatchMode is TriggerMatchMode.Regex)
@@ -420,7 +444,7 @@ or TriggerFireMode.OnEnter)
 
         try
         {
-            if (task.Action is TriggerAction.SwitchProfile)
+            if (task.Action is TriggerOperation.SwitchProfile)
             {
                 if (string.IsNullOrEmpty(task.TargetProfileId))
                 {
@@ -483,8 +507,14 @@ or TriggerFireMode.OnEnter)
             catch (Exception ex) { Log.Warning(ex, "TriggerFired subscriber threw"); }
         }
 
-        if (_syncContext is not null) _syncContext.Post(Raise, state: null);
-        else Raise(_: null);
+        if (_syncContext is not null)
+        {
+            _syncContext.Post(Raise, state: null);
+        }
+        else
+        {
+            Raise(_: null);
+        }
     }
 
     public async Task SaveAsync()
@@ -516,7 +546,10 @@ or TriggerFireMode.OnEnter)
         EnsureSyncContext();
         try
         {
-            if (!File.Exists(_triggersFilePath)) return;
+            if (!File.Exists(_triggersFilePath))
+            {
+                return;
+            }
 
             var tasks = await FileBackedJsonStorage.ReadAsync(
                     _triggersFilePath,
@@ -596,9 +629,13 @@ or TriggerFireMode.OnEnter)
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
+
         _disposed = true;
 
-        Stop();
+        StopMonitoring();
     }
 }

@@ -64,26 +64,26 @@ internal sealed class KdeTrackerServiceMethodHandler : IPathMethodHandler
         switch (member)
         {
             case KdeTrackerService.UpdatePositionMethod:
-            {
-                int x = reader.ReadInt32();
-                int y = reader.ReadInt32();
-                _service.UpdatePositionAsync(x, y).GetAwaiter().GetResult();
-                return DispatchResult.Handled;
-            }
+                {
+                    int x = reader.ReadInt32();
+                    int y = reader.ReadInt32();
+                    _service.UpdatePositionAsync(x, y).GetAwaiter().GetResult();
+                    return DispatchResult.Handled;
+                }
             case KdeTrackerService.UpdateResolutionMethod:
-            {
-                int width = reader.ReadInt32();
-                int height = reader.ReadInt32();
-                _service.UpdateResolutionAsync(width, height).GetAwaiter().GetResult();
-                return DispatchResult.Handled;
-            }
+                {
+                    int width = reader.ReadInt32();
+                    int height = reader.ReadInt32();
+                    _service.UpdateResolutionAsync(width, height).GetAwaiter().GetResult();
+                    return DispatchResult.Handled;
+                }
             case KdeTrackerService.ReportWindowDataMethod:
-            {
-                string correlationId = reader.ReadString();
-                string json = reader.ReadString();
-                _service.ReportWindowDataAsync(correlationId, json).GetAwaiter().GetResult();
-                return DispatchResult.Handled;
-            }
+                {
+                    string correlationId = reader.ReadString();
+                    string json = reader.ReadString();
+                    _service.ReportWindowDataAsync(correlationId, json).GetAwaiter().GetResult();
+                    return DispatchResult.Handled;
+                }
             default:
                 return DispatchResult.UnknownMethod;
         }
@@ -119,7 +119,7 @@ internal sealed class KdeTrackerServiceMethodHandler : IPathMethodHandler
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[KdeTrackerServiceMethodHandler] DBus handling failed for {Member}", context.Request.MemberAsString);
+            Log.LogError(ex, "[KdeTrackerServiceMethodHandler] DBus handling failed for {Member}", context.Request.MemberAsString);
             context.ReplyError("org.freedesktop.DBus.Error.Failed", "Tracker request failed.");
         }
 

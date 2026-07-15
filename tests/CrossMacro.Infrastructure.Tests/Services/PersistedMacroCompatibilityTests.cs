@@ -19,11 +19,11 @@ public class PersistedMacroCompatibilityTests
             Type = EventType.Click,
             X = 10,
             Y = 20,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
             CoordinateMode = MouseCoordinateMode.Absolute,
             UseCurrentPosition = true,
         };
-        var macro = new MacroSequence { Events = [macroEvent] };
+        var macro = new MacroSequence { Events = { macroEvent } };
 
         var document = Compatibility.PersistedMacroDocument.FromRuntime(macro);
         var persistedEvent = Compatibility.PersistedMacroEvent.FromRuntime(macroEvent);

@@ -3,5 +3,5 @@ namespace CrossMacro.Daemon.Services;
 
 public interface IPolkitAuthorizationService
 {
-    Task<bool> IsInputCaptureAuthorizedAsync(uint uid, int pid);
+    public Task<bool> IsInputCaptureAuthorizedAsync(uint uid, int pid);
 }

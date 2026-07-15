@@ -75,7 +75,7 @@ public class EditorViewModelIntegrationTests
             new EditorActionDisplayFormatter(localizationService));
         var sequence = new MacroSequence
         {
-            Events = [new MacroEvent { Type = EventType.KeyPress, KeyCode = 18 }],
+            Events = {new MacroEvent { Type = EventType.KeyPress, KeyCode = 18 }},
         };
 
         // Act

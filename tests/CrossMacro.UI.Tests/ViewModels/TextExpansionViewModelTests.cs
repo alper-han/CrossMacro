@@ -26,7 +26,7 @@ public class TextExpansionViewModelTests
         });
 
         // Setup initial load
-        _storageService.LoadAsync().Returns(new List<TextExpansion>());
+        _storageService.LoadAsync().Returns(new List<TextExpansionEntry>());
 
         _viewModel = new TextExpansionViewModel(_storageService, _dialogService, _environmentInfoProvider, _localizationService);
     }
@@ -35,7 +35,7 @@ public class TextExpansionViewModelTests
     public async Task Construction_LoadsExpansions()
     {
         // Arrange
-        var list = new List<TextExpansion> { new TextExpansion(":test", "result") };
+        var list = new List<TextExpansionEntry> { new TextExpansionEntry(":test", "result") };
         _storageService.LoadAsync().Returns(list);
 
         // Re-create VM to trigger constructor load
@@ -52,7 +52,7 @@ public class TextExpansionViewModelTests
     [Fact]
     public async Task Construction_WhenSavedExpansionsExist_RefreshesComputedCountProperties()
     {
-        var list = new List<TextExpansion>
+        var list = new List<TextExpansionEntry>
         {
             new(":a", "first"),
             new(":b", "second"),
@@ -70,12 +70,12 @@ public class TextExpansionViewModelTests
     [Fact]
     public async Task RawStoreBoundary_PreservesRefreshNotificationsAndDesignPreview()
     {
-        var initial = new List<TextExpansion>
+        var initial = new List<TextExpansionEntry>
         {
             new(":old", "old"),
             new(":keep", "keep"),
         };
-        var refreshed = new List<TextExpansion>
+        var refreshed = new List<TextExpansionEntry>
         {
             new(":profile", "profile"),
         };
@@ -107,7 +107,7 @@ public class TextExpansionViewModelTests
             .Should().Equal(":profile");
         changedProperties.Should().Contain(nameof(TextExpansionViewModel.HasExpansions));
         changedProperties.Should().Contain(nameof(TextExpansionViewModel.ExpansionCountText));
-        await _storageService.Received().SaveAsync(Arg.Any<IEnumerable<TextExpansion>>());
+        await _storageService.Received().SaveAsync(Arg.Any<IEnumerable<TextExpansionEntry>>());
 
         var designViewModel = new DesignTextExpansionViewModel();
         await designViewModel.InitializationTask;
@@ -135,7 +135,7 @@ public class TextExpansionViewModelTests
         _viewModel.Expansions[0].InsertionMode.Should().Be(TextInsertionMode.Paste);
         _viewModel.TriggerInput.Should().BeEmpty(); // Should clear input
 
-        await _storageService.Received(1).SaveAsync(Arg.Any<IEnumerable<TextExpansion>>());
+        await _storageService.Received(1).SaveAsync(Arg.Any<IEnumerable<TextExpansionEntry>>());
     }
 
     [Fact]
@@ -152,14 +152,14 @@ public class TextExpansionViewModelTests
         // Assert
         _viewModel.Expansions.Should().ContainSingle();
         _viewModel.Expansions[0].Replacement.Should().Be(replacement);
-        await _storageService.Received(1).SaveAsync(Arg.Is<IEnumerable<TextExpansion>>(expansions =>
+        await _storageService.Received(1).SaveAsync(Arg.Is<IEnumerable<TextExpansionEntry>>(expansions =>
             expansions.Single().Replacement == replacement));
     }
 
     [Fact]
     public async Task ManagedExpansion_ListCallsPortAndLoadsCollection()
     {
-        var expansion = new TextExpansion(":managed", "value");
+        var expansion = new TextExpansionEntry(":managed", "value");
         var manage = Substitute.For<IManageTextExpansion>();
         manage.ListAsync().Returns(new[] { expansion });
         var vm = CreateManagedViewModel(manage);
@@ -174,9 +174,9 @@ public class TextExpansionViewModelTests
     public async Task ManagedExpansion_AddCallsPortBeforeCommittingCollection()
     {
         var manage = Substitute.For<IManageTextExpansion>();
-        var added = new TextExpansion(":new", "value");
-        manage.ListAsync().Returns(Array.Empty<TextExpansion>());
-        manage.AddAsync(Arg.Any<TextExpansion>()).Returns(added);
+        var added = new TextExpansionEntry(":new", "value");
+        manage.ListAsync().Returns(Array.Empty<TextExpansionEntry>());
+        manage.AddAsync(Arg.Any<TextExpansionEntry>()).Returns(added);
         var vm = CreateManagedViewModel(manage);
         await vm.InitializationTask;
         vm.TriggerInput = ":new";
@@ -185,17 +185,17 @@ public class TextExpansionViewModelTests
         await vm.AddExpansionCommand.ExecuteAsync(parameter: null);
 
         vm.Expansions.Should().ContainSingle().Which.Should().BeSameAs(added);
-        await manage.Received(1).AddAsync(Arg.Is<TextExpansion>(item => item.Trigger == ":new"));
+        await manage.Received(1).AddAsync(Arg.Is<TextExpansionEntry>(item => item.Trigger == ":new"));
     }
 
     [Fact]
     public async Task ManagedExpansion_AddFailureLeavesCollectionUnchanged()
     {
-        var existing = new TextExpansion(":existing", "value");
+        var existing = new TextExpansionEntry(":existing", "value");
         var manage = Substitute.For<IManageTextExpansion>();
         manage.ListAsync().Returns(new[] { existing });
-        manage.AddAsync(Arg.Any<TextExpansion>()).Returns<Task<TextExpansion>>(_ =>
-            Task.FromException<TextExpansion>(new InvalidOperationException("duplicate")));
+        manage.AddAsync(Arg.Any<TextExpansionEntry>()).Returns<Task<TextExpansionEntry>>(_ =>
+            Task.FromException<TextExpansionEntry>(new InvalidOperationException("duplicate")));
         var vm = CreateManagedViewModel(manage);
         await vm.InitializationTask;
         vm.TriggerInput = ":existing";
@@ -205,13 +205,13 @@ public class TextExpansionViewModelTests
 
         await action.Should().ThrowAsync<InvalidOperationException>();
         vm.Expansions.Should().ContainSingle().Which.Should().BeSameAs(existing);
-        await manage.Received(1).AddAsync(Arg.Is<TextExpansion>(item => item.Trigger == ":existing"));
+        await manage.Received(1).AddAsync(Arg.Is<TextExpansionEntry>(item => item.Trigger == ":existing"));
     }
 
     [Fact]
     public async Task ManagedExpansion_RemoveCallsPortBeforeCommittingCollection()
     {
-        var expansion = new TextExpansion(":remove", "value");
+        var expansion = new TextExpansionEntry(":remove", "value");
         var manage = Substitute.For<IManageTextExpansion>();
         manage.ListAsync().Returns(new[] { expansion });
         manage.RemoveAsync(":remove").Returns(expansion);
@@ -229,11 +229,11 @@ public class TextExpansionViewModelTests
     [Fact]
     public async Task ManagedExpansion_RemoveFailureLeavesCollectionUnchanged()
     {
-        var expansion = new TextExpansion(":remove", "value");
+        var expansion = new TextExpansionEntry(":remove", "value");
         var manage = Substitute.For<IManageTextExpansion>();
         manage.ListAsync().Returns(new[] { expansion });
-        manage.RemoveAsync(":remove").Returns<Task<TextExpansion>>(_ =>
-            Task.FromException<TextExpansion>(new IOException("persistence failure")));
+        manage.RemoveAsync(":remove").Returns<Task<TextExpansionEntry>>(_ =>
+            Task.FromException<TextExpansionEntry>(new IOException("persistence failure")));
         var vm = CreateManagedViewModel(manage);
         await vm.InitializationTask;
         _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), "Yes", "No")
@@ -249,8 +249,8 @@ public class TextExpansionViewModelTests
     [Fact]
     public async Task ManagedExpansion_SetEnabledCallsPortAndCommitsReturnedState()
     {
-        var expansion = new TextExpansion(":toggle", "value", isEnabled: true);
-        var updated = new TextExpansion(":toggle", "value", isEnabled: false);
+        var expansion = new TextExpansionEntry(":toggle", "value", isEnabled: true);
+        var updated = new TextExpansionEntry(":toggle", "value", isEnabled: false);
         var manage = Substitute.For<IManageTextExpansion>();
         manage.ListAsync().Returns(new[] { expansion });
         manage.SetEnabledAsync(":toggle", enabled: false).Returns(updated);
@@ -267,11 +267,11 @@ public class TextExpansionViewModelTests
     [Fact]
     public async Task ManagedExpansion_SetEnabledFailureRestoresPriorState()
     {
-        var expansion = new TextExpansion(":toggle", "value", isEnabled: true);
+        var expansion = new TextExpansionEntry(":toggle", "value", isEnabled: true);
         var manage = Substitute.For<IManageTextExpansion>();
         manage.ListAsync().Returns(new[] { expansion });
-        manage.SetEnabledAsync(":toggle", enabled: false).Returns<Task<TextExpansion>>(_ =>
-            Task.FromException<TextExpansion>(new IOException("persistence failure")));
+        manage.SetEnabledAsync(":toggle", enabled: false).Returns<Task<TextExpansionEntry>>(_ =>
+            Task.FromException<TextExpansionEntry>(new IOException("persistence failure")));
         var vm = CreateManagedViewModel(manage);
         await vm.InitializationTask;
         expansion.IsEnabled = false;
@@ -291,7 +291,7 @@ public class TextExpansionViewModelTests
     [Fact]
     public void AddExpansion_CanExecute_ValidatesInput()
     {
-         // Arrange
+        // Arrange
         _viewModel.TriggerInput = "";
         _viewModel.ReplacementInput = "val";
         _viewModel.AddExpansionCommand.CanExecute(parameter: null).Should().BeFalse();
@@ -309,7 +309,7 @@ public class TextExpansionViewModelTests
     public async Task RemoveExpansion_WhenConfirmed_RemovesAndSaves()
     {
         // Arrange
-        var expansion = new TextExpansion(":del", "value");
+        var expansion = new TextExpansionEntry(":del", "value");
         _viewModel.Expansions.Add(expansion);
 
         _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), "Yes", "No")
@@ -320,14 +320,14 @@ public class TextExpansionViewModelTests
 
         // Assert
         _viewModel.Expansions.Should().BeEmpty();
-        await _storageService.Received(1).SaveAsync(Arg.Any<IEnumerable<TextExpansion>>());
+        await _storageService.Received(1).SaveAsync(Arg.Any<IEnumerable<TextExpansionEntry>>());
     }
 
     [Fact]
     public async Task RemoveExpansion_WhenCancelled_DoesNotRemove()
     {
         // Arrange
-        var expansion = new TextExpansion(":keep", "value");
+        var expansion = new TextExpansionEntry(":keep", "value");
         _viewModel.Expansions.Add(expansion);
 
         _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), "Yes", "No")
@@ -338,14 +338,14 @@ public class TextExpansionViewModelTests
 
         // Assert
         _viewModel.Expansions.Should().HaveCount(1);
-        await _storageService.DidNotReceive().SaveAsync(Arg.Any<IEnumerable<TextExpansion>>());
+        await _storageService.DidNotReceive().SaveAsync(Arg.Any<IEnumerable<TextExpansionEntry>>());
     }
 
     [Fact]
     public async Task ToggleExpansion_SavesStart()
     {
         // Arrange
-        var expansion = new TextExpansion(":toggle", "val");
+        var expansion = new TextExpansionEntry(":toggle", "val");
         _viewModel.Expansions.Add(expansion);
 
         // Act
@@ -353,7 +353,7 @@ public class TextExpansionViewModelTests
 
         // Assert
         // We just verify it saves the current state
-        await _storageService.Received(1).SaveAsync(Arg.Any<IEnumerable<TextExpansion>>());
+        await _storageService.Received(1).SaveAsync(Arg.Any<IEnumerable<TextExpansionEntry>>());
     }
 
     [Theory]
@@ -449,7 +449,7 @@ public class TextExpansionViewModelTests
         await _viewModel.ToggleExpansionCommand.ExecuteAsync(parameter: null);
 
         // Assert
-        await _storageService.DidNotReceive().SaveAsync(Arg.Any<IEnumerable<TextExpansion>>());
+        await _storageService.DidNotReceive().SaveAsync(Arg.Any<IEnumerable<TextExpansionEntry>>());
     }
 
     [Fact]

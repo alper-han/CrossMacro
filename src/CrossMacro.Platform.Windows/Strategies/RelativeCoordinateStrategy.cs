@@ -5,7 +5,7 @@ namespace CrossMacro.Platform.Windows.Strategies;
 /// Relative coordinate strategy that buffers X/Y deltas until a SYNC event.
 /// This ensures both axes are recorded together in a single MacroEvent.
 /// </summary>
-public class RelativeCoordinateStrategy : IRelativeCoordinateStrategy
+public sealed class RelativeCoordinateStrategy : IRelativeCoordinateStrategy
 {
     private int _pendingX;
     private int _pendingY;
@@ -22,7 +22,7 @@ public class RelativeCoordinateStrategy : IRelativeCoordinateStrategy
         return Task.CompletedTask;
     }
 
-    public (int X, int Y) ProcessPosition(InputCaptureEventArgs e)
+    public (int X, int Y) ProcessPosition(CapturedInputEvent e)
     {
         switch (e.Type)
         {

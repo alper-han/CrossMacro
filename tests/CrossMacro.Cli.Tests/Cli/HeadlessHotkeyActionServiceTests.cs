@@ -41,13 +41,13 @@ public class HeadlessHotkeyActionServiceTests
             return new MacroSequence
             {
                 Events =
-                [
+                {
                     new MacroEvent
                     {
                         Type = EventType.KeyPress,
-                        KeyCode = 30
-                    }
-                ],
+                        KeyCode = 30,
+                    },
+                },
             };
         });
 
@@ -145,13 +145,13 @@ public class HeadlessHotkeyActionServiceTests
             return new MacroSequence
             {
                 Events =
-                [
+                {
                     new MacroEvent
                     {
                         Type = EventType.KeyPress,
-                        KeyCode = 30
-                    }
-                ],
+                        KeyCode = 30,
+                    },
+                },
             };
         });
 
@@ -211,13 +211,13 @@ public class HeadlessHotkeyActionServiceTests
             return new MacroSequence
             {
                 Events =
-                [
+                {
                     new MacroEvent
                     {
                         Type = EventType.Click,
-                        Button = MouseButton.Left
-                    }
-                ],
+                        Button = MacroMouseButton.Left,
+                    },
+                },
             };
         });
 
@@ -234,7 +234,7 @@ public class HeadlessHotkeyActionServiceTests
                 playStarted.Signal();
                 return Task.Delay(Timeout.Infinite, token);
             });
-        player.When(x => x.Stop()).Do(_ => stopCalled.Signal());
+        player.When(x => x.StopPlayback()).Do(_ => stopCalled.Signal());
 
         var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, runtimeContext, countdownDelay.DelayAsync);
         service.Start();
@@ -302,13 +302,13 @@ public class HeadlessHotkeyActionServiceTests
             return new MacroSequence
             {
                 Events =
-                [
+                {
                     new MacroEvent
                     {
                         Type = EventType.Click,
-                        Button = MouseButton.Left
-                    }
-                ],
+                        Button = MacroMouseButton.Left,
+                    },
+                },
             };
         });
 
@@ -324,7 +324,7 @@ public class HeadlessHotkeyActionServiceTests
                 playStarted.Signal();
                 return Task.Delay(Timeout.Infinite, token);
             });
-        player.When(x => x.Stop()).Do(_ => stopCalled.Signal());
+        player.When(x => x.StopPlayback()).Do(_ => stopCalled.Signal());
 
         var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, runtimeContext);
         service.Start();
@@ -385,17 +385,17 @@ public class HeadlessHotkeyActionServiceTests
             return new MacroSequence
             {
                 Events =
-                [
+                {
                     new MacroEvent
                     {
-                        Type = EventType.Click,
-                        Button = MouseButton.Left
-                    }
-                ],
+                        Type = EventType.KeyPress,
+                        KeyCode = 30,
+                    },
+                },
             };
         });
 
-        var player = new BlockingPlayer();
+        var player = new GatedCleanupPlayer();
         var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, runtimeContext);
         service.Start();
 
@@ -407,7 +407,9 @@ public class HeadlessHotkeyActionServiceTests
         hotkeys.TogglePlaybackRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
         await player.PlayStarted.WaitAsync(TimeSpan.FromSeconds(2));
 
-        await service.StopAsync();
+        var stopTask = service.StopAsync();
+        player.AllowCleanupToComplete();
+        await stopTask;
 
         Assert.True(player.PlayCompleted.IsSignaled);
         Assert.True(player.DisposeCalled);
@@ -452,13 +454,13 @@ public class HeadlessHotkeyActionServiceTests
             return new MacroSequence
             {
                 Events =
-                [
+                {
                     new MacroEvent
                     {
                         Type = EventType.Click,
-                        Button = MouseButton.Left
-                    }
-                ],
+                        Button = MacroMouseButton.Left,
+                    },
+                },
             };
         });
 
@@ -474,7 +476,7 @@ public class HeadlessHotkeyActionServiceTests
         hotkeys.TogglePlaybackRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
         await player.PlayStarted.WaitAsync(TimeSpan.FromSeconds(2));
 
-        service.Stop();
+        service.StopHeadlessHotkeyActions();
         await player.StopCalled.WaitAsync(TimeSpan.FromSeconds(2));
         await player.CleanupEntered.WaitAsync(TimeSpan.FromSeconds(2));
 
@@ -667,7 +669,7 @@ skipInitialZero: true,
             }
         }
 
-        public void Stop()
+        public void StopPlayback()
         {
         }
 
@@ -675,7 +677,7 @@ skipInitialZero: true,
         {
         }
 
-        public void Resume()
+        public void ResumePlayback()
         {
         }
 
@@ -725,7 +727,7 @@ skipInitialZero: true,
             _allowCleanupToComplete.SetResult();
         }
 
-        public void Stop()
+        public void StopPlayback()
         {
             StopCalled.Signal();
         }
@@ -734,7 +736,7 @@ skipInitialZero: true,
         {
         }
 
-        public void Resume()
+        public void ResumePlayback()
         {
         }
 

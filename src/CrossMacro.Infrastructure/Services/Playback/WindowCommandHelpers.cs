@@ -49,7 +49,10 @@ internal static class WindowCommandHelpers
     {
         s = s.Trim();
         if (s.Length >= 2 && ((s[0] == '"' && s[^1] == '"') || (s[0] == '\'' && s[^1] == '\'')))
+        {
             return s[1..^1].Replace("\\\"", "\"").Replace("\\\\", "\\").Replace("\\'", "'");
+        }
+
         return s;
     }
 
@@ -61,15 +64,16 @@ internal static class WindowCommandHelpers
 
     private static WindowInfo? FindFirst(IReadOnlyList<WindowInfo> windows, Func<WindowInfo, bool> predicate)
     {
-        foreach (var w in windows)
-            if (predicate(w)) return w;
-        return null;
+        return windows.FirstOrDefault(predicate);
     }
 
     public static void StoreVariable(IDictionary<string, string> variables, string name, string value, int stepNumber)
     {
         if (!IsValidVarName(name))
-            throw new InvalidOperationException($"Step {stepNumber}: invalid variable name '{name}'.");
+        {
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: invalid variable name '{name}'.");
+        }
+
         variables[name] = value;
     }
 }

@@ -4,7 +4,6 @@ namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 internal sealed class LinuxQuickSetupExecutor
 {
     private readonly LinuxQuickSetupIdentityResolver _identityResolver;
-    private readonly LinuxQuickSetupScriptBuilder _scriptBuilder;
     private readonly Func<ProcessStartInfo, CancellationToken, Task<(int ExitCode, string StdOut, string StdErr)>> _runProcessAsync;
 
     public LinuxQuickSetupExecutor(
@@ -20,7 +19,7 @@ internal sealed class LinuxQuickSetupExecutor
         Func<ProcessStartInfo, CancellationToken, Task<(int ExitCode, string StdOut, string StdErr)>> runProcessAsync)
     {
         _identityResolver = identityResolver ?? throw new ArgumentNullException(nameof(identityResolver));
-        _scriptBuilder = scriptBuilder ?? throw new ArgumentNullException(nameof(scriptBuilder));
+        ArgumentNullException.ThrowIfNull(scriptBuilder);
         _runProcessAsync = runProcessAsync ?? throw new ArgumentNullException(nameof(runProcessAsync));
     }
 
@@ -31,10 +30,7 @@ internal sealed class LinuxQuickSetupExecutor
         string unexpectedFailureMessage,
         CancellationToken cancellationToken = default)
     {
-        if (launcher is null)
-        {
-            throw new ArgumentNullException(nameof(launcher));
-        }
+        ArgumentNullException.ThrowIfNull(launcher);
 
         var identity = _identityResolver.Resolve();
         if (identity == null)
@@ -51,11 +47,11 @@ internal sealed class LinuxQuickSetupExecutor
                 Message: failureMessage);
         }
 
-        var startInfo = launcher.CreateStartInfo(_scriptBuilder.Build(scriptOptions), identity.Value);
+        var startInfo = launcher.CreateStartInfo(LinuxQuickSetupScriptBuilder.Build(scriptOptions), identity.Value);
 
         try
         {
-            var (exitCode, stdout, stderr) = await _runProcessAsync(startInfo, cancellationToken);
+            var (exitCode, stdout, stderr) = await _runProcessAsync(startInfo, cancellationToken).ConfigureAwait(false);
             if (exitCode is 0)
             {
                 var successText = BuildSuccessMessage(stdout);
@@ -69,11 +65,11 @@ internal sealed class LinuxQuickSetupExecutor
             Log.Warning("[{LogContext}] Session helper failed (ExitCode={ExitCode}): {Error}", logContext, exitCode, errorText);
             return new QuickSetupResult(
                 Success: false,
-                Message: $"Quick setup failed (exit code {exitCode}). {errorText}");
+                Message: $"Quick setup failed (exit code {exitCode.ToString(CultureInfo.InvariantCulture)}). {errorText}");
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[{LogContext}] Failed to run session helper command", logContext);
+            Log.LogError(ex, "[{LogContext}] Failed to run session helper command", logContext);
             return new QuickSetupResult(
                 Success: false,
                 Message: unexpectedFailureMessage);
@@ -87,15 +83,8 @@ internal sealed class LinuxQuickSetupExecutor
             return null;
         }
 
-        foreach (var line in content.Split('\n', StringSplitOptions.TrimEntries))
-        {
-            if (!string.IsNullOrWhiteSpace(line))
-            {
-                return line;
-            }
-        }
-
-        return null;
+        return content.Split('\n', StringSplitOptions.TrimEntries)
+            .FirstOrDefault(line => !string.IsNullOrWhiteSpace(line));
     }
 
     private static string BuildSuccessMessage(string stdout)
@@ -122,8 +111,8 @@ internal sealed class LinuxQuickSetupExecutor
         var stdOutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
         var stdErrTask = process.StandardError.ReadToEndAsync(cancellationToken);
 
-        await process.WaitForExitAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
 
-        return (process.ExitCode, await stdOutTask, await stdErrTask);
+        return (process.ExitCode, await stdOutTask.ConfigureAwait(false), await stdErrTask.ConfigureAwait(false));
     }
 }

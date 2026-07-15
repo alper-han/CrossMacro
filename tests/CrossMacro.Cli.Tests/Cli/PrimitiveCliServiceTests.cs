@@ -72,7 +72,7 @@ public sealed class PrimitiveCliServiceTests
             Windows =
             [
                 new WindowInfo { Address = "0x1", Title = "Docs - Firefox", Class = "firefox" },
-                new WindowInfo { Address = "0x2", Title = "Editor", Class = "Code" }
+                new WindowInfo { Address = "0x2", Title = "Editor", Class = "Code" },
             ],
         };
         var service = new WindowCliService(manager);
@@ -147,9 +147,9 @@ public sealed class PrimitiveCliServiceTests
         Assert.Equal(TimeSpan.FromMilliseconds(275), reader.LastSearchOptions.Timeout);
     }
 
-	[Fact]
-	public async Task Screen_SearchImage_DecodesPngAndForwardsOptionsToReader()
-	{
+    [Fact]
+    public async Task Screen_SearchImage_DecodesPngAndForwardsOptionsToReader()
+    {
         var imagePath = await WriteTemplatePngAsync();
         try
         {
@@ -191,31 +191,31 @@ public sealed class PrimitiveCliServiceTests
         finally
         {
             File.Delete(imagePath);
-		}
-	}
+        }
+    }
 
-	[Fact]
-	public async Task Screen_SearchImage_WhenSimilarityIsNotFinite_ReturnsInvalidArguments()
-	{
-		var reader = new FakeScreenPixelReader();
-		var service = new ScreenCliService(reader, new FakeMousePositionProvider());
+    [Fact]
+    public async Task Screen_SearchImage_WhenSimilarityIsNotFinite_ReturnsInvalidArguments()
+    {
+        var reader = new FakeScreenPixelReader();
+        var service = new ScreenCliService(reader, new FakeMousePositionProvider());
 
-		foreach (var similarity in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity })
-		{
-			var result = await service.ExecuteAsync(new ScreenCliOptions(
-				ScreenCliAction.SearchImage,
-				ImagePath: "/tmp/template.png",
-				Similarity: similarity), CancellationToken.None);
+        foreach (var similarity in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity })
+        {
+            var result = await service.ExecuteAsync(new ScreenCliOptions(
+                ScreenCliAction.SearchImage,
+                ImagePath: "/tmp/template.png",
+                Similarity: similarity), CancellationToken.None);
 
-			Assert.False(result.Success);
-			Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
-			Assert.Contains("Invalid options", result.Message, StringComparison.Ordinal);
-		}
-	}
+            Assert.False(result.Success);
+            Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
+            Assert.Contains("Invalid options", result.Message, StringComparison.Ordinal);
+        }
+    }
 
-	[Fact]
-	public async Task Screen_SearchImage_WhenNoMatch_ReturnsFoundFalseData()
-	{
+    [Fact]
+    public async Task Screen_SearchImage_WhenNoMatch_ReturnsFoundFalseData()
+    {
         var imagePath = await WriteTemplatePngAsync();
         try
         {
@@ -245,7 +245,7 @@ public sealed class PrimitiveCliServiceTests
         {
             var reader = new FakeScreenPixelReader
             {
-                ImageSearchResult = ScreenReadResult<ScreenImageMatch>.Failure(
+                ImageSearchResult = ScreenReadResultFactory.Failure<ScreenImageMatch>(
                     ScreenReadErrorKind.Canceled,
                     "image search canceled"),
             };
@@ -369,7 +369,7 @@ public sealed class PrimitiveCliServiceTests
             var result = await service.ExecuteAsync(new ScreenCliOptions(
                 ScreenCliAction.ImageClick,
                 ImagePath: imagePath,
-                Button: MouseButton.Middle), CancellationToken.None);
+                Button: MacroMouseButton.Middle), CancellationToken.None);
 
             Assert.True(result.Success, string.Join("; ", result.Errors));
             Assert.Equal((1920, 1080), input.InitializedResolution);
@@ -798,7 +798,11 @@ public sealed class PrimitiveCliServiceTests
         public async Task<ScreenImageAutomationResult> ClickAsync(ScreenImageAutomationRequest request, int buttonCode, CancellationToken cancellationToken)
         {
             var result = await SearchAsync(request, cancellationToken);
-            if (!result.IsSuccess || ClickInput is null) return result;
+            if (!result.IsSuccess || ClickInput is null)
+            {
+                return result;
+            }
+
             ClickInput.Initialize(1920, 1080);
             if (ClickInput is IInputSimulatorCapabilities { SupportsAbsoluteCoordinates: false })
             {
@@ -821,13 +825,13 @@ public sealed class PrimitiveCliServiceTests
         {
             LastPoint = point;
             LastPixelOptions = options;
-            return Task.FromResult(ScreenReadResult<ScreenPixelColor>.Success(new ScreenPixelColor(0x12, 0x34, 0x56)));
+            return Task.FromResult(ScreenReadResultFactory.Success<ScreenPixelColor>(new ScreenPixelColor(0x12, 0x34, 0x56)));
         }
 
         public Task<ScreenReadResult<ScreenPixelColor>> WaitForPixelAsync(ScreenPoint point, ScreenPixelColor expected, ScreenReadOptions options)
         {
             LastWaitOptions = options;
-            return Task.FromResult(ScreenReadResult<ScreenPixelColor>.Success(expected));
+            return Task.FromResult(ScreenReadResultFactory.Success<ScreenPixelColor>(expected));
         }
 
         public Task<ScreenReadResult<ScreenPixelSearchMatch>> SearchPixelAsync(ScreenRect region, ScreenPixelColor expected, int tolerance, ScreenReadOptions options)
@@ -835,17 +839,17 @@ public sealed class PrimitiveCliServiceTests
             LastRegion = region;
             LastTolerance = tolerance;
             LastSearchOptions = options;
-            return Task.FromResult(ScreenReadResult<ScreenPixelSearchMatch>.Success(new ScreenPixelSearchMatch(new ScreenPoint(region.X + 1, region.Y + 1), expected)));
+            return Task.FromResult(ScreenReadResultFactory.Success<ScreenPixelSearchMatch>(new ScreenPixelSearchMatch(new ScreenPoint(region.X + 1, region.Y + 1), expected)));
         }
 
         public Task<ScreenReadResult<ScreenImageMatch>> SearchImageAsync(
             ScreenRect? region,
-            ScreenFrame template,
+            ScreenFrame imageTemplate,
             ScreenImageMatchOptions options,
             ScreenReadOptions readOptions)
         {
             LastImageRegion = region;
-            LastImageTemplate = template;
+            LastImageTemplate = imageTemplate;
             LastImageOptions = options;
             LastImageReadOptions = readOptions;
             if (ImageSearchResult is { } configuredResult)
@@ -854,8 +858,8 @@ public sealed class PrimitiveCliServiceTests
             }
 
             return ImageSearchNoMatch
-                ? Task.FromResult(ScreenReadResult<ScreenImageMatch>.Failure(ScreenReadErrorKind.CaptureTimeout, "No image matching the template was found."))
-                : Task.FromResult(ScreenReadResult<ScreenImageMatch>.Success(ImageMatch));
+                ? Task.FromResult(ScreenReadResultFactory.Failure<ScreenImageMatch>(ScreenReadErrorKind.CaptureTimeout, "No image matching the template was found."))
+                : Task.FromResult(ScreenReadResultFactory.Success<ScreenImageMatch>(ImageMatch));
         }
 
         public void Dispose()
@@ -919,7 +923,7 @@ public sealed class PrimitiveCliServiceTests
                 bounds.Height,
                 "png",
                 "fake-frame",
-                region.HasValue,
+region is not null,
                 copyToClipboard));
         }
     }

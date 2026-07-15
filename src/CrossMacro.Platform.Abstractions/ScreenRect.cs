@@ -1,6 +1,7 @@
 
 namespace CrossMacro.Platform.Abstractions;
 
+[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
 public readonly record struct ScreenRect
 {
     public ScreenRect(int x, int y, int width, int height)

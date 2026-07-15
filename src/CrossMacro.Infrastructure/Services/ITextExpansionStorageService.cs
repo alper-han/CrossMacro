@@ -3,7 +3,7 @@ namespace CrossMacro.Infrastructure.Services;
 
 public interface ITextExpansionStorageService : ITextExpansionStore
 {
-    List<Core.Models.TextExpansion> Load();
-    List<Core.Models.TextExpansion> GetCurrent();
-    string FilePath { get; }
+    public IList<Core.Models.TextExpansionEntry> Load();
+    public IList<Core.Models.TextExpansionEntry> GetCurrent();
+    public string FilePath { get; }
 }

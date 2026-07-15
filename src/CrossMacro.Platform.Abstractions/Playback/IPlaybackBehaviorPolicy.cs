@@ -2,5 +2,5 @@ namespace CrossMacro.Platform.Abstractions;
 
 public interface IPlaybackBehaviorPolicy
 {
-    bool UseHybridAbsoluteDragMovement { get; }
+    public bool UseHybridAbsoluteDragMovement { get; }
 }

@@ -11,7 +11,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1000, pid: 2000, cts.Token);
@@ -42,7 +42,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1010, pid: 2020, cts.Token);
@@ -69,7 +69,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1011, pid: 2021, cts.Token);
@@ -96,7 +96,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1012, pid: 2022, cts.Token);
@@ -129,7 +129,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
@@ -199,7 +199,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
@@ -241,7 +241,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
@@ -276,7 +276,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
@@ -313,7 +313,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
@@ -353,7 +353,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1013, pid: 2023, cts.Token);
@@ -399,7 +399,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1019, pid: 2029, cts.Token);
@@ -433,7 +433,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1020, pid: 2030, cts.Token);
@@ -467,7 +467,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1021, pid: 2031, cts.Token);
@@ -495,7 +495,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1022, pid: 2032, cts.Token);
@@ -523,7 +523,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1023, pid: 2033, cts.Token);
@@ -560,7 +560,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1002, pid: 9876, cts.Token);
@@ -617,7 +617,7 @@ public sealed class SessionHandlerTests
         });
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1004, pid: 6543, cts.Token);
@@ -663,7 +663,7 @@ public sealed class SessionHandlerTests
         captureManager.ConfigureStartFailure("No matching input devices found.");
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1006, pid: 1111, cts.Token);
@@ -702,7 +702,7 @@ public sealed class SessionHandlerTests
         captureManager.ConfigureStartException(new InvalidOperationException("boom from capture manager"));
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1008, pid: 3333, cts.Token);
@@ -744,7 +744,7 @@ public sealed class SessionHandlerTests
             new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event { type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, code = 12, value = 1 });
         var handler = new SessionHandler(security, virtualDevice, captureManager, maxBufferedCaptureEvents: 2);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1007, pid: 2222, cts.Token);
@@ -793,7 +793,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1005, pid: 7654, cts.Token);
@@ -865,7 +865,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1014, pid: 2024, cts.Token);
@@ -938,7 +938,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1015, pid: 2025, cts.Token);
@@ -988,7 +988,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1016, pid: 2026, cts.Token);
@@ -1040,7 +1040,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1017, pid: 2027, cts.Token);
@@ -1089,7 +1089,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1018, pid: 2028, cts.Token);
@@ -1138,7 +1138,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = await UnixSocketPair.CreateAsync();
+        await using var socketPair = (await UnixSocketPair.CreateAsync());
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1003, pid: 5432, cts.Token);

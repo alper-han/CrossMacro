@@ -1,4 +1,4 @@
 
 namespace CrossMacro.UI.ViewModels;
 
-public sealed record IntervalUnitOption(IntervalUnit Value, string DisplayName);
+public sealed record class IntervalUnitOption(IntervalUnit Value, string DisplayName);

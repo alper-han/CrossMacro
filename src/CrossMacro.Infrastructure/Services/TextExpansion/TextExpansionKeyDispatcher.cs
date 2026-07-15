@@ -3,7 +3,7 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion;
 
 internal sealed class TextExpansionKeyDispatcher
 {
-    public async Task SendKeyAsync(
+    public static async Task SendKeyAsync(
         IInputSimulator simulator,
         int keyCode,
         bool shift = false,
@@ -34,7 +34,7 @@ internal sealed class TextExpansionKeyDispatcher
         }
 
         SendKeyState(simulator, keyCode, pressed: true);
-        await Task.Delay(TextExpansionExecutionTimings.KeyPressReleaseDelay);
+        await Task.Delay(TextExpansionExecutionTimings.KeyPressReleaseDelay).ConfigureAwait(false);
         SendKeyState(simulator, keyCode, pressed: false);
 
         if (altGr)

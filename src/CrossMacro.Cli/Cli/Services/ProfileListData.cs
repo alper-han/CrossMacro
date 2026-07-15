@@ -1,4 +1,4 @@
 
 namespace CrossMacro.Cli.Services;
 
-public sealed record ProfileListData(IReadOnlyList<ProfileData> Profiles, string ActiveProfileId);
+public sealed record class ProfileListData(IReadOnlyList<ProfileData> Profiles, string ActiveProfileId);

@@ -48,7 +48,7 @@ public class EditorActionTests
             X = 40,
             Y = 55,
             IsAbsolute = false,
-            Button = MouseButton.Right,
+            Button = MacroMouseButton.Right,
             KeyCode = 30,
             KeyName = "A",
             DelayMs = 25,
@@ -212,7 +212,7 @@ public class EditorActionTests
             ScreenTimeoutMs = EditorActionScreenReadingPayload.DefaultTimeoutMs,
             ImageSearchSimilarity = EditorActionScreenReadingPayload.DefaultImageSearchSimilarity,
             ImageSearchDownsample = EditorActionScreenReadingPayload.DefaultImageSearchDownsample,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
         };
 
         action.IsValid().Should().BeTrue();
@@ -230,7 +230,7 @@ public class EditorActionTests
             ScreenFoundVariableName = "found",
             ScreenFoundXVariableName = "found_x",
             ScreenFoundYVariableName = "found_y",
-            Button = MouseButton.Side1,
+            Button = MacroMouseButton.Side1,
         };
 
         action.IsValid().Should().BeFalse();
@@ -247,7 +247,7 @@ public class EditorActionTests
         defaults.ScreenHeight.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenHeight);
         defaults.ImageSearchSimilarity.Should().Be(1.0);
         defaults.ImageSearchDownsample.Should().Be(1);
-        defaults.Button.Should().Be(MouseButton.Left);
+        defaults.Button.Should().Be(MacroMouseButton.Left);
 
         var action = new EditorAction
         {
@@ -259,7 +259,7 @@ public class EditorActionTests
         };
 
         action.TryGetScreenReadingPayload(out var payload).Should().BeTrue();
-        payload.GetOutputVariableNames().Should().Equal("found", "found_x", "found_y");
+        payload.OutputVariableNames.Should().Equal("found", "found_x", "found_y");
         payload.GetOutputVariableRole("found").Should().Be(EditorActionScreenReadingVariableRole.Boolean);
         payload.GetOutputVariableRole("found_x").Should().Be(EditorActionScreenReadingVariableRole.Number);
         payload.GetOutputVariableRole("found_y").Should().Be(EditorActionScreenReadingVariableRole.Number);
@@ -400,5 +400,23 @@ public class EditorActionTests
         };
 
         action.IsValid().Should().BeTrue();
+    }
+
+    [Fact]
+    public void ImageSearchMutations_ClearLegacyScriptPreference()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ImageSearch,
+            Text = "legacy image search",
+        };
+
+        action.SetImageSearchScaleAware(true);
+        action.SetImageSearchMatchMode(EditorImageMatchMode.BestMatch);
+
+        action.ImageSearchScaleAware.Should().BeTrue();
+        action.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.BestMatch);
+        action.ImageSearchMatchModeWasExplicit.Should().BeTrue();
+        action.PreferLegacyScriptText.Should().BeFalse();
     }
 }

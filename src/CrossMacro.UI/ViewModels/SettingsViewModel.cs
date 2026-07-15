@@ -44,7 +44,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
     private bool _startMinimized;
     private string _selectedLogLevel;
     private string _selectedLanguage;
-    private IReadOnlyList<LanguageOption> _availableLanguages;
+    private readonly IReadOnlyList<LanguageOption> _availableLanguages;
     private IReadOnlyList<ProfileInfo> _availableProfiles = [];
     private ProfileInfo? _selectedProfile;
     private bool _isProfileOperationInProgress;
@@ -320,7 +320,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
                         }
                         else
                         {
-                            _textExpansionService.Stop();
+                            _textExpansionService.StopExpansion();
                         }
                     },
                     nameof(EnableTextExpansion));
@@ -469,7 +469,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         return _localizationService[language.ResourceKey];
     }
 
-    internal sealed record SupportedLanguageDescriptor
+    internal sealed record class SupportedLanguageDescriptor
     {
         public SupportedLanguageDescriptor(
             string code,
@@ -552,11 +552,11 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         await RunProfileOperationAsync(async () =>
         {
             var createdProfile = _manageProfile is not null
-                ? (await _manageProfile.CreateAsync(new ProfileRequest(DisplayName: profileName))).Profile!
-                : await _profileManager!.CreateProfileAsync(profileName);
+                ? (await _manageProfile.CreateAsync(new ProfileRequest(DisplayName: profileName)).ConfigureAwait(false)).Profile!
+                : await _profileManager!.CreateProfileAsync(profileName).ConfigureAwait(false);
             RefreshProfileState(createdProfile.Id);
             NewProfileName = string.Empty;
-        }, _localizationService["Settings_ProfileCreateFailed"]);
+        }, _localizationService["Settings_ProfileCreateFailed"]).ConfigureAwait(false);
     }
 
     public Task CreateProfile() => CreateProfileAsync();
@@ -574,15 +574,15 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         {
             if (_manageProfile is not null)
             {
-                await _manageProfile.RenameAsync(new ProfileRequest(selectedProfile.Id, profileName));
+                await _manageProfile.RenameAsync(new ProfileRequest(selectedProfile.Id, profileName)).ConfigureAwait(false);
             }
             else
             {
-                await _profileManager!.RenameProfileAsync(selectedProfile.Id, profileName);
+                await _profileManager!.RenameProfileAsync(selectedProfile.Id, profileName).ConfigureAwait(false);
             }
             RefreshProfileState(selectedProfile.Id);
             NewProfileName = string.Empty;
-        }, _localizationService["Settings_ProfileRenameFailed"]);
+        }, _localizationService["Settings_ProfileRenameFailed"]).ConfigureAwait(false);
     }
 
     public Task RenameSelectedProfile() => RenameSelectedProfileAsync();
@@ -607,7 +607,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
                 string.Format(
                     _localizationService.CurrentCulture,
                     _localizationService["Settings_ProfileDeleteMessage"],
-                    selectedProfile.Name));
+                    selectedProfile.Name)).ConfigureAwait(false);
 
             if (!confirmed)
             {
@@ -619,14 +619,14 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         {
             if (_manageProfile is not null)
             {
-                await _manageProfile.DeleteAsync(new ProfileRequest(Identifier: selectedProfile.Id));
+                await _manageProfile.DeleteAsync(new ProfileRequest(Identifier: selectedProfile.Id)).ConfigureAwait(false);
             }
             else
             {
-                await _profileManager!.DeleteProfileAsync(selectedProfile.Id);
+                await _profileManager!.DeleteProfileAsync(selectedProfile.Id).ConfigureAwait(false);
             }
             RefreshProfileState();
-        }, _localizationService["Settings_ProfileDeleteFailed"]);
+        }, _localizationService["Settings_ProfileDeleteFailed"]).ConfigureAwait(false);
     }
 
     public Task DeleteSelectedProfile() => DeleteSelectedProfileAsync();
@@ -644,15 +644,15 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         {
             if (_manageProfile is not null)
             {
-                await _manageProfile.SwitchAsync(new ProfileRequest(Identifier: selectedProfile.Id));
+                await _manageProfile.SwitchAsync(new ProfileRequest(Identifier: selectedProfile.Id)).ConfigureAwait(false);
             }
             else
             {
-                await _profileManager!.SwitchProfileAsync(selectedProfile.Id);
+                await _profileManager!.SwitchProfileAsync(selectedProfile.Id).ConfigureAwait(false);
             }
             RefreshProfileState(selectedProfile.Id);
             RefreshProfileSpecificSettings();
-        }, _localizationService["Settings_ProfileSwitchFailed"]);
+        }, _localizationService["Settings_ProfileSwitchFailed"]).ConfigureAwait(false);
     }
 
     public Task SwitchProfile() => SwitchProfileAsync();
@@ -714,7 +714,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         try
         {
             IsProfileOperationInProgress = true;
-            await operation();
+            await operation().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -730,8 +730,9 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void OnProfileChanged(object? sender, ProfileInfo profile)
+    private void OnProfileChanged(object? sender, ProfileChangedEventArgs e)
     {
+        var profile = e.Profile;
         Interlocked.Increment(ref _settingsChangeVersion);
         RefreshProfileState(profile.Id);
         RefreshProfileSpecificSettings();
@@ -777,7 +778,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Hotkey update error");
+            Log.LogError(ex, "Hotkey update error");
         }
     }
 
@@ -798,7 +799,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
                 return;
             }
 
-            Log.Error(ex, "Hotkey service start error");
+            Log.LogError(ex, "Hotkey service start error");
         }
     }
     /// <summary>
@@ -812,7 +813,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to open GitHub URL");
+            Log.LogError(ex, "Failed to open GitHub URL");
         }
     }
 
@@ -832,7 +833,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            await _settingsService.SaveAsync();
+            await _settingsService.SaveAsync().ConfigureAwait(false);
             onSuccess?.Invoke();
         }
         catch (Exception ex)
@@ -846,7 +847,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
                 }
             }
 
-            Log.Error(ex, "Failed to persist settings change");
+            Log.LogError(ex, "Failed to persist settings change");
         }
     }
 }

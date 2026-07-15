@@ -16,7 +16,7 @@ public class PositionSyncServiceTests : IDisposable
 
     public void Dispose()
     {
-        _service.Stop();
+        _service.StopPositionSync();
         _cts.Dispose();
     }
 
@@ -71,7 +71,7 @@ public class PositionSyncServiceTests : IDisposable
         await _service.StartAsync((_, _, _) => { }, () => (0, 0), _cts.Token);
         await queryStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
-        await Task.Run(_service.Stop).WaitAsync(TimeSpan.FromSeconds(2));
+        await Task.Run(_service.StopPositionSync).WaitAsync(TimeSpan.FromSeconds(2));
 
         _service.IsRunning.Should().BeFalse();
     }

@@ -12,7 +12,7 @@ public sealed class SettingsGetCommandHandler : CliCommandHandlerBase<SettingsGe
 
     protected override async Task<CliCommandExecutionResult> ExecuteAsync(SettingsGetCliOptions options, CancellationToken cancellationToken)
     {
-        var result = await _settingsCliService.GetAsync(options.Key, cancellationToken);
+        var result = await _settingsCliService.GetAsync(options.Key, cancellationToken).ConfigureAwait(false);
 
         if (result.Success && !options.JsonOutput && (options.Key is null || options.All) && result.Data is Dictionary<string, object?> allSettings)
         {
@@ -23,7 +23,7 @@ public sealed class SettingsGetCommandHandler : CliCommandHandlerBase<SettingsGe
 
             var message = lines.Length is 0
                 ? "No settings available."
-                : string.Join("\n", lines);
+                : string.Join('\n', lines);
 
             return CliCommandExecutionResult.Ok(message, result.Data);
         }

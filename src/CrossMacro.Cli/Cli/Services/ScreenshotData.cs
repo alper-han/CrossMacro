@@ -1,6 +1,6 @@
 namespace CrossMacro.Cli.Services;
 
-public sealed record ScreenshotData(
+public sealed record class ScreenshotData(
     string? OutputPath,
     int Width,
     int Height,

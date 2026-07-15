@@ -1,6 +1,6 @@
 namespace CrossMacro.Cli;
 
-public sealed record PlayCliOptions(
+public sealed record class PlayCliOptions(
     string MacroFilePath,
     double SpeedMultiplier = 1.0,
     bool Loop = false,

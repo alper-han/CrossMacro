@@ -5,17 +5,17 @@ public class MacroScheduledTaskExecutorTests
 {
     private readonly IMacroFileManager _fileManager;
     private readonly IMacroPlayer _player;
-    private readonly ITimeProvider _timeProvider;
+    private readonly TimeProvider _timeProvider;
     private readonly MacroScheduledTaskExecutor _executor;
 
     public MacroScheduledTaskExecutorTests()
     {
         _fileManager = Substitute.For<IMacroFileManager>();
         _player = Substitute.For<IMacroPlayer>();
-        _timeProvider = Substitute.For<ITimeProvider>();
+        _timeProvider = Substitute.For<TimeProvider>();
 
         // Mock time
-        _timeProvider.UtcNow.Returns(new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc));
+        _timeProvider.GetUtcNow().Returns(new DateTimeOffset(2024, 1, 1, 12, 0, 0, TimeSpan.Zero));
 
         _executor = new MacroScheduledTaskExecutor(
             _fileManager,
@@ -39,7 +39,7 @@ public class MacroScheduledTaskExecutorTests
 
         // Assert
         task.LastStatus.Should().Be("Macro file not found");
-        task.LastRunTime.Should().Be(_timeProvider.UtcNow);
+        task.LastRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
     }
 
     [Fact]
@@ -70,7 +70,10 @@ public class MacroScheduledTaskExecutorTests
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -99,16 +102,19 @@ public class MacroScheduledTaskExecutorTests
             // Assert
             await _player.Received(1).PlayAsync(macro, Arg.Any<PlaybackOptions>());
             task.LastStatus.Should().Be("Success");
-            task.LastRunTime.Should().Be(_timeProvider.UtcNow);
+            task.LastRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
 
             // Should verify next run time calculation
             // The NextRunTime logic depends on current time + interval. 
             // Since we mocked UtcNow, it should be predictable.
-            task.NextRunTime.Should().Be(_timeProvider.UtcNow.AddSeconds(10));
+            task.NextRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime.AddSeconds(10));
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -139,7 +145,10 @@ public class MacroScheduledTaskExecutorTests
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -173,7 +182,10 @@ public class MacroScheduledTaskExecutorTests
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -204,7 +216,10 @@ public class MacroScheduledTaskExecutorTests
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -228,11 +243,14 @@ public class MacroScheduledTaskExecutorTests
             await _executor.ExecuteAsync(task);
 
             task.LastStatus.Should().Be("Failed to load macro");
-            task.NextRunTime.Should().Be(_timeProvider.UtcNow.AddSeconds(15));
+            task.NextRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime.AddSeconds(15));
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -260,11 +278,14 @@ public class MacroScheduledTaskExecutorTests
             await _executor.ExecuteAsync(task);
 
             task.LastStatus.Should().Contain("Unexpected crash");
-            task.NextRunTime.Should().Be(_timeProvider.UtcNow.AddSeconds(30));
+            task.NextRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime.AddSeconds(30));
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -274,7 +295,7 @@ public class MacroScheduledTaskExecutorTests
         var tempFile = Path.GetTempFileName();
         try
         {
-            var nextLocalTime = _timeProvider.UtcNow.ToLocalTime().TimeOfDay.Add(TimeSpan.FromMinutes(30));
+            var nextLocalTime = _timeProvider.GetUtcNow().ToLocalTime().TimeOfDay.Add(TimeSpan.FromMinutes(30));
             var task = new ScheduledTask
             {
                 MacroFilePath = tempFile,
@@ -292,12 +313,15 @@ public class MacroScheduledTaskExecutorTests
             await _player.Received(1).PlayAsync(macro, Arg.Any<PlaybackOptions>());
             task.LastStatus.Should().Be("Success");
             task.NextRunTime.Should().NotBeNull();
-            task.NextRunTime!.Value.Should().BeAfter(_timeProvider.UtcNow);
+            task.NextRunTime!.Value.Should().BeAfter(_timeProvider.GetUtcNow().UtcDateTime);
             task.IsEnabled.Should().BeTrue();
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -334,11 +358,14 @@ public class MacroScheduledTaskExecutorTests
             await executionTask;
 
             task.LastStatus.Should().Be("Cancelled");
-            task.NextRunTime.Should().Be(_timeProvider.UtcNow.AddSeconds(20));
+            task.NextRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime.AddSeconds(20));
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 }

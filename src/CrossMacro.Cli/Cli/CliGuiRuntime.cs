@@ -25,7 +25,7 @@ public static class CliGuiRuntime
         try
         {
             var commandRouter = new CliCommandRouter();
-            var parseResult = commandRouter.Parse(args);
+            var parseResult = CliCommandRouter.Parse(args);
             bootstrapCallbacks.ConfigureInitialLogging(parseResult);
 
             switch (parseResult.Kind)
@@ -33,7 +33,7 @@ public static class CliGuiRuntime
                 case CliParseResult.ParseResultKind.Gui:
                     return RunGuiMode(tryAcquireSingleInstanceGuard, startGui);
                 case CliParseResult.ParseResultKind.Help:
-                    Console.WriteLine(commandRouter.GetUsage(parseResult.HelpTopic));
+                    Console.WriteLine(CliCommandRouter.GetUsage(parseResult.HelpTopic));
                     return (int)CliExitCode.Success;
                 case CliParseResult.ParseResultKind.Version:
                     Console.WriteLine(getVersionString());
@@ -121,7 +121,7 @@ public static class CliGuiRuntime
 
             if (parseResult.ShowTopLevelUsageInTextMode)
             {
-                Console.Error.WriteLine(commandRouter.GetUsage());
+                Console.Error.WriteLine(CliCommandRouter.GetUsage());
             }
             else if (parseResult.ErrorDetails.Count > 0)
             {
@@ -132,7 +132,7 @@ public static class CliGuiRuntime
             }
             else
             {
-                Console.Error.WriteLine(commandRouter.GetUsage());
+                Console.Error.WriteLine(CliCommandRouter.GetUsage());
             }
         }
 

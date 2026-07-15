@@ -100,7 +100,6 @@ public sealed class LinuxScreenFrameProviderFactory
     public IScreenFrameProvider Create()
     {
         var capabilitySnapshot = _snapshotProvider?.GetSnapshot();
-        var compositor = capabilitySnapshot?.Compositor ?? _environmentDetector.DetectedCompositor;
         if ((capabilitySnapshot?.IsWayland) is true || (capabilitySnapshot is null && _environmentDetector.IsWayland))
         {
             return CreateWaylandProvider(capabilitySnapshot);
@@ -164,14 +163,14 @@ public sealed class LinuxScreenFrameProviderFactory
         Func<PortalScreenCastSupportResult, IScreenFrameProvider> portalFactory,
         Func<KWinScreenShotSupportResult, IScreenFrameProvider> kWinFactory,
         Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory) => capability.Backend switch
-    {
-        LinuxScreenReaderBackend.KWinScreenShot2 => kWinFactory(ToKWinSupport(capability)),
-        LinuxScreenReaderBackend.ExtImageCopy => extFactory(ToExtSupport(capability)),
-        LinuxScreenReaderBackend.WlrScreencopy => wlrFactory(ToWlrSupport(capability)),
-        LinuxScreenReaderBackend.Portal => portalFactory(ToPortalSupport(capability)),
-        LinuxScreenReaderBackend.GnomeExtension => gnomeFactory(ToGnomeSupport(capability)),
-        _ => throw new ArgumentOutOfRangeException(nameof(capability), capability.Backend, "Unknown Linux screen reader backend."),
-    };
+        {
+            LinuxScreenReaderBackend.KWinScreenShot2 => kWinFactory(ToKWinSupport(capability)),
+            LinuxScreenReaderBackend.ExtImageCopy => extFactory(ToExtSupport(capability)),
+            LinuxScreenReaderBackend.WlrScreencopy => wlrFactory(ToWlrSupport(capability)),
+            LinuxScreenReaderBackend.Portal => portalFactory(ToPortalSupport(capability)),
+            LinuxScreenReaderBackend.GnomeExtension => gnomeFactory(ToGnomeSupport(capability)),
+            _ => throw new ArgumentOutOfRangeException(nameof(capability), capability.Backend, "Unknown Linux screen reader backend."),
+        };
 
     private static GnomeExtensionSupportResult ToGnomeSupport(LinuxScreenReaderBackendCapability capability) =>
         capability.IsAvailable

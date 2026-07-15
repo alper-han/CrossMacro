@@ -19,13 +19,23 @@ public readonly record struct LinuxInputCapabilitySnapshot(
     private LinuxDaemonHandshakeProbeResult CreateLegacyDaemonHandshake()
     {
         var socketPath = ResolvedSocketPath ?? IpcProtocol.DefaultSocketPath;
-        var status = DaemonHandshakeSucceeded
-            ? LinuxDaemonHandshakeStatus.Success
-            : DaemonHandshakeTimedOut
-                ? LinuxDaemonHandshakeStatus.Timeout
-                : DaemonSocketExists
-                    ? LinuxDaemonHandshakeStatus.UnexpectedError
-                    : LinuxDaemonHandshakeStatus.MissingSocket;
+        LinuxDaemonHandshakeStatus status;
+        if (DaemonHandshakeSucceeded)
+        {
+            status = LinuxDaemonHandshakeStatus.Success;
+        }
+        else if (DaemonHandshakeTimedOut)
+        {
+            status = LinuxDaemonHandshakeStatus.Timeout;
+        }
+        else if (DaemonSocketExists)
+        {
+            status = LinuxDaemonHandshakeStatus.UnexpectedError;
+        }
+        else
+        {
+            status = LinuxDaemonHandshakeStatus.MissingSocket;
+        }
 
         return status is LinuxDaemonHandshakeStatus.Success
             ? LinuxDaemonHandshakeProbeResult.Success(socketPath, TimeSpan.Zero)

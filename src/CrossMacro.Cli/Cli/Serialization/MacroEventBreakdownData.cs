@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Cli.Serialization;
 
-public sealed record MacroEventBreakdownData(
+public sealed record class MacroEventBreakdownData(
     [property: JsonPropertyName("mouseMove")] int MouseMove,
     [property: JsonPropertyName("buttonPress")] int ButtonPress,
     [property: JsonPropertyName("buttonRelease")] int ButtonRelease,

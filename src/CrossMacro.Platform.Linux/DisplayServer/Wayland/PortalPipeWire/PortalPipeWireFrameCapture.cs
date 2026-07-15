@@ -22,7 +22,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
     private readonly IntPtr _formatParameter;
     private readonly IntPtr _bufferParameter;
     private readonly IntPtr _connectParameters;
-    private bool _threadLoopStarted;
+    private readonly bool _threadLoopStarted;
     private bool _disposed;
     private PortalPipeWireFrame? _frame;
     private string? _error;
@@ -122,16 +122,36 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
             _lib.ThreadLoopStop(_threadLoop);
         }
 
-        if (_stream != IntPtr.Zero) _lib.StreamDestroy(_stream);
-        if (_core != IntPtr.Zero) _lib.CoreDisconnect(_core);
-        if (_context != IntPtr.Zero) _lib.ContextDestroy(_context);
-        if (_threadLoop != IntPtr.Zero) _lib.ThreadLoopDestroy(_threadLoop);
+        if (_stream != IntPtr.Zero)
+        {
+            _lib.StreamDestroy(_stream);
+        }
+
+        if (_core != IntPtr.Zero)
+        {
+            _lib.CoreDisconnect(_core);
+        }
+
+        if (_context != IntPtr.Zero)
+        {
+            _lib.ContextDestroy(_context);
+        }
+
+        if (_threadLoop != IntPtr.Zero)
+        {
+            _lib.ThreadLoopDestroy(_threadLoop);
+        }
+
         Free(_listener);
         Free(_events);
         Free(_connectParameters);
         Free(_formatParameter);
         Free(_bufferParameter);
-        if (_selfHandle.IsAllocated) _selfHandle.Free();
+        if (_selfHandle.IsAllocated)
+        {
+            _selfHandle.Free();
+        }
+
         _lib?.Dispose();
     }
 
@@ -150,7 +170,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
                 2);
             if (rc < 0)
             {
-                return PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, $"pw_stream_connect failed rc={rc}.");
+                return PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, $"pw_stream_connect failed rc={rc.ToString(CultureInfo.InvariantCulture)}.");
             }
 
             var deadline = DateTimeOffset.UtcNow + timeout;
@@ -178,12 +198,16 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
     private static IntPtr CreateThreadLoop(PipeWireLibrary lib)
     {
         var loop = lib.ThreadLoopNew("crossmacro-portal-pw", IntPtr.Zero);
-        if (loop == IntPtr.Zero) throw new InvalidOperationException("pw_thread_loop_new failed.");
+        if (loop == IntPtr.Zero)
+        {
+            throw new InvalidOperationException("pw_thread_loop_new failed.");
+        }
+
         var rc = lib.ThreadLoopStart(loop);
         if (rc < 0)
         {
             lib.ThreadLoopDestroy(loop);
-            throw new InvalidOperationException($"pw_thread_loop_start failed rc={rc}.");
+            throw new InvalidOperationException($"pw_thread_loop_start failed rc={rc.ToString(CultureInfo.InvariantCulture)}.");
         }
 
         return loop;
@@ -198,7 +222,11 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
     private static IntPtr ConnectCore(PipeWireLibrary lib, IntPtr context, SafeFileHandle remote)
     {
         var fd = PortalPipeWireLibc.dup((int)remote.DangerousGetHandle());
-        if (fd < 0) throw new InvalidOperationException($"dup(pipewire fd) failed errno={Marshal.GetLastPInvokeError()}.");
+        if (fd < 0)
+        {
+            throw new InvalidOperationException($"dup(pipewire fd) failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
+        }
+
         var core = lib.ContextConnectFd(context, fd, IntPtr.Zero, UIntPtr.Zero);
         if (core != IntPtr.Zero)
         {
@@ -220,15 +248,18 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
 
     private static void Free(IntPtr ptr)
     {
-        if (ptr != IntPtr.Zero) Marshal.FreeHGlobal(ptr);
+        if (ptr != IntPtr.Zero)
+        {
+            Marshal.FreeHGlobal(ptr);
+        }
     }
 
     private string BuildTimeoutMessage() =>
-        $"Timed out waiting for a PipeWire frame. state={GetStateName(_lastState)} lastParamId={_lastParamId} " +
-        $"processCallbacks={_processCallbacks} allocatedBuffers={_allocatedBuffers} nullBuffers={_nullBuffers} missingDataArrays={_missingDataArrays} " +
-        $"missingDataPointers={_missingDataPointers} lastDataCount={_lastDataCount} lastDataType={_lastDataType} " +
-        $"lastDataFlags=0x{_lastDataFlags:X} lastMaxSize={_lastMaxSize} lastChunkOffset={_lastChunkOffset} " +
-        $"lastChunkSize={_lastChunkSize} lastChunkStride={_lastChunkStride}";
+        $"Timed out waiting for a PipeWire frame. state={GetStateName(_lastState)} lastParamId={_lastParamId.ToString(CultureInfo.InvariantCulture)} " +
+        $"processCallbacks={_processCallbacks.ToString(CultureInfo.InvariantCulture)} allocatedBuffers={_allocatedBuffers.ToString(CultureInfo.InvariantCulture)} nullBuffers={_nullBuffers.ToString(CultureInfo.InvariantCulture)} missingDataArrays={_missingDataArrays.ToString(CultureInfo.InvariantCulture)} " +
+        $"missingDataPointers={_missingDataPointers.ToString(CultureInfo.InvariantCulture)} lastDataCount={_lastDataCount.ToString(CultureInfo.InvariantCulture)} lastDataType={_lastDataType.ToString(CultureInfo.InvariantCulture)} " +
+        $"lastDataFlags={_lastDataFlags.ToString("X", CultureInfo.InvariantCulture)} lastMaxSize={_lastMaxSize.ToString(CultureInfo.InvariantCulture)} lastChunkOffset={_lastChunkOffset.ToString(CultureInfo.InvariantCulture)} " +
+        $"lastChunkSize={_lastChunkSize.ToString(CultureInfo.InvariantCulture)} lastChunkStride={_lastChunkStride.ToString(CultureInfo.InvariantCulture)}";
 
     private static string GetStateName(int state) => state switch
     {
@@ -237,6 +268,6 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
         1 => "connecting",
         2 => "paused",
         3 => "streaming",
-        _ => state.ToString(),
+        _ => state.ToString(CultureInfo.InvariantCulture),
     };
 }

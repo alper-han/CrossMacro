@@ -4,7 +4,7 @@ namespace CrossMacro.Core.Models;
 /// <summary>
 /// Represents a single input event in a macro sequence.
 /// </summary>
-public struct MacroEvent
+public struct MacroEvent : IEquatable<MacroEvent>
 {
     /// <summary>
     /// Type of the event
@@ -28,7 +28,7 @@ public struct MacroEvent
     /// <summary>
     /// Mouse button for button press, button release, click, and scroll events.
     /// </summary>
-    public MouseButton Button { get; set; }
+    public MacroMouseButton Button { get; set; }
 
     /// <summary>
     /// Timestamp when the event was recorded (milliseconds since recording start)
@@ -73,4 +73,44 @@ public struct MacroEvent
     /// position at playback time instead of the stored coordinates.
     /// </summary>
     public bool UseCurrentPosition { get; set; }
+
+    public readonly bool Equals(MacroEvent other)
+    {
+        return Type == other.Type
+            && X == other.X
+            && Y == other.Y
+            && Button == other.Button
+            && Timestamp == other.Timestamp
+            && DelayMs == other.DelayMs
+            && HasRandomDelay == other.HasRandomDelay
+            && RandomDelayMinMs == other.RandomDelayMinMs
+            && RandomDelayMaxMs == other.RandomDelayMaxMs
+            && KeyCode == other.KeyCode
+            && CoordinateMode == other.CoordinateMode
+            && UseCurrentPosition == other.UseCurrentPosition;
+    }
+
+    public override readonly bool Equals([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] object? obj) => obj is MacroEvent other && Equals(other);
+
+    public override readonly int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(Type);
+        hash.Add(X);
+        hash.Add(Y);
+        hash.Add(Button);
+        hash.Add(Timestamp);
+        hash.Add(DelayMs);
+        hash.Add(HasRandomDelay);
+        hash.Add(RandomDelayMinMs);
+        hash.Add(RandomDelayMaxMs);
+        hash.Add(KeyCode);
+        hash.Add(CoordinateMode);
+        hash.Add(UseCurrentPosition);
+        return hash.ToHashCode();
+    }
+
+    public static bool operator ==(MacroEvent left, MacroEvent right) => left.Equals(right);
+
+    public static bool operator !=(MacroEvent left, MacroEvent right) => !left.Equals(right);
 }

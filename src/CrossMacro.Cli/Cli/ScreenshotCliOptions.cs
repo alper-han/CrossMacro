@@ -1,6 +1,6 @@
 namespace CrossMacro.Cli;
 
-public sealed record ScreenshotCliOptions(
+public sealed record class ScreenshotCliOptions(
     ScreenshotCliAction Action,
     string? OutputPath = null,
     bool Clipboard = false,

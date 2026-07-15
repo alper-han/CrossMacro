@@ -149,7 +149,7 @@
                         <!-- List -->
                         <ItemsControl Grid.Row="1" ItemsSource="{Binding Expansions}">
                             <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="core:TextExpansion">
+                                <DataTemplate x:DataType="core:TextExpansionEntry">
                                     <Border Background="Transparent"
                                             BorderBrush="{DynamicResource SurfaceHoverBrush}"
                                             BorderThickness="0,0,0,0"

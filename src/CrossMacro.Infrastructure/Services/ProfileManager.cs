@@ -48,7 +48,7 @@ public class ProfileManager : IProfileManager
 
     public IReadOnlyList<ProfileInfo> Profiles { get; private set; } = [];
 
-    public event EventHandler<ProfileInfo>? ProfileChanged;
+    public event EventHandler<ProfileChangedEventArgs>? ProfileChanged;
 
     public ProfileManager() : this(configRootPath: null)
     {
@@ -130,7 +130,7 @@ public class ProfileManager : IProfileManager
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to initialize profile manager");
+            Log.LogError(ex, "Failed to initialize profile manager");
             throw;
         }
         finally
@@ -206,24 +206,24 @@ public class ProfileManager : IProfileManager
             _gate.Release();
         }
 
-        ProfileChanged?.Invoke(this, activeProfile);
+        ProfileChanged?.Invoke(this, new ProfileChangedEventArgs(activeProfile));
     }
 
     private void StopRuntimeServices()
     {
-        try { _textExpansionService?.Stop(); }
+        try { _textExpansionService?.StopExpansion(); }
         catch (Exception ex) { Log.Warning(ex, "Failed to stop text expansion service"); }
 
-        try { _schedulerService?.Stop(); }
+        try { _schedulerService?.StopScheduler(); }
         catch (Exception ex) { Log.Warning(ex, "Failed to stop scheduler service"); }
 
-        try { _triggerService?.Stop(); }
+        try { _triggerService?.StopMonitoring(); }
         catch (Exception ex) { Log.Warning(ex, "Failed to stop trigger service"); }
 
-        try { _shortcutService?.Stop(); }
+        try { _shortcutService?.StopShortcuts(); }
         catch (Exception ex) { Log.Warning(ex, "Failed to stop shortcut service"); }
 
-        try { _hotkeyService?.Stop(); }
+        try { _hotkeyService?.StopHotkeyService(); }
         catch (Exception ex) { Log.Warning(ex, "Failed to stop hotkey service"); }
     }
 
@@ -464,9 +464,9 @@ public class ProfileManager : IProfileManager
         for (var index = 0; index < profileId.Length; index++)
         {
             var character = profileId[index];
-            var valid = character is >= 'a' and <= 'z'
-                or >= 'A' and <= 'Z'
-                or >= '0' and <= '9'
+            var valid = character is (>= 'a' and <= 'z')
+                or (>= 'A' and <= 'Z')
+                or (>= '0' and <= '9')
                 or '-';
             if (!valid || (index is 0 && character == '-') || (index == profileId.Length - 1 && character == '-'))
             {
@@ -591,8 +591,8 @@ public class ProfileManager : IProfileManager
 
         await FileBackedJsonStorage.WriteAsync(
                 Path.Combine(profileDirectory, ConfigFileNames.TextExpansions),
-                new List<global::CrossMacro.Core.Models.TextExpansion>(),
-                CrossMacroJsonContext.Default.ListTextExpansion)
+                new List<global::CrossMacro.Core.Models.TextExpansionEntry>(),
+                CrossMacroJsonContext.Default.ListTextExpansionEntry)
             .ConfigureAwait(false);
     }
 
@@ -672,7 +672,7 @@ public class ProfileManager : IProfileManager
 
         foreach (var character in displayName.ToLowerInvariant())
         {
-            if (character is >= 'a' and <= 'z' or >= '0' and <= '9')
+            if (character is (>= 'a' and <= 'z') or (>= '0' and <= '9'))
             {
                 builder.Append(character);
                 previousWasHyphen = false;
@@ -694,7 +694,7 @@ public class ProfileManager : IProfileManager
         var suffix = 2;
         while (_registry.Profiles.Any(profile => string.Equals(profile.Id, slug, StringComparison.OrdinalIgnoreCase)))
         {
-            slug = $"{baseSlug}-{suffix}";
+            slug = $"{baseSlug}-{suffix.ToString(CultureInfo.InvariantCulture)}";
             suffix++;
         }
 
@@ -721,12 +721,14 @@ public class ProfileManager : IProfileManager
 
     private static ProfileRegistry CreateDefaultRegistry()
     {
-        return new ProfileRegistry
+        var registry = new ProfileRegistry
         {
             Version = 1,
             ActiveProfile = DefaultProfileId,
-            Profiles = [CreateDefaultProfileInfo()],
         };
+
+        registry.ReplaceProfiles([CreateDefaultProfileInfo()]);
+        return registry;
     }
 
     private static ProfileInfo CreateDefaultProfileInfo()

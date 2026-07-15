@@ -370,7 +370,7 @@ internal static class CliParseHelpers
     public static bool LooksLikeOptionToken(string token)
     {
         return !string.IsNullOrWhiteSpace(token)
-            && token.StartsWith("-", StringComparison.Ordinal);
+            && token.StartsWith('-');
     }
 
     public static bool LooksLikeLongOptionToken(string token)

@@ -2,48 +2,48 @@ namespace CrossMacro.Platform.Abstractions;
 
 public interface IGlobalHotkeyService : IDisposable
 {
-    int RecordingHotkeyCode { get; }
-    int PlaybackHotkeyCode { get; }
-    int PauseHotkeyCode { get; }
-    event EventHandler? ToggleRecordingRequested;
+    public int RecordingHotkeyCode { get; }
+    public int PlaybackHotkeyCode { get; }
+    public int PauseHotkeyCode { get; }
+    public event EventHandler? ToggleRecordingRequested;
 
-    event EventHandler? TogglePlaybackRequested;
+    public event EventHandler? TogglePlaybackRequested;
 
-    event EventHandler? TogglePauseRequested;
+    public event EventHandler? TogglePauseRequested;
 
     /// <summary>
     /// Event fired for all key presses, allowing other services to listen
     /// </summary>
-    event EventHandler<RawHotkeyInputEventArgs>? RawInputReceived;
+    public event EventHandler<RawHotkeyInputEventArgs>? RawInputReceived;
 
     /// <summary>
     /// Event fired when a key is released (same hotkey string as when pressed)
     /// </summary>
-    event EventHandler<RawHotkeyInputEventArgs>? RawKeyReleased;
+    public event EventHandler<RawHotkeyInputEventArgs>? RawKeyReleased;
 
 
     /// <summary>
     /// Event fired when a critical error occurs (e.g., daemon connection failure)
     /// </summary>
-    event EventHandler<string>? ErrorOccurred;
+    public event EventHandler<GlobalHotkeyErrorEventArgs>? ErrorOccurred;
 
     /// <summary>
     /// The last critical error message encountered, if any.
     /// </summary>
-    string? LastError { get; }
+    public string? LastError { get; }
 
 
-    bool IsRunning { get; }
+    public bool IsRunning { get; }
 
-    void Start();
+    public void Start();
 
-    void Stop();
+    public void StopHotkeyService();
 
-    void UpdateHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey);
+    public void UpdateHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey);
 
-    void ApplyHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey);
+    public void ApplyHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey);
 
-    Task<string> CaptureNextKeyAsync(CancellationToken cancellationToken = default);
+    public Task<string> CaptureNextKeyAsync(CancellationToken cancellationToken = default);
 
-    void SetPlaybackPauseHotkeysEnabled(bool enabled);
+    public void SetPlaybackPauseHotkeysEnabled(bool enabled);
 }

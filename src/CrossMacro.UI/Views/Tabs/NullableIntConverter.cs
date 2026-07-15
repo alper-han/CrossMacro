@@ -24,7 +24,9 @@ public class NullableIntConverter : IValueConverter
         {
             // Empty string = 0 (explicit clear)
             if (string.IsNullOrWhiteSpace(str))
+            {
                 return 0;
+            }
 
             // Valid number = use it (clamped for key codes if needed)
             if (int.TryParse(str, out int result))

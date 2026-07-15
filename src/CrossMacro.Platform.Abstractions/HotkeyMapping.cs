@@ -13,7 +13,7 @@ public class HotkeyMapping
     /// <summary>
     /// Set of required modifier key codes.
     /// </summary>
-    public HashSet<int> RequiredModifiers { get; set; } = new();
+    public ISet<int> RequiredModifiers { get; } = new HashSet<int>();
 
     /// <summary>
     /// Indicates if this mapping is valid (has a main key).

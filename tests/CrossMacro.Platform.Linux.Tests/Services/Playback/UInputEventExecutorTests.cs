@@ -18,7 +18,7 @@ public class UInputEventExecutorTests
             executor.ReleaseAll();
             executor.Execute(new MacroEvent { Type = EventType.MouseMove, X = 1, Y = 2 }, MouseCoordinateMode.Relative);
             executor.Execute(new MacroEvent { Type = EventType.MouseMove, X = 1, Y = 2 }, MouseCoordinateMode.Absolute);
-            executor.Execute(new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 1, Y = 2 }, coordinateMode: null);
+            executor.Execute(new MacroEvent { Type = EventType.Click, Button = MacroMouseButton.Left, X = 1, Y = 2 }, coordinateMode: null);
         });
 
         Assert.Null(ex);

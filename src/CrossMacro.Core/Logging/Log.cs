@@ -63,14 +63,14 @@ public static class Log
         _logger.Warning(exception, messageTemplate, propertyValues);
     }
 
-    public static void Error(string messageTemplate, params object?[] propertyValues)
+    public static void LogError(string messageTemplate, params object?[] propertyValues)
     {
-        _logger.Error(messageTemplate, propertyValues);
+        _logger.LogError(messageTemplate, propertyValues);
     }
 
-    public static void Error(Exception exception, string messageTemplate, params object?[] propertyValues)
+    public static void LogError(Exception exception, string messageTemplate, params object?[] propertyValues)
     {
-        _logger.Error(exception, messageTemplate, propertyValues);
+        _logger.LogError(exception, messageTemplate, propertyValues);
     }
 
     public static void Fatal(string messageTemplate, params object?[] propertyValues)
@@ -89,45 +89,45 @@ public static class Log
             "[CrossMacro] Core logger is using bootstrap fallback. Call LoggerSetup.Initialize early for structured logging.";
         private int _bootstrapWarningEmitted;
 
-        public bool IsEnabled(CoreLogLevel level)
+        bool ICoreLogger.IsEnabled(CoreLogLevel level)
         {
             return level >= CoreLogLevel.Warning;
         }
 
-        public void Verbose(string messageTemplate, params object?[] propertyValues) =>
+        void ICoreLogger.Verbose(string messageTemplate, params object?[] propertyValues) =>
             Write(CoreLogLevel.Verbose, exception: null, messageTemplate, propertyValues);
 
-        public void Verbose(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+        void ICoreLogger.Verbose(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Write(CoreLogLevel.Verbose, exception, messageTemplate, propertyValues);
 
-        public void Debug(string messageTemplate, params object?[] propertyValues) =>
+        void ICoreLogger.Debug(string messageTemplate, params object?[] propertyValues) =>
             Write(CoreLogLevel.Debug, exception: null, messageTemplate, propertyValues);
 
-        public void Debug(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+        void ICoreLogger.Debug(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Write(CoreLogLevel.Debug, exception, messageTemplate, propertyValues);
 
-        public void Information(string messageTemplate, params object?[] propertyValues) =>
+        void ICoreLogger.Information(string messageTemplate, params object?[] propertyValues) =>
             Write(CoreLogLevel.Information, exception: null, messageTemplate, propertyValues);
 
-        public void Information(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+        void ICoreLogger.Information(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Write(CoreLogLevel.Information, exception, messageTemplate, propertyValues);
 
-        public void Warning(string messageTemplate, params object?[] propertyValues) =>
+        void ICoreLogger.Warning(string messageTemplate, params object?[] propertyValues) =>
             Write(CoreLogLevel.Warning, exception: null, messageTemplate, propertyValues);
 
-        public void Warning(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+        void ICoreLogger.Warning(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Write(CoreLogLevel.Warning, exception, messageTemplate, propertyValues);
 
-        public void Error(string messageTemplate, params object?[] propertyValues) =>
+        void ICoreLogger.LogError(string messageTemplate, params object?[] propertyValues) =>
             Write(CoreLogLevel.Error, exception: null, messageTemplate, propertyValues);
 
-        public void Error(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+        void ICoreLogger.LogError(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Write(CoreLogLevel.Error, exception, messageTemplate, propertyValues);
 
-        public void Fatal(string messageTemplate, params object?[] propertyValues) =>
+        void ICoreLogger.Fatal(string messageTemplate, params object?[] propertyValues) =>
             Write(CoreLogLevel.Fatal, exception: null, messageTemplate, propertyValues);
 
-        public void Fatal(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+        void ICoreLogger.Fatal(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Write(CoreLogLevel.Fatal, exception, messageTemplate, propertyValues);
 
         private void Write(
@@ -183,7 +183,7 @@ public static class Log
                     builder.Append(", ");
                 }
 
-                builder.Append(propertyValues[i]?.ToString() ?? "null");
+                builder.Append(Convert.ToString(propertyValues[i], System.Globalization.CultureInfo.InvariantCulture) ?? "null");
             }
 
             return builder.ToString();
@@ -197,9 +197,11 @@ public static class Log
             }
             catch (IOException)
             {
+                // Console is already closed or unavailable, ignore
             }
             catch (ObjectDisposedException)
             {
+                // Console stream is disposed, ignore
             }
         }
     }

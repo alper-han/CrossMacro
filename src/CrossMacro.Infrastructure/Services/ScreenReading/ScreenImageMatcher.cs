@@ -16,8 +16,10 @@ public sealed class ScreenImageMatcher : IDisposable
     private static readonly double[] SecondaryScales = [0.95, 1.05, 0.85, 1.15, 1.3, 0.7, 1.35, 1.4, 1.45];
     private static readonly double[] SupportedScales = [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1, 1.15, 1.2, 1.25, 1.3, 1.35, 1.4, 1.45, 1.5];
 
-    private readonly object _lifetimeLock = new();
-    private readonly object _templateCacheLock = new();
+    private readonly Lock _lifetimeLock = new();
+    private readonly Lock _templateCacheLock = new();
+    private readonly ManualResetEventSlim _searchesCompleted = new(initialState: false);
+    private readonly ManualResetEventSlim _disposeCompleted = new(initialState: false);
     private readonly Dictionary<TemplateCacheKey, LinkedListNode<TemplateCacheEntry>> _templateCache = new(TemplateCacheKeyComparer.Instance);
     private readonly LinkedList<TemplateCacheEntry> _templateCacheLru = new();
     private readonly long _maxTemplateCacheBytes;
@@ -88,7 +90,7 @@ public sealed class ScreenImageMatcher : IDisposable
             throw new ScreenImageMatcherResourceLimitException(
                 requestedWork,
                 MaxMatcherWork,
-                $"A single image matcher candidate requires more than {MaxMatcherWork:N0} channel comparisons, exceeding the internal limit.");
+                $"A single image matcher candidate requires more than {MaxMatcherWork.ToString("N0", CultureInfo.InvariantCulture)} channel comparisons, exceeding the internal limit.");
         }
 
         var singleCandidateSampleWork = samplePixelCount * ColorChannelCount;
@@ -99,7 +101,7 @@ public sealed class ScreenImageMatcher : IDisposable
             throw new ScreenImageMatcherResourceLimitException(
                 requestedWork,
                 MaxMatcherWork,
-                $"A single image matcher candidate, including its requested prefilter, requires {requestedWork:N0} channel comparisons, exceeding the internal limit of {MaxMatcherWork:N0}.");
+                $"A single image matcher candidate, including its requested prefilter, requires {requestedWork.ToString("N0", CultureInfo.InvariantCulture)} channel comparisons, exceeding the internal limit of {MaxMatcherWork.ToString("N0", CultureInfo.InvariantCulture)}.");
         }
 
         var anchors = BuildAnchorPoints(sampleWidth, sampleHeight, options.DownsampleFactor, options.AnchorPointCount);
@@ -109,7 +111,7 @@ public sealed class ScreenImageMatcher : IDisposable
             throw new ScreenImageMatcherResourceLimitException(
                 singleCandidateWork,
                 MaxMatcherWork,
-                $"A single image matcher candidate, including its prefilter, requires {singleCandidateWork:N0} channel comparisons, exceeding the internal limit of {MaxMatcherWork:N0}.");
+                $"A single image matcher candidate, including its prefilter, requires {singleCandidateWork.ToString("N0", CultureInfo.InvariantCulture)} channel comparisons, exceeding the internal limit of {MaxMatcherWork.ToString("N0", CultureInfo.InvariantCulture)}.");
         }
 
         var framePixels = NormalizePooledFrame(frame, cancellationToken);
@@ -172,6 +174,9 @@ public sealed class ScreenImageMatcher : IDisposable
 
     public void Dispose()
     {
+        bool alreadyRequested;
+        bool hasActiveSearches;
+
         lock (_lifetimeLock)
         {
             if (_disposed)
@@ -179,32 +184,50 @@ public sealed class ScreenImageMatcher : IDisposable
                 return;
             }
 
-            if (_disposeRequested)
+            alreadyRequested = _disposeRequested;
+
+            if (!alreadyRequested)
             {
-                while (!_disposed)
-                {
-                    Monitor.Wait(_lifetimeLock);
-                }
-
-                return;
+                _disposeRequested = true;
+                hasActiveSearches = _activeSearchCount > 0;
             }
-
-            _disposeRequested = true;
-            while (_activeSearchCount > 0)
+            else
             {
-                Monitor.Wait(_lifetimeLock);
+                hasActiveSearches = true; // trigger the wait-on-_disposeCompleted path below
             }
-
-            lock (_templateCacheLock)
-            {
-                _templateCache.Clear();
-                _templateCacheLru.Clear();
-                _templateCacheBytes = 0;
-            }
-
-            _disposed = true;
-            Monitor.PulseAll(_lifetimeLock);
         }
+
+        if (alreadyRequested)
+        {
+            // Another caller is already disposing: wait for it to complete.
+            _disposeCompleted.Wait();
+            return;
+        }
+
+        if (hasActiveSearches)
+        {
+            // Wait for in-flight searches to drain. ExitSearchLease will set
+            // _searchesCompleted when the last lease is released.
+            _searchesCompleted.Wait();
+        }
+
+        lock (_templateCacheLock)
+        {
+            _templateCache.Clear();
+            _templateCacheLru.Clear();
+            _templateCacheBytes = 0;
+        }
+
+        lock (_lifetimeLock)
+        {
+            _disposed = true;
+        }
+
+        // Wake any waiting second Dispose callers and dispose the events.
+        _searchesCompleted.Set();
+        _disposeCompleted.Set();
+        _searchesCompleted.Dispose();
+        _disposeCompleted.Dispose();
     }
 
     private IDisposable EnterSearchLease()
@@ -219,13 +242,16 @@ public sealed class ScreenImageMatcher : IDisposable
 
     private void ExitSearchLease()
     {
+        bool signalDispose;
         lock (_lifetimeLock)
         {
             _activeSearchCount--;
-            if (_disposeRequested && _activeSearchCount == 0)
-            {
-                Monitor.PulseAll(_lifetimeLock);
-            }
+            signalDispose = _disposeRequested && _activeSearchCount == 0;
+        }
+
+        if (signalDispose)
+        {
+            _searchesCompleted.Set();
         }
     }
 
@@ -301,7 +327,7 @@ public sealed class ScreenImageMatcher : IDisposable
         CancellationToken cancellationToken)
     {
         var bestCandidate = MatchCandidate.None;
-        var bestCandidateLock = new object();
+        var bestCandidateLock = new Lock();
         var frameFullyValid = validityFrame.IsFullyValid;
         var parallelOptions = new ParallelOptions { CancellationToken = cancellationToken };
         Parallel.For(startY, endY, parallelOptions, candidateYValue =>
@@ -390,7 +416,7 @@ public sealed class ScreenImageMatcher : IDisposable
         long allowedSadDown = CalculateAllowedSad(maximumSadDown, coarseSimilarity);
 
         var bestCandidate = MatchCandidate.None;
-        var bestCandidateLock = new object();
+        var bestCandidateLock = new Lock();
         var parallelOptions = new ParallelOptions { CancellationToken = cancellationToken };
 
         Parallel.For(0, endYDown, parallelOptions, yDown =>

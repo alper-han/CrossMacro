@@ -9,10 +9,10 @@ public interface IPlaybackPauseToken
     /// <summary>
     /// Whether playback is currently paused
     /// </summary>
-    bool IsPaused { get; }
+    public bool IsPaused { get; }
 
     /// <summary>
     /// Wait for resume if paused
     /// </summary>
-    Task WaitIfPausedAsync(CancellationToken cancellationToken);
+    public Task WaitIfPausedAsync(CancellationToken cancellationToken);
 }

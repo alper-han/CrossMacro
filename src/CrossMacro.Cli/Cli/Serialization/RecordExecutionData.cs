@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Cli.Serialization;
 
-public sealed record RecordExecutionData(
+public sealed record class RecordExecutionData(
     [property: JsonPropertyName("outputPath")] string OutputPath,
     [property: JsonPropertyName("eventCount")] int EventCount,
     [property: JsonPropertyName("totalDurationMs")] long TotalDurationMs,

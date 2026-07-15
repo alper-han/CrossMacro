@@ -4,7 +4,6 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
 {
     private DBusConnection? _dbusConnection;
-    private KdeTrackerService? _trackerService;
     private KdeTrackerServiceMethodHandler? _trackerHandler;
     private bool _initialized;
     private readonly SemaphoreSlim _initLock = new(1, 1);
@@ -21,18 +20,24 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
 
     private async Task EnsureInitializedAsync(CancellationToken ct)
     {
-        if (_initialized) return;
+        if (_initialized)
+        {
+            return;
+        }
 
         await _initLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            if (_initialized) return;
+            if (_initialized)
+            {
+                return;
+            }
 
             _dbusConnection = LinuxDbusTransportBoundary.CreateSessionConnection();
             await _dbusConnection.ConnectAsync().AsTask().WaitAsync(ct).ConfigureAwait(false);
 
-            _trackerService = new KdeTrackerService((_, _) => {}, (_, _) => {}, "/io/github/alper_han/crossmacro/WindowManager");
-            _trackerService.OnWindowDataReceived += (corrId, json) =>
+            var trackerService = new KdeTrackerService((_, _) => { }, (_, _) => { }, "/io/github/alper_han/crossmacro/WindowManager");
+            trackerService.OnWindowDataReceived += (corrId, json) =>
             {
                 if (_pendingRequests.TryRemove(corrId, out var tcs))
                 {
@@ -40,7 +45,7 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
                 }
             };
 
-            _trackerHandler = new KdeTrackerServiceMethodHandler(_trackerService);
+            _trackerHandler = new KdeTrackerServiceMethodHandler(trackerService);
             _dbusConnection.AddMethodHandler(_trackerHandler);
 
             try
@@ -60,10 +65,12 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
         }
     }
 
-    private string GetSafeScriptPath(string fileName)
+    private static string GetSafeScriptPath(string fileName)
     {
         if (!Directory.Exists(ScriptDirectory))
+        {
             Directory.CreateDirectory(ScriptDirectory);
+        }
 
         return Path.Combine(ScriptDirectory, fileName);
     }
@@ -92,12 +99,19 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
         string? scriptId = null;
         try
         {
-            if (_dbusConnection is null) return null;
+            if (_dbusConnection is null)
+            {
+                return null;
+            }
 
             var scriptingProxy = new KWinScriptingClient(_dbusConnection);
             var scriptIdInt = await scriptingProxy.LoadScriptAsync(tempJsFile).WaitAsync(ct).ConfigureAwait(false);
-            if (scriptIdInt < 0) return null;
-            scriptId = scriptIdInt.ToString();
+            if (scriptIdInt < 0)
+            {
+                return null;
+            }
+
+            scriptId = scriptIdInt.ToString(CultureInfo.InvariantCulture);
 
             var scriptProxy = new KWinScriptClient(_dbusConnection, scriptId);
             await scriptProxy.RunAsync().WaitAsync(ct).ConfigureAwait(false);
@@ -121,13 +135,26 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
                     var scriptingProxy = new KWinScriptingClient(_dbusConnection);
                     await scriptingProxy.UnloadScriptAsync(scriptId).ConfigureAwait(false);
                 }
-                catch { }
+                catch
+                {
+                    // Ignore failures while trying to unload script during cleanup
+                }
             }
             if (File.Exists(tempJsFile))
             {
-                try { File.Delete(tempJsFile); } catch { }
+                try
+                {
+                    File.Delete(tempJsFile);
+                }
+                catch
+                {
+                    // Ignore file delete errors in temp clean up
+                }
             }
-            if (expectsCallback) _pendingRequests.TryRemove(correlationId, out _);
+            if (expectsCallback)
+            {
+                _pendingRequests.TryRemove(correlationId, out _);
+            }
         }
     }
 
@@ -162,7 +189,10 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
         })();";
 
         var json = await ExecuteOneShotScriptAsync(script, expectsCallback: true, cancellationToken).ConfigureAwait(false);
-        if (string.IsNullOrEmpty(json) || json is "null") return null;
+        if (string.IsNullOrEmpty(json) || string.Equals(json, "null", StringComparison.Ordinal))
+        {
+            return null;
+        }
 
         try
         {
@@ -198,12 +228,19 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
         })();";
 
         var json = await ExecuteOneShotScriptAsync(script, expectsCallback: true, cancellationToken).ConfigureAwait(false);
-        Log.Information("JSON: {Json}", json); if (string.IsNullOrEmpty(json)) return [];
+        Log.Information("JSON: {Json}", json); if (string.IsNullOrEmpty(json))
+        {
+            return [];
+        }
 
         try
         {
             var list = JsonSerializer.Deserialize(json, KdeJsonContext.Default.WindowInfoArray);
-            if (list is null) return [];
+            if (list is null)
+            {
+                return [];
+            }
+
             return list.Select(w => w with { ProcessName = Helpers.ProcessHelper.GetProcessName(w.Pid) }).ToArray();
         }
         catch { return []; }
@@ -241,13 +278,13 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
 
     public Task<bool> MoveActiveWindowAsync(int x, int y, CancellationToken cancellationToken = default)
     {
-        string script = "(function() { var w = workspace.activeWindow || workspace.activeClient; if (w) { var g = w.frameGeometry; w.frameGeometry = { x: " + x + ", y: " + y + ", width: g.width, height: g.height }; } })();";
+        string script = "(function() { var w = workspace.activeWindow || workspace.activeClient; if (w) { var g = w.frameGeometry; w.frameGeometry = { x: " + x.ToString(CultureInfo.InvariantCulture) + ", y: " + y.ToString(CultureInfo.InvariantCulture) + ", width: g.width, height: g.height }; } })();";
         return ExecuteMutationAsync(script, cancellationToken);
     }
 
     public Task<bool> ResizeActiveWindowAsync(int width, int height, CancellationToken cancellationToken = default)
     {
-        string script = "(function() { var w = workspace.activeWindow || workspace.activeClient; if (w) { var g = w.frameGeometry; w.frameGeometry = { x: g.x, y: g.y, width: " + width + ", height: " + height + " }; } })();";
+        string script = "(function() { var w = workspace.activeWindow || workspace.activeClient; if (w) { var g = w.frameGeometry; w.frameGeometry = { x: g.x, y: g.y, width: " + width.ToString(CultureInfo.InvariantCulture) + ", height: " + height.ToString(CultureInfo.InvariantCulture) + " }; } })();";
         return ExecuteMutationAsync(script, cancellationToken);
     }
 
@@ -282,7 +319,11 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
             sendCallback({ name: (d && d.name) ? d.name : '' });
         })();";
         var json = await ExecuteOneShotScriptAsync(script, expectsCallback: true, cancellationToken).ConfigureAwait(false);
-        if (string.IsNullOrEmpty(json) || json is "null") return null;
+        if (string.IsNullOrEmpty(json) || string.Equals(json, "null", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
         try
         {
             var doc = JsonDocument.Parse(json);
@@ -312,7 +353,7 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
     private async Task<bool> ExecuteMutationAsync(string script, CancellationToken ct)
     {
         var result = await ExecuteOneShotScriptAsync(script, expectsCallback: false, ct).ConfigureAwait(false);
-        return result is "ok";
+        return string.Equals(result, "ok", StringComparison.Ordinal);
     }
 
     public async ValueTask DisposeAsync()

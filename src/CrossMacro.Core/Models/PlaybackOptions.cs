@@ -12,19 +12,10 @@ public class PlaybackOptions
     public const int MinDelayMs = 0;
     public const int DefaultDelayMs = 0;
 
-    private double _speedMultiplier = DefaultSpeedMultiplier;
-    private int _repeatDelayMs = DefaultDelayMs;
-    private int _repeatDelayMinMs = DefaultDelayMs;
-    private int _repeatDelayMaxMs = DefaultDelayMs;
-
     /// <summary>
     /// Speed multiplier (1.0 = normal speed, 2.0 = double speed, 0.5 = half speed)
     /// </summary>
-    public double SpeedMultiplier
-    {
-        get => _speedMultiplier;
-        set => _speedMultiplier = NormalizeSpeedMultiplier(value);
-    }
+    public double SpeedMultiplier { get; set; } = DefaultSpeedMultiplier;
 
     /// <summary>
     /// Whether to loop the macro continuously
@@ -40,11 +31,7 @@ public class PlaybackOptions
     /// Fixed delay between repetitions in milliseconds.
     /// Ignored when <see cref="UseRandomRepeatDelay"/> is enabled.
     /// </summary>
-    public int RepeatDelayMs
-    {
-        get => _repeatDelayMs;
-        set => _repeatDelayMs = NormalizeDelayMs(value);
-    }
+    public int RepeatDelayMs { get; set; } = DefaultDelayMs;
 
     /// <summary>
     /// Whether to choose a new random delay between repetitions.
@@ -54,31 +41,18 @@ public class PlaybackOptions
     /// <summary>
     /// Minimum random delay between repetitions in milliseconds.
     /// </summary>
-    public int RepeatDelayMinMs
-    {
-        get => _repeatDelayMinMs;
-        set
-        {
-            var normalized = NormalizeDelayMs(value);
-            _repeatDelayMinMs = normalized;
-            if (_repeatDelayMaxMs < normalized)
-            {
-                _repeatDelayMaxMs = normalized;
-            }
-        }
-    }
+    public int RepeatDelayMinMs { get; set; } = DefaultDelayMs;
 
     /// <summary>
     /// Maximum random delay between repetitions in milliseconds.
     /// </summary>
-    public int RepeatDelayMaxMs
+    public int RepeatDelayMaxMs { get; set; } = DefaultDelayMs;
+
+    public void Normalize()
     {
-        get => _repeatDelayMaxMs;
-        set
-        {
-            var normalized = NormalizeDelayMs(value);
-            _repeatDelayMaxMs = Math.Max(normalized, _repeatDelayMinMs);
-        }
+        SpeedMultiplier = NormalizeSpeedMultiplier(SpeedMultiplier);
+        RepeatDelayMs = NormalizeDelayMs(RepeatDelayMs);
+        (RepeatDelayMinMs, RepeatDelayMaxMs) = NormalizeDelayRange(RepeatDelayMinMs, RepeatDelayMaxMs);
     }
 
     public static double NormalizeSpeedMultiplier(double value)

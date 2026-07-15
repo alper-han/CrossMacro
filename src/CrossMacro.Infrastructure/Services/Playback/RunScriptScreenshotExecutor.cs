@@ -14,12 +14,12 @@ internal sealed class RunScriptScreenshotExecutor
     {
         if (_screenshotCaptureService is null)
         {
-            throw new InvalidOperationException($"Step {stepNumber}: Screenshot script steps require an IScreenshotCaptureService runtime service.");
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Screenshot script steps require an IScreenshotCaptureService runtime service.");
         }
 
         try
         {
-            var resolvedStep = RunScriptRuntimeText.ResolveVariables(step, variables, $"Step {stepNumber}: ");
+            var resolvedStep = RunScriptRuntimeText.ResolveVariables(step, variables, $"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: ");
             if (!RunScriptPlatformSyntax.TryParseScreenshotStep(resolvedStep, out var parsed, out var error))
             {
                 throw new InvalidOperationException(error ?? "Invalid screenshot syntax.");
@@ -42,17 +42,17 @@ internal sealed class RunScriptScreenshotExecutor
         {
             throw;
         }
-        catch (InvalidOperationException ex) when (!ex.Message.StartsWith($"Step {stepNumber}:", StringComparison.Ordinal))
+        catch (InvalidOperationException ex) when (!ex.Message.StartsWith($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}:", StringComparison.Ordinal))
         {
-            throw new InvalidOperationException($"Step {stepNumber}: {ex.Message}", ex);
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {ex.Message}", ex);
         }
         catch (Exception ex)
         {
-            throw new InvalidOperationException($"Step {stepNumber}: Screenshot capture failed.", ex);
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Screenshot capture failed.", ex);
         }
     }
 
-    private static ScreenRect ParseRegion(RunScriptSyntax.ScreenshotStep parsed)
+    private static ScreenRect ParseRegion(ScreenshotStep parsed)
     {
         var x = ParseInteger(parsed.RegionX, "region x");
         var y = ParseInteger(parsed.RegionY, "region y");
@@ -91,7 +91,7 @@ internal sealed class RunScriptScreenshotExecutor
 
     private static string FormatFailure(ScreenshotCaptureResult result)
     {
-        var details = result.Details.Count is 0 ? string.Empty : $" {string.Join(" ", result.Details.Where(detail => !string.IsNullOrWhiteSpace(detail)))}";
+        var details = result.Details.Count is 0 ? string.Empty : $" {string.Join(' ', result.Details.Where(detail => !string.IsNullOrWhiteSpace(detail)))}";
         return string.IsNullOrWhiteSpace(result.Message)
             ? $"Screenshot capture failed.{details}"
             : $"{result.Message}{details}";

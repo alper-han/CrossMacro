@@ -14,8 +14,8 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
 
     private string _triggerInput = string.Empty;
     private string _replacementInput = string.Empty;
-    private ObservableCollection<TextExpansion> _expansions = new();
-    private readonly Dictionary<TextExpansion, bool> _managedEnabledState = new();
+    private ObservableCollection<TextExpansionEntry> _expansions = new();
+    private readonly Dictionary<TextExpansionEntry, bool> _managedEnabledState = new();
 
     public TextExpansionViewModel(
         ITextExpansionStore storageService,
@@ -65,8 +65,8 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
     private async Task LoadExpansionsAsync()
     {
         var loadedExpansions = _manageTextExpansion is not null
-            ? await _manageTextExpansion.ListAsync()
-            : await _storageService.LoadAsync();
+            ? await _manageTextExpansion.ListAsync().ConfigureAwait(false)
+            : (IReadOnlyList<TextExpansionEntry>)await _storageService.LoadAsync().ConfigureAwait(false);
         Expansions.Clear();
         _managedEnabledState.Clear();
         foreach (var expansion in loadedExpansions)
@@ -89,7 +89,7 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
         SelectedInsertionMode = TextInsertionMode.Paste;
         SelectedPasteMethod = PasteMethod.CtrlV;
         SelectedDirectTypingMethod = DirectTypingMethod.FastBatch;
-        await LoadExpansionsAsync();
+        await LoadExpansionsAsync().ConfigureAwait(false);
     }
 
     private PasteMethod _selectedPasteMethod = PasteMethod.CtrlV;
@@ -168,7 +168,7 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public ObservableCollection<TextExpansion> Expansions
+    public ObservableCollection<TextExpansionEntry> Expansions
     {
         get => _expansions;
         set => SetProperty(ref _expansions, value);
@@ -190,7 +190,7 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
     [RelayCommand(CanExecute = nameof(CanAddExpansion))]
     private async Task AddExpansionAsync()
     {
-        var newExpansion = new TextExpansion(
+        var newExpansion = new TextExpansionEntry(
             TriggerInput,
             ReplacementInput,
 isEnabled: true,
@@ -200,14 +200,14 @@ isEnabled: true,
 
         if (_manageTextExpansion is not null)
         {
-            var addedExpansion = await _manageTextExpansion.AddAsync(newExpansion);
+            var addedExpansion = await _manageTextExpansion.AddAsync(newExpansion).ConfigureAwait(false);
             Expansions.Insert(0, addedExpansion);
             _managedEnabledState[addedExpansion] = addedExpansion.IsEnabled;
         }
         else
         {
             Expansions.Insert(0, newExpansion);
-            await _storageService.SaveAsync(Expansions);
+            await _storageService.SaveAsync(Expansions).ConfigureAwait(false);
         }
 
         // Notify HasExpansions property changed
@@ -225,31 +225,37 @@ isEnabled: true,
 
 
     [RelayCommand]
-    private async Task RemoveExpansionAsync(TextExpansion? expansion)
+    private async Task RemoveExpansionAsync(TextExpansionEntry? expansion)
     {
-        if (expansion is null) return;
+        if (expansion is null)
+        {
+            return;
+        }
 
         var confirmed = await _dialogService.ShowConfirmationAsync(
             _localizationService["TextExpansion_DeleteTitle"],
             string.Format(
                 _localizationService.CurrentCulture,
                 _localizationService["TextExpansion_DeleteMessage"],
-                expansion.Trigger));
+                expansion.Trigger)).ConfigureAwait(false);
 
-        if (!confirmed) return;
+        if (!confirmed)
+        {
+            return;
+        }
 
         if (Expansions.Contains(expansion))
         {
             if (_manageTextExpansion is not null)
             {
-                await _manageTextExpansion.RemoveAsync(expansion.Trigger);
+                await _manageTextExpansion.RemoveAsync(expansion.Trigger).ConfigureAwait(false);
                 Expansions.Remove(expansion);
                 _managedEnabledState.Remove(expansion);
             }
             else
             {
                 Expansions.Remove(expansion);
-                await _storageService.SaveAsync(Expansions);
+                await _storageService.SaveAsync(Expansions).ConfigureAwait(false);
             }
 
             // Notify HasExpansions property changed
@@ -259,9 +265,12 @@ isEnabled: true,
     }
 
     [RelayCommand]
-    private async Task ToggleExpansionAsync(TextExpansion? expansion)
+    private async Task ToggleExpansionAsync(TextExpansionEntry? expansion)
     {
-        if (expansion is null) return;
+        if (expansion is null)
+        {
+            return;
+        }
 
         if (_manageTextExpansion is not null)
         {
@@ -271,7 +280,7 @@ isEnabled: true,
                 : requestedEnabled;
             try
             {
-                var updatedExpansion = await _manageTextExpansion.SetEnabledAsync(expansion.Trigger, requestedEnabled);
+                var updatedExpansion = await _manageTextExpansion.SetEnabledAsync(expansion.Trigger, requestedEnabled).ConfigureAwait(false);
                 expansion.IsEnabled = updatedExpansion.IsEnabled;
                 _managedEnabledState[expansion] = updatedExpansion.IsEnabled;
             }
@@ -283,7 +292,7 @@ isEnabled: true,
         }
         else
         {
-            await _storageService.SaveAsync(Expansions);
+            await _storageService.SaveAsync(Expansions).ConfigureAwait(false);
         }
     }
 

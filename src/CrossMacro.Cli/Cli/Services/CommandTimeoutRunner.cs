@@ -12,9 +12,9 @@ internal static class CommandTimeoutRunner
         {
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
-            return await action(timeoutCts.Token);
+            return await action(timeoutCts.Token).ConfigureAwait(false);
         }
 
-        return await action(cancellationToken);
+        return await action(cancellationToken).ConfigureAwait(false);
     }
 }

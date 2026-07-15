@@ -17,7 +17,7 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var loadResult = await RunStepLoader.LoadAsync(request, cancellationToken);
+        var loadResult = await RunStepLoader.LoadAsync(request, cancellationToken).ConfigureAwait(false);
         if (!loadResult.Success)
         {
             return loadResult.ErrorResult!;
@@ -39,7 +39,7 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
             steps.Select(step => new RunScriptInputStep(step.Step, step.FileLineNumber, step.SourceIndex)).ToList(),
             request.SpeedMultiplier,
             request.CountdownSeconds,
-            request.DryRun), cancellationToken);
+            request.DryRun), cancellationToken).ConfigureAwait(false);
 
         if (result.Status is RunExecutionStatus.InvalidArguments)
         {
@@ -114,7 +114,7 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
                 Message = "Run script execution failed.",
                 Errors = [result.ErrorMessage ?? "Unknown runtime error."],
                 Warnings = result.Warnings,
-                Data = data
+                Data = data,
             },
         };
     }

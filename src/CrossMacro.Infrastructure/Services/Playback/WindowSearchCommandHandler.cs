@@ -7,14 +7,30 @@ internal sealed class WindowSearchCommandHandler : IWindowCommandHandler
 
     public string? Validate(string[] parts)
     {
-        if (parts.Length < 4) return "Syntax: window search title|class \"<term>\" $variable";
+        if (parts.Length < 4)
+        {
+            return "Syntax: window search title|class \"<term>\" $variable";
+        }
+
         var field = parts[2].ToLowerInvariant();
-        if (field is not ("title" or "class")) return $"Unknown field '{parts[2]}'. Expected: title, class.";
+        if (field is not ("title" or "class"))
+        {
+            return $"Unknown field '{parts[2]}'. Expected: title, class.";
+        }
+
         var varPart = parts[^1];
         var vn = StripDollar(varPart);
-        if (!IsValidVarName(vn)) return $"Invalid variable name '{varPart}'.";
+        if (!IsValidVarName(vn))
+        {
+            return $"Invalid variable name '{varPart}'.";
+        }
+
         var term = Unquote(string.Join(' ', parts[3..^1]));
-        if (string.IsNullOrWhiteSpace(term)) return "Search term cannot be empty.";
+        if (string.IsNullOrWhiteSpace(term))
+        {
+            return "Search term cannot be empty.";
+        }
+
         return null;
     }
 

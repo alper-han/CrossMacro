@@ -14,17 +14,19 @@ public class JsonScheduledTaskRepository : IScheduledTaskRepository
         _scheduleFilePath = scheduleFilePath;
     }
 
-    public async Task<List<ScheduledTask>> LoadAsync()
+    public async Task<IReadOnlyList<ScheduledTask>> LoadAsync()
     {
         try
         {
             if (!File.Exists(_scheduleFilePath))
-                return new List<ScheduledTask>();
+            {
+                return Array.Empty<ScheduledTask>();
+            }
 
             var tasks = await FileBackedJsonStorage.ReadAsync(_scheduleFilePath, CrossMacroJsonContext.Default.ListScheduledTask)
                 .ConfigureAwait(false);
 
-            return tasks ?? new List<ScheduledTask>();
+            return (IReadOnlyList<ScheduledTask>?)tasks ?? Array.Empty<ScheduledTask>();
         }
         catch (Exception ex)
         {

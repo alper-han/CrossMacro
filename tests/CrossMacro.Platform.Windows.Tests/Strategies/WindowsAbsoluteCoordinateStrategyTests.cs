@@ -13,7 +13,7 @@ public class WindowsAbsoluteCoordinateStrategyTests
 
         // Act
         await strategy.InitializeAsync(CancellationToken.None);
-        var pos = strategy.ProcessPosition(new InputCaptureEventArgs { Type = InputEventType.Key });
+        var pos = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Key });
 
         // Assert
         Assert.Equal((10, 20), pos);
@@ -27,7 +27,7 @@ public class WindowsAbsoluteCoordinateStrategyTests
         var strategy = new WindowsAbsoluteCoordinateStrategy(provider);
 
         // Act
-        var pos = strategy.ProcessPosition(new InputCaptureEventArgs { Type = InputEventType.Sync });
+        var pos = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Sync });
 
         // Assert
         Assert.Equal((0, 0), pos);

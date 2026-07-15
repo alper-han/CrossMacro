@@ -12,11 +12,19 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
 
     private async Task EnsureInitializedAsync(CancellationToken ct)
     {
-        if (_initialized) return;
+        if (_initialized)
+        {
+            return;
+        }
+
         await _initLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            if (_initialized) return;
+            if (_initialized)
+            {
+                return;
+            }
+
             _dbusConnection = LinuxDbusTransportBoundary.CreateSessionConnection();
             await _dbusConnection.ConnectAsync().AsTask().WaitAsync(ct).ConfigureAwait(false);
             _trackerClient = new GnomeTrackerClient(_dbusConnection);
@@ -34,7 +42,11 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
         try
         {
             var json = await _trackerClient!.GetActiveWindowAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
-            if (string.IsNullOrEmpty(json) || json is "null") return null;
+            if (string.IsNullOrEmpty(json) || string.Equals(json, "null", StringComparison.Ordinal))
+            {
+                return null;
+            }
+
             var win = JsonSerializer.Deserialize(json, GnomeJsonContext.Default.WindowInfo);
             return win is not null ? win with { ProcessName = Helpers.ProcessHelper.GetProcessName(win.Pid) } : null;
         }
@@ -47,9 +59,17 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
         try
         {
             var json = await _trackerClient!.GetWindowsAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
-            if (string.IsNullOrEmpty(json)) return [];
+            if (string.IsNullOrEmpty(json))
+            {
+                return [];
+            }
+
             var list = JsonSerializer.Deserialize(json, GnomeJsonContext.Default.WindowInfoArray);
-            if (list is null) return [];
+            if (list is null)
+            {
+                return [];
+            }
+
             return list.Select(w => w with { ProcessName = Helpers.ProcessHelper.GetProcessName(w.Pid) }).ToArray();
         }
         catch { return []; }
@@ -65,7 +85,11 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
     {
         var list = await GetWindowsAsync(cancellationToken).ConfigureAwait(false);
         var match = list.FirstOrDefault(w => w.Title.Contains(titleSubstring, StringComparison.OrdinalIgnoreCase));
-        if (match != null) return await FocusWindowByAddressAsync(match.Address, cancellationToken).ConfigureAwait(false);
+        if (match != null)
+        {
+            return await FocusWindowByAddressAsync(match.Address, cancellationToken).ConfigureAwait(false);
+        }
+
         return false;
     }
 
@@ -73,7 +97,11 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
     {
         var list = await GetWindowsAsync(cancellationToken).ConfigureAwait(false);
         var match = list.FirstOrDefault(w => w.Class.Contains(classSubstring, StringComparison.OrdinalIgnoreCase));
-        if (match != null) return await FocusWindowByAddressAsync(match.Address, cancellationToken).ConfigureAwait(false);
+        if (match != null)
+        {
+            return await FocusWindowByAddressAsync(match.Address, cancellationToken).ConfigureAwait(false);
+        }
+
         return false;
     }
 
@@ -87,7 +115,11 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
     {
         var list = await GetWindowsAsync(cancellationToken).ConfigureAwait(false);
         var match = list.FirstOrDefault(w => w.Title.Contains(titleSubstring, StringComparison.OrdinalIgnoreCase));
-        if (match != null) return await CloseWindowByAddressAsync(match.Address, cancellationToken).ConfigureAwait(false);
+        if (match != null)
+        {
+            return await CloseWindowByAddressAsync(match.Address, cancellationToken).ConfigureAwait(false);
+        }
+
         return false;
     }
 

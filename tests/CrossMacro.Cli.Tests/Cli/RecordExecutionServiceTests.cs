@@ -100,8 +100,8 @@ recordKeyboard: true,
                     Type = EventType.MouseMove,
                     X = 1,
                     Y = 1,
-                    Timestamp = 0
-                }
+                    Timestamp = 0,
+                },
             },
         });
 

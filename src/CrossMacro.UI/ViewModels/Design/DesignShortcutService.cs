@@ -14,7 +14,7 @@ internal sealed class DesignShortcutService : IShortcutService
 
     public event EventHandler<ShortcutExecutedEventArgs>? ShortcutExecuted;
 
-    public event EventHandler<ShortcutTask>? ShortcutStarting;
+    public event EventHandler<ShortcutStartingEventArgs>? ShortcutStarting;
 
     public void AddTask(ShortcutTask task) => Tasks.Add(task);
 
@@ -42,7 +42,7 @@ internal sealed class DesignShortcutService : IShortcutService
 
     public void Start() => IsListening = true;
 
-    public void Stop() => IsListening = false;
+    public void StopShortcuts() => IsListening = false;
 
     public Task SaveAsync() => Task.CompletedTask;
 
@@ -51,7 +51,7 @@ internal sealed class DesignShortcutService : IShortcutService
         var task = Tasks.FirstOrDefault(item => item.Id == taskId);
         if (task is not null)
         {
-            ShortcutStarting?.Invoke(this, task);
+            ShortcutStarting?.Invoke(this, new ShortcutStartingEventArgs(task));
             ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, success: true, message: "Preview macro run completed"));
         }
 

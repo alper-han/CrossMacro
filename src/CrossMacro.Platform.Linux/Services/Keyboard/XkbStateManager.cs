@@ -33,7 +33,7 @@ public class XkbStateManager : IXkbStateManager
                 _xkbContext = XkbNative.xkb_context_new(XkbNative.XKB_CONTEXT_NO_FLAGS);
                 if (_xkbContext == IntPtr.Zero)
                 {
-                    Log.Error("[XkbStateManager] Failed to create xkb context");
+                    Log.LogError("[XkbStateManager] Failed to create xkb context");
                     return;
                 }
 
@@ -41,7 +41,7 @@ public class XkbStateManager : IXkbStateManager
                 _xkbKeymap = XkbNative.xkb_keymap_new_from_names(_xkbContext, ref rules, XkbNative.XKB_KEYMAP_COMPILE_NO_FLAGS);
                 if (_xkbKeymap == IntPtr.Zero)
                 {
-                    Log.Error("[XkbStateManager] Failed to create xkb keymap");
+                    Log.LogError("[XkbStateManager] Failed to create xkb keymap");
                     return;
                 }
 
@@ -50,22 +50,33 @@ public class XkbStateManager : IXkbStateManager
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[XkbStateManager] Error initializing XKB");
+                Log.LogError(ex, "[XkbStateManager] Error initializing XKB");
             }
         }
     }
 
     public string? GetUtf8String(uint keycode)
     {
-        if (_xkbState == IntPtr.Zero) return null;
+        if (_xkbState == IntPtr.Zero)
+        {
+            return null;
+        }
+
         return XkbNative.GetUtf8String(_xkbState, keycode);
     }
 
     public char? GetCharFromKeyCode(int keyCode, bool shift, bool altGr, bool capsLock)
     {
         // Modifiers don't produce characters
-        if (IsModifier(keyCode)) return null;
-        if (keyCode is 57) return ' '; // Space
+        if (IsModifier(keyCode))
+        {
+            return null;
+        }
+
+        if (keyCode is 57)
+        {
+            return ' '; // Space
+        }
 
         if (_xkbState != IntPtr.Zero)
         {
@@ -75,19 +86,29 @@ public class XkbStateManager : IXkbStateManager
 
                 uint depressedMods = 0;
                 if (shift && _modIndexShift != XkbNative.XKB_MOD_INVALID)
-                    depressedMods |= (1u << (int)_modIndexShift);
+                {
+                    depressedMods |= 1u << (int)_modIndexShift;
+                }
+
                 if (altGr && _modIndexAltGr != XkbNative.XKB_MOD_INVALID)
-                    depressedMods |= (1u << (int)_modIndexAltGr);
+                {
+                    depressedMods |= 1u << (int)_modIndexAltGr;
+                }
 
                 uint lockedMods = 0;
                 if (capsLock && _modIndexLock != XkbNative.XKB_MOD_INVALID)
-                    lockedMods |= (1u << (int)_modIndexLock);
+                {
+                    lockedMods |= 1u << (int)_modIndexLock;
+                }
 
                 XkbNative.xkb_state_update_mask(_xkbState, depressedMods, 0, lockedMods, 0, 0, 0);
                 var utf8 = XkbNative.GetUtf8String(_xkbState, (uint)(keyCode + 8));
                 XkbNative.xkb_state_update_mask(_xkbState, 0, 0, 0, 0, 0, 0);
 
-                if (!string.IsNullOrEmpty(utf8) && utf8.Length is 1) return utf8[0];
+                if (!string.IsNullOrEmpty(utf8) && utf8.Length is 1)
+                {
+                    return utf8[0];
+                }
             }
         }
         return null;
@@ -97,14 +118,22 @@ public class XkbStateManager : IXkbStateManager
     {
         lock (_lock)
         {
-            if (_charToInputCache is null) BuildCharInputCache();
+            if (_charToInputCache is null)
+            {
+                BuildCharInputCache();
+            }
+
             return _charToInputCache!.TryGetValue(c, out var input) ? input : null;
         }
     }
 
     private void UpdateModifierIndices()
     {
-        if (_xkbKeymap == IntPtr.Zero) return;
+        if (_xkbKeymap == IntPtr.Zero)
+        {
+            return;
+        }
+
         _charToInputCache = null;
 
         _modIndexShift = GetModIndex("Shift");
@@ -119,7 +148,10 @@ public class XkbStateManager : IXkbStateManager
         foreach (var name in names)
         {
             var idx = XkbNative.xkb_keymap_mod_get_index(_xkbKeymap, name);
-            if (idx != XkbNative.XKB_MOD_INVALID) return idx;
+            if (idx != XkbNative.XKB_MOD_INVALID)
+            {
+                return idx;
+            }
         }
         return XkbNative.XKB_MOD_INVALID;
     }
@@ -129,7 +161,11 @@ public class XkbStateManager : IXkbStateManager
         _charToInputCache = [];
         for (int code = 1; code < 255; code++)
         {
-            if (IsModifier(code)) continue;
+            if (IsModifier(code))
+            {
+                continue;
+            }
+
             TryAddCharToCache(code, shift: false, altGr: false);
             TryAddCharToCache(code, shift: true, altGr: false);
             TryAddCharToCache(code, shift: false, altGr: true);
@@ -140,7 +176,7 @@ public class XkbStateManager : IXkbStateManager
     private void TryAddCharToCache(int code, bool shift, bool altGr)
     {
         var c = GetCharFromKeyCode(code, shift, altGr, capsLock: false);
-        if (c.HasValue && !_charToInputCache!.ContainsKey(c.Value))
+        if (c is not null && !_charToInputCache!.ContainsKey(c.Value))
         {
             _charToInputCache[c.Value] = (code, shift, altGr);
         }
@@ -150,9 +186,20 @@ public class XkbStateManager : IXkbStateManager
 
     public void Dispose()
     {
-        if (_xkbState != IntPtr.Zero) XkbNative.xkb_state_unref(_xkbState);
-        if (_xkbKeymap != IntPtr.Zero) XkbNative.xkb_keymap_unref(_xkbKeymap);
-        if (_xkbContext != IntPtr.Zero) XkbNative.xkb_context_unref(_xkbContext);
+        if (_xkbState != IntPtr.Zero)
+        {
+            XkbNative.xkb_state_unref(_xkbState);
+        }
+
+        if (_xkbKeymap != IntPtr.Zero)
+        {
+            XkbNative.xkb_keymap_unref(_xkbKeymap);
+        }
+
+        if (_xkbContext != IntPtr.Zero)
+        {
+            XkbNative.xkb_context_unref(_xkbContext);
+        }
 
         _xkbState = IntPtr.Zero;
         _xkbKeymap = IntPtr.Zero;

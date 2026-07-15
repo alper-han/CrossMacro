@@ -20,6 +20,7 @@ public static partial class SystemdNotify
         }
         catch (DllNotFoundException)
         {
+            // libsystemd not installed — notifications are optional, ignore.
         }
     }
 
@@ -31,6 +32,7 @@ public static partial class SystemdNotify
         }
         catch (DllNotFoundException)
         {
+            // libsystemd not installed — notifications are optional, ignore.
         }
     }
 
@@ -42,6 +44,7 @@ public static partial class SystemdNotify
         }
         catch (DllNotFoundException)
         {
+            // libsystemd not installed — notifications are optional, ignore.
         }
     }
 
@@ -53,6 +56,7 @@ public static partial class SystemdNotify
         }
         catch (DllNotFoundException)
         {
+            // libsystemd not installed — notifications are optional, ignore.
         }
     }
 }

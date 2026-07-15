@@ -88,15 +88,21 @@ internal static class LinuxPlatformServiceCollectionExtensions
         {
             var ipcClient = sp.GetRequiredService<HyprlandIpcClient>();
             if (ipcClient.IsAvailable)
+            {
                 return new HyprlandWindowManager(ipcClient);
+            }
 
             var swayClient = sp.GetRequiredService<ISwayIpcClient>();
             if (swayClient.IsAvailable)
+            {
                 return new DisplayServer.Wayland.SwayWindowManager(swayClient);
+            }
 
             var niriClient = sp.GetRequiredService<INiriIpcClient>();
             if (niriClient.IsAvailable)
+            {
                 return new DisplayServer.Wayland.NiriWindowManager(niriClient);
+            }
 
             var desktop = sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>().GetSnapshot().Environment.CurrentDesktop;
             if (desktop is not null)
@@ -186,18 +192,18 @@ internal static class LinuxPlatformServiceCollectionExtensions
             sp.GetRequiredService<Func<LinuxIpcInputCapture>>(),
             sp.GetRequiredService<Func<X11InputCapture>>()));
 
-         services.AddSingleton<LinuxScreenFrameProviderFactory>(sp => new LinuxScreenFrameProviderFactory(
-             sp.GetRequiredService<ILinuxEnvironmentDetector>(),
-             sp.GetRequiredService<IRuntimeContext>(),
-             sp.GetRequiredService<ILinuxScreenReaderCapabilityDetector>(),
-             sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
-             support => new ExtImageCopyScreenFrameProvider(sp.GetRequiredService<IExtImageCopyCapture>(), support),
-             support => new WlrScreencopyScreenFrameProvider(sp.GetRequiredService<IWlrScreencopyCapture>(), support),
-             support => new PortalScreenCastScreenFrameProvider(sp.GetRequiredService<IPortalScreenCastCapture>(), support),
-             support => new KWinScreenShotScreenFrameProvider(sp.GetRequiredService<IKWinScreenShotCapture>(), support),
-             support => new GnomeExtensionScreenFrameProvider(sp.GetRequiredService<GnomePositionProvider>(), support),
-             sp.GetRequiredService<IX11ScreenCaptureSupportProbe>(),
-             support => new X11ScreenFrameProvider(sp.GetRequiredService<IX11ScreenCapture>(), support)));
+        services.AddSingleton<LinuxScreenFrameProviderFactory>(sp => new LinuxScreenFrameProviderFactory(
+            sp.GetRequiredService<ILinuxEnvironmentDetector>(),
+            sp.GetRequiredService<IRuntimeContext>(),
+            sp.GetRequiredService<ILinuxScreenReaderCapabilityDetector>(),
+            sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
+            support => new ExtImageCopyScreenFrameProvider(sp.GetRequiredService<IExtImageCopyCapture>(), support),
+            support => new WlrScreencopyScreenFrameProvider(sp.GetRequiredService<IWlrScreencopyCapture>(), support),
+            support => new PortalScreenCastScreenFrameProvider(sp.GetRequiredService<IPortalScreenCastCapture>(), support),
+            support => new KWinScreenShotScreenFrameProvider(sp.GetRequiredService<IKWinScreenShotCapture>(), support),
+            support => new GnomeExtensionScreenFrameProvider(sp.GetRequiredService<GnomePositionProvider>(), support),
+            sp.GetRequiredService<IX11ScreenCaptureSupportProbe>(),
+            support => new X11ScreenFrameProvider(sp.GetRequiredService<IX11ScreenCapture>(), support)));
         services.AddSingleton<IScreenFrameProvider>(sp => sp.GetRequiredService<LinuxScreenFrameProviderFactory>().Create());
     }
 
@@ -257,14 +263,14 @@ internal static class LinuxPlatformServiceCollectionExtensions
 
         public event EventHandler<ExtensionStatusChangedEventArgs>? ExtensionStatusUpdated
         {
-            add { }
-            remove { }
+            add { /* no-op: null notifier never raises events */ }
+            remove { /* no-op: null notifier never raises events */ }
         }
 
-        public event EventHandler<string>? ExtensionStatusChanged
+        public event EventHandler<ExtensionStatusMessageEventArgs>? ExtensionStatusChanged
         {
-            add { }
-            remove { }
+            add { /* no-op: null notifier never raises events */ }
+            remove { /* no-op: null notifier never raises events */ }
         }
 
         public ExtensionStatusChangedEventArgs? CurrentExtensionStatus => null;

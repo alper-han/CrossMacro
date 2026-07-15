@@ -39,7 +39,7 @@ public sealed class DaemonSocketPathResolver : IDaemonSocketPathResolver
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
             {
-                Log.Error(ex, "Cannot create or access required daemon runtime directory: {Dir}", socketDir);
+                Log.LogError(ex, "Cannot create or access required daemon runtime directory: {Dir}", socketDir);
                 throw new InvalidOperationException(
                     $"Cannot resolve daemon socket path because the runtime directory '{socketDir}' is unavailable.",
                     ex);

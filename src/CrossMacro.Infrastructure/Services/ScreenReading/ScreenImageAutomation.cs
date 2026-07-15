@@ -215,7 +215,7 @@ public sealed class ScreenImageAutomation : IScreenImageAutomation
             ? ScreenImageAutomationResult.FoundAt(result.Value.Point, result.Value.Score)
             : ScreenImageAutomationResult.Failure(result.ErrorKind ?? ScreenReadErrorKind.CaptureFailed, result.ErrorMessage ?? "Screen image search failed.");
 
-    private sealed record ImageSearchSetup(
+    private sealed record class ImageSearchSetup(
         IScreenImageSearchReader? Reader,
         ScreenFrame? Template,
         ScreenRect? Region,

@@ -89,10 +89,10 @@ public class TextExpansionServiceTests
         _service.Start();
 
         // Act
-        _service.Stop();
+        _service.StopExpansion();
 
         // Assert
-        _inputCapture.Received(1).Stop();
+        _inputCapture.Received(1).StopCapture();
         _inputCapture.Received(1).Dispose();
     }
 
@@ -101,10 +101,10 @@ public class TextExpansionServiceTests
     {
         _service.Start();
 
-        _service.Stop();
-        _service.Stop();
+        _service.StopExpansion();
+        _service.StopExpansion();
 
-        _inputCapture.Received(1).Stop();
+        _inputCapture.Received(1).StopCapture();
         _inputCapture.Received(1).Dispose();
         Assert.False(_service.IsRunning);
     }
@@ -128,10 +128,10 @@ public class TextExpansionServiceTests
     {
         // Arrange
         _service.Start();
-        var eventArgs = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 30, Value = 1 };
+        var eventArgs = new CapturedInputEvent { Type = InputEventType.Key, Code = 30, Value = 1 };
 
         // Act
-        _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(this, eventArgs);
+        _inputCapture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(this, new CapturedInputEventArgs(eventArgs));
 
         // Assert
         _inputProcessor.Received(1).ProcessEvent(eventArgs);
@@ -143,19 +143,19 @@ public class TextExpansionServiceTests
         // Arrange
         _service.Start();
 
-        var expansion = new TextExpansion { Trigger = ":a", Replacement = "alpha" };
-        _storageService.GetCurrent().Returns(new List<TextExpansion> { expansion });
-        _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansion>>(), out Arg.Any<TextExpansion?>())
+        var expansion = new TextExpansionEntry { Trigger = ":a", Replacement = "alpha" };
+        _storageService.GetCurrent().Returns(new List<TextExpansionEntry> { expansion });
+        _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansionEntry>>(), out Arg.Any<TextExpansionEntry?>())
             .Returns(callInfo =>
             {
                 callInfo[1] = expansion;
                 return true;
-        });
+            });
 
         var invocationCount = 0;
         var firstExpansionStarted = new AsyncSignal();
         var secondExpansionStarted = new AsyncSignal();
-        _executor.ExpandAsync(Arg.Any<TextExpansion>())
+        _executor.ExpandAsync(Arg.Any<TextExpansionEntry>())
             .Returns(_ =>
             {
                 invocationCount++;
@@ -186,7 +186,7 @@ public class TextExpansionServiceTests
 
         // Assert
         await secondExpansionStarted.WaitAsync(TestTimeout);
-        await _executor.Received(2).ExpandAsync(Arg.Any<TextExpansion>());
+        await _executor.Received(2).ExpandAsync(Arg.Any<TextExpansionEntry>());
         Assert.True(_service.IsRunning);
     }
 
@@ -195,9 +195,9 @@ public class TextExpansionServiceTests
     {
         _service.Start();
 
-        var expansion = new TextExpansion { Trigger = ":a", Replacement = "alpha" };
-        _storageService.GetCurrent().Returns(new List<TextExpansion> { expansion });
-        _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansion>>(), out Arg.Any<TextExpansion?>())
+        var expansion = new TextExpansionEntry { Trigger = ":a", Replacement = "alpha" };
+        _storageService.GetCurrent().Returns(new List<TextExpansionEntry> { expansion });
+        _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansionEntry>>(), out Arg.Any<TextExpansionEntry?>())
             .Returns(callInfo =>
             {
                 callInfo[1] = expansion;
@@ -209,7 +209,7 @@ public class TextExpansionServiceTests
         var releaseFirst = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var secondStarted = new AsyncSignal();
         var invocationCount = 0;
-        _executor.ExpandAsync(Arg.Any<TextExpansion>())
+        _executor.ExpandAsync(Arg.Any<TextExpansionEntry>())
             .Returns(async _ =>
             {
                 if (Interlocked.Increment(ref invocationCount) is 1)
@@ -250,9 +250,9 @@ public class TextExpansionServiceTests
     {
         _service.Start();
 
-        var expansion = new TextExpansion { Trigger = ":test", Replacement = "done" };
-        _storageService.GetCurrent().Returns(new List<TextExpansion> { expansion });
-        _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansion>>(), out Arg.Any<TextExpansion?>())
+        var expansion = new TextExpansionEntry { Trigger = ":test", Replacement = "done" };
+        _storageService.GetCurrent().Returns(new List<TextExpansionEntry> { expansion });
+        _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansionEntry>>(), out Arg.Any<TextExpansionEntry?>())
             .Returns(callInfo =>
             {
                 callInfo[1] = expansion;
@@ -260,7 +260,7 @@ public class TextExpansionServiceTests
             });
 
         var expansionStarted = new AsyncSignal();
-        _executor.ExpandAsync(Arg.Any<TextExpansion>())
+        _executor.ExpandAsync(Arg.Any<TextExpansionEntry>())
             .Returns(_ =>
             {
                 expansionStarted.Signal();
@@ -274,13 +274,13 @@ public class TextExpansionServiceTests
             return triggerKeyPressed;
         });
 
-        _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(
+        _inputCapture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(
             this,
-            new InputCaptureEventArgs { Type = InputEventType.Key, Code = 20, Value = 1 });
+            new CapturedInputEventArgs { Type = InputEventType.Key, Code = 20, Value = 1 });
         _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('t');
 
         await triggerKeyReleaseWaitObserved.WaitAsync(TestTimeout);
-        await _executor.DidNotReceive().ExpandAsync(Arg.Any<TextExpansion>());
+        await _executor.DidNotReceive().ExpandAsync(Arg.Any<TextExpansionEntry>());
 
         triggerKeyPressed = false;
 
@@ -301,9 +301,9 @@ public class TextExpansionServiceTests
     {
         _service.Start();
 
-        var expansion = new TextExpansion { Trigger = ":test", Replacement = "done" };
-        _storageService.GetCurrent().Returns(new List<TextExpansion> { expansion });
-        _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansion>>(), out Arg.Any<TextExpansion?>())
+        var expansion = new TextExpansionEntry { Trigger = ":test", Replacement = "done" };
+        _storageService.GetCurrent().Returns(new List<TextExpansionEntry> { expansion });
+        _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansionEntry>>(), out Arg.Any<TextExpansionEntry?>())
             .Returns(callInfo =>
             {
                 callInfo[1] = expansion;
@@ -311,7 +311,7 @@ public class TextExpansionServiceTests
             });
 
         var expansionStarted = new AsyncSignal();
-        _executor.ExpandAsync(Arg.Any<TextExpansion>())
+        _executor.ExpandAsync(Arg.Any<TextExpansionEntry>())
             .Returns(_ =>
             {
                 expansionStarted.Signal();
@@ -325,13 +325,13 @@ public class TextExpansionServiceTests
             return modifierPressed;
         });
 
-        _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(
+        _inputCapture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(
             this,
-            new InputCaptureEventArgs { Type = InputEventType.Key, Code = 20, Value = 1 });
+            new CapturedInputEventArgs { Type = InputEventType.Key, Code = 20, Value = 1 });
         _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('t');
 
         await modifierReleaseWaitObserved.WaitAsync(TestTimeout);
-        await _executor.DidNotReceive().ExpandAsync(Arg.Any<TextExpansion>());
+        await _executor.DidNotReceive().ExpandAsync(Arg.Any<TextExpansionEntry>());
 
         modifierPressed = false;
 
@@ -355,12 +355,12 @@ public class TextExpansionServiceTests
         await cleanupObserved.WaitAsync(TestTimeout);
 
         Assert.False(_service.IsRunning);
-        _inputCapture.Received(1).Stop();
+        _inputCapture.Received(1).StopCapture();
         _inputCapture.Received(1).Dispose();
 
         Received.InOrder(() =>
         {
-            _inputCapture.Stop();
+            _inputCapture.StopCapture();
             _inputCapture.Dispose();
         });
     }
@@ -374,7 +374,7 @@ public class TextExpansionServiceTests
         _service.Start();
 
         Assert.False(_service.IsRunning);
-        _inputCapture.Received(1).Stop();
+        _inputCapture.Received(1).StopCapture();
         _inputCapture.Received(1).Dispose();
     }
 
@@ -402,13 +402,13 @@ public class TextExpansionServiceTests
         service.Start();
         Assert.True(service.IsRunning);
 
-        firstCapture.Error += Raise.Event<EventHandler<string>>(firstCapture, "runtime failed");
+        firstCapture.CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(firstCapture, new InputCaptureErrorEventArgs("runtime failed"));
 
         await cleanupObserved.WaitAsync(TestTimeout);
 
         Assert.False(service.IsRunning);
         Assert.Equal(1, factoryCallCount);
-        firstCapture.Received(1).Stop();
+        firstCapture.Received(1).StopCapture();
         firstCapture.Received(1).Dispose();
 
         service.Dispose();

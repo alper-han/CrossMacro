@@ -27,9 +27,21 @@ internal static class LinuxScreenReaderBackendPolicy
         LinuxScreenReaderBackend.WlrScreencopy,
     ];
 
-    public static IReadOnlyList<LinuxScreenReaderBackend> GetOrder(bool isFlatpak, CompositorType compositor) =>
-        isFlatpak ? FlatpakWaylandOrder : compositor is CompositorType.KDE ? NativeKdeWaylandOrder : NativeWaylandOrder;
+    public static IReadOnlyList<LinuxScreenReaderBackend> GetOrder(bool isFlatpak, CompositorType compositor)
+    {
+        if (isFlatpak)
+        {
+            return FlatpakWaylandOrder;
+        }
+        return compositor is CompositorType.KDE ? NativeKdeWaylandOrder : NativeWaylandOrder;
+    }
 
-    public static string GetPolicyName(bool isFlatpak, CompositorType compositor) =>
-        isFlatpak ? "Flatpak" : compositor is CompositorType.KDE ? "NativeKDE" : "Native";
+    public static string GetPolicyName(bool isFlatpak, CompositorType compositor)
+    {
+        if (isFlatpak)
+        {
+            return "Flatpak";
+        }
+        return compositor is CompositorType.KDE ? "NativeKDE" : "Native";
+    }
 }

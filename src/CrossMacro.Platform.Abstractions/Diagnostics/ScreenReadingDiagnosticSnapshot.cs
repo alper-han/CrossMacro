@@ -1,6 +1,6 @@
 namespace CrossMacro.Platform.Abstractions.Diagnostics;
 
-public sealed record ScreenReadingDiagnosticSnapshot(
+public sealed record class ScreenReadingDiagnosticSnapshot(
     bool IsSupportedSession,
     string SessionKind,
     string PolicyName,

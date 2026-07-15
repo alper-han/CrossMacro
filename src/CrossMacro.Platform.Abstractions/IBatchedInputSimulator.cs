@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Abstractions;
 
 public interface IBatchedInputSimulator
 {
-    bool SupportsBatchedInput { get; }
+    public bool SupportsBatchedInput { get; }
 
-    void SimulateBatch(ReadOnlySpan<InputSimulationStep> steps);
+    public void SimulateBatch(ReadOnlySpan<InputSimulationStep> steps);
 }

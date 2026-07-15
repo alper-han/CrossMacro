@@ -4,7 +4,7 @@ namespace CrossMacro.Platform.MacOS.Strategies;
 /// <summary>
 /// Converts macOS CoreGraphics absolute mouse samples into relative deltas.
 /// </summary>
-public class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrategy
+public sealed class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrategy
 {
     private readonly Func<(int X, int Y)?>? _currentPositionProvider;
     private int _lastX;
@@ -23,7 +23,7 @@ public class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrategy
     public Task InitializeAsync(CancellationToken ct)
     {
         var position = _currentPositionProvider?.Invoke() ?? GetCurrentPosition();
-        if (position.HasValue)
+        if (position is not null)
         {
             _lastX = position.Value.X;
             _lastY = position.Value.Y;
@@ -43,7 +43,7 @@ public class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrategy
         return Task.CompletedTask;
     }
 
-    public (int X, int Y) ProcessPosition(InputCaptureEventArgs e)
+    public (int X, int Y) ProcessPosition(CapturedInputEvent e)
     {
         if (e.Type is InputEventType.MouseMove)
         {

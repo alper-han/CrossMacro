@@ -1,3 +1,3 @@
 namespace CrossMacro.Cli.Services;
 
-public sealed record ClipboardTextData(string Value);
+public sealed record class ClipboardTextData(string Value);

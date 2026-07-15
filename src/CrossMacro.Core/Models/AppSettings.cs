@@ -5,38 +5,29 @@ namespace CrossMacro.Core.Models;
 /// </summary>
 public class AppSettings
 {
-    private double _playbackSpeed = PlaybackOptions.DefaultSpeedMultiplier;
-    private int _loopDelayMs = PlaybackOptions.DefaultDelayMs;
-    private int _loopDelayMinMs = PlaybackOptions.DefaultDelayMs;
-    private int _loopDelayMaxMs = PlaybackOptions.DefaultDelayMs;
-
     /// <summary>
     /// Whether the system tray icon is enabled
     /// When disabled, closing the window will exit the application instead of minimizing to tray
     /// </summary>
-    public bool EnableTrayIcon { get; set; } = false;
+    public bool EnableTrayIcon { get; set; }
 
     /// <summary>
     /// Whether the GUI should start minimized.
     /// When tray icon support is available, startup hides to tray; otherwise the window starts minimized.
     /// </summary>
-    public bool StartMinimized { get; set; } = false;
+    public bool StartMinimized { get; set; }
 
     // Playback Settings
 
     /// <summary>
     /// Playback speed multiplier (1.0 = normal speed)
     /// </summary>
-    public double PlaybackSpeed
-    {
-        get => _playbackSpeed;
-        set => _playbackSpeed = PlaybackOptions.NormalizeSpeedMultiplier(value);
-    }
+    public double PlaybackSpeed { get; set; } = PlaybackOptions.DefaultSpeedMultiplier;
 
     /// <summary>
     /// Whether to loop the macro
     /// </summary>
-    public bool IsLooping { get; set; } = false;
+    public bool IsLooping { get; set; }
 
     /// <summary>
     /// Number of times to repeat the macro
@@ -47,51 +38,34 @@ public class AppSettings
     /// Fixed delay between loop repetitions in milliseconds.
     /// Ignored when <see cref="UseRandomLoopDelay"/> is enabled.
     /// </summary>
-    public int LoopDelayMs
-    {
-        get => _loopDelayMs;
-        set => _loopDelayMs = PlaybackOptions.NormalizeDelayMs(value);
-    }
+    public int LoopDelayMs { get; set; } = PlaybackOptions.DefaultDelayMs;
 
     /// <summary>
     /// Whether to choose a random delay between loop repetitions.
     /// </summary>
-    public bool UseRandomLoopDelay { get; set; } = false;
+    public bool UseRandomLoopDelay { get; set; }
 
     /// <summary>
     /// Minimum random delay between loop repetitions in milliseconds.
     /// </summary>
-    public int LoopDelayMinMs
-    {
-        get => _loopDelayMinMs;
-        set
-        {
-            var normalized = PlaybackOptions.NormalizeDelayMs(value);
-            _loopDelayMinMs = normalized;
-            if (_loopDelayMaxMs < normalized)
-            {
-                _loopDelayMaxMs = normalized;
-            }
-        }
-    }
+    public int LoopDelayMinMs { get; set; } = PlaybackOptions.DefaultDelayMs;
 
     /// <summary>
     /// Maximum random delay between loop repetitions in milliseconds.
     /// </summary>
-    public int LoopDelayMaxMs
+    public int LoopDelayMaxMs { get; set; } = PlaybackOptions.DefaultDelayMs;
+
+    public void Normalize()
     {
-        get => _loopDelayMaxMs;
-        set
-        {
-            var normalized = PlaybackOptions.NormalizeDelayMs(value);
-            _loopDelayMaxMs = System.Math.Max(normalized, _loopDelayMinMs);
-        }
+        PlaybackSpeed = PlaybackOptions.NormalizeSpeedMultiplier(PlaybackSpeed);
+        LoopDelayMs = PlaybackOptions.NormalizeDelayMs(LoopDelayMs);
+        (LoopDelayMinMs, LoopDelayMaxMs) = PlaybackOptions.NormalizeDelayRange(LoopDelayMinMs, LoopDelayMaxMs);
     }
 
     /// <summary>
     /// Countdown seconds before playback starts
     /// </summary>
-    public int CountdownSeconds { get; set; } = 0;
+    public int CountdownSeconds { get; set; }
 
     // Recording Settings
 
@@ -108,27 +82,27 @@ public class AppSettings
     /// <summary>
     /// Force using relative coordinates even when absolute coordinates are supported
     /// </summary>
-    public bool ForceRelativeCoordinates { get; set; } = false;
+    public bool ForceRelativeCoordinates { get; set; }
 
     /// <summary>
     /// Skip moving to 0,0 coordinate when recording starts (only applies when ForceRelativeCoordinates is true)
     /// When false, cursor moves to 0,0 at recording start for consistent baseline
     /// </summary>
-    public bool SkipInitialZeroZero { get; set; } = false;
+    public bool SkipInitialZeroZero { get; set; }
 
     // Text Expansion Settings
 
     /// <summary>
     /// Whether text expansion is enabled globally
     /// </summary>
-    public bool EnableTextExpansion { get; set; } = false;
+    public bool EnableTextExpansion { get; set; }
 
     // Update Settings
 
     /// <summary>
     /// Whether to check for updates on startup
     /// </summary>
-    public bool CheckForUpdates { get; set; } = false;
+    public bool CheckForUpdates { get; set; }
 
     // Logging Settings
 

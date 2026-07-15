@@ -6,7 +6,10 @@ internal static class KeyMap
     public static ushort ToMacKey(int code)
     {
         if (_toMac.TryGetValue(code, out var vk))
+        {
             return vk;
+        }
+
         return 0xFFFF;
     }
 
@@ -18,7 +21,9 @@ internal static class KeyMap
     public static int FromMacKey(ushort code)
     {
         if (TryFromMacKey(code, out var inputEventCode))
+        {
             return inputEventCode;
+        }
 
         throw new KeyNotFoundException($"No macOS key mapping exists for native key code 0x{code:X2}.");
     }
@@ -165,10 +170,7 @@ internal static class KeyMap
     {
         foreach (var kvp in _toMac)
         {
-            if (!_fromMac.ContainsKey(kvp.Value))
-            {
-                _fromMac.Add(kvp.Value, kvp.Key);
-            }
+            _fromMac.TryAdd(kvp.Value, kvp.Key);
         }
     }
 }

@@ -58,15 +58,15 @@ public sealed partial class ScreenshotCliService : IScreenshotCliService
     {
         if (capture.OutputPath is not null && capture.CopiedToClipboard)
         {
-            return $"Screenshot saved to {capture.OutputPath} and copied to clipboard ({capture.Width}x{capture.Height}).";
+            return $"Screenshot saved to {capture.OutputPath} and copied to clipboard ({capture.Width.ToString(CultureInfo.InvariantCulture)}x{capture.Height.ToString(CultureInfo.InvariantCulture)}).";
         }
 
         if (capture.OutputPath is not null)
         {
-            return $"Screenshot saved to {capture.OutputPath} ({capture.Width}x{capture.Height}).";
+            return $"Screenshot saved to {capture.OutputPath} ({capture.Width.ToString(CultureInfo.InvariantCulture)}x{capture.Height.ToString(CultureInfo.InvariantCulture)}).";
         }
 
-        return $"Screenshot copied to clipboard ({capture.Width}x{capture.Height}).";
+        return $"Screenshot copied to clipboard ({capture.Width.ToString(CultureInfo.InvariantCulture)}x{capture.Height.ToString(CultureInfo.InvariantCulture)}).";
     }
 
     private static CliExitCode GetExitCode(ScreenshotCaptureResult result)
@@ -97,8 +97,8 @@ public sealed partial class ScreenshotCliService : IScreenshotCliService
             return false;
         }
 
-        var hasAnyRegionValue = options.RegionX.HasValue || options.RegionY.HasValue ||
-                                options.RegionWidth.HasValue || options.RegionHeight.HasValue;
+        var hasAnyRegionValue = options.RegionX is not null || options.RegionY is not null ||
+options.RegionWidth is not null || options.RegionHeight is not null;
         if (hasAnyRegionValue &&
             (options.RegionX is null || options.RegionY is null ||
              options.RegionWidth is null || options.RegionHeight is null))

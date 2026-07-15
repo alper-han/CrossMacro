@@ -22,7 +22,9 @@ public static class PeerCredentials
     public static (uint Uid, uint Gid, int Pid)? GetCredentials(Socket socket)
     {
         if (socket is null)
+        {
             return null;
+        }
 
         try
         {

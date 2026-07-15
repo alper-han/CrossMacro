@@ -10,5 +10,5 @@ public interface IHotkeyParser
     /// </summary>
     /// <param name="hotkeyString">The hotkey string (e.g., "Ctrl+Shift+P")</param>
     /// <returns>The parsed hotkey mapping</returns>
-    HotkeyMapping Parse(string hotkeyString);
+    public HotkeyMapping Parse(string hotkeyString);
 }

@@ -48,12 +48,12 @@ public sealed class SerilogCoreLogger : ICoreLogger
         SerilogLog.Warning(exception, messageTemplate, propertyValues);
     }
 
-    public void Error(string messageTemplate, params object?[] propertyValues)
+    public void LogError(string messageTemplate, params object?[] propertyValues)
     {
         SerilogLog.Error(messageTemplate, propertyValues);
     }
 
-    public void Error(Exception exception, string messageTemplate, params object?[] propertyValues)
+    public void LogError(Exception exception, string messageTemplate, params object?[] propertyValues)
     {
         SerilogLog.Error(exception, messageTemplate, propertyValues);
     }

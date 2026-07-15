@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.MacOS.Services.ScreenReading;
 
 internal interface IMacOSScreenCaptureBackend
 {
-    ScreenRect GetVirtualScreenBounds();
+    public ScreenRect GetVirtualScreenBounds();
 
-    MacOSScreenCaptureFrame Capture(ScreenRect region, CancellationToken cancellationToken);
+    public MacOSScreenCaptureFrame Capture(ScreenRect region, CancellationToken cancellationToken);
 }

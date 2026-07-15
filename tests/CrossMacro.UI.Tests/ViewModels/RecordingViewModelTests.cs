@@ -230,7 +230,7 @@ public class RecordingViewModelTests
             Events =
             {
                 new MacroEvent { Type = EventType.MouseMove },
-                new MacroEvent { Type = EventType.KeyPress }
+                new MacroEvent { Type = EventType.KeyPress },
             },
         };
         _recorder.StopRecording().Returns(recordedMacro);
@@ -254,7 +254,7 @@ public class RecordingViewModelTests
             Events =
             {
                 new MacroEvent { Type = EventType.MouseMove },
-                new MacroEvent { Type = EventType.KeyPress }
+                new MacroEvent { Type = EventType.KeyPress },
             },
         };
         _recorder.StopRecording().Returns(recordedMacro);
@@ -278,7 +278,7 @@ public class RecordingViewModelTests
     public void StopRecording_WhenMacroEventsCollectionIsNull_DoesNotThrowOrSetErrorStatus()
     {
         // Arrange
-        _recorder.StopRecording().Returns(new MacroSequence { Events = null! });
+        _recorder.StopRecording().Returns(new MacroSequence());
         _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: true);
 
         // Act
@@ -509,7 +509,7 @@ public class RecordingViewModelTests
                 new MacroEvent { Type = EventType.MouseMove },
                 new MacroEvent { Type = EventType.ButtonPress },
                 new MacroEvent { Type = EventType.KeyPress },
-                new MacroEvent { Type = EventType.KeyRelease }
+                new MacroEvent { Type = EventType.KeyRelease },
             },
         };
 
@@ -531,7 +531,7 @@ public class RecordingViewModelTests
             Events =
             {
                 new MacroEvent { Type = EventType.MouseMove },
-                new MacroEvent { Type = EventType.KeyPress }
+                new MacroEvent { Type = EventType.KeyPress },
             },
         };
 

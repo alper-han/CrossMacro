@@ -1,6 +1,6 @@
 namespace CrossMacro.Cli.Services;
 
-public sealed record WindowInfoData(
+public sealed record class WindowInfoData(
     string Address,
     string Title,
     string Class,

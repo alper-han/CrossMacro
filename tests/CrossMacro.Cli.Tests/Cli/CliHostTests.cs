@@ -133,8 +133,8 @@ public class CliHostTests
         public void Information(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
         public void Warning(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
         public void Warning(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Error(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Error(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
+        public void LogError(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
+        public void LogError(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
         public void Fatal(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
         public void Fatal(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
 
@@ -302,8 +302,8 @@ public class CliHostTests
     {
         public string ProviderName => "test-position";
         public bool IsSupported => true;
-        public Task<(int X, int Y)?> GetAbsolutePositionAsync() => Task.FromResult<(int X, int Y)?>( (100, 100) );
-        public Task<(int Width, int Height)?> GetScreenResolutionAsync() => Task.FromResult<(int Width, int Height)?>( (1920, 1080) );
+        public Task<(int X, int Y)?> GetAbsolutePositionAsync() => Task.FromResult<(int X, int Y)?>((100, 100));
+        public Task<(int Width, int Height)?> GetScreenResolutionAsync() => Task.FromResult<(int Width, int Height)?>((1920, 1080));
         public void Dispose()
         {
         }
@@ -328,12 +328,12 @@ public class CliHostTests
         public string ProviderName => "test-cap";
         public bool IsSupported => true;
 #pragma warning disable CS0067
-        public event EventHandler<InputCaptureEventArgs>? InputReceived;
-        public event EventHandler<string>? Error;
+        public event EventHandler<CapturedInputEventArgs>? InputReceived;
+        public event EventHandler<InputCaptureErrorEventArgs>? CaptureError;
 #pragma warning restore CS0067
         public void Configure(bool captureMouse, bool captureKeyboard) { }
         public Task StartAsync(CancellationToken ct) => Task.CompletedTask;
-        public void Stop() { }
+        public void StopCapture() { }
         public void Dispose() { }
     }
 }

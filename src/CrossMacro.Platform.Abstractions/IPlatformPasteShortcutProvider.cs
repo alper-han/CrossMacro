@@ -6,5 +6,5 @@ namespace CrossMacro.Platform.Abstractions;
 /// </summary>
 public interface IPlatformPasteShortcutProvider
 {
-    bool UsesMetaKeyForStandardPaste { get; }
+    public bool UsesMetaKeyForStandardPaste { get; }
 }

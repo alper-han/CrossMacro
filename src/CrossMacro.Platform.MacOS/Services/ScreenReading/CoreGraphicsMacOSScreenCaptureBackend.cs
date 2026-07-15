@@ -83,24 +83,24 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
     {
         if (image.Width <= 0 || image.Height <= 0 || image.BytesPerRow <= 0)
         {
-            throw new InvalidOperationException($"CoreGraphics returned invalid image dimensions {image.Width}x{image.Height} with stride {image.BytesPerRow}.");
+            throw new InvalidOperationException($"CoreGraphics returned invalid image dimensions {image.Width.ToString(CultureInfo.InvariantCulture)}x{image.Height.ToString(CultureInfo.InvariantCulture)} with stride {image.BytesPerRow.ToString(CultureInfo.InvariantCulture)}.");
         }
 
         if (image.BitsPerComponent is not 8 || image.BitsPerPixel is not 32)
         {
-            throw new InvalidOperationException($"CoreGraphics returned unsupported pixel layout: {image.BitsPerComponent} bits/component, {image.BitsPerPixel} bits/pixel.");
+            throw new InvalidOperationException($"CoreGraphics returned unsupported pixel layout: {image.BitsPerComponent.ToString(CultureInfo.InvariantCulture)} bits/component, {image.BitsPerPixel.ToString(CultureInfo.InvariantCulture)} bits/pixel.");
         }
 
         var minimumRowBytes = checked(image.Width * ScreenFrame.GetBytesPerPixel(ScreenPixelFormat.Bgra8888));
         if (image.BytesPerRow < minimumRowBytes)
         {
-            throw new InvalidOperationException($"CoreGraphics image stride {image.BytesPerRow} is smaller than its pixel width {image.Width}.");
+            throw new InvalidOperationException($"CoreGraphics image stride {image.BytesPerRow.ToString(CultureInfo.InvariantCulture)} is smaller than its pixel width {image.Width.ToString(CultureInfo.InvariantCulture)}.");
         }
 
         var minimumDataLength = checked(image.BytesPerRow * image.Height);
         if (image.Pixels.Length < minimumDataLength)
         {
-            throw new InvalidOperationException($"CoreGraphics image data length {image.Pixels.Length} is smaller than its declared size {minimumDataLength}.");
+            throw new InvalidOperationException($"CoreGraphics image data length {image.Pixels.Length.ToString(CultureInfo.InvariantCulture)} is smaller than its declared size {minimumDataLength.ToString(CultureInfo.InvariantCulture)}.");
         }
 
         var sourceFormat = ResolveSourceFormat(image.BitmapInfo);

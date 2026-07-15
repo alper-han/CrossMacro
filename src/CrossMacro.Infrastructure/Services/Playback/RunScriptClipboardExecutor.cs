@@ -24,14 +24,14 @@ internal sealed class RunScriptClipboardExecutor
 
         if (!_clipboardService.IsSupported)
         {
-            throw new InvalidOperationException($"Step {stepNumber}: Clipboard script steps require a supported IClipboardService runtime service.");
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Clipboard script steps require a supported IClipboardService runtime service.");
         }
 
         var trimmedStep = step.Trim();
         var parts = trimmedStep.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length < 2)
         {
-            throw new InvalidOperationException($"Step {stepNumber}: Syntax: {CommandToken} get <var> | {CommandToken} set <text>");
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Syntax: {CommandToken} get <var> | {CommandToken} set <text>");
         }
 
         var subCommand = parts[1].ToLowerInvariant();
@@ -39,7 +39,7 @@ internal sealed class RunScriptClipboardExecutor
         {
             if (parts.Length is not 3)
             {
-                throw new InvalidOperationException($"Step {stepNumber}: Syntax: {CommandToken} get <var>");
+                throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Syntax: {CommandToken} get <var>");
             }
 
             var varName = RunScriptRuntimeText.NormalizeAndValidateVariableName(parts[2]);
@@ -50,11 +50,11 @@ internal sealed class RunScriptClipboardExecutor
 
         if (subCommand is not "set")
         {
-            throw new InvalidOperationException($"Step {stepNumber}: Unknown clipboard subcommand: {subCommand}");
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Unknown clipboard subcommand: {subCommand}");
         }
 
         var rawText = ExtractSetPayload(trimmedStep, stepNumber);
-        var resolvedText = RunScriptRuntimeText.ResolveVariables(rawText, variables, $"Step {stepNumber}: ");
+        var resolvedText = RunScriptRuntimeText.ResolveVariables(rawText, variables, $"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: ");
         var text = RunScriptRuntimeText.Unquote(resolvedText);
 
         try
@@ -67,7 +67,7 @@ internal sealed class RunScriptClipboardExecutor
         }
         catch (Exception ex)
         {
-            throw new InvalidOperationException($"Step {stepNumber}: Failed to set clipboard text.", ex);
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Failed to set clipboard text.", ex);
         }
     }
 
@@ -79,7 +79,7 @@ internal sealed class RunScriptClipboardExecutor
         var payloadStart = SkipWhiteSpace(trimmedStep, subCommandEnd);
         if (payloadStart >= trimmedStep.Length)
         {
-            throw new InvalidOperationException($"Step {stepNumber}: Syntax: {CommandToken} set <text>");
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Syntax: {CommandToken} set <text>");
         }
 
         return trimmedStep[payloadStart..];
@@ -107,7 +107,11 @@ internal sealed class RunScriptClipboardExecutor
         var subCommand = parts[1].ToLowerInvariant();
         if (subCommand is "get")
         {
-            if (parts.Length is not 3) return $"Syntax: {CommandToken} get <var>";
+            if (parts.Length is not 3)
+            {
+                return $"Syntax: {CommandToken} get <var>";
+            }
+
             var variableName = EditorActionScriptTokens.NormalizeVariableToken(parts[2]);
             if (!EditorActionScriptTokens.IsValidVariableName(variableName))
             {
@@ -119,7 +123,11 @@ internal sealed class RunScriptClipboardExecutor
 
         if (subCommand is "set")
         {
-            if (parts.Length < 3) return $"Syntax: {CommandToken} set <text>";
+            if (parts.Length < 3)
+            {
+                return $"Syntax: {CommandToken} set <text>";
+            }
+
             return null;
         }
 

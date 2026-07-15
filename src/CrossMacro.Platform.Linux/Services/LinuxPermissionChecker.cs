@@ -21,9 +21,13 @@ public class LinuxPermissionChecker : IPermissionChecker
         try
         {
             // Helper to check write access
-            bool CheckWrite(string path)
+            static bool CheckWrite(string path)
             {
-                if (!File.Exists(path)) return false;
+                if (!File.Exists(path))
+                {
+                    return false;
+                }
+
                 try
                 {
                     using var fs = File.OpenWrite(path);
@@ -41,14 +45,21 @@ public class LinuxPermissionChecker : IPermissionChecker
             }
 
             // Check standard paths
-            if (CheckWrite(LinuxConstants.UInputDevicePath)) return true;
-            if (CheckWrite(LinuxConstants.UInputAlternatePath)) return true;
+            if (CheckWrite(LinuxConstants.UInputDevicePath))
+            {
+                return true;
+            }
+
+            if (CheckWrite(LinuxConstants.UInputAlternatePath))
+            {
+                return true;
+            }
 
             return false;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error checking uinput permissions");
+            Log.LogError(ex, "Error checking uinput permissions");
             return false;
         }
     }

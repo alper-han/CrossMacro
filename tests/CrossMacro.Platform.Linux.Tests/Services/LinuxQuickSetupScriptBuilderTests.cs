@@ -6,9 +6,7 @@ public sealed class LinuxQuickSetupScriptBuilderTests
     [Fact]
     public void Build_WhenLenient_ShouldNotRequireDevices()
     {
-        var builder = new LinuxQuickSetupScriptBuilder();
-
-        var script = builder.Build(LinuxQuickSetupScriptOptions.Lenient);
+        var script = LinuxQuickSetupScriptBuilder.Build(LinuxQuickSetupScriptOptions.Lenient);
 
         Assert.DoesNotContain("uinput_ok=0", script, StringComparison.Ordinal);
         Assert.DoesNotContain("event_ok=0", script, StringComparison.Ordinal);
@@ -22,9 +20,7 @@ public sealed class LinuxQuickSetupScriptBuilderTests
     [Fact]
     public void Build_WhenStrict_ShouldRequireDevices()
     {
-        var builder = new LinuxQuickSetupScriptBuilder();
-
-        var script = builder.Build(LinuxQuickSetupScriptOptions.Strict);
+        var script = LinuxQuickSetupScriptBuilder.Build(LinuxQuickSetupScriptOptions.Strict);
 
         Assert.Contains("uinput_ok=0", script, StringComparison.Ordinal);
         Assert.Contains("event_ok=0", script, StringComparison.Ordinal);

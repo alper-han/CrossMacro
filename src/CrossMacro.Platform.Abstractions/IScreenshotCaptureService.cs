@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Abstractions;
 
 public interface IScreenshotCaptureService
 {
-    Task<ScreenshotCaptureResult> CaptureAsync(
+    public Task<ScreenshotCaptureResult> CaptureAsync(
         string? outputPath,
         bool copyToClipboard,
         ScreenRect? region,

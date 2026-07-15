@@ -19,7 +19,7 @@ public class TextBufferStateTests
         _buffer.Append('c');
 
         // Assert - verify by matching
-        var expansions = new List<TextExpansion>
+        var expansions = new List<TextExpansionEntry>
         {
             new() { IsEnabled = true, Trigger = "abc", Replacement = "test" },
         };
@@ -40,7 +40,7 @@ public class TextBufferStateTests
         _buffer.Backspace();
 
         // Assert - "ab" should remain, "abc" should not match
-        var expansions = new List<TextExpansion>
+        var expansions = new List<TextExpansionEntry>
         {
             new() { IsEnabled = true, Trigger = "abc", Replacement = "test" },
             new() { IsEnabled = true, Trigger = "ab", Replacement = "test2" },
@@ -61,7 +61,7 @@ public class TextBufferStateTests
         _buffer.Clear();
 
         // Assert - no match possible after clear
-        var expansions = new List<TextExpansion>
+        var expansions = new List<TextExpansionEntry>
         {
             new() { IsEnabled = true, Trigger = "xy", Replacement = "test" },
         };
@@ -76,7 +76,7 @@ public class TextBufferStateTests
         _buffer.Append('h');
         _buffer.Append('i');
 
-        var expansions = new List<TextExpansion>
+        var expansions = new List<TextExpansionEntry>
         {
             new() { IsEnabled = true, Trigger = "hi", Replacement = "hello" },
         };
@@ -97,7 +97,7 @@ public class TextBufferStateTests
         _buffer.Append('x');
         _buffer.Append('y');
 
-        var expansions = new List<TextExpansion>
+        var expansions = new List<TextExpansionEntry>
         {
             new() { IsEnabled = true, Trigger = "ab", Replacement = "test" },
         };
@@ -117,7 +117,7 @@ public class TextBufferStateTests
         _buffer.Append('h');
         _buffer.Append('i');
 
-        var expansions = new List<TextExpansion>
+        var expansions = new List<TextExpansionEntry>
         {
             new() { IsEnabled = false, Trigger = "hi", Replacement = "hello" },
         };
@@ -138,7 +138,7 @@ public class TextBufferStateTests
             _buffer.Append(c);
         }
 
-        var expansions = new List<TextExpansion>
+        var expansions = new List<TextExpansionEntry>
         {
             new() { IsEnabled = true, Trigger = "hi", Replacement = "hello" },
         };
@@ -159,7 +159,7 @@ public class TextBufferStateTests
         _buffer.Backspace();
 
         // Assert - still empty
-        var expansions = new List<TextExpansion>
+        var expansions = new List<TextExpansionEntry>
         {
             new() { IsEnabled = true, Trigger = "", Replacement = "test" },
         };

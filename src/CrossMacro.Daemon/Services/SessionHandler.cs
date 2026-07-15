@@ -68,7 +68,7 @@ public class SessionHandler : ISessionHandler
             }
 
             await Task.Run(
-                () => lifecycle.RunAsync(uid, pid, client, clientCts.Token));
+                () => lifecycle.RunAsync(uid, pid, client, clientCts.Token)).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -76,7 +76,7 @@ public class SessionHandler : ISessionHandler
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Session error");
+            Log.LogError(ex, "Session error");
         }
     }
 
@@ -128,7 +128,7 @@ public class SessionHandler : ISessionHandler
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Error in ReadLoop");
+                Log.LogError(ex, "Error in ReadLoop");
             }
             finally
             {
@@ -157,7 +157,7 @@ public class SessionHandler : ISessionHandler
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[SessionHandler] Command processing failed for opcode {Op}", opcode);
+                Log.LogError(ex, "[SessionHandler] Command processing failed for opcode {Op}", opcode);
                 throw;
             }
         }
@@ -213,7 +213,7 @@ public class SessionHandler : ISessionHandler
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to create UInput device");
+                Log.LogError(ex, "Failed to create UInput device");
                 _session.Writer.Write((byte)IpcOpCode.Error);
                 _session.Writer.Write($"Failed to init UInput: {ex.Message}");
                 return false;
@@ -264,7 +264,7 @@ public class SessionHandler : ISessionHandler
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[SessionHandler] Capture manager threw during StartCapture");
+                Log.LogError(ex, "[SessionHandler] Capture manager threw during StartCapture");
                 result = CaptureStartResult.Failed(
                     "Failed to start capture due to internal error: " + ex.Message);
             }
@@ -360,7 +360,7 @@ public class SessionHandler : ISessionHandler
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[SessionHandler] Simulation batch failed");
+                Log.LogError(ex, "[SessionHandler] Simulation batch failed");
                 using (_session.WriterGate.Enter())
                 {
                     _session.Writer.Write((byte)IpcOpCode.SimulationBatchFailed);
@@ -374,7 +374,7 @@ public class SessionHandler : ISessionHandler
         private IpcSimulationRequest[] ReadSimulationBatchEvents()
         {
             var eventCount = _session.Reader.ReadInt32();
-            if (eventCount <= 0 || eventCount > IpcProtocol.MaxSimulationBatchEvents)
+            if (eventCount is <= 0 or > IpcProtocol.MaxSimulationBatchEvents)
             {
                 throw new InvalidDataException(
                     $"Simulation batch event count {eventCount} is outside the allowed range 1-{IpcProtocol.MaxSimulationBatchEvents}.");
@@ -392,7 +392,7 @@ public class SessionHandler : ISessionHandler
                     DelayAfterMs = _session.Reader.ReadInt32(),
                 };
 
-                if (inputEvent.DelayAfterMs < 0 || inputEvent.DelayAfterMs > IpcProtocol.MaxSimulationBatchDelayMs)
+                if (inputEvent.DelayAfterMs is < 0 or > IpcProtocol.MaxSimulationBatchDelayMs)
                 {
                     throw new InvalidDataException(
                         $"Simulation batch delay {inputEvent.DelayAfterMs}ms is outside the allowed range 0-{IpcProtocol.MaxSimulationBatchDelayMs}ms.");

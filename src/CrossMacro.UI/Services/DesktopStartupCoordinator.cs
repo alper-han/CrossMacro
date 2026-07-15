@@ -24,8 +24,8 @@ internal sealed class DesktopStartupCoordinator : IDesktopStartupCoordinator
     {
         ArgumentNullException.ThrowIfNull(desktop);
 
-        var startupPreferences = await _initializationService.InitializeAsync();
-        var permissionGateResult = await _permissionGateService.TryHandleAsync(desktop);
+        var startupPreferences = await _initializationService.InitializeAsync().ConfigureAwait(false);
+        var permissionGateResult = await _permissionGateService.TryHandleAsync(desktop).ConfigureAwait(false);
 
         if (permissionGateResult.Handled)
         {
@@ -39,11 +39,11 @@ internal sealed class DesktopStartupCoordinator : IDesktopStartupCoordinator
             (lifetime, preferences) =>
             {
                 return _runtimeService.StartAsync(lifetime, preferences);
-            });
+            }).ConfigureAwait(false);
 
         if (!handled)
         {
-            await _runtimeService.StartAsync(desktop, startupPreferences);
+            await _runtimeService.StartAsync(desktop, startupPreferences).ConfigureAwait(false);
         }
     }
 }

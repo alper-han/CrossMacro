@@ -3,11 +3,11 @@ namespace CrossMacro.Cli.Services;
 
 public interface IHeadlessHotkeyActionService : IDisposable, IAsyncDisposable
 {
-    bool IsRunning { get; }
+    public bool IsRunning { get; }
 
-    void Start();
+    public void Start();
 
-    void Stop();
+    public void StopHeadlessHotkeyActions();
 
-    Task StopAsync(CancellationToken cancellationToken = default);
+    public Task StopAsync(CancellationToken cancellationToken = default);
 }

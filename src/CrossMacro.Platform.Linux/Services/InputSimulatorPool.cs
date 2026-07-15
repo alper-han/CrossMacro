@@ -93,7 +93,7 @@ public class InputSimulatorPool : IInputSimulatorPool
 
 
 
-                await Task.Delay(100, warmUpToken);
+                await Task.Delay(100, warmUpToken).ConfigureAwait(false);
 
                 if (_disposed || warmUpToken.IsCancellationRequested)
                 {
@@ -121,7 +121,7 @@ public class InputSimulatorPool : IInputSimulatorPool
                 }
 
                 Log.Information("[InputSimulatorPool] Warm-up complete");
-            }, warmUpToken);
+            }, warmUpToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -143,7 +143,7 @@ public class InputSimulatorPool : IInputSimulatorPool
             }
             else
             {
-                Log.Error(ex, "[InputSimulatorPool] Failed to warm up devices");
+                Log.LogError(ex, "[InputSimulatorPool] Failed to warm up devices");
             }
         }
     }
@@ -251,7 +251,7 @@ public class InputSimulatorPool : IInputSimulatorPool
         {
             try
             {
-                await WarmUpReplacementAsync(screenWidth, screenHeight, _shutdownCts.Token);
+                await WarmUpReplacementAsync(screenWidth, screenHeight, _shutdownCts.Token).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -286,13 +286,16 @@ public class InputSimulatorPool : IInputSimulatorPool
 
     private async Task WarmUpReplacementAsync(int screenWidth, int screenHeight, CancellationToken cancellationToken)
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
 
         try
         {
             bool needsAbsolute = screenWidth > 0 && screenHeight > 0;
 
-            await Task.Delay(50, cancellationToken);
+            await Task.Delay(50, cancellationToken).ConfigureAwait(false);
 
             if (_disposed)
             {
@@ -345,14 +348,18 @@ public class InputSimulatorPool : IInputSimulatorPool
             }
             else
             {
-                Log.Error(ex, "[InputSimulatorPool] Failed to warm up replacement device");
+                Log.LogError(ex, "[InputSimulatorPool] Failed to warm up replacement device");
             }
         }
     }
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
+
         _disposed = true;
 
         var warmUpCts = Interlocked.Exchange(ref _warmUpCts, value: null);

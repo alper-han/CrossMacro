@@ -66,7 +66,7 @@ public class ShortcutServiceTests : IDisposable
     public void Stop_UnsubscribesAndSetsListeningFalse()
     {
         _service.Start();
-        _service.Stop();
+        _service.StopShortcuts();
 
         _service.IsListening.Should().BeFalse();
     }
@@ -138,7 +138,10 @@ public class ShortcutServiceTests : IDisposable
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -214,7 +217,7 @@ public class ShortcutServiceTests : IDisposable
 
             releaseException.Should().BeNull();
 
-            _player.Received(1).Stop();
+            _player.Received(1).StopPlayback();
         }
         finally
         {
@@ -338,13 +341,13 @@ public class ShortcutServiceTests : IDisposable
                 MacroFilePath = "typed.macro",
                 HotkeyString = "F6",
                 RunWhileHeld = true,
-                RepeatDelayMs = 42
+                RepeatDelayMs = 42,
             },
         };
 
         await File.WriteAllTextAsync(
             _shortcutsFilePath,
-            System.Text.Json.JsonSerializer.Serialize(expectedTasks, CrossMacroJsonContext.Default.ListShortcutTask));
+            JsonSerializer.Serialize(expectedTasks, CrossMacroJsonContext.Default.ListShortcutTask));
 
         await _service.LoadAsync();
 

@@ -1,3 +1,3 @@
 namespace CrossMacro.Cli.Services;
 
-public sealed record SettingsValueData(string Key, object? Value);
+public sealed record class SettingsValueData(string Key, object? Value);

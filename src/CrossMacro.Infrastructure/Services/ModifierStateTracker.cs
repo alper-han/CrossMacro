@@ -42,7 +42,9 @@ public class ModifierStateTracker : IModifierStateTracker
     public void OnKeyPressed(int keyCode)
     {
         if (!_keyCodeMapper.IsModifierKeyCode(keyCode))
+        {
             return;
+        }
 
         using (_lock.EnterScope())
         {
@@ -53,7 +55,9 @@ public class ModifierStateTracker : IModifierStateTracker
     public void OnKeyReleased(int keyCode)
     {
         if (!_keyCodeMapper.IsModifierKeyCode(keyCode))
+        {
             return;
+        }
 
         using (_lock.EnterScope())
         {

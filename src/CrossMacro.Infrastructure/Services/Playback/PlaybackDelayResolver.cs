@@ -6,11 +6,11 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 /// </summary>
 internal sealed class PlaybackDelayResolver
 {
-    private readonly Random _random;
+    private readonly Func<int, int, int> _randomInclusive;
 
-    public PlaybackDelayResolver(Random? random = null)
+    public PlaybackDelayResolver(Func<int, int, int>? randomInclusive = null)
     {
-        _random = random ?? Random.Shared;
+        _randomInclusive = randomInclusive ?? RandomNumberGeneratorUtility.GetInt32Inclusive;
     }
 
     public int Resolve(int fixedDelayMs, bool hasRandomDelay, int randomDelayMinMs, int randomDelayMaxMs)
@@ -20,11 +20,7 @@ internal sealed class PlaybackDelayResolver
         {
             var min = Math.Min(randomDelayMinMs, randomDelayMaxMs);
             var max = Math.Max(randomDelayMinMs, randomDelayMaxMs);
-            randomDelay = min == max
-                ? min
-                : max == int.MaxValue
-                    ? (int)_random.NextInt64(min, (long)max + 1)
-                    : _random.Next(min, max + 1);
+            randomDelay = min == max ? min : _randomInclusive(min, max);
         }
 
         var totalDelay = (long)fixedDelayMs + randomDelay;

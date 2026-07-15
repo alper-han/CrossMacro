@@ -33,7 +33,7 @@ public sealed class ScreenReadingWarmupServiceTests
     {
         using var frameProvider = new RecordingScreenFrameProvider
         {
-            Result = ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.PermissionDenied, "denied"),
+            Result = ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.PermissionDenied, "denied"),
         };
         var service = new ScreenReadingWarmupService(frameProvider, new StaticScreenReadingDiagnosticProvider("Portal"));
 
@@ -93,7 +93,7 @@ public sealed class ScreenReadingWarmupServiceTests
                 ScreenPixelFormat.Xrgb8888,
                 new byte[] { 0, 0, 0, 0 },
                 LastFrameOwner);
-            return Task.FromResult(ScreenReadResult<ScreenFrame>.Success(frame));
+            return Task.FromResult(ScreenReadResultFactory.Success<ScreenFrame>(frame));
         }
 
         public void Dispose()

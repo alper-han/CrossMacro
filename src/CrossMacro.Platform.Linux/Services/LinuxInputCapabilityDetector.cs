@@ -188,14 +188,14 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
     {
         get
         {
-            if (_canUseDirectUInput.HasValue)
+            if (_canUseDirectUInput is not null)
             {
                 return _canUseDirectUInput.Value;
             }
 
             using (_lock.EnterScope())
             {
-                if (_canUseDirectUInput.HasValue)
+                if (_canUseDirectUInput is not null)
                 {
                     return _canUseDirectUInput.Value;
                 }
@@ -219,14 +219,14 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
     {
         get
         {
-            if (_canReadInputEvents.HasValue)
+            if (_canReadInputEvents is not null)
             {
                 return _canReadInputEvents.Value;
             }
 
             using (_lock.EnterScope())
             {
-                if (_canReadInputEvents.HasValue)
+                if (_canReadInputEvents is not null)
                 {
                     return _canReadInputEvents.Value;
                 }
@@ -258,7 +258,7 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
                 RefreshDaemonConnectivity(now);
             }
 
-            if (!_canUseDirectUInput.HasValue)
+            if (_canUseDirectUInput is null)
             {
                 try
                 {
@@ -271,7 +271,7 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
                 }
             }
 
-            if (!_canReadInputEvents.HasValue)
+            if (_canReadInputEvents is null)
             {
                 try
                 {
@@ -321,7 +321,7 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
 
     private void EnsureDirectInputCapabilitiesProbed()
     {
-        if (!_canUseDirectUInput.HasValue)
+        if (_canUseDirectUInput is null)
         {
             try
             {
@@ -334,7 +334,7 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
             }
         }
 
-        if (!_canReadInputEvents.HasValue)
+        if (_canReadInputEvents is null)
         {
             try
             {
@@ -350,7 +350,7 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
 
     private InputProviderMode ResolveMode(DateTime now)
     {
-        if (_cachedMode.HasValue &&
+        if (_cachedMode is not null &&
             _lastModeResolutionUtc != DateTime.MinValue &&
             (now - _lastModeResolutionUtc) <= ModeResolutionTtl)
         {
@@ -474,11 +474,6 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
                 "[LinuxInputCapabilityDetector] Daemon handshake probe timed out after {TimeoutMs}ms.",
                 DaemonHandshakeProbeTimeout.TotalMilliseconds);
         }
-    }
-
-    private bool IsDaemonSocketPresent()
-    {
-        return ResolveAvailableSocketPath() is not null;
     }
 
     private bool ShouldKeepDaemonModeDuringTransientFailure(DateTime now)

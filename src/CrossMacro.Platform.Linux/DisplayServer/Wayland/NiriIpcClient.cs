@@ -110,7 +110,7 @@ internal sealed class NiriIpcClient : INiriIpcClient
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[NiriIpcClient] Failed to send IPC request");
+            Log.LogError(ex, "[NiriIpcClient] Failed to send IPC request");
             return null;
         }
     }

@@ -233,7 +233,8 @@ public class SettingsViewModelTests
     {
         // Arrange
         bool eventFired = false;
-        _viewModel.TrayIconEnabledChanged += (s, val) => {
+        _viewModel.TrayIconEnabledChanged += (s, val) =>
+        {
             eventFired = true;
             val.Should().BeTrue();
         };
@@ -348,7 +349,7 @@ public class SettingsViewModelTests
         var startCalled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var stopCalled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         _textExpansionService.When(x => x.Start()).Do(_ => startCalled.TrySetResult(true));
-        _textExpansionService.When(x => x.Stop()).Do(_ => stopCalled.TrySetResult(true));
+        _textExpansionService.When(x => x.StopExpansion()).Do(_ => stopCalled.TrySetResult(true));
 
         // Act - Enable
         _viewModel.EnableTextExpansion = true;
@@ -365,7 +366,7 @@ public class SettingsViewModelTests
         // Assert - Disable
         _settingsService.Current.EnableTextExpansion.Should().BeFalse();
         await stopCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
-        _textExpansionService.Received(1).Stop();
+        _textExpansionService.Received(1).StopExpansion();
     }
 
     [Fact]
@@ -464,7 +465,7 @@ public class SettingsViewModelTests
 
         _settingsService.Current.EnableTextExpansion.Should().BeFalse();
         _textExpansionService.DidNotReceive().Start();
-        _textExpansionService.DidNotReceive().Stop();
+        _textExpansionService.DidNotReceive().StopExpansion();
     }
 
     [Fact]
@@ -655,7 +656,7 @@ public class SettingsViewModelTests
 
         vm.Dispose();
         profileManager.ActiveProfile.Returns(workProfile);
-        profileManager.ProfileChanged += Raise.Event<EventHandler<ProfileInfo>>(profileManager, workProfile);
+        profileManager.ProfileChanged += Raise.Event<EventHandler<ProfileChangedEventArgs>>(profileManager, new ProfileChangedEventArgs(workProfile));
 
         vm.SelectedProfile.Should().Be(defaultProfile);
     }
@@ -715,7 +716,7 @@ public class SettingsViewModelTests
             _runtimeContext,
             profileManager: profileManager);
 
-        profileManager.ProfileChanged += Raise.Event<EventHandler<ProfileInfo>>(profileManager, workProfile);
+        profileManager.ProfileChanged += Raise.Event<EventHandler<ProfileChangedEventArgs>>(profileManager, new ProfileChangedEventArgs(workProfile));
 
         vm.SelectedProfile.Should().Be(workProfile);
         vm.RecordingHotkey.Should().Be("Ctrl+Alt+R");

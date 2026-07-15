@@ -1,6 +1,6 @@
 
 namespace CrossMacro.Cli.Serialization;
 
-public sealed record DoctorCommandData(
+public sealed record class DoctorCommandData(
     [property: JsonPropertyName("checks")] IReadOnlyList<DoctorCheckOutput> Checks
 );

@@ -55,7 +55,7 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
             return;
         }
 
-        if (!await _processRunner.CheckCommandAsync(FlatpakSpawn, cancellationToken))
+        if (!await _processRunner.CheckCommandAsync(FlatpakSpawn, cancellationToken).ConfigureAwait(false))
         {
             Log.Warning("[FlatpakHostClipboard] flatpak-spawn is not available in sandbox");
             _initialized = true;
@@ -63,8 +63,8 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
         }
 
         if (IsWaylandSession() &&
-            await HostCommandExistsAsync("wl-copy", cancellationToken) &&
-            await HostCommandExistsAsync("wl-paste", cancellationToken))
+            await HostCommandExistsAsync("wl-copy", cancellationToken).ConfigureAwait(false) &&
+            await HostCommandExistsAsync("wl-paste", cancellationToken).ConfigureAwait(false))
         {
             _tool = ClipboardTool.HostWlClipboard;
             Log.Information("[FlatpakHostClipboard] Using host wl-clipboard via flatpak-spawn");
@@ -72,7 +72,7 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
             return;
         }
 
-        if (IsX11CompatibleSession() && await HostCommandExistsAsync("xclip", cancellationToken))
+        if (IsX11CompatibleSession() && await HostCommandExistsAsync("xclip", cancellationToken).ConfigureAwait(false))
         {
             _tool = ClipboardTool.HostXclip;
             Log.Information("[FlatpakHostClipboard] Using host xclip via flatpak-spawn");
@@ -80,7 +80,7 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
             return;
         }
 
-        if (IsX11CompatibleSession() && await HostCommandExistsAsync("xsel", cancellationToken))
+        if (IsX11CompatibleSession() && await HostCommandExistsAsync("xsel", cancellationToken).ConfigureAwait(false))
         {
             _tool = ClipboardTool.HostXsel;
             Log.Information("[FlatpakHostClipboard] Using host xsel via flatpak-spawn");
@@ -94,7 +94,7 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
 
     public async Task SetTextAsync(string text, CancellationToken cancellationToken = default)
     {
-        await InitializeAsync(cancellationToken);
+        await InitializeAsync(cancellationToken).ConfigureAwait(false);
 
         try
         {
@@ -105,21 +105,21 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
                         FlatpakSpawn,
                         ["--host", "wl-copy", "--type", "text/plain"],
                         text,
-                        cancellationToken);
+                        cancellationToken).ConfigureAwait(false);
                     return;
                 case ClipboardTool.HostXclip:
                     await _processRunner.WriteClipboardInputAndCloseAsync(
                         FlatpakSpawn,
                         ["--host", "xclip", "-selection", "clipboard"],
                         text,
-                        cancellationToken);
+                        cancellationToken).ConfigureAwait(false);
                     return;
                 case ClipboardTool.HostXsel:
                     await _processRunner.WriteClipboardInputAndCloseAsync(
                         FlatpakSpawn,
                         ["--host", "xsel", "--clipboard", "--input"],
                         text,
-                        cancellationToken);
+                        cancellationToken).ConfigureAwait(false);
                     return;
                 default:
                     throw new InvalidOperationException("No supported host clipboard tool is available.");
@@ -131,14 +131,14 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[FlatpakHostClipboard] Failed to set host clipboard text");
+            Log.LogError(ex, "[FlatpakHostClipboard] Failed to set host clipboard text");
             throw;
         }
     }
 
     public async Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
     {
-        await InitializeAsync(cancellationToken);
+        await InitializeAsync(cancellationToken).ConfigureAwait(false);
 
         try
         {
@@ -147,15 +147,15 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
                 ClipboardTool.HostWlClipboard => await _processRunner.ReadCommandAsync(
                     FlatpakSpawn,
                     ["--host", "wl-paste", "--no-newline"],
-                    cancellationToken),
+                    cancellationToken).ConfigureAwait(false),
                 ClipboardTool.HostXclip => await _processRunner.ReadCommandAsync(
                     FlatpakSpawn,
                     ["--host", "xclip", "-selection", "clipboard", "-o"],
-                    cancellationToken),
+                    cancellationToken).ConfigureAwait(false),
                 ClipboardTool.HostXsel => await _processRunner.ReadCommandAsync(
                     FlatpakSpawn,
                     ["--host", "xsel", "--clipboard", "--output"],
-                    cancellationToken),
+                    cancellationToken).ConfigureAwait(false),
                 _ => throw new InvalidOperationException("No supported host clipboard tool is available."),
             };
         }
@@ -171,7 +171,7 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
                 return string.Empty;
             }
 
-            Log.Error(ex, "[FlatpakHostClipboard] Failed to get host clipboard text");
+            Log.LogError(ex, "[FlatpakHostClipboard] Failed to get host clipboard text");
             throw;
         }
     }
@@ -210,7 +210,7 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
             var output = await _processRunner.ReadCommandAsync(
                 FlatpakSpawn,
                 ["--host", "sh", "-lc", $"command -v {command} >/dev/null 2>&1 && printf yes"],
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
             return string.Equals(output.Trim(), "yes", StringComparison.Ordinal);
         }
         catch (OperationCanceledException)

@@ -41,4 +41,8 @@
     </ItemGroup>
   </Target>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="CrossMacro.Daemon.Tests" />
+  </ItemGroup>
+
 </Project>

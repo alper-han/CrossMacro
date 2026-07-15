@@ -188,12 +188,15 @@ public partial class HotkeyCapture : UserControl
     private async void OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         e.Handled = true;
-        await StartCaptureAsync();
+        await StartCaptureAsync().ConfigureAwait(false);
     }
 
     private async Task StartCaptureAsync()
     {
-        if (IsCapturing || _isDetached) return;
+        if (IsCapturing || _isDetached)
+        {
+            return;
+        }
 
         var hotkeyService = GlobalHotkeyService;
 
@@ -214,7 +217,7 @@ public partial class HotkeyCapture : UserControl
         try
         {
             // Capture directly from the service (bypassing UI/OS filtering)
-            var newHotkey = await hotkeyService.CaptureNextKeyAsync(captureToken);
+            var newHotkey = await hotkeyService.CaptureNextKeyAsync(captureToken).ConfigureAwait(false);
 
             // Update on UI thread
             Dispatcher.UIThread.Post(() =>
@@ -270,7 +273,7 @@ public partial class HotkeyCapture : UserControl
                 UpdateDisplayString();
                 UpdateVisualStateClasses();
 
-                Log.Error(ex, "Capture failed");
+                Log.LogError(ex, "Capture failed");
             });
         }
         finally
@@ -299,7 +302,7 @@ public partial class HotkeyCapture : UserControl
     {
         try
         {
-            await Task.Delay(ValidationResetDelayMs, token);
+            await Task.Delay(ValidationResetDelayMs, token).ConfigureAwait(false);
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 if (token.IsCancellationRequested || _isDetached)

@@ -75,7 +75,9 @@ public sealed class JsonSourceGenerationDtoTests
     private static void AssertRoots(JsonSerializerContext context, params Type[] rootTypes)
     {
         foreach (var rootType in rootTypes)
+        {
             Assert.NotNull(context.GetTypeInfo(rootType));
+        }
     }
 
     private static string PropertyName(JsonTypeInfo? typeInfo, string propertyName)

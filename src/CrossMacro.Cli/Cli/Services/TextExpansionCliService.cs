@@ -45,7 +45,7 @@ public sealed class TextExpansionCliService : ITextExpansionCliService
 
         try
         {
-            var expansion = new TextExpansion(trigger, replacement, isEnabled: true, method, insertionMode, directTypingMethod);
+            var expansion = new TextExpansionEntry(trigger, replacement, isEnabled: true, method, insertionMode, directTypingMethod);
             await _manageTextExpansion.AddAsync(expansion, profileIdentifier, cancellationToken).ConfigureAwait(false);
             return CliCommandExecutionResult.Ok($"Text expansion added: {trigger}.", ToData(expansion));
         }
@@ -138,7 +138,7 @@ public sealed class TextExpansionCliService : ITextExpansionCliService
         return CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Profile not found.", [$"Unknown profile: {profileIdentifier}"]);
     }
 
-    private static TextExpansionData ToData(TextExpansion expansion)
+    private static TextExpansionData ToData(TextExpansionEntry expansion)
     {
         return new TextExpansionData(
             expansion.Trigger,

@@ -2,12 +2,12 @@
 namespace CrossMacro.Core.Services.Playback;
 
 /// <summary>
-/// Maps MouseButton enum to platform-agnostic button codes.
+/// Maps MacroMouseButton enum to platform-agnostic button codes.
 /// </summary>
 public interface IPlaybackMouseButtonMapper
 {
     /// <summary>
-    /// Map a MouseButton enum value to its numeric code
+    /// Map a MacroMouseButton enum value to its numeric code
     /// </summary>
-    int Map(MouseButton button);
+    public int Map(MacroMouseButton button);
 }

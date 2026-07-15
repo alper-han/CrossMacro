@@ -67,7 +67,7 @@ internal sealed class LinuxRequestAwareScreenFrameProvider : IScreenFrameProvide
             return GetProvider(incompatible).CaptureFrameAsync(region, options);
         }
 
-        return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(
+        return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
             ScreenReadErrorKind.BackendUnavailable,
             "No Linux Wayland screen reader backend is available."));
     }

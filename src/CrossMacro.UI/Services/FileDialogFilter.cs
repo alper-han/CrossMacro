@@ -33,14 +33,14 @@ public class FileDialogFilter
         {
             trimmed = trimmed[2..];
         }
-        else if (trimmed.StartsWith(".", StringComparison.Ordinal))
+        else if (trimmed.StartsWith('.'))
         {
             trimmed = trimmed[1..];
         }
-        else if (trimmed.StartsWith("*", StringComparison.Ordinal))
+        else if (trimmed.StartsWith('*'))
         {
             trimmed = trimmed[1..];
-            if (trimmed.StartsWith(".", StringComparison.Ordinal))
+            if (trimmed.StartsWith('.'))
             {
                 trimmed = trimmed[1..];
             }

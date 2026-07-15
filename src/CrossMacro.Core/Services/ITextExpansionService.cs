@@ -9,15 +9,15 @@ public interface ITextExpansionService : IDisposable
     /// <summary>
     /// Starts the text expansion service monitoring
     /// </summary>
-    void Start();
+    public void Start();
 
     /// <summary>
     /// Stops the text expansion service monitoring
     /// </summary>
-    void Stop();
+    public void StopExpansion();
 
     /// <summary>
     /// Check if the service is currently running
     /// </summary>
-    bool IsRunning { get; }
+    public bool IsRunning { get; }
 }

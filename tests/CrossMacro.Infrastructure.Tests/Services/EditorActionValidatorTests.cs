@@ -25,7 +25,7 @@ public class EditorActionValidatorTests
         var action = new EditorAction
         {
             Type = EditorActionType.MouseClick,
-            Button = MouseButton.ScrollUp,
+            Button = MacroMouseButton.ScrollUp,
         };
 
         // Act
@@ -352,7 +352,7 @@ public class EditorActionValidatorTests
                 IsAbsolute = false,
                 ScreenX = -5,
                 ScreenY = 8,
-                ScreenColorVariableName = "sample_color"
+                ScreenColorVariableName = "sample_color",
             },
         ];
 
@@ -365,7 +365,7 @@ public class EditorActionValidatorTests
                 ScreenY = 8,
                 ScreenColorHex = "00FF00",
                 ScreenTimeoutMs = 100,
-                ScreenColorVariableName = "wait_ok"
+                ScreenColorVariableName = "wait_ok",
             },
         ];
 
@@ -382,7 +382,7 @@ public class EditorActionValidatorTests
                 ScreenTolerance = 255,
                 ScreenFoundVariableName = "found",
                 ScreenFoundXVariableName = "found_x",
-                ScreenFoundYVariableName = "found_y"
+                ScreenFoundYVariableName = "found_y",
             },
         ];
     }
@@ -490,8 +490,8 @@ public class EditorActionValidatorTests
         // Arrange
         var actions = new[]
         {
-            new EditorAction { Type = EditorActionType.MouseClick, IsAbsolute = true, X = 100, Y = 200, Button = MouseButton.Left },
-            new EditorAction { Type = EditorActionType.MouseDown, IsAbsolute = false, X = 0, Y = 0, Button = MouseButton.Left },
+            new EditorAction { Type = EditorActionType.MouseClick, IsAbsolute = true, X = 100, Y = 200, Button = MacroMouseButton.Left },
+            new EditorAction { Type = EditorActionType.MouseDown, IsAbsolute = false, X = 0, Y = 0, Button = MacroMouseButton.Left },
         };
 
         // Act
@@ -512,9 +512,9 @@ public class EditorActionValidatorTests
             new EditorAction
             {
                 Type = EditorActionType.MouseClick,
-                Button = MouseButton.Left,
+                Button = MacroMouseButton.Left,
                 UseCurrentPosition = true,
-                IsAbsolute = false
+                IsAbsolute = false,
             },
         };
 
@@ -536,9 +536,9 @@ public class EditorActionValidatorTests
             new EditorAction
             {
                 Type = EditorActionType.MouseDown,
-                Button = MouseButton.Left,
+                Button = MacroMouseButton.Left,
                 UseCurrentPosition = true,
-                IsAbsolute = false
+                IsAbsolute = false,
             },
         };
 
@@ -560,9 +560,9 @@ public class EditorActionValidatorTests
             new EditorAction
             {
                 Type = EditorActionType.MouseUp,
-                Button = MouseButton.Left,
+                Button = MacroMouseButton.Left,
                 UseCurrentPosition = true,
-                IsAbsolute = false
+                IsAbsolute = false,
             },
         };
 
@@ -581,7 +581,7 @@ public class EditorActionValidatorTests
         var action = new EditorAction
         {
             Type = EditorActionType.MouseClick,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
             UseCurrentPosition = true,
             IsAbsolute = true,
         };
@@ -603,7 +603,7 @@ public class EditorActionValidatorTests
             Type = EditorActionType.MouseDown,
             IsAbsolute = true,
             UseCurrentPosition = true,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
         };
 
         // Act
@@ -768,9 +768,9 @@ public class EditorActionValidatorTests
         result.Error.Should().BeNull();
     }
 
-	[Fact]
-	public void Validate_ConditionWithColorOperand_ReturnsValid()
-	{
+    [Fact]
+    public void Validate_ConditionWithColorOperand_ReturnsValid()
+    {
         var action = new EditorAction
         {
             Type = EditorActionType.IfBlockStart,
@@ -783,92 +783,92 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-		result.IsValid.Should().BeTrue();
-		result.Error.Should().BeNull();
-	}
+        result.IsValid.Should().BeTrue();
+        result.Error.Should().BeNull();
+    }
 
-	[Fact]
-	public void Validate_ImageSearchWithNonFiniteSimilarity_ReturnsInvalid()
-	{
-		foreach (var similarity in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity })
-		{
-			var action = new EditorAction
-			{
-				Type = EditorActionType.ImageSearch,
-				ScreenLeft = 10,
-				ScreenTop = 20,
-				ScreenWidth = 30,
-				ScreenHeight = 40,
-				ImageAssetName = "Target",
-				ScreenFoundVariableName = "found",
-				ScreenFoundXVariableName = "found_x",
-				ScreenFoundYVariableName = "found_y",
-				ScreenTimeoutMs = 1500,
-				ImageSearchSimilarity = similarity,
-				ImageSearchDownsample = 1,
-			};
+    [Fact]
+    public void Validate_ImageSearchWithNonFiniteSimilarity_ReturnsInvalid()
+    {
+        foreach (var similarity in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity })
+        {
+            var action = new EditorAction
+            {
+                Type = EditorActionType.ImageSearch,
+                ScreenLeft = 10,
+                ScreenTop = 20,
+                ScreenWidth = 30,
+                ScreenHeight = 40,
+                ImageAssetName = "Target",
+                ScreenFoundVariableName = "found",
+                ScreenFoundXVariableName = "found_x",
+                ScreenFoundYVariableName = "found_y",
+                ScreenTimeoutMs = 1500,
+                ImageSearchSimilarity = similarity,
+                ImageSearchDownsample = 1,
+            };
 
-			var result = _validator.Validate(action);
+            var result = _validator.Validate(action);
 
-			result.IsValid.Should().BeFalse();
-			result.Error.Should().Contain("similarity");
-		}
-	}
+            result.IsValid.Should().BeFalse();
+            result.Error.Should().Contain("similarity");
+        }
+    }
 
-	[Fact]
-	public void Validate_ImageSearchWithBoundarySimilarities_ReturnsValid()
-	{
-		foreach (var similarity in new[] { 0.0, 1.0 })
-		{
-			var action = new EditorAction
-			{
-				Type = EditorActionType.ImageSearch,
-				ScreenLeft = 10,
-				ScreenTop = 20,
-				ScreenWidth = 30,
-				ScreenHeight = 40,
-				ImageAssetName = "Target",
-				ScreenFoundVariableName = "found",
-				ScreenFoundXVariableName = "found_x",
-				ScreenFoundYVariableName = "found_y",
-				ScreenTimeoutMs = 1500,
-				ImageSearchSimilarity = similarity,
-				ImageSearchDownsample = 1,
-			};
+    [Fact]
+    public void Validate_ImageSearchWithBoundarySimilarities_ReturnsValid()
+    {
+        foreach (var similarity in new[] { 0.0, 1.0 })
+        {
+            var action = new EditorAction
+            {
+                Type = EditorActionType.ImageSearch,
+                ScreenLeft = 10,
+                ScreenTop = 20,
+                ScreenWidth = 30,
+                ScreenHeight = 40,
+                ImageAssetName = "Target",
+                ScreenFoundVariableName = "found",
+                ScreenFoundXVariableName = "found_x",
+                ScreenFoundYVariableName = "found_y",
+                ScreenTimeoutMs = 1500,
+                ImageSearchSimilarity = similarity,
+                ImageSearchDownsample = 1,
+            };
 
-			var result = _validator.Validate(action);
+            var result = _validator.Validate(action);
 
-			result.IsValid.Should().BeTrue();
-			result.Error.Should().BeNull();
-		}
-	}
+            result.IsValid.Should().BeTrue();
+            result.Error.Should().BeNull();
+        }
+    }
 
-	[Theory]
-	[InlineData(MouseButton.Side1)]
-	[InlineData(MouseButton.Side2)]
-	public void Validate_ImageClickWithUnsupportedButton_ReturnsInvalid(MouseButton button)
-	{
-		var action = new EditorAction
-		{
-			Type = EditorActionType.ImageClick,
-			ScreenWidth = 30,
-			ScreenHeight = 40,
-			ImageAssetName = "Target",
-			ScreenFoundVariableName = "found",
-			ScreenFoundXVariableName = "found_x",
-			ScreenFoundYVariableName = "found_y",
-			Button = button,
-		};
+    [Theory]
+    [InlineData(MacroMouseButton.Side1)]
+    [InlineData(MacroMouseButton.Side2)]
+    public void Validate_ImageClickWithUnsupportedButton_ReturnsInvalid(MacroMouseButton button)
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ImageClick,
+            ScreenWidth = 30,
+            ScreenHeight = 40,
+            ImageAssetName = "Target",
+            ScreenFoundVariableName = "found",
+            ScreenFoundXVariableName = "found_x",
+            ScreenFoundYVariableName = "found_y",
+            Button = button,
+        };
 
-		var result = _validator.Validate(action);
+        var result = _validator.Validate(action);
 
-		result.IsValid.Should().BeFalse();
-		result.Error.Should().Contain("button");
-	}
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("button");
+    }
 
-	[Fact]
-	public void Validate_ConditionWithInvalidColorOperand_ReturnsInvalid()
-	{
+    [Fact]
+    public void Validate_ConditionWithInvalidColorOperand_ReturnsInvalid()
+    {
         var action = new EditorAction
         {
             Type = EditorActionType.IfBlockStart,
@@ -910,10 +910,10 @@ public class EditorActionValidatorTests
         var actions = new[]
         {
             new EditorAction { Type = EditorActionType.IfBlockStart, ScriptLeftOperand = "1", ScriptLeftOperandType = ScriptOperandType.Number, ScriptRightOperand = "1", ScriptRightOperandType = ScriptOperandType.Number, ScriptConditionOperator = ScriptConditionOperator.Equals },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.BlockEnd },
             new EditorAction { Type = EditorActionType.ElseBlockStart },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Right, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Right, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
@@ -931,7 +931,7 @@ public class EditorActionValidatorTests
         var actions = new[]
         {
             new EditorAction { Type = EditorActionType.RepeatBlockStart, Text = "1" },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = true, X = 100, Y = 100 },
             new EditorAction { Type = EditorActionType.BlockEnd },
         };
@@ -952,7 +952,7 @@ public class EditorActionValidatorTests
         {
             new EditorAction { Type = EditorActionType.RepeatBlockStart, Text = "1" },
             new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = true, X = 100, Y = 100 },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = false, IsAbsolute = true, X = 100, Y = 100 },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = false, IsAbsolute = true, X = 100, Y = 100 },
             new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
@@ -970,7 +970,7 @@ public class EditorActionValidatorTests
         var actions = new[]
         {
             new EditorAction { Type = EditorActionType.Break },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
         };
 
         // Act
@@ -990,9 +990,9 @@ public class EditorActionValidatorTests
         var actions = new[]
         {
             new EditorAction { Type = EditorActionType.RepeatBlockStart, Text = "2" },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.Continue },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Right, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Right, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
@@ -1010,7 +1010,7 @@ public class EditorActionValidatorTests
         var actions = new[]
         {
             new EditorAction { Type = EditorActionType.Continue },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
         };
 
         // Act

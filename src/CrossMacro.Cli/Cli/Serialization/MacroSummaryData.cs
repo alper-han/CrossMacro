@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Cli.Serialization;
 
-public sealed record MacroSummaryData(
+public sealed record class MacroSummaryData(
     [property: JsonPropertyName("macroPath")] string MacroPath,
     [property: JsonPropertyName("macroName")] string MacroName,
     [property: JsonPropertyName("eventCount")] int EventCount,

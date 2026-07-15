@@ -3,7 +3,7 @@ namespace CrossMacro.Application.Runtime;
 
 public interface IRunExecutionService
 {
-    Task<RunExecutionResult> ExecuteAsync(
+    public Task<RunExecutionResult> ExecuteAsync(
         RunExecutionRequest request,
         CancellationToken cancellationToken = default);
 }

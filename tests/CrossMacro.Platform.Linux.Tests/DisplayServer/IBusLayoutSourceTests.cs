@@ -6,9 +6,7 @@ public class IBusLayoutSourceTests
     [Fact]
     public void DetectLayout_ShouldNotThrow()
     {
-        var source = new IBusLayoutSource();
-
-        var ex = Record.Exception(source.DetectLayout);
+        var ex = Record.Exception(IBusLayoutSource.DetectLayout);
 
         Assert.Null(ex);
     }

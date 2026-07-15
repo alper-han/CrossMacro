@@ -29,15 +29,15 @@ public sealed class ScreenPixelReader : IScreenPixelReader, IScreenImageSearchRe
         var capture = await CaptureFrameAsync(region, options).ConfigureAwait(false);
         if (!capture.IsSuccess)
         {
-            return ScreenReadResult<ScreenPixelColor>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenPixelColor>(
                 capture.ErrorKind ?? ScreenReadErrorKind.CaptureFailed,
                 capture.ErrorMessage ?? "Screen frame capture failed.");
         }
 
         using var frame = capture.Value ?? throw new InvalidOperationException("Successful screen frame capture did not include a frame.");
         return frame.TryGetPixel(point, out var color)
-            ? ScreenReadResult<ScreenPixelColor>.Success(color)
-            : ScreenReadResult<ScreenPixelColor>.Failure(
+            ? ScreenReadResultFactory.Success<ScreenPixelColor>(color)
+            : ScreenReadResultFactory.Failure<ScreenPixelColor>(
                 ScreenReadErrorKind.OutOfBounds,
                 $"Point {point} is outside captured frame bounds {frame.LogicalBounds}.");
     }
@@ -68,7 +68,7 @@ public sealed class ScreenPixelReader : IScreenPixelReader, IScreenImageSearchRe
 
             if (DateTimeOffset.UtcNow >= deadline)
             {
-                return ScreenReadResult<ScreenPixelColor>.Failure(
+                return ScreenReadResultFactory.Failure<ScreenPixelColor>(
                     ScreenReadErrorKind.CaptureTimeout,
                     $"Timed out waiting for pixel {point} to become {expected}.");
             }
@@ -79,7 +79,7 @@ public sealed class ScreenPixelReader : IScreenPixelReader, IScreenImageSearchRe
             }
             catch (OperationCanceledException)
             {
-                return ScreenReadResult<ScreenPixelColor>.Failure(
+                return ScreenReadResultFactory.Failure<ScreenPixelColor>(
                     ScreenReadErrorKind.Canceled,
                     "Screen pixel wait was canceled.");
             }
@@ -102,7 +102,7 @@ public sealed class ScreenPixelReader : IScreenPixelReader, IScreenImageSearchRe
         var capture = await CaptureFrameAsync(region, options).ConfigureAwait(false);
         if (!capture.IsSuccess)
         {
-            return ScreenReadResult<ScreenPixelSearchMatch>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenPixelSearchMatch>(
                 capture.ErrorKind ?? ScreenReadErrorKind.CaptureFailed,
                 capture.ErrorMessage ?? "Screen frame capture failed.");
         }
@@ -110,27 +110,27 @@ public sealed class ScreenPixelReader : IScreenPixelReader, IScreenImageSearchRe
         using var frame = capture.Value ?? throw new InvalidOperationException("Successful screen frame capture did not include a frame.");
         if (!frame.ContainsAnyValidPixel(region))
         {
-            return ScreenReadResult<ScreenPixelSearchMatch>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenPixelSearchMatch>(
                 ScreenReadErrorKind.OutOfBounds,
                 $"Search region {region} does not contain any valid captured screen pixels.");
         }
 
         var match = frame.SearchPixel(region, expected, tolerance);
         return match is { } found
-            ? ScreenReadResult<ScreenPixelSearchMatch>.Success(found)
-            : ScreenReadResult<ScreenPixelSearchMatch>.Failure(
+            ? ScreenReadResultFactory.Success<ScreenPixelSearchMatch>(found)
+            : ScreenReadResultFactory.Failure<ScreenPixelSearchMatch>(
                 ScreenReadErrorKind.CaptureTimeout,
                 $"No pixel matching {expected} was found in region {region}.");
     }
 
     public async Task<ScreenReadResult<ScreenImageMatch>> SearchImageAsync(
         ScreenRect? region,
-        ScreenFrame template,
+        ScreenFrame imageTemplate,
         ScreenImageMatchOptions matchOptions,
         ScreenReadOptions options)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(template);
+        ArgumentNullException.ThrowIfNull(imageTemplate);
         ArgumentNullException.ThrowIfNull(matchOptions);
 
         using var timeoutCancellation = options.Timeout is { } timeout
@@ -148,12 +148,12 @@ public sealed class ScreenPixelReader : IScreenPixelReader, IScreenImageSearchRe
         {
             if (capture.ErrorKind is ScreenReadErrorKind.Canceled && IsImageSearchTimeout(options.CancellationToken, timeoutCancellation))
             {
-                return ScreenReadResult<ScreenImageMatch>.Failure(
+                return ScreenReadResultFactory.Failure<ScreenImageMatch>(
                     ScreenReadErrorKind.CaptureTimeout,
                     "Timed out while capturing screen frame for image search.");
             }
 
-            return ScreenReadResult<ScreenImageMatch>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenImageMatch>(
                 capture.ErrorKind ?? ScreenReadErrorKind.CaptureFailed,
                 capture.ErrorMessage ?? "Screen frame capture failed.");
         }
@@ -163,7 +163,7 @@ public sealed class ScreenPixelReader : IScreenPixelReader, IScreenImageSearchRe
         var effectiveRegion = effectiveMatchOptions.SearchRegion ?? frame.LogicalBounds;
         if (!frame.ContainsAnyValidPixel(effectiveRegion))
         {
-            return ScreenReadResult<ScreenImageMatch>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenImageMatch>(
                 ScreenReadErrorKind.OutOfBounds,
                 $"Image search region {effectiveRegion} does not contain any valid captured screen pixels.");
         }
@@ -174,26 +174,26 @@ public sealed class ScreenPixelReader : IScreenPixelReader, IScreenImageSearchRe
                 ? options.CancellationToken
                 : effectiveOptions.CancellationToken;
             matcherCancellationToken.ThrowIfCancellationRequested();
-            var match = _imageMatcher.FindMatch(frame, template, effectiveMatchOptions, matcherCancellationToken);
+            var match = _imageMatcher.FindMatch(frame, imageTemplate, effectiveMatchOptions, matcherCancellationToken);
             return match is { } found
-                ? ScreenReadResult<ScreenImageMatch>.Success(found)
-                : ScreenReadResult<ScreenImageMatch>.Failure(
+                ? ScreenReadResultFactory.Success<ScreenImageMatch>(found)
+                : ScreenReadResultFactory.Failure<ScreenImageMatch>(
                     ScreenReadErrorKind.CaptureTimeout,
                     $"No image matching the template was found in region {effectiveMatchOptions.SearchRegion ?? frame.LogicalBounds}.");
         }
         catch (ScreenImageMatcherResourceLimitException ex)
         {
-            return ScreenReadResult<ScreenImageMatch>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenImageMatch>(
                 ScreenReadErrorKind.ResourceLimitExceeded,
                 ex.Message);
         }
         catch (OperationCanceledException)
         {
             return IsImageSearchTimeout(options.CancellationToken, timeoutCancellation)
-                ? ScreenReadResult<ScreenImageMatch>.Failure(
+                ? ScreenReadResultFactory.Failure<ScreenImageMatch>(
                     ScreenReadErrorKind.CaptureTimeout,
                     $"Timed out while searching for screen image in region {effectiveMatchOptions.SearchRegion ?? frame.LogicalBounds}.")
-                : ScreenReadResult<ScreenImageMatch>.Failure(
+                : ScreenReadResultFactory.Failure<ScreenImageMatch>(
                     ScreenReadErrorKind.Canceled,
                     "Screen image search was canceled.");
         }
@@ -220,7 +220,7 @@ public sealed class ScreenPixelReader : IScreenPixelReader, IScreenImageSearchRe
         }
         catch (OperationCanceledException)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.Canceled,
                 "Screen frame capture was canceled.");
         }

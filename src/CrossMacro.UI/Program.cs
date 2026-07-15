@@ -46,7 +46,7 @@ public static class Program
                 DefaultFamilyName = "avares://Avalonia.Fonts.Inter/Assets#Inter",
                 FontFallbacks =
                 [
-                    new FontFallback { FontFamily = new FontFamily("avares://Avalonia.Fonts.Inter/Assets#Inter") }
+                    new FontFallback { FontFamily = new FontFamily("avares://Avalonia.Fonts.Inter/Assets#Inter") },
                 ],
             });
     }
@@ -66,6 +66,6 @@ public static class Program
             return name.Name ?? "CrossMacro";
         }
 
-        return $"{name.Name} {version.Major}.{version.Minor}.{version.Build}";
+        return $"{name.Name} {version.Major.ToString(CultureInfo.InvariantCulture)}.{version.Minor.ToString(CultureInfo.InvariantCulture)}.{version.Build.ToString(CultureInfo.InvariantCulture)}";
     }
 }

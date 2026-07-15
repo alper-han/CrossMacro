@@ -6,11 +6,11 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 /// </summary>
 public interface ISwayIpcClient : IDisposable
 {
-    bool IsAvailable { get; }
-    string? SocketPath { get; }
+    public bool IsAvailable { get; }
+    public string? SocketPath { get; }
 
     /// <summary>
     /// Sends a binary IPC request to Sway and returns the JSON payload response.
     /// </summary>
-    Task<string?> SendRequestAsync(uint type, string payload = "", CancellationToken cancellationToken = default);
+    public Task<string?> SendRequestAsync(uint type, string payload = "", CancellationToken cancellationToken = default);
 }

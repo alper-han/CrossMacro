@@ -46,7 +46,7 @@ public class EditorActionConverter : IEditorActionConverter
     }
 
     /// <inheritdoc/>
-    public List<MacroEvent> ToMacroEvents(EditorAction action)
+    public IReadOnlyList<MacroEvent> ToMacroEvents(EditorAction action)
     {
         var events = new List<MacroEvent>();
 
@@ -150,7 +150,7 @@ public class EditorActionConverter : IEditorActionConverter
                 break;
 
             case EditorActionType.ScrollVertical:
-                var scrollButton = action.ScrollAmount > 0 ? MouseButton.ScrollUp : MouseButton.ScrollDown;
+                var scrollButton = action.ScrollAmount > 0 ? MacroMouseButton.ScrollUp : MacroMouseButton.ScrollDown;
                 for (int i = 0; i < Math.Abs(action.ScrollAmount); i++)
                 {
                     events.Add(new MacroEvent
@@ -163,7 +163,7 @@ public class EditorActionConverter : IEditorActionConverter
                 break;
 
             case EditorActionType.ScrollHorizontal:
-                var hScrollButton = action.ScrollAmount > 0 ? MouseButton.ScrollRight : MouseButton.ScrollLeft;
+                var hScrollButton = action.ScrollAmount > 0 ? MacroMouseButton.ScrollRight : MacroMouseButton.ScrollLeft;
                 for (int i = 0; i < Math.Abs(action.ScrollAmount); i++)
                 {
                     events.Add(new MacroEvent
@@ -201,7 +201,10 @@ public class EditorActionConverter : IEditorActionConverter
                     }
 
                     var keyCode = _keyCodeMapper.GetKeyCodeForCharacter(c);
-                    if (keyCode == -1) continue; // Skip unmappable characters
+                    if (keyCode == -1)
+                    {
+                        continue; // Skip unmappable characters
+                    }
 
                     var needsShift = _keyCodeMapper.RequiresShift(c);
                     var needsAltGr = _keyCodeMapper.RequiresAltGr(c);
@@ -354,7 +357,7 @@ public class EditorActionConverter : IEditorActionConverter
                 action.Type = EditorActionType.MouseMove;
                 action.X = ev.X;
                 action.Y = ev.Y;
-                if (ev.CoordinateMode.HasValue)
+                if (ev.CoordinateMode is not null)
                 {
                     action.IsAbsolute = ev.CoordinateMode.Value is MouseCoordinateMode.Absolute;
                 }
@@ -363,10 +366,10 @@ public class EditorActionConverter : IEditorActionConverter
             case EventType.Click:
                 if (IsScrollButton(ev.Button))
                 {
-                    action.Type = ev.Button is MouseButton.ScrollUp or MouseButton.ScrollDown
+                    action.Type = ev.Button is MacroMouseButton.ScrollUp or MacroMouseButton.ScrollDown
                         ? EditorActionType.ScrollVertical
                         : EditorActionType.ScrollHorizontal;
-                    action.ScrollAmount = ev.Button is MouseButton.ScrollUp or MouseButton.ScrollRight ? 1 : -1;
+                    action.ScrollAmount = ev.Button is MacroMouseButton.ScrollUp or MacroMouseButton.ScrollRight ? 1 : -1;
                 }
                 else
                 {
@@ -375,7 +378,7 @@ public class EditorActionConverter : IEditorActionConverter
                     action.Y = ev.Y;
                     action.Button = ev.Button;
                     action.UseCurrentPosition = ev.UseCurrentPosition;
-                    if (ev.CoordinateMode.HasValue)
+                    if (ev.CoordinateMode is not null)
                     {
                         action.IsAbsolute = ev.CoordinateMode.Value is MouseCoordinateMode.Absolute;
                     }
@@ -388,7 +391,7 @@ public class EditorActionConverter : IEditorActionConverter
                 action.Y = ev.Y;
                 action.Button = ev.Button;
                 action.UseCurrentPosition = ev.UseCurrentPosition;
-                if (ev.CoordinateMode.HasValue)
+                if (ev.CoordinateMode is not null)
                 {
                     action.IsAbsolute = ev.CoordinateMode.Value is MouseCoordinateMode.Absolute;
                 }
@@ -400,7 +403,7 @@ public class EditorActionConverter : IEditorActionConverter
                 action.Y = ev.Y;
                 action.Button = ev.Button;
                 action.UseCurrentPosition = ev.UseCurrentPosition;
-                if (ev.CoordinateMode.HasValue)
+                if (ev.CoordinateMode is not null)
                 {
                     action.IsAbsolute = ev.CoordinateMode.Value is MouseCoordinateMode.Absolute;
                 }
@@ -531,10 +534,10 @@ public class EditorActionConverter : IEditorActionConverter
         if (hasStateScriptActions)
         {
             sequence.SkipInitialZeroZero = true;
-            sequence.ScriptSteps = BuildScriptSteps(actionList)
+            sequence.ReplaceScriptSteps(BuildScriptSteps(actionList)
                 .Select(step => step.Step)
                 .Where(step => !string.IsNullOrWhiteSpace(step))
-                .ToList();
+                .ToList());
         }
 
         return sequence;
@@ -554,10 +557,10 @@ public class EditorActionConverter : IEditorActionConverter
         var sequence = compileResult.Sequence;
         sequence.Name = name;
         sequence.CreatedAt = DateTime.UtcNow;
-        sequence.ScriptSteps = scriptSteps
+        sequence.ReplaceScriptSteps(scriptSteps
             .Select(step => step.Step)
             .Where(step => !string.IsNullOrWhiteSpace(step))
-            .ToList();
+            .ToList());
 
         if (sequence.Events.Count > 0 && (compileResult.InitialDelayMs > 0 || compileResult.InitialHasRandomDelay))
         {
@@ -597,7 +600,7 @@ public class EditorActionConverter : IEditorActionConverter
         }
     }
 
-    private List<RunScriptStep> BuildScriptSteps(IReadOnlyList<EditorAction> actions)
+    private static List<RunScriptStep> BuildScriptSteps(IReadOnlyList<EditorAction> actions)
     {
         var steps = new List<RunScriptStep>();
         var sourceIndex = 0;
@@ -628,7 +631,7 @@ public class EditorActionConverter : IEditorActionConverter
         switch (action.Type)
         {
             case EditorActionType.MouseMove:
-                yield return $"move {(action.IsAbsolute ? "abs" : "rel")} {action.X} {action.Y}";
+                yield return $"move {(action.IsAbsolute ? "abs" : "rel")} {action.X.ToString(CultureInfo.InvariantCulture)} {action.Y.ToString(CultureInfo.InvariantCulture)}";
                 yield break;
 
             case EditorActionType.MouseClick:
@@ -638,7 +641,7 @@ public class EditorActionConverter : IEditorActionConverter
                 }
                 else
                 {
-                    yield return $"move {(action.IsAbsolute ? "abs" : "rel")} {action.X} {action.Y}";
+                    yield return $"move {(action.IsAbsolute ? "abs" : "rel")} {action.X.ToString(CultureInfo.InvariantCulture)} {action.Y.ToString(CultureInfo.InvariantCulture)}";
                     yield return $"click {ToButtonToken(action.Button)}";
                 }
 
@@ -647,7 +650,7 @@ public class EditorActionConverter : IEditorActionConverter
             case EditorActionType.MouseDown:
                 if (!action.UseCurrentPosition)
                 {
-                    yield return $"move {(action.IsAbsolute ? "abs" : "rel")} {action.X} {action.Y}";
+                    yield return $"move {(action.IsAbsolute ? "abs" : "rel")} {action.X.ToString(CultureInfo.InvariantCulture)} {action.Y.ToString(CultureInfo.InvariantCulture)}";
                 }
 
                 yield return action.UseCurrentPosition
@@ -658,7 +661,7 @@ public class EditorActionConverter : IEditorActionConverter
             case EditorActionType.MouseUp:
                 if (!action.UseCurrentPosition)
                 {
-                    yield return $"move {(action.IsAbsolute ? "abs" : "rel")} {action.X} {action.Y}";
+                    yield return $"move {(action.IsAbsolute ? "abs" : "rel")} {action.X.ToString(CultureInfo.InvariantCulture)} {action.Y.ToString(CultureInfo.InvariantCulture)}";
                 }
 
                 yield return action.UseCurrentPosition
@@ -667,33 +670,33 @@ public class EditorActionConverter : IEditorActionConverter
                 yield break;
 
             case EditorActionType.KeyPress:
-                yield return $"tap {action.KeyCode}";
+                yield return $"tap {action.KeyCode.ToString(CultureInfo.InvariantCulture)}";
                 yield break;
 
             case EditorActionType.KeyDown:
-                yield return $"key down {action.KeyCode}";
+                yield return $"key down {action.KeyCode.ToString(CultureInfo.InvariantCulture)}";
                 yield break;
 
             case EditorActionType.KeyUp:
-                yield return $"key up {action.KeyCode}";
+                yield return $"key up {action.KeyCode.ToString(CultureInfo.InvariantCulture)}";
                 yield break;
 
             case EditorActionType.Delay:
                 yield return action.UseRandomDelay
-                    ? $"delay random {action.RandomDelayMinMs} {action.RandomDelayMaxMs}"
-                    : $"delay {action.DelayMs}";
+                    ? $"delay random {action.RandomDelayMinMs.ToString(CultureInfo.InvariantCulture)} {action.RandomDelayMaxMs.ToString(CultureInfo.InvariantCulture)}"
+                    : $"delay {action.DelayMs.ToString(CultureInfo.InvariantCulture)}";
                 yield break;
 
             case EditorActionType.ScrollVertical:
                 yield return action.ScrollAmount > 0
-                    ? $"scroll up {Math.Abs(action.ScrollAmount)}"
-                    : $"scroll down {Math.Abs(action.ScrollAmount)}";
+                    ? $"scroll up {Math.Abs(action.ScrollAmount).ToString(CultureInfo.InvariantCulture)}"
+                    : $"scroll down {Math.Abs(action.ScrollAmount).ToString(CultureInfo.InvariantCulture)}";
                 yield break;
 
             case EditorActionType.ScrollHorizontal:
                 yield return action.ScrollAmount > 0
-                    ? $"scroll right {Math.Abs(action.ScrollAmount)}"
-                    : $"scroll left {Math.Abs(action.ScrollAmount)}";
+                    ? $"scroll right {Math.Abs(action.ScrollAmount).ToString(CultureInfo.InvariantCulture)}"
+                    : $"scroll left {Math.Abs(action.ScrollAmount).ToString(CultureInfo.InvariantCulture)}";
                 yield break;
 
             case EditorActionType.TextInput:
@@ -802,15 +805,15 @@ public class EditorActionConverter : IEditorActionConverter
         var payload = GetScreenReadingPayload(action);
         var variableName = payload.NormalizeColorVariableToken();
         return payload.IsAbsolute
-            ? $"pixelcolor {payload.ScreenX} {payload.ScreenY} {variableName} timeout {payload.ScreenTimeoutMs}"
-            : $"pixelcolor rel {payload.ScreenX} {payload.ScreenY} {variableName} timeout {payload.ScreenTimeoutMs}";
+            ? $"pixelcolor {payload.ScreenX.ToString(CultureInfo.InvariantCulture)} {payload.ScreenY.ToString(CultureInfo.InvariantCulture)} {variableName} timeout {payload.ScreenTimeoutMs.ToString(CultureInfo.InvariantCulture)}"
+            : $"pixelcolor rel {payload.ScreenX.ToString(CultureInfo.InvariantCulture)} {payload.ScreenY.ToString(CultureInfo.InvariantCulture)} {variableName} timeout {payload.ScreenTimeoutMs.ToString(CultureInfo.InvariantCulture)}";
     }
 
     private static string BuildWaitColorStep(EditorAction action)
     {
         var payload = GetScreenReadingPayload(action);
         var resultVariableName = payload.NormalizeColorVariableToken();
-        return $"waitcolor {payload.ScreenX} {payload.ScreenY} {payload.FormatTargetColorToken()} {payload.ScreenTimeoutMs} {resultVariableName}";
+        return $"waitcolor {payload.ScreenX.ToString(CultureInfo.InvariantCulture)} {payload.ScreenY.ToString(CultureInfo.InvariantCulture)} {payload.FormatTargetColorToken()} {payload.ScreenTimeoutMs.ToString(CultureInfo.InvariantCulture)} {resultVariableName}";
     }
 
     private static string BuildPixelSearchStep(EditorAction action)
@@ -819,7 +822,7 @@ public class EditorActionConverter : IEditorActionConverter
         var foundVariableName = payload.NormalizeFoundVariableToken();
         var xVariableName = payload.NormalizeFoundXVariableToken();
         var yVariableName = payload.NormalizeFoundYVariableToken();
-        return $"pixelsearch {payload.ScreenLeft} {payload.ScreenTop} {payload.ScreenRight} {payload.ScreenBottom} {payload.FormatTargetColorToken()} {foundVariableName} {xVariableName} {yVariableName} timeout {payload.ScreenTimeoutMs} tolerance {payload.ScreenTolerance}";
+        return $"pixelsearch {payload.ScreenLeft.ToString(CultureInfo.InvariantCulture)} {payload.ScreenTop.ToString(CultureInfo.InvariantCulture)} {payload.ScreenRight.ToString(CultureInfo.InvariantCulture)} {payload.ScreenBottom.ToString(CultureInfo.InvariantCulture)} {payload.FormatTargetColorToken()} {foundVariableName} {xVariableName} {yVariableName} timeout {payload.ScreenTimeoutMs.ToString(CultureInfo.InvariantCulture)} tolerance {payload.ScreenTolerance.ToString(CultureInfo.InvariantCulture)}";
     }
 
     private static string BuildImageSearchStep(EditorAction action)
@@ -849,7 +852,7 @@ public class EditorActionConverter : IEditorActionConverter
         var imageName = EditorActionScriptTokens.NormalizeVariableToken(action.ImageAssetName);
         var right = checked(action.ScreenLeft + action.ScreenWidth);
         var bottom = checked(action.ScreenTop + action.ScreenHeight);
-        return $"{command} {action.ScreenLeft} {action.ScreenTop} {right} {bottom} {imageName}";
+        return $"{command} {action.ScreenLeft.ToString(CultureInfo.InvariantCulture)} {action.ScreenTop.ToString(CultureInfo.InvariantCulture)} {right.ToString(CultureInfo.InvariantCulture)} {bottom.ToString(CultureInfo.InvariantCulture)} {imageName}";
     }
 
     private static string BuildImageActionMatchOptions(EditorAction action)
@@ -859,7 +862,7 @@ public class EditorActionConverter : IEditorActionConverter
             ? $" matchmode {RunScriptPlatformSyntax.ToImageMatchModeToken(action.ImageSearchMatchMode)}"
             : string.Empty;
         var scaleAware = action.ImageSearchScaleAware ? $" {RunScriptSyntax.ImageSearchScaleAwareKeyword}" : string.Empty;
-        return $" timeout {action.ScreenTimeoutMs} similarity {similarity} downsample {action.ImageSearchDownsample}{mode}{scaleAware}";
+        return $" timeout {action.ScreenTimeoutMs.ToString(CultureInfo.InvariantCulture)} similarity {similarity} downsample {action.ImageSearchDownsample.ToString(CultureInfo.InvariantCulture)}{mode}{scaleAware}";
     }
 
     private static string BuildShellStep(EditorAction action)
@@ -923,17 +926,17 @@ public class EditorActionConverter : IEditorActionConverter
         {
             WindowCommandMode.Active => $"window active {payload.ActiveField} {outputVariable}",
             WindowCommandMode.Search => $"window search {selectorKind} {selectorValue} {outputVariable}",
-            WindowCommandMode.Wait => $"window wait {selectorKind} {selectorValue} {payload.TimeoutMs} {outputVariable}",
+            WindowCommandMode.Wait => $"window wait {selectorKind} {selectorValue} {payload.TimeoutMs.ToString(CultureInfo.InvariantCulture)} {outputVariable}",
             WindowCommandMode.Focus when selectorKind is "active" => "window focus active",
             WindowCommandMode.Focus => $"window focus {selectorKind} {selectorValue}",
             WindowCommandMode.Close when selectorKind is "active" => "window close active",
             WindowCommandMode.Close => $"window close {selectorKind} {selectorValue}",
-            WindowCommandMode.Move => $"window move {payload.X} {payload.Y}",
-            WindowCommandMode.Resize => $"window resize {payload.Width} {payload.Height}",
+            WindowCommandMode.Move => $"window move {payload.X.ToString(CultureInfo.InvariantCulture)} {payload.Y.ToString(CultureInfo.InvariantCulture)}",
+            WindowCommandMode.Resize => $"window resize {payload.Width.ToString(CultureInfo.InvariantCulture)} {payload.Height.ToString(CultureInfo.InvariantCulture)}",
             WindowCommandMode.Center => "window center active",
             WindowCommandMode.Maximize => "window maximize active",
             WindowCommandMode.Fullscreen => "window fullscreen active",
-            WindowCommandMode.Float => "window float active",
+            WindowCommandMode.Floating => "window float active",
             WindowCommandMode.WorkspaceGet => $"window getdesktop {outputVariable}",
             WindowCommandMode.WorkspaceSwitch => $"window setdesktop {workspace}",
             WindowCommandMode.WorkspaceMoveActive => $"window setdesktopforwindow active {workspace}",
@@ -958,15 +961,15 @@ public class EditorActionConverter : IEditorActionConverter
     {
         if (payload.TimeoutMs > 0)
         {
-            return $" {payload.Retries} {payload.BackoffMs} {payload.TimeoutMs}";
+            return $" {payload.Retries.ToString(CultureInfo.InvariantCulture)} {payload.BackoffMs.ToString(CultureInfo.InvariantCulture)} {payload.TimeoutMs.ToString(CultureInfo.InvariantCulture)}";
         }
 
         if (payload.BackoffMs > 0)
         {
-            return $" {payload.Retries} {payload.BackoffMs}";
+            return $" {payload.Retries.ToString(CultureInfo.InvariantCulture)} {payload.BackoffMs.ToString(CultureInfo.InvariantCulture)}";
         }
 
-        return payload.Retries > 0 ? $" {payload.Retries}" : string.Empty;
+        return payload.Retries > 0 ? $" {payload.Retries.ToString(CultureInfo.InvariantCulture)}" : string.Empty;
     }
 
     private static string FormatShellCaptureTarget(string target)
@@ -989,25 +992,25 @@ public class EditorActionConverter : IEditorActionConverter
         return payload;
     }
 
-    private static string ToButtonToken(MouseButton button)
+    private static string ToButtonToken(MacroMouseButton button)
     {
         return button switch
         {
-            MouseButton.Left => "left",
-            MouseButton.Right => "right",
-            MouseButton.Middle => "middle",
-            MouseButton.Side1 => "side1",
-            MouseButton.Side2 => "side2",
+            MacroMouseButton.Left => "left",
+            MacroMouseButton.Right => "right",
+            MacroMouseButton.Middle => "middle",
+            MacroMouseButton.Side1 => "side1",
+            MacroMouseButton.Side2 => "side2",
             _ => "left",
         };
     }
 
-    private static string ToImageClickButtonToken(MouseButton button)
+    private static string ToImageClickButtonToken(MacroMouseButton button)
     {
         return button switch
         {
-            MouseButton.Right => "right",
-            MouseButton.Middle => "middle",
+            MacroMouseButton.Right => "right",
+            MacroMouseButton.Middle => "middle",
             _ => "left",
         };
     }
@@ -1168,9 +1171,9 @@ public class EditorActionConverter : IEditorActionConverter
     }
 
     /// <inheritdoc/>
-    public List<EditorAction> FromMacroSequence(MacroSequence sequence)
+    public IReadOnlyList<EditorAction> FromMacroSequence(MacroSequence sequence)
     {
-        return FromMacroSequenceWithDiagnostics(sequence).Actions.ToList();
+        return FromMacroSequenceWithDiagnostics(sequence).Actions;
     }
 
     /// <inheritdoc/>
@@ -1323,7 +1326,7 @@ public class EditorActionConverter : IEditorActionConverter
         return lookup;
     }
 
-    private bool BoundaryMatchesTextInputEvents(IReadOnlyList<MacroEvent> events, TextInputBoundary boundary)
+    private bool BoundaryMatchesTextInputEvents(IList<MacroEvent> events, TextInputBoundary boundary)
     {
         var expectedEvents = ToMacroEvents(new EditorAction
         {
@@ -1352,7 +1355,7 @@ public class EditorActionConverter : IEditorActionConverter
     }
 
     private static List<MacroEvent> CopyBoundaryEventsWithoutLeadingDelay(
-        IReadOnlyList<MacroEvent> events,
+        IList<MacroEvent> events,
         int startEventIndex,
         int eventCount)
     {
@@ -1375,7 +1378,7 @@ public class EditorActionConverter : IEditorActionConverter
     }
 
     private bool TryRestoreActionsFromScriptSteps(
-        IReadOnlyList<string>? scriptSteps,
+        IList<string>? scriptSteps,
         out List<EditorAction> actions,
         out List<EditorActionRestoreWarning> warnings)
     {
@@ -1672,11 +1675,11 @@ public class EditorActionConverter : IEditorActionConverter
     private static bool TryParseButtonStep(
         string? rawStep,
         out string keyword,
-        out MouseButton button,
+        out MacroMouseButton button,
         out bool isCurrentPositionExplicit)
     {
         keyword = string.Empty;
-        button = MouseButton.Left;
+        button = MacroMouseButton.Left;
         isCurrentPositionExplicit = false;
         if (string.IsNullOrWhiteSpace(rawStep))
         {
@@ -1685,7 +1688,7 @@ public class EditorActionConverter : IEditorActionConverter
 
         var step = rawStep.Trim();
         var tokens = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (tokens.Length < 2 || tokens.Length > 3)
+        if (tokens.Length is < 2 or > 3)
         {
             return false;
         }
@@ -1720,22 +1723,22 @@ public class EditorActionConverter : IEditorActionConverter
         return true;
     }
 
-    private static bool TryParseButtonToken(string token, out MouseButton button)
+    private static bool TryParseButtonToken(string token, out MacroMouseButton button)
     {
         button = token.ToLowerInvariant() switch
         {
-            "left" or "l" => MouseButton.Left,
-            "right" or "r" => MouseButton.Right,
-            "middle" or "m" => MouseButton.Middle,
-            "side1" or "side" or "back" => MouseButton.Side1,
-            "side2" or "extra" or "forward" => MouseButton.Side2,
-            _ => MouseButton.None,
+            "left" or "l" => MacroMouseButton.Left,
+            "right" or "r" => MacroMouseButton.Right,
+            "middle" or "m" => MacroMouseButton.Middle,
+            "side1" or "side" or "back" => MacroMouseButton.Side1,
+            "side2" or "extra" or "forward" => MacroMouseButton.Side2,
+            _ => MacroMouseButton.None,
         };
 
-        return button is not MouseButton.None;
+        return button is not MacroMouseButton.None;
     }
 
-    private static EditorAction CreatePositionedButtonAction(string keyword, MouseButton button, bool isAbsolute, int x, int y)
+    private static EditorAction CreatePositionedButtonAction(string keyword, MacroMouseButton button, bool isAbsolute, int x, int y)
     {
         var actionType = keyword switch
         {
@@ -1756,7 +1759,7 @@ public class EditorActionConverter : IEditorActionConverter
         };
     }
 
-    private static EditorAction CreateCurrentPositionButtonAction(string keyword, MouseButton button)
+    private static EditorAction CreateCurrentPositionButtonAction(string keyword, MacroMouseButton button)
     {
         var actionType = keyword switch
         {
@@ -2116,7 +2119,7 @@ public class EditorActionConverter : IEditorActionConverter
                 action = CreateWindowAction(WindowCommandMode.Fullscreen);
                 return true;
             case "float":
-                action = CreateWindowAction(WindowCommandMode.Float);
+                action = CreateWindowAction(WindowCommandMode.Floating);
                 return true;
             case "getdesktop":
                 action = CreateWindowAction(WindowCommandMode.WorkspaceGet, outputVariable: parts[2]);
@@ -2842,17 +2845,17 @@ public class EditorActionConverter : IEditorActionConverter
         var matchModeExplicit = false;
         var scaleAware = false;
         var timeoutMs = EditorActionScreenReadingPayload.DefaultTimeoutMs;
-        var button = MouseButton.Left;
+        var button = MacroMouseButton.Left;
         for (var index = optionIndex; index < tokens.Length;)
         {
-			if (RunScriptSyntax.IsImageSearchSimilarityKeyword(tokens[index]))
-			{
-				if (!double.TryParse(tokens[index + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out similarity)
-					|| !double.IsFinite(similarity)
-					|| similarity is < 0.0 or > 1.0)
-				{
-					return false;
-				}
+            if (RunScriptSyntax.IsImageSearchSimilarityKeyword(tokens[index]))
+            {
+                if (!double.TryParse(tokens[index + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out similarity)
+                    || !double.IsFinite(similarity)
+                    || similarity is < 0.0 or > 1.0)
+                {
+                    return false;
+                }
 
                 index += 2;
                 continue;
@@ -2904,7 +2907,7 @@ public class EditorActionConverter : IEditorActionConverter
 && string.Equals(tokens[index], "button", StringComparison.OrdinalIgnoreCase))
             {
                 if (!TryParseButtonToken(tokens[index + 1], out button)
-                    || button is not (MouseButton.Left or MouseButton.Right or MouseButton.Middle))
+                    || button is not (MacroMouseButton.Left or MacroMouseButton.Right or MacroMouseButton.Middle))
                 {
                     return false;
                 }
@@ -2933,7 +2936,7 @@ public class EditorActionConverter : IEditorActionConverter
             ImageSearchMatchMode = matchMode,
             ImageSearchMatchModeWasExplicit = matchModeExplicit,
             ImageSearchScaleAware = scaleAware,
-            Button = actionType is EditorActionType.ImageClick ? button : MouseButton.Left,
+            Button = actionType is EditorActionType.ImageClick ? button : MacroMouseButton.Left,
         };
         return true;
     }
@@ -2960,7 +2963,7 @@ public class EditorActionConverter : IEditorActionConverter
             return true;
         }
 
-        if (!token.StartsWith("$", StringComparison.Ordinal)
+        if (!token.StartsWith('$')
             || !TryNormalizeVariableName(token, out variableName))
         {
             return false;
@@ -3030,7 +3033,7 @@ public class EditorActionConverter : IEditorActionConverter
     {
         action = new EditorAction();
         if (!step.StartsWith("repeat ", StringComparison.OrdinalIgnoreCase)
-            || !step.EndsWith("{", StringComparison.Ordinal))
+            || !step.EndsWith('{'))
         {
             return false;
         }
@@ -3064,7 +3067,7 @@ public class EditorActionConverter : IEditorActionConverter
     {
         action = new EditorAction();
         if (!step.StartsWith($"{keyword} ", StringComparison.OrdinalIgnoreCase)
-            || !step.EndsWith("{", StringComparison.Ordinal))
+            || !step.EndsWith('{'))
         {
             return false;
         }
@@ -3126,7 +3129,7 @@ public class EditorActionConverter : IEditorActionConverter
     {
         action = new EditorAction();
         if (!step.StartsWith("for ", StringComparison.OrdinalIgnoreCase)
-            || !step.EndsWith("{", StringComparison.Ordinal))
+            || !step.EndsWith('{'))
         {
             return false;
         }
@@ -3217,7 +3220,7 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        if (token.StartsWith("$", StringComparison.Ordinal))
+        if (token.StartsWith('$'))
         {
             var variable = token[1..].Trim();
             if (!TryNormalizeVariableName(variable, out tokenValue))
@@ -3261,7 +3264,7 @@ public class EditorActionConverter : IEditorActionConverter
             return true;
         }
 
-        if (token.StartsWith("$", StringComparison.Ordinal))
+        if (token.StartsWith('$'))
         {
             var variable = token[1..].Trim();
             if (!TryNormalizeVariableName(variable, out tokenValue))
@@ -3324,7 +3327,7 @@ public class EditorActionConverter : IEditorActionConverter
             return true;
         }
 
-        if (token.StartsWith("$", StringComparison.Ordinal))
+        if (token.StartsWith('$'))
         {
             var variable = token[1..].Trim();
             if (!TryNormalizeVariableName(variable, out value))
@@ -3393,12 +3396,12 @@ public class EditorActionConverter : IEditorActionConverter
 
     private static bool IsShiftKey(int keyCode)
     {
-        return keyCode == InputEventCode.KEY_LEFTSHIFT || keyCode == InputEventCode.KEY_RIGHTSHIFT;
+        return keyCode is InputEventCode.KEY_LEFTSHIFT or InputEventCode.KEY_RIGHTSHIFT;
     }
 
-    private static bool IsScrollButton(MouseButton button)
+    private static bool IsScrollButton(MacroMouseButton button)
     {
-        return button is MouseButton.ScrollUp or MouseButton.ScrollDown
-            or MouseButton.ScrollLeft or MouseButton.ScrollRight;
+        return button is MacroMouseButton.ScrollUp or MacroMouseButton.ScrollDown
+            or MacroMouseButton.ScrollLeft or MacroMouseButton.ScrollRight;
     }
 }

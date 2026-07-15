@@ -10,35 +10,35 @@ public interface IButtonStateTracker
     /// <summary>
     /// Record a button press
     /// </summary>
-    void Press(ushort button);
+    public void Press(ushort button);
 
     /// <summary>
     /// Record a button release
     /// </summary>
-    void Release(ushort button);
+    public void Release(ushort button);
 
     /// <summary>
     /// Whether any button is currently pressed
     /// </summary>
-    bool IsAnyPressed { get; }
+    public bool IsAnyPressed { get; }
 
     /// <summary>
     /// Get all currently pressed buttons
     /// </summary>
-    IReadOnlyCollection<ushort> PressedButtons { get; }
+    public IReadOnlyCollection<ushort> PressedButtons { get; }
 
     /// <summary>
     /// Release all tracked buttons via simulator and clear state
     /// </summary>
-    void ReleaseAll(IInputSimulator simulator);
+    public void ReleaseAll(IInputSimulator simulator);
 
     /// <summary>
     /// Restore all previously pressed buttons via simulator
     /// </summary>
-    void RestoreAll(IInputSimulator simulator, IEnumerable<ushort> buttons);
+    public void RestoreAll(IInputSimulator simulator, IEnumerable<ushort> buttons);
 
     /// <summary>
     /// Clear all tracking state without sending any events
     /// </summary>
-    void Clear();
+    public void Clear();
 }

@@ -76,25 +76,28 @@ public static class ScreenReadingDiagnosticDisplayFormatter
         return ContainsPrivateContent(value) ? PrivacyRedaction : value;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Security",
+        "S5443:Use a directory that is not publicly writable",
+        Justification = "These literals are redaction markers only; this method never opens, writes, or resolves a path.")]
     private static bool ContainsPrivateContent(string value)
     {
-        var normalized = value.ToLowerInvariant();
-        return normalized.Contains("pixel sample", StringComparison.Ordinal)
-            || normalized.Contains("raw rgb", StringComparison.Ordinal)
-            || normalized.Contains("rgb(", StringComparison.Ordinal)
-            || normalized.Contains("frame bytes", StringComparison.Ordinal)
-            || normalized.Contains("byte[]", StringComparison.Ordinal)
-            || normalized.Contains("crossmacro-kwin-screenshot", StringComparison.Ordinal)
-            || normalized.Contains("screen content", StringComparison.Ordinal)
-            || normalized.Contains("/tmp/", StringComparison.Ordinal)
-            || normalized.Contains("/var/tmp/", StringComparison.Ordinal)
-            || normalized.Contains("/run/user/", StringComparison.Ordinal)
-            || normalized.Contains("/home/", StringComparison.Ordinal)
-            || normalized.Contains(".raw", StringComparison.Ordinal)
-            || normalized.Contains(".png", StringComparison.Ordinal)
-            || normalized.Contains(".jpg", StringComparison.Ordinal)
-            || normalized.Contains(".jpeg", StringComparison.Ordinal)
-            || normalized.Contains(".bmp", StringComparison.Ordinal)
-            || normalized.Contains(".ppm", StringComparison.Ordinal);
+        return value.Contains("pixel sample", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("raw rgb", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("rgb(", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("frame bytes", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("byte[]", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("crossmacro-kwin-screenshot", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("screen content", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("/tmp/", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("/var/tmp/", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("/run/user/", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("/home/", StringComparison.OrdinalIgnoreCase)
+            || value.Contains(".raw", StringComparison.OrdinalIgnoreCase)
+            || value.Contains(".png", StringComparison.OrdinalIgnoreCase)
+            || value.Contains(".jpg", StringComparison.OrdinalIgnoreCase)
+            || value.Contains(".jpeg", StringComparison.OrdinalIgnoreCase)
+            || value.Contains(".bmp", StringComparison.OrdinalIgnoreCase)
+            || value.Contains(".ppm", StringComparison.OrdinalIgnoreCase);
     }
 }

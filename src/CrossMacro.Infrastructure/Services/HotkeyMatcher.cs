@@ -19,15 +19,21 @@ public class HotkeyMatcher : IHotkeyMatcher
     {
         // Check if the main key matches
         if (mapping.MainKey != keyCode)
+        {
             return false;
+        }
 
         // Check if all required modifiers are pressed
         if (!mapping.RequiredModifiers.All(m => modifiers.Contains(m)))
+        {
             return false;
+        }
 
         // Check if there are no extra modifiers pressed
         if (modifiers.Except(mapping.RequiredModifiers).Any())
+        {
             return false;
+        }
 
         // Check debounce
         var now = DateTime.UtcNow;

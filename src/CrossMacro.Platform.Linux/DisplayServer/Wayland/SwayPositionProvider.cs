@@ -44,15 +44,21 @@ public sealed class SwayPositionProvider : IMousePositionProvider
         {
             var response = await _ipcClient.SendRequestAsync(IpcGetOutputs).ConfigureAwait(false);
             if (string.IsNullOrEmpty(response))
+            {
                 return null;
+            }
 
             var outputs = JsonSerializer.Deserialize(response, SwayJsonContext.Default.SwayOutputDtoArray);
             if (outputs is null || outputs.Length is 0)
+            {
                 return null;
+            }
 
             var activeOutputs = outputs.Where(o => o.Active && o.Rect is not null).ToArray();
             if (activeOutputs.Length is 0)
+            {
                 return null;
+            }
 
             int minX = activeOutputs.Min(o => o.Rect!.X);
             int minY = activeOutputs.Min(o => o.Rect!.Y);
@@ -60,7 +66,9 @@ public sealed class SwayPositionProvider : IMousePositionProvider
             int maxY = activeOutputs.Max(o => o.Rect!.Y + o.Rect.Height);
 
             if (maxX <= minX || maxY <= minY)
+            {
                 return null;
+            }
 
             int width = maxX - minX;
             int height = maxY - minY;
@@ -70,7 +78,7 @@ public sealed class SwayPositionProvider : IMousePositionProvider
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[SwayPositionProvider] Failed to get screen resolution");
+            Log.LogError(ex, "[SwayPositionProvider] Failed to get screen resolution");
             return null;
         }
     }

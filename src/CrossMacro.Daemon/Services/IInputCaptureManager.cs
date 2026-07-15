@@ -9,10 +9,10 @@ public interface IInputCaptureManager : IDisposable
     /// <param name="captureMouse">Whether to capture mouse devices.</param>
     /// <param name="captureKeyboard">Whether to capture keyboard devices.</param>
     /// <param name="onEvent">Callback invoked for every captured event.</param>
-    CaptureStartResult StartCapture(bool captureMouse, bool captureKeyboard, Action<UInputNative.input_event> onEvent);
+    public CaptureStartResult StartCapture(bool captureMouse, bool captureKeyboard, Action<UInputNative.input_event> onEvent);
 
     /// <summary>
     /// Stops any active capture.
     /// </summary>
-    void StopCapture();
+    public void StopCapture();
 }

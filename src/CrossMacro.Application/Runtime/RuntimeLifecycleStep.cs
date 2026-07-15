@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Application.Runtime;
 
-public sealed record RuntimeLifecycleStep(
+public sealed record class RuntimeLifecycleStep(
     string Name,
     Func<CancellationToken, Task> StartAsync,
     Func<CancellationToken, Task> StopAsync);

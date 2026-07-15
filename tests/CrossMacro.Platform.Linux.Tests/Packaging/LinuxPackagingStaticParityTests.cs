@@ -136,7 +136,7 @@ public sealed partial class LinuxPackagingStaticParityTests
                 "scripts/assets/crossmacro-modules.conf",
                 "scripts/assets/io.github.alper_han.crossmacro.policy",
                 "scripts/assets/50-crossmacro.rules",
-                "crossmacro.service"
+                "crossmacro.service",
             ],
         };
 

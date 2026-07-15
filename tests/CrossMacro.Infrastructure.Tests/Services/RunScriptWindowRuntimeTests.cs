@@ -371,9 +371,13 @@ public sealed class RunScriptWindowRuntimeTests
         var result = RunScriptWindowExecutor.Validate(step);
 
         if (errorFragment is null)
+        {
             result.Should().BeNull();
+        }
         else
+        {
             result.Should().Contain(errorFragment);
+        }
     }
 
     // ---- helpers ----------------------------------------------------------------------

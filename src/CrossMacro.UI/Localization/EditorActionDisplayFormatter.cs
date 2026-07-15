@@ -1,8 +1,15 @@
 
 namespace CrossMacro.UI.Localization;
 
-public sealed class EditorActionDisplayFormatter(ILocalizationService localizationService)
+public sealed class EditorActionDisplayFormatter
 {
+    private readonly ILocalizationService localizationService;
+
+    public EditorActionDisplayFormatter(ILocalizationService localizationService)
+    {
+        this.localizationService = localizationService;
+    }
+
     public string Format(EditorAction action)
     {
         ArgumentNullException.ThrowIfNull(action);
@@ -118,17 +125,17 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
         };
     }
 
-    private string FormatMouseButton(MouseButton button)
+    private string FormatMouseButton(MacroMouseButton button)
     {
         return button switch
         {
-            MouseButton.Left => localizationService["MouseButton_Left"],
-            MouseButton.Right => localizationService["MouseButton_Right"],
-            MouseButton.Middle => localizationService["MouseButton_Middle"],
-            MouseButton.ScrollUp => localizationService["MouseButton_ScrollUp"],
-            MouseButton.ScrollDown => localizationService["MouseButton_ScrollDown"],
-            MouseButton.ScrollLeft => localizationService["MouseButton_ScrollLeft"],
-            MouseButton.ScrollRight => localizationService["MouseButton_ScrollRight"],
+            MacroMouseButton.Left => localizationService["MouseButton_Left"],
+            MacroMouseButton.Right => localizationService["MouseButton_Right"],
+            MacroMouseButton.Middle => localizationService["MouseButton_Middle"],
+            MacroMouseButton.ScrollUp => localizationService["MouseButton_ScrollUp"],
+            MacroMouseButton.ScrollDown => localizationService["MouseButton_ScrollDown"],
+            MacroMouseButton.ScrollLeft => localizationService["MouseButton_ScrollLeft"],
+            MacroMouseButton.ScrollRight => localizationService["MouseButton_ScrollRight"],
             _ => button.ToString(),
         };
     }
@@ -264,7 +271,7 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             WindowCommandMode.Center => localizationService["Editor_Action_WindowCenter"],
             WindowCommandMode.Maximize => localizationService["Editor_Action_WindowMaximize"],
             WindowCommandMode.Fullscreen => localizationService["Editor_Action_WindowFullscreen"],
-            WindowCommandMode.Float => localizationService["Editor_Action_WindowFloat"],
+            WindowCommandMode.Floating => localizationService["Editor_Action_WindowFloat"],
             WindowCommandMode.WorkspaceGet => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_WindowWorkspaceGet"], action.WindowOutputVariable),
             WindowCommandMode.WorkspaceSwitch => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_WindowWorkspaceSwitch"], action.WindowWorkspace),
             WindowCommandMode.WorkspaceMoveActive => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_WindowWorkspaceMoveActive"], action.WindowWorkspace),

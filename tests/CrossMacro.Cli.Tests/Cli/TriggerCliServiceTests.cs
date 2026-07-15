@@ -16,9 +16,9 @@ public class TriggerCliServiceTests
                 Field = TriggerField.WindowClass,
                 MatchMode = TriggerMatchMode.Contains,
                 Value = "vscode",
-                Action = TriggerAction.SwitchProfile,
+                Action = TriggerOperation.SwitchProfile,
                 TargetProfileId = "dev",
-                IsEnabled = true
+                IsEnabled = true,
             },
         }));
 
@@ -43,7 +43,7 @@ public class TriggerCliServiceTests
                 Field: TriggerField.WindowTitle,
                 MatchMode: TriggerMatchMode.Regex,
                 Value: ".*Firefox.*",
-                TriggerActionVal: TriggerAction.RunMacro,
+                TriggerActionVal: TriggerOperation.RunMacro,
                 MacroFilePath: "/tmp/demo.macro",
                 FireMode: TriggerFireMode.OnEnter,
                 CooldownMs: 1000,
@@ -65,7 +65,7 @@ public class TriggerCliServiceTests
             && task.Field == TriggerField.WindowTitle
             && task.MatchMode == TriggerMatchMode.Regex
             && task.Value == ".*Firefox.*"
-            && task.Action == TriggerAction.RunMacro
+            && task.Action == TriggerOperation.RunMacro
             && task.MacroFilePath == "/tmp/demo.macro"
             && task.FireMode == TriggerFireMode.OnEnter
             && task.CooldownMs == 1000
@@ -84,7 +84,7 @@ public class TriggerCliServiceTests
             Field = TriggerField.WindowClass,
             MatchMode = TriggerMatchMode.Equals,
             Value = "old",
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "old-profile",
         };
         var triggerService = Substitute.For<IManageTrigger>();
@@ -134,7 +134,7 @@ public class TriggerCliServiceTests
         var triggerService = Substitute.For<IManageTrigger>();
         triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask>
         {
-            new() { Id = id, Name = "Trigger", Action = TriggerAction.SwitchProfile, TargetProfileId = "dev", IsEnabled = true },
+            new() { Id = id, Name = "Trigger", Action = TriggerOperation.SwitchProfile, TargetProfileId = "dev", IsEnabled = true },
         }));
         var service = new TriggerCliService(triggerService);
 

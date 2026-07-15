@@ -4,8 +4,8 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 internal sealed class RunScriptRuntimeExecutionRequest
 {
     public RunScriptRuntimeExecutionRequest(
-        IReadOnlyList<string> scriptSteps,
-        IReadOnlyDictionary<string, string> imageAssets,
+        IList<string> scriptSteps,
+        IDictionary<string, string> imageAssets,
         double speedMultiplier,
         Func<MacroEvent, CancellationToken, Task> executeEventAsync,
         Func<int, bool, int, int, int> resolveDelayMs)
@@ -17,9 +17,9 @@ internal sealed class RunScriptRuntimeExecutionRequest
         ResolveDelayMs = resolveDelayMs ?? throw new ArgumentNullException(nameof(resolveDelayMs));
     }
 
-    public IReadOnlyList<string> ScriptSteps { get; }
+    public IList<string> ScriptSteps { get; }
 
-    public IReadOnlyDictionary<string, string> ImageAssets { get; }
+    public IDictionary<string, string> ImageAssets { get; }
 
     public double SpeedMultiplier { get; }
 

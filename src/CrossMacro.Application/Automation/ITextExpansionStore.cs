@@ -3,7 +3,7 @@ namespace CrossMacro.Application.Automation;
 
 public interface ITextExpansionStore
 {
-    Task<List<TextExpansion>> LoadAsync();
-    Task ReloadAsync(string profileConfigDirectory) => LoadAsync();
-    Task SaveAsync(IEnumerable<TextExpansion> expansions);
+    public Task<IList<TextExpansionEntry>> LoadAsync();
+    public Task ReloadAsync(string profileConfigDirectory) => LoadAsync();
+    public Task SaveAsync(IEnumerable<TextExpansionEntry> expansions);
 }

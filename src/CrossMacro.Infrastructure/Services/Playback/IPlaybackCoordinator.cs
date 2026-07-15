@@ -15,7 +15,7 @@ public interface IPlaybackCoordinator
     /// <param name="screenWidth">Screen width (0 if unknown)</param>
     /// <param name="screenHeight">Screen height (0 if unknown)</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    Task InitializeAsync(
+    public Task InitializeAsync(
         MacroSequence macro,
         IInputSimulator simulator,
         int screenWidth,
@@ -31,7 +31,7 @@ public interface IPlaybackCoordinator
     /// <param name="screenWidth">Screen width (0 if unknown)</param>
     /// <param name="screenHeight">Screen height (0 if unknown)</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    Task PrepareIterationAsync(
+    public Task PrepareIterationAsync(
         int iteration,
         MacroSequence macro,
         IInputSimulator simulator,
@@ -42,20 +42,20 @@ public interface IPlaybackCoordinator
     /// <summary>
     /// Current X position (tracked internally)
     /// </summary>
-    int CurrentX { get; }
+    public int CurrentX { get; }
 
     /// <summary>
     /// Current Y position (tracked internally)
     /// </summary>
-    int CurrentY { get; }
+    public int CurrentY { get; }
 
     /// <summary>
     /// Update tracked position
     /// </summary>
-    void UpdatePosition(int x, int y);
+    public void UpdatePosition(int x, int y);
 
     /// <summary>
     /// Add delta to tracked position
     /// </summary>
-    void AddDelta(int dx, int dy);
+    public void AddDelta(int dx, int dy);
 }

@@ -1,3 +1,3 @@
 namespace CrossMacro.Cli.Services;
 
-public sealed record TextExpansionTestData(bool Found, TextExpansionData? Expansion);
+public sealed record class TextExpansionTestData(bool Found, TextExpansionData? Expansion);

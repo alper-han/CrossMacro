@@ -55,7 +55,7 @@ public class LinuxPermissionService : ILinuxPermissionService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to set socket file mode");
+            Log.LogError(ex, "Failed to set socket file mode");
             throw;
         }
     }

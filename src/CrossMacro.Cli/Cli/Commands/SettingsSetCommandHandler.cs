@@ -12,7 +12,7 @@ public sealed class SettingsSetCommandHandler : CliCommandHandlerBase<SettingsSe
 
     protected override async Task<CliCommandExecutionResult> ExecuteAsync(SettingsSetCliOptions options, CancellationToken cancellationToken)
     {
-        var result = await _settingsCliService.SetAsync(options.Key, options.Value, cancellationToken);
+        var result = await _settingsCliService.SetAsync(options.Key, options.Value, cancellationToken).ConfigureAwait(false);
 
         return result.Success
             ? CliCommandExecutionResult.Ok(result.Message, result.Data)

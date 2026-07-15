@@ -3,9 +3,9 @@ namespace CrossMacro.Cli.Services;
 
 public interface IScheduleCliService
 {
-    Task<CliCommandExecutionResult> ListAsync(CancellationToken cancellationToken);
+    public Task<CliCommandExecutionResult> ListAsync(CancellationToken cancellationToken);
 
-    Task<CliCommandExecutionResult> RunAsync(string taskId, CancellationToken cancellationToken);
+    public Task<CliCommandExecutionResult> RunAsync(string taskId, CancellationToken cancellationToken);
 
-    Task<CliCommandExecutionResult> ExecuteAsync(ScheduleCliOptions options, CancellationToken cancellationToken);
+    public Task<CliCommandExecutionResult> ExecuteAsync(ScheduleCliOptions options, CancellationToken cancellationToken);
 }

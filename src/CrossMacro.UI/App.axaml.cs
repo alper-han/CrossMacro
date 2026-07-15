@@ -103,7 +103,7 @@ public partial class App : Avalonia.Application
     {
         try
         {
-            await startupCoordinator.StartAsync(desktop);
+            await startupCoordinator.StartAsync(desktop).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

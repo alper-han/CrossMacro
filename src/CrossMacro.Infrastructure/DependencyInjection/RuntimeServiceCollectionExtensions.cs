@@ -57,7 +57,7 @@ public static class RuntimeServiceCollectionExtensions
     {
         // Shared process-local runtime state and timing primitives.
         services.AddSingleton<IRuntimeLogLevelService, RuntimeLogLevelService>();
-        services.AddSingleton<ITimeProvider, SystemTimeProvider>();
+        services.AddSingleton(TimeProvider.System);
         services.TryAddSingleton<IShellCommandRunner>(sp =>
             sp.GetRequiredService<IRuntimeContext>().IsFlatpak
                 ? new FlatpakDisabledShellCommandRunner()

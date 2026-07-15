@@ -35,7 +35,7 @@ public sealed class NumericUpDownValueConverter : IValueConverter
         if (destinationType == typeof(int))
         {
             var integerValue = decimal.Truncate(decimalValue);
-            if (integerValue < int.MinValue || integerValue > int.MaxValue)
+            if (integerValue is < int.MinValue or > int.MaxValue)
             {
                 return BindingOperations.DoNothing;
             }

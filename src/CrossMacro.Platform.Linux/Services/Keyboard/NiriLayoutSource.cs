@@ -24,9 +24,12 @@ internal sealed class NiriLayoutSource
         try
         {
             using var ipcClient = _createIpcClient();
-            if (!ipcClient.IsAvailable) return null;
+            if (!ipcClient.IsAvailable)
+            {
+                return null;
+            }
 
-            var response = ipcClient.SendRequestAsync(KeyboardLayoutsRequestJson).GetAwaiter().GetResult();
+            var response = ipcClient.SendRequestAsync(KeyboardLayoutsRequestJson, CancellationToken.None).GetAwaiter().GetResult();
             return TryParseLayout(response, _resolveLayoutName);
         }
         catch (Exception ex)
@@ -38,14 +41,20 @@ internal sealed class NiriLayoutSource
 
     internal static string? TryParseLayout(string? response, Func<string, string?> resolveLayoutName)
     {
-        if (string.IsNullOrWhiteSpace(response)) return null;
+        if (string.IsNullOrWhiteSpace(response))
+        {
+            return null;
+        }
 
         try
         {
             using var document = JsonDocument.Parse(response);
             var root = document.RootElement;
 
-            if (root.ValueKind is not JsonValueKind.Object) return null;
+            if (root.ValueKind is not JsonValueKind.Object)
+            {
+                return null;
+            }
 
             var keyboardLayouts = root;
             if (root.TryGetProperty("Ok", out var okElement))
@@ -70,7 +79,10 @@ internal sealed class NiriLayoutSource
             }
 
             var activeName = names[index].GetString();
-            if (string.IsNullOrWhiteSpace(activeName)) return null;
+            if (string.IsNullOrWhiteSpace(activeName))
+            {
+                return null;
+            }
 
             return resolveLayoutName(activeName);
         }

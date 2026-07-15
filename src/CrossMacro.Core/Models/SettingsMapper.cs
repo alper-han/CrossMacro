@@ -11,6 +11,8 @@ public static class SettingsMapper
     /// </summary>
     public static GlobalSettings ToGlobal(AppSettings source)
     {
+        ArgumentNullException.ThrowIfNull(source);
+
         return new GlobalSettings
         {
             EnableTrayIcon = source.EnableTrayIcon,
@@ -27,7 +29,9 @@ public static class SettingsMapper
     /// </summary>
     public static ProfileSettings ToProfile(AppSettings source)
     {
-        return new ProfileSettings
+        ArgumentNullException.ThrowIfNull(source);
+
+        var profile = new ProfileSettings
         {
             PlaybackSpeed = source.PlaybackSpeed,
             IsLooping = source.IsLooping,
@@ -44,6 +48,8 @@ public static class SettingsMapper
             EnableTextExpansion = source.EnableTextExpansion,
             CheckForUpdates = source.CheckForUpdates,
         };
+        profile.Normalize();
+        return profile;
     }
 
     /// <summary>
@@ -51,7 +57,10 @@ public static class SettingsMapper
     /// </summary>
     public static AppSettings Combine(GlobalSettings global, ProfileSettings profile)
     {
-        return new AppSettings
+        ArgumentNullException.ThrowIfNull(global);
+        ArgumentNullException.ThrowIfNull(profile);
+
+        var settings = new AppSettings
         {
             // Global fields
             EnableTrayIcon = global.EnableTrayIcon,
@@ -76,6 +85,8 @@ public static class SettingsMapper
             EnableTextExpansion = profile.EnableTextExpansion,
             CheckForUpdates = profile.CheckForUpdates,
         };
+        settings.Normalize();
+        return settings;
     }
 
     /// <summary>
@@ -83,6 +94,9 @@ public static class SettingsMapper
     /// </summary>
     public static void ApplyGlobal(AppSettings target, GlobalSettings global)
     {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(global);
+
         target.EnableTrayIcon = global.EnableTrayIcon;
         target.StartMinimized = global.StartMinimized;
         target.LogLevel = global.LogLevel;
@@ -96,6 +110,9 @@ public static class SettingsMapper
     /// </summary>
     public static void ApplyProfile(AppSettings target, ProfileSettings profile)
     {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(profile);
+
         target.PlaybackSpeed = profile.PlaybackSpeed;
         target.IsLooping = profile.IsLooping;
         target.LoopCount = profile.LoopCount;
@@ -110,5 +127,6 @@ public static class SettingsMapper
         target.SkipInitialZeroZero = profile.SkipInitialZeroZero;
         target.EnableTextExpansion = profile.EnableTextExpansion;
         target.CheckForUpdates = profile.CheckForUpdates;
+        target.Normalize();
     }
 }

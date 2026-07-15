@@ -17,15 +17,21 @@ internal sealed class NiriWindowManager : IWindowManager
     public async Task<WindowInfo?> GetActiveWindowAsync(CancellationToken cancellationToken = default)
     {
         var response = await _ipcClient.SendRequestAsync("\"FocusedWindow\"", cancellationToken).ConfigureAwait(false);
-        if (response is null) return null;
+        if (response is null)
+        {
+            return null;
+        }
 
         try
         {
             var dto = JsonSerializer.Deserialize(response, NiriJsonContext.Default.NiriResponseNiriFocusedWindowData);
-            if ((dto?.Ok?.FocusedWindow) is null) return null;
+            if ((dto?.Ok?.FocusedWindow) is null)
+            {
+                return null;
+            }
 
-            var workspaces = await GetWorkspacesMapAsync(cancellationToken);
-            var outputs = await GetOutputsMapAsync(cancellationToken);
+            var workspaces = await GetWorkspacesMapAsync(cancellationToken).ConfigureAwait(false);
+            var outputs = await GetOutputsMapAsync(cancellationToken).ConfigureAwait(false);
 
             return MapWindow(dto.Ok.FocusedWindow, workspaces, outputs);
         }
@@ -39,15 +45,21 @@ internal sealed class NiriWindowManager : IWindowManager
     public async Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken = default)
     {
         var response = await _ipcClient.SendRequestAsync("\"Windows\"", cancellationToken).ConfigureAwait(false);
-        if (response is null) return Array.Empty<WindowInfo>();
+        if (response is null)
+        {
+            return Array.Empty<WindowInfo>();
+        }
 
         try
         {
             var dto = JsonSerializer.Deserialize(response, NiriJsonContext.Default.NiriResponseNiriWindowsData);
-            if ((dto?.Ok?.Windows) is null) return Array.Empty<WindowInfo>();
+            if ((dto?.Ok?.Windows) is null)
+            {
+                return Array.Empty<WindowInfo>();
+            }
 
-            var workspaces = await GetWorkspacesMapAsync(cancellationToken);
-            var outputs = await GetOutputsMapAsync(cancellationToken);
+            var workspaces = await GetWorkspacesMapAsync(cancellationToken).ConfigureAwait(false);
+            var outputs = await GetOutputsMapAsync(cancellationToken).ConfigureAwait(false);
 
             return dto.Ok.Windows.Select(w => MapWindow(w, workspaces, outputs)).ToArray();
         }
@@ -67,7 +79,10 @@ internal sealed class NiriWindowManager : IWindowManager
             var data = JsonSerializer.Deserialize(resp, NiriJsonContext.Default.NiriResponseNiriWorkspacesData);
             if ((data?.Ok?.Workspaces) is not null)
             {
-                foreach (var w in data.Ok.Workspaces) map[w.Id] = w;
+                foreach (var w in data.Ok.Workspaces)
+                {
+                    map[w.Id] = w;
+                }
             }
         }
         return map;
@@ -82,7 +97,10 @@ internal sealed class NiriWindowManager : IWindowManager
             var data = JsonSerializer.Deserialize(resp, NiriJsonContext.Default.NiriResponseNiriOutputsData);
             if ((data?.Ok?.Outputs) is not null)
             {
-                foreach (var kvp in data.Ok.Outputs) map[kvp.Key] = kvp.Value;
+                foreach (var kvp in data.Ok.Outputs)
+                {
+                    map[kvp.Key] = kvp.Value;
+                }
             }
         }
         return map;
@@ -90,42 +108,50 @@ internal sealed class NiriWindowManager : IWindowManager
 
     public async Task<bool> FocusWindowByAddressAsync(string address, CancellationToken cancellationToken = default)
     {
-        if (!ulong.TryParse(address, out var id)) return false;
-        return await SendActionAsync($@"{{""FocusWindow"": {{""id"": {id}}}}}", cancellationToken);
+        if (!ulong.TryParse(address, CultureInfo.InvariantCulture, out var id))
+        {
+            return false;
+        }
+
+        return await SendActionAsync($@"{{""FocusWindow"": {{""id"": {id}}}}}", cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> FocusWindowByTitleAsync(string titleSubstring, CancellationToken cancellationToken = default)
     {
-        var win = (await GetWindowsAsync(cancellationToken)).FirstOrDefault(w => w.Title.Contains(titleSubstring, StringComparison.OrdinalIgnoreCase));
-        if (win != null && ulong.TryParse(win.Address, out var id))
+        var win = (await GetWindowsAsync(cancellationToken).ConfigureAwait(false)).FirstOrDefault(w => w.Title.Contains(titleSubstring, StringComparison.OrdinalIgnoreCase));
+        if (win != null && ulong.TryParse(win.Address, CultureInfo.InvariantCulture, out var id))
         {
-            return await SendActionAsync($@"{{""FocusWindow"": {{""id"": {id}}}}}", cancellationToken);
+            return await SendActionAsync($@"{{""FocusWindow"": {{""id"": {id}}}}}", cancellationToken).ConfigureAwait(false);
         }
         return false;
     }
 
     public async Task<bool> FocusWindowByClassAsync(string classSubstring, CancellationToken cancellationToken = default)
     {
-        var win = (await GetWindowsAsync(cancellationToken)).FirstOrDefault(w => w.Class.Contains(classSubstring, StringComparison.OrdinalIgnoreCase));
-        if (win != null && ulong.TryParse(win.Address, out var id))
+        var win = (await GetWindowsAsync(cancellationToken).ConfigureAwait(false)).FirstOrDefault(w => w.Class.Contains(classSubstring, StringComparison.OrdinalIgnoreCase));
+        if (win != null && ulong.TryParse(win.Address, CultureInfo.InvariantCulture, out var id))
         {
-            return await SendActionAsync($@"{{""FocusWindow"": {{""id"": {id}}}}}", cancellationToken);
+            return await SendActionAsync($@"{{""FocusWindow"": {{""id"": {id}}}}}", cancellationToken).ConfigureAwait(false);
         }
         return false;
     }
 
     public async Task<bool> CloseWindowByAddressAsync(string address, CancellationToken cancellationToken = default)
     {
-        if (!ulong.TryParse(address, out var id)) return false;
-        return await SendActionAsync($@"{{""CloseWindow"": {{""id"": {id}}}}}", cancellationToken);
+        if (!ulong.TryParse(address, CultureInfo.InvariantCulture, out var id))
+        {
+            return false;
+        }
+
+        return await SendActionAsync($@"{{""CloseWindow"": {{""id"": {id}}}}}", cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> CloseWindowByTitleAsync(string titleSubstring, CancellationToken cancellationToken = default)
     {
-        var win = (await GetWindowsAsync(cancellationToken)).FirstOrDefault(w => w.Title.Contains(titleSubstring, StringComparison.OrdinalIgnoreCase));
-        if (win != null && ulong.TryParse(win.Address, out var id))
+        var win = (await GetWindowsAsync(cancellationToken).ConfigureAwait(false)).FirstOrDefault(w => w.Title.Contains(titleSubstring, StringComparison.OrdinalIgnoreCase));
+        if (win != null && ulong.TryParse(win.Address, CultureInfo.InvariantCulture, out var id))
         {
-            return await SendActionAsync($@"{{""CloseWindow"": {{""id"": {id}}}}}", cancellationToken);
+            return await SendActionAsync($@"{{""CloseWindow"": {{""id"": {id}}}}}", cancellationToken).ConfigureAwait(false);
         }
         return false;
     }
@@ -140,16 +166,12 @@ internal sealed class NiriWindowManager : IWindowManager
                 var outputsData = JsonSerializer.Deserialize(outputsResp, NiriJsonContext.Default.NiriResponseNiriOutputsData);
                 if ((outputsData?.Ok?.Outputs) is not null)
                 {
-                    NiriOutputDto? targetOutput = null;
-                    foreach (var kvp in outputsData.Ok.Outputs)
-                    {
-                        var logical = kvp.Value.Logical;
-                        if (logical is not null && x >= logical.X && x < logical.X + logical.Width && y >= logical.Y && y < logical.Y + logical.Height)
+                    var targetOutput = outputsData.Ok.Outputs
+                        .FirstOrDefault(kvp =>
                         {
-                            targetOutput = kvp.Value;
-                            break;
-                        }
-                    }
+                            var logical = kvp.Value.Logical;
+                            return logical is not null && x >= logical.X && x < logical.X + logical.Width && y >= logical.Y && y < logical.Y + logical.Height;
+                        }).Value;
 
                     if ((targetOutput?.Logical) is not null && !string.IsNullOrEmpty(targetOutput.Name))
                     {
@@ -161,7 +183,7 @@ internal sealed class NiriWindowManager : IWindowManager
                             {
                                 var wsData = JsonSerializer.Deserialize(workspacesResp, NiriJsonContext.Default.NiriResponseNiriWorkspacesData);
                                 var winWsIdStr = win.Workspace;
-                                var winWs = wsData?.Ok?.Workspaces?.FirstOrDefault(w => string.Equals(w.Id.ToString(), winWsIdStr, StringComparison.Ordinal) || string.Equals(w.Name, winWsIdStr, StringComparison.Ordinal));
+                                var winWs = wsData?.Ok?.Workspaces?.FirstOrDefault(w => string.Equals(w.Id.ToString(CultureInfo.InvariantCulture), winWsIdStr, StringComparison.Ordinal) || string.Equals(w.Name, winWsIdStr, StringComparison.Ordinal));
 
                                 if (winWs is not null && !string.Equals(winWs.Output, targetOutput.Name, StringComparison.Ordinal))
                                 {
@@ -185,55 +207,73 @@ internal sealed class NiriWindowManager : IWindowManager
             }
         }
 
-        return await SendActionAsync($@"{{""MoveFloatingWindow"": {{""id"": null, ""x"": {{""SetFixed"": {x}.0}}, ""y"": {{""SetFixed"": {y}.0}}}}}}", cancellationToken).ConfigureAwait(false);
+        return await SendActionAsync($@"{{""MoveFloatingWindow"": {{""id"": null, ""x"": {{""SetFixed"": {x.ToString(CultureInfo.InvariantCulture)}.0}}, ""y"": {{""SetFixed"": {y.ToString(CultureInfo.InvariantCulture)}.0}}}}}}", cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> ResizeActiveWindowAsync(int width, int height, CancellationToken cancellationToken = default)
     {
-        bool w = await SendActionAsync($@"{{""SetWindowWidth"": {{""id"": null, ""change"": {{""SetFixed"": {width}}}}}}}", cancellationToken);
-        bool h = await SendActionAsync($@"{{""SetWindowHeight"": {{""id"": null, ""change"": {{""SetFixed"": {height}}}}}}}", cancellationToken);
+        bool w = await SendActionAsync($@"{{""SetWindowWidth"": {{""id"": null, ""change"": {{""SetFixed"": {width.ToString(CultureInfo.InvariantCulture)}}}}}}}", cancellationToken).ConfigureAwait(false);
+        bool h = await SendActionAsync($@"{{""SetWindowHeight"": {{""id"": null, ""change"": {{""SetFixed"": {height.ToString(CultureInfo.InvariantCulture)}}}}}}}", cancellationToken).ConfigureAwait(false);
         return w && h;
     }
 
     public async Task<bool> FullscreenActiveWindowAsync(CancellationToken cancellationToken = default)
     {
-        return await SendActionAsync(@"{""FullscreenWindow"": {""id"": null}}", cancellationToken);
+        return await SendActionAsync(@"{""FullscreenWindow"": {""id"": null}}", cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> MaximizeActiveWindowAsync(CancellationToken cancellationToken = default)
     {
-        return await SendActionAsync(@"{""MaximizeWindowToEdges"": {""id"": null}}", cancellationToken);
+        return await SendActionAsync(@"{""MaximizeWindowToEdges"": {""id"": null}}", cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> FloatActiveWindowAsync(CancellationToken cancellationToken = default)
     {
-        var win = await GetActiveWindowAsync(cancellationToken);
-        if (win == null) return false;
+        var win = await GetActiveWindowAsync(cancellationToken).ConfigureAwait(false);
+        if (win == null)
+        {
+            return false;
+        }
+
         var action = win.IsFloating ? "MoveWindowToTiling" : "MoveWindowToFloating";
-        return await SendActionAsync($@"{{""{action}"": {{""id"": null}}}}", cancellationToken);
+        return await SendActionAsync($@"{{""{action}"": {{""id"": null}}}}", cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> CenterActiveWindowAsync(CancellationToken cancellationToken = default)
     {
         var win = await GetActiveWindowAsync(cancellationToken).ConfigureAwait(false);
-        if (win == null) return false;
+        if (win == null)
+        {
+            return false;
+        }
 
         var workspacesResp = await _ipcClient.SendRequestAsync("\"Workspaces\"", cancellationToken).ConfigureAwait(false);
-        if (workspacesResp is null) return false;
+        if (workspacesResp is null)
+        {
+            return false;
+        }
 
         var outputsResp = await _ipcClient.SendRequestAsync("\"Outputs\"", cancellationToken).ConfigureAwait(false);
-        if (outputsResp is null) return false;
+        if (outputsResp is null)
+        {
+            return false;
+        }
 
         try
         {
             var workspacesData = JsonSerializer.Deserialize(workspacesResp, NiriJsonContext.Default.NiriResponseNiriWorkspacesData);
             var wsIdStr = win.Workspace;
-            var ws = workspacesData?.Ok?.Workspaces?.FirstOrDefault(w => string.Equals(w.Id.ToString(), wsIdStr, StringComparison.Ordinal) || string.Equals(w.Name, wsIdStr, StringComparison.Ordinal));
-            if (ws is null || string.IsNullOrEmpty(ws.Output)) return false;
+            var ws = workspacesData?.Ok?.Workspaces?.FirstOrDefault(w => string.Equals(w.Id.ToString(CultureInfo.InvariantCulture), wsIdStr, StringComparison.Ordinal) || string.Equals(w.Name, wsIdStr, StringComparison.Ordinal));
+            if (ws is null || string.IsNullOrEmpty(ws.Output))
+            {
+                return false;
+            }
 
             var outputsData = JsonSerializer.Deserialize(outputsResp, NiriJsonContext.Default.NiriResponseNiriOutputsData);
             if ((outputsData?.Ok?.Outputs) is null || !outputsData.Ok.Outputs.TryGetValue(ws.Output, out var output) || output.Logical is null)
+            {
                 return false;
+            }
 
             int targetX = output.Logical.X + ((output.Logical.Width - win.Width) / 2);
             int targetY = output.Logical.Y + ((output.Logical.Height - win.Height) / 2);
@@ -250,13 +290,16 @@ internal sealed class NiriWindowManager : IWindowManager
     public async Task<string?> GetActiveWorkspaceAsync(CancellationToken cancellationToken = default)
     {
         var response = await _ipcClient.SendRequestAsync("\"Workspaces\"", cancellationToken).ConfigureAwait(false);
-        if (response is null) return null;
+        if (response is null)
+        {
+            return null;
+        }
 
         try
         {
             var dto = JsonSerializer.Deserialize(response, NiriJsonContext.Default.NiriResponseNiriWorkspacesData);
             var active = dto?.Ok?.Workspaces?.FirstOrDefault(w => w.IsFocused);
-            return active?.Id.ToString() ?? active?.Name;
+            return active?.Id.ToString(CultureInfo.InvariantCulture) ?? active?.Name;
         }
         catch (Exception ex)
         {
@@ -267,31 +310,34 @@ internal sealed class NiriWindowManager : IWindowManager
 
     public async Task<bool> SwitchWorkspaceAsync(string workspace, CancellationToken cancellationToken = default)
     {
-        if (ulong.TryParse(workspace, out var id))
+        if (ulong.TryParse(workspace, CultureInfo.InvariantCulture, out var id))
         {
-            return await SendActionAsync($@"{{""FocusWorkspace"": {{""reference"": {{""Id"": {id}}}}}}}", cancellationToken);
+            return await SendActionAsync($@"{{""FocusWorkspace"": {{""reference"": {{""Id"": {id}}}}}}}", cancellationToken).ConfigureAwait(false);
         }
-        return await SendActionAsync($@"{{""FocusWorkspace"": {{""reference"": {{""Name"": ""{workspace}""}}}}}}", cancellationToken);
+        return await SendActionAsync($@"{{""FocusWorkspace"": {{""reference"": {{""Name"": ""{workspace}""}}}}}}", cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> MoveActiveWindowToWorkspaceAsync(string workspace, CancellationToken cancellationToken = default)
     {
-        if (ulong.TryParse(workspace, out var id))
+        if (ulong.TryParse(workspace, CultureInfo.InvariantCulture, out var id))
         {
-            return await SendActionAsync($@"{{""MoveWindowToWorkspace"": {{""id"": null, ""reference"": {{""Id"": {id}}}, ""focus"": false}}}}", cancellationToken);
+            return await SendActionAsync($@"{{""MoveWindowToWorkspace"": {{""id"": null, ""reference"": {{""Id"": {id}}}, ""focus"": false}}}}", cancellationToken).ConfigureAwait(false);
         }
-        return await SendActionAsync($@"{{""MoveWindowToWorkspace"": {{""id"": null, ""reference"": {{""Name"": ""{workspace}""}}, ""focus"": false}}}}", cancellationToken);
+        return await SendActionAsync($@"{{""MoveWindowToWorkspace"": {{""id"": null, ""reference"": {{""Name"": ""{workspace}""}}, ""focus"": false}}}}", cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> MoveWindowToWorkspaceByAddressAsync(string address, string workspace, CancellationToken cancellationToken = default)
     {
-        if (!ulong.TryParse(address, out var winId)) return false;
-
-        if (ulong.TryParse(workspace, out var wsId))
+        if (!ulong.TryParse(address, CultureInfo.InvariantCulture, out var winId))
         {
-            return await SendActionAsync($@"{{""MoveWindowToWorkspace"": {{""id"": {winId}, ""reference"": {{""Id"": {wsId}}}, ""focus"": false}}}}", cancellationToken);
+            return false;
         }
-        return await SendActionAsync($@"{{""MoveWindowToWorkspace"": {{""id"": {winId}, ""reference"": {{""Name"": ""{workspace}""}}, ""focus"": false}}}}", cancellationToken);
+
+        if (ulong.TryParse(workspace, CultureInfo.InvariantCulture, out var wsId))
+        {
+            return await SendActionAsync($@"{{""MoveWindowToWorkspace"": {{""id"": {winId}, ""reference"": {{""Id"": {wsId}}}, ""focus"": false}}}}", cancellationToken).ConfigureAwait(false);
+        }
+        return await SendActionAsync($@"{{""MoveWindowToWorkspace"": {{""id"": {winId}, ""reference"": {{""Name"": ""{workspace}""}}, ""focus"": false}}}}", cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<bool> SendActionAsync(string actionJson, CancellationToken cancellationToken)
@@ -317,7 +363,7 @@ internal sealed class NiriWindowManager : IWindowManager
                 y = (int)Math.Round(dto.Layout.TilePosInWorkspaceView[1], MidpointRounding.AwayFromZero);
 
                 // Convert workspace-relative to global absolute
-                if (dto.WorkspaceId.HasValue && workspaces.TryGetValue(dto.WorkspaceId.Value, out var ws) && !string.IsNullOrEmpty(ws.Output) && outputs.TryGetValue(ws.Output, out var output) && output.Logical is not null)
+                if (dto.WorkspaceId is not null && workspaces.TryGetValue(dto.WorkspaceId.Value, out var ws) && !string.IsNullOrEmpty(ws.Output) && outputs.TryGetValue(ws.Output, out var output) && output.Logical is not null)
                 {
                     x += output.Logical.X;
                     y += output.Logical.Y;
@@ -333,12 +379,12 @@ internal sealed class NiriWindowManager : IWindowManager
 
         return new WindowInfo
         {
-            Address = dto.Id.ToString() ?? string.Empty,
+            Address = dto.Id.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
             Title = dto.Title ?? string.Empty,
             Class = dto.AppId ?? string.Empty,
             Pid = dto.Pid ?? -1,
             ProcessName = Helpers.ProcessHelper.GetProcessName(dto.Pid ?? -1),
-            Workspace = dto.WorkspaceId?.ToString() ?? string.Empty,
+            Workspace = dto.WorkspaceId?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
             IsFocused = dto.IsFocused,
             IsFullscreen = false,
             IsMaximized = false,

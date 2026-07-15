@@ -7,6 +7,4 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 /// <summary>
 /// Window manager implementation using Hyprland IPC socket commands.
 /// </summary>
-internal sealed partial class HyprlandJsonContext : JsonSerializerContext
-{
-}
+internal sealed partial class HyprlandJsonContext : JsonSerializerContext;

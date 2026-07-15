@@ -24,8 +24,8 @@ public class EvdevAbsoluteStrategy : ICoordinateStrategy
     public async Task InitializeAsync(CancellationToken ct)
     {
         // 1. Get Screen Resolution
-        var res = await _positionProvider.GetScreenResolutionAsync();
-        if (res.HasValue)
+        var res = await _positionProvider.GetScreenResolutionAsync().ConfigureAwait(false);
+        if (res is not null)
         {
             _screenWidth = res.Value.Width;
             _screenHeight = res.Value.Height;
@@ -37,8 +37,8 @@ public class EvdevAbsoluteStrategy : ICoordinateStrategy
         }
 
         // 2. Get Initial Position
-        var pos = await _positionProvider.GetAbsolutePositionAsync();
-        if (pos.HasValue)
+        var pos = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+        if (pos is not null)
         {
             _currentX = pos.Value.X;
             _currentY = pos.Value.Y;
@@ -70,8 +70,8 @@ public class EvdevAbsoluteStrategy : ICoordinateStrategy
         {
             try
             {
-                var pos = await _positionProvider.GetAbsolutePositionAsync();
-                if (pos.HasValue)
+                var pos = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+                if (pos is not null)
                 {
                     // Thread-safe update
                     Interlocked.Exchange(ref _currentX, pos.Value.X);
@@ -80,7 +80,7 @@ public class EvdevAbsoluteStrategy : ICoordinateStrategy
                 }
 
                 // 1ms interval = 1000Hz polling for high-precision recording
-                await Task.Delay(1, ct);
+                await Task.Delay(1, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -96,22 +96,24 @@ public class EvdevAbsoluteStrategy : ICoordinateStrategy
 
                 if (errorCount >= maxErrors)
                 {
-                    Log.Error("[EvdevAbsoluteStrategy] Too many sync errors, stopping background sync");
+                    Log.LogError("[EvdevAbsoluteStrategy] Too many sync errors, stopping background sync");
                     break;
                 }
 
                 // Back off on error
-                await Task.Delay(100, ct);
+                await Task.Delay(100, ct).ConfigureAwait(false);
             }
         }
 
         Log.Debug("[EvdevAbsoluteStrategy] Background sync loop ended");
     }
 
-    public (int X, int Y) ProcessPosition(InputCaptureEventArgs e)
+    public (int X, int Y) ProcessPosition(CapturedInputEvent e)
     {
         if (e.Type is InputEventType.Sync)
+        {
             return (0, 0);
+        }
 
         // Return cached position from background sync (zero latency)
         // Volatile.Read ensures we see the latest value written by the sync loop

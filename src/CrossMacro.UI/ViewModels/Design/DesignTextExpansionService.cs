@@ -7,7 +7,7 @@ internal sealed class DesignTextExpansionService : ITextExpansionService
 
     public void Start() => IsRunning = true;
 
-    public void Stop() => IsRunning = false;
+    public void StopExpansion() => IsRunning = false;
 
     public void Dispose()
     {

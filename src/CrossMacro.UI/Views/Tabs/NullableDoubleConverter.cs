@@ -19,7 +19,9 @@ public class NullableDoubleConverter : IValueConverter
         if (value is string str)
         {
             if (string.IsNullOrWhiteSpace(str))
+            {
                 return 0.0;
+            }
 
             var normalized = str.Replace(',', '.').Trim();
 

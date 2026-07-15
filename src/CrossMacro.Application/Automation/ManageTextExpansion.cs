@@ -12,12 +12,13 @@ public sealed class ManageTextExpansion : IManageTextExpansion
         _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
     }
 
-    public async Task<IReadOnlyList<TextExpansion>> ListAsync(string? profileIdentifier = null, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<TextExpansionEntry>> ListAsync(string? profileIdentifier = null, CancellationToken cancellationToken = default)
     {
-        return await WithProfileAsync(profileIdentifier, cancellationToken, () => _store.LoadAsync()).ConfigureAwait(false);
+        var expansions = await WithProfileAsync(profileIdentifier, cancellationToken, () => _store.LoadAsync()).ConfigureAwait(false);
+        return expansions.AsReadOnly();
     }
 
-    public async Task<TextExpansion> AddAsync(TextExpansion expansion, string? profileIdentifier = null, CancellationToken cancellationToken = default)
+    public async Task<TextExpansionEntry> AddAsync(TextExpansionEntry expansion, string? profileIdentifier = null, CancellationToken cancellationToken = default)
     {
         return await WithProfileAsync(profileIdentifier, cancellationToken, async () =>
         {
@@ -33,7 +34,7 @@ public sealed class ManageTextExpansion : IManageTextExpansion
         }).ConfigureAwait(false);
     }
 
-    public async Task<TextExpansion> RemoveAsync(string trigger, string? profileIdentifier = null, CancellationToken cancellationToken = default)
+    public async Task<TextExpansionEntry> RemoveAsync(string trigger, string? profileIdentifier = null, CancellationToken cancellationToken = default)
     {
         return await WithProfileAsync(profileIdentifier, cancellationToken, async () =>
         {
@@ -45,7 +46,7 @@ public sealed class ManageTextExpansion : IManageTextExpansion
         }).ConfigureAwait(false);
     }
 
-    public async Task<TextExpansion> SetEnabledAsync(string trigger, bool enabled, string? profileIdentifier = null, CancellationToken cancellationToken = default)
+    public async Task<TextExpansionEntry> SetEnabledAsync(string trigger, bool enabled, string? profileIdentifier = null, CancellationToken cancellationToken = default)
     {
         return await WithProfileAsync(profileIdentifier, cancellationToken, async () =>
         {
@@ -57,7 +58,7 @@ public sealed class ManageTextExpansion : IManageTextExpansion
         }).ConfigureAwait(false);
     }
 
-    public async Task<TextExpansion?> FindAsync(string trigger, string? profileIdentifier = null, CancellationToken cancellationToken = default)
+    public async Task<TextExpansionEntry?> FindAsync(string trigger, string? profileIdentifier = null, CancellationToken cancellationToken = default)
     {
         return await WithProfileAsync(profileIdentifier, cancellationToken, async () =>
             Find(await _store.LoadAsync().ConfigureAwait(false), trigger)).ConfigureAwait(false);
@@ -74,11 +75,8 @@ public sealed class ManageTextExpansion : IManageTextExpansion
 
         var profile = _profileManager.Profiles.FirstOrDefault(candidate =>
             string.Equals(candidate.Id, profileIdentifier, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(candidate.Name, profileIdentifier, StringComparison.OrdinalIgnoreCase));
-        if (profile is null)
-        {
-            throw new KeyNotFoundException($"Unknown profile: {profileIdentifier}");
-        }
+            || string.Equals(candidate.Name, profileIdentifier, StringComparison.OrdinalIgnoreCase))
+            ?? throw new KeyNotFoundException($"Unknown profile: {profileIdentifier}");
 
         await _store.ReloadAsync(_profileManager.GetProfileDirectory(profile.Id)).ConfigureAwait(false);
         try
@@ -91,6 +89,6 @@ public sealed class ManageTextExpansion : IManageTextExpansion
         }
     }
 
-    private static TextExpansion? Find(IEnumerable<TextExpansion> expansions, string trigger) =>
+    private static TextExpansionEntry? Find(IEnumerable<TextExpansionEntry> expansions, string trigger) =>
         expansions.FirstOrDefault(item => string.Equals(item.Trigger, trigger, StringComparison.OrdinalIgnoreCase));
 }

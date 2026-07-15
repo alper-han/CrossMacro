@@ -46,7 +46,7 @@ public class GitHubUpdateService : IUpdateService
                 using var response = await client.GetAsync(
                     GitHubApiUrl,
                     HttpCompletionOption.ResponseHeadersRead,
-                    timeoutCts.Token);
+                    timeoutCts.Token).ConfigureAwait(false);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -56,7 +56,7 @@ public class GitHubUpdateService : IUpdateService
 
                 var release = await response.Content.ReadFromJsonAsync(
                     GitHubJsonContext.Default.GitHubRelease,
-                    timeoutCts.Token);
+                    timeoutCts.Token).ConfigureAwait(false);
 
                 if (release is null)
                 {
@@ -82,7 +82,9 @@ public class GitHubUpdateService : IUpdateService
                         {
                             HasUpdate = true,
                             LatestVersion = tagName ?? release.TagName ?? string.Empty,
-                            ReleaseUrl = release.HtmlUrl ?? string.Empty,
+                            ReleaseUrl = Uri.TryCreate(release.HtmlUrl, UriKind.Absolute, out var releaseUrl)
+                                ? releaseUrl
+                                : null,
                         };
                     }
 
@@ -115,7 +117,7 @@ public class GitHubUpdateService : IUpdateService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error checking for updates");
+            Log.LogError(ex, "Error checking for updates");
         }
 
         return new UpdateCheckResult { HasUpdate = false };

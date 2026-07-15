@@ -40,7 +40,7 @@ public sealed class XInput2LayoutTests
         Assert.Equal(192, Marshal.SizeOf<XEvent>());
         Assert.Equal(0, Marshal.OffsetOf<XEvent>(nameof(XEvent.type)).ToInt32());
         Assert.Equal(0, Marshal.OffsetOf<XEvent>(nameof(XEvent.xcookie)).ToInt32());
-        Assert.Equal(Marshal.SizeOf<XEvent>(), XInput2Consts.XEVENT_STRUCT_SIZE);
+        Assert.Equal(XInput2Consts.XEVENT_STRUCT_SIZE, Marshal.SizeOf<XEvent>());
     }
 
     [Fact]
@@ -49,22 +49,52 @@ public sealed class XInput2LayoutTests
         var eventMask = new XIEventMask { DeviceId = -3, MaskLen = 7, Mask = Pointer(0x1000) };
         var cookie = new XGenericEventCookie
         {
-            type = 35, serial = Pointer(0x12345678), send_event = true, display = Pointer(0x2000),
-            extension = -2, evtype = 6, cookie = 99, data = Pointer(0x3000),
+            type = 35,
+            serial = Pointer(0x12345678),
+            send_event = true,
+            display = Pointer(0x2000),
+            extension = -2,
+            evtype = 6,
+            cookie = 99,
+            data = Pointer(0x3000),
         };
         var valuators = new XIValuatorState { mask_len = 11, mask = Pointer(0x4000) };
         var rawEvent = new XIRawEvent
         {
-            type = 35, serial = Pointer(0x123456789abcdef0), send_event = true, display = Pointer(0x5000),
-            extension = 2, evtype = 17, time = Pointer(0x6000), deviceid = -1, sourceid = 4,
-            detail = 8, flags = 16, valuators = valuators, raw_values = Pointer(0x7000),
+            type = 35,
+            serial = Pointer(0x123456789abcdef0),
+            send_event = true,
+            display = Pointer(0x5000),
+            extension = 2,
+            evtype = 17,
+            time = Pointer(0x6000),
+            deviceid = -1,
+            sourceid = 4,
+            detail = 8,
+            flags = 16,
+            valuators = valuators,
+            raw_values = Pointer(0x7000),
         };
         var deviceEvent = new XIDeviceEvent
         {
-            type = 35, serial = Pointer(0x23456789abcdef01), send_event = true, display = Pointer(0x8000),
-            extension = 2, evtype = 6, time = Pointer(0x9000), deviceid = 2, sourceid = 3, detail = 4,
-            root = Pointer(0xa000), event_window = Pointer(0xb000), child = Pointer(0xc000),
-            root_x = 1.25, root_y = -2.5, event_x = 3.75, event_y = -4.125, flags = 5,
+            type = 35,
+            serial = Pointer(0x23456789abcdef01),
+            send_event = true,
+            display = Pointer(0x8000),
+            extension = 2,
+            evtype = 6,
+            time = Pointer(0x9000),
+            deviceid = 2,
+            sourceid = 3,
+            detail = 4,
+            root = Pointer(0xa000),
+            event_window = Pointer(0xb000),
+            child = Pointer(0xc000),
+            root_x = 1.25,
+            root_y = -2.5,
+            event_x = 3.75,
+            event_y = -4.125,
+            flags = 5,
             buttons = new XIValuatorState { mask_len = 6, mask = Pointer(0xd000) },
             valuators = new XIValuatorState { mask_len = 7, mask = Pointer(0xe000) },
             mods = new XIModifierState { @base = 8, latched = 9, locked = 10, effective = 11 },

@@ -10,45 +10,45 @@ public interface IEventExecutor : IDisposable
     /// <summary>
     /// Initialize the executor (create virtual device)
     /// </summary>
-    void Initialize(int screenWidth, int screenHeight);
+    public void Initialize(int screenWidth, int screenHeight);
 
     /// <summary>
     /// Move mouse to absolute position
     /// </summary>
-    void MoveAbsolute(int x, int y);
+    public void MoveAbsolute(int x, int y);
 
     /// <summary>
     /// Move mouse by relative delta
     /// </summary>
-    void MoveRelative(int dx, int dy);
+    public void MoveRelative(int dx, int dy);
 
     /// <summary>
     /// Press or release mouse button
     /// </summary>
-    void EmitButton(ushort button, bool pressed);
+    public void EmitButton(ushort button, bool pressed);
 
     /// <summary>
     /// Emit mouse scroll
     /// </summary>
-    void EmitScroll(int value);
+    public void EmitScroll(int value);
 
     /// <summary>
     /// Press or release keyboard key
     /// </summary>
-    void EmitKey(int keyCode, bool pressed);
+    public void EmitKey(int keyCode, bool pressed);
 
     /// <summary>
     /// Release all pressed inputs (safety)
     /// </summary>
-    void ReleaseAll();
+    public void ReleaseAll();
 
     /// <summary>
     /// Whether any mouse button is currently pressed
     /// </summary>
-    bool IsMouseButtonPressed { get; }
+    public bool IsMouseButtonPressed { get; }
 
     /// <summary>
     /// Execute a macro event with full handling. A null coordinate mode means no implicit coordinate movement.
     /// </summary>
-    void Execute(MacroEvent ev, MouseCoordinateMode? coordinateMode);
+    public void Execute(MacroEvent ev, MouseCoordinateMode? coordinateMode);
 }

@@ -7,6 +7,7 @@ public class WaylandRelativeStrategySelector : ICoordinateStrategySelector
 
     public bool CanHandle(StrategyContext context)
     {
+        ArgumentNullException.ThrowIfNull(context);
         return context.IsWayland && !context.UseAbsoluteCoordinates;
     }
 

@@ -18,7 +18,7 @@ public sealed class ScheduleCliService : IScheduleCliService
             cancellationToken: cancellationToken,
             loadAsync: async () => _tasks = (await _manageSchedule.ListAsync(cancellationToken).ConfigureAwait(false)).Tasks,
             getTasks: () => _tasks,
-            mapTask: MapScheduleTask);
+            mapTask: MapScheduleTask).ConfigureAwait(false);
     }
 
     public async Task<CliCommandExecutionResult> RunAsync(string taskId, CancellationToken cancellationToken)
@@ -39,7 +39,7 @@ public sealed class ScheduleCliService : IScheduleCliService
                 task.MacroFilePath,
                 task.LastRunTime,
                 task.LastStatus
-            ));
+            )).ConfigureAwait(false);
     }
 
     public Task<CliCommandExecutionResult> ExecuteAsync(ScheduleCliOptions options, CancellationToken cancellationToken)
@@ -66,14 +66,17 @@ public sealed class ScheduleCliService : IScheduleCliService
         };
 
         var scheduleResult = ApplyScheduleOptions(task, options);
-        if (scheduleResult is not null) return scheduleResult;
+        if (scheduleResult is not null)
+        {
+            return scheduleResult;
+        }
 
-        if (options.Speed.HasValue)
+        if (options.Speed is not null)
         {
             task.PlaybackSpeed = options.Speed.Value;
         }
 
-        if (options.Enabled.HasValue)
+        if (options.Enabled is not null)
         {
             task.IsEnabled = options.Enabled.Value;
         }
@@ -86,17 +89,37 @@ public sealed class ScheduleCliService : IScheduleCliService
     private async Task<CliCommandExecutionResult> EditAsync(ScheduleCliOptions options, CancellationToken cancellationToken)
     {
         var parsed = await LoadAndFindAsync(options.TaskId ?? string.Empty, cancellationToken).ConfigureAwait(false);
-        if (parsed.Result is not null) return parsed.Result;
+        if (parsed.Result is not null)
+        {
+            return parsed.Result;
+        }
 
         var task = parsed.Task!;
-        if (!string.IsNullOrWhiteSpace(options.Name)) task.Name = options.Name;
-        if (!string.IsNullOrWhiteSpace(options.MacroFilePath)) task.MacroFilePath = options.MacroFilePath;
+        if (!string.IsNullOrWhiteSpace(options.Name))
+        {
+            task.Name = options.Name;
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.MacroFilePath))
+        {
+            task.MacroFilePath = options.MacroFilePath;
+        }
 
         var scheduleResult = ApplyScheduleOptions(task, options);
-        if (scheduleResult is not null) return scheduleResult;
+        if (scheduleResult is not null)
+        {
+            return scheduleResult;
+        }
 
-        if (options.Speed.HasValue) task.PlaybackSpeed = options.Speed.Value;
-        if (options.Enabled.HasValue) task.IsEnabled = options.Enabled.Value;
+        if (options.Speed is not null)
+        {
+            task.PlaybackSpeed = options.Speed.Value;
+        }
+
+        if (options.Enabled is not null)
+        {
+            task.IsEnabled = options.Enabled.Value;
+        }
 
         cancellationToken.ThrowIfCancellationRequested();
         await _manageSchedule.UpdateAsync(task, cancellationToken).ConfigureAwait(false);
@@ -106,7 +129,10 @@ public sealed class ScheduleCliService : IScheduleCliService
     private async Task<CliCommandExecutionResult> RemoveAsync(string taskId, CancellationToken cancellationToken)
     {
         var parsed = await LoadAndFindAsync(taskId, cancellationToken).ConfigureAwait(false);
-        if (parsed.Result is not null) return parsed.Result;
+        if (parsed.Result is not null)
+        {
+            return parsed.Result;
+        }
 
         var task = parsed.Task!;
         cancellationToken.ThrowIfCancellationRequested();
@@ -117,7 +143,10 @@ public sealed class ScheduleCliService : IScheduleCliService
     private async Task<CliCommandExecutionResult> SetEnabledAsync(string taskId, bool enabled, CancellationToken cancellationToken)
     {
         var parsed = await LoadAndFindAsync(taskId, cancellationToken).ConfigureAwait(false);
-        if (parsed.Result is not null) return parsed.Result;
+        if (parsed.Result is not null)
+        {
+            return parsed.Result;
+        }
 
         var task = parsed.Task!;
         if (enabled && !task.CanBeEnabled)
@@ -138,10 +167,13 @@ public sealed class ScheduleCliService : IScheduleCliService
     private async Task<CliCommandExecutionResult> NextAsync(string taskId, CancellationToken cancellationToken)
     {
         var parsed = await LoadAndFindAsync(taskId, cancellationToken).ConfigureAwait(false);
-        if (parsed.Result is not null) return parsed.Result;
+        if (parsed.Result is not null)
+        {
+            return parsed.Result;
+        }
 
         var task = parsed.Task!;
-        if (!task.NextRunTime.HasValue && task.CanBeEnabled)
+        if (task.NextRunTime is null && task.CanBeEnabled)
         {
             task.CalculateNextRunTime();
         }
@@ -157,7 +189,7 @@ public sealed class ScheduleCliService : IScheduleCliService
             "Schedule",
             cancellationToken,
             async () => _tasks = (await _manageSchedule.ListAsync(cancellationToken).ConfigureAwait(false)).Tasks,
-            task => task.Id);
+            task => task.Id).ConfigureAwait(false);
     }
 
     private static CliCommandExecutionResult? ApplyScheduleOptions(ScheduledTask task, ScheduleCliOptions options)

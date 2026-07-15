@@ -80,7 +80,7 @@ public class HotkeyParserTests
     [Fact]
     public void Parse_IgnoresUnknownKeys()
     {
-         // Arrange
+        // Arrange
         _mapper.GetKeyCode("Unknown").Returns(-1);
         _mapper.GetKeyCode("A").Returns(30);
         _mapper.IsModifierKeyCode(30).Returns(returnThis: false);

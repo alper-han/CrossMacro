@@ -286,7 +286,7 @@ public class EditorViewModelTests
             .Select(choice => choice.ActionType)
             .ToArray();
 
-        groupedActionTypes.Should().Contain(_viewModel.AddableActionTypes);
+        groupedActionTypes.Should().Contain(EditorViewModel.AddableActionTypes);
         groupedActionTypes.Should().OnlyHaveUniqueItems();
         groupedActionTypes.Should().NotContain(EditorActionType.RawScriptStep);
         groupedActionTypes.Should().NotContain(EditorActionType.BlockEnd);
@@ -613,7 +613,7 @@ public class EditorViewModelTests
         action.ScreenHeight.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenHeight);
         if (actionType is EditorActionType.ImageClick)
         {
-            action.Button.Should().Be(MouseButton.Left);
+            action.Button.Should().Be(MacroMouseButton.Left);
         }
         _viewModel.SelectedAction.Should().BeSameAs(action);
     }
@@ -635,7 +635,7 @@ public class EditorViewModelTests
     [Fact]
     public void ImageClickButtons_ExposeOnlySupportedGrammarButtons()
     {
-        _viewModel.ImageClickButtons.Should().Equal(MouseButton.Left, MouseButton.Right, MouseButton.Middle);
+        _viewModel.ImageClickButtons.Should().Equal(MacroMouseButton.Left, MacroMouseButton.Right, MacroMouseButton.Middle);
     }
 
     [Fact]
@@ -1143,16 +1143,16 @@ public class EditorViewModelTests
     [Fact]
     public void AddableActionTypes_HidesManagedBlockTokens()
     {
-        _viewModel.AddableActionTypes.Should().NotContain(EditorActionType.BlockEnd);
-        _viewModel.AddableActionTypes.Should().NotContain(EditorActionType.ElseBlockStart);
-        _viewModel.AddableActionTypes.Should().NotContain(EditorActionType.RawScriptStep);
+        EditorViewModel.AddableActionTypes.Should().NotContain(EditorActionType.BlockEnd);
+        EditorViewModel.AddableActionTypes.Should().NotContain(EditorActionType.ElseBlockStart);
+        EditorViewModel.AddableActionTypes.Should().NotContain(EditorActionType.RawScriptStep);
     }
 
     [Fact]
     public void AddableActionTypes_ContainsLoopControlActions()
     {
-        _viewModel.AddableActionTypes.Should().Contain(EditorActionType.Break);
-        _viewModel.AddableActionTypes.Should().Contain(EditorActionType.Continue);
+        EditorViewModel.AddableActionTypes.Should().Contain(EditorActionType.Break);
+        EditorViewModel.AddableActionTypes.Should().Contain(EditorActionType.Continue);
     }
 
     [Fact]
@@ -2969,13 +2969,13 @@ public class EditorViewModelTests
         _viewModel.AddAction();
         var action = _viewModel.SelectedAction!;
 
-        action.ImageSearchMatchMode = EditorImageMatchMode.BestMatch;
-        action.ImageSearchMatchModeWasExplicit = true;
+        _viewModel.SelectedImageSearchMatchMode = EditorImageMatchMode.BestMatch;
+        action.ImageSearchMatchModeWasExplicit.Should().BeTrue();
 
         _viewModel.Undo();
 
         _viewModel.SelectedAction.Should().NotBeNull();
-        _viewModel.SelectedAction!.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.BestMatch);
+        _viewModel.SelectedAction!.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.FirstThresholdMatch);
         _viewModel.SelectedAction.ImageSearchMatchModeWasExplicit.Should().BeFalse();
 
         _viewModel.Redo();
@@ -3123,7 +3123,7 @@ public class EditorViewModelTests
         var action = new EditorAction
         {
             Type = EditorActionType.MouseClick,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
             IsAbsolute = false,
             X = 3,
             Y = -2,
@@ -3208,7 +3208,7 @@ public class EditorViewModelTests
         _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>((10, 20)));
         _screenPixelReader.GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>())
-            .Returns(Task.FromResult(ScreenReadResult<ScreenPixelColor>.Success(new ScreenPixelColor(0x12, 0xAB, 0xEF))));
+            .Returns(Task.FromResult(ScreenReadResultFactory.Success<ScreenPixelColor>(new ScreenPixelColor(0x12, 0xAB, 0xEF))));
 
         // Act
         await _viewModel.CaptureTargetColorAsync();
@@ -3231,7 +3231,7 @@ public class EditorViewModelTests
         _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>((30, 40)));
         _screenPixelReader.GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>())
-            .Returns(Task.FromResult(ScreenReadResult<ScreenPixelColor>.Success(new ScreenPixelColor(0x01, 0x23, 0x45))));
+            .Returns(Task.FromResult(ScreenReadResultFactory.Success<ScreenPixelColor>(new ScreenPixelColor(0x01, 0x23, 0x45))));
 
         // Act
         await _viewModel.CaptureTargetColorAsync();
@@ -3301,7 +3301,7 @@ public class EditorViewModelTests
         _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>((70, 80)));
         _screenPixelReader.GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>())
-            .Returns(Task.FromResult(ScreenReadResult<ScreenPixelColor>.Success(new ScreenPixelColor(0xDE, 0xAD, 0xBE))));
+            .Returns(Task.FromResult(ScreenReadResultFactory.Success<ScreenPixelColor>(new ScreenPixelColor(0xDE, 0xAD, 0xBE))));
 
         await _viewModel.CaptureConditionRightColorAsync();
 
@@ -3326,7 +3326,7 @@ public class EditorViewModelTests
         _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>((71, 81)));
         _screenPixelReader.GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>())
-            .Returns(Task.FromResult(ScreenReadResult<ScreenPixelColor>.Success(new ScreenPixelColor(0x12, 0x34, 0x56))));
+            .Returns(Task.FromResult(ScreenReadResultFactory.Success<ScreenPixelColor>(new ScreenPixelColor(0x12, 0x34, 0x56))));
 
         await _viewModel.CaptureConditionLeftColorAsync();
 
@@ -3581,7 +3581,7 @@ public class EditorViewModelTests
         var action = new EditorAction
         {
             Type = EditorActionType.MouseClick,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
             UseCurrentPosition = true,
         };
         _viewModel.Actions.Add(action);
@@ -3837,9 +3837,8 @@ public class EditorViewModelTests
         var sequence = new MacroSequence
         {
             Name = "Image Macro",
-            Images = new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["Target_1"] = TransparentPngBase64
+            Images = {
+                ["Target_1"] = TransparentPngBase64,
             },
         };
         var converted = new List<EditorAction>
@@ -3854,7 +3853,7 @@ public class EditorViewModelTests
                 ScreenFoundXVariableName = "found_x",
                 ScreenFoundYVariableName = "found_y",
                 ImageSearchSimilarity = 1.0,
-                ImageSearchDownsample = 1
+                ImageSearchDownsample = 1,
             },
         };
         _converter.FromMacroSequenceWithDiagnostics(sequence)
@@ -3912,7 +3911,7 @@ public class EditorViewModelTests
             var generatedSequence = new MacroSequence
             {
                 Name = "Generated",
-                ScriptSteps = ["imagesearch 0 0 100 100 Target_1 found found_x found_y"],
+                ScriptSteps = {"imagesearch 0 0 100 100 Target_1 found found_x found_y"},
             };
             _converter
                 .ToMacroSequence(Arg.Any<EditorMacroProjection>())
@@ -3942,23 +3941,23 @@ public class EditorViewModelTests
             Name = "Mixed Macro",
             IsAbsoluteCoordinates = true,
             Events =
-            [
+            {
                 new MacroEvent
                 {
                     Type = EventType.MouseMove,
                     X = 10,
                     Y = 20,
-                    CoordinateMode = MouseCoordinateMode.Absolute
+                    CoordinateMode = MouseCoordinateMode.Absolute,
                 },
                 new MacroEvent
                 {
                     Type = EventType.Click,
-                    Button = MouseButton.Left,
+                    Button = MacroMouseButton.Left,
                     X = 5,
                     Y = -3,
-                    CoordinateMode = MouseCoordinateMode.Relative
-                }
-            ],
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                },
+            },
         };
         var converted = new List<EditorAction>
         {
@@ -3984,7 +3983,7 @@ public class EditorViewModelTests
         var sequence = new MacroSequence
         {
             Name = "Loaded Macro",
-            ScriptSteps = ["tap ctrl+c"],
+            ScriptSteps = {"tap ctrl+c"},
         };
         var converted = new List<EditorAction>
         {
@@ -4822,7 +4821,7 @@ public class EditorViewModelTests
         var generatedSequence = new MacroSequence
         {
             Name = "Generated",
-            Events = [new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 10, Y = 10 }],
+            Events = {new MacroEvent { Type = EventType.Click, Button = MacroMouseButton.Left, X = 10, Y = 10 }},
         };
         _converter
             .ToMacroSequence(Arg.Any<EditorMacroProjection>())
@@ -4853,7 +4852,7 @@ public class EditorViewModelTests
         var generatedSequence = new MacroSequence
         {
             Name = "Generated",
-            Events = [new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 10, Y = 10 }],
+            Events = {new MacroEvent { Type = EventType.Click, Button = MacroMouseButton.Left, X = 10, Y = 10 }},
         };
         _converter
             .ToMacroSequence(Arg.Any<EditorMacroProjection>())
@@ -4917,7 +4916,7 @@ public class EditorViewModelTests
         var generatedSequence = new MacroSequence
         {
             Name = "Generated",
-            Events = [new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 0, Y = 0 }],
+            Events = {new MacroEvent { Type = EventType.Click, Button = MacroMouseButton.Left, X = 0, Y = 0 }},
         };
         _converter
             .ToMacroSequence(Arg.Any<EditorMacroProjection>())
@@ -4939,7 +4938,7 @@ public class EditorViewModelTests
         var currentPositionClick = new EditorAction
         {
             Type = EditorActionType.MouseClick,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
             UseCurrentPosition = true,
             IsAbsolute = true,
             X = 123,
@@ -4987,7 +4986,7 @@ public class EditorViewModelTests
         var currentPositionClick = new EditorAction
         {
             Type = EditorActionType.MouseClick,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
             UseCurrentPosition = true,
             IsAbsolute = true,
             X = 123,
@@ -5019,7 +5018,7 @@ public class EditorViewModelTests
         var currentPositionClick = new EditorAction
         {
             Type = EditorActionType.MouseClick,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
             UseCurrentPosition = true,
             IsAbsolute = true,
             X = 123,
@@ -5040,7 +5039,7 @@ public class EditorViewModelTests
         currentPositionClick.Y.Should().Be(456);
     }
 
-	    [Fact]
+    [Fact]
     public async Task SaveMacroAsync_WhenCurrentPositionClickIsFirstAndOtherActionsAreAbsolute_UsesAbsoluteMacroMode()
     {
         // Arrange
@@ -5058,10 +5057,10 @@ public class EditorViewModelTests
             Name = "Generated",
             IsAbsoluteCoordinates = true,
             Events =
-            [
-                new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 0, Y = 0, UseCurrentPosition = true },
-                new MacroEvent { Type = EventType.MouseMove, X = 120, Y = 90 }
-            ],
+            {
+                new MacroEvent { Type = EventType.Click, Button = MacroMouseButton.Left, X = 0, Y = 0, UseCurrentPosition = true },
+                new MacroEvent { Type = EventType.MouseMove, X = 120, Y = 90 },
+            },
         };
         _converter
             .ToMacroSequence(Arg.Any<EditorMacroProjection>())

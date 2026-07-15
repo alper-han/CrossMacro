@@ -1,6 +1,6 @@
 namespace CrossMacro.Cli;
 
-public sealed record WindowCliOptions(
+public sealed record class WindowCliOptions(
     WindowCliAction Action,
     WindowSelector? Selector = null,
     int? X = null,

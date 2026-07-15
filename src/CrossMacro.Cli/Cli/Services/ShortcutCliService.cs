@@ -34,7 +34,7 @@ public sealed class ShortcutCliService : IShortcutCliService
                 x.UseRandomRepeatDelay ? x.RepeatDelayMaxMs : null,
                 x.LastTriggeredTime,
                 x.LastStatus
-            ));
+            )).ConfigureAwait(false);
     }
 
     public async Task<CliCommandExecutionResult> RunAsync(string taskId, CancellationToken cancellationToken)
@@ -56,7 +56,7 @@ public sealed class ShortcutCliService : IShortcutCliService
                 task.MacroFilePath,
                 task.LastTriggeredTime,
                 task.LastStatus
-            ));
+            )).ConfigureAwait(false);
     }
 
     public Task<CliCommandExecutionResult> ExecuteAsync(ShortcutCliOptions options, CancellationToken cancellationToken)
@@ -84,7 +84,7 @@ public sealed class ShortcutCliService : IShortcutCliService
         };
         ApplyOptions(task, options);
 
-        if (options.Enabled.HasValue)
+        if (options.Enabled is not null)
         {
             task.IsEnabled = options.Enabled.Value;
         }
@@ -96,14 +96,32 @@ public sealed class ShortcutCliService : IShortcutCliService
     private async Task<CliCommandExecutionResult> EditAsync(ShortcutCliOptions options, CancellationToken cancellationToken)
     {
         var parsed = await LoadAndFindAsync(options.TaskId ?? string.Empty, cancellationToken).ConfigureAwait(false);
-        if (parsed.Result is not null) return parsed.Result;
+        if (parsed.Result is not null)
+        {
+            return parsed.Result;
+        }
 
         var task = parsed.Task!;
-        if (!string.IsNullOrWhiteSpace(options.Name)) task.Name = options.Name;
-        if (!string.IsNullOrWhiteSpace(options.MacroFilePath)) task.MacroFilePath = options.MacroFilePath;
-        if (!string.IsNullOrWhiteSpace(options.Hotkey)) task.HotkeyString = options.Hotkey;
+        if (!string.IsNullOrWhiteSpace(options.Name))
+        {
+            task.Name = options.Name;
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.MacroFilePath))
+        {
+            task.MacroFilePath = options.MacroFilePath;
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.Hotkey))
+        {
+            task.HotkeyString = options.Hotkey;
+        }
+
         ApplyOptions(task, options);
-        if (options.Enabled.HasValue) task.IsEnabled = options.Enabled.Value;
+        if (options.Enabled is not null)
+        {
+            task.IsEnabled = options.Enabled.Value;
+        }
 
         cancellationToken.ThrowIfCancellationRequested();
         await _manageShortcut.UpdateAsync(task, cancellationToken).ConfigureAwait(false);
@@ -113,7 +131,10 @@ public sealed class ShortcutCliService : IShortcutCliService
     private async Task<CliCommandExecutionResult> RemoveAsync(string taskId, CancellationToken cancellationToken)
     {
         var parsed = await LoadAndFindAsync(taskId, cancellationToken).ConfigureAwait(false);
-        if (parsed.Result is not null) return parsed.Result;
+        if (parsed.Result is not null)
+        {
+            return parsed.Result;
+        }
 
         var task = parsed.Task!;
         cancellationToken.ThrowIfCancellationRequested();
@@ -124,7 +145,10 @@ public sealed class ShortcutCliService : IShortcutCliService
     private async Task<CliCommandExecutionResult> SetEnabledAsync(string taskId, bool enabled, CancellationToken cancellationToken)
     {
         var parsed = await LoadAndFindAsync(taskId, cancellationToken).ConfigureAwait(false);
-        if (parsed.Result is not null) return parsed.Result;
+        if (parsed.Result is not null)
+        {
+            return parsed.Result;
+        }
 
         var task = parsed.Task!;
         if (enabled && !task.CanBeEnabled)
@@ -145,7 +169,10 @@ public sealed class ShortcutCliService : IShortcutCliService
     private async Task<CliCommandExecutionResult> BindAsync(ShortcutCliOptions options, CancellationToken cancellationToken)
     {
         var parsed = await LoadAndFindAsync(options.TaskId ?? string.Empty, cancellationToken).ConfigureAwait(false);
-        if (parsed.Result is not null) return parsed.Result;
+        if (parsed.Result is not null)
+        {
+            return parsed.Result;
+        }
 
         var task = parsed.Task!;
         task.HotkeyString = options.Hotkey ?? string.Empty;
@@ -162,23 +189,42 @@ public sealed class ShortcutCliService : IShortcutCliService
             "Shortcut",
             cancellationToken,
             async () => _tasks = (await _manageShortcut.ListAsync(cancellationToken).ConfigureAwait(false)).Tasks,
-            task => task.Id);
+            task => task.Id).ConfigureAwait(false);
     }
 
     private static void ApplyOptions(ShortcutTask task, ShortcutCliOptions options)
     {
-        if (options.Speed.HasValue) task.PlaybackSpeed = options.Speed.Value;
-        if (options.Loop.HasValue) task.LoopEnabled = options.Loop.Value;
-        if (options.RepeatCount.HasValue) task.RepeatCount = options.RepeatCount.Value;
-        if (options.RepeatDelayMs.HasValue) task.RepeatDelayMs = options.RepeatDelayMs.Value;
-        if (options.RepeatDelayMinMs.HasValue && options.RepeatDelayMaxMs.HasValue)
+        if (options.Speed is not null)
+        {
+            task.PlaybackSpeed = options.Speed.Value;
+        }
+
+        if (options.Loop is not null)
+        {
+            task.LoopEnabled = options.Loop.Value;
+        }
+
+        if (options.RepeatCount is not null)
+        {
+            task.RepeatCount = options.RepeatCount.Value;
+        }
+
+        if (options.RepeatDelayMs is not null)
+        {
+            task.RepeatDelayMs = options.RepeatDelayMs.Value;
+        }
+
+        if (options.RepeatDelayMinMs is not null && options.RepeatDelayMaxMs is not null)
         {
             task.UseRandomRepeatDelay = true;
             task.RepeatDelayMinMs = options.RepeatDelayMinMs.Value;
             task.RepeatDelayMaxMs = options.RepeatDelayMaxMs.Value;
         }
 
-        if (options.RunWhileHeld) task.RunWhileHeld = true;
+        if (options.RunWhileHeld)
+        {
+            task.RunWhileHeld = true;
+        }
     }
 
     private static ShortcutTaskData MapTask(ShortcutTask task)

@@ -22,7 +22,7 @@ public class RelativeCoordinateStrategy : IRelativeCoordinateStrategy
         return Task.CompletedTask;
     }
 
-    public (int X, int Y) ProcessPosition(InputCaptureEventArgs e)
+    public (int X, int Y) ProcessPosition(CapturedInputEvent e)
     {
         switch (e.Type)
         {

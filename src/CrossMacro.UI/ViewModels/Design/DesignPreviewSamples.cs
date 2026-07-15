@@ -19,28 +19,29 @@ internal static class DesignPreviewSamples
             ClickCount = 1,
             EventsPerSecond = 3.0,
             TrailingDelayMs = 200,
-            Events =
-            [
-                new MacroEvent { Type = EventType.MouseMove, X = 420, Y = 180, Timestamp = 0, DelayMs = 80 },
-                new MacroEvent { Type = EventType.Click, X = 420, Y = 180, Button = MouseButton.Left, Timestamp = 80, DelayMs = 120 },
-                new MacroEvent { Type = EventType.KeyPress, KeyCode = 30, Timestamp = 200, DelayMs = 30 },
-                new MacroEvent { Type = EventType.KeyRelease, KeyCode = 30, Timestamp = 230, DelayMs = 30 },
-                new MacroEvent { Type = EventType.KeyPress, KeyCode = 48, Timestamp = 260, DelayMs = 30 },
-                new MacroEvent { Type = EventType.KeyRelease, KeyCode = 48, Timestamp = 290, DelayMs = 200 }
-            ],
         };
+
+        macro.ReplaceEvents(
+        [
+            new MacroEvent { Type = EventType.MouseMove, X = 420, Y = 180, Timestamp = 0, DelayMs = 80 },
+            new MacroEvent { Type = EventType.Click, X = 420, Y = 180, Button = MacroMouseButton.Left, Timestamp = 80, DelayMs = 120 },
+            new MacroEvent { Type = EventType.KeyPress, KeyCode = 30, Timestamp = 200, DelayMs = 30 },
+            new MacroEvent { Type = EventType.KeyRelease, KeyCode = 30, Timestamp = 230, DelayMs = 30 },
+            new MacroEvent { Type = EventType.KeyPress, KeyCode = 48, Timestamp = 260, DelayMs = 30 },
+            new MacroEvent { Type = EventType.KeyRelease, KeyCode = 48, Timestamp = 290, DelayMs = 200 },
+        ]);
 
         macro.CalculateDuration();
         return macro;
     }
 
-    public static IReadOnlyList<TextExpansion> CreateTextExpansions()
+    public static IReadOnlyList<TextExpansionEntry> CreateTextExpansions()
     {
         return
         [
-            new TextExpansion(":mail", "email@example.com", isEnabled: true, PasteMethod.CtrlV, TextInsertionMode.Paste),
-            new TextExpansion(":retry-note", "Retry failed upload after reconnecting VPN", isEnabled: true, PasteMethod.CtrlShiftV, TextInsertionMode.Paste),
-            new TextExpansion(":runbook", "Open dashboard and start the nightly export macro", isEnabled: true, PasteMethod.CtrlV, TextInsertionMode.DirectTyping),
+            new TextExpansionEntry(":mail", "email@example.com", isEnabled: true, PasteMethod.CtrlV, TextInsertionMode.Paste),
+            new TextExpansionEntry(":retry-note", "Retry failed upload after reconnecting VPN", isEnabled: true, PasteMethod.CtrlShiftV, TextInsertionMode.Paste),
+            new TextExpansionEntry(":runbook", "Open dashboard and start the nightly export macro", isEnabled: true, PasteMethod.CtrlV, TextInsertionMode.DirectTyping),
         ];
     }
 
@@ -126,7 +127,7 @@ internal static class DesignPreviewSamples
             Field = TriggerField.WindowTitle,
             MatchMode = TriggerMatchMode.Contains,
             Value = "Visual Studio Code",
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "dev",
             FireMode = TriggerFireMode.OnceOnChange,
             LastTriggeredTime = SampleNow.AddMinutes(-5),
@@ -140,7 +141,7 @@ internal static class DesignPreviewSamples
             Field = TriggerField.WindowClass,
             MatchMode = TriggerMatchMode.Equals,
             Value = "firefox",
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "gaming",
             FireMode = TriggerFireMode.OnceOnChange,
         };
@@ -172,7 +173,7 @@ internal static class DesignPreviewSamples
             new EditorAction
             {
                 Type = EditorActionType.MouseClick,
-                Button = MouseButton.Left,
+                Button = MacroMouseButton.Left,
                 UseCurrentPosition = true,
                 IsAbsolute = false,
             },
@@ -188,7 +189,7 @@ internal static class DesignPreviewSamples
             },
             new EditorAction
             {
-                Type = EditorActionType.BlockEnd
+                Type = EditorActionType.BlockEnd,
             },
         ];
     }

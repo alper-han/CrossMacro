@@ -20,10 +20,8 @@ public class MacroSequenceTests
     public void IsValid_WithScriptStepsAndEmptyEvents_ReturnsTrue()
     {
         // Arrange
-        var macro = new MacroSequence
-        {
-            ScriptSteps = new List<string> { "pixelcolor 10 20 color" },
-        };
+        var macro = new MacroSequence();
+        macro.ReplaceScriptSteps(["pixelcolor 10 20 color"]);
 
         // Act
         var result = macro.IsValid();
@@ -36,10 +34,8 @@ public class MacroSequenceTests
     public void IsValid_WithMalformedScriptStepsAndEmptyEvents_ReturnsTrueForStructuralValidationOnly()
     {
         // Arrange
-        var macro = new MacroSequence
-        {
-            ScriptSteps = new List<string> { "pixelcolor 1" },
-        };
+        var macro = new MacroSequence();
+        macro.ReplaceScriptSteps(["pixelcolor 1"]);
 
         // Act
         var result = macro.IsValid();
@@ -52,10 +48,8 @@ public class MacroSequenceTests
     public void IsValid_WithOnlyBlankScriptStepsAndEmptyEvents_ReturnsFalse()
     {
         // Arrange
-        var macro = new MacroSequence
-        {
-            ScriptSteps = new List<string> { " ", "" },
-        };
+        var macro = new MacroSequence();
+        macro.ReplaceScriptSteps([" ", ""]);
 
         // Act
         var result = macro.IsValid();
@@ -68,7 +62,7 @@ public class MacroSequenceTests
     public void IsValid_NullEvents_ReturnsFalse()
     {
         // Arrange
-        var macro = new MacroSequence { Events = null! };
+        var macro = new MacroSequence();
 
         // Act
         var result = macro.IsValid();
@@ -83,9 +77,9 @@ public class MacroSequenceTests
         // Arrange
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
+            Events =
             {
-                new() { Type = EventType.MouseMove, Timestamp = -1, DelayMs = 0 }
+                new() { Type = EventType.MouseMove, Timestamp = -1, DelayMs = 0 },
             },
         };
 
@@ -102,9 +96,9 @@ public class MacroSequenceTests
         // Arrange
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
+            Events =
             {
-                new() { Type = EventType.MouseMove, Timestamp = 0, DelayMs = -100 }
+                new() { Type = EventType.MouseMove, Timestamp = 0, DelayMs = -100 },
             },
         };
 
@@ -121,7 +115,7 @@ public class MacroSequenceTests
         // Arrange
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
+            Events =
             {
                 new()
                 {
@@ -130,8 +124,8 @@ public class MacroSequenceTests
                     DelayMs = 0,
                     HasRandomDelay = true,
                     RandomDelayMinMs = 200,
-                    RandomDelayMaxMs = 100
-                }
+                    RandomDelayMaxMs = 100,
+                },
             },
         };
 
@@ -151,9 +145,9 @@ public class MacroSequenceTests
             HasTrailingRandomDelay = true,
             TrailingDelayMinMs = 300,
             TrailingDelayMaxMs = 100,
-            Events = new List<MacroEvent>
+            Events =
             {
-                new() { Type = EventType.MouseMove, Timestamp = 0, DelayMs = 0 }
+                new() { Type = EventType.MouseMove, Timestamp = 0, DelayMs = 0 },
             },
         };
 
@@ -170,11 +164,11 @@ public class MacroSequenceTests
         // Arrange
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
+            Events =
             {
                 new() { Type = EventType.MouseMove, Timestamp = 0, DelayMs = 0, X = 100, Y = 200 },
-                new() { Type = EventType.ButtonPress, Timestamp = 100, DelayMs = 100, Button = MouseButton.Left },
-                new() { Type = EventType.ButtonRelease, Timestamp = 150, DelayMs = 50, Button = MouseButton.Left }
+                new() { Type = EventType.ButtonPress, Timestamp = 100, DelayMs = 100, Button = MacroMouseButton.Left },
+                new() { Type = EventType.ButtonRelease, Timestamp = 150, DelayMs = 50, Button = MacroMouseButton.Left },
             },
         };
 
@@ -204,11 +198,11 @@ public class MacroSequenceTests
         // Arrange
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
+            Events =
             {
                 new() { Timestamp = 0 },
                 new() { Timestamp = 500 },
-                new() { Timestamp = 1500 }
+                new() { Timestamp = 1500 },
             },
         };
 
@@ -225,9 +219,9 @@ public class MacroSequenceTests
         // Arrange
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
+            Events =
             {
-                new(), new(), new(), new(), new()
+                new(), new(), new(), new(), new(),
             },
         };
 
@@ -243,8 +237,7 @@ public class MacroSequenceTests
         {
             Id = Guid.NewGuid(),
             Name = "Original",
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new()
                 {
                     Type = EventType.MouseMove,
@@ -252,11 +245,11 @@ public class MacroSequenceTests
                     Y = 20,
                     Timestamp = 30,
                     DelayMs = 40,
-                    CoordinateMode = MouseCoordinateMode.Absolute
+                    CoordinateMode = MouseCoordinateMode.Absolute,
                 },
             },
-            ScriptSteps = new List<string> { "move 10 20" },
-            TextInputBoundaries = new List<TextInputBoundary>
+            ScriptSteps = { "move 10 20" },
+            TextInputBoundaries =
             {
                 new(0, 2, "hello"),
             },
@@ -309,5 +302,28 @@ public class MacroSequenceTests
         macro.Events.Should().NotBeNull();
         macro.Events.Should().BeEmpty();
         macro.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public void ReplaceCollections_PreservesCollectionIdentityAndOrdering()
+    {
+        var macro = new MacroSequence();
+        var events = macro.Events;
+        var scriptSteps = macro.ScriptSteps;
+        var boundaries = macro.TextInputBoundaries;
+        var images = macro.Images;
+
+        macro.ReplaceEvents([new MacroEvent { KeyCode = 30 }, new MacroEvent { KeyCode = 31 }]);
+        macro.ReplaceScriptSteps(["move 1 2", "click left"]);
+        macro.ReplaceTextInputBoundaries([new TextInputBoundary(0, 2, "hi")]);
+        macro.ReplaceImages([new KeyValuePair<string, string>("Target", "encoded")]);
+
+        macro.Events.Should().BeSameAs(events);
+        macro.ScriptSteps.Should().BeSameAs(scriptSteps);
+        macro.TextInputBoundaries.Should().BeSameAs(boundaries);
+        macro.Images.Should().BeSameAs(images);
+        macro.Events.Select(item => item.KeyCode).Should().Equal(30, 31);
+        macro.ScriptSteps.Should().Equal("move 1 2", "click left");
+        macro.Images["Target"].Should().Be("encoded");
     }
 }

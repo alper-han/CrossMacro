@@ -147,7 +147,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private static string GetAppVersion()
     {
         var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-        return version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "";
+        return version != null ? $"v{version.Major.ToString(CultureInfo.InvariantCulture)}.{version.Minor.ToString(CultureInfo.InvariantCulture)}.{version.Build.ToString(CultureInfo.InvariantCulture)}" : "";
     }
 
     /// <summary>
@@ -221,7 +221,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         // Check for existing errors (in case service started before we subscribed)
         if (!string.IsNullOrEmpty(_hotkeyService.LastError))
         {
-            OnGlobalHotkeyError(this, _hotkeyService.LastError);
+            OnGlobalHotkeyError(this, new GlobalHotkeyErrorEventArgs(_hotkeyService.LastError));
         }
 
         // Forward tray icon changes
@@ -246,7 +246,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         StartupInitializationTask = InitializeBackgroundServicesAsync();
         StartupInitializationTask.ContinueWith(
-            static startupTask => Log.Error(
+            static startupTask => Log.LogError(
                 (Exception?)startupTask.Exception ?? new InvalidOperationException("Startup initialization task faulted without an exception."),
                 "[MainWindowViewModel] Shell startup initialization failed"),
             CancellationToken.None,
@@ -257,8 +257,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private async System.Threading.Tasks.Task InitializeBackgroundServicesAsync()
     {
-        await Schedule.InitializeAsync();
-        await CheckForUpdatesAsync();
+        await Schedule.InitializeAsync().ConfigureAwait(false);
+        await CheckForUpdatesAsync().ConfigureAwait(false);
         ShowPlatformStartupNotificationIfNeeded();
     }
 
@@ -371,17 +371,23 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         try
         {
             // Check if updates are enabled in settings
-            if (!Settings.CheckForUpdates) return;
+            if (!Settings.CheckForUpdates)
+            {
+                return;
+            }
 
-            if (_updateService is null) return;
+            if (_updateService is null)
+            {
+                return;
+            }
 
-            var result = await _updateService.CheckForUpdatesAsync();
+            var result = await _updateService.CheckForUpdatesAsync().ConfigureAwait(false);
             if (result.HasUpdate)
             {
                 void ApplyUpdateNotification()
                 {
                     LatestVersion = result.LatestVersion;
-                    _updateReleaseUrl = result.ReleaseUrl;
+                    _updateReleaseUrl = result.ReleaseUrl?.ToString() ?? string.Empty;
                     IsUpdateNotificationVisible = true;
                     OnPropertyChanged(nameof(UpdateAvailableVersionText));
                 }
@@ -438,7 +444,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[MainWindowViewModel] Failed to sync recorded macro to FilesViewModel");
+                Log.LogError(ex, "[MainWindowViewModel] Failed to sync recorded macro to FilesViewModel");
             }
             finally
             {
@@ -544,7 +550,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void OnProfileChanged(object? sender, ProfileInfo profile)
+    private void OnProfileChanged(object? sender, ProfileChangedEventArgs e)
     {
         void RefreshProfileBackedViewModels()
         {
@@ -825,8 +831,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         });
     }
 
-    private void OnGlobalHotkeyError(object? sender, string error)
+    private void OnGlobalHotkeyError(object? sender, GlobalHotkeyErrorEventArgs e)
     {
+        var error = e.Message;
         Dispatcher.UIThread.Post(() =>
         {
             var troubleshootingHintKey = GetBackendTroubleshootingHintKey(_currentEnvironment);
@@ -900,7 +907,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            await Task.Delay(duration, token);
+            await Task.Delay(duration, token).ConfigureAwait(false);
 
             if (token.IsCancellationRequested || !ReferenceEquals(_appNotificationCts, notificationCts))
             {
@@ -960,7 +967,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
+
         _disposed = true;
 
         CancelAppNotificationTimer();

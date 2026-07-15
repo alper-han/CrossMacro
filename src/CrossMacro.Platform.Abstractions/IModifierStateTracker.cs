@@ -9,26 +9,26 @@ public interface IModifierStateTracker
     /// Records a key press event.
     /// </summary>
     /// <param name="keyCode">The key code that was pressed</param>
-    void OnKeyPressed(int keyCode);
+    public void OnKeyPressed(int keyCode);
 
     /// <summary>
     /// Records a key release event.
     /// </summary>
     /// <param name="keyCode">The key code that was released</param>
-    void OnKeyReleased(int keyCode);
+    public void OnKeyReleased(int keyCode);
 
     /// <summary>
     /// Gets the set of currently pressed modifier key codes.
     /// </summary>
-    IReadOnlySet<int> CurrentModifiers { get; }
+    public IReadOnlySet<int> CurrentModifiers { get; }
 
     /// <summary>
     /// Clears all tracked modifier state.
     /// </summary>
-    void Clear();
+    public void Clear();
 
     /// <summary>
     /// Checks if any modifiers are currently pressed.
     /// </summary>
-    bool HasModifiers { get; }
+    public bool HasModifiers { get; }
 }

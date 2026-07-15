@@ -53,7 +53,7 @@ public class SettingsCommandHandlersTests
                 Data = new Dictionary<string, object?>
                 {
                     ["playback.speed"] = 1.5,
-                    ["playback.loop"] = true
+                    ["playback.loop"] = true,
                 },
             });
 

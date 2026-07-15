@@ -28,7 +28,7 @@ public sealed class X11ScreenFrameProvider : IScreenFrameProvider
 
         if (!_support.IsSupported)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 _support.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
                 _support.ErrorMessage ?? "X11 screen reading is unavailable.");
         }
@@ -59,7 +59,7 @@ public sealed class X11ScreenFrameProvider : IScreenFrameProvider
         var frame = captureResult.Frame;
         if (frame is null)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.CaptureFailed,
                 "Successful X11 screen capture did not include a frame.");
         }

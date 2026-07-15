@@ -40,7 +40,7 @@ public class PositionSyncService : IPositionSyncService
             return;
         }
 
-        Stop();
+        StopPositionSync();
 
         var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         Task syncTask;
@@ -60,10 +60,10 @@ public class PositionSyncService : IPositionSyncService
                 {
                     try
                     {
-                        await Task.Delay(currentInterval, linkedCancellation.Token);
+                        await Task.Delay(currentInterval, linkedCancellation.Token).ConfigureAwait(false);
 
                         var sw = Stopwatch.StartNew();
-                        var actualPos = await _positionProvider.GetAbsolutePositionAsync();
+                        var actualPos = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
                         sw.Stop();
 
                         if (linkedCancellation.IsCancellationRequested)
@@ -71,7 +71,7 @@ public class PositionSyncService : IPositionSyncService
                             break;
                         }
 
-                        if (actualPos.HasValue)
+                        if (actualPos is not null)
                         {
                             var (cachedX, cachedY) = getCurrentPosition();
 
@@ -123,7 +123,7 @@ public class PositionSyncService : IPositionSyncService
                     }
                     catch (Exception ex)
                     {
-                        Log.Error(ex, "[PositionSyncService] Error in sync loop");
+                        Log.LogError(ex, "[PositionSyncService] Error in sync loop");
                         consecutiveFailures++;
                     }
                 }
@@ -135,10 +135,10 @@ public class PositionSyncService : IPositionSyncService
         }
 
         _ = ObserveSyncTaskAsync(syncTask, linkedCancellation);
-        await Task.CompletedTask;
+        await Task.CompletedTask.ConfigureAwait(false);
     }
 
-    public void Stop()
+    public void StopPositionSync()
     {
         Task? syncTask;
         CancellationTokenSource? cancellation;
@@ -181,7 +181,7 @@ public class PositionSyncService : IPositionSyncService
         }
 
         _disposed = true;
-        Stop();
+        StopPositionSync();
     }
 
     private async Task ObserveSyncTaskAsync(Task syncTask, CancellationTokenSource cancellation)
@@ -204,7 +204,7 @@ public class PositionSyncService : IPositionSyncService
                 }
             }
 
-            Log.Error(ex, "[PositionSyncService] Sync task faulted unexpectedly");
+            Log.LogError(ex, "[PositionSyncService] Sync task faulted unexpectedly");
         }
     }
 

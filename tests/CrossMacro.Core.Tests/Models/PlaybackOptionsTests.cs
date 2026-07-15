@@ -112,6 +112,7 @@ public class PlaybackOptionsTests
 
         // Act
         options.SpeedMultiplier = speed;
+        options.Normalize();
 
         // Assert
         options.SpeedMultiplier.Should().Be(expected ?? speed);

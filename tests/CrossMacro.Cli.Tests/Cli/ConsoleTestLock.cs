@@ -46,8 +46,8 @@ internal static class ConsoleTestLock
         public void Information(Exception exception, string messageTemplate, params object?[] propertyValues) { }
         public void Warning(string messageTemplate, params object?[] propertyValues) { }
         public void Warning(Exception exception, string messageTemplate, params object?[] propertyValues) { }
-        public void Error(string messageTemplate, params object?[] propertyValues) { }
-        public void Error(Exception exception, string messageTemplate, params object?[] propertyValues) { }
+        public void LogError(string messageTemplate, params object?[] propertyValues) { }
+        public void LogError(Exception exception, string messageTemplate, params object?[] propertyValues) { }
         public void Fatal(string messageTemplate, params object?[] propertyValues) { }
         public void Fatal(Exception exception, string messageTemplate, params object?[] propertyValues) { }
     }

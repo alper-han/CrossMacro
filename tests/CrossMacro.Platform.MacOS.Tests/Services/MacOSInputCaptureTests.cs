@@ -290,7 +290,7 @@ public class MacOSInputCaptureTests
     {
         using var capture = new MacOSInputCapture();
         string? error = null;
-        capture.Error += (_, message) => error = message;
+        capture.CaptureError += (_, message) => error = message.Message;
 
         var exception = await Record.ExceptionAsync(() => capture.StartAsync(CancellationToken.None));
 

@@ -45,7 +45,10 @@ public class MacroExecutionServiceTests
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -58,7 +61,7 @@ public class MacroExecutionServiceTests
             _fileManager.LoadAsync(tempFile).Returns(new MacroSequence
             {
                 Name = "script",
-                ScriptSteps = ["pixelcolor 1 2 sampled", "tap Backspace"],
+                ScriptSteps = {"pixelcolor 1 2 sampled", "tap Backspace"},
             });
 
             var result = await _service.ValidateAsync(tempFile, CancellationToken.None);
@@ -68,7 +71,10 @@ public class MacroExecutionServiceTests
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -88,7 +94,10 @@ public class MacroExecutionServiceTests
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -110,7 +119,10 @@ public class MacroExecutionServiceTests
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -133,7 +145,10 @@ public class MacroExecutionServiceTests
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -164,7 +179,10 @@ public class MacroExecutionServiceTests
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -192,7 +210,10 @@ public class MacroExecutionServiceTests
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 

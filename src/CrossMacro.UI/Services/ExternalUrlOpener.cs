@@ -83,12 +83,9 @@ public sealed class ExternalUrlOpener : IExternalUrlOpener
             yield break;
         }
 
-        foreach (var command in GetLinuxFallbackCommands())
+        foreach (var command in GetLinuxFallbackCommands().Where(command => commandExists(command.FileName)))
         {
-            if (commandExists(command.FileName))
-            {
-                yield return CreateCommand(command.FileName, url, command.ArgumentsBeforeUrl);
-            }
+            yield return CreateCommand(command.FileName, url, command.ArgumentsBeforeUrl);
         }
     }
 
@@ -147,8 +144,8 @@ public sealed class ExternalUrlOpener : IExternalUrlOpener
         var error = standardErrorTask?.GetAwaiter().GetResult().Trim() ?? string.Empty;
         _ = standardOutputTask?.GetAwaiter().GetResult();
         var message = string.IsNullOrWhiteSpace(error)
-            ? $"Launcher '{startInfo.FileName}' exited with code {process.ExitCode}."
-            : $"Launcher '{startInfo.FileName}' exited with code {process.ExitCode}: {error}";
+            ? $"Launcher '{startInfo.FileName}' exited with code {process.ExitCode.ToString(CultureInfo.InvariantCulture)}."
+            : $"Launcher '{startInfo.FileName}' exited with code {process.ExitCode.ToString(CultureInfo.InvariantCulture)}: {error}";
         return LaunchResult.Failed(new InvalidOperationException(message));
     }
 

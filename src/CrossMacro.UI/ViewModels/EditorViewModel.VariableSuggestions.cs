@@ -40,7 +40,7 @@ public partial class EditorViewModel
 
             if (action.TryGetScreenReadingPayload(out var screenReadingPayload))
             {
-                foreach (var variableName in screenReadingPayload.GetOutputVariableNames())
+                foreach (var variableName in screenReadingPayload.OutputVariableNames)
                 {
                     AddIfValidVariableName(names, variableName);
                 }
@@ -64,12 +64,10 @@ public partial class EditorViewModel
                 continue;
             }
 
-            foreach (var variableName in screenReadingPayload.GetOutputVariableNames())
+            foreach (var variableName in screenReadingPayload.OutputVariableNames
+                .Where(name => screenReadingPayload.GetOutputVariableRole(name) is EditorActionScreenReadingVariableRole.Color))
             {
-                if (screenReadingPayload.GetOutputVariableRole(variableName) is EditorActionScreenReadingVariableRole.Color)
-                {
-                    AddIfValidVariableName(names, variableName);
-                }
+                AddIfValidVariableName(names, variableName);
             }
         }
 
@@ -210,14 +208,17 @@ public partial class EditorViewModel
         }
 
         var token = value.Trim();
-        if (token.StartsWith("$", StringComparison.Ordinal))
+        if (token.StartsWith('$'))
         {
             token = token[1..];
         }
 
-        if (Regex.IsMatch(token, @"^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking))
+        if (VariableNameRegex().IsMatch(token))
         {
             target.Add(token);
         }
     }
+
+    [GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
+    private static partial Regex VariableNameRegex();
 }

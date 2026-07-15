@@ -14,7 +14,7 @@ public sealed class MacroValidateCommandHandler : CliCommandHandlerBase<MacroVal
         MacroValidateCliOptions options,
         CancellationToken cancellationToken)
     {
-        var result = await _macroExecutionService.ValidateAsync(options.MacroFilePath, cancellationToken);
+        var result = await _macroExecutionService.ValidateAsync(options.MacroFilePath, cancellationToken).ConfigureAwait(false);
 
         return result.Success
             ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings)

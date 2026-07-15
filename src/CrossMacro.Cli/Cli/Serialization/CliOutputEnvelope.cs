@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Cli.Serialization;
 
-public sealed record CliOutputEnvelope(
+public sealed record class CliOutputEnvelope(
     [property: JsonPropertyName("status")] string Status,
     [property: JsonPropertyName("code")] int Code,
     [property: JsonPropertyName("message")] string Message,

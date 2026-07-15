@@ -16,7 +16,7 @@ public sealed class PlayCommandHandler : CliCommandHandlerBase<PlayCliOptions>
     {
         if (!options.DryRun)
         {
-            var preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Play, cancellationToken);
+            var preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Play, cancellationToken).ConfigureAwait(false);
             if (!preflight.Success)
             {
                 return CliCommandExecutionResult.Fail(preflight.ExitCode, preflight.Message, preflight.Errors, preflight.Warnings);
@@ -26,7 +26,7 @@ public sealed class PlayCommandHandler : CliCommandHandlerBase<PlayCliOptions>
         return await CommandTimeoutRunner.RunAsync(
             options.TimeoutSeconds,
             cancellationToken,
-            token => ExecuteInternalAsync(options, token));
+            token => ExecuteInternalAsync(options, token)).ConfigureAwait(false);
     }
 
     private async Task<CliCommandExecutionResult> ExecuteInternalAsync(PlayCliOptions options, CancellationToken cancellationToken)
@@ -44,7 +44,7 @@ public sealed class PlayCommandHandler : CliCommandHandlerBase<PlayCliOptions>
             DryRun = options.DryRun,
         };
 
-        var result = await _macroExecutionService.ExecuteAsync(request, cancellationToken);
+        var result = await _macroExecutionService.ExecuteAsync(request, cancellationToken).ConfigureAwait(false);
 
         return result.Success
             ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings)

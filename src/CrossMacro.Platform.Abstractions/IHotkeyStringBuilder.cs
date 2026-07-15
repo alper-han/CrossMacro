@@ -11,7 +11,7 @@ public interface IHotkeyStringBuilder
     /// <param name="keyCode">The main key code</param>
     /// <param name="modifiers">The set of pressed modifier key codes</param>
     /// <returns>A formatted hotkey string (e.g., "Ctrl+Shift+P")</returns>
-    string Build(int keyCode, IReadOnlySet<int> modifiers);
+    public string Build(int keyCode, IReadOnlySet<int> modifiers);
 
     /// <summary>
     /// Builds a hotkey string for a mouse button.
@@ -19,5 +19,5 @@ public interface IHotkeyStringBuilder
     /// <param name="buttonName">The mouse button name</param>
     /// <param name="modifiers">The set of pressed modifier key codes</param>
     /// <returns>A formatted hotkey string (e.g., "Ctrl+Mouse Side")</returns>
-    string BuildForMouse(string buttonName, IReadOnlySet<int> modifiers);
+    public string BuildForMouse(string buttonName, IReadOnlySet<int> modifiers);
 }

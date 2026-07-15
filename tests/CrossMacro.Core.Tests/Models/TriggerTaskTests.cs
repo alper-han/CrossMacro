@@ -6,7 +6,7 @@ public class TriggerTaskTests
     [Fact]
     public void CanBeEnabled_RequiresValueAndTargetProfileForSwitchProfile()
     {
-        var t = new TriggerTask { Value = "firefox", Action = TriggerAction.SwitchProfile };
+        var t = new TriggerTask { Value = "firefox", Action = TriggerOperation.SwitchProfile };
         t.CanBeEnabled.Should().BeFalse();
 
         t.TargetProfileId = "gaming";
@@ -17,14 +17,14 @@ public class TriggerTaskTests
     public void CanBeEnabled_ForNonSwitchProfile_IgnoresTargetProfile()
     {
         // Unknown action values default to bypassing the profile validation rules.
-        var t = new TriggerTask { Value = "firefox", Action = (TriggerAction)999 };
+        var t = new TriggerTask { Value = "firefox", Action = (TriggerOperation)999 };
         t.CanBeEnabled.Should().BeTrue();
     }
 
     [Fact]
     public void CanBeEnabled_RequiresMacroFilePathForRunMacro()
     {
-        var t = new TriggerTask { Value = "firefox", Action = TriggerAction.RunMacro };
+        var t = new TriggerTask { Value = "firefox", Action = TriggerOperation.RunMacro };
         t.CanBeEnabled.Should().BeFalse("RunMacro requires a macro file path");
 
         t.MacroFilePath = "/tmp/demo.macro";
@@ -34,8 +34,8 @@ public class TriggerTaskTests
     [Fact]
     public void IsEnabled_RefusesEnableWhenCanBeEnabledIsFalse()
     {
-        var t = new TriggerTask { Value = "", Action = TriggerAction.SwitchProfile };
-        t.IsEnabled = true;
+        var t = new TriggerTask { Value = "", Action = TriggerOperation.SwitchProfile };
+        t.TrySetEnabled(true).Should().BeFalse();
         t.IsEnabled.Should().BeFalse("gate should block enabling incomplete task");
     }
 
@@ -45,25 +45,18 @@ public class TriggerTaskTests
         var t = new TriggerTask
         {
             Value = "firefox",
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "gaming",
         };
-        t.IsEnabled = true;
+        t.TrySetEnabled(true).Should().BeTrue();
         t.IsEnabled.Should().BeTrue();
     }
 
     [Fact]
-    public void SettingValue_RaisesPropertyChangedAndCanBeEnabled()
+    public void TriggerTask_IsPlainDomainModel()
     {
-        var t = new TriggerTask { Action = TriggerAction.SwitchProfile, TargetProfileId = "gaming" };
-        var changed = new System.Collections.Generic.List<string?>();
-        t.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
-
-        t.Value = "firefox";
-
-        changed.Should().Contain(nameof(TriggerTask.Value));
-        changed.Should().Contain(nameof(TriggerTask.CanBeEnabled));
-        t.CanBeEnabled.Should().BeTrue();
+        typeof(TriggerTask).GetInterface(nameof(System.ComponentModel.INotifyPropertyChanged))
+            .Should().BeNull();
     }
 
     [Fact]
@@ -73,7 +66,7 @@ public class TriggerTaskTests
         var t = new TriggerTask
         {
             Field = TriggerField.None,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "gaming",
         };
         t.CanBeEnabled.Should().BeTrue("None field fires regardless of window state, no Value required");

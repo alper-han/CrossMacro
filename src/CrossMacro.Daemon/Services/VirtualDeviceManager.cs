@@ -32,7 +32,7 @@ public class VirtualDeviceManager : IVirtualDeviceManager
             {
                 _uInputDevice?.Dispose();
                 _uInputDevice = null;
-                Log.Error(ex, "[VirtualDeviceManager] Failed to configure UInput device");
+                Log.LogError(ex, "[VirtualDeviceManager] Failed to configure UInput device");
                 throw;
             }
         }
@@ -75,7 +75,10 @@ public class VirtualDeviceManager : IVirtualDeviceManager
         {
             ThrowIfDisposed();
             var device = _uInputDevice;
-            if (device is null) return;
+            if (device is null)
+            {
+                return;
+            }
 
             foreach (var inputEvent in events)
             {

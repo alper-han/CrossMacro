@@ -20,7 +20,7 @@ public class MacroPositionSemanticsTests
         var ev = new MacroEvent
         {
             Type = eventType,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
             UseCurrentPosition = false,
         };
 
@@ -36,7 +36,7 @@ public class MacroPositionSemanticsTests
         var ev = new MacroEvent
         {
             Type = eventType,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
             UseCurrentPosition = true,
             CoordinateMode = MouseCoordinateMode.Relative,
         };
@@ -46,11 +46,11 @@ public class MacroPositionSemanticsTests
     }
 
     [Theory]
-    [InlineData(MouseButton.ScrollUp)]
-    [InlineData(MouseButton.ScrollDown)]
-    [InlineData(MouseButton.ScrollLeft)]
-    [InlineData(MouseButton.ScrollRight)]
-    public void IsCoordinateBearing_WhenScrollClick_ReturnsFalse(MouseButton button)
+    [InlineData(MacroMouseButton.ScrollUp)]
+    [InlineData(MacroMouseButton.ScrollDown)]
+    [InlineData(MacroMouseButton.ScrollLeft)]
+    [InlineData(MacroMouseButton.ScrollRight)]
+    public void IsCoordinateBearing_WhenScrollClick_ReturnsFalse(MacroMouseButton button)
     {
         var ev = new MacroEvent
         {
@@ -121,10 +121,9 @@ public class MacroPositionSemanticsTests
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = false,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, CoordinateMode = MouseCoordinateMode.Relative },
-                new() { Type = EventType.Click, Button = MouseButton.Left, CoordinateMode = MouseCoordinateMode.Absolute }
+                new() { Type = EventType.Click, Button = MacroMouseButton.Left, CoordinateMode = MouseCoordinateMode.Absolute },
             },
         };
 
@@ -137,10 +136,9 @@ public class MacroPositionSemanticsTests
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = false,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove },
-                new() { Type = EventType.Click, Button = MouseButton.Left, CoordinateMode = MouseCoordinateMode.Relative }
+                new() { Type = EventType.Click, Button = MacroMouseButton.Left, CoordinateMode = MouseCoordinateMode.Relative },
             },
         };
 
@@ -153,11 +151,10 @@ public class MacroPositionSemanticsTests
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = true,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.KeyPress, KeyCode = 30 },
-                new() { Type = EventType.Click, Button = MouseButton.Left, UseCurrentPosition = true },
-                new() { Type = EventType.Click, Button = MouseButton.ScrollUp }
+                new() { Type = EventType.Click, Button = MacroMouseButton.Left, UseCurrentPosition = true },
+                new() { Type = EventType.Click, Button = MacroMouseButton.ScrollUp },
             },
         };
 
@@ -170,10 +167,9 @@ public class MacroPositionSemanticsTests
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = true,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove },
-                new() { Type = EventType.Click, Button = MouseButton.Left, CoordinateMode = MouseCoordinateMode.Absolute }
+                new() { Type = EventType.Click, Button = MacroMouseButton.Left, CoordinateMode = MouseCoordinateMode.Absolute },
             },
         };
 
@@ -186,10 +182,9 @@ public class MacroPositionSemanticsTests
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = false,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove },
-                new() { Type = EventType.ButtonPress, Button = MouseButton.Left, CoordinateMode = MouseCoordinateMode.Relative }
+                new() { Type = EventType.ButtonPress, Button = MacroMouseButton.Left, CoordinateMode = MouseCoordinateMode.Relative },
             },
         };
 
@@ -202,10 +197,9 @@ public class MacroPositionSemanticsTests
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = false,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, CoordinateMode = MouseCoordinateMode.Absolute },
-                new() { Type = EventType.Click, Button = MouseButton.Left, CoordinateMode = MouseCoordinateMode.Relative }
+                new() { Type = EventType.Click, Button = MacroMouseButton.Left, CoordinateMode = MouseCoordinateMode.Relative },
             },
         };
 

@@ -10,7 +10,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService
 {
     private const string ExpansionsFileName = ConfigFileNames.TextExpansions;
     private string _filePath;
-    private List<Core.Models.TextExpansion> _expansions = new();
+    private List<Core.Models.TextExpansionEntry> _expansions = new();
     private readonly Lock _lock = new();
 
     public TextExpansionStorageService(string? configDirectory = null)
@@ -28,7 +28,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService
     /// <summary>
     /// Loads all text expansions from the JSON file synchronously
     /// </summary>
-    public List<Core.Models.TextExpansion> Load()
+    public IList<Core.Models.TextExpansionEntry> Load()
     {
         lock (_lock)
         {
@@ -38,19 +38,19 @@ public class TextExpansionStorageService : ITextExpansionStorageService
                 {
                     Log.Information("[TextExpansionStorageService] No existing file found, starting with empty list");
                     _expansions = [];
-                    return new List<Core.Models.TextExpansion>(_expansions);
+                    return _expansions;
                 }
 
-                _expansions = FileBackedJsonStorage.Read(_filePath, CrossMacroJsonContext.Default.ListTextExpansion) ?? [];
+                _expansions = FileBackedJsonStorage.Read(_filePath, CrossMacroJsonContext.Default.ListTextExpansionEntry) ?? [];
 
                 Log.Information("[TextExpansionStorageService] Loaded {Count} text expansions", _expansions.Count);
-                return new List<Core.Models.TextExpansion>(_expansions);
+                return _expansions;
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[TextExpansionStorageService] Failed to load text expansions");
+                Log.LogError(ex, "[TextExpansionStorageService] Failed to load text expansions");
                 _expansions = [];
-                return new List<Core.Models.TextExpansion>(_expansions);
+                return _expansions;
             }
         }
     }
@@ -58,7 +58,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService
     /// <summary>
     /// Loads all text expansions from the JSON file asynchronously
     /// </summary>
-    public async Task<List<Core.Models.TextExpansion>> LoadAsync()
+    public async Task<IList<Core.Models.TextExpansionEntry>> LoadAsync()
     {
         try
         {
@@ -66,10 +66,10 @@ public class TextExpansionStorageService : ITextExpansionStorageService
             {
                 Log.Information("[TextExpansionStorageService] No existing file found, starting with empty list");
                 lock (_lock) { _expansions = []; }
-                return [];
+                return new List<Core.Models.TextExpansionEntry>();
             }
 
-            var loaded = await FileBackedJsonStorage.ReadAsync(_filePath, CrossMacroJsonContext.Default.ListTextExpansion)
+            var loaded = await FileBackedJsonStorage.ReadAsync(_filePath, CrossMacroJsonContext.Default.ListTextExpansionEntry)
                 .ConfigureAwait(false)
                 ?? [];
 
@@ -83,7 +83,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[TextExpansionStorageService] Failed to load text expansions");
+            Log.LogError(ex, "[TextExpansionStorageService] Failed to load text expansions");
             lock (_lock) { _expansions = []; }
             return [];
         }
@@ -103,25 +103,25 @@ public class TextExpansionStorageService : ITextExpansionStorageService
     /// <summary>
     /// Saves all text expansions to the JSON file
     /// </summary>
-    public async Task SaveAsync(IEnumerable<Core.Models.TextExpansion> expansions)
+    public async Task SaveAsync(IEnumerable<Core.Models.TextExpansionEntry> expansions)
     {
         try
         {
             var expansionList = expansions.ToList();
 
-            await FileBackedJsonStorage.WriteAsync(_filePath, expansionList, CrossMacroJsonContext.Default.ListTextExpansion)
+            await FileBackedJsonStorage.WriteAsync(_filePath, expansionList, CrossMacroJsonContext.Default.ListTextExpansionEntry)
                 .ConfigureAwait(false);
 
             lock (_lock)
             {
-                _expansions = new List<Core.Models.TextExpansion>(expansionList);
+                _expansions = new List<Core.Models.TextExpansionEntry>(expansionList);
             }
 
             Log.Information("[TextExpansionStorageService] Saved {Count} text expansions", expansionList.Count);
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[TextExpansionStorageService] Failed to save text expansions");
+            Log.LogError(ex, "[TextExpansionStorageService] Failed to save text expansions");
             throw;
         }
     }
@@ -130,11 +130,11 @@ public class TextExpansionStorageService : ITextExpansionStorageService
     /// <summary>
     /// Gets the current list of expansions (cached in memory)
     /// </summary>
-    public List<Core.Models.TextExpansion> GetCurrent()
+    public IList<Core.Models.TextExpansionEntry> GetCurrent()
     {
         lock (_lock)
         {
-            return new List<Core.Models.TextExpansion>(_expansions);
+            return new List<Core.Models.TextExpansionEntry>(_expansions);
         }
     }
 

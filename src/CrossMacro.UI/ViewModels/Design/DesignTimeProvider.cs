@@ -1,9 +1,7 @@
 
 namespace CrossMacro.UI.ViewModels;
 
-internal sealed class DesignTimeProvider : ITimeProvider
+internal sealed class DesignTimeProvider : TimeProvider
 {
-    public DateTime Now => DesignPreviewSamples.SampleNow;
-
-    public DateTime UtcNow => DesignPreviewSamples.SampleNow.ToUniversalTime();
+    public override DateTimeOffset GetUtcNow() => DesignPreviewSamples.SampleNow.ToUniversalTime();
 }

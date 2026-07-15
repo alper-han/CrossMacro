@@ -65,11 +65,11 @@ public sealed class RunScriptCompiler
             Name = "Run Script",
             IsAbsoluteCoordinates = false,
             SkipInitialZeroZero = true,
-            ScriptSteps = steps
-                .Select(step => step.Step.Trim())
-                .Where(step => !string.IsNullOrWhiteSpace(step))
-                .ToList(),
         };
+        sequence.ReplaceScriptSteps(steps
+            .Select(step => step.Step.Trim())
+            .Where(step => !string.IsNullOrWhiteSpace(step))
+            .ToList());
 
         return RunScriptCompileResult.Ok(sequence, initialDelayMs: 0);
     }
@@ -354,9 +354,8 @@ public sealed class RunScriptCompiler
             var stepEntry = expandedSteps[i];
             var rawStep = stepEntry.Step;
             var lineNumber = stepEntry.SourceLineNumber;
-            var stepPrefix = lineNumber.HasValue
-                ? $"Step {stepNumber} (line {lineNumber.Value})"
-                : $"Step {stepNumber}";
+            var stepPrefix = lineNumber is not null ? $"Step {stepNumber.ToString(CultureInfo.InvariantCulture)} (line {lineNumber.Value.ToString(CultureInfo.InvariantCulture)})"
+                : $"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}";
 
             if (string.IsNullOrWhiteSpace(rawStep))
             {
@@ -609,10 +608,10 @@ public sealed class RunScriptCompiler
 
         if (hasScreenReadingSteps)
         {
-            sequence.ScriptSteps = expandedSteps
+            sequence.ReplaceScriptSteps(expandedSteps
                 .Select(step => step.Step.Trim())
                 .Where(step => !string.IsNullOrWhiteSpace(step))
-                .ToList();
+                .ToList());
         }
 
         sequence.IsAbsoluteCoordinates = MacroPositionSemantics.GetCoordinateModeSummary(sequence) is CoordinateModeSummary.Absolute;
@@ -665,7 +664,7 @@ public sealed class RunScriptCompiler
         }
     }
 
-    private ScriptNodeParseResult ParseScriptNodes(IReadOnlyList<RunScriptStep> steps)
+    private static ScriptNodeParseResult ParseScriptNodes(IReadOnlyList<RunScriptStep> steps)
     {
         var index = 0;
         var result = ParseBlockNodes(steps, ref index, isTopLevel: true);
@@ -677,7 +676,7 @@ public sealed class RunScriptCompiler
         return ScriptNodeParseResult.Ok(result.Nodes!);
     }
 
-    private ScriptNodeParseResult ParseBlockNodes(IReadOnlyList<RunScriptStep> steps, ref int index, bool isTopLevel)
+    private static ScriptNodeParseResult ParseBlockNodes(IReadOnlyList<RunScriptStep> steps, ref int index, bool isTopLevel)
     {
         var nodes = new List<RunScriptNode>();
 
@@ -797,7 +796,7 @@ public sealed class RunScriptCompiler
                 continue;
             }
 
-            if (trimmed.EndsWith("{", StringComparison.Ordinal))
+            if (trimmed.EndsWith('{'))
             {
                 return ScriptNodeParseResult.Fail(
                     $"{source}: unsupported block syntax. Expected one of: repeat <count> {{, if <left> <op> <right> {{, while <left> <op> <right> {{, for <var> from <start> to <end> [step <n>] {{");
@@ -815,7 +814,7 @@ public sealed class RunScriptCompiler
         return ScriptNodeParseResult.Ok(nodes);
     }
 
-    private ScriptExpansionResult ExpandScriptNodes(
+    private static ScriptExpansionResult ExpandScriptNodes(
         IReadOnlyList<RunScriptNode> nodes,
         Dictionary<string, string> variables,
         List<RunScriptStep> output,
@@ -827,267 +826,267 @@ public sealed class RunScriptCompiler
             switch (node)
             {
                 case CommandNode command:
-                {
-                    var rawStep = command.Source.Step;
-                    var step = rawStep.Trim();
-                    var source = BuildSourcePrefix(command.Source);
-
-                    if (RunScriptSyntax.IsBreakCommand(step))
                     {
-                        if (loopDepth is 0)
+                        var rawStep = command.Source.Step;
+                        var step = rawStep.Trim();
+                        var source = BuildSourcePrefix(command.Source);
+
+                        if (RunScriptSyntax.IsBreakCommand(step))
                         {
-                            return ScriptExpansionResult.Fail($"{source}: 'break' can only be used inside repeat/while/for blocks.");
-                        }
-
-                        return ScriptExpansionResult.Break();
-                    }
-
-                    if (RunScriptSyntax.IsContinueCommand(step))
-                    {
-                        if (loopDepth is 0)
-                        {
-                            return ScriptExpansionResult.Fail($"{source}: 'continue' can only be used inside repeat/while/for blocks.");
-                        }
-
-                        return ScriptExpansionResult.Continue();
-                    }
-
-                    if (TryParseSetCommand(step, out var variableName, out var variableValue, out var setError))
-                    {
-                        if (!string.IsNullOrEmpty(setError))
-                        {
-                            return ScriptExpansionResult.Fail($"{source}: {setError}");
-                        }
-
-                        var resolvedValueResult = ResolveVariables(variableValue, variables);
-                        if (!resolvedValueResult.Success)
-                        {
-                            return ScriptExpansionResult.Fail($"{source}: {resolvedValueResult.ErrorMessage}");
-                        }
-
-                        if (TryEvaluateNumericExpression(resolvedValueResult.Value!, out var numericValue, out var expressionError))
-                        {
-                            if (expressionError is not null)
+                            if (loopDepth is 0)
                             {
-                                return ScriptExpansionResult.Fail($"{source}: {expressionError}");
+                                return ScriptExpansionResult.Fail($"{source}: 'break' can only be used inside repeat/while/for blocks.");
                             }
 
-                            variables[variableName!] = numericValue.ToString(CultureInfo.InvariantCulture);
-                        }
-                        else
-                        {
-                            variables[variableName!] = resolvedValueResult.Value!;
+                            return ScriptExpansionResult.Break();
                         }
 
-                        break;
-                    }
-
-                    if (TryParseIncDecCommand(step, out var targetVariableName, out var amountToken, out var sign, out var incDecError))
-                    {
-                        if (incDecError is not null)
+                        if (RunScriptSyntax.IsContinueCommand(step))
                         {
-                            return ScriptExpansionResult.Fail($"{source}: {incDecError}");
+                            if (loopDepth is 0)
+                            {
+                                return ScriptExpansionResult.Fail($"{source}: 'continue' can only be used inside repeat/while/for blocks.");
+                            }
+
+                            return ScriptExpansionResult.Continue();
                         }
 
-                        if (!variables.TryGetValue(targetVariableName!, out var existingValue)
-                            || !int.TryParse(existingValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var existingInt))
+                        if (TryParseSetCommand(step, out var variableName, out var variableValue, out var setError))
                         {
-                            return ScriptExpansionResult.Fail($"{source}: variable '{targetVariableName}' must exist and be an integer for inc/dec.");
-                        }
+                            if (!string.IsNullOrEmpty(setError))
+                            {
+                                return ScriptExpansionResult.Fail($"{source}: {setError}");
+                            }
 
-                        var amountResult = ResolveIntegerToken(amountToken!, variables, "inc/dec amount");
-                        if (!amountResult.Success)
-                        {
-                            return ScriptExpansionResult.Fail($"{source}: {amountResult.ErrorMessage}");
-                        }
+                            var resolvedValueResult = ResolveVariables(variableValue, variables);
+                            if (!resolvedValueResult.Success)
+                            {
+                                return ScriptExpansionResult.Fail($"{source}: {resolvedValueResult.ErrorMessage}");
+                            }
 
-                        var updated = existingInt + (sign * amountResult.Value);
-                        variables[targetVariableName!] = updated.ToString(CultureInfo.InvariantCulture);
-                        break;
-                    }
+                            if (TryEvaluateNumericExpression(resolvedValueResult.Value!, out var numericValue, out var expressionError))
+                            {
+                                if (expressionError is not null)
+                                {
+                                    return ScriptExpansionResult.Fail($"{source}: {expressionError}");
+                                }
 
-                    var resolvedStepResult = ResolveVariables(rawStep, variables);
-                    if (!resolvedStepResult.Success)
-                    {
-                        return ScriptExpansionResult.Fail($"{source}: {resolvedStepResult.ErrorMessage}");
-                    }
+                                variables[variableName!] = numericValue.ToString(CultureInfo.InvariantCulture);
+                            }
+                            else
+                            {
+                                variables[variableName!] = resolvedValueResult.Value!;
+                            }
 
-                    output.Add(command.Source with { Step = resolvedStepResult.Value! });
-                    break;
-                }
-                case RepeatNode repeat:
-                {
-                    var source = BuildSourcePrefix(repeat.Source);
-                    var repeatCountResult = ResolveIntegerToken(repeat.CountToken, variables, "repeat count");
-                    if (!repeatCountResult.Success)
-                    {
-                        return ScriptExpansionResult.Fail($"{source}: {repeatCountResult.ErrorMessage}");
-                    }
-
-                    if (repeatCountResult.Value < 0)
-                    {
-                        return ScriptExpansionResult.Fail($"{source}: repeat count must be >= 0.");
-                    }
-
-                    for (var i = 0; i < repeatCountResult.Value; i++)
-                    {
-                        if (!TryAdvanceLoopIteration(loopState, source, out var limitError))
-                        {
-                            return ScriptExpansionResult.Fail(limitError!);
-                        }
-
-                        var nestedResult = ExpandScriptNodes(repeat.Body, variables, output, loopState, loopDepth + 1);
-                        if (!nestedResult.Success)
-                        {
-                            return nestedResult;
-                        }
-
-                        if (nestedResult.LoopControlSignal is LoopControlSignal.Break)
-                        {
                             break;
                         }
 
-                        if (nestedResult.LoopControlSignal is LoopControlSignal.Continue)
+                        if (TryParseIncDecCommand(step, out var targetVariableName, out var amountToken, out var sign, out var incDecError))
                         {
-                            continue;
+                            if (incDecError is not null)
+                            {
+                                return ScriptExpansionResult.Fail($"{source}: {incDecError}");
+                            }
+
+                            if (!variables.TryGetValue(targetVariableName!, out var existingValue)
+                                || !int.TryParse(existingValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var existingInt))
+                            {
+                                return ScriptExpansionResult.Fail($"{source}: variable '{targetVariableName}' must exist and be an integer for inc/dec.");
+                            }
+
+                            var amountResult = ResolveIntegerToken(amountToken!, variables, "inc/dec amount");
+                            if (!amountResult.Success)
+                            {
+                                return ScriptExpansionResult.Fail($"{source}: {amountResult.ErrorMessage}");
+                            }
+
+                            var updated = existingInt + (sign * amountResult.Value);
+                            variables[targetVariableName!] = updated.ToString(CultureInfo.InvariantCulture);
+                            break;
                         }
-                    }
 
-                    break;
-                }
-                case IfNode ifNode:
-                {
-                    var source = BuildSourcePrefix(ifNode.Source);
-                    var conditionResult = EvaluateCondition(ifNode.Condition, variables);
-                    if (!conditionResult.Success)
-                    {
-                        return ScriptExpansionResult.Fail($"{source}: {conditionResult.ErrorMessage}");
-                    }
+                        var resolvedStepResult = ResolveVariables(rawStep, variables);
+                        if (!resolvedStepResult.Success)
+                        {
+                            return ScriptExpansionResult.Fail($"{source}: {resolvedStepResult.ErrorMessage}");
+                        }
 
-                    var branch = conditionResult.Value ? ifNode.TrueBody : ifNode.FalseBody;
-                    if (branch is null || branch.Count is 0)
-                    {
+                        output.Add(command.Source with { Step = resolvedStepResult.Value! });
                         break;
                     }
-
-                    var nestedResult = ExpandScriptNodes(branch, variables, output, loopState, loopDepth);
-                    if (!nestedResult.Success)
+                case RepeatNode repeat:
                     {
-                        return nestedResult;
+                        var source = BuildSourcePrefix(repeat.Source);
+                        var repeatCountResult = ResolveIntegerToken(repeat.CountToken, variables, "repeat count");
+                        if (!repeatCountResult.Success)
+                        {
+                            return ScriptExpansionResult.Fail($"{source}: {repeatCountResult.ErrorMessage}");
+                        }
+
+                        if (repeatCountResult.Value < 0)
+                        {
+                            return ScriptExpansionResult.Fail($"{source}: repeat count must be >= 0.");
+                        }
+
+                        for (var i = 0; i < repeatCountResult.Value; i++)
+                        {
+                            if (!TryAdvanceLoopIteration(loopState, source, out var limitError))
+                            {
+                                return ScriptExpansionResult.Fail(limitError!);
+                            }
+
+                            var nestedResult = ExpandScriptNodes(repeat.Body, variables, output, loopState, loopDepth + 1);
+                            if (!nestedResult.Success)
+                            {
+                                return nestedResult;
+                            }
+
+                            if (nestedResult.LoopControlSignal is LoopControlSignal.Break)
+                            {
+                                break;
+                            }
+
+                            if (nestedResult.LoopControlSignal is LoopControlSignal.Continue)
+                            {
+                                continue;
+                            }
+                        }
+
+                        break;
                     }
-
-                    if (nestedResult.LoopControlSignal is not LoopControlSignal.None)
+                case IfNode ifNode:
                     {
-                        return nestedResult;
-                    }
-
-                    break;
-                }
-                case WhileNode whileNode:
-                {
-                    var source = BuildSourcePrefix(whileNode.Source);
-                    while (true)
-                    {
-                        var conditionResult = EvaluateCondition(whileNode.Condition, variables);
+                        var source = BuildSourcePrefix(ifNode.Source);
+                        var conditionResult = EvaluateCondition(ifNode.Condition, variables);
                         if (!conditionResult.Success)
                         {
                             return ScriptExpansionResult.Fail($"{source}: {conditionResult.ErrorMessage}");
                         }
 
-                        if (!conditionResult.Value)
+                        var branch = conditionResult.Value ? ifNode.TrueBody : ifNode.FalseBody;
+                        if (branch is null || branch.Count is 0)
                         {
                             break;
                         }
 
-                        if (!TryAdvanceLoopIteration(loopState, source, out var limitError))
-                        {
-                            return ScriptExpansionResult.Fail(limitError!);
-                        }
-
-                        var nestedResult = ExpandScriptNodes(whileNode.Body, variables, output, loopState, loopDepth + 1);
+                        var nestedResult = ExpandScriptNodes(branch, variables, output, loopState, loopDepth);
                         if (!nestedResult.Success)
                         {
                             return nestedResult;
                         }
 
-                        if (nestedResult.LoopControlSignal is LoopControlSignal.Break)
+                        if (nestedResult.LoopControlSignal is not LoopControlSignal.None)
                         {
-                            break;
+                            return nestedResult;
                         }
 
-                        if (nestedResult.LoopControlSignal is LoopControlSignal.Continue)
-                        {
-                            continue;
-                        }
+                        break;
                     }
+                case WhileNode whileNode:
+                    {
+                        var source = BuildSourcePrefix(whileNode.Source);
+                        while (true)
+                        {
+                            var conditionResult = EvaluateCondition(whileNode.Condition, variables);
+                            if (!conditionResult.Success)
+                            {
+                                return ScriptExpansionResult.Fail($"{source}: {conditionResult.ErrorMessage}");
+                            }
 
-                    break;
-                }
+                            if (!conditionResult.Value)
+                            {
+                                break;
+                            }
+
+                            if (!TryAdvanceLoopIteration(loopState, source, out var limitError))
+                            {
+                                return ScriptExpansionResult.Fail(limitError!);
+                            }
+
+                            var nestedResult = ExpandScriptNodes(whileNode.Body, variables, output, loopState, loopDepth + 1);
+                            if (!nestedResult.Success)
+                            {
+                                return nestedResult;
+                            }
+
+                            if (nestedResult.LoopControlSignal is LoopControlSignal.Break)
+                            {
+                                break;
+                            }
+
+                            if (nestedResult.LoopControlSignal is LoopControlSignal.Continue)
+                            {
+                                continue;
+                            }
+                        }
+
+                        break;
+                    }
                 case ForNode forNode:
-                {
-                    var source = BuildSourcePrefix(forNode.Source);
-                    var startResult = ResolveIntegerToken(forNode.StartToken, variables, "for start");
-                    if (!startResult.Success)
                     {
-                        return ScriptExpansionResult.Fail($"{source}: {startResult.ErrorMessage}");
-                    }
-
-                    var endResult = ResolveIntegerToken(forNode.EndToken, variables, "for end");
-                    if (!endResult.Success)
-                    {
-                        return ScriptExpansionResult.Fail($"{source}: {endResult.ErrorMessage}");
-                    }
-
-                    int stepValue;
-                    if (forNode.HasExplicitStep)
-                    {
-                        var stepResult = ResolveIntegerToken(forNode.StepToken!, variables, "for step");
-                        if (!stepResult.Success)
+                        var source = BuildSourcePrefix(forNode.Source);
+                        var startResult = ResolveIntegerToken(forNode.StartToken, variables, "for start");
+                        if (!startResult.Success)
                         {
-                            return ScriptExpansionResult.Fail($"{source}: {stepResult.ErrorMessage}");
+                            return ScriptExpansionResult.Fail($"{source}: {startResult.ErrorMessage}");
                         }
 
-                        stepValue = stepResult.Value;
-                    }
-                    else
-                    {
-                        stepValue = startResult.Value <= endResult.Value ? 1 : -1;
-                    }
-
-                    if (stepValue is 0)
-                    {
-                        return ScriptExpansionResult.Fail($"{source}: for step cannot be 0.");
-                    }
-
-                    for (var i = startResult.Value;
-                         stepValue > 0 ? i <= endResult.Value : i >= endResult.Value;
-                         i += stepValue)
-                    {
-                        if (!TryAdvanceLoopIteration(loopState, source, out var limitError))
+                        var endResult = ResolveIntegerToken(forNode.EndToken, variables, "for end");
+                        if (!endResult.Success)
                         {
-                            return ScriptExpansionResult.Fail(limitError!);
+                            return ScriptExpansionResult.Fail($"{source}: {endResult.ErrorMessage}");
                         }
 
-                        variables[forNode.VariableName] = i.ToString(CultureInfo.InvariantCulture);
-                        var nestedResult = ExpandScriptNodes(forNode.Body, variables, output, loopState, loopDepth + 1);
-                        if (!nestedResult.Success)
+                        int stepValue;
+                        if (forNode.HasExplicitStep)
                         {
-                            return nestedResult;
+                            var stepResult = ResolveIntegerToken(forNode.StepToken!, variables, "for step");
+                            if (!stepResult.Success)
+                            {
+                                return ScriptExpansionResult.Fail($"{source}: {stepResult.ErrorMessage}");
+                            }
+
+                            stepValue = stepResult.Value;
+                        }
+                        else
+                        {
+                            stepValue = startResult.Value <= endResult.Value ? 1 : -1;
                         }
 
-                        if (nestedResult.LoopControlSignal is LoopControlSignal.Break)
+                        if (stepValue is 0)
                         {
-                            break;
+                            return ScriptExpansionResult.Fail($"{source}: for step cannot be 0.");
                         }
 
-                        if (nestedResult.LoopControlSignal is LoopControlSignal.Continue)
+                        for (var i = startResult.Value;
+                             stepValue > 0 ? i <= endResult.Value : i >= endResult.Value;
+                             i += stepValue)
                         {
-                            continue;
+                            if (!TryAdvanceLoopIteration(loopState, source, out var limitError))
+                            {
+                                return ScriptExpansionResult.Fail(limitError!);
+                            }
+
+                            variables[forNode.VariableName] = i.ToString(CultureInfo.InvariantCulture);
+                            var nestedResult = ExpandScriptNodes(forNode.Body, variables, output, loopState, loopDepth + 1);
+                            if (!nestedResult.Success)
+                            {
+                                return nestedResult;
+                            }
+
+                            if (nestedResult.LoopControlSignal is LoopControlSignal.Break)
+                            {
+                                break;
+                            }
+
+                            if (nestedResult.LoopControlSignal is LoopControlSignal.Continue)
+                            {
+                                continue;
+                            }
                         }
+
+                        break;
                     }
-
-                    break;
-                }
                 default:
                     return ScriptExpansionResult.Fail("Internal parser error: unsupported script node.");
             }
@@ -1129,7 +1128,7 @@ public sealed class RunScriptCompiler
         condition = null;
         error = null;
 
-        if (!step.EndsWith("{", StringComparison.Ordinal) || !step.StartsWith("if ", StringComparison.OrdinalIgnoreCase))
+        if (!step.EndsWith('{') || !step.StartsWith("if ", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -1149,7 +1148,7 @@ public sealed class RunScriptCompiler
         condition = null;
         error = null;
 
-        if (!step.EndsWith("{", StringComparison.Ordinal) || !step.StartsWith("while ", StringComparison.OrdinalIgnoreCase))
+        if (!step.EndsWith('{') || !step.StartsWith("while ", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -1169,7 +1168,7 @@ public sealed class RunScriptCompiler
         header = null;
         error = null;
 
-        if (!step.EndsWith("{", StringComparison.Ordinal) || !step.StartsWith("for ", StringComparison.OrdinalIgnoreCase))
+        if (!step.EndsWith('{') || !step.StartsWith("for ", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -1611,9 +1610,8 @@ public sealed class RunScriptCompiler
     private static string BuildSourcePrefix(RunScriptStep entry)
     {
         var index = entry.SourceIndex > 0 ? entry.SourceIndex : 1;
-        return entry.SourceLineNumber.HasValue
-            ? $"Step {index} (line {entry.SourceLineNumber.Value})"
-            : $"Step {index}";
+        return entry.SourceLineNumber is not null ? $"Step {index.ToString(CultureInfo.InvariantCulture)} (line {entry.SourceLineNumber.Value.ToString(CultureInfo.InvariantCulture)})"
+            : $"Step {index.ToString(CultureInfo.InvariantCulture)}";
     }
 
     private int ResolveKeyCode(string keyToken)
@@ -1878,9 +1876,9 @@ public sealed class RunScriptCompiler
         return true;
     }
 
-    private static bool TryParseButton(string step, string command, out MouseButton button, out bool useCurrentPosition)
+    private static bool TryParseButton(string step, string command, out MacroMouseButton button, out bool useCurrentPosition)
     {
-        button = MouseButton.None;
+        button = MacroMouseButton.None;
         useCurrentPosition = false;
         var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length < 2 || !string.Equals(parts[0], command, StringComparison.OrdinalIgnoreCase))
@@ -1965,9 +1963,9 @@ public sealed class RunScriptCompiler
         return true;
     }
 
-    private static bool TryParseScroll(string step, out MouseButton button, out int count, out string? error)
+    private static bool TryParseScroll(string step, out MacroMouseButton button, out int count, out string? error)
     {
-        button = MouseButton.None;
+        button = MacroMouseButton.None;
         count = 1;
         error = null;
 
@@ -1979,14 +1977,14 @@ public sealed class RunScriptCompiler
 
         button = parts[1].ToLowerInvariant() switch
         {
-            "up" => MouseButton.ScrollUp,
-            "down" => MouseButton.ScrollDown,
-            "left" => MouseButton.ScrollLeft,
-            "right" => MouseButton.ScrollRight,
-            _ => MouseButton.None,
+            "up" => MacroMouseButton.ScrollUp,
+            "down" => MacroMouseButton.ScrollDown,
+            "left" => MacroMouseButton.ScrollLeft,
+            "right" => MacroMouseButton.ScrollRight,
+            _ => MacroMouseButton.None,
         };
 
-        if (button is MouseButton.None)
+        if (button is MacroMouseButton.None)
         {
             error = "Unknown scroll direction. Expected: up|down|left|right.";
             return true;
@@ -2007,19 +2005,19 @@ public sealed class RunScriptCompiler
         return RunScriptScreenReadingStepParser.TryValidateStep(step, out error);
     }
 
-    private static bool TryResolveButton(string token, out MouseButton button)
+    private static bool TryResolveButton(string token, out MacroMouseButton button)
     {
         button = token.ToLowerInvariant() switch
         {
-            "left" or "l" => MouseButton.Left,
-            "right" or "r" => MouseButton.Right,
-            "middle" or "m" => MouseButton.Middle,
-            "side1" or "side" or "back" => MouseButton.Side1,
-            "side2" or "extra" or "forward" => MouseButton.Side2,
-            _ => MouseButton.None,
+            "left" or "l" => MacroMouseButton.Left,
+            "right" or "r" => MacroMouseButton.Right,
+            "middle" or "m" => MacroMouseButton.Middle,
+            "side1" or "side" or "back" => MacroMouseButton.Side1,
+            "side2" or "extra" or "forward" => MacroMouseButton.Side2,
+            _ => MacroMouseButton.None,
         };
 
-        return button is not MouseButton.None;
+        return button is not MacroMouseButton.None;
     }
 
     private sealed class LoopExecutionState
@@ -2226,29 +2224,29 @@ public sealed class RunScriptCompiler
         }
     }
 
-    private sealed record ConditionExpression(string LeftToken, string OperatorToken, string RightToken);
+    private sealed record class ConditionExpression(string LeftToken, string OperatorToken, string RightToken);
 
-    private sealed record ForHeader(
+    private sealed record class ForHeader(
         string VariableName,
         string StartToken,
         string EndToken,
         string? StepToken,
         bool HasExplicitStep);
 
-    private abstract record RunScriptNode(RunScriptStep Source);
-    private sealed record CommandNode(RunScriptStep Source) : RunScriptNode(Source);
-    private sealed record RepeatNode(RunScriptStep Source, string CountToken, IReadOnlyList<RunScriptNode> Body) : RunScriptNode(Source);
-    private sealed record IfNode(
+    private abstract record class RunScriptNode(RunScriptStep Source);
+    private sealed record class CommandNode(RunScriptStep Source) : RunScriptNode(Source);
+    private sealed record class RepeatNode(RunScriptStep Source, string CountToken, IReadOnlyList<RunScriptNode> Body) : RunScriptNode(Source);
+    private sealed record class IfNode(
         RunScriptStep Source,
         ConditionExpression Condition,
         IReadOnlyList<RunScriptNode> TrueBody,
         RunScriptStep? ElseSource,
         IReadOnlyList<RunScriptNode>? FalseBody) : RunScriptNode(Source);
-    private sealed record WhileNode(
+    private sealed record class WhileNode(
         RunScriptStep Source,
         ConditionExpression Condition,
         IReadOnlyList<RunScriptNode> Body) : RunScriptNode(Source);
-    private sealed record ForNode(
+    private sealed record class ForNode(
         RunScriptStep Source,
         string VariableName,
         string StartToken,

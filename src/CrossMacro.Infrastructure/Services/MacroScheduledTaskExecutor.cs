@@ -5,16 +5,16 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
 {
     private readonly IMacroFileManager _fileManager;
     private readonly Func<IMacroPlayer> _playerFactory;
-    private readonly ITimeProvider _timeProvider;
+    private readonly TimeProvider _timeProvider;
     private readonly SynchronizationContext? _syncContext;
 
     public event EventHandler<TaskExecutedEventArgs>? TaskExecuted;
-    public event EventHandler<ScheduledTask>? TaskStarting;
+    public event EventHandler<ScheduledTaskStartingEventArgs>? TaskStarting;
 
     public MacroScheduledTaskExecutor(
         IMacroFileManager fileManager,
         Func<IMacroPlayer> playerFactory,
-        ITimeProvider timeProvider)
+        TimeProvider timeProvider)
     {
         _fileManager = fileManager;
         _playerFactory = playerFactory;
@@ -33,23 +33,23 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
                 await SafeUpdateAsync(() =>
                 {
                     task.LastStatus = "Macro file not found";
-                    task.LastRunTime = _timeProvider.UtcNow;
+                    task.LastRunTime = _timeProvider.GetUtcNow().UtcDateTime;
                     UpdateScheduleAfterAttempt(task);
-                });
+                }).ConfigureAwait(false);
 
                 RaiseTaskExecuted(new TaskExecutedEventArgs(task, success: false, "Macro file not found"));
                 return;
             }
 
-            var macro = await _fileManager.LoadAsync(task.MacroFilePath);
+            var macro = await _fileManager.LoadAsync(task.MacroFilePath).ConfigureAwait(false);
             if (macro is null)
             {
                 await SafeUpdateAsync(() =>
                 {
                     task.LastStatus = "Failed to load macro";
-                    task.LastRunTime = _timeProvider.UtcNow;
+                    task.LastRunTime = _timeProvider.GetUtcNow().UtcDateTime;
                     UpdateScheduleAfterAttempt(task);
-                });
+                }).ConfigureAwait(false);
                 RaiseTaskExecuted(new TaskExecutedEventArgs(task, success: false, "Failed to load macro"));
                 return;
             }
@@ -58,8 +58,8 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
             await SafeUpdateAsync(() =>
             {
                 task.LastStatus = "Running...";
-                task.LastRunTime = _timeProvider.UtcNow;
-            });
+                task.LastRunTime = _timeProvider.GetUtcNow().UtcDateTime;
+            }).ConfigureAwait(false);
             RaiseTaskStarting(task);
 
             // Create new player instance for this execution to avoid conflicts
@@ -71,15 +71,15 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
                 SpeedMultiplier = PlaybackOptions.NormalizeSpeedMultiplier(task.PlaybackSpeed),
             };
 
-            await player.PlayAsync(macro, options, cancellationToken);
+            await player.PlayAsync(macro, options, cancellationToken).ConfigureAwait(false);
 
             // Update status after successful completion
             await SafeUpdateAsync(() =>
             {
-                task.LastRunTime = _timeProvider.UtcNow;
+                task.LastRunTime = _timeProvider.GetUtcNow().UtcDateTime;
                 task.LastStatus = "Success";
                 UpdateScheduleAfterAttempt(task);
-            });
+            }).ConfigureAwait(false);
 
             RaiseTaskExecuted(new TaskExecutedEventArgs(task, success: true, "Executed successfully"));
         }
@@ -90,7 +90,7 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
             {
                 task.LastStatus = "Skipped (playback busy)";
                 UpdateScheduleAfterAttempt(task);
-            });
+            }).ConfigureAwait(false);
             RaiseTaskExecuted(new TaskExecutedEventArgs(task, success: false, "Playback was busy, will retry"));
         }
         catch (OperationCanceledException)
@@ -98,9 +98,9 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
             await SafeUpdateAsync(() =>
             {
                 task.LastStatus = "Cancelled";
-                task.LastRunTime = _timeProvider.UtcNow;
+                task.LastRunTime = _timeProvider.GetUtcNow().UtcDateTime;
                 UpdateScheduleAfterAttempt(task);
-            });
+            }).ConfigureAwait(false);
             RaiseTaskExecuted(new TaskExecutedEventArgs(task, success: false, "Cancelled"));
         }
         catch (Exception ex)
@@ -108,9 +108,9 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
             await SafeUpdateAsync(() =>
             {
                 task.LastStatus = $"Error: {ex.Message}";
-                task.LastRunTime = _timeProvider.UtcNow;
+                task.LastRunTime = _timeProvider.GetUtcNow().UtcDateTime;
                 UpdateScheduleAfterAttempt(task);
-            });
+            }).ConfigureAwait(false);
             RaiseTaskExecuted(new TaskExecutedEventArgs(task, success: false, ex.Message));
         }
     }
@@ -119,7 +119,7 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
     {
         if (task.Type is ScheduleType.Interval or ScheduleType.Weekly)
         {
-            task.CalculateNextRunTime(_timeProvider.UtcNow);
+            task.CalculateNextRunTime(_timeProvider.GetUtcNow().UtcDateTime);
             return;
         }
 
@@ -156,7 +156,7 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
 
     private void RaiseTaskStarting(ScheduledTask task)
     {
-        try { TaskStarting?.Invoke(this, task); }
+        try { TaskStarting?.Invoke(this, new ScheduledTaskStartingEventArgs(task)); }
         catch (Exception ex) { Log.Warning(ex, "[MacroScheduledTaskExecutor] TaskStarting subscriber threw"); }
     }
 

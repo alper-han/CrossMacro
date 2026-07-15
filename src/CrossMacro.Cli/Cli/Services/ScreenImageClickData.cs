@@ -1,6 +1,6 @@
 namespace CrossMacro.Cli.Services;
 
-public sealed record ScreenImageClickData(
+public sealed record class ScreenImageClickData(
     int X,
     int Y,
     double Score,

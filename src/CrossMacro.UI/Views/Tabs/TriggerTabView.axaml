@@ -1,8 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
-             xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
-             xmlns:core="using:CrossMacro.Core.Models"
+              xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
+              xmlns:core="using:CrossMacro.Core.Models"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:converters="using:CrossMacro.UI.Converters"
@@ -51,7 +51,7 @@
 
                     <ItemsControl ItemsSource="{Binding Tasks}">
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="core:TriggerTask">
+                                 <DataTemplate x:DataType="vm:TriggerTaskEditor">
                                 <Border Padding="10,8"
                                         CornerRadius="8"
                                         Margin="0,2"
@@ -155,7 +155,7 @@
                         <StackPanel Grid.Column="0" Spacing="4">
                             <TextBlock Text="{localization:Loc Trigger_Field}" Classes="caption"/>
                             <ComboBox SelectedItem="{Binding SelectedTask.Field, Mode=TwoWay}"
-                                      ItemsSource="{x:Static core:TriggerEnums.AvailableFields}"
+                                       ItemsSource="{x:Static core:TriggerEnums.AvailableFields}"
                                       HorizontalAlignment="Stretch"/>
                         </StackPanel>
                         <!-- Match Mode (hidden when Field = None/Interval) -->
@@ -203,13 +203,13 @@
                         <StackPanel Grid.Column="0" Spacing="4">
                             <TextBlock Text="{localization:Loc Trigger_Action}" Classes="caption"/>
                             <ComboBox SelectedItem="{Binding SelectedTask.Action, Mode=TwoWay}"
-                                      ItemsSource="{x:Static core:TriggerEnums.AvailableActions}"
+                                       ItemsSource="{x:Static core:TriggerEnums.AvailableActions}"
                                       HorizontalAlignment="Stretch"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Spacing="4">
                             <TextBlock Text="{localization:Loc Trigger_FireMode}" Classes="caption"/>
                             <ComboBox SelectedItem="{Binding SelectedTask.FireMode, Mode=TwoWay}"
-                                      ItemsSource="{x:Static core:TriggerEnums.AvailableFireModes}"
+                                       ItemsSource="{x:Static core:TriggerEnums.AvailableFireModes}"
                                       HorizontalAlignment="Stretch"/>
                         </StackPanel>
                     </Grid>

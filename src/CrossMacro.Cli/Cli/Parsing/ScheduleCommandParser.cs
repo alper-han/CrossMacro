@@ -52,7 +52,11 @@ internal static class ScheduleCommandParser
         {
             if (TryHandleOption(args, ref i, "schedule.add", state, out var optionResult))
             {
-                if (optionResult is not null) return optionResult;
+                if (optionResult is not null)
+                {
+                    return optionResult;
+                }
+
                 continue;
             }
 
@@ -68,7 +72,10 @@ internal static class ScheduleCommandParser
         }
 
         var scheduleValidation = ValidateScheduleShape(state);
-        if (scheduleValidation is not null) return scheduleValidation;
+        if (scheduleValidation is not null)
+        {
+            return scheduleValidation;
+        }
 
         return CliParseResult.Success(state.ToOptions(ScheduleCliAction.Add));
     }
@@ -94,7 +101,11 @@ internal static class ScheduleCommandParser
         {
             if (TryHandleOption(args, ref i, "schedule.edit", state, out var optionResult))
             {
-                if (optionResult is not null) return optionResult;
+                if (optionResult is not null)
+                {
+                    return optionResult;
+                }
+
                 continue;
             }
 
@@ -102,7 +113,10 @@ internal static class ScheduleCommandParser
         }
 
         var scheduleValidation = ValidateScheduleShape(state);
-        if (scheduleValidation is not null) return scheduleValidation;
+        if (scheduleValidation is not null)
+        {
+            return scheduleValidation;
+        }
 
         return CliParseResult.Success(state.ToOptions(ScheduleCliAction.Edit));
     }
@@ -128,7 +142,11 @@ internal static class ScheduleCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, helpTopic, ref state.JsonOutput, ref state.LogLevel, out var commonResult))
             {
-                if (commonResult is not null) return commonResult;
+                if (commonResult is not null)
+                {
+                    return commonResult;
+                }
+
                 continue;
             }
 
@@ -223,9 +241,20 @@ internal static class ScheduleCommandParser
     private static CliParseResult? ValidateScheduleShape(ScheduleParseState state)
     {
         var scheduleForms = 0;
-        if (!string.IsNullOrWhiteSpace(state.Interval)) scheduleForms++;
-        if (!string.IsNullOrWhiteSpace(state.At)) scheduleForms++;
-        if (!string.IsNullOrWhiteSpace(state.Weekly)) scheduleForms++;
+        if (!string.IsNullOrWhiteSpace(state.Interval))
+        {
+            scheduleForms++;
+        }
+
+        if (!string.IsNullOrWhiteSpace(state.At))
+        {
+            scheduleForms++;
+        }
+
+        if (!string.IsNullOrWhiteSpace(state.Weekly))
+        {
+            scheduleForms++;
+        }
 
         if (scheduleForms > 1)
         {

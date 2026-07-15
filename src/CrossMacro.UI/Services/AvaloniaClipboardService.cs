@@ -23,7 +23,7 @@ public class AvaloniaClipboardService : IClipboardService
             return;
         }
 
-        await await Dispatcher.UIThread.InvokeAsync(async () =>
+        await (await Dispatcher.UIThread.InvokeAsync(async () =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             Log.Debug("[AvaloniaClipboard] SetTextAsync running on UI thread");
@@ -33,7 +33,7 @@ public class AvaloniaClipboardService : IClipboardService
                 try
                 {
                     Log.Debug("[AvaloniaClipboard] Setting text to clipboard instance: {Type}", clipboard.GetType().Name);
-                    await ClipboardExtensions.SetTextAsync(clipboard, text);
+                    await ClipboardExtensions.SetTextAsync(clipboard, text).ConfigureAwait(false);
                     cancellationToken.ThrowIfCancellationRequested();
                     Log.Debug("[AvaloniaClipboard] SetTextAsync completed successfully");
                 }
@@ -43,7 +43,7 @@ public class AvaloniaClipboardService : IClipboardService
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "[AvaloniaClipboard] Exception during SetTextAsync");
+                    Log.LogError(ex, "[AvaloniaClipboard] Exception during SetTextAsync");
                     throw;
                 }
             }
@@ -51,7 +51,7 @@ public class AvaloniaClipboardService : IClipboardService
             {
                 Log.Warning("[AvaloniaClipboard] SetTextAsync: Clipboard is null");
             }
-        }, DispatcherPriority.Normal, cancellationToken);
+        }, DispatcherPriority.Normal, cancellationToken)).ConfigureAwait(false);
     }
 
     public virtual async Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
@@ -65,7 +65,7 @@ public class AvaloniaClipboardService : IClipboardService
             return null;
         }
 
-        return await await Dispatcher.UIThread.InvokeAsync(async () =>
+        return await (await Dispatcher.UIThread.InvokeAsync(async () =>
         {
             try
             {
@@ -73,7 +73,7 @@ public class AvaloniaClipboardService : IClipboardService
                 var clipboard = GetClipboard();
                 if (clipboard is not null)
                 {
-                    var text = await ClipboardExtensions.TryGetTextAsync(clipboard);
+                    var text = await ClipboardExtensions.TryGetTextAsync(clipboard).ConfigureAwait(false);
                     cancellationToken.ThrowIfCancellationRequested();
                     return text;
                 }
@@ -85,10 +85,10 @@ public class AvaloniaClipboardService : IClipboardService
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to get clipboard text via Avalonia");
+                Log.LogError(ex, "Failed to get clipboard text via Avalonia");
                 throw;
             }
-        }, DispatcherPriority.Normal, cancellationToken);
+        }, DispatcherPriority.Normal, cancellationToken)).ConfigureAwait(false);
     }
 
     private IClipboard? GetClipboard()

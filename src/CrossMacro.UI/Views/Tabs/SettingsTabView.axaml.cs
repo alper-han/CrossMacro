@@ -120,7 +120,9 @@ public partial class SettingsTabView : UserControl
     private async void ShowToast(string message)
     {
         if (_toastNotification is null || _toastMessage is null)
+        {
             return;
+        }
 
         CancelToastTimer();
         var toastCts = new CancellationTokenSource();
@@ -133,7 +135,7 @@ public partial class SettingsTabView : UserControl
 
         try
         {
-            await Task.Delay(2000, token);
+            await Task.Delay(2000, token).ConfigureAwait(false);
 
             if (token.IsCancellationRequested || _toastNotification is null)
             {
@@ -143,7 +145,7 @@ public partial class SettingsTabView : UserControl
             _toastNotification.Opacity = 0.0;
 
             // Wait for fade animation to complete before hiding
-            await Task.Delay(300, token);
+            await Task.Delay(300, token).ConfigureAwait(false);
 
             if (token.IsCancellationRequested || _toastNotification is null)
             {

@@ -8,7 +8,7 @@ public class MacOSAbsoluteCoordinateStrategyTests
     {
         var strategy = new MacOSAbsoluteCoordinateStrategy();
 
-        var result = strategy.ProcessPosition(new InputCaptureEventArgs
+        var result = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.Sync,
         });
@@ -21,20 +21,20 @@ public class MacOSAbsoluteCoordinateStrategyTests
     {
         var strategy = new MacOSAbsoluteCoordinateStrategy();
 
-        strategy.ProcessPosition(new InputCaptureEventArgs
+        strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_X,
             Value = 42,
         });
-        strategy.ProcessPosition(new InputCaptureEventArgs
+        strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,
             Value = 99,
         });
 
-        var result = strategy.ProcessPosition(new InputCaptureEventArgs
+        var result = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.Key,
             Code = InputEventCode.KEY_A,
@@ -49,14 +49,14 @@ public class MacOSAbsoluteCoordinateStrategyTests
     {
         var strategy = new MacOSAbsoluteCoordinateStrategy();
 
-        strategy.ProcessPosition(new InputCaptureEventArgs
+        strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,
             Value = 15,
         });
 
-        var result = strategy.ProcessPosition(new InputCaptureEventArgs
+        var result = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_X,
@@ -71,14 +71,14 @@ public class MacOSAbsoluteCoordinateStrategyTests
     {
         var strategy = new MacOSAbsoluteCoordinateStrategy();
 
-        strategy.ProcessPosition(new InputCaptureEventArgs
+        strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_X,
             Value = 640,
         });
 
-        var result = strategy.ProcessPosition(new InputCaptureEventArgs
+        var result = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,

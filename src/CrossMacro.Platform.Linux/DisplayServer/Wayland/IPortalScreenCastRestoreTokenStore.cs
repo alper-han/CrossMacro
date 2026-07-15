@@ -3,9 +3,9 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 public interface IPortalScreenCastRestoreTokenStore
 {
-    string? LoadRestoreToken();
+    public string? LoadRestoreToken();
 
-    Task SaveRestoreTokenAsync(string restoreToken);
+    public Task SaveRestoreTokenAsync(string restoreToken);
 
-    Task ClearRestoreTokenAsync();
+    public Task ClearRestoreTokenAsync();
 }

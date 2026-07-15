@@ -57,7 +57,7 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
                 return Task.CompletedTask;
             }, _ =>
             {
-                globalHotkeyService.Stop();
+        globalHotkeyService.StopHotkeyService();
                 return Task.CompletedTask;
             }),
             new RuntimeLifecycleStep("scheduler", async _ =>
@@ -71,7 +71,7 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
                 shortcutService.Start();
             }, _ =>
             {
-                shortcutService.Stop();
+        shortcutService.StopShortcuts();
                 return Task.CompletedTask;
             }),
             new RuntimeLifecycleStep("text expansion", _ =>
@@ -82,7 +82,7 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
             {
                 if (textExpansionService.IsRunning)
                 {
-                    textExpansionService.Stop();
+        textExpansionService.StopExpansion();
                 }
 
                 return Task.CompletedTask;
@@ -127,7 +127,7 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
 
             try
             {
-                await Task.Delay(Timeout.Infinite, cancellationToken);
+                await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -178,7 +178,7 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "Headless runtime shutdown failed");
+                    Log.LogError(ex, "Headless runtime shutdown failed");
                 }
             }
         }

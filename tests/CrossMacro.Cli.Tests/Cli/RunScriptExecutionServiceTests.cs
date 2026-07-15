@@ -126,7 +126,7 @@ public class RunScriptExecutionServiceTests
             Steps =
             [
                 "move abs 100 120",
-                "click left"
+                "click left",
             ],
         }, CancellationToken.None);
 
@@ -157,7 +157,7 @@ public class RunScriptExecutionServiceTests
             Steps =
             [
                 "move abs 100 120",
-                "click current left"
+                "click current left",
             ],
         }, CancellationToken.None);
 
@@ -234,7 +234,7 @@ public class RunScriptExecutionServiceTests
             Steps =
             [
                 "move abs 100 100",
-                "move rel 10 10"
+                "move rel 10 10",
             ],
         }, CancellationToken.None);
 
@@ -261,7 +261,7 @@ public class RunScriptExecutionServiceTests
             Steps =
             [
                 "click left",
-                "move abs 100 100"
+                "move abs 100 100",
             ],
         }, CancellationToken.None);
 
@@ -303,7 +303,7 @@ public class RunScriptExecutionServiceTests
             [
                 "click left",
                 "delay 75",
-                "click left"
+                "click left",
             ],
         }, CancellationToken.None);
 
@@ -484,7 +484,7 @@ public class RunScriptExecutionServiceTests
             Steps =
             [
                 "set x=123",
-                "move abs $x 200"
+                "move abs $x 200",
             ],
         }, CancellationToken.None);
 
@@ -523,7 +523,7 @@ public class RunScriptExecutionServiceTests
                 "set n 3",
                 "repeat $n {",
                 "click left",
-                "}"
+                "}",
             ],
         }, CancellationToken.None);
 
@@ -547,7 +547,7 @@ public class RunScriptExecutionServiceTests
                 "repeat 5 {",
                 "click left",
                 "break",
-                "}"
+                "}",
             ],
         }, CancellationToken.None);
 
@@ -572,7 +572,7 @@ public class RunScriptExecutionServiceTests
                 "click left",
                 "continue",
                 "click right",
-                "}"
+                "}",
             ],
         }, CancellationToken.None);
 
@@ -582,7 +582,7 @@ public class RunScriptExecutionServiceTests
         Assert.All(captured.Events, ev =>
         {
             Assert.Equal(EventType.Click, ev.Type);
-            Assert.Equal(MouseButton.Left, ev.Button);
+            Assert.Equal(MacroMouseButton.Left, ev.Button);
         });
     }
 
@@ -594,7 +594,7 @@ public class RunScriptExecutionServiceTests
             Steps =
             [
                 "break",
-                "click left"
+                "click left",
             ],
         }, CancellationToken.None);
 
@@ -612,7 +612,7 @@ public class RunScriptExecutionServiceTests
             Steps =
             [
                 "repeat 2 {",
-                "click left"
+                "click left",
             ],
         }, CancellationToken.None);
 
@@ -634,7 +634,7 @@ public class RunScriptExecutionServiceTests
             [
                 "click left",
                 "delay random 10 20",
-                "click left"
+                "click left",
             ],
         }, CancellationToken.None);
 
@@ -664,7 +664,7 @@ public class RunScriptExecutionServiceTests
                 "}",
                 "else {",
                 "click right",
-                "}"
+                "}",
             ],
         }, CancellationToken.None);
 
@@ -672,7 +672,7 @@ public class RunScriptExecutionServiceTests
         Assert.NotNull(captured);
         Assert.Single(captured!.Events);
         Assert.Equal(EventType.Click, captured.Events[0].Type);
-        Assert.Equal(MouseButton.Left, captured.Events[0].Button);
+        Assert.Equal(MacroMouseButton.Left, captured.Events[0].Button);
     }
 
     [Fact]
@@ -692,7 +692,7 @@ public class RunScriptExecutionServiceTests
                 "}",
                 "else {",
                 "click right",
-                "}"
+                "}",
             ],
         }, CancellationToken.None);
 
@@ -700,7 +700,7 @@ public class RunScriptExecutionServiceTests
         Assert.NotNull(captured);
         Assert.Single(captured!.Events);
         Assert.Equal(EventType.Click, captured.Events[0].Type);
-        Assert.Equal(MouseButton.Left, captured.Events[0].Button);
+        Assert.Equal(MacroMouseButton.Left, captured.Events[0].Button);
     }
 
     [Fact]
@@ -718,7 +718,7 @@ public class RunScriptExecutionServiceTests
                 "while $i < 3 {",
                 "click left",
                 "inc i",
-                "}"
+                "}",
             ],
         }, CancellationToken.None);
 
@@ -741,7 +741,7 @@ public class RunScriptExecutionServiceTests
             [
                 "for i from 1 to 5 step 2 {",
                 "click left",
-                "}"
+                "}",
             ],
         }, CancellationToken.None);
 
@@ -766,7 +766,7 @@ public class RunScriptExecutionServiceTests
                 "set step=2",
                 "for i from $start to $finish step $step {",
                 "click left",
-                "}"
+                "}",
             ],
         }, CancellationToken.None);
 
@@ -790,7 +790,7 @@ public class RunScriptExecutionServiceTests
                 "set limit=3",
                 "for i from 0 to $limit step $limit {",
                 "click left",
-                "}"
+                "}",
             ],
         }, CancellationToken.None);
 
@@ -816,7 +816,7 @@ public class RunScriptExecutionServiceTests
                 "while $i < 5 {",
                 "click left",
                 "inc i $step",
-                "}"
+                "}",
             ],
         }, CancellationToken.None);
 
@@ -836,7 +836,7 @@ public class RunScriptExecutionServiceTests
                 "set i=0",
                 "while $i < 3 {",
                 "click left",
-                "}"
+                "}",
             ],
         }, CancellationToken.None);
 
@@ -925,7 +925,7 @@ public class RunScriptExecutionServiceTests
             return Task.CompletedTask;
         }
 
-        public void Stop()
+        public void StopPlayback()
         {
         }
 
@@ -933,7 +933,7 @@ public class RunScriptExecutionServiceTests
         {
         }
 
-        public void Resume()
+        public void ResumePlayback()
         {
         }
 

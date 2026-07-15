@@ -88,7 +88,7 @@ internal static class MacOSSystemKeyEventFactory
 
     private static void ApplyMarker(IntPtr eventRef, long? marker)
     {
-        if (marker.HasValue)
+        if (marker is not null)
         {
             CoreGraphics.CGEventSetIntegerValueField(
                 eventRef,

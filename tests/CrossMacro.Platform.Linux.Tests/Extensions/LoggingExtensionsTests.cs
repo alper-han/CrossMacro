@@ -35,10 +35,10 @@ public class LoggingExtensionsTests
         public void Warning(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
 
-        public void Error(string messageTemplate, params object?[] propertyValues) =>
+        public void LogError(string messageTemplate, params object?[] propertyValues) =>
             Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
 
-        public void Error(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+        public void LogError(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
 
         public void Fatal(string messageTemplate, params object?[] propertyValues) =>

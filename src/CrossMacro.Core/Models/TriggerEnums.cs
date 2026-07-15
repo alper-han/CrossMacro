@@ -13,8 +13,8 @@ public static class TriggerEnums
     public static readonly IReadOnlyList<TriggerMatchMode> AvailableMatchModes =
         System.Enum.GetValues<TriggerMatchMode>();
 
-    public static readonly IReadOnlyList<TriggerAction> AvailableActions =
-        System.Enum.GetValues<TriggerAction>();
+    public static readonly IReadOnlyList<TriggerOperation> AvailableActions =
+        System.Enum.GetValues<TriggerOperation>();
 
     public static readonly IReadOnlyList<TriggerFireMode> AvailableFireModes =
         System.Enum.GetValues<TriggerFireMode>();

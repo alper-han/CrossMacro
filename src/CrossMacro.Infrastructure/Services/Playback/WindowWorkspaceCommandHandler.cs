@@ -10,19 +10,41 @@ internal sealed class WindowWorkspaceCommandHandler : IWindowCommandHandler
     {
         if (_cmd is "getdesktop")
         {
-            if (parts.Length is not 3) return "Syntax: window getdesktop $variable";
-            if (!IsValidVarName(StripDollar(parts[2]))) return $"Invalid variable name '{parts[2]}'.";
+            if (parts.Length is not 3)
+            {
+                return "Syntax: window getdesktop $variable";
+            }
+
+            if (!IsValidVarName(StripDollar(parts[2])))
+            {
+                return $"Invalid variable name '{parts[2]}'.";
+            }
         }
         else if (_cmd is "setdesktop")
         {
-            if (parts.Length < 3) return "Syntax: window setdesktop <workspace>";
+            if (parts.Length < 3)
+            {
+                return "Syntax: window setdesktop <workspace>";
+            }
         }
         else if (_cmd is "setdesktopforwindow")
         {
-            if (parts.Length < 4) return "Syntax: window setdesktopforwindow active|address <addr> <workspace>";
+            if (parts.Length < 4)
+            {
+                return "Syntax: window setdesktopforwindow active|address <addr> <workspace>";
+            }
+
             var field = parts[2].ToLowerInvariant();
-            if (field is "active") return parts.Length >= 4 ? null : "Syntax: window setdesktopforwindow active <workspace>";
-            if (field is "address") return parts.Length >= 5 ? null : "Syntax: window setdesktopforwindow address <addr> <workspace>";
+            if (field is "active")
+            {
+                return parts.Length >= 4 ? null : "Syntax: window setdesktopforwindow active <workspace>";
+            }
+
+            if (field is "address")
+            {
+                return parts.Length >= 5 ? null : "Syntax: window setdesktopforwindow address <addr> <workspace>";
+            }
+
             return $"Unknown field '{parts[2]}'. Expected: active, address.";
         }
         return null;
@@ -42,9 +64,13 @@ internal sealed class WindowWorkspaceCommandHandler : IWindowCommandHandler
         {
             var field = parts[2].ToLowerInvariant();
             if (field is "active")
+            {
                 await workspace.MoveActiveWindowToWorkspaceAsync(Unquote(string.Join(' ', parts[3..])), cancellationToken).ConfigureAwait(false);
+            }
             else if (field is "address")
+            {
                 await workspace.MoveWindowToWorkspaceByAddressAsync(parts[3], Unquote(string.Join(' ', parts[4..])), cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 }

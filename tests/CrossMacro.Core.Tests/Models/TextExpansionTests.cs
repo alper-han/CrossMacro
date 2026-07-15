@@ -7,7 +7,7 @@ public class TextExpansionTests
     public void NewTextExpansion_DefaultConstructor_HasEmptyValues()
     {
         // Arrange & Act
-        var expansion = new TextExpansion();
+        var expansion = new TextExpansionEntry();
 
         // Assert
         expansion.Trigger.Should().BeEmpty();
@@ -21,7 +21,7 @@ public class TextExpansionTests
     public void TextExpansion_ParameterizedConstructor_SetsAllValues()
     {
         // Arrange & Act
-        var expansion = new TextExpansion(
+        var expansion = new TextExpansionEntry(
             ":mail",
             "test@example.com",
 isEnabled: true,
@@ -40,7 +40,7 @@ isEnabled: true,
     public void TextExpansion_ParameterizedConstructor_CanBeDisabled()
     {
         // Arrange & Act
-        var expansion = new TextExpansion(":sig", "Best regards,\nJohn", isEnabled: false);
+        var expansion = new TextExpansionEntry(":sig", "Best regards,\nJohn", isEnabled: false);
 
         // Assert
         expansion.IsEnabled.Should().BeFalse();
@@ -50,7 +50,7 @@ isEnabled: true,
     public void TextExpansion_CanSetTrigger()
     {
         // Arrange
-        var expansion = new TextExpansion();
+        var expansion = new TextExpansionEntry();
 
         // Act
         expansion.Trigger = ":addr";
@@ -63,7 +63,7 @@ isEnabled: true,
     public void TextExpansion_CanSetReplacement()
     {
         // Arrange
-        var expansion = new TextExpansion();
+        var expansion = new TextExpansionEntry();
 
         // Act
         expansion.Replacement = "123 Main Street, City, Country";
@@ -76,7 +76,7 @@ isEnabled: true,
     public void TextExpansion_CanToggleEnabled()
     {
         // Arrange
-        var expansion = new TextExpansion(":test", "test");
+        var expansion = new TextExpansionEntry(":test", "test");
 
         // Act
         expansion.IsEnabled = false;
@@ -92,7 +92,7 @@ isEnabled: true,
         const string multilineText = "Line 1\nLine 2\nLine 3";
 
         // Act
-        var expansion = new TextExpansion(":multi", multilineText);
+        var expansion = new TextExpansionEntry(":multi", multilineText);
 
         // Assert
         expansion.Replacement.Should().Contain("\n");
@@ -103,7 +103,7 @@ isEnabled: true,
     public void TextExpansion_SupportsSpecialCharactersInTrigger()
     {
         // Arrange & Act
-        var expansion = new TextExpansion("::email", "user@domain.com");
+        var expansion = new TextExpansionEntry("::email", "user@domain.com");
 
         // Assert
         expansion.Trigger.Should().Be("::email");
@@ -116,7 +116,7 @@ isEnabled: true,
         const string unicodeText = "こんにちは 🎉 Привет";
 
         // Act
-        var expansion = new TextExpansion(":hello", unicodeText);
+        var expansion = new TextExpansionEntry(":hello", unicodeText);
 
         // Assert
         expansion.Replacement.Should().Be(unicodeText);
@@ -130,7 +130,7 @@ isEnabled: true,
     public void TextExpansion_SupportsVariousTriggerPatterns(string trigger, string replacement)
     {
         // Arrange & Act
-        var expansion = new TextExpansion(trigger, replacement);
+        var expansion = new TextExpansionEntry(trigger, replacement);
 
         // Assert
         expansion.Trigger.Should().Be(trigger);

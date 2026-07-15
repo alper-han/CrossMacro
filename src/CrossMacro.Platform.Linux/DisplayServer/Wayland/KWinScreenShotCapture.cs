@@ -35,10 +35,22 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
         }
 
         int maxRetries;
-        if (_isFlatpak) maxRetries = 1;
-        else if (_isAppImageKde) maxRetries = 20;
-        else if (_isKde) maxRetries = 6;
-        else maxRetries = 1;
+        if (_isFlatpak)
+        {
+            maxRetries = 1;
+        }
+        else if (_isAppImageKde)
+        {
+            maxRetries = 20;
+        }
+        else if (_isKde)
+        {
+            maxRetries = 6;
+        }
+        else
+        {
+            maxRetries = 1;
+        }
 
         const int delayMs = 500;
 
@@ -96,12 +108,9 @@ X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
 
             if (File.Exists(desktopFile))
             {
-                foreach (var line in File.ReadAllLines(desktopFile))
+                if (File.ReadAllLines(desktopFile).Any(line => string.Equals(line, $"Exec={canonicalExe}", StringComparison.Ordinal)))
                 {
-                    if (string.Equals(line, $"Exec={canonicalExe}", StringComparison.Ordinal))
-                    {
-                        return;
-                    }
+                    return;
                 }
             }
 
@@ -109,6 +118,7 @@ X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
         }
         catch
         {
+            // Ignore desktop file generation failures
         }
     }
 
@@ -199,7 +209,7 @@ X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
         var duplicated = PortalPipeWireLibc.dup((int)fileHandle.DangerousGetHandle());
         if (duplicated < 0)
         {
-            throw new InvalidOperationException($"dup(KWin ScreenShot2 fd) failed errno={Marshal.GetLastPInvokeError()}.");
+            throw new InvalidOperationException($"dup(KWin ScreenShot2 fd) failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
         }
 
         return new SafeFileHandle(new IntPtr(duplicated), ownsHandle: true);
@@ -216,12 +226,12 @@ X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
 
         if (width != region.Width || height != region.Height)
         {
-            throw new InvalidOperationException($"KWin ScreenShot2 returned {width}x{height} for requested region {region}.");
+            throw new InvalidOperationException($"KWin ScreenShot2 returned {width.ToString(CultureInfo.InvariantCulture)}x{height.ToString(CultureInfo.InvariantCulture)} for requested region {region}.");
         }
 
         if (!string.Equals(type, "raw", StringComparison.Ordinal) || format != RawFormatBgra8888)
         {
-            throw new InvalidOperationException($"KWin ScreenShot2 returned unsupported image type='{type}' format={format}.");
+            throw new InvalidOperationException($"KWin ScreenShot2 returned unsupported image type='{type}' format={format.ToString(CultureInfo.InvariantCulture)}.");
         }
 
         return new KWinScreenShotFrame(region, checked((int)stride), ScreenPixelFormat.Bgra8888, rawCapture.Pixels);

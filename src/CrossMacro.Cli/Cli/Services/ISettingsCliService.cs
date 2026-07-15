@@ -3,11 +3,11 @@ namespace CrossMacro.Cli.Services;
 
 public interface ISettingsCliService
 {
-    Task<SettingsCommandResult> GetAsync(string? key, CancellationToken cancellationToken);
+    public Task<SettingsCommandResult> GetAsync(string? key, CancellationToken cancellationToken);
 
-    Task<SettingsCommandResult> SetAsync(string key, string value, CancellationToken cancellationToken);
+    public Task<SettingsCommandResult> SetAsync(string key, string value, CancellationToken cancellationToken);
 
-    Task<SettingsCommandResult> ListKeysAsync(CancellationToken cancellationToken);
+    public Task<SettingsCommandResult> ListKeysAsync(CancellationToken cancellationToken);
 
-    Task<SettingsCommandResult> ResetAsync(string key, CancellationToken cancellationToken);
+    public Task<SettingsCommandResult> ResetAsync(string key, CancellationToken cancellationToken);
 }

@@ -2,5 +2,5 @@ namespace CrossMacro.Platform.Abstractions.Diagnostics;
 
 public interface ILinuxDaemonSocketAccessProbe
 {
-    LinuxDaemonSocketAccessResult Probe(LinuxDaemonSocketProbeOptions options);
+    public LinuxDaemonSocketAccessResult Probe(LinuxDaemonSocketProbeOptions options);
 }

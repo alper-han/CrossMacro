@@ -1,3 +1,3 @@
 namespace CrossMacro.Cli.Services;
 
-public sealed record WindowWaitData(bool Found, WindowInfoData? Window, int TimeoutMs);
+public sealed record class WindowWaitData(bool Found, WindowInfoData? Window, int TimeoutMs);

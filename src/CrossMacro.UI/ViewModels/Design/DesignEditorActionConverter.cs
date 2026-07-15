@@ -3,7 +3,7 @@ namespace CrossMacro.UI.ViewModels;
 
 internal sealed class DesignEditorActionConverter : IEditorActionConverter
 {
-    public List<MacroEvent> ToMacroEvents(EditorAction action) => new();
+    public IReadOnlyList<MacroEvent> ToMacroEvents(EditorAction action) => Array.Empty<MacroEvent>();
 
     public EditorAction FromMacroEvent(MacroEvent ev, MacroEvent? nextEvent = null) => new() { Type = EditorActionType.Delay, DelayMs = ev.DelayMs };
 
@@ -15,7 +15,7 @@ internal sealed class DesignEditorActionConverter : IEditorActionConverter
         return macro;
     }
 
-    public List<EditorAction> FromMacroSequence(MacroSequence sequence) => DesignPreviewSamples.CreateEditorActions().ToList();
+    public IReadOnlyList<EditorAction> FromMacroSequence(MacroSequence sequence) => DesignPreviewSamples.CreateEditorActions().ToList();
 
     public EditorActionRestoreResult FromMacroSequenceWithDiagnostics(MacroSequence sequence)
     {

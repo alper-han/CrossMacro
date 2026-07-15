@@ -430,7 +430,7 @@
              <TextBlock Text="{localization:Loc Editor_ImageSearchAction}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
              <TextBlock Text="{localization:Loc Editor_ImageMatchMode}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
              <ComboBox ItemsSource="{Binding ImageMatchModes}"
-                       SelectedItem="{Binding SelectedAction.ImageSearchMatchMode, Mode=TwoWay}"
+                       SelectedItem="{Binding SelectedImageSearchMatchMode, Mode=TwoWay}"
                        Background="{DynamicResource SurfaceHoverBrush}"
                        Foreground="{DynamicResource TextPrimaryBrush}">
                  <ComboBox.ItemTemplate>
@@ -626,7 +626,7 @@
                              Padding="8,6"/>
                 </StackPanel>
              </Grid>
-             <CheckBox IsChecked="{Binding SelectedAction.ImageSearchScaleAware, Mode=TwoWay}"
+             <CheckBox IsChecked="{Binding SelectedImageSearchScaleAware, Mode=TwoWay}"
                        Content="{localization:Loc Editor_ImageSearchScaleAware}"
                        Foreground="{DynamicResource TextPrimaryBrush}"/>
          </StackPanel>

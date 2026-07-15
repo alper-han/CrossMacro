@@ -35,14 +35,14 @@ public sealed class MacOSScreenFrameProvider : IScreenFrameProvider
 
         if (!IsSupported)
         {
-            return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(
+            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.Unsupported,
                 "macOS CoreGraphics screen reading requires macOS 10.15 or newer."));
         }
 
         if (options.CancellationToken.IsCancellationRequested)
         {
-            return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(
+            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.Canceled,
                 "macOS CoreGraphics screen capture was canceled before it started."));
         }
@@ -53,18 +53,18 @@ public sealed class MacOSScreenFrameProvider : IScreenFrameProvider
             var captureRegion = region ?? virtualScreen;
             if (!virtualScreen.Contains(captureRegion))
             {
-                return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(
+                return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
                     ScreenReadErrorKind.OutOfBounds,
                     $"Requested region {captureRegion} is outside macOS virtual screen bounds {virtualScreen}."));
             }
 
             if (!EnsurePermission())
             {
-                return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.PermissionDenied, PermissionMessage));
+                return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.PermissionDenied, PermissionMessage));
             }
 
             var captured = _captureBackend.Capture(captureRegion, options.CancellationToken);
-            return Task.FromResult(ScreenReadResult<ScreenFrame>.Success(new ScreenFrame(
+            return Task.FromResult(ScreenReadResultFactory.Success<ScreenFrame>(new ScreenFrame(
                 captured.LogicalBounds,
                 captured.Stride,
                 captured.PixelFormat,
@@ -72,17 +72,17 @@ public sealed class MacOSScreenFrameProvider : IScreenFrameProvider
         }
         catch (OperationCanceledException)
         {
-            return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(
+            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.Canceled,
                 "macOS CoreGraphics screen capture was canceled."));
         }
         catch (BackendUnavailableException ex)
         {
-            return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message));
+            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.BackendUnavailable, ex.Message));
         }
         catch (Exception ex) when (ex is ArgumentException or ArithmeticException or ExternalException or Win32Exception or InvalidOperationException)
         {
-            return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.CaptureFailed, ex.Message));
+            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, ex.Message));
         }
     }
 

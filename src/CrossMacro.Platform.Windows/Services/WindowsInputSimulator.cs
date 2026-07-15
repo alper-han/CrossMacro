@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Windows.Services;
 
-public class WindowsInputSimulator :
+public sealed class WindowsInputSimulator :
     IInputSimulator,
     IInputSimulatorCapabilities,
     IUnicodeTextInputSimulator,
@@ -48,8 +48,8 @@ public class WindowsInputSimulator :
                     dy = CalculateAbsoluteCoordinate(y, _screenHeight),
                     dwFlags = MouseEventFlags.MOUSEEVENTF_ABSOLUTE | MouseEventFlags.MOUSEEVENTF_MOVE,
                     time = 0,
-                    dwExtraInfo = IntPtr.Zero
-                }
+                    dwExtraInfo = IntPtr.Zero,
+                },
             },
         };
 
@@ -69,8 +69,8 @@ public class WindowsInputSimulator :
                     dy = dy,
                     dwFlags = MouseEventFlags.MOUSEEVENTF_MOVE,
                     time = 0,
-                    dwExtraInfo = IntPtr.Zero
-                }
+                    dwExtraInfo = IntPtr.Zero,
+                },
             },
         };
 
@@ -105,8 +105,8 @@ public class WindowsInputSimulator :
                 {
                     dwFlags = flags,
                     time = 0,
-                    dwExtraInfo = IntPtr.Zero
-                }
+                    dwExtraInfo = IntPtr.Zero,
+                },
             },
         };
 
@@ -129,8 +129,8 @@ public class WindowsInputSimulator :
                     mouseData = (uint)normalizedDelta,
                     dwFlags = isHorizontal ? MouseEventFlags.MOUSEEVENTF_HWHEEL : MouseEventFlags.MOUSEEVENTF_WHEEL,
                     time = 0,
-                    dwExtraInfo = IntPtr.Zero
-                }
+                    dwExtraInfo = IntPtr.Zero,
+                },
             },
         };
 
@@ -173,10 +173,13 @@ public class WindowsInputSimulator :
     {
     }
 
-    private void SendKeyPress(int keyCode, bool pressed, long? marker)
+    private static void SendKeyPress(int keyCode, bool pressed, long? marker)
     {
         ushort vk = WindowsKeyMap.GetVirtualKey(keyCode);
-        if (vk is 0) return;
+        if (vk is 0)
+        {
+            return;
+        }
 
         uint flags = pressed ? 0u : KeyEventFlags.KEYEVENTF_KEYUP;
 
@@ -201,8 +204,12 @@ public class WindowsInputSimulator :
 
     private static int CalculateAbsoluteCoordinate(int val, int max)
     {
-        if (max <= 0) return 0;
-        return (val * 65535) / max;
+        if (max <= 0)
+        {
+            return 0;
+        }
+
+        return val * 65535 / max;
     }
 
     private static void SendInput(INPUT input)
@@ -234,8 +241,8 @@ public class WindowsInputSimulator :
                     wScan = scanCode,
                     dwFlags = flags,
                     time = 0,
-                    dwExtraInfo = marker.HasValue ? InputEventMarkers.ToIntPtr(marker.Value) : IntPtr.Zero
-                }
+                    dwExtraInfo = marker is not null ? InputEventMarkers.ToIntPtr(marker.Value) : IntPtr.Zero,
+                },
             },
         };
 

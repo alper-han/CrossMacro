@@ -3,5 +3,5 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 public interface IExtImageCopySupportProbe
 {
-    ExtImageCopySupportResult ProbeSupport();
+    public ExtImageCopySupportResult ProbeSupport();
 }

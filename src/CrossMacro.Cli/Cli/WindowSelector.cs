@@ -1,3 +1,3 @@
 namespace CrossMacro.Cli;
 
-public sealed record WindowSelector(WindowSelectorKind Kind, string Value);
+public sealed record class WindowSelector(WindowSelectorKind Kind, string Value);

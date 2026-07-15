@@ -31,7 +31,9 @@ public class ButtonStateTracker : IButtonStateTracker
     public void ReleaseAll(IInputSimulator simulator)
     {
         if (_pressedButtons.IsEmpty)
+        {
             return;
+        }
 
         Log.Information("[ButtonStateTracker] Releasing {Count} pressed buttons", _pressedButtons.Count);
 
@@ -47,7 +49,7 @@ public class ButtonStateTracker : IButtonStateTracker
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[ButtonStateTracker] Failed to release button: {Button}", button);
+                Log.LogError(ex, "[ButtonStateTracker] Failed to release button: {Button}", button);
             }
         }
 
@@ -60,7 +62,7 @@ public class ButtonStateTracker : IButtonStateTracker
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[ButtonStateTracker] Failsafe release failed");
+            Log.LogError(ex, "[ButtonStateTracker] Failsafe release failed");
         }
     }
 
@@ -76,7 +78,7 @@ public class ButtonStateTracker : IButtonStateTracker
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[ButtonStateTracker] Failed to re-press button: {Button}", button);
+                Log.LogError(ex, "[ButtonStateTracker] Failed to re-press button: {Button}", button);
             }
         }
     }

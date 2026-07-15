@@ -5,17 +5,12 @@ internal sealed class TextExpansionDirectTypingInserter
 {
     private const int MaxBatchedInputEvents = 4096;
     private readonly IKeyboardLayoutService _layoutService;
-    private readonly TextExpansionKeyDispatcher _keyDispatcher;
-
     public TextExpansionDirectTypingInserter(
-        IKeyboardLayoutService layoutService,
-        TextExpansionKeyDispatcher keyDispatcher)
+        IKeyboardLayoutService layoutService)
     {
         ArgumentNullException.ThrowIfNull(layoutService);
-        ArgumentNullException.ThrowIfNull(keyDispatcher);
 
         _layoutService = layoutService;
-        _keyDispatcher = keyDispatcher;
     }
 
     public void ValidateSupport(IInputSimulator inputSimulator, string text)
@@ -37,7 +32,7 @@ internal sealed class TextExpansionDirectTypingInserter
             }
 
             var keyboardLayoutCharacter = element.KeyboardLayoutCharacter;
-            if (keyboardLayoutCharacter.HasValue &&
+            if (keyboardLayoutCharacter is not null &&
                 TryResolveKeyboardLayoutInput(keyboardLayoutCharacter.Value, out _))
             {
                 continue;
@@ -76,28 +71,28 @@ internal sealed class TextExpansionDirectTypingInserter
         {
             if (element.IsNewLine)
             {
-                await _keyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_ENTER);
-                await Task.Delay(TextExpansionExecutionTimings.DirectTypingNewLineDelay);
+                await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_ENTER).ConfigureAwait(false);
+                await Task.Delay(TextExpansionExecutionTimings.DirectTypingNewLineDelay).ConfigureAwait(false);
                 continue;
             }
 
             if (preferNativeUnicodeInjection)
             {
-                await TypeUnicodeTextAsync(inputSimulator, unicodeTextInput, text, element);
+                await TypeUnicodeTextAsync(inputSimulator, unicodeTextInput, text, element).ConfigureAwait(false);
             }
             else
             {
                 var keyboardLayoutCharacter = element.KeyboardLayoutCharacter;
-                var typedViaLayout = keyboardLayoutCharacter.HasValue &&
-                    await TryTypeWithKeyboardLayoutAsync(inputSimulator, keyboardLayoutCharacter.Value);
+                var typedViaLayout = keyboardLayoutCharacter is not null &&
+                    await TryTypeWithKeyboardLayoutAsync(inputSimulator, keyboardLayoutCharacter.Value).ConfigureAwait(false);
 
                 if (!typedViaLayout)
                 {
-                    await TypeUnicodeTextAsync(inputSimulator, unicodeTextInput, text, element);
+                    await TypeUnicodeTextAsync(inputSimulator, unicodeTextInput, text, element).ConfigureAwait(false);
                 }
             }
 
-            await Task.Delay(TextExpansionExecutionTimings.DirectTypingInterElementDelay);
+            await Task.Delay(TextExpansionExecutionTimings.DirectTypingInterElementDelay).ConfigureAwait(false);
         }
     }
 
@@ -169,7 +164,7 @@ internal sealed class TextExpansionDirectTypingInserter
             }
 
             var keyboardLayoutCharacter = element.KeyboardLayoutCharacter;
-            if (!keyboardLayoutCharacter.HasValue || !TryResolveKeyboardLayoutInput(keyboardLayoutCharacter.Value, out var input))
+            if (keyboardLayoutCharacter is null || !TryResolveKeyboardLayoutInput(keyboardLayoutCharacter.Value, out var input))
             {
                 return false;
             }
@@ -203,7 +198,7 @@ internal sealed class TextExpansionDirectTypingInserter
             }
 
             var keyboardLayoutCharacter = element.KeyboardLayoutCharacter;
-            if (!keyboardLayoutCharacter.HasValue || !TryResolveKeyboardLayoutInput(keyboardLayoutCharacter.Value, out var input))
+            if (keyboardLayoutCharacter is null || !TryResolveKeyboardLayoutInput(keyboardLayoutCharacter.Value, out var input))
             {
                 return false;
             }
@@ -298,7 +293,7 @@ internal sealed class TextExpansionDirectTypingInserter
             return false;
         }
 
-        await _keyDispatcher.SendKeyAsync(inputSimulator, input.KeyCode, input.Shift, input.AltGr);
+        await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, input.KeyCode, input.Shift, input.AltGr).ConfigureAwait(false);
         return true;
     }
 
@@ -347,7 +342,7 @@ internal sealed class TextExpansionDirectTypingInserter
 
         if (OperatingSystem.IsLinux())
         {
-            await TypeLinuxUnicodeHexAsync(inputSimulator, element.CodePoint);
+            await TypeLinuxUnicodeHexAsync(inputSimulator, element.CodePoint).ConfigureAwait(false);
             return;
         }
 
@@ -360,23 +355,23 @@ internal sealed class TextExpansionDirectTypingInserter
     {
         var composeSequence = ResolveLinuxUnicodeComposeSequence(codePoint);
 
-        await _keyDispatcher.SendKeyAsync(
+        await TextExpansionKeyDispatcher.SendKeyAsync(
             inputSimulator,
             composeSequence.PrefixInput.KeyCode,
             shift: true,
             altGr: composeSequence.PrefixInput.AltGr,
-            ctrl: true);
+            ctrl: true).ConfigureAwait(false);
 
-        await Task.Delay(TextExpansionExecutionTimings.LinuxUnicodeComposeActivationDelay);
+        await Task.Delay(TextExpansionExecutionTimings.LinuxUnicodeComposeActivationDelay).ConfigureAwait(false);
 
         foreach (var hexInput in composeSequence.HexInputs)
         {
-            await _keyDispatcher.SendKeyAsync(inputSimulator, hexInput.KeyCode, hexInput.Shift, hexInput.AltGr);
-            await Task.Delay(TextExpansionExecutionTimings.LinuxUnicodeComposeInterKeyDelay);
+            await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, hexInput.KeyCode, hexInput.Shift, hexInput.AltGr).ConfigureAwait(false);
+            await Task.Delay(TextExpansionExecutionTimings.LinuxUnicodeComposeInterKeyDelay).ConfigureAwait(false);
         }
 
-        await Task.Delay(TextExpansionExecutionTimings.LinuxUnicodeComposeCompletionDelay);
-        await _keyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_ENTER);
+        await Task.Delay(TextExpansionExecutionTimings.LinuxUnicodeComposeCompletionDelay).ConfigureAwait(false);
+        await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_ENTER).ConfigureAwait(false);
     }
 
     private LinuxUnicodeComposeSequence ResolveLinuxUnicodeComposeSequence(int codePoint)
@@ -404,8 +399,7 @@ internal sealed class TextExpansionDirectTypingInserter
         return ResolveRequiredLinuxKeyboardLayoutInput(
             primary: hexDigit,
             alternate: alternateHexDigit,
-            failureMessage: alternateHexDigit.HasValue
-                ? $"Current keyboard layout cannot type Linux unicode hex digit '{hexDigit}' or '{alternateHexDigit.Value}' required for code point U+{codePoint:X}."
+            failureMessage: alternateHexDigit is not null ? $"Current keyboard layout cannot type Linux unicode hex digit '{hexDigit}' or '{alternateHexDigit.Value}' required for code point U+{codePoint:X}."
                 : $"Current keyboard layout cannot type Linux unicode hex digit '{hexDigit}' required for code point U+{codePoint:X}.");
     }
 
@@ -419,7 +413,7 @@ internal sealed class TextExpansionDirectTypingInserter
             return primaryInput;
         }
 
-        if (alternate.HasValue && TryResolveKeyboardLayoutInput(alternate.Value, out var alternateInput))
+        if (alternate is not null && TryResolveKeyboardLayoutInput(alternate.Value, out var alternateInput))
         {
             return alternateInput;
         }
@@ -430,7 +424,7 @@ internal sealed class TextExpansionDirectTypingInserter
     private bool TryResolveKeyboardLayoutInput(char character, out KeyboardLayoutInput input)
     {
         var resolvedInput = _layoutService.GetInputForChar(character);
-        if (resolvedInput.HasValue)
+        if (resolvedInput is not null)
         {
             input = new KeyboardLayoutInput(
                 resolvedInput.Value.KeyCode,

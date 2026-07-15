@@ -69,7 +69,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
         Log.Information("[HeadlessHotkeyActionService] Hotkey actions enabled");
     }
 
-    public void Stop()
+    public void StopHeadlessHotkeyActions()
     {
         var stopTask = EnsureStopTask(CancellationToken.None, logWhenStarted: true);
         ObserveTask(stopTask, "stop-hotkey-actions");
@@ -88,7 +88,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
         }
 
         _disposed = true;
-        Stop();
+        StopHeadlessHotkeyActions();
     }
 
     public async ValueTask DisposeAsync()
@@ -263,7 +263,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
 
             if (_activePlayer.IsPaused)
             {
-                _activePlayer.Resume();
+                _activePlayer.ResumePlayback();
                 Log.Information("[HeadlessHotkeyActionService] Playback resumed via hotkey");
             }
             else
@@ -348,7 +348,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
                 t =>
                 {
                     EnsurePlaybackPauseHotkeysEnabled();
-                    Log.Error(
+                    Log.LogError(
                         (Exception?)t.Exception ?? new InvalidOperationException("Recording start task faulted without an exception."),
                         "[HeadlessHotkeyActionService] Failed to start recording via hotkey");
                 },
@@ -385,7 +385,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[HeadlessHotkeyActionService] Failed to stop recording");
+            Log.LogError(ex, "[HeadlessHotkeyActionService] Failed to stop recording");
         }
         finally
         {
@@ -417,7 +417,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
 
         try
         {
-            player?.Stop();
+            player?.StopPlayback();
         }
         catch (Exception ex)
         {
@@ -450,7 +450,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[HeadlessHotkeyActionService] Playback failed via hotkey");
+            Log.LogError(ex, "[HeadlessHotkeyActionService] Playback failed via hotkey");
         }
         finally
         {
@@ -505,7 +505,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
     private static void ObserveTask(Task task, string operation)
     {
         _ = task.ContinueWith(
-            t => Log.Error(
+            t => Log.LogError(
                 (Exception?)t.Exception ?? new InvalidOperationException($"Task '{operation}' faulted without an exception."),
                 "[HeadlessHotkeyActionService] Unhandled error during {Operation}",
                 operation),

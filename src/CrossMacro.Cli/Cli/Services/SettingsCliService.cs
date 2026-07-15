@@ -99,7 +99,7 @@ public sealed class SettingsCliService : ISettingsCliService
 
         try
         {
-            await _settingsService.SaveAsync();
+            await _settingsService.SaveAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -175,7 +175,7 @@ public sealed class SettingsCliService : ISettingsCliService
 
         try
         {
-            await _settingsService.SaveAsync();
+            await _settingsService.SaveAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -363,17 +363,17 @@ public sealed class SettingsCliService : ISettingsCliService
                 return true;
 
             case "logging.level":
-            {
-                var normalized = AllowedLogLevels.FirstOrDefault(x => string.Equals(x, rawValue, StringComparison.OrdinalIgnoreCase));
-                if (normalized is null)
                 {
-                    errorMessage = $"Invalid value for {key}: {rawValue}. Allowed: {string.Join(", ", AllowedLogLevels)}.";
-                    return false;
+                    var normalized = AllowedLogLevels.FirstOrDefault(x => string.Equals(x, rawValue, StringComparison.OrdinalIgnoreCase));
+                    if (normalized is null)
+                    {
+                        errorMessage = $"Invalid value for {key}: {rawValue}. Allowed: {string.Join(", ", AllowedLogLevels)}.";
+                        return false;
+                    }
+                    settings.LogLevel = normalized;
+                    errorMessage = string.Empty;
+                    return true;
                 }
-                settings.LogLevel = normalized;
-                errorMessage = string.Empty;
-                return true;
-            }
 
             case "recording.mouse":
                 if (!TryParseBool(rawValue, out var recordMouse))

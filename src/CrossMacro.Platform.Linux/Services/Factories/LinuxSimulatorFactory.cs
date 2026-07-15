@@ -89,7 +89,7 @@ public class LinuxSimulatorFactory
                 x11 is not null && _x11IsSupported(x11),
                 forCapture: false);
 
-            if (selection.Reason is "native-x11")
+            if (string.Equals(selection.Reason, "native-x11", StringComparison.Ordinal))
             {
                 return x11!;
             }

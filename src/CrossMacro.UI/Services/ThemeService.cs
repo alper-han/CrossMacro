@@ -18,15 +18,15 @@ public sealed class ThemeService : IThemeService
 
     public string CurrentTheme { get; private set; } = ThemeCatalog.DefaultThemeName;
 
-    public bool TryApplyTheme(string themeName, out string error)
+    public bool TryApplyTheme(string themeName, out string themeError)
     {
-        error = string.Empty;
+        themeError = string.Empty;
 
-            var resourceRoot = _resourceRoot ?? Avalonia.Application.Current?.Resources;
+        var resourceRoot = _resourceRoot ?? Avalonia.Application.Current?.Resources;
         var mergedDictionaries = resourceRoot?.MergedDictionaries;
         if (resourceRoot is null || mergedDictionaries is null)
         {
-            error = "Application resources are not available.";
+            themeError = "Application resources are not available.";
             CurrentTheme = ThemeCatalog.DefaultThemeName;
             return false;
         }
@@ -39,7 +39,7 @@ public sealed class ThemeService : IThemeService
             if (!TryResolveThemeDictionary(resourceRoot, ThemeCatalog.DefaultTheme, out targetThemeDictionary))
             {
                 CurrentTheme = ThemeCatalog.DefaultThemeName;
-                error = $"Theme resources are missing. Could not apply {ThemeCatalog.DefaultThemeName}.";
+                themeError = $"Theme resources are missing. Could not apply {ThemeCatalog.DefaultThemeName}.";
                 return false;
             }
 
@@ -60,14 +60,14 @@ public sealed class ThemeService : IThemeService
 
         if (appliedFallbackForMissingResource)
         {
-            error = $"Theme resource not found: {requestedTheme.ResourceKey}. Fallback to {ThemeCatalog.DefaultThemeName} applied.";
+            themeError = $"Theme resource not found: {requestedTheme.ResourceKey}. Fallback to {ThemeCatalog.DefaultThemeName} applied.";
             return false;
         }
 
         if (!requestedThemeWasValid)
         {
             CurrentTheme = ThemeCatalog.DefaultThemeName;
-            error = $"Unknown theme '{themeName}'. Fallback to {ThemeCatalog.DefaultThemeName} applied.";
+            themeError = $"Unknown theme '{themeName}'. Fallback to {ThemeCatalog.DefaultThemeName} applied.";
             return false;
         }
 

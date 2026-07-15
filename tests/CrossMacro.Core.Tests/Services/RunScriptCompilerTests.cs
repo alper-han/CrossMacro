@@ -72,7 +72,7 @@ public class RunScriptCompilerTests
         result.Sequence!.Events.Should().HaveCount(2);
         var click = result.Sequence.Events[1];
         click.Type.Should().Be(EventType.Click);
-        click.Button.Should().Be(MouseButton.Left);
+        click.Button.Should().Be(MacroMouseButton.Left);
         click.UseCurrentPosition.Should().BeFalse();
         click.X.Should().Be(0);
         click.Y.Should().Be(0);
@@ -95,10 +95,10 @@ public class RunScriptCompilerTests
         result.Sequence!.IsAbsoluteCoordinates.Should().BeFalse();
         result.Sequence.Events.Should().HaveCount(4);
         result.Sequence.Events.Select(e => (e.Type, e.Button, e.X, e.Y, e.CoordinateMode)).Should().Equal(
-            (EventType.MouseMove, MouseButton.None, 100, 200, MouseCoordinateMode.Absolute),
-            (EventType.Click, MouseButton.Left, 100, 200, MouseCoordinateMode.Absolute),
-            (EventType.MouseMove, MouseButton.None, 10, -5, MouseCoordinateMode.Relative),
-            (EventType.Click, MouseButton.Right, 0, 0, MouseCoordinateMode.Relative));
+            (EventType.MouseMove, MacroMouseButton.None, 100, 200, MouseCoordinateMode.Absolute),
+            (EventType.Click, MacroMouseButton.Left, 100, 200, MouseCoordinateMode.Absolute),
+            (EventType.MouseMove, MacroMouseButton.None, 10, -5, MouseCoordinateMode.Relative),
+            (EventType.Click, MacroMouseButton.Right, 0, 0, MouseCoordinateMode.Relative));
         MacroPositionSemantics.GetCoordinateModeSummary(result.Sequence).Should().Be(CoordinateModeSummary.Mixed);
     }
 
@@ -174,7 +174,7 @@ public class RunScriptCompilerTests
         result.Sequence.Should().NotBeNull();
         result.Sequence!.Events.Should().ContainSingle();
         result.Sequence.Events[0].Type.Should().Be(EventType.Click);
-        result.Sequence.Events[0].Button.Should().Be(MouseButton.Left);
+        result.Sequence.Events[0].Button.Should().Be(MacroMouseButton.Left);
         result.Sequence.Events[0].UseCurrentPosition.Should().BeTrue();
     }
 
@@ -195,7 +195,7 @@ public class RunScriptCompilerTests
         result.Sequence.Should().NotBeNull();
         result.Sequence!.Events.Should().ContainSingle();
         result.Sequence.Events[0].Type.Should().Be(EventType.Click);
-        result.Sequence.Events[0].Button.Should().Be(MouseButton.Left);
+        result.Sequence.Events[0].Button.Should().Be(MacroMouseButton.Left);
         result.Sequence.Events[0].UseCurrentPosition.Should().BeTrue();
     }
 
@@ -343,13 +343,13 @@ public class RunScriptCompilerTests
     [InlineData("pixelsearch 0 0 10 10 123456 tolerance 10")]
     [InlineData("pixelsearch 0 0 10 10 123456 found found_x found_y tolerance 26")]
     [InlineData("pixelsearch 0 0 10 10 $sampled found found_x found_y tolerance 10")]
-		[InlineData("imagesearch TargetImage")]
-		[InlineData("imagesearch 0 0 10 10 TargetImage")]
-		[InlineData("imagesearch TargetImage found found_x found_y")]
-		[InlineData("imagesearch TargetImage similarity 0")]
-		[InlineData("imagesearch TargetImage similarity 1")]
-		[InlineData("imagesearch TargetImage similarity 0.9")]
-		[InlineData("imagesearch TargetImage downsample 2")]
+    [InlineData("imagesearch TargetImage")]
+    [InlineData("imagesearch 0 0 10 10 TargetImage")]
+    [InlineData("imagesearch TargetImage found found_x found_y")]
+    [InlineData("imagesearch TargetImage similarity 0")]
+    [InlineData("imagesearch TargetImage similarity 1")]
+    [InlineData("imagesearch TargetImage similarity 0.9")]
+    [InlineData("imagesearch TargetImage downsample 2")]
     [InlineData("imagesearch 0 0 10 10 TargetImage found found_x found_y similarity 0.85 downsample 2")]
     public void Compile_WhenScreenReadingStepIsWellFormed_PreservesScriptStep(string step)
     {
@@ -370,13 +370,13 @@ public class RunScriptCompilerTests
     [InlineData("pixelsearch 0 0 ten 10 123456 found_x found_y", "Invalid pixelsearch bounds")]
     [InlineData("pixelsearch 0 0 10 10 123456 found_x found_y tolerance 256", "Invalid pixelsearch tolerance")]
     [InlineData("pixelsearch 0 0 10 10 123456 tolerance -1", "Invalid pixelsearch tolerance")]
-		[InlineData("pixelsearch 0 0 10 10 123456 variation 10", "Invalid variable name")]
-		[InlineData("imagesearch 10 0 10 10 TargetImage", "Invalid imagesearch bounds")]
-		[InlineData("imagesearch TargetImage similarity 1.1", "Invalid imagesearch similarity")]
-		[InlineData("imagesearch TargetImage similarity NaN", "Invalid imagesearch similarity")]
-		[InlineData("imagesearch TargetImage similarity Infinity", "Invalid imagesearch similarity")]
-		[InlineData("imagesearch TargetImage similarity -Infinity", "Invalid imagesearch similarity")]
-		[InlineData("imagesearch TargetImage similarity 0,9", "Invalid imagesearch similarity")]
+    [InlineData("pixelsearch 0 0 10 10 123456 variation 10", "Invalid variable name")]
+    [InlineData("imagesearch 10 0 10 10 TargetImage", "Invalid imagesearch bounds")]
+    [InlineData("imagesearch TargetImage similarity 1.1", "Invalid imagesearch similarity")]
+    [InlineData("imagesearch TargetImage similarity NaN", "Invalid imagesearch similarity")]
+    [InlineData("imagesearch TargetImage similarity Infinity", "Invalid imagesearch similarity")]
+    [InlineData("imagesearch TargetImage similarity -Infinity", "Invalid imagesearch similarity")]
+    [InlineData("imagesearch TargetImage similarity 0,9", "Invalid imagesearch similarity")]
     [InlineData("imagesearch TargetImage downsample 0", "Invalid imagesearch downsample")]
     [InlineData("imageclick TargetImage button side1", "Invalid imageclick button")]
     [InlineData("imageclick TargetImage button l", "Invalid imageclick button")]

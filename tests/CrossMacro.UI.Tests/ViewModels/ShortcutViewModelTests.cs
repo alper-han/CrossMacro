@@ -116,7 +116,7 @@ public class ShortcutViewModelTests
     {
         var culture = System.Globalization.CultureInfo.InvariantCulture;
         _localizationService.CurrentCulture.Returns(culture);
-        var task = new ShortcutTask
+        var task = new ShortcutTaskEditor
         {
             LastTriggeredTime = new DateTime(2026, 1, 1, 7, 0, 0, DateTimeKind.Utc),
         };
@@ -198,7 +198,7 @@ public class ShortcutViewModelTests
     public void OnHotkeyChanged_UpdatesSelectedTask()
     {
         // Arrange
-        var task = new ShortcutTask();
+        var task = new ShortcutTaskEditor();
         _viewModel.SelectedTask = task;
 
         // Act
@@ -219,9 +219,11 @@ public class ShortcutViewModelTests
             HotkeyString = "F9",
             IsEnabled = true,
         };
+        _shortcutService.Tasks.Add(task);
+        var editor = _viewModel.Tasks.Single();
 
         // Act
-        await _viewModel.TaskEnabledChangedCommand.ExecuteAsync(task);
+        await _viewModel.TaskEnabledChangedCommand.ExecuteAsync(editor);
 
         // Assert
         _shortcutService.Received(1).SetTaskEnabled(task.Id, enabled: true);
@@ -231,19 +233,18 @@ public class ShortcutViewModelTests
     [Fact]
     public async Task TaskEnabledChangedCommand_WhenManaged_PersistsTheToggledTask()
     {
-        var task = new ShortcutTask { IsEnabled = true };
+        var task = new ShortcutTask { IsEnabled = true, MacroFilePath = "macro", HotkeyString = "F9" };
         _shortcutService.Tasks.Add(task);
         var manager = Substitute.For<IManageShortcut>();
-        var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService)
-        {
-            SelectedTask = task,
-        };
+        var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService);
         await viewModel.InitializationTask;
+        var editor = viewModel.Tasks.Single();
+        viewModel.SelectedTask = editor;
 
-        await viewModel.TaskEnabledChangedCommand.ExecuteAsync(task);
+        await viewModel.TaskEnabledChangedCommand.ExecuteAsync(editor);
 
         await manager.Received(1).SetEnabledAsync(Arg.Is<TaskRequest>(request =>
-            request.Id == task.Id && request.Enabled == task.IsEnabled));
+            request.Id == task.Id && request.Enabled == editor.IsEnabled));
         _shortcutService.DidNotReceive().SetTaskEnabled(Arg.Any<Guid>(), Arg.Any<bool>());
         await _shortcutService.DidNotReceive().SaveAsync();
     }
@@ -252,7 +253,7 @@ public class ShortcutViewModelTests
     public async Task BrowseMacro_WhenCancelled_KeepsCurrentPath()
     {
         // Arrange
-        var task = new ShortcutTask { MacroFilePath = "existing.macro" };
+        var task = new ShortcutTaskEditor { MacroFilePath = "existing.macro" };
         _viewModel.SelectedTask = task;
         _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
             .Returns(Task.FromResult<string?>(null));
@@ -268,7 +269,7 @@ public class ShortcutViewModelTests
     public void SelectTask_WhenSameTaskSelected_TogglesSelectionOff()
     {
         // Arrange
-        var task = new ShortcutTask();
+        var task = new ShortcutTaskEditor();
         _viewModel.SelectedTask = task;
 
         // Act

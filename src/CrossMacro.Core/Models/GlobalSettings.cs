@@ -9,12 +9,12 @@ public class GlobalSettings
     /// <summary>
     /// Whether the system tray icon is enabled.
     /// </summary>
-    public bool EnableTrayIcon { get; set; } = false;
+    public bool EnableTrayIcon { get; set; }
 
     /// <summary>
     /// Whether the GUI should start minimized.
     /// </summary>
-    public bool StartMinimized { get; set; } = false;
+    public bool StartMinimized { get; set; }
 
     /// <summary>
     /// Minimum log level for the application.

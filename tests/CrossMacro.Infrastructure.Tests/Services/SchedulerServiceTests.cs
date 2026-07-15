@@ -5,17 +5,17 @@ public class SchedulerServiceTests
 {
     private readonly IScheduledTaskRepository _repository;
     private readonly IScheduledTaskExecutor _executor;
-    private readonly ITimeProvider _timeProvider;
+    private readonly TimeProvider _timeProvider;
     private readonly SchedulerService _service;
 
     public SchedulerServiceTests()
     {
         _repository = Substitute.For<IScheduledTaskRepository>();
         _executor = Substitute.For<IScheduledTaskExecutor>();
-        _timeProvider = Substitute.For<ITimeProvider>();
+        _timeProvider = Substitute.For<TimeProvider>();
 
         // Default time
-        _timeProvider.UtcNow.Returns(new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc));
+        _timeProvider.GetUtcNow().Returns(new DateTimeOffset(2024, 1, 1, 12, 0, 0, TimeSpan.Zero));
 
         _service = new SchedulerService(_repository, _executor, _timeProvider);
     }
@@ -25,14 +25,14 @@ public class SchedulerServiceTests
     {
         _service.Start();
         _service.IsRunning.Should().BeTrue();
-        _service.Stop();
+        _service.StopScheduler();
     }
 
     [Fact]
     public void Stop_SetsIsRunningToFalse()
     {
         _service.Start();
-        _service.Stop();
+        _service.StopScheduler();
         _service.IsRunning.Should().BeFalse();
     }
 
@@ -40,7 +40,7 @@ public class SchedulerServiceTests
     public async Task Stop_ExposesCompletionOfSchedulerLifetime()
     {
         _service.Start();
-        _service.Stop();
+        _service.StopScheduler();
 
         await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2));
 
@@ -77,7 +77,7 @@ public class SchedulerServiceTests
         // Assert
         var t = _service.Tasks.First(x => x.Id == task.Id);
         t.IsEnabled.Should().BeTrue();
-        t.NextRunTime.Should().Be(_timeProvider.UtcNow.AddSeconds(60));
+        t.NextRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime.AddSeconds(60));
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public class SchedulerServiceTests
     public async Task LoadAsync_SpecificTimeEnabledFuture_RecalculatesNextRunTimeFromScheduledDateTime()
     {
         // Arrange
-        var now = _timeProvider.UtcNow;
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
         var scheduledUtc = now.AddHours(3);
         var task = new ScheduledTask
         {
@@ -135,7 +135,7 @@ public class SchedulerServiceTests
         task.IsEnabled = true;
         task.NextRunTime = now.AddMinutes(5); // stale persisted value
 
-        _repository.LoadAsync().Returns(Task.FromResult(new List<ScheduledTask> { task }));
+        _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
 
         // Act
         await _service.LoadAsync();
@@ -150,7 +150,7 @@ public class SchedulerServiceTests
     public async Task LoadAsync_SpecificTimePast_DisablesTaskAndClearsNextRunTime()
     {
         // Arrange
-        var now = _timeProvider.UtcNow;
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
         var task = new ScheduledTask
         {
             Name = "Past task",
@@ -161,7 +161,7 @@ public class SchedulerServiceTests
         task.IsEnabled = true;
         task.NextRunTime = now.AddHours(10); // stale persisted value
 
-        _repository.LoadAsync().Returns(Task.FromResult(new List<ScheduledTask> { task }));
+        _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
 
         // Act
         await _service.LoadAsync();
@@ -186,7 +186,7 @@ public class SchedulerServiceTests
         };
         task.IsEnabled = true;
 
-        _repository.LoadAsync().Returns(Task.FromResult(new List<ScheduledTask> { task }));
+        _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
 
         // Act
         Func<Task> act = async () => await _service.LoadAsync();
@@ -203,7 +203,7 @@ public class SchedulerServiceTests
     public async Task LoadAsync_SpecificTimeWithoutScheduledDate_DisablesTaskAndClearsNextRunTime()
     {
         // Arrange
-        var now = _timeProvider.UtcNow;
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
         var task = new ScheduledTask
         {
             Name = "Invalid specific-time",
@@ -214,7 +214,7 @@ public class SchedulerServiceTests
         task.IsEnabled = true;
         task.NextRunTime = now.AddHours(5); // stale persisted value
 
-        _repository.LoadAsync().Returns(Task.FromResult(new List<ScheduledTask> { task }));
+        _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
 
         // Act
         await _service.LoadAsync();
@@ -228,7 +228,7 @@ public class SchedulerServiceTests
     [Fact]
     public async Task LoadAsync_WeeklyEnabled_RecalculatesNextRunTime()
     {
-        var now = _timeProvider.UtcNow;
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
         var task = new ScheduledTask
         {
             Name = "Weekly task",
@@ -240,7 +240,7 @@ public class SchedulerServiceTests
         task.IsEnabled = true;
         task.NextRunTime = now.AddDays(3);
 
-        _repository.LoadAsync().Returns(Task.FromResult(new List<ScheduledTask> { task }));
+        _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
 
         await _service.LoadAsync();
 
@@ -263,9 +263,9 @@ public class SchedulerServiceTests
             WeeklyTime = new TimeSpan(9, 0, 0),
         };
         task.IsEnabled = true;
-        task.NextRunTime = _timeProvider.UtcNow.AddHours(1);
+        task.NextRunTime = _timeProvider.GetUtcNow().UtcDateTime.AddHours(1);
 
-        _repository.LoadAsync().Returns(Task.FromResult(new List<ScheduledTask> { task }));
+        _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
 
         await _service.LoadAsync();
 
@@ -288,7 +288,7 @@ public class SchedulerServiceTests
         };
         validTask.IsEnabled = true;
 
-        _repository.LoadAsync().Returns(Task.FromResult(new List<ScheduledTask> { null!, validTask }));
+        _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { null!, validTask }));
 
         // Act
         await _service.LoadAsync();
@@ -317,7 +317,7 @@ public class SchedulerServiceTests
                 IsEnabled = true,
             };
 
-            _repository.LoadAsync().Returns(Task.FromResult(new List<ScheduledTask> { task }));
+            _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
             var service = new SchedulerService(_repository, _executor, _timeProvider);
 
             var loadTask = service.LoadAsync();
@@ -354,7 +354,7 @@ public class SchedulerServiceTests
                 IsEnabled = true,
             };
 
-            _repository.LoadAsync().Returns(Task.FromResult(new List<ScheduledTask> { task }));
+            _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
             var service = new SchedulerService(_repository, _executor, _timeProvider);
             SynchronizationContext.SetSynchronizationContext(previousContext);
 
@@ -390,7 +390,7 @@ public class SchedulerServiceTests
     [Fact]
     public async Task Stop_WhenTimerLoopIsBusyWithExecution_ReturnsWithoutWaitingForHungExecution()
     {
-        var now = _timeProvider.UtcNow;
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
         var task = new ScheduledTask
         {
             Name = "Run now",
@@ -416,7 +416,7 @@ public class SchedulerServiceTests
 
         await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(3));
 
-        var stopTask = Task.Run(_service.Stop);
+        var stopTask = Task.Run(_service.StopScheduler);
         await stopTask.WaitAsync(TimeSpan.FromSeconds(2));
 
         _service.IsRunning.Should().BeFalse();

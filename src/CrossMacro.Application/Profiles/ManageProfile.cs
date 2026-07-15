@@ -24,6 +24,7 @@ public sealed class ManageProfile : IManageProfile
 
     public async Task<ProfileResult> CreateAsync(ProfileRequest request, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
         var profile = await _profiles.CreateProfileAsync(request.DisplayName ?? string.Empty).ConfigureAwait(false);
         return CreateResult(profile);
@@ -31,6 +32,7 @@ public sealed class ManageProfile : IManageProfile
 
     public async Task<ProfileResult> SwitchAsync(ProfileRequest request, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
         var profile = Resolve(request.Identifier);
         await _profiles.SwitchProfileAsync(profile.Id).ConfigureAwait(false);
@@ -39,6 +41,7 @@ public sealed class ManageProfile : IManageProfile
 
     public async Task<ProfileResult> RenameAsync(ProfileRequest request, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
         var profile = Resolve(request.Identifier);
         await _profiles.RenameProfileAsync(profile.Id, request.DisplayName ?? string.Empty).ConfigureAwait(false);
@@ -50,6 +53,7 @@ public sealed class ManageProfile : IManageProfile
 
     public async Task<ProfileResult> DeleteAsync(ProfileRequest request, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
         var profile = Resolve(request.Identifier);
         await _profiles.DeleteProfileAsync(profile.Id).ConfigureAwait(false);

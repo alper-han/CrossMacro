@@ -96,7 +96,7 @@ public class WayfirePositionProvider : IMousePositionProvider
         }
 
         var layout = await RefreshLayoutAsync().ConfigureAwait(false);
-        return layout.HasValue ? (layout.Value.Width, layout.Value.Height) : null;
+        return layout is not null ? (layout.Value.Width, layout.Value.Height) : null;
     }
 
     private bool ProbeCapabilities()
@@ -143,7 +143,7 @@ public class WayfirePositionProvider : IMousePositionProvider
             return;
         }
 
-        await _layoutGate.WaitAsync().ConfigureAwait(false);
+        await _layoutGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
             if (_disposed || !_isSupported || Volatile.Read(ref _hasLayout))
@@ -161,7 +161,7 @@ public class WayfirePositionProvider : IMousePositionProvider
 
     private async Task<OutputLayout?> RefreshLayoutAsync()
     {
-        await _layoutGate.WaitAsync().ConfigureAwait(false);
+        await _layoutGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
             if (_disposed || !_isSupported)
@@ -179,7 +179,7 @@ public class WayfirePositionProvider : IMousePositionProvider
 
     private async Task<OutputLayout?> RefreshLayoutCoreAsync()
     {
-        var response = await _ipcClient.SendRequestAsync(ListOutputsMethod).ConfigureAwait(false);
+        var response = await _ipcClient.SendRequestAsync(ListOutputsMethod, CancellationToken.None).ConfigureAwait(false);
         if (!TryParseOutputLayout(response, out var layout, out var methodUnavailable))
         {
             if (methodUnavailable)
@@ -247,8 +247,8 @@ public class WayfirePositionProvider : IMousePositionProvider
                 return false;
             }
 
-            x = (int)Math.Round(xValue);
-            y = (int)Math.Round(yValue);
+            x = (int)Math.Round(xValue, MidpointRounding.AwayFromZero);
+            y = (int)Math.Round(yValue, MidpointRounding.AwayFromZero);
             return true;
         }
         catch (JsonException)
@@ -317,10 +317,10 @@ public class WayfirePositionProvider : IMousePositionProvider
                     continue;
                 }
 
-                int x = (int)Math.Round(gx);
-                int y = (int)Math.Round(gy);
-                int width = (int)Math.Round(gw);
-                int height = (int)Math.Round(gh);
+                int x = (int)Math.Round(gx, MidpointRounding.AwayFromZero);
+                int y = (int)Math.Round(gy, MidpointRounding.AwayFromZero);
+                int width = (int)Math.Round(gw, MidpointRounding.AwayFromZero);
+                int height = (int)Math.Round(gh, MidpointRounding.AwayFromZero);
 
                 if (width <= 0 || height <= 0)
                 {

@@ -3,12 +3,12 @@ namespace CrossMacro.UI.ViewModels;
 
 internal sealed class DesignTextExpansionStore : ITextExpansionStore
 {
-    private readonly object _sync = new();
-    private List<TextExpansion> _expansions = new();
+    private readonly Lock _sync = new();
+    private List<TextExpansionEntry> _expansions = new();
 
-    public Task<List<TextExpansion>> LoadAsync() => Task.FromResult(GetCurrent());
+    public Task<IList<TextExpansionEntry>> LoadAsync() => Task.FromResult<IList<TextExpansionEntry>>(GetCurrent());
 
-    public Task SaveAsync(IEnumerable<TextExpansion> expansions)
+    public Task SaveAsync(IEnumerable<TextExpansionEntry> expansions)
     {
         ArgumentNullException.ThrowIfNull(expansions);
 
@@ -20,7 +20,7 @@ internal sealed class DesignTextExpansionStore : ITextExpansionStore
         return Task.CompletedTask;
     }
 
-    public List<TextExpansion> GetCurrent()
+    public IList<TextExpansionEntry> GetCurrent()
     {
         lock (_sync)
         {
@@ -28,8 +28,8 @@ internal sealed class DesignTextExpansionStore : ITextExpansionStore
         }
     }
 
-    private static TextExpansion CloneExpansion(TextExpansion expansion)
+    private static TextExpansionEntry CloneExpansion(TextExpansionEntry expansion)
     {
-        return new TextExpansion(expansion.Trigger, expansion.Replacement, expansion.IsEnabled, expansion.Method, expansion.InsertionMode);
+        return new TextExpansionEntry(expansion.Trigger, expansion.Replacement, expansion.IsEnabled, expansion.Method, expansion.InsertionMode);
     }
 }

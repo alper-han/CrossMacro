@@ -42,11 +42,11 @@ internal sealed class FakePortalScreenCastSessionFactory : IPortalScreenCastSess
 
         return new PortalScreenCastSession(
             "/org/freedesktop/portal/desktop/session/fake",
-            [new PortalStream(nodeId, properties)],
+            [new PortalStreamDescriptor(nodeId, properties)],
             new SafeFileHandle(new IntPtr(-1), ownsHandle: false));
     }
 
-    public static PortalScreenCastSession CreateSession(IReadOnlyList<PortalStream> streams)
+    public static PortalScreenCastSession CreateSession(IReadOnlyList<PortalStreamDescriptor> streams)
     {
         return new PortalScreenCastSession(
             "/org/freedesktop/portal/desktop/session/fake",

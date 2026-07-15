@@ -24,7 +24,7 @@ public class DialogService : IDialogService
         var resolvedYesText = yesText is "Yes" ? _localizationService["Dialog_Yes"] : yesText;
         var resolvedNoText = noText is "No" ? _localizationService["Dialog_No"] : noText;
         var dialog = new ConfirmationDialog(title, message, resolvedYesText, resolvedNoText);
-        return await dialog.ShowDialog<bool>(owner);
+        return await dialog.ShowDialog<bool>(owner).ConfigureAwait(false);
     }
 
     public async Task ShowMessageAsync(string title, string message, string buttonText = "OK")
@@ -38,14 +38,17 @@ public class DialogService : IDialogService
 
         var resolvedButtonText = buttonText is "OK" ? _localizationService["Dialog_Ok"] : buttonText;
         var dialog = new ConfirmationDialog(title, message, resolvedButtonText, noText: null);
-        await dialog.ShowDialog<bool>(owner);
+        await dialog.ShowDialog<bool>(owner).ConfigureAwait(false);
     }
 
     public async Task<string?> ShowSaveFileDialogAsync(string title, string defaultFileName, FileDialogFilter[] filters)
     {
         var mainWindow = _desktopLifetimeContext.MainWindow;
 
-        if (mainWindow is null) return null;
+        if (mainWindow is null)
+        {
+            return null;
+        }
 
         var fileTypeChoices = filters.Select(f => new Avalonia.Platform.Storage.FilePickerFileType(f.Name)
         {
@@ -59,7 +62,7 @@ public class DialogService : IDialogService
             FileTypeChoices = fileTypeChoices,
         };
 
-        var file = await mainWindow.StorageProvider.SaveFilePickerAsync(options);
+        var file = await mainWindow.StorageProvider.SaveFilePickerAsync(options).ConfigureAwait(false);
         return file?.Path.LocalPath;
     }
 
@@ -67,7 +70,10 @@ public class DialogService : IDialogService
     {
         var mainWindow = _desktopLifetimeContext.MainWindow;
 
-        if (mainWindow is null) return null;
+        if (mainWindow is null)
+        {
+            return null;
+        }
 
         var fileTypeFilters = filters.Select(f => new Avalonia.Platform.Storage.FilePickerFileType(f.Name)
         {
@@ -81,7 +87,7 @@ public class DialogService : IDialogService
             FileTypeFilter = fileTypeFilters,
         };
 
-        var files = await mainWindow.StorageProvider.OpenFilePickerAsync(options);
+        var files = await mainWindow.StorageProvider.OpenFilePickerAsync(options).ConfigureAwait(false);
         return files?.Count > 0 ? files[0].Path.LocalPath : null;
     }
 }

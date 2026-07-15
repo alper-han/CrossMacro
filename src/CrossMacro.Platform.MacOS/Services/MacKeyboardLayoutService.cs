@@ -1,11 +1,11 @@
 
 namespace CrossMacro.Platform.MacOS;
 
-public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
+public sealed class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
 {
     private Dictionary<char, (int KeyCode, bool Shift, bool AltGr)>? _charToInputCache;
-    private readonly object _lock = new();
-    private readonly object _layoutLock = new();
+    private readonly Lock _lock = new();
+    private readonly Lock _layoutLock = new();
     private readonly Func<bool> _isMainThread;
     private readonly SynchronizationContext? _mainThreadContext;
     private readonly Func<(IntPtr LayoutData, IntPtr KeyboardLayout, byte KeyboardType)> _loadKeyboardLayoutData;
@@ -44,23 +44,35 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
     public string GetKeyName(int keyCode)
     {
         var semanticName = GetSemanticKeyName(keyCode);
-        if (semanticName is not null) return semanticName;
+        if (semanticName is not null)
+        {
+            return semanticName;
+        }
 
         // Try to get character first via UCKeyTranslate
         var c = GetCharFromKeyCode(keyCode, leftShift: false, rightShift: false, rightAlt: false, leftAlt: false, leftCtrl: false, capsLock: false);
-        if (c.HasValue && !char.IsControl(c.Value))
+        if (c is not null && !char.IsControl(c.Value))
         {
-            return c.Value.ToString().ToUpper();
+            return c.Value.ToString().ToUpper(CultureInfo.InvariantCulture);
         }
 
-        return $"Key{keyCode}";
+        return $"Key{keyCode.ToString(CultureInfo.InvariantCulture)}";
     }
 
     public int GetKeyCode(string keyName)
     {
+        ArgumentNullException.ThrowIfNull(keyName);
         // Modifier keys
-        if (keyName.Equals("Ctrl", StringComparison.OrdinalIgnoreCase)) return 29;
-        if (keyName.Equals("Shift", StringComparison.OrdinalIgnoreCase)) return 42;
+        if (keyName.Equals("Ctrl", StringComparison.OrdinalIgnoreCase))
+        {
+            return 29;
+        }
+
+        if (keyName.Equals("Shift", StringComparison.OrdinalIgnoreCase))
+        {
+            return 42;
+        }
+
         if (keyName.Equals("Alt", StringComparison.OrdinalIgnoreCase) ||
             keyName.Equals("Option", StringComparison.OrdinalIgnoreCase))
         {
@@ -74,13 +86,28 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
         }
 
         // Function keys
-        if (keyName.StartsWith("F", StringComparison.OrdinalIgnoreCase) &&
-            int.TryParse(keyName[1..], out var fNum))
+        if (keyName.Length > 0 && keyName[0] is 'F' or 'f' &&
+            int.TryParse(keyName[1..], CultureInfo.InvariantCulture, out var fNum))
         {
-            if (fNum >= 1 && fNum <= 10) return 59 + fNum - 1;
-            if (fNum is 11) return 87;
-            if (fNum is 12) return 88;
-            if (fNum >= 13 && fNum <= 20) return 183 + fNum - 13;
+            if (fNum is >= 1 and <= 10)
+            {
+                return 59 + fNum - 1;
+            }
+
+            if (fNum is 11)
+            {
+                return 87;
+            }
+
+            if (fNum is 12)
+            {
+                return 88;
+            }
+
+            if (fNum is >= 13 and <= 20)
+            {
+                return 183 + fNum - 13;
+            }
         }
 
         // Special keys
@@ -136,13 +163,19 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
             "Numpad=" => 117,
             _ => -1,
         };
-        if (special != -1) return special;
+        if (special != -1)
+        {
+            return special;
+        }
 
         // Try to find by character
         if (keyName.Length is 1)
         {
             var input = GetInputForChar(keyName[0]);
-            if (input.HasValue) return input.Value.KeyCode;
+            if (input is not null)
+            {
+                return input.Value.KeyCode;
+            }
         }
 
         return -1;
@@ -196,17 +229,44 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
             124 => "Yen",
             95 => "NumpadJpComma",
 
-            59 => "F1", 60 => "F2", 61 => "F3", 62 => "F4",
-            63 => "F5", 64 => "F6", 65 => "F7", 66 => "F8",
-            67 => "F9", 68 => "F10", 87 => "F11", 88 => "F12",
-            183 => "F13", 184 => "F14", 185 => "F15", 186 => "F16",
-            187 => "F17", 188 => "F18", 189 => "F19", 190 => "F20",
+            59 => "F1",
+            60 => "F2",
+            61 => "F3",
+            62 => "F4",
+            63 => "F5",
+            64 => "F6",
+            65 => "F7",
+            66 => "F8",
+            67 => "F9",
+            68 => "F10",
+            87 => "F11",
+            88 => "F12",
+            183 => "F13",
+            184 => "F14",
+            185 => "F15",
+            186 => "F16",
+            187 => "F17",
+            188 => "F18",
+            189 => "F19",
+            190 => "F20",
 
-            71 => "Numpad7", 72 => "Numpad8", 73 => "Numpad9", 74 => "Numpad-",
-            75 => "Numpad4", 76 => "Numpad5", 77 => "Numpad6", 78 => "NumpadPlus",
-            79 => "Numpad1", 80 => "Numpad2", 81 => "Numpad3",
-            82 => "Numpad0", 83 => "Numpad.", 96 => "NumpadEnter",
-            98 => "Numpad/", 55 => "Numpad*", 117 => "Numpad=",
+            71 => "Numpad7",
+            72 => "Numpad8",
+            73 => "Numpad9",
+            74 => "Numpad-",
+            75 => "Numpad4",
+            76 => "Numpad5",
+            77 => "Numpad6",
+            78 => "NumpadPlus",
+            79 => "Numpad1",
+            80 => "Numpad2",
+            81 => "Numpad3",
+            82 => "Numpad0",
+            83 => "Numpad.",
+            96 => "NumpadEnter",
+            98 => "Numpad/",
+            55 => "Numpad*",
+            117 => "Numpad=",
 
             _ => null,
         };
@@ -218,27 +278,54 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
         bool option = leftAlt || rightAlt; // Option key on Mac
 
         // Don't produce chars for modifiers
-        if (IsModifier(keyCode)) return null;
+        if (IsModifier(keyCode))
+        {
+            return null;
+        }
 
         // Space special case
-        if (keyCode is 57) return ' ';
+        if (keyCode is 57)
+        {
+            return ' ';
+        }
 
         try
         {
             // Convert evdev code to Mac key code
             ushort macKeyCode = KeyMap.ToMacKey(keyCode);
-            if (macKeyCode is 0xFFFF) return null;
+            if (macKeyCode is 0xFFFF)
+            {
+                return null;
+            }
 
             // Get keyboard layout
-            if (GetKeyboardLayoutData() == IntPtr.Zero) return null;
+            if (GetKeyboardLayoutData() == IntPtr.Zero)
+            {
+                return null;
+            }
 
             // Build modifier state for UCKeyTranslate
             // Mac modifier format: bits for shift, option, control, command
             uint modifierState = 0;
-            if (capsLock) modifierState |= 1u << 10; // alphaLock
-            if (shift) modifierState |= 1u << 9; // shiftKey
-            if (option) modifierState |= 1u << 11; // optionKey
-            if (leftCtrl) modifierState |= 1u << 12; // controlKey
+            if (capsLock)
+            {
+                modifierState |= 1u << 10; // alphaLock
+            }
+
+            if (shift)
+            {
+                modifierState |= 1u << 9; // shiftKey
+            }
+
+            if (option)
+            {
+                modifierState |= 1u << 11; // optionKey
+            }
+
+            if (leftCtrl)
+            {
+                modifierState |= 1u << 12; // controlKey
+            }
 
             // Shift modifier state to match UCKeyTranslate format (>> 8)
             modifierState = (modifierState >> 8) & 0xFF;
@@ -307,7 +394,10 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
         // Scan all key codes with different modifiers
         for (int code = 1; code < 128; code++)
         {
-            if (IsModifier(code)) continue;
+            if (IsModifier(code))
+            {
+                continue;
+            }
 
             // No modifiers
             TryAddCharToCache(charToInputCache, code, shift: false, option: false);
@@ -326,7 +416,7 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
     private void TryAddCharToCache(Dictionary<char, (int KeyCode, bool Shift, bool AltGr)> charToInputCache, int code, bool shift, bool option)
     {
         var c = GetCharFromKeyCode(code, shift, rightShift: false, option, leftAlt: false, leftCtrl: false, capsLock: false);
-        if (c.HasValue && !charToInputCache.ContainsKey(c.Value))
+        if (c is not null && !charToInputCache.ContainsKey(c.Value))
         {
             charToInputCache[c.Value] = (code, shift, option);
         }
@@ -416,7 +506,10 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
                 inputSource = CoreGraphics.TISCopyCurrentKeyboardInputSource();
             }
 
-            if (inputSource == IntPtr.Zero) return default;
+            if (inputSource == IntPtr.Zero)
+            {
+                return default;
+            }
 
             // Get the property key for keyboard layout data
             IntPtr propertyKey = CoreGraphics.kTISPropertyUnicodeKeyLayoutData;

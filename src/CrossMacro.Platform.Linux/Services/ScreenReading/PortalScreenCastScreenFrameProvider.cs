@@ -28,7 +28,7 @@ public sealed class PortalScreenCastScreenFrameProvider : IScreenFrameProvider
 
         if (!_support.IsSupported)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 _support.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
                 _support.ErrorMessage ?? "XDG Desktop Portal ScreenCast is unavailable.");
         }
@@ -59,7 +59,7 @@ public sealed class PortalScreenCastScreenFrameProvider : IScreenFrameProvider
         var frame = captureResult.Frame;
         if (frame is null)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.CaptureFailed,
                 "Successful XDG Desktop Portal capture did not include a frame.");
         }
@@ -73,12 +73,12 @@ public sealed class PortalScreenCastScreenFrameProvider : IScreenFrameProvider
         {
             if (!frame.LogicalBounds.Contains(region.Value))
             {
-                return ScreenReadResult<ScreenFrame>.Failure(
+                return ScreenReadResultFactory.Failure<ScreenFrame>(
                     ScreenReadErrorKind.OutOfBounds,
                     $"Requested region {region.Value} is outside XDG Desktop Portal frame bounds {frame.LogicalBounds}.");
             }
 
-            return ScreenReadResult<ScreenFrame>.Success(LinuxScreenFrameProviderResults.CopyRegion(
+            return ScreenReadResultFactory.Success<ScreenFrame>(LinuxScreenFrameProviderResults.CopyRegion(
                 frame.LogicalBounds,
                 frame.Stride,
                 frame.PixelFormat,

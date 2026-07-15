@@ -276,9 +276,9 @@ public sealed class PortalScreenCastCaptureTests
         Assert.True(session.PipeWireRemote.IsClosed);
     }
 
-    private static PortalStream Stream(uint nodeId, string id, int x, int y, int width, int height)
+    private static PortalStreamDescriptor Stream(uint nodeId, string id, int x, int y, int width, int height)
     {
-        return new PortalStream(nodeId, new Dictionary<string, object>
+        return new PortalStreamDescriptor(nodeId, new Dictionary<string, object>
         {
             ["source_type"] = 1U,
             ["id"] = id,

@@ -12,12 +12,13 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     private readonly ILocalizationService _localizationService;
     private readonly IWindowManager? _windowManager;
     private readonly IManageTrigger? _manageTrigger;
-    private TriggerTask? _selectedTask;
+    private TriggerTaskEditor? _selectedTask;
+    private readonly Dictionary<Guid, TriggerTaskEditor> _editors = [];
     private IReadOnlyList<ProfileInfo> _availableProfiles = [];
     private bool _isRefreshingWindows;
     private bool _disposed;
 
-    public ObservableCollection<TriggerTask> Tasks => _triggerService.Tasks;
+    public ObservableCollection<TriggerTaskEditor> Tasks { get; } = [];
 
     public ILocalizationService LocalizationService => _localizationService;
 
@@ -73,7 +74,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
     public bool IsMonitoring => _triggerService.IsMonitoring;
 
-    public TriggerTask? SelectedTask
+    public TriggerTaskEditor? SelectedTask
     {
         get => _selectedTask;
         set
@@ -90,26 +91,26 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
                 {
                     _selectedTask.PropertyChanged += OnSelectedTaskPropertyChanged;
                 }
-                 AvailableWindowValues.Clear();
-                 OnPropertyChanged();
-                 OnPropertyChanged(nameof(HasSelectedTask));
-                 OnPropertyChanged(nameof(SelectedLastTriggeredText));
-                 OnPropertyChanged(nameof(SelectedStatusText));
-                 OnSelectedTaskStatusChanged();
-                 RefreshWindowsCommand.NotifyCanExecuteChanged();
-             }
+                AvailableWindowValues.Clear();
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(HasSelectedTask));
+                OnPropertyChanged(nameof(SelectedLastTriggeredText));
+                OnPropertyChanged(nameof(SelectedStatusText));
+                OnSelectedTaskStatusChanged();
+                RefreshWindowsCommand.NotifyCanExecuteChanged();
+            }
         }
     }
 
     private void OnSelectedTaskPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(TriggerTask.LastTriggeredTime) or nameof(TriggerTask.LastStatus))
+        if (e.PropertyName is nameof(TriggerTaskEditor.LastTriggeredTime) or nameof(TriggerTaskEditor.LastStatus))
         {
             RaiseOnUiThread(OnSelectedTaskStatusChanged);
         }
 
         // When the field changes, the previously fetched window values no longer apply.
-        if (string.Equals(e.PropertyName, nameof(TriggerTask.Field), StringComparison.Ordinal))
+        if (string.Equals(e.PropertyName, nameof(TriggerTaskEditor.Field), StringComparison.Ordinal))
         {
             RaiseOnUiThread(() =>
             {
@@ -130,7 +131,10 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         get
         {
             if (SelectedTask is null || string.IsNullOrEmpty(SelectedTask.TargetProfileId) || _profileManager is null)
+            {
                 return null;
+            }
+
             return AvailableProfiles.FirstOrDefault(p => string.Equals(p.Id, SelectedTask.TargetProfileId, StringComparison.Ordinal));
         }
         set
@@ -199,14 +203,14 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            await _triggerService.LoadAsync();
+            await _triggerService.LoadAsync().ConfigureAwait(false);
             RefreshProfileData();
             _triggerService.Start();
             OnPropertyChanged(nameof(IsMonitoring));
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[TriggerViewModel] Failed to initialize triggers");
+            Log.LogError(ex, "[TriggerViewModel] Failed to initialize triggers");
             RaiseStatus(string.Format(
                 _localizationService.CurrentCulture,
                 _localizationService["Trigger_StatusInitFailed"],
@@ -220,6 +224,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         {
             AvailableProfiles = _profileManager.Profiles.ToArray();
         }
+        RemapEditors();
         SelectedTask = Tasks.FirstOrDefault();
         OnPropertyChanged(nameof(Tasks));
         OnPropertyChanged(nameof(TaskCountText));
@@ -240,34 +245,41 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         };
         if (_manageTrigger is not null)
         {
-            await _manageTrigger.AddAsync(task);
+            await _manageTrigger.AddAsync(task).ConfigureAwait(false);
         }
         else
         {
             _triggerService.AddTask(task);
         }
-        SelectedTask = task;
+        RemapEditors();
+        SelectedTask = _editors[task.Id];
         OnPropertyChanged(nameof(TaskCountText));
     }
 
     [RelayCommand]
-    private async Task RemoveTaskAsync(TriggerTask? task)
+    private async Task RemoveTaskAsync(TriggerTaskEditor? task)
     {
-        if (task is null) return;
+        if (task is null)
+        {
+            return;
+        }
 
         var confirmed = await _dialogService.ShowConfirmationAsync(
             _localizationService["Trigger_DeleteTitle"],
             string.Format(
                 _localizationService.CurrentCulture,
                 _localizationService["Trigger_DeleteMessage"],
-                task.Name));
+                task.Name)).ConfigureAwait(false);
 
-        if (!confirmed) return;
+        if (!confirmed)
+        {
+            return;
+        }
 
         if (_manageTrigger is not null)
         {
             var selectedTaskId = SelectedTask?.Id;
-            await _manageTrigger.RemoveAsync(new TaskRequest(task.Id));
+            await _manageTrigger.RemoveAsync(new TaskRequest(task.Id)).ConfigureAwait(false);
             SelectedTask = selectedTaskId is Guid id
                 ? Tasks.FirstOrDefault(candidate => candidate.Id == id) ?? Tasks.FirstOrDefault()
                 : Tasks.FirstOrDefault();
@@ -283,16 +295,16 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         }
         await SaveChangesAsync(showSuccessStatus: false, rollback: () =>
         {
-            _triggerService.AddTask(task);
+            _triggerService.AddTask(task.ToCore());
             if (wasSelected)
             {
                 SelectedTask = task;
             }
-        });
+        }).ConfigureAwait(false);
     }
 
     [RelayCommand]
-    private void SelectTask(TriggerTask? task)
+    private void SelectTask(TriggerTaskEditor? task)
     {
         if (task is not null)
         {
@@ -303,13 +315,16 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task SaveAsync()
     {
-        await SaveChangesAsync(showSuccessStatus: true);
+        await SaveChangesAsync(showSuccessStatus: true).ConfigureAwait(false);
     }
 
     [RelayCommand]
     private async Task BrowseMacroAsync()
     {
-        if (SelectedTask is null) return;
+        if (SelectedTask is null)
+        {
+            return;
+        }
 
         var filters = new FileDialogFilter[]
         {
@@ -318,7 +333,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
         var filePath = await _dialogService.ShowOpenFileDialogAsync(
             _localizationService["Trigger_OpenMacroDialogTitle"],
-            filters);
+            filters).ConfigureAwait(false);
 
         if (!string.IsNullOrEmpty(filePath) && SelectedTask is not null)
         {
@@ -330,7 +345,10 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     [RelayCommand(CanExecute = nameof(CanRefreshWindows))]
     private async Task RefreshWindowsAsync()
     {
-        if (SelectedTask is null || _windowManager is null) return;
+        if (SelectedTask is null || _windowManager is null)
+        {
+            return;
+        }
 
         IsRefreshingWindows = true;
         try
@@ -341,11 +359,11 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
             var field = SelectedTask.Field;
             IEnumerable<string> values = field switch
             {
-                TriggerField.WindowClass  => windows.Select(w => w.Class),
-                TriggerField.WindowTitle  => windows.Select(w => w.Title),
-                TriggerField.Workspace    => windows.Select(w => w.Workspace),
-                TriggerField.ProcessName  => windows.Select(w => w.ProcessName),
-                _                         => [],
+                TriggerField.WindowClass => windows.Select(w => w.Class),
+                TriggerField.WindowTitle => windows.Select(w => w.Title),
+                TriggerField.Workspace => windows.Select(w => w.Workspace),
+                TriggerField.ProcessName => windows.Select(w => w.ProcessName),
+                _ => [],
             };
 
             var distinct = values
@@ -356,7 +374,9 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
             AvailableWindowValues.Clear();
             foreach (var v in distinct)
+            {
                 AvailableWindowValues.Add(v);
+            }
         }
         catch (Exception ex)
         {
@@ -376,11 +396,12 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         {
             if (_manageTrigger is not null && SelectedTask is not null)
             {
-                await _manageTrigger.UpdateAsync(SelectedTask);
+                await _manageTrigger.UpdateAsync(SelectedTask.ToCore()).ConfigureAwait(false);
             }
-            else
+            else if (_manageTrigger is null && SelectedTask is not null)
             {
-                await _triggerService.SaveAsync();
+                SelectedTask.ApplyToCore(_triggerService.Tasks.First(t => t.Id == SelectedTask.Id));
+                await _triggerService.SaveAsync().ConfigureAwait(false);
             }
             if (showSuccessStatus)
             {
@@ -389,8 +410,9 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
+            SelectedTask?.Rollback();
             rollback?.Invoke();
-            Log.Error(ex, "[TriggerViewModel] Failed to save trigger tasks");
+            Log.LogError(ex, "[TriggerViewModel] Failed to save trigger tasks");
             var status = string.Format(
                 _localizationService.CurrentCulture,
                 _localizationService["Trigger_StatusSaveFailed"],
@@ -398,7 +420,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
             RaiseStatus(status);
             try
             {
-                await _dialogService.ShowMessageAsync(_localizationService["Trigger_SaveFailedTitle"], status);
+                await _dialogService.ShowMessageAsync(_localizationService["Trigger_SaveFailedTitle"], status).ConfigureAwait(false);
             }
             catch (Exception dialogEx)
             {
@@ -408,7 +430,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private async Task TaskEnabledChangedAsync(TriggerTask task)
+    private async Task TaskEnabledChangedAsync(TriggerTaskEditor task)
     {
         var previousEnabled = !task.IsEnabled;
         if (_manageTrigger is not null)
@@ -416,7 +438,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
             var selectedTaskId = SelectedTask?.Id;
             try
             {
-                await _manageTrigger.SetEnabledAsync(new TaskRequest(task.Id, task.IsEnabled));
+                await _manageTrigger.SetEnabledAsync(new TaskRequest(task.Id, task.IsEnabled)).ConfigureAwait(false);
             }
             finally
             {
@@ -431,7 +453,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         {
             _triggerService.SetTaskEnabled(task.Id, task.IsEnabled);
         }
-        await SaveChangesAsync(showSuccessStatus: false, rollback: () => _triggerService.SetTaskEnabled(task.Id, previousEnabled));
+        await SaveChangesAsync(showSuccessStatus: false, rollback: () => _triggerService.SetTaskEnabled(task.Id, previousEnabled)).ConfigureAwait(false);
     }
 
     private void OnTriggerFired(object? sender, TriggerFiredEventArgs e)
@@ -453,13 +475,16 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
             if (SelectedTask?.Id == e.Task.Id)
             {
-                OnPropertyChanged(nameof(SelectedTask));
+                if (_editors.TryGetValue(e.Task.Id, out var editor))
+                {
+                    editor.SyncRuntimeStatus(e.Task.LastTriggeredTime, e.Task.LastStatus);
+                }
                 OnSelectedTaskStatusChanged();
             }
         });
     }
 
-    private void OnProfileChanged(object? sender, ProfileInfo profile)
+    private void OnProfileChanged(object? sender, ProfileChangedEventArgs e)
     {
         Dispatcher.UIThread.Post(RefreshProfileData);
     }
@@ -472,7 +497,31 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
     private void OnTasksCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        RemapEditors();
         OnPropertyChanged(nameof(TaskCountText));
+    }
+
+    private void RemapEditors()
+    {
+        var current = _triggerService.Tasks.ToDictionary(task => task.Id);
+        foreach (var task in _triggerService.Tasks)
+        {
+            if (!_editors.TryGetValue(task.Id, out var editor))
+            {
+                editor = new TriggerTaskEditor();
+                _editors[task.Id] = editor;
+            }
+            editor.Load(task);
+            if (!Tasks.Contains(editor))
+            {
+                Tasks.Add(editor);
+            }
+        }
+        foreach (var editor in Tasks.Where(editor => !current.ContainsKey(editor.Id)).ToArray())
+        {
+            Tasks.Remove(editor);
+            _editors.Remove(editor.Id);
+        }
     }
 
     private static void RaiseOnUiThread(Action action)
@@ -506,7 +555,11 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
+
         _disposed = true;
 
         _triggerService.TriggerFired -= OnTriggerFired;

@@ -67,7 +67,7 @@ internal sealed class DesktopStartupRuntimeService
                 var textExpansionService = getTextExpansionService();
                 if (textExpansionService.IsRunning)
                 {
-                    textExpansionService.Stop();
+        textExpansionService.StopExpansion();
                 }
 
                 return Task.CompletedTask;
@@ -92,7 +92,7 @@ internal sealed class DesktopStartupRuntimeService
         var inputSimulatorPool = _getInputSimulatorPool();
         if (inputSimulatorPool is not null)
         {
-            _warmupTasks.Add(_inputSimulatorWarmupService.WarmUpAsync(
+            _warmupTasks.Add(InputSimulatorWarmupService.WarmUpAsync(
                 inputSimulatorPool,
                 _getPositionProvider(),
                 _warmupCancellation.Token));
@@ -103,7 +103,7 @@ internal sealed class DesktopStartupRuntimeService
         trayIconService.SetEnabled(startupPreferences.ShouldEnableTrayDuringStartup);
         mainWindowViewModel.TrayIconEnabledChanged += (_, enabled) => trayIconService.SetEnabled(enabled);
 
-        var displayMode = ConfigureMainWindow(desktop, mainWindow, startupPreferences, trayIconService);
+        var displayMode = DesktopStartupRuntimeService.ConfigureMainWindow(desktop, mainWindow, startupPreferences, trayIconService);
         ShowWindowForStartup(mainWindow, displayMode);
 
         if (_screenReadingWarmup is not null)
@@ -198,7 +198,7 @@ internal sealed class DesktopStartupRuntimeService
         _desktopLifetimeContext.SetMainWindow(mainWindow);
     }
 
-    internal DesktopStartupDisplayMode ConfigureMainWindow(
+    internal static DesktopStartupDisplayMode ConfigureMainWindow(
         IClassicDesktopStyleApplicationLifetime desktop,
         Window mainWindow,
         DesktopStartupPreferences startupPreferences,
@@ -208,7 +208,7 @@ internal sealed class DesktopStartupRuntimeService
         ArgumentNullException.ThrowIfNull(mainWindow);
         ArgumentNullException.ThrowIfNull(trayIconService);
 
-        var plan = CreateDisplayPlan(startupPreferences, trayIconService.IsAvailable);
+        var plan = DesktopStartupRuntimeService.CreateDisplayPlan(startupPreferences, trayIconService.IsAvailable);
 
         mainWindow.ShowInTaskbar = plan.ShowInTaskbar;
         mainWindow.ShowActivated = plan.ShowActivated;
@@ -236,7 +236,7 @@ internal sealed class DesktopStartupRuntimeService
         return plan.DisplayMode;
     }
 
-    internal DesktopStartupDisplayPlan CreateDisplayPlan(
+    internal static DesktopStartupDisplayPlan CreateDisplayPlan(
         DesktopStartupPreferences startupPreferences,
         bool trayAvailable)
     {

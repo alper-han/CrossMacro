@@ -37,7 +37,11 @@ internal static class TextExpansionCommandParser
         {
             if (TryHandleOption(args, ref i, "text-expansion.list", state, out var optionResult))
             {
-                if (optionResult is not null) return optionResult;
+                if (optionResult is not null)
+                {
+                    return optionResult;
+                }
+
                 continue;
             }
 
@@ -56,7 +60,11 @@ internal static class TextExpansionCommandParser
         {
             if (TryHandleOption(args, ref i, "text-expansion.add", state, out var optionResult))
             {
-                if (optionResult is not null) return optionResult;
+                if (optionResult is not null)
+                {
+                    return optionResult;
+                }
+
                 continue;
             }
 
@@ -108,7 +116,11 @@ internal static class TextExpansionCommandParser
         {
             if (TryHandleOption(args, ref i, helpTopic, state, out var optionResult))
             {
-                if (optionResult is not null) return optionResult;
+                if (optionResult is not null)
+                {
+                    return optionResult;
+                }
+
                 continue;
             }
 

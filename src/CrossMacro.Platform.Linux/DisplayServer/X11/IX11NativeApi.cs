@@ -3,13 +3,13 @@ namespace CrossMacro.Platform.Linux.DisplayServer.X11;
 
 internal interface IX11NativeApi
 {
-    IntPtr OpenDisplay(string? display);
+    public IntPtr OpenDisplay(string? display);
 
-    int CloseDisplay(IntPtr display);
+    public int CloseDisplay(IntPtr display);
 
-    IntPtr DefaultRootWindow(IntPtr display);
+    public IntPtr DefaultRootWindow(IntPtr display);
 
-    int GetGeometry(
+    public int GetGeometry(
         IntPtr display,
         IntPtr drawable,
         out IntPtr root,
@@ -20,7 +20,7 @@ internal interface IX11NativeApi
         out uint borderWidth,
         out uint depth);
 
-    IntPtr GetImage(
+    public IntPtr GetImage(
         IntPtr display,
         IntPtr drawable,
         int x,
@@ -30,9 +30,9 @@ internal interface IX11NativeApi
         UIntPtr planeMask,
         int format);
 
-    UIntPtr GetPixel(IntPtr ximage, int x, int y);
+    public UIntPtr GetPixel(IntPtr ximage, int x, int y);
 
-    int DestroyImage(IntPtr ximage);
+    public int DestroyImage(IntPtr ximage);
 
-    XImage ReadImage(IntPtr ximage);
+    public XImage ReadImage(IntPtr ximage);
 }

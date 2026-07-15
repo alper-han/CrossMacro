@@ -29,11 +29,11 @@ public partial class EditorViewModel
         try
         {
             using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var result = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token);
+            var result = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token).ConfigureAwait(false);
 
             await RunOnUiThreadAsync(() =>
             {
-                if (!result.HasValue)
+                if (result is null)
                 {
                     Status = Localize("Editor_StatusCaptureCancelled");
                     return;
@@ -64,7 +64,7 @@ public partial class EditorViewModel
                 }
 
                 Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCapturedPosition"), result.Value.X, result.Value.Y);
-            });
+            }).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -91,11 +91,11 @@ public partial class EditorViewModel
         try
         {
             using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var result = await _captureService.CaptureKeyCodeAsync(cancellationTokenSource.Token);
+            var result = await _captureService.CaptureKeyCodeAsync(cancellationTokenSource.Token).ConfigureAwait(false);
 
             await RunOnUiThreadAsync(() =>
             {
-                if (!result.HasValue)
+                if (result is null)
                 {
                     Status = Localize("Editor_StatusCaptureCancelled");
                     return;
@@ -110,7 +110,7 @@ public partial class EditorViewModel
                 targetAction.KeyCode = result.Value;
                 targetAction.KeyName = _keyCodeMapper.GetKeyName(result.Value);
                 Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCapturedKey"), targetAction.KeyName, result.Value);
-            });
+            }).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -149,11 +149,11 @@ public partial class EditorViewModel
         try
         {
             using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var positionResult = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token);
+            var positionResult = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token).ConfigureAwait(false);
 
-            if (!positionResult.HasValue)
+            if (positionResult is null)
             {
-                await RunOnUiThreadAsync(() => Status = Localize("Editor_StatusCaptureCancelled"));
+                await RunOnUiThreadAsync(() => Status = Localize("Editor_StatusCaptureCancelled")).ConfigureAwait(false);
                 return;
             }
 
@@ -165,7 +165,7 @@ public partial class EditorViewModel
                 {
                     Status = Localize("Editor_StatusCaptureSelectionChanged");
                 }
-            });
+            }).ConfigureAwait(false);
 
             if (selectionChanged)
             {
@@ -173,7 +173,7 @@ public partial class EditorViewModel
             }
 
             var point = new ScreenPoint(positionResult.Value.X, positionResult.Value.Y);
-            var pixelResult = await screenPixelReader.GetPixelAsync(point, new ScreenReadOptions(cancellationToken: cancellationTokenSource.Token));
+            var pixelResult = await screenPixelReader.GetPixelAsync(point, new ScreenReadOptions(cancellationToken: cancellationTokenSource.Token)).ConfigureAwait(false);
 
             await RunOnUiThreadAsync(() =>
             {
@@ -200,7 +200,7 @@ public partial class EditorViewModel
                     targetAction.ScreenColorHex,
                     positionResult.Value.X,
                     positionResult.Value.Y);
-            });
+            }).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -258,11 +258,11 @@ public partial class EditorViewModel
         try
         {
             using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var positionResult = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token);
+            var positionResult = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token).ConfigureAwait(false);
 
-            if (!positionResult.HasValue)
+            if (positionResult is null)
             {
-                await RunOnUiThreadAsync(() => Status = Localize("Editor_StatusCaptureCancelled"));
+                await RunOnUiThreadAsync(() => Status = Localize("Editor_StatusCaptureCancelled")).ConfigureAwait(false);
                 return;
             }
 
@@ -282,7 +282,7 @@ public partial class EditorViewModel
                 }
 
                 canReadPixel = true;
-            });
+            }).ConfigureAwait(false);
 
             if (!canReadPixel)
             {
@@ -290,7 +290,7 @@ public partial class EditorViewModel
             }
 
             var point = new ScreenPoint(positionResult.Value.X, positionResult.Value.Y);
-            var pixelResult = await screenPixelReader.GetPixelAsync(point, new ScreenReadOptions(cancellationToken: cancellationTokenSource.Token));
+            var pixelResult = await screenPixelReader.GetPixelAsync(point, new ScreenReadOptions(cancellationToken: cancellationTokenSource.Token)).ConfigureAwait(false);
 
             await RunOnUiThreadAsync(() =>
             {
@@ -323,7 +323,7 @@ public partial class EditorViewModel
                     color,
                     positionResult.Value.X,
                     positionResult.Value.Y);
-            });
+            }).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -455,11 +455,11 @@ public partial class EditorViewModel
         try
         {
             using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var result = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token);
+            var result = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token).ConfigureAwait(false);
 
             await RunOnUiThreadAsync(() =>
             {
-                if (!result.HasValue)
+                if (result is null)
                 {
                     Status = Localize("Editor_StatusCaptureCancelled");
                     return;
@@ -472,7 +472,7 @@ public partial class EditorViewModel
                 }
 
                 applyPoint(targetAction, result.Value.X, result.Value.Y);
-            });
+            }).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -505,11 +505,11 @@ public partial class EditorViewModel
         try
         {
             using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var result = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token);
+            var result = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token).ConfigureAwait(false);
 
             await RunOnUiThreadAsync(() =>
             {
-                if (!result.HasValue)
+                if (result is null)
                 {
                     Status = Localize("Editor_StatusCaptureCancelled");
                     return;
@@ -522,7 +522,7 @@ public partial class EditorViewModel
                 }
 
                 applyPoint(targetAction, result.Value.X, result.Value.Y);
-            });
+            }).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -543,7 +543,7 @@ public partial class EditorViewModel
     {
         return int.TryParse(token, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var value)
             ? value > 0
-            : token.StartsWith("$", StringComparison.Ordinal) && EditorActionScriptTokens.IsValidVariableName(token);
+            : token.StartsWith('$') && EditorActionScriptTokens.IsValidVariableName(token);
     }
 
     public void CancelCapture()
@@ -553,11 +553,11 @@ public partial class EditorViewModel
         Status = Localize("Editor_StatusCaptureCancelled");
     }
 
-private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
+    private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
     {
         if (Actions.Count is 0)
         {
-            await _dialogService.ShowMessageAsync(Localize("Editor_DialogTitleNoActions"), Localize("Editor_DialogMessageNoActions"));
+            await _dialogService.ShowMessageAsync(Localize("Editor_DialogTitleNoActions"), Localize("Editor_DialogMessageNoActions")).ConfigureAwait(false);
             return null;
         }
 
@@ -569,8 +569,8 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
         errors.AddRange(ValidateImageSearchAssets(normalizedActions));
         if (!isValid || errors.Count > 0)
         {
-            var errorMessage = $"{Localize("Editor_ValidationErrorHeader")}\n\n{string.Join("\n", errors.Select(error => $"• {error}"))}";
-            await _dialogService.ShowMessageAsync(Localize("Editor_DialogTitleValidationErrors"), errorMessage);
+            var errorMessage = $"{Localize("Editor_ValidationErrorHeader")}\n\n{string.Join('\n', errors.Select(error => $"• {error}"))}";
+            await _dialogService.ShowMessageAsync(Localize("Editor_DialogTitleValidationErrors"), errorMessage).ConfigureAwait(false);
             Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusValidationFailed"), errors.Count);
             return null;
         }
@@ -596,7 +596,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
             return null;
         }
 
-        sequence.Images = new Dictionary<string, string>(_imageAssets, StringComparer.Ordinal);
+        sequence.ReplaceImages(_imageAssets);
         return sequence;
     }
 
@@ -613,7 +613,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
 
             if (string.IsNullOrWhiteSpace(action.ImageAssetName) || !_imageAssets.ContainsKey(action.ImageAssetName))
             {
-                yield return $"Action {index} ({action.Type}): Image asset '{action.ImageAssetName}' is not imported.";
+                yield return string.Format(CultureInfo.InvariantCulture, "Action {0} ({1}): Image asset '{2}' is not imported.", index, action.Type, action.ImageAssetName);
             }
         }
     }
@@ -626,7 +626,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
         if (IsRunningTest)
         {
             _testPlaybackCts?.Cancel();
-            _macroPlayer.Stop();
+            _macroPlayer.StopPlayback();
             return;
         }
 
@@ -636,9 +636,11 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
             return;
         }
 
-        var sequence = await BuildValidMacroSequenceAsync();
+        var sequence = await BuildValidMacroSequenceAsync().ConfigureAwait(false);
         if (sequence is null)
+        {
             return;
+        }
 
         IsRunningTest = true;
         Status = Localize("Editor_StatusTestRunning");
@@ -646,11 +648,15 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
         try
         {
             var options = new CrossMacro.Core.Models.PlaybackOptions { Loop = false, RepeatCount = 1 };
-            await _macroPlayer.PlayAsync(sequence, options, _testPlaybackCts.Token);
+            await _macroPlayer.PlayAsync(sequence, options, _testPlaybackCts.Token).ConfigureAwait(false);
             if (!_testPlaybackCts.IsCancellationRequested)
+            {
                 Status = Localize("Editor_StatusTestComplete");
+            }
             else
+            {
                 Status = Localize("Editor_StatusTestCancelled");
+            }
         }
         catch (Exception ex)
         {
@@ -666,9 +672,11 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
 
     public async Task SaveMacroAsync()
     {
-        var sequence = await BuildValidMacroSequenceAsync();
+        var sequence = await BuildValidMacroSequenceAsync().ConfigureAwait(false);
         if (sequence is null)
+        {
             return;
+        }
 
         try
         {
@@ -680,7 +688,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
             var baseName = MacroName.EndsWith(MacroFileExtension, StringComparison.OrdinalIgnoreCase)
                 ? MacroName[..^MacroFileExtension.Length]
                 : MacroName;
-            var filePath = await _dialogService.ShowSaveFileDialogAsync(Localize("Editor_SaveDialogTitle"), $"{baseName}{MacroFileExtension}", filters);
+            var filePath = await _dialogService.ShowSaveFileDialogAsync(Localize("Editor_SaveDialogTitle"), $"{baseName}{MacroFileExtension}", filters).ConfigureAwait(false);
 
             if (string.IsNullOrEmpty(filePath))
             {
@@ -688,7 +696,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
                 return;
             }
 
-            await _fileManager.SaveAsync(sequence, filePath);
+            await _fileManager.SaveAsync(sequence, filePath).ConfigureAwait(false);
 
             Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusSaved"), Path.GetFileName(filePath));
             MacroCreated?.Invoke(this, new EditorMacroCreatedEventArgs(sequence, filePath));
@@ -726,7 +734,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
         var filePath = await _dialogService.ShowSaveFileDialogAsync(
             Localize("Editor_ScreenshotSaveDialogTitle"),
             defaultFileName,
-            filters);
+            filters).ConfigureAwait(false);
 
         if (!string.IsNullOrEmpty(filePath))
         {
@@ -741,7 +749,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
             new FileDialogFilter { Name = Localize("Editor_ImageAssetFileDialogName"), Extensions = new[] { "png" } },
         };
 
-        var filePath = await _dialogService.ShowOpenFileDialogAsync(Localize("Editor_ImageAssetImportDialogTitle"), filters);
+        var filePath = await _dialogService.ShowOpenFileDialogAsync(Localize("Editor_ImageAssetImportDialogTitle"), filters).ConfigureAwait(false);
         if (string.IsNullOrEmpty(filePath))
         {
             Status = Localize("Editor_StatusImageImportCancelled");
@@ -752,7 +760,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
         {
             var imageAssetCodec = _imageAssetCodec
                 ?? throw new InvalidOperationException("Image asset codec is not registered.");
-            using var frame = await imageAssetCodec.DecodeFileAsync(filePath);
+            using var frame = await imageAssetCodec.DecodeFileAsync(filePath).ConfigureAwait(false);
             using var encoded = new MemoryStream();
             imageAssetCodec.EncodePng(frame, encoded);
             var assetName = GenerateUniqueImageAssetName(Path.GetFileNameWithoutExtension(filePath));
@@ -780,7 +788,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
         var suffix = 2;
         while (_imageAssets.ContainsKey(candidate))
         {
-            candidate = $"{baseName}_{suffix}";
+            candidate = $"{baseName}_{suffix.ToString(CultureInfo.InvariantCulture)}";
             suffix++;
         }
 
@@ -814,7 +822,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
                 new FileDialogFilter { Name = Localize("Editor_MacroFileDialogName"), Extensions = new[] { MacroFileExtension.TrimStart('.') } },
             };
 
-            var filePath = await _dialogService.ShowOpenFileDialogAsync(Localize("Editor_LoadDialogTitle"), filters);
+            var filePath = await _dialogService.ShowOpenFileDialogAsync(Localize("Editor_LoadDialogTitle"), filters).ConfigureAwait(false);
 
             if (string.IsNullOrEmpty(filePath))
             {
@@ -822,7 +830,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
                 return;
             }
 
-            var sequence = await _fileManager.LoadAsync(filePath);
+            var sequence = await _fileManager.LoadAsync(filePath).ConfigureAwait(false);
             if (sequence is null)
             {
                 SetLoadWarnings(Array.Empty<EditorActionRestoreWarning>());

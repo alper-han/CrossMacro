@@ -41,7 +41,11 @@ internal static class ProfileCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, helpTopic, ref jsonOutput, ref logLevel, out var common))
             {
-                if (common is not null) return common;
+                if (common is not null)
+                {
+                    return common;
+                }
+
                 continue;
             }
 
@@ -60,7 +64,11 @@ internal static class ProfileCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, helpTopic, ref jsonOutput, ref logLevel, out var common))
             {
-                if (common is not null) return common;
+                if (common is not null)
+                {
+                    return common;
+                }
+
                 continue;
             }
 
@@ -95,7 +103,11 @@ internal static class ProfileCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "profile.rename", ref jsonOutput, ref logLevel, out var common))
             {
-                if (common is not null) return common;
+                if (common is not null)
+                {
+                    return common;
+                }
+
                 continue;
             }
 
@@ -140,7 +152,11 @@ internal static class ProfileCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "profile.delete", ref jsonOutput, ref logLevel, out var common))
             {
-                if (common is not null) return common;
+                if (common is not null)
+                {
+                    return common;
+                }
+
                 continue;
             }
 

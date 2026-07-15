@@ -198,7 +198,7 @@ internal sealed class WaylandWlrConnection : IDisposable
 
     private ScreenRect GetVirtualScreenBounds(ScreenRect? requestedRegion)
     {
-        if (requestedRegion.HasValue)
+        if (requestedRegion is not null)
         {
             return requestedRegion.Value;
         }
@@ -227,20 +227,16 @@ internal sealed class WaylandWlrConnection : IDisposable
 
     private List<WaylandOutputInfo> GetIntersectingOutputs(ScreenRect region)
     {
-        var outputs = new List<WaylandOutputInfo>();
-        foreach (var output in Registry.Outputs)
-        {
-            if (Intersect(output, region) != null)
-            {
-                outputs.Add(output);
-            }
-        }
+        var outputs = Registry.Outputs.Where(output => Intersect(output, region) != null).ToList();
         return outputs;
     }
 
     private static ScreenRect? Intersect(WaylandOutputInfo output, ScreenRect region)
     {
-        if (output.ModeWidth <= 0 || output.ModeHeight <= 0) return null;
+        if (output.ModeWidth <= 0 || output.ModeHeight <= 0)
+        {
+            return null;
+        }
 
         return WaylandScreenFrameComposer.Intersect(ToOutputBounds(output), region);
     }

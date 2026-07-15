@@ -44,4 +44,8 @@
     <TrimmerRootAssembly Include="Serilog.Sinks.Async" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="CrossMacro.UI.Tests" />
+  </ItemGroup>
+
 </Project>

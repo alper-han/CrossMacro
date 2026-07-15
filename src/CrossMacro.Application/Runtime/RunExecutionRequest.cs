@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Application.Runtime;
 
-public sealed record RunExecutionRequest(
+public sealed record class RunExecutionRequest(
     IReadOnlyList<RunScriptInputStep> Steps,
     double SpeedMultiplier = 1.0,
     int CountdownSeconds = 0,

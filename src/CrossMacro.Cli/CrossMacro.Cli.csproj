@@ -20,4 +20,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Serilog" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="CrossMacro.Cli.Tests" />
+  </ItemGroup>
 </Project>

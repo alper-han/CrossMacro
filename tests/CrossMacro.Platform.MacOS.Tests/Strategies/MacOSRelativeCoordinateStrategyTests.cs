@@ -9,20 +9,20 @@ public class MacOSRelativeCoordinateStrategyTests
         var strategy = new MacOSRelativeCoordinateStrategy(() => (100, 200));
         await strategy.InitializeAsync(CancellationToken.None);
 
-        strategy.ProcessPosition(new InputCaptureEventArgs
+        strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_X,
             Value = 115,
         });
-        strategy.ProcessPosition(new InputCaptureEventArgs
+        strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,
             Value = 190,
         });
 
-        var result = strategy.ProcessPosition(new InputCaptureEventArgs
+        var result = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.Sync,
         });
@@ -51,7 +51,7 @@ public class MacOSRelativeCoordinateStrategyTests
 
         MoveTo(strategy, 12, 15);
 
-        var result = strategy.ProcessPosition(new InputCaptureEventArgs
+        var result = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseButton,
             Code = InputEventCode.BTN_LEFT,
@@ -68,21 +68,21 @@ public class MacOSRelativeCoordinateStrategyTests
         var strategy = new MacOSRelativeCoordinateStrategy(() => (10, 10));
         await strategy.InitializeAsync(CancellationToken.None);
 
-        strategy.ProcessPosition(new InputCaptureEventArgs
+        strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_X,
             Value = 12,
         });
 
-        var buttonResult = strategy.ProcessPosition(new InputCaptureEventArgs
+        var buttonResult = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseButton,
             Code = InputEventCode.BTN_LEFT,
             Value = 1,
         });
 
-        strategy.ProcessPosition(new InputCaptureEventArgs
+        strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,
@@ -95,13 +95,13 @@ public class MacOSRelativeCoordinateStrategyTests
 
     private static void MoveTo(MacOSRelativeCoordinateStrategy strategy, int x, int y)
     {
-        strategy.ProcessPosition(new InputCaptureEventArgs
+        strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_X,
             Value = x,
         });
-        strategy.ProcessPosition(new InputCaptureEventArgs
+        strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,
@@ -111,7 +111,7 @@ public class MacOSRelativeCoordinateStrategyTests
 
     private static (int X, int Y) Sync(MacOSRelativeCoordinateStrategy strategy)
     {
-        return strategy.ProcessPosition(new InputCaptureEventArgs
+        return strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.Sync,
         });

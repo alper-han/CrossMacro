@@ -47,7 +47,9 @@ public sealed class SwayIpcClient : ISwayIpcClient
     public async Task<string?> SendRequestAsync(uint type, string payload = "", CancellationToken cancellationToken = default)
     {
         if (_disposed || !IsAvailable || _socketPath is null)
+        {
             return null;
+        }
 
         try
         {
@@ -59,7 +61,7 @@ public sealed class SwayIpcClient : ISwayIpcClient
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[SwayIpcClient] Failed to send IPC request");
+            Log.LogError(ex, "[SwayIpcClient] Failed to send IPC request");
             return null;
         }
     }
@@ -114,8 +116,6 @@ public sealed class SwayIpcClient : ISwayIpcClient
             }
 
             uint resLength = BitConverter.ToUInt32(resHeader, 6);
-            uint resType = BitConverter.ToUInt32(resHeader, 10);
-
             if (resLength == 0)
             {
                 return string.Empty;
@@ -167,7 +167,9 @@ public sealed class SwayIpcClient : ISwayIpcClient
     public void Dispose()
     {
         if (_disposed)
+        {
             return;
+        }
 
         _disposed = true;
         GC.SuppressFinalize(this);

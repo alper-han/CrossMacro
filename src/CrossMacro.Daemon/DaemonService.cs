@@ -49,7 +49,7 @@ public class DaemonService
             SystemdNotify.Ready();
             SystemdNotify.Status("Listening for client connections");
 
-            await RunAcceptLoopAsync(listeningSocket, token);
+            await RunAcceptLoopAsync(listeningSocket, token).ConfigureAwait(false);
         }
         finally
         {
@@ -80,7 +80,7 @@ public class DaemonService
         {
             try
             {
-                await AcceptAndRunSingleClientAsync(listeningSocket, token);
+                await AcceptAndRunSingleClientAsync(listeningSocket, token).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -97,17 +97,17 @@ public class DaemonService
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Accept failed");
+                Log.LogError(ex, "Accept failed");
             }
         }
     }
 
     private async Task AcceptAndRunSingleClientAsync(Socket listeningSocket, CancellationToken token)
     {
-        var client = await AcceptClientAsync(listeningSocket, token);
+        var client = await AcceptClientAsync(listeningSocket, token).ConfigureAwait(false);
         try
         {
-            await RunClientSessionAsync(client, token);
+            await RunClientSessionAsync(client, token).ConfigureAwait(false);
         }
         finally
         {
@@ -117,7 +117,7 @@ public class DaemonService
 
     private static async Task<Socket> AcceptClientAsync(Socket listeningSocket, CancellationToken token)
     {
-        return await listeningSocket.AcceptAsync(token);
+        return await listeningSocket.AcceptAsync(token).ConfigureAwait(false);
     }
 
     private async Task RunClientSessionAsync(Socket client, CancellationToken token)
@@ -126,7 +126,7 @@ public class DaemonService
 
         try
         {
-            var validationResult = await _security.ValidateConnectionAsync(client);
+            var validationResult = await _security.ValidateConnectionAsync(client).ConfigureAwait(false);
             if (validationResult is null)
             {
                 return;
@@ -135,7 +135,7 @@ public class DaemonService
             session = session.MarkValidated(validationResult.Value.Uid, validationResult.Value.Pid);
 
             var sessionHandler = _sessionHandlerFactory.Create();
-            await sessionHandler.RunAsync(client, session.Uid, session.Pid, token);
+            await sessionHandler.RunAsync(client, session.Uid, session.Pid, token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -143,7 +143,7 @@ public class DaemonService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Client session error");
+            Log.LogError(ex, "Client session error");
         }
         finally
         {
@@ -190,7 +190,7 @@ public class DaemonService
         {
             if (logOnSuccess)
             {
-                Log.Error(ex, "Failed to clean up socket on exit");
+                Log.LogError(ex, "Failed to clean up socket on exit");
                 return;
             }
 

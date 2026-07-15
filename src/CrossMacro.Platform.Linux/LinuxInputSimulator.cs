@@ -96,7 +96,7 @@ public class LinuxInputSimulator : IInputSimulator, IInputSimulatorCapabilities,
         {
             throw new ArgumentOutOfRangeException(
                 nameof(steps),
-                $"Simulation batch contains {steps.Length} events, exceeding the maximum of {IpcProtocol.MaxSimulationBatchEvents}.");
+                $"Simulation batch contains {steps.Length.ToString(CultureInfo.InvariantCulture)} events, exceeding the maximum of {IpcProtocol.MaxSimulationBatchEvents.ToString(CultureInfo.InvariantCulture)}.");
         }
 
         var device = _device ?? throw new InvalidOperationException("Linux input simulator must be initialized before simulating batches.");
@@ -104,11 +104,11 @@ public class LinuxInputSimulator : IInputSimulator, IInputSimulatorCapabilities,
 
         foreach (var step in steps)
         {
-            if (step.DelayAfterMs < 0 || step.DelayAfterMs > IpcProtocol.MaxSimulationBatchDelayMs)
+            if (step.DelayAfterMs is < 0 or > IpcProtocol.MaxSimulationBatchDelayMs)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(steps),
-                    $"Simulation batch delay {step.DelayAfterMs}ms is outside the allowed range 0-{IpcProtocol.MaxSimulationBatchDelayMs}ms.");
+                    $"Simulation batch delay {step.DelayAfterMs.ToString(CultureInfo.InvariantCulture)}ms is outside the allowed range 0-{IpcProtocol.MaxSimulationBatchDelayMs.ToString(CultureInfo.InvariantCulture)}ms.");
             }
 
             totalDelayMs += step.DelayAfterMs;
@@ -116,7 +116,7 @@ public class LinuxInputSimulator : IInputSimulator, IInputSimulatorCapabilities,
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(steps),
-                    $"Simulation batch total delay {totalDelayMs}ms exceeds the allowed maximum of {IpcProtocol.MaxSimulationBatchTotalDelayMs}ms.");
+                    $"Simulation batch total delay {totalDelayMs.ToString(CultureInfo.InvariantCulture)}ms exceeds the allowed maximum of {IpcProtocol.MaxSimulationBatchTotalDelayMs.ToString(CultureInfo.InvariantCulture)}ms.");
             }
 
         }
@@ -144,9 +144,6 @@ public class LinuxInputSimulator : IInputSimulator, IInputSimulatorCapabilities,
 
     private void ThrowIfDisposed()
     {
-        if (_disposed)
-        {
-            throw new ObjectDisposedException(nameof(LinuxInputSimulator));
-        }
+        ObjectDisposedException.ThrowIf(_disposed, this);
     }
 }

@@ -24,7 +24,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => new TestInputSimulator());
 
-        var expansion = new TextExpansion(":a", "replacement");
+        var expansion = new TextExpansionEntry(":a", "replacement");
 
         await executor.ExpandAsync(expansion);
         await restoreCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
@@ -47,7 +47,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(":a", "replacement");
+        var expansion = new TextExpansionEntry(":a", "replacement");
 
         await executor.ExpandAsync(expansion);
 
@@ -73,7 +73,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(":a", "replacement");
+        var expansion = new TextExpansionEntry(":a", "replacement");
 
         await executor.ExpandAsync(expansion);
 
@@ -109,7 +109,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => new TestInputSimulator());
 
-        var expansion = new TextExpansion(":a", "replacement");
+        var expansion = new TextExpansionEntry(":a", "replacement");
 
         await executor.ExpandAsync(expansion);
         await restoreCheckReached.Task.WaitAsync(TimeSpan.FromSeconds(2));
@@ -144,7 +144,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => new TestInputSimulator());
 
-        var expansion = new TextExpansion(":a", "replacement");
+        var expansion = new TextExpansionEntry(":a", "replacement");
 
         await executor.ExpandAsync(expansion);
         await restoreCheckReached.Task.WaitAsync(TimeSpan.FromSeconds(2));
@@ -164,7 +164,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(":a", "replacement");
+        var expansion = new TextExpansionEntry(":a", "replacement");
 
         await executor.ExpandAsync(expansion);
 
@@ -189,7 +189,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(":a", "replacement");
+        var expansion = new TextExpansionEntry(":a", "replacement");
 
         await executor.ExpandAsync(expansion);
 
@@ -216,7 +216,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        await executor.ExpandAsync(new TextExpansion(":a", "replacement"));
+        await executor.ExpandAsync(new TextExpansionEntry(":a", "replacement"));
 
         await clipboardService.Received(1).SetTextAsync("replacement", Arg.Any<CancellationToken>());
         Assert.Contains(InputEventCode.KEY_V, inputSimulator.PressedKeys);
@@ -242,7 +242,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(":a", "replacement");
+        var expansion = new TextExpansionEntry(":a", "replacement");
 
         await executor.ExpandAsync(expansion);
 
@@ -270,7 +270,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(":a", "replacement");
+        var expansion = new TextExpansionEntry(":a", "replacement");
 
         await executor.ExpandAsync(expansion);
 
@@ -299,7 +299,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(":emoji", "🙂");
+        var expansion = new TextExpansionEntry(":emoji", "🙂");
 
         await executor.ExpandAsync(expansion);
 
@@ -317,7 +317,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(":a", "replacement");
+        var expansion = new TextExpansionEntry(":a", "replacement");
 
         await executor.ExpandAsync(expansion);
 
@@ -337,7 +337,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(":a", "replacement");
+        var expansion = new TextExpansionEntry(":a", "replacement");
 
         await executor.ExpandAsync(expansion);
 
@@ -362,9 +362,9 @@ public class TextExpansionPrivacyTests
         var bufferState = Substitute.For<ITextBufferState>();
         var executor = Substitute.For<ITextExpansionExecutor>();
 
-        var match = new TextExpansion(trigger, replacement);
-        storageService.GetCurrent().Returns(new List<TextExpansion> { match });
-        bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansion>>(), out Arg.Any<TextExpansion?>())
+        var match = new TextExpansionEntry(trigger, replacement);
+        storageService.GetCurrent().Returns(new List<TextExpansionEntry> { match });
+        bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansionEntry>>(), out Arg.Any<TextExpansionEntry?>())
             .Returns(callInfo =>
             {
                 callInfo[1] = match;
@@ -426,7 +426,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => new TestInputSimulator());
 
-        var expansion = new TextExpansion(":a", replacement);
+        var expansion = new TextExpansionEntry(":a", replacement);
 
         var originalLogger = Log.Logger;
         var sink = new TestSink();
@@ -464,7 +464,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(
+        var expansion = new TextExpansionEntry(
             ":a",
             "typed",
             method: PasteMethod.CtrlShiftV,
@@ -493,7 +493,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(
+        var expansion = new TextExpansionEntry(
             ":emoji",
             "🙂",
             insertionMode: TextInsertionMode.DirectTyping);
@@ -521,7 +521,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(
+        var expansion = new TextExpansionEntry(
             ":ascii",
             "typed",
             insertionMode: TextInsertionMode.DirectTyping);
@@ -549,7 +549,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(":emoji", "🙂");
+        var expansion = new TextExpansionEntry(":emoji", "🙂");
 
         await executor.ExpandAsync(expansion);
 
@@ -583,7 +583,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(":emoji", "🙂", insertionMode: TextInsertionMode.DirectTyping);
+        var expansion = new TextExpansionEntry(":emoji", "🙂", insertionMode: TextInsertionMode.DirectTyping);
 
         await executor.ExpandAsync(expansion);
 
@@ -622,7 +622,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(":emoji", "🙂", insertionMode: TextInsertionMode.DirectTyping);
+        var expansion = new TextExpansionEntry(":emoji", "🙂", insertionMode: TextInsertionMode.DirectTyping);
 
         await executor.ExpandAsync(expansion);
 
@@ -655,7 +655,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(":emoji", "🙂", insertionMode: TextInsertionMode.DirectTyping);
+        var expansion = new TextExpansionEntry(":emoji", "🙂", insertionMode: TextInsertionMode.DirectTyping);
 
         var logger = new TestCoreLogger();
         using var _ = CoreLogging.Log.PushLogger(logger);
@@ -690,7 +690,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(":abbr", "aB", insertionMode: TextInsertionMode.DirectTyping);
+        var expansion = new TextExpansionEntry(":abbr", "aB", insertionMode: TextInsertionMode.DirectTyping);
 
         await executor.ExpandAsync(expansion);
 
@@ -739,7 +739,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(
+        var expansion = new TextExpansionEntry(
             ":abbr",
             "aB",
             insertionMode: TextInsertionMode.DirectTyping,
@@ -768,7 +768,7 @@ public class TextExpansionPrivacyTests
             () => inputSimulator);
 
         var replacement = new string('a', 2049);
-        var expansion = new TextExpansion(":long", replacement, insertionMode: TextInsertionMode.DirectTyping);
+        var expansion = new TextExpansionEntry(":long", replacement, insertionMode: TextInsertionMode.DirectTyping);
 
         await executor.ExpandAsync(expansion);
 
@@ -792,7 +792,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(":emoji", "🙂", insertionMode: TextInsertionMode.DirectTyping);
+        var expansion = new TextExpansionEntry(":emoji", "🙂", insertionMode: TextInsertionMode.DirectTyping);
 
         await executor.ExpandAsync(expansion);
 
@@ -824,7 +824,7 @@ public class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        var expansion = new TextExpansion(":emoji", "🙂");
+        var expansion = new TextExpansionEntry(":emoji", "🙂");
 
         await executor.ExpandAsync(expansion);
 
@@ -871,10 +871,10 @@ public class TextExpansionPrivacyTests
         public void Warning(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
 
-        public void Error(string messageTemplate, params object?[] propertyValues) =>
+        public void LogError(string messageTemplate, params object?[] propertyValues) =>
             Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
 
-        public void Error(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+        public void LogError(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
 
         public void Fatal(string messageTemplate, params object?[] propertyValues) =>

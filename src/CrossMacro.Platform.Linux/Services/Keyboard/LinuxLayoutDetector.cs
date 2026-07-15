@@ -9,7 +9,8 @@ namespace CrossMacro.Platform.Linux.Services.Keyboard;
 /// </summary>
 public class LinuxLayoutDetector : ILinuxLayoutDetector
 {
-    private readonly IBusLayoutSource _ibusSource = new();
+    private static readonly string[] GnomeSourceTupleSeparators = ["), (", "),("];
+
     private readonly NiriLayoutSource _niriSource;
     private readonly bool _isHyprland;
     private readonly bool _isKde;
@@ -42,15 +43,25 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
         _isNiri = desktop.Contains("NIRI", StringComparison.Ordinal) || session.Contains("NIRI", StringComparison.Ordinal) || !string.IsNullOrEmpty(environment.NiriSocket);
 
         if (_isHyprland)
+        {
             Log.Information("[LayoutDetector] Environment: Hyprland");
+        }
         else if (_isKde)
+        {
             Log.Information("[LayoutDetector] Environment: KDE Plasma");
+        }
         else if (_isGnome)
+        {
             Log.Information("[LayoutDetector] Environment: GNOME");
+        }
         else if (_isNiri)
+        {
             Log.Information("[LayoutDetector] Environment: Niri");
+        }
         else
+        {
             Log.Information("[LayoutDetector] Environment: Generic (IBus primary)");
+        }
     }
 
     public string? DetectLayout()
@@ -62,7 +73,9 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
             {
                 var hyprLayout = DetectHyprlandLayout();
                 if (!string.IsNullOrWhiteSpace(hyprLayout))
+                {
                     return hyprLayout;
+                }
             }
 
             // 2. KDE DBus (IBus often not used on KDE)
@@ -70,7 +83,9 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
             {
                 var kdeLayout = DetectKdeLayout();
                 if (!string.IsNullOrWhiteSpace(kdeLayout))
+                {
                     return kdeLayout;
+                }
             }
 
             // 3. GNOME GSettings
@@ -78,7 +93,9 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
             {
                 var gnomeLayout = DetectGnomeLayout();
                 if (!string.IsNullOrWhiteSpace(gnomeLayout))
+                {
                     return gnomeLayout;
+                }
             }
 
             // 4. Niri IPC (IBus often not used on Niri)
@@ -86,30 +103,36 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
             {
                 var niriLayout = _niriSource.DetectLayout();
                 if (!string.IsNullOrWhiteSpace(niriLayout))
+                {
                     return niriLayout;
+                }
             }
 
             // 5. IBus (Works on GNOME, etc.)
-            var ibusLayout = _ibusSource.DetectLayout();
+            var ibusLayout = IBusLayoutSource.DetectLayout();
             if (!string.IsNullOrWhiteSpace(ibusLayout))
+            {
                 return ibusLayout;
+            }
 
             // 6. X11/XWayland fallback
             var x11Layout = DetectX11Layout();
             if (!string.IsNullOrWhiteSpace(x11Layout))
+            {
                 return x11Layout;
+            }
 
             // 7. System default
             return DetectLocalectlLayout();
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[LayoutDetector] Error detecting layout");
+            Log.LogError(ex, "[LayoutDetector] Error detecting layout");
             return "us";
         }
     }
 
-    private string? DetectKdeLayout()
+    private static string? DetectKdeLayout()
     {
         try
         {
@@ -148,19 +171,25 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
         return null;
     }
 
-    private string? DetectGnomeLayout()
+    private static string? DetectGnomeLayout()
     {
         try
         {
             var currentOutput = ProcessHelper.ExecuteCommand("gsettings", "get org.gnome.desktop.input-sources current")?.Trim() ?? "";
             var currentIndexStr = currentOutput.Split(' ', StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
-            if (!uint.TryParse(currentIndexStr, out var index)) index = 0;
+            if (!uint.TryParse(currentIndexStr, out var index))
+            {
+                index = 0;
+            }
 
             var sourcesOutput = ProcessHelper.ExecuteCommand("gsettings", "get org.gnome.desktop.input-sources sources")?.Trim() ?? "";
-            if (string.IsNullOrWhiteSpace(sourcesOutput) || sourcesOutput is "@as []") return null;
+            if (string.IsNullOrWhiteSpace(sourcesOutput) || string.Equals(sourcesOutput, "@as []", StringComparison.Ordinal))
+            {
+                return null;
+            }
 
             var content = sourcesOutput.Trim('[', ']');
-            var tuples = content.Split(new[] { "), (", "),(" }, StringSplitOptions.RemoveEmptyEntries);
+            var tuples = content.Split(GnomeSourceTupleSeparators, StringSplitOptions.RemoveEmptyEntries);
 
             if (index < (uint)tuples.Length)
             {
@@ -179,15 +208,21 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
         return null;
     }
 
-    private string? DetectHyprlandLayout()
+    private static string? DetectHyprlandLayout()
     {
         try
         {
             using var ipcClient = new HyprlandIpcClient();
-            if (!ipcClient.IsAvailable) return null;
+            if (!ipcClient.IsAvailable)
+            {
+                return null;
+            }
 
-            var json = ipcClient.SendCommandAsync("j/devices").GetAwaiter().GetResult();
-            if (string.IsNullOrWhiteSpace(json)) return null;
+            var json = ipcClient.SendCommandAsync("j/devices", CancellationToken.None).GetAwaiter().GetResult();
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return null;
+            }
 
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.TryGetProperty("keyboards", out var keyboards))
@@ -219,36 +254,42 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
         return null;
     }
 
-    private string? DetectX11Layout()
+    private static string? DetectX11Layout()
     {
         var output = ProcessHelper.ExecuteCommand("setxkbmap", "-query");
-        if (string.IsNullOrWhiteSpace(output)) return null;
-
-        foreach (var line in output.Split('\n'))
+        if (string.IsNullOrWhiteSpace(output))
         {
-            if (line.StartsWith("layout:", StringComparison.OrdinalIgnoreCase))
-            {
-                var parts = line.Split(':', StringSplitOptions.TrimEntries);
-                if (parts.Length > 1) return parts[1].Split(',')[0].Trim();
-            }
+            return null;
         }
-        return null;
+
+        var layoutLine = output.Split('\n')
+            .FirstOrDefault(line => line.StartsWith("layout:", StringComparison.OrdinalIgnoreCase));
+        if (layoutLine is null)
+        {
+            return null;
+        }
+
+        var parts = layoutLine.Split(':', StringSplitOptions.TrimEntries);
+        return parts.Length > 1 ? parts[1].Split(',')[0].Trim() : null;
     }
 
-    private string? DetectLocalectlLayout()
+    private static string? DetectLocalectlLayout()
     {
         var output = ProcessHelper.ExecuteCommand("localectl", "status");
-        if (string.IsNullOrWhiteSpace(output)) return null;
-
-        foreach (var line in output.Split('\n'))
+        if (string.IsNullOrWhiteSpace(output))
         {
-            if (line.Trim().StartsWith("X11 Layout:", StringComparison.OrdinalIgnoreCase))
-            {
-                var parts = line.Split(':', StringSplitOptions.TrimEntries);
-                if (parts.Length > 1) return parts[1].Split(',')[0].Trim();
-            }
+            return null;
         }
-        return null;
+
+        var layoutLine = output.Split('\n')
+            .FirstOrDefault(line => line.Trim().StartsWith("X11 Layout:", StringComparison.OrdinalIgnoreCase));
+        if (layoutLine is null)
+        {
+            return null;
+        }
+
+        var parts = layoutLine.Split(':', StringSplitOptions.TrimEntries);
+        return parts.Length > 1 ? parts[1].Split(',')[0].Trim() : null;
     }
 
 }

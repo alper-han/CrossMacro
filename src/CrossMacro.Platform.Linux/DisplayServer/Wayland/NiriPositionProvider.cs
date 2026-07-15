@@ -52,7 +52,7 @@ public sealed class NiriPositionProvider : IMousePositionProvider
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[NiriPositionProvider] Failed to get screen resolution");
+            Log.LogError(ex, "[NiriPositionProvider] Failed to get screen resolution");
             return null;
         }
     }
@@ -77,23 +77,17 @@ public sealed class NiriPositionProvider : IMousePositionProvider
                 return false;
             }
 
-            var hasOutput = false;
-            var minX = 0;
-            var minY = 0;
-            var maxX = 0;
-            var maxY = 0;
-
-            foreach (var outputProperty in outputsElement.EnumerateObject())
+            (int X, int Y, int Right, int Bottom)? TryGetOutputBounds(JsonProperty outputProperty)
             {
                 var output = outputProperty.Value;
                 if (output.ValueKind is not JsonValueKind.Object || !IsOutputEnabled(output))
                 {
-                    continue;
+                    return null;
                 }
 
                 if (!output.TryGetProperty("logical", out var logical) || logical.ValueKind is not JsonValueKind.Object)
                 {
-                    continue;
+                    return null;
                 }
 
                 if (!TryGetInt32(logical, "x", out var x) ||
@@ -101,29 +95,29 @@ public sealed class NiriPositionProvider : IMousePositionProvider
                     !TryGetPositiveInt32(logical, "width", out var logicalWidth) ||
                     !TryGetPositiveInt32(logical, "height", out var logicalHeight))
                 {
-                    continue;
+                    return null;
                 }
 
-                var right = x + logicalWidth;
-                var bottom = y + logicalHeight;
-
-                if (!hasOutput)
-                {
-                    minX = x;
-                    minY = y;
-                    maxX = right;
-                    maxY = bottom;
-                    hasOutput = true;
-                    continue;
-                }
-
-                minX = Math.Min(minX, x);
-                minY = Math.Min(minY, y);
-                maxX = Math.Max(maxX, right);
-                maxY = Math.Max(maxY, bottom);
+                return (x, y, x + logicalWidth, y + logicalHeight);
             }
 
-            if (!hasOutput || maxX <= minX || maxY <= minY)
+            var bounds = outputsElement.EnumerateObject()
+                .Select(TryGetOutputBounds)
+                .Where(b => b is not null)
+                .Cast<(int X, int Y, int Right, int Bottom)>()
+                .ToList();
+
+            if (bounds.Count == 0)
+            {
+                return false;
+            }
+
+            var minX = bounds.Min(b => b.X);
+            var minY = bounds.Min(b => b.Y);
+            var maxX = bounds.Max(b => b.Right);
+            var maxY = bounds.Max(b => b.Bottom);
+
+            if (maxX <= minX || maxY <= minY)
             {
                 return false;
             }

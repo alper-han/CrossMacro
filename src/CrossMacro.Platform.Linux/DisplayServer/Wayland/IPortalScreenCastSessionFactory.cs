@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 public interface IPortalScreenCastSessionFactory
 {
-    Task<PortalScreenCastSessionResult> StartSessionAsync(ScreenReadOptions options);
+    public Task<PortalScreenCastSessionResult> StartSessionAsync(ScreenReadOptions options);
 
-    Task<PortalScreenCastSessionResult> StartSessionAsync(ScreenRect? requestedRegion, ScreenReadOptions options);
+    public Task<PortalScreenCastSessionResult> StartSessionAsync(ScreenRect? requestedRegion, ScreenReadOptions options);
 }

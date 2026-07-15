@@ -291,8 +291,13 @@ public class ArchitectureBoundaryTests
         var capturePath = Path.Combine(GetRepositoryRoot(), "src/CrossMacro.UI/ViewModels/EditorViewModel.CaptureAndFileOps.cs");
         var editorSource = File.ReadAllText(editorPath);
         var captureSource = File.ReadAllText(capturePath);
+        var uiGlobalUsingsPath = Path.Combine(GetRepositoryRoot(), "src/CrossMacro.UI/GlobalUsings.cs");
+        var uiGlobalUsings = File.ReadAllText(uiGlobalUsingsPath);
 
-        Assert.Contains("CrossMacro.Platform.Abstractions", editorSource, StringComparison.Ordinal);
+        Assert.True(
+            editorSource.Contains("CrossMacro.Platform.Abstractions", StringComparison.Ordinal)
+                || uiGlobalUsings.Contains("global using CrossMacro.Platform.Abstractions", StringComparison.Ordinal),
+            "EditorViewModel must consume CrossMacro.Platform.Abstractions directly or through the UI project's global usings.");
         Assert.Contains("ICoordinateCaptureService", editorSource, StringComparison.Ordinal);
         Assert.DoesNotContain("CrossMacro.Infrastructure.Services.CoordinateCaptureService", editorSource, StringComparison.Ordinal);
         Assert.DoesNotContain("CrossMacro.Infrastructure.Services.CoordinateCaptureService", captureSource, StringComparison.Ordinal);
@@ -608,7 +613,11 @@ public class ArchitectureBoundaryTests
     {
         cells = [];
         var trimmed = line.Trim();
-        if (!trimmed.StartsWith('|') || !trimmed.EndsWith('|')) return false;
+        if (!trimmed.StartsWith('|') || !trimmed.EndsWith('|'))
+        {
+            return false;
+        }
+
         cells = trimmed[1..^1].Split('|').Select(cell => cell.Trim()).ToArray();
         return cells.Length is 5;
     }
@@ -673,6 +682,8 @@ public class ArchitectureBoundaryTests
         var directory = Path.Combine(root, relativeDirectory);
 
         return Directory.EnumerateFiles(directory, "*.cs", SearchOption.AllDirectories)
+            .Where(path => !path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                .Any(segment => segment is "obj" or "bin"))
             .OrderBy(path => path, StringComparer.Ordinal)
             .SelectMany(path => FindTextViolationsInFile(root, path, forbiddenPatterns))
             .ToArray();

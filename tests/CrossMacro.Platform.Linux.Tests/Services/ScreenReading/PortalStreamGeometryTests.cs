@@ -104,7 +104,7 @@ public sealed class PortalStreamGeometryTests
         Assert.Contains("cannot force GNOME portal", result.ErrorMessage, StringComparison.Ordinal);
     }
 
-    private static PortalStream Stream(
+    private static PortalStreamDescriptor Stream(
         uint nodeId,
         string? id = "monitor",
         uint sourceType = 1U,
@@ -130,6 +130,6 @@ public sealed class PortalStreamGeometryTests
             properties["id"] = id;
         }
 
-        return new PortalStream(nodeId, properties);
+        return new PortalStreamDescriptor(nodeId, properties);
     }
 }

@@ -34,7 +34,7 @@ public class SecurityService : ISecurityService, IDisposable
 
     public async Task<(uint Uid, int Pid)?> ValidateConnectionAsync(Socket client)
     {
-        var decision = await AuthorizeConnectionAsync(client);
+        var decision = await AuthorizeConnectionAsync(client).ConfigureAwait(false);
         if (!decision.IsAuthorized)
         {
             RejectConnection(client, decision);
@@ -176,7 +176,7 @@ public class SecurityService : ISecurityService, IDisposable
             return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "NOT_IN_GROUP");
         }
 
-        var polkitDecision = await AuthorizeWithPolkitAsync(uid, pid, executable);
+        var polkitDecision = await AuthorizeWithPolkitAsync(uid, pid, executable).ConfigureAwait(false);
         if (!polkitDecision.IsAuthorized)
         {
             return polkitDecision;
@@ -197,7 +197,7 @@ public class SecurityService : ISecurityService, IDisposable
         bool polkitAuthorized;
         try
         {
-            polkitAuthorized = await _polkitAuthorization.IsInputCaptureAuthorizedAsync(uid, pid);
+            polkitAuthorized = await _polkitAuthorization.IsInputCaptureAuthorizedAsync(uid, pid).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

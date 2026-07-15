@@ -101,7 +101,7 @@ internal sealed class MacOSCoreGraphicsNative : IMacOSCoreGraphicsNative
     {
         if (error is not CoreGraphics.CGError.Success)
         {
-            throw new BackendUnavailableException($"{operation} failed with CoreGraphics error {(int)error}.");
+            throw new BackendUnavailableException($"{operation} failed with CoreGraphics error {((int)error).ToString(CultureInfo.InvariantCulture)}.");
         }
     }
 }

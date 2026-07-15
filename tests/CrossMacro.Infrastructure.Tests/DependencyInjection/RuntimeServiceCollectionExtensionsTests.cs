@@ -24,7 +24,9 @@ public class RuntimeServiceCollectionExtensionsTests
         AssertImplementationRegistration<IHotkeyConfigurationService, HotkeyConfigurationService>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ISettingsService, SettingsService>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<HotkeySettings>(services, ServiceLifetime.Singleton);
-        AssertImplementationRegistration<ITimeProvider, SystemTimeProvider>(services, ServiceLifetime.Singleton);
+        services.Should().Contain(descriptor => descriptor.ServiceType == typeof(TimeProvider)
+            && descriptor.ImplementationInstance == TimeProvider.System
+            && descriptor.Lifetime == ServiceLifetime.Singleton);
         AssertFactoryRegistration<Func<ICoordinateStrategy, IInputEventProcessor>>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IMacroRecorder>(services, ServiceLifetime.Transient);
     }

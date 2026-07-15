@@ -4,7 +4,7 @@ namespace CrossMacro.Platform.Linux.Native.Evdev;
 public class EvdevReader : IDisposable
 {
     private readonly string _devicePath;
-    private readonly object _lifecycleLock = new();
+    private readonly Lock _lifecycleLock = new();
     private ReaderSession? _session;
     private bool _disposed;
     private bool _syncing;
@@ -37,12 +37,15 @@ public class EvdevReader : IDisposable
         lock (_lifecycleLock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_session is not null) return;
+            if (_session is not null)
+            {
+                return;
+            }
 
             int fd = EvdevNative.open(_devicePath, EvdevNative.O_RDONLY | EvdevNative.O_NONBLOCK);
             if (fd < 0)
             {
-                Log.Error("[EvdevReader] Failed to open device {Path} - Check permissions (need input group)", _devicePath);
+                Log.LogError("[EvdevReader] Failed to open device {Path} - Check permissions (need input group)", _devicePath);
                 throw new InvalidOperationException($"Failed to open device {_devicePath}. Check permissions (need input group).");
             }
 
@@ -62,7 +65,11 @@ public class EvdevReader : IDisposable
         lock (_lifecycleLock)
         {
             session = _session;
-            if (session is null) return;
+            if (session is null)
+            {
+                return;
+            }
+
             session.IsStopping = true;
             session.Cancellation.Cancel();
         }
@@ -76,6 +83,7 @@ public class EvdevReader : IDisposable
             }
             catch (AggregateException)
             {
+                // expected when the read loop throws during shutdown; we are tearing down anyway.
             }
         }
 
@@ -94,7 +102,9 @@ public class EvdevReader : IDisposable
             {
                 IntPtr bytesRead = EvdevNative.read(session.Fd, buffer, (IntPtr)eventSize);
                 if (token.IsCancellationRequested)
+                {
                     break;
+                }
 
                 if (bytesRead.ToInt64() == eventSize)
                 {
@@ -115,15 +125,22 @@ public class EvdevReader : IDisposable
                             _syncing = false;
                         }
                         if (!token.IsCancellationRequested)
+                        {
                             EventReceived?.Invoke(this, ev);
+                        }
+
                         continue;
                     }
 
                     if (_syncing)
+                    {
                         continue;
+                    }
 
                     if (!token.IsCancellationRequested)
+                    {
                         EventReceived?.Invoke(this, ev);
+                    }
                 }
                 else if (bytesRead.ToInt64() < 0)
                 {
@@ -145,7 +162,7 @@ public class EvdevReader : IDisposable
                         continue;
                     }
 
-                    throw new System.IO.IOException($"Read error: {errno}");
+                    throw new System.IO.IOException($"Read error: {errno.ToString(CultureInfo.InvariantCulture)}");
                 }
                 else if (bytesRead.ToInt64() == 0)
                 {
@@ -155,6 +172,7 @@ public class EvdevReader : IDisposable
         }
         catch (OperationCanceledException)
         {
+            // expected during stop — cancellation is the normal exit path.
         }
         catch (Exception ex)
         {
@@ -205,13 +223,17 @@ public class EvdevReader : IDisposable
             int bitIndex = keyCode % 8;
 
             if (byteIndex >= currentKeyState.Length)
+            {
                 continue;
+            }
 
             bool currentlyPressed = (currentKeyState[byteIndex] & (1 << bitIndex)) is not 0;
             bool wasPressed = (_lastKeyState[byteIndex] & (1 << bitIndex)) is not 0;
 
             if (token.IsCancellationRequested)
+            {
                 return;
+            }
 
             if (currentlyPressed != wasPressed)
             {
@@ -237,12 +259,16 @@ public class EvdevReader : IDisposable
             int bitIndex = keyCode % 8;
 
             if (byteIndex >= keyState.Length)
+            {
                 continue;
+            }
 
             bool pressed = (keyState[byteIndex] & (1 << bitIndex)) is not 0;
 
             if (token.IsCancellationRequested)
+            {
                 return;
+            }
 
             if (pressed)
             {
@@ -261,7 +287,11 @@ public class EvdevReader : IDisposable
     {
         lock (_lifecycleLock)
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
+
             _disposed = true;
         }
 

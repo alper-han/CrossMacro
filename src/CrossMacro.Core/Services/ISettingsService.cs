@@ -9,30 +9,30 @@ public interface ISettingsService
     /// <summary>
     /// Gets the current application settings
     /// </summary>
-    AppSettings Current { get; }
+    public AppSettings Current { get; }
 
     /// <summary>
     /// Loads settings from disk asynchronously
     /// </summary>
-    Task<AppSettings> LoadAsync();
+    public Task<AppSettings> LoadAsync();
 
     /// <summary>
     /// Loads settings from disk synchronously
     /// </summary>
-    AppSettings Load();
+    public AppSettings Load();
 
     /// <summary>
     /// Saves current settings to disk
     /// </summary>
-    Task SaveAsync();
+    public Task SaveAsync();
 
     /// <summary>
     /// Reloads profile-specific settings from a profile configuration directory.
     /// </summary>
-    Task ReloadAsync(string profileConfigDirectory) => Task.CompletedTask;
+    public Task ReloadAsync(string profileConfigDirectory) => Task.CompletedTask;
 
     /// <summary>
     /// Saves current settings to disk synchronously
     /// </summary>
-    void Save();
+    public void Save();
 }

@@ -1,5 +1,3 @@
-﻿namespace CrossMacro.UI.ViewModels;
+namespace CrossMacro.UI.ViewModels;
 
-public abstract class ViewModelBase : ObservableObject
-{
-}
+public abstract class ViewModelBase : ObservableObject;

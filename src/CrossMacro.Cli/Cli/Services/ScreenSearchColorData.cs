@@ -1,6 +1,6 @@
 namespace CrossMacro.Cli.Services;
 
-public sealed record ScreenSearchColorData(
+public sealed record class ScreenSearchColorData(
     bool Found,
     int? X,
     int? Y,

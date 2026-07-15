@@ -229,7 +229,7 @@ public class EditorActionDisplayFormatterTests
     [InlineData(WindowCommandMode.Center, "Center active window")]
     [InlineData(WindowCommandMode.Maximize, "Maximize active window")]
     [InlineData(WindowCommandMode.Fullscreen, "Fullscreen active window")]
-    [InlineData(WindowCommandMode.Float, "Float active window")]
+    [InlineData(WindowCommandMode.Floating, "Float active window")]
     [InlineData(WindowCommandMode.WorkspaceGet, "Get active workspace -> workspace")]
     [InlineData(WindowCommandMode.WorkspaceSwitch, "Switch to workspace 2")]
     [InlineData(WindowCommandMode.WorkspaceMoveActive, "Move active window to workspace 2")]

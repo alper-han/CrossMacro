@@ -39,15 +39,24 @@ internal sealed class XkbLayoutNameResolver
 
     public string? TryResolveLayoutCode(string layoutName)
     {
-        if (string.IsNullOrWhiteSpace(layoutName)) return null;
+        if (string.IsNullOrWhiteSpace(layoutName))
+        {
+            return null;
+        }
 
         var normalizedLayoutCode = NormalizeLayoutCode(layoutName);
-        if (!string.IsNullOrWhiteSpace(normalizedLayoutCode)) return normalizedLayoutCode;
+        if (!string.IsNullOrWhiteSpace(normalizedLayoutCode))
+        {
+            return normalizedLayoutCode;
+        }
 
         foreach (var rulesPath in _rulesPaths)
         {
             var layout = TryResolveFromRulesFile(layoutName, rulesPath);
-            if (!string.IsNullOrWhiteSpace(layout)) return layout;
+            if (!string.IsNullOrWhiteSpace(layout))
+            {
+                return layout;
+            }
         }
 
         return KnownLayoutNames.TryGetValue(layoutName.Trim(), out var knownLayout)
@@ -57,7 +66,10 @@ internal sealed class XkbLayoutNameResolver
 
     internal static string? TryResolveFromRulesFile(string layoutName, string rulesPath)
     {
-        if (string.IsNullOrWhiteSpace(layoutName) || !File.Exists(rulesPath)) return null;
+        if (string.IsNullOrWhiteSpace(layoutName) || !File.Exists(rulesPath))
+        {
+            return null;
+        }
 
         try
         {
@@ -65,7 +77,10 @@ internal sealed class XkbLayoutNameResolver
             foreach (var layoutElement in document.Descendants("layout"))
             {
                 var layoutCode = layoutElement.Element("configItem")?.Element("name")?.Value;
-                if (string.IsNullOrWhiteSpace(layoutCode)) continue;
+                if (string.IsNullOrWhiteSpace(layoutCode))
+                {
+                    continue;
+                }
 
                 var layoutDescription = layoutElement.Element("configItem")?.Element("description")?.Value;
                 if (string.Equals(layoutDescription, layoutName, StringComparison.OrdinalIgnoreCase))

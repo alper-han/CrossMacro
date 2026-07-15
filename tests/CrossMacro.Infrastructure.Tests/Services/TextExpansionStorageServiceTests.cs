@@ -115,7 +115,7 @@ public class TextExpansionStorageServiceTests : IDisposable
     {
         // Arrange
         var service = CreateService();
-        var emptyList = new List<TextExpansion>();
+        var emptyList = new List<TextExpansionEntry>();
 
         // Act
         var act = async () => await service.SaveAsync(emptyList);
@@ -129,7 +129,7 @@ public class TextExpansionStorageServiceTests : IDisposable
     {
         // Arrange
         var service = CreateService();
-        var expansions = new List<TextExpansion>
+        var expansions = new List<TextExpansionEntry>
         {
             new(":mail", "test@example.com"),
             new(":sig", "Best regards,\nTest User", true, PasteMethod.ShiftInsert, TextInsertionMode.DirectTyping, DirectTypingMethod.CompatibleKeyByKey),
@@ -205,7 +205,7 @@ public class TextExpansionStorageServiceTests : IDisposable
     {
         // Arrange
         var service = CreateService();
-        await service.SaveAsync(new List<TextExpansion> { new(":ok", "value") });
+        await service.SaveAsync(new List<TextExpansionEntry> { new(":ok", "value") });
         File.WriteAllText(service.FilePath, "{ invalid json }");
 
         // Act
@@ -221,7 +221,7 @@ public class TextExpansionStorageServiceTests : IDisposable
     {
         // Arrange
         var service = CreateService();
-        var expansions = new List<TextExpansion>
+        var expansions = new List<TextExpansionEntry>
         {
             new(":test", "Test Value"),
         };
@@ -240,7 +240,7 @@ public class TextExpansionStorageServiceTests : IDisposable
     {
         // Arrange
         var service = CreateService();
-        var baseline = new List<TextExpansion> { new(":ok", "value") };
+        var baseline = new List<TextExpansionEntry> { new(":ok", "value") };
         await service.SaveAsync(baseline);
 
         // Act
@@ -255,9 +255,9 @@ public class TextExpansionStorageServiceTests : IDisposable
         current[0].Trigger.Should().Be(":ok");
     }
 
-    private sealed class ThrowingExpansionEnumerable : IEnumerable<TextExpansion>
+    private sealed class ThrowingExpansionEnumerable : IEnumerable<TextExpansionEntry>
     {
-        public IEnumerator<TextExpansion> GetEnumerator() => throw new InvalidOperationException("enumeration failed");
+        public IEnumerator<TextExpansionEntry> GetEnumerator() => throw new InvalidOperationException("enumeration failed");
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 

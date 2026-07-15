@@ -53,7 +53,11 @@ internal static class ShortcutCommandParser
         {
             if (TryHandleOption(args, ref i, "shortcut.add", state, out var optionResult))
             {
-                if (optionResult is not null) return optionResult;
+                if (optionResult is not null)
+                {
+                    return optionResult;
+                }
+
                 continue;
             }
 
@@ -92,7 +96,11 @@ internal static class ShortcutCommandParser
         {
             if (TryHandleOption(args, ref i, "shortcut.edit", state, out var optionResult))
             {
-                if (optionResult is not null) return optionResult;
+                if (optionResult is not null)
+                {
+                    return optionResult;
+                }
+
                 continue;
             }
 
@@ -123,7 +131,11 @@ internal static class ShortcutCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "shortcut.bind", ref state.JsonOutput, ref state.LogLevel, out var commonResult))
             {
-                if (commonResult is not null) return commonResult;
+                if (commonResult is not null)
+                {
+                    return commonResult;
+                }
+
                 continue;
             }
 
@@ -154,7 +166,11 @@ internal static class ShortcutCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, helpTopic, ref state.JsonOutput, ref state.LogLevel, out var commonResult))
             {
-                if (commonResult is not null) return commonResult;
+                if (commonResult is not null)
+                {
+                    return commonResult;
+                }
+
                 continue;
             }
 

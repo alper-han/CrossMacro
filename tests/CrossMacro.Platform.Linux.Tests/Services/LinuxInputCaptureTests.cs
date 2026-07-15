@@ -25,7 +25,7 @@ public class LinuxInputCaptureTests
             {
                 Path = "/dev/input/event-test",
                 Name = "Test Keyboard",
-                IsKeyboard = true
+                IsKeyboard = true,
             },
         };
 
@@ -48,7 +48,7 @@ public class LinuxInputCaptureTests
             {
                 Path = "/dev/input/event-test",
                 Name = "Test Mouse",
-                IsMouse = true
+                IsMouse = true,
             },
         };
         var reader = new FakeLinuxInputReader();
@@ -75,7 +75,7 @@ public class LinuxInputCaptureTests
                 Path = "/dev/input/event-test",
                 Name = "Combo Device",
                 IsMouse = true,
-                IsKeyboard = true
+                IsKeyboard = true,
             },
         };
         var reader = new FakeLinuxInputReader();
@@ -84,8 +84,8 @@ public class LinuxInputCaptureTests
         capture.Configure(captureMouse: true, captureKeyboard: false);
         await capture.StartAsync(CancellationToken.None);
 
-        InputCaptureEventArgs? received = null;
-        capture.InputReceived += (_, args) => received = args;
+        CapturedInputEvent? received = null;
+        capture.InputReceived += (_, args) => received = args.Event;
 
         reader.Emit(new UInputNative.input_event { type = UInputNative.EV_KEY, code = 30, value = 1 });
         Assert.Null(received);
@@ -105,7 +105,7 @@ public class LinuxInputCaptureTests
                 Path = "/dev/input/event-test",
                 Name = "Combo Device",
                 IsMouse = true,
-                IsKeyboard = true
+                IsKeyboard = true,
             },
         };
         var reader = new FakeLinuxInputReader();
@@ -114,8 +114,8 @@ public class LinuxInputCaptureTests
         capture.Configure(captureMouse: false, captureKeyboard: true);
         await capture.StartAsync(CancellationToken.None);
 
-        InputCaptureEventArgs? received = null;
-        capture.InputReceived += (_, args) => received = args;
+        CapturedInputEvent? received = null;
+        capture.InputReceived += (_, args) => received = args.Event;
 
         reader.Emit(new UInputNative.input_event { type = UInputNative.EV_KEY, code = UInputNative.BTN_LEFT, value = 1 });
         Assert.Null(received);
@@ -134,7 +134,7 @@ public class LinuxInputCaptureTests
             {
                 Path = "/dev/input/event-test",
                 Name = "Absolute Pointer",
-                IsMouse = true
+                IsMouse = true,
             },
         };
         var reader = new FakeLinuxInputReader();
@@ -143,8 +143,8 @@ public class LinuxInputCaptureTests
         capture.Configure(captureMouse: true, captureKeyboard: false);
         await capture.StartAsync(CancellationToken.None);
 
-        InputCaptureEventArgs? received = null;
-        capture.InputReceived += (_, args) => received = args;
+        CapturedInputEvent? received = null;
+        capture.InputReceived += (_, args) => received = args.Event;
 
         reader.Emit(new UInputNative.input_event { type = UInputNative.EV_ABS, code = UInputNative.ABS_X, value = 512 });
         Assert.NotNull(received);
@@ -162,7 +162,7 @@ public class LinuxInputCaptureTests
             {
                 Path = "/dev/input/event-test",
                 Name = "Wheel Mouse",
-                IsMouse = true
+                IsMouse = true,
             },
         };
         var reader = new FakeLinuxInputReader();
@@ -171,8 +171,8 @@ public class LinuxInputCaptureTests
         capture.Configure(captureMouse: true, captureKeyboard: false);
         await capture.StartAsync(CancellationToken.None);
 
-        InputCaptureEventArgs? received = null;
-        capture.InputReceived += (_, args) => received = args;
+        CapturedInputEvent? received = null;
+        capture.InputReceived += (_, args) => received = args.Event;
 
         reader.Emit(new UInputNative.input_event { type = UInputNative.EV_REL, code = UInputNative.REL_HWHEEL, value = 1 });
 
@@ -199,7 +199,7 @@ public class LinuxInputCaptureTests
             {
                 Path = "/dev/input/event-real",
                 Name = "Real Keyboard",
-                IsKeyboard = true
+                IsKeyboard = true,
             },
         };
 
@@ -235,7 +235,7 @@ public class LinuxInputCaptureTests
                 Name = VirtualDeviceConstants.DeviceName,
                 IsKeyboard = true,
                 VendorId = 0x9999,
-                ProductId = 0x8888
+                ProductId = 0x8888,
             },
         };
 
@@ -260,7 +260,7 @@ public class LinuxInputCaptureTests
                 IsVirtual = true,
                 IsKeyboard = true,
                 VendorId = 0xdec0,
-                ProductId = 0x5eba
+                ProductId = 0x5eba,
             },
         };
 
@@ -269,8 +269,8 @@ public class LinuxInputCaptureTests
 
         await capture.StartAsync(CancellationToken.None);
 
-        InputCaptureEventArgs? received = null;
-        capture.InputReceived += (_, args) => received = args;
+        CapturedInputEvent? received = null;
+        capture.InputReceived += (_, args) => received = args.Event;
 
         virtualKeyboardReader.Emit(new UInputNative.input_event { type = UInputNative.EV_KEY, code = 30, value = 1 });
 
@@ -317,7 +317,7 @@ public class LinuxInputCaptureTests
             }
         }
 
-        public void Stop()
+        public void StopCapture()
         {
             StopCalls++;
         }

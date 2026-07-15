@@ -14,15 +14,15 @@ public interface IHotkeyMatcher
     /// <param name="mapping">The hotkey mapping to match against</param>
     /// <param name="actionName">Name of the action for debounce tracking</param>
     /// <returns>True if the hotkey matches and should trigger</returns>
-    bool TryMatch(int keyCode, IReadOnlySet<int> modifiers, HotkeyMapping mapping, string actionName);
+    public bool TryMatch(int keyCode, IReadOnlySet<int> modifiers, HotkeyMapping mapping, string actionName);
 
     /// <summary>
     /// Resets the debounce state for all actions.
     /// </summary>
-    void ResetDebounce();
+    public void ResetDebounce();
 
     /// <summary>
     /// Gets or sets the debounce interval in milliseconds.
     /// </summary>
-    int DebounceIntervalMs { get; set; }
+    public int DebounceIntervalMs { get; set; }
 }

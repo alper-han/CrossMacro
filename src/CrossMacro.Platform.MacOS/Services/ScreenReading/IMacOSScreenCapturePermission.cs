@@ -2,11 +2,11 @@ namespace CrossMacro.Platform.MacOS.Services.ScreenReading;
 
 internal interface IMacOSScreenCapturePermission
 {
-    bool IsPreflightAvailable { get; }
+    public bool IsPreflightAvailable { get; }
 
-    bool IsRequestAvailable { get; }
+    public bool IsRequestAvailable { get; }
 
-    bool Preflight();
+    public bool Preflight();
 
-    bool Request();
+    public bool Request();
 }

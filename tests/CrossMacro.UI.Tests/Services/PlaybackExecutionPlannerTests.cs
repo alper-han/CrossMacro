@@ -17,7 +17,7 @@ public sealed class PlaybackExecutionPlannerTests
         var macro = new MacroSequence
         {
             Name = "Screen Reading Macro",
-            ScriptSteps = [scriptStep],
+            ScriptSteps = {scriptStep},
         };
 
         PlaybackExecutionPlanner.HasPlayableEvents(macro).Should().BeTrue();
@@ -32,7 +32,7 @@ public sealed class PlaybackExecutionPlannerTests
         var macro = new MacroSequence
         {
             Name = "Script Macro",
-            ScriptSteps = [scriptStep],
+            ScriptSteps = {scriptStep},
         };
 
         PlaybackExecutionPlanner.HasPlayableEvents(macro).Should().BeFalse();

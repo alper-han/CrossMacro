@@ -34,8 +34,8 @@ public sealed partial class DoctorService
                         ["backend"] = backend.Backend,
                         ["available"] = backend.IsAvailable,
                         ["errorKind"] = backend.ErrorKind,
-                        ["errorMessage"] = backend.ErrorMessage
-                    }).ToArray())
+                        ["errorMessage"] = backend.ErrorMessage,
+                    }).ToArray()),
                 }
                 : null,
         };
@@ -67,7 +67,7 @@ public sealed partial class DoctorService
         };
     }
 
-    private DoctorCheck BuildLinuxDaemonSocketCheck(LinuxInputState state, bool verbose)
+    private static DoctorCheck BuildLinuxDaemonSocketCheck(LinuxInputState state, bool verbose)
     {
         var status = state.SocketAccess.Status is LinuxDaemonSocketAccessStatus.Accessible
             ? DoctorCheckStatus.Pass
@@ -98,13 +98,13 @@ public sealed partial class DoctorService
                     ["socketStatus"] = state.SocketAccess.Status.ToString(),
                     ["failureKind"] = GetSocketFailureKind(state.SocketAccess),
                     ["directFallbackAvailable"] = state.DirectFallbackAvailable,
-                    ["remediation"] = GetSocketRemediation(state)
+                    ["remediation"] = GetSocketRemediation(state),
                 }
                 : null,
         };
     }
 
-    private DoctorCheck BuildLinuxDaemonAccessCheck(LinuxInputState state, bool verbose)
+    private static DoctorCheck BuildLinuxDaemonAccessCheck(LinuxInputState state, bool verbose)
     {
         var status = state.SocketAccess.Status switch
         {
@@ -133,7 +133,7 @@ public sealed partial class DoctorService
         };
     }
 
-    private DoctorCheck BuildLinuxDaemonGroupCheck(LinuxInputState state, bool verbose)
+    private static DoctorCheck BuildLinuxDaemonGroupCheck(LinuxInputState state, bool verbose)
     {
         var status = state.GroupMembershipStatus switch
         {
@@ -160,7 +160,7 @@ public sealed partial class DoctorService
         };
     }
 
-    private DoctorCheck BuildLinuxUInputCheck(LinuxInputState state, bool verbose)
+    private static DoctorCheck BuildLinuxUInputCheck(LinuxInputState state, bool verbose)
     {
         var status = state.UInputWritable || state.DaemonHandshakeOk
             ? DoctorCheckStatus.Pass
@@ -186,13 +186,13 @@ public sealed partial class DoctorService
                     ["uInputAlternate"] = LinuxUInputAlternatePath,
                     ["alternateExists"] = state.AlternateUInputExists,
                     ["canWriteAlternate"] = state.CanWriteAlternate,
-                    ["directFallbackAvailable"] = state.DirectFallbackAvailable
+                    ["directFallbackAvailable"] = state.DirectFallbackAvailable,
                 }
                 : null,
         };
     }
 
-    private DoctorCheck BuildLinuxInputReadinessCheck(LinuxInputState state, bool verbose)
+    private static DoctorCheck BuildLinuxInputReadinessCheck(LinuxInputState state, bool verbose)
     {
         DoctorCheckStatus status;
         string message;
@@ -262,13 +262,13 @@ public sealed partial class DoctorService
                     ["daemonSocketExists"] = state.DaemonSocketExists,
                     ["daemonHandshakeOk"] = state.DaemonHandshakeOk,
                     ["uInputWritable"] = state.UInputWritable,
-                    ["directFallbackAvailable"] = state.DirectFallbackAvailable
+                    ["directFallbackAvailable"] = state.DirectFallbackAvailable,
                 }
                 : null,
         };
     }
 
-    private DoctorCheck BuildLinuxDaemonHandshakeCheck(LinuxInputState state, bool verbose)
+    private static DoctorCheck BuildLinuxDaemonHandshakeCheck(LinuxInputState state, bool verbose)
     {
         DoctorCheckStatus status;
         string message;
@@ -304,7 +304,7 @@ public sealed partial class DoctorService
         };
     }
 
-    private DoctorCheck BuildLinuxGsrCompatibilityCheck(LinuxInputState state, bool verbose)
+    private static DoctorCheck BuildLinuxGsrCompatibilityCheck(LinuxInputState state, bool verbose)
     {
         return new DoctorCheck
         {
@@ -318,7 +318,7 @@ public sealed partial class DoctorService
                 {
                     ["inputDevicesPath"] = LinuxGsrCompatibility.InputDevicesPath,
                     ["gsrVirtualKeyboardDetected"] = state.GsrVirtualKeyboardDetected,
-                    ["matchedDeviceName"] = state.GsrVirtualKeyboardDetected ? LinuxGsrCompatibility.VirtualKeyboardName : null
+                    ["matchedDeviceName"] = state.GsrVirtualKeyboardDetected ? LinuxGsrCompatibility.VirtualKeyboardName : null,
                 }
                 : null,
         };
@@ -529,7 +529,7 @@ or DisplayEnvironment.LinuxGnome;
         };
     }
 
-    private sealed record LinuxInputState(
+    private sealed record class LinuxInputState(
         string? SessionType,
         bool IsWayland,
         bool IsX11,

@@ -6,7 +6,7 @@ namespace CrossMacro.Platform.MacOS.Strategies;
 /// Uses CGEventGetLocation to get true absolute coordinates directly from macOS.
 /// No delta accumulation, no hybrid approach - 100% pure absolute.
 /// </summary>
-public class MacOSAbsoluteCoordinateStrategy : ICoordinateStrategy
+public sealed class MacOSAbsoluteCoordinateStrategy : ICoordinateStrategy
 {
     private int _lastX;
     private int _lastY;
@@ -32,13 +32,17 @@ public class MacOSAbsoluteCoordinateStrategy : ICoordinateStrategy
         return Task.CompletedTask;
     }
 
-    public (int X, int Y) ProcessPosition(InputCaptureEventArgs e)
+    public (int X, int Y) ProcessPosition(CapturedInputEvent e)
     {
         if (e.Type is InputEventType.Sync)
+        {
             return (0, 0);
+        }
 
         if (e.Type is not InputEventType.MouseMove)
+        {
             return (_lastX, _lastY);
+        }
 
         // macOS sends ABS_X and ABS_Y with absolute positions
         if (e.Code == InputEventCode.ABS_X)

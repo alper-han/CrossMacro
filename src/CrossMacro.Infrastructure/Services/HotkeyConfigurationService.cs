@@ -3,7 +3,7 @@ namespace CrossMacro.Infrastructure.Services;
 
 public class HotkeyConfigurationService : IHotkeyConfigurationService
 {
-    private readonly object _pathLock = new();
+    private readonly Lock _pathLock = new();
     private string _configPath;
 
     public HotkeyConfigurationService() : this(configRootPath: null)
@@ -47,7 +47,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to load hotkey configuration from {Path}", configPath);
+            Log.LogError(ex, "Failed to load hotkey configuration from {Path}", configPath);
         }
 
         Log.Information("Using default hotkey configuration");
@@ -80,7 +80,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to load hotkey configuration from {Path}", configPath);
+            Log.LogError(ex, "Failed to load hotkey configuration from {Path}", configPath);
         }
 
         Log.Information("Using default hotkey configuration");
@@ -134,7 +134,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to save hotkey configuration to {Path}", request.ConfigPath);
+            Log.LogError(ex, "Failed to save hotkey configuration to {Path}", request.ConfigPath);
             return false;
         }
     }

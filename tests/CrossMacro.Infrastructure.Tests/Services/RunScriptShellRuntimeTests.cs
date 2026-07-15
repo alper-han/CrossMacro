@@ -195,7 +195,7 @@ public sealed class RunScriptShellRuntimeTests
             inputSimulatorFactory: () => throw new InvalidOperationException("simulator should not be acquired"));
         var macro = new MacroSequence
         {
-            ScriptSteps = ["shell \"printf ok\""],
+            ScriptSteps = {"shell \"printf ok\""},
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);

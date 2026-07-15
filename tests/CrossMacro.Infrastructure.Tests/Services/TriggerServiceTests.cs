@@ -46,7 +46,13 @@ public class TriggerServiceTests : IDisposable
     public void Dispose()
     {
         try { _service.Dispose(); } catch { }
-        try { if (Directory.Exists(_testRootDirectory)) Directory.Delete(_testRootDirectory, recursive: true); }
+        try
+        {
+            if (Directory.Exists(_testRootDirectory))
+            {
+                Directory.Delete(_testRootDirectory, recursive: true);
+            }
+        }
         catch { }
     }
 
@@ -61,7 +67,7 @@ public class TriggerServiceTests : IDisposable
     public void Stop_SetsIsMonitoringFalse()
     {
         _service.Start();
-        _service.Stop();
+        _service.StopMonitoring();
         _service.IsMonitoring.Should().BeFalse();
     }
 
@@ -69,8 +75,8 @@ public class TriggerServiceTests : IDisposable
     public async Task Stop_ExposesCompletionAndIsIdempotent()
     {
         _service.Start();
-        _service.Stop();
-        _service.Stop();
+        _service.StopMonitoring();
+        _service.StopMonitoring();
 
         await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2));
 
@@ -143,7 +149,7 @@ public class TriggerServiceTests : IDisposable
         var task = new TriggerTask
         {
             Value = "firefox",
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "gaming",
         };
         _service.AddTask(task);
@@ -162,7 +168,7 @@ public class TriggerServiceTests : IDisposable
             Value = "firefox",
             Field = TriggerField.WindowClass,
             MatchMode = TriggerMatchMode.Contains,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "gaming",
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
@@ -187,7 +193,7 @@ public class TriggerServiceTests : IDisposable
             Value = "Code",
             Field = TriggerField.WindowTitle,
             MatchMode = TriggerMatchMode.Contains,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "dev",
             FireMode = TriggerFireMode.OnceOnChange,
             IsEnabled = true,
@@ -213,7 +219,7 @@ public class TriggerServiceTests : IDisposable
             Value = "firefox",
             Field = TriggerField.ProcessName,
             MatchMode = TriggerMatchMode.Equals,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "gaming",
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
@@ -238,7 +244,7 @@ public class TriggerServiceTests : IDisposable
             Value = "Code",
             Field = TriggerField.WindowTitle,
             MatchMode = TriggerMatchMode.Contains,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "dev",
             FireMode = TriggerFireMode.OnceOnChange,
             IsEnabled = true,
@@ -271,7 +277,7 @@ public class TriggerServiceTests : IDisposable
             Value = "firefox",
             Field = TriggerField.WindowClass,
             MatchMode = TriggerMatchMode.Contains,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "gaming",
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
@@ -294,7 +300,7 @@ public class TriggerServiceTests : IDisposable
             Value = "dev",
             Field = TriggerField.Workspace,
             MatchMode = TriggerMatchMode.Equals,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
@@ -318,7 +324,7 @@ public class TriggerServiceTests : IDisposable
             Value = "dev",
             Field = TriggerField.Workspace,
             MatchMode = TriggerMatchMode.Equals,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
@@ -347,7 +353,7 @@ public class TriggerServiceTests : IDisposable
             Value = "firefox",
             Field = TriggerField.WindowClass,
             MatchMode = TriggerMatchMode.Contains,
-            Action = TriggerAction.RunMacro,
+            Action = TriggerOperation.RunMacro,
             MacroFilePath = macroPath,
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
@@ -372,7 +378,7 @@ public class TriggerServiceTests : IDisposable
             Value = "firefox",
             Field = TriggerField.WindowClass,
             MatchMode = TriggerMatchMode.Contains,
-            Action = TriggerAction.RunMacro,
+            Action = TriggerOperation.RunMacro,
             MacroFilePath = "/nonexistent/demo.macro",
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
@@ -399,7 +405,7 @@ public class TriggerServiceTests : IDisposable
             Value = "dev",
             Field = TriggerField.Workspace,
             MatchMode = TriggerMatchMode.Equals,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
@@ -424,7 +430,7 @@ public class TriggerServiceTests : IDisposable
             Value = "firefox",
             Field = TriggerField.WindowClass,
             MatchMode = TriggerMatchMode.Contains,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.OnExit,
             IsEnabled = true,
@@ -453,7 +459,7 @@ public class TriggerServiceTests : IDisposable
             Value = "firefox",
             Field = TriggerField.WindowClass,
             MatchMode = TriggerMatchMode.Contains,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.OnExit,
             IsEnabled = true,
@@ -475,7 +481,7 @@ public class TriggerServiceTests : IDisposable
             Value = "firefox",
             Field = TriggerField.WindowClass,
             MatchMode = TriggerMatchMode.Contains,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.EveryMatch,
             CooldownMs = 10000, // 10s — far beyond the test window
@@ -501,7 +507,7 @@ public class TriggerServiceTests : IDisposable
             Value = "firefox",
             Field = TriggerField.WindowClass,
             MatchMode = TriggerMatchMode.Contains,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.EveryMatch,
             CooldownMs = 0, // disabled — every match fires
@@ -523,7 +529,7 @@ public class TriggerServiceTests : IDisposable
         var task = new TriggerTask
         {
             Field = TriggerField.None,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
@@ -547,7 +553,7 @@ public class TriggerServiceTests : IDisposable
             Value = "^Fire(?:fox|bird)$",
             Field = TriggerField.WindowClass,
             MatchMode = TriggerMatchMode.Regex,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
@@ -570,7 +576,7 @@ public class TriggerServiceTests : IDisposable
             Value = "^Firefox$",
             Field = TriggerField.WindowClass,
             MatchMode = TriggerMatchMode.Regex,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
@@ -593,7 +599,7 @@ public class TriggerServiceTests : IDisposable
             Value = "[invalid", // unbalanced bracket — invalid regex
             Field = TriggerField.WindowClass,
             MatchMode = TriggerMatchMode.Regex,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
@@ -617,7 +623,7 @@ public class TriggerServiceTests : IDisposable
             Value = "firefox",
             Field = TriggerField.WindowClass,
             MatchMode = TriggerMatchMode.Contains,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.OnceOnChange,
             // A small debounce of 1ms to keep the test execution fast.
@@ -650,7 +656,7 @@ public class TriggerServiceTests : IDisposable
             Value = "firefox",
             Field = TriggerField.WindowClass,
             MatchMode = TriggerMatchMode.Contains,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.OnceOnChange,
             DebounceMs = 1000,
@@ -683,7 +689,7 @@ public class TriggerServiceTests : IDisposable
             Value = "firefox",
             Field = TriggerField.WindowClass,
             MatchMode = TriggerMatchMode.Contains,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "gaming",
             FireMode = TriggerFireMode.OnceOnChange,
             IsEnabled = false,
@@ -701,7 +707,7 @@ public class TriggerServiceTests : IDisposable
         loaded.Name.Should().Be("Test Trigger");
         loaded.Value.Should().Be("firefox");
         loaded.Field.Should().Be(TriggerField.WindowClass);
-        loaded.Action.Should().Be(TriggerAction.SwitchProfile);
+        loaded.Action.Should().Be(TriggerOperation.SwitchProfile);
         loaded.TargetProfileId.Should().Be("gaming");
         loaded.FireMode.Should().Be(TriggerFireMode.OnceOnChange);
         loaded.IsEnabled.Should().BeFalse();
@@ -756,7 +762,7 @@ public class TriggerServiceTests : IDisposable
             Name = "Profile Trigger",
             Value = "terminal",
             Field = TriggerField.WindowClass,
-            Action = TriggerAction.SwitchProfile,
+            Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "work",
             IsEnabled = false,
         };
@@ -811,7 +817,11 @@ public class TriggerServiceTests : IDisposable
                 (SendOrPostCallback Callback, object? State) callback;
                 lock (_callbacks)
                 {
-                    if (_callbacks.Count is 0) return;
+                    if (_callbacks.Count is 0)
+                    {
+                        return;
+                    }
+
                     callback = _callbacks.Dequeue();
                 }
 

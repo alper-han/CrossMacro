@@ -149,16 +149,16 @@ internal static class LinuxInputProbeUtilities
             var userGroups = getCurrentUserGroups();
             var isEffectiveMember = userGroups.PrimaryGroupId == group.GroupId ||
                                     userGroups.SupplementaryGroupIds.Contains(group.GroupId);
-        if (isEffectiveMember)
-        {
-            return new LinuxDaemonGroupMembershipResult(
-                groupName,
-                LinuxDaemonGroupMembershipStatus.Member,
-                group.GroupId,
-                userGroups.UserName,
-                userGroups.UserId,
-                GetCurrentProcessGroupIds(userGroups));
-        }
+            if (isEffectiveMember)
+            {
+                return new LinuxDaemonGroupMembershipResult(
+                    groupName,
+                    LinuxDaemonGroupMembershipStatus.Member,
+                    group.GroupId,
+                    userGroups.UserName,
+                    userGroups.UserId,
+                    GetCurrentProcessGroupIds(userGroups));
+            }
 
             var isConfiguredMember = group.MemberNames.Contains(userGroups.UserName, StringComparer.Ordinal);
             var status = isConfiguredMember

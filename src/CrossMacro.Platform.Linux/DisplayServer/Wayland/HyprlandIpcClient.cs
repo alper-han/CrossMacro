@@ -43,9 +43,13 @@ public sealed class HyprlandIpcClient : IDisposable
         IsAvailable = _socketPath is not null;
 
         if (IsAvailable)
+        {
             Log.Information("[HyprlandIpcClient] Socket found: {SocketPath}", _socketPath);
+        }
         else
+        {
             Log.Debug("[HyprlandIpcClient] Hyprland socket not available");
+        }
     }
 
     /// <summary>
@@ -57,7 +61,9 @@ public sealed class HyprlandIpcClient : IDisposable
     public async Task<string?> SendCommandAsync(string command, CancellationToken cancellationToken = default)
     {
         if (_disposed || !IsAvailable || _socketPath is null)
+        {
             return null;
+        }
 
         try
         {
@@ -69,7 +75,7 @@ public sealed class HyprlandIpcClient : IDisposable
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[HyprlandIpcClient] Failed to send command: {Command}", command);
+            Log.LogError(ex, "[HyprlandIpcClient] Failed to send command: {Command}", command);
             return null;
         }
     }
@@ -80,7 +86,9 @@ public sealed class HyprlandIpcClient : IDisposable
     public async Task<string?> SendCommandAsync(byte[] commandBytes, CancellationToken cancellationToken = default)
     {
         if (_disposed || !IsAvailable || _socketPath is null)
+        {
             return null;
+        }
 
         try
         {
@@ -92,7 +100,7 @@ public sealed class HyprlandIpcClient : IDisposable
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[HyprlandIpcClient] Failed to send command");
+            Log.LogError(ex, "[HyprlandIpcClient] Failed to send command");
             return null;
         }
     }
@@ -164,14 +172,20 @@ public sealed class HyprlandIpcClient : IDisposable
     {
         // Check if running on Hyprland
         if (string.IsNullOrEmpty(instanceSignature))
+        {
             return null;
+        }
 
         if (string.IsNullOrEmpty(runtimeDir))
+        {
             return null;
+        }
 
         var hyprDir = Path.Combine(runtimeDir, "hypr");
         if (!Directory.Exists(hyprDir))
+        {
             return null;
+        }
 
         try
         {
@@ -195,7 +209,9 @@ public sealed class HyprlandIpcClient : IDisposable
     public void Dispose()
     {
         if (_disposed)
+        {
             return;
+        }
 
         _disposed = true;
         GC.SuppressFinalize(this);

@@ -4,7 +4,7 @@ namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 internal static class LinuxScreenFrameProviderResults
 {
     public static ScreenReadResult<ScreenFrame> CanceledBeforeStart(string message) =>
-        ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.Canceled, message);
+        ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.Canceled, message);
 
     public static bool IsKnownCaptureException(Exception exception) =>
         exception is OperationCanceledException or TimeoutException or InvalidOperationException or IOException or UnauthorizedAccessException;
@@ -13,15 +13,15 @@ internal static class LinuxScreenFrameProviderResults
     {
         return exception switch
         {
-            OperationCanceledException => ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.Canceled, canceledMessage),
-            TimeoutException => ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.CaptureTimeout, exception.Message),
-            InvalidOperationException or IOException or UnauthorizedAccessException => ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.CaptureFailed, exception.Message),
+            OperationCanceledException => ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.Canceled, canceledMessage),
+            TimeoutException => ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureTimeout, exception.Message),
+            InvalidOperationException or IOException or UnauthorizedAccessException => ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, exception.Message),
             _ => throw new ArgumentException("Unknown capture exception.", nameof(exception)),
         };
     }
 
     public static ScreenReadResult<ScreenFrame> FromCaptureFailure(ScreenReadErrorKind? errorKind, string? errorMessage, string fallbackMessage) =>
-        ScreenReadResult<ScreenFrame>.Failure(errorKind ?? ScreenReadErrorKind.CaptureFailed, errorMessage ?? fallbackMessage);
+        ScreenReadResultFactory.Failure<ScreenFrame>(errorKind ?? ScreenReadErrorKind.CaptureFailed, errorMessage ?? fallbackMessage);
 
     public static ScreenReadResult<ScreenFrame> CreateSharedFrame(
         ScreenRect logicalBounds,
@@ -34,12 +34,12 @@ internal static class LinuxScreenFrameProviderResults
     {
         try
         {
-            return ScreenReadResult<ScreenFrame>.Success(new ScreenFrame(logicalBounds, stride, pixelFormat, pixels, owner, validPixelMask, validityIndex));
+            return ScreenReadResultFactory.Success<ScreenFrame>(new ScreenFrame(logicalBounds, stride, pixelFormat, pixels, owner, validPixelMask, validityIndex));
         }
         catch (Exception ex) when (ex is ArgumentException or OverflowException)
         {
             owner.Dispose();
-            return ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.CaptureFailed, ex.Message);
+            return ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, ex.Message);
         }
     }
 

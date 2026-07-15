@@ -21,7 +21,10 @@ internal sealed class DesignTriggerService : ITriggerService
     public void RemoveTask(Guid id)
     {
         var task = Tasks.FirstOrDefault(item => item.Id == id);
-        if (task is not null) Tasks.Remove(task);
+        if (task is not null)
+        {
+            Tasks.Remove(task);
+        }
     }
 
     public void UpdateTask(TriggerTask task) { }
@@ -29,16 +32,19 @@ internal sealed class DesignTriggerService : ITriggerService
     public void SetTaskEnabled(Guid id, bool enabled)
     {
         var task = Tasks.FirstOrDefault(item => item.Id == id);
-        if (task is not null) task.IsEnabled = enabled;
+        if (task is not null)
+        {
+            task.IsEnabled = enabled;
+        }
     }
 
     public void Start() => IsMonitoring = true;
 
-    public void Stop() => IsMonitoring = false;
+    public void StopMonitoring() => IsMonitoring = false;
 
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
-        Stop();
+        StopMonitoring();
         return Task.CompletedTask;
     }
 

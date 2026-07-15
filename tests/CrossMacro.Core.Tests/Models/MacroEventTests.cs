@@ -13,7 +13,7 @@ public class MacroEventTests
         ev.Type.Should().Be(EventType.None); // Default enum value
         ev.X.Should().Be(0);
         ev.Y.Should().Be(0);
-        ev.Button.Should().Be(MouseButton.None);
+        ev.Button.Should().Be(MacroMouseButton.None);
         ev.Timestamp.Should().Be(0);
         ev.DelayMs.Should().Be(0);
         ev.HasRandomDelay.Should().BeFalse();
@@ -40,13 +40,13 @@ public class MacroEventTests
     }
 
     [Theory]
-    [InlineData(MouseButton.None)]
-    [InlineData(MouseButton.Left)]
-    [InlineData(MouseButton.Right)]
-    [InlineData(MouseButton.Middle)]
-    [InlineData(MouseButton.ScrollUp)]
-    [InlineData(MouseButton.ScrollDown)]
-    public void MacroEvent_CanSetAllMouseButtons(MouseButton button)
+    [InlineData(MacroMouseButton.None)]
+    [InlineData(MacroMouseButton.Left)]
+    [InlineData(MacroMouseButton.Right)]
+    [InlineData(MacroMouseButton.Middle)]
+    [InlineData(MacroMouseButton.ScrollUp)]
+    [InlineData(MacroMouseButton.ScrollDown)]
+    public void MacroEvent_CanSetAllMouseButtons(MacroMouseButton button)
     {
         // Arrange & Act
         var ev = new MacroEvent { Button = button };

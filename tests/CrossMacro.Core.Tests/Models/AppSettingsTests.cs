@@ -66,6 +66,7 @@ public class AppSettingsTests
 
         settings.LoopDelayMinMs = 300;
         settings.LoopDelayMaxMs = 100;
+        settings.Normalize();
 
         settings.LoopDelayMinMs.Should().Be(300);
         settings.LoopDelayMaxMs.Should().Be(300);

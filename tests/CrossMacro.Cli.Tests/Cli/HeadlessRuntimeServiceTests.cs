@@ -47,10 +47,10 @@ public class HeadlessRuntimeServiceTests
         shortcuts.Received(1).Start();
         textExpansion.Received(1).Start();
         hotkeyActions.Received(1).Start();
-        hotkeys.Received(1).Stop();
+        hotkeys.Received(1).StopHotkeyService();
         await scheduler.Received(1).StopAsync(Arg.Any<CancellationToken>());
-        shortcuts.Received(1).Stop();
-        textExpansion.Received(1).Stop();
+        shortcuts.Received(1).StopShortcuts();
+        textExpansion.Received(1).StopExpansion();
         await hotkeyActions.Received(1).StopAsync(Arg.Any<CancellationToken>());
         Assert.True(hotkeyActionsStopped);
     }
@@ -124,7 +124,7 @@ public class HeadlessRuntimeServiceTests
             stopEntered.SetResult();
             await allowStopToComplete.Task;
         });
-        hotkeys.When(x => x.Stop()).Do(_ =>
+        hotkeys.When(x => x.StopHotkeyService()).Do(_ =>
         {
             if (!allowStopToComplete.Task.IsCompleted)
             {
@@ -147,7 +147,7 @@ public class HeadlessRuntimeServiceTests
 
         Assert.Equal(CliExitCode.Cancelled, result.ExitCode);
         Assert.False(globalHotkeysStoppedBeforeHotkeyActions);
-        hotkeys.Received(1).Stop();
+        hotkeys.Received(1).StopHotkeyService();
     }
 
     [Fact]

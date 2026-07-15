@@ -1,5 +1,9 @@
 namespace CrossMacro.Platform.Abstractions;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Naming",
+    "CA1707:Identifiers should not contain underscores",
+    Justification = "Linux input event constants intentionally preserve their kernel UAPI identifiers.")]
 public static class InputEventCode
 {
     public const ushort EV_SYN = 0;

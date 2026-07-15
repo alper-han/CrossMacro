@@ -30,8 +30,8 @@ public class LinuxInputCapture : IInputCapture
         }
     }
 
-    public event EventHandler<InputCaptureEventArgs>? InputReceived;
-    public event EventHandler<string>? Error;
+    public event EventHandler<CapturedInputEventArgs>? InputReceived;
+    public event EventHandler<InputCaptureErrorEventArgs>? CaptureError;
 
     public LinuxInputCapture()
         : this(
@@ -73,7 +73,7 @@ public class LinuxInputCapture : IInputCapture
         if (devicesToUse.Count is 0)
         {
             const string errorMsg = "No matching input devices found";
-            Log.Error("[LinuxInputCapture] {Error}", errorMsg);
+            Log.LogError("[LinuxInputCapture] {Error}", errorMsg);
             throw new InvalidOperationException(errorMsg);
         }
 
@@ -92,23 +92,23 @@ public class LinuxInputCapture : IInputCapture
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[LinuxInputCapture] Failed to open {Name}", device.Name);
+                Log.LogError(ex, "[LinuxInputCapture] Failed to open {Name}", device.Name);
             }
         }
 
         if (_readers.Count is 0)
         {
             const string errorMsg = "Failed to open any input devices";
-            Log.Error("[LinuxInputCapture] {Error}", errorMsg);
+            Log.LogError("[LinuxInputCapture] {Error}", errorMsg);
             throw new InvalidOperationException(errorMsg);
         }
 
         _stopRegistration.Dispose();
-        _stopRegistration = ct.Register(Stop);
-        await Task.CompletedTask;
+        _stopRegistration = ct.Register(StopCapture);
+        await Task.CompletedTask.ConfigureAwait(false);
     }
 
-    public void Stop()
+    public void StopCapture()
     {
         if (_readers.Count > 0)
         {
@@ -129,12 +129,12 @@ public class LinuxInputCapture : IInputCapture
             {
                 try
                 {
-                    reader.Stop();
+                    reader.StopCapture();
                     reader.Dispose();
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "[LinuxInputCapture] Error stopping reader");
+                    Log.LogError(ex, "[LinuxInputCapture] Error stopping reader");
                 }
             });
 
@@ -155,7 +155,7 @@ public class LinuxInputCapture : IInputCapture
             UInputNative.EV_REL => e.code is UInputNative.REL_WHEEL or UInputNative.REL_HWHEEL
                 ? InputEventType.MouseScroll
                 : InputEventType.MouseMove,
-            UInputNative.EV_ABS when e.code == UInputNative.ABS_X || e.code == UInputNative.ABS_Y
+            UInputNative.EV_ABS when e.code is UInputNative.ABS_X or UInputNative.ABS_Y
                 => InputEventType.MouseMove,
             UInputNative.EV_SYN => InputEventType.Sync,
             _ => InputEventType.Unknown,
@@ -166,7 +166,7 @@ public class LinuxInputCapture : IInputCapture
             return;
         }
 
-        var args = new InputCaptureEventArgs
+        var args = new CapturedInputEvent
         {
             Type = eventType,
             Code = e.code,
@@ -175,7 +175,7 @@ public class LinuxInputCapture : IInputCapture
             DeviceName = reader.DeviceName,
         };
 
-        InputReceived?.Invoke(this, args);
+        InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
     }
 
     private bool ShouldForwardEvent(InputEventType eventType)
@@ -204,25 +204,25 @@ public class LinuxInputCapture : IInputCapture
 
     private void OnEvdevError(Exception ex)
     {
-        Error?.Invoke(this, ex.Message);
+        CaptureError?.Invoke(this, new InputCaptureErrorEventArgs(ex.Message));
     }
 
     public void Dispose()
     {
         if (!_disposed)
         {
-            Stop();
+            StopCapture();
             _disposed = true;
         }
     }
 
     internal interface ILinuxInputReader : IDisposable
     {
-        string DeviceName { get; }
-        event Action<ILinuxInputReader, UInputNative.input_event>? EventReceived;
-        event Action<Exception>? ErrorOccurred;
-        void Start();
-        void Stop();
+        public string DeviceName { get; }
+        public event Action<ILinuxInputReader, UInputNative.input_event>? EventReceived;
+        public event Action<Exception>? ErrorOccurred;
+        public void Start();
+        public void StopCapture();
     }
 
     private sealed class EvdevReaderAdapter : ILinuxInputReader
@@ -243,7 +243,7 @@ public class LinuxInputCapture : IInputCapture
 
         public void Start() => _reader.Start();
 
-        public void Stop() => _reader.Stop();
+        public void StopCapture() => _reader.Stop();
 
         public void Dispose()
         {

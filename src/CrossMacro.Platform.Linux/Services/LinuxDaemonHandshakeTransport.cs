@@ -63,7 +63,7 @@ internal static class LinuxDaemonHandshakeTransport
                 return ProbeResult.Failed(
                     new IpcClientException(
                         IpcClientFailureReason.ProtocolMismatch,
-                        $"Protocol version mismatch. Daemon: {version}, Client: {IpcProtocol.ProtocolVersion}"));
+                        $"Protocol version mismatch. Daemon: {version.ToString(CultureInfo.InvariantCulture)}, Client: {IpcProtocol.ProtocolVersion.ToString(CultureInfo.InvariantCulture)}"));
             }
 
             return ProbeResult.Success();

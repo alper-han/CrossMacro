@@ -77,7 +77,7 @@ public class FilesViewModelTests
         var macro = new MacroSequence
         {
             Name = "Screen Reading Macro",
-            ScriptSteps = ["pixelcolor 10 20 color"],
+            ScriptSteps = {"pixelcolor 10 20 color"},
         };
 
         _viewModel.SetMacro(macro);
@@ -264,7 +264,7 @@ public class FilesViewModelTests
     [Fact]
     public void SetMacro_WhenEventsCollectionIsNull_DoesNotThrowAndMarksAsNoRecordedMacro()
     {
-        var macro = new MacroSequence { Name = "Corrupted", Events = null! };
+        var macro = new MacroSequence { Name = "Corrupted" };
 
         Action act = () => _viewModel.SetMacro(macro);
 
@@ -398,17 +398,17 @@ public class FilesViewModelTests
         {
             Name = "Stale Current Position",
             Events =
-            [
+            {
                 new MacroEvent
                 {
                     Type = EventType.Click,
-                    Button = MouseButton.Left,
+                    Button = MacroMouseButton.Left,
                     UseCurrentPosition = true,
                     X = 123,
                     Y = 456,
-                    CoordinateMode = MouseCoordinateMode.Absolute
-                }
-            ],
+                    CoordinateMode = MouseCoordinateMode.Absolute,
+                },
+            },
         };
         _viewModel.SetMacro(macro);
 
@@ -441,17 +441,17 @@ public class FilesViewModelTests
             Name = "Current Position Only",
             IsAbsoluteCoordinates = true,
             Events =
-            [
+            {
                 new MacroEvent
                 {
                     Type = EventType.Click,
-                    Button = MouseButton.Left,
+                    Button = MacroMouseButton.Left,
                     UseCurrentPosition = true,
                     CoordinateMode = MouseCoordinateMode.Absolute,
                     X = 77,
-                    Y = 88
-                }
-            ],
+                    Y = 88,
+                },
+            },
         };
         _viewModel.SetMacro(macro);
         _dialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())

@@ -130,9 +130,9 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
         await ReadExactAsync(socket, responseHeader, linkedCts.Token).ConfigureAwait(false);
 
         int responseLength = BinaryPrimitives.ReadInt32LittleEndian(responseHeader);
-        if (responseLength <= 0 || responseLength > MaxResponseBytes)
+        if (responseLength is <= 0 or > MaxResponseBytes)
         {
-            throw new InvalidDataException($"Invalid Wayfire IPC response length: {responseLength}");
+            throw new InvalidDataException($"Invalid Wayfire IPC response length: {responseLength.ToString(CultureInfo.InvariantCulture)}");
         }
 
         var responsePayload = new byte[responseLength];
@@ -149,35 +149,22 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
             return directSocket!.Trim();
         }
 
-        foreach (var candidate in EnumerateCandidateSockets())
-        {
-            if (IsSocketPathUsable(candidate))
-            {
-                return candidate;
-            }
-        }
-
-        return null;
+        var candidate = EnumerateCandidateSockets().FirstOrDefault(IsSocketPathUsable);
+        return candidate is null ? null : candidate.Trim();
     }
 
     private IEnumerable<string> EnumerateCandidateSockets()
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var candidate in EnumerateCandidateSocketsInDirectory(_getEnvironmentVariable(RuntimeDirEnvVar)))
+        foreach (var candidate in EnumerateCandidateSocketsInDirectory(_getEnvironmentVariable(RuntimeDirEnvVar)).Where(seen.Add))
         {
-            if (seen.Add(candidate))
-            {
-                yield return candidate;
-            }
+            yield return candidate;
         }
 
-        foreach (var candidate in EnumerateCandidateSocketsInDirectory(Path.GetTempPath()))
+        foreach (var candidate in EnumerateCandidateSocketsInDirectory(Path.GetTempPath()).Where(seen.Add))
         {
-            if (seen.Add(candidate))
-            {
-                yield return candidate;
-            }
+            yield return candidate;
         }
     }
 

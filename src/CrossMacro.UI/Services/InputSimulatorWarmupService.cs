@@ -3,7 +3,7 @@ namespace CrossMacro.UI.Services;
 
 internal sealed class InputSimulatorWarmupService
 {
-    public async Task WarmUpAsync(
+    public static async Task WarmUpAsync(
         IInputSimulatorPool simulatorPool,
         IMousePositionProvider? positionProvider,
         CancellationToken cancellationToken = default)
@@ -18,16 +18,16 @@ internal sealed class InputSimulatorWarmupService
 
             if (positionProvider is not null)
             {
-                var resolution = await positionProvider.GetScreenResolutionAsync();
+                var resolution = await positionProvider.GetScreenResolutionAsync().ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
-                if (resolution.HasValue)
+                if (resolution is not null)
                 {
                     width = resolution.Value.Width;
                     height = resolution.Value.Height;
                 }
             }
 
-            await simulatorPool.WarmUpAsync(width, height);
+            await simulatorPool.WarmUpAsync(width, height).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
         }
         catch (Exception ex)
@@ -38,7 +38,7 @@ internal sealed class InputSimulatorWarmupService
                 return;
             }
 
-            Log.Error(ex, "[DesktopStartupCoordinator] Failed to warm up InputSimulatorPool");
+            Log.LogError(ex, "[DesktopStartupCoordinator] Failed to warm up InputSimulatorPool");
         }
     }
 }

@@ -1,4 +1,4 @@
 
 namespace CrossMacro.UI.ViewModels;
 
-public sealed record EditorActionPickerChoice(EditorActionType ActionType, string DisplayName);
+public sealed record class EditorActionPickerChoice(EditorActionType ActionType, string DisplayName);

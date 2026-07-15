@@ -62,9 +62,13 @@ public class MacroEventExecutor : IEventExecutor
         _simulator.MouseButton(button, pressed);
 
         if (pressed)
+        {
             _buttonTracker.Press(button);
+        }
         else
+        {
             _buttonTracker.Release(button);
+        }
     }
 
     public void EmitScroll(int value)
@@ -77,9 +81,13 @@ public class MacroEventExecutor : IEventExecutor
         _simulator.KeyPress(keyCode, pressed);
 
         if (pressed)
+        {
             _keyTracker.Press(keyCode);
+        }
         else
+        {
             _keyTracker.Release(keyCode);
+        }
     }
 
     public void ReleaseAll()
@@ -97,8 +105,8 @@ public class MacroEventExecutor : IEventExecutor
         if (ev.Type is EventType.ButtonPress or EventType.ButtonRelease or EventType.Click)
         {
             // Skip scroll events - they don't have meaningful coordinates
-            bool isScroll = ev.Button is MouseButton.ScrollUp or MouseButton.ScrollDown
-                or MouseButton.ScrollLeft or MouseButton.ScrollRight;
+            bool isScroll = ev.Button is MacroMouseButton.ScrollUp or MacroMouseButton.ScrollDown
+                or MacroMouseButton.ScrollLeft or MacroMouseButton.ScrollRight;
             bool shouldResolveFromCurrentPosition = ev.UseCurrentPosition && !isScroll;
 
             if (!isScroll && !shouldResolveFromCurrentPosition)
@@ -206,22 +214,22 @@ public class MacroEventExecutor : IEventExecutor
     {
         switch (ev.Button)
         {
-            case MouseButton.ScrollUp:
+            case MacroMouseButton.ScrollUp:
                 LogScroll("UP");
                 _simulator.Scroll(1);
                 break;
 
-            case MouseButton.ScrollDown:
+            case MacroMouseButton.ScrollDown:
                 LogScroll("DOWN");
                 _simulator.Scroll(-1);
                 break;
 
-            case MouseButton.ScrollLeft:
+            case MacroMouseButton.ScrollLeft:
                 LogScroll("LEFT");
                 _simulator.Scroll(-1, isHorizontal: true);
                 break;
 
-            case MouseButton.ScrollRight:
+            case MacroMouseButton.ScrollRight:
                 LogScroll("RIGHT");
                 _simulator.Scroll(1, isHorizontal: true);
                 break;
@@ -270,7 +278,9 @@ public class MacroEventExecutor : IEventExecutor
     public void Dispose()
     {
         if (_disposed)
+        {
             return;
+        }
 
         ReleaseAll();
         _disposed = true;

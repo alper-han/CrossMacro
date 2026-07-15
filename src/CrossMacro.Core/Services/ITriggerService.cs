@@ -6,27 +6,27 @@ namespace CrossMacro.Core.Services;
 /// </summary>
 public interface ITriggerService : IDisposable
 {
-    ObservableCollection<TriggerTask> Tasks { get; }
+    public ObservableCollection<TriggerTask> Tasks { get; }
 
-    bool IsMonitoring { get; }
+    public bool IsMonitoring { get; }
 
     /// <summary>Completes when the current monitoring loop has stopped.</summary>
-    Task Completion { get; }
+    public Task Completion { get; }
 
-    void AddTask(TriggerTask task);
-    void RemoveTask(Guid id);
-    void UpdateTask(TriggerTask task);
-    void SetTaskEnabled(Guid id, bool enabled);
+    public void AddTask(TriggerTask task);
+    public void RemoveTask(Guid id);
+    public void UpdateTask(TriggerTask task);
+    public void SetTaskEnabled(Guid id, bool enabled);
 
-    void Start();
-    void Stop();
+    public void Start();
+    public void StopMonitoring();
 
     /// <summary>Requests shutdown and exposes completion of the current monitoring lifetime.</summary>
-    Task StopAsync(CancellationToken cancellationToken = default);
+    public Task StopAsync(CancellationToken cancellationToken = default);
 
-    Task LoadAsync();
-    Task SaveAsync();
-    Task ReloadAsync(string profileConfigDirectory) => LoadAsync();
+    public Task LoadAsync();
+    public Task SaveAsync();
+    public Task ReloadAsync(string profileConfigDirectory) => LoadAsync();
 
-    event EventHandler<TriggerFiredEventArgs>? TriggerFired;
+    public event EventHandler<TriggerFiredEventArgs>? TriggerFired;
 }

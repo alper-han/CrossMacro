@@ -12,7 +12,7 @@ public enum WindowCommandMode
     Center,
     Maximize,
     Fullscreen,
-    Float,
+    Floating = 10,
     WorkspaceGet,
     WorkspaceSwitch,
     WorkspaceMoveActive,

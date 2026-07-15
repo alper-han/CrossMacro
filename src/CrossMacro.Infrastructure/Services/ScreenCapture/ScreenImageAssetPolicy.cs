@@ -7,7 +7,7 @@ public static class ScreenImageAssetPolicy
     public const int MaxHeight = 4320;
     public const int MaxPixelCount = MaxWidth * MaxHeight;
     public const int MaxEncodedBytes = 48 * 1024 * 1024;
-    public const int MaxBase64Chars = checked(((MaxEncodedBytes + 2) / 3) * 4);
+    public const int MaxBase64Chars = checked((MaxEncodedBytes + 2) / 3 * 4);
     public const int MaxInflatedBytes = 160 * 1024 * 1024;
     public const int MaxRgbBytes = 128 * 1024 * 1024;
     public const long MaxMacroEncodedBytes = 96L * 1024 * 1024;
@@ -16,7 +16,7 @@ public static class ScreenImageAssetPolicy
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         var length = new FileInfo(filePath).Length;
-        if (length <= 0 || length > MaxEncodedBytes)
+        if (length is <= 0 or > MaxEncodedBytes)
         {
             throw new InvalidDataException(FormatMessage(
                 length <= 0 ? "Image asset is empty." : $"Image asset exceeds the maximum encoded size of {MaxEncodedBytes} bytes.",

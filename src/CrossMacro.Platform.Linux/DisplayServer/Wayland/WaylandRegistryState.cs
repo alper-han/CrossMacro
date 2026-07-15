@@ -5,7 +5,9 @@ internal sealed class WaylandRegistryState
 {
     private readonly WaylandLibrary _library;
     private readonly WaylandProtocolTables _protocol;
+#pragma warning disable S1450
     private readonly RegistryDispatcher _dispatcher;
+#pragma warning restore S1450
 
     public WaylandRegistryState(WaylandLibrary library, WaylandProtocolTables protocol)
     {
@@ -38,29 +40,29 @@ internal sealed class WaylandRegistryState
         var version = Marshal.PtrToStructure<WlArgument>(args + (size * 2)).u;
         var iface = Marshal.PtrToStringUTF8(ifacePointer) ?? string.Empty;
 
-        if (iface is "wl_output")
+        if (string.Equals(iface, "wl_output", StringComparison.Ordinal))
         {
             var output = new WaylandOutputInfo(name, _library.Bind(target, name, iface, Math.Min(version, 4), _protocol.WlOutput));
             _library.AddDispatcher(output.Proxy, output.DispatcherPtr);
             Outputs.Add(output);
         }
-        else if (iface is "wl_shm")
+        else if (string.Equals(iface, "wl_shm", StringComparison.Ordinal))
         {
             Shm = _library.Bind(target, name, iface, Math.Min(version, 1), _protocol.WlShm);
         }
-        else if (iface is "zwlr_screencopy_manager_v1")
+        else if (string.Equals(iface, "zwlr_screencopy_manager_v1", StringComparison.Ordinal))
         {
             WlrScreencopyManager = _library.Bind(target, name, iface, Math.Min(version, 3), _protocol.WlrScreencopyManager);
         }
-        else if (iface is "zxdg_output_manager_v1")
+        else if (string.Equals(iface, "zxdg_output_manager_v1", StringComparison.Ordinal))
         {
             XdgOutputManager = _library.Bind(target, name, iface, Math.Min(version, 3), _protocol.XdgOutputManager);
         }
-        else if (iface is "ext_output_image_capture_source_manager_v1")
+        else if (string.Equals(iface, "ext_output_image_capture_source_manager_v1", StringComparison.Ordinal))
         {
             ExtOutputSourceManager = _library.Bind(target, name, iface, Math.Min(version, 1), _protocol.ExtOutputSourceManager);
         }
-        else if (iface is "ext_image_copy_capture_manager_v1")
+        else if (string.Equals(iface, "ext_image_copy_capture_manager_v1", StringComparison.Ordinal))
         {
             ExtCopyManager = _library.Bind(target, name, iface, Math.Min(version, 1), _protocol.ExtCopyManager);
         }

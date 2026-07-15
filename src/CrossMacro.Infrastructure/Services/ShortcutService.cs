@@ -30,7 +30,7 @@ public class ShortcutService : IShortcutService
     public bool IsListening => _isListening;
 
     public event EventHandler<ShortcutExecutedEventArgs>? ShortcutExecuted;
-    public event EventHandler<ShortcutTask>? ShortcutStarting;
+    public event EventHandler<ShortcutStartingEventArgs>? ShortcutStarting;
 
     public ShortcutService(
         IMacroFileManager fileManager,
@@ -60,6 +60,7 @@ public class ShortcutService : IShortcutService
     public void AddTask(ShortcutTask task)
     {
         EnsureSyncContext();
+        task.Normalize();
         lock (_lock)
         {
             Tasks.Add(task);
@@ -91,7 +92,7 @@ public class ShortcutService : IShortcutService
                 existing.MacroFilePath = task.MacroFilePath;
                 existing.HotkeyString = task.HotkeyString;
                 existing.PlaybackSpeed = task.PlaybackSpeed;
-                existing.IsEnabled = task.IsEnabled;
+                existing.IsEnabled = false;
                 existing.LoopEnabled = task.LoopEnabled;
                 existing.RepeatCount = task.RepeatCount;
                 existing.RepeatDelayMs = task.RepeatDelayMs;
@@ -99,6 +100,10 @@ public class ShortcutService : IShortcutService
                 existing.RepeatDelayMinMs = task.RepeatDelayMinMs;
                 existing.RepeatDelayMaxMs = task.RepeatDelayMaxMs;
                 existing.RunWhileHeld = task.RunWhileHeld;
+                existing.LastStatus = task.LastStatus;
+                existing.LastTriggeredTime = task.LastTriggeredTime;
+                existing.Normalize();
+                existing.TrySetEnabled(task.IsEnabled);
             }
         }
     }
@@ -111,7 +116,7 @@ public class ShortcutService : IShortcutService
             var task = Tasks.FirstOrDefault(t => t.Id == id);
             if (task is not null)
             {
-                task.IsEnabled = enabled;
+                task.TrySetEnabled(enabled);
             }
         }
     }
@@ -119,7 +124,10 @@ public class ShortcutService : IShortcutService
     public void Start()
     {
         EnsureSyncContext();
-        if (_isListening) return;
+        if (_isListening)
+        {
+            return;
+        }
 
         _hotkeyService.RawInputReceived += OnRawInputReceived;
         _hotkeyService.RawKeyReleased += OnRawKeyReleased;
@@ -128,7 +136,7 @@ public class ShortcutService : IShortcutService
         Log.Information("[ShortcutService] Started listening for shortcuts");
     }
 
-    public void Stop()
+    public void StopShortcuts()
     {
         EnsureSyncContext();
         List<IMacroPlayer> playersToStop;
@@ -143,7 +151,7 @@ public class ShortcutService : IShortcutService
         {
             try
             {
-                player.Stop();
+                player.StopPlayback();
                 player.Dispose();
             }
             catch (Exception ex)
@@ -152,7 +160,10 @@ public class ShortcutService : IShortcutService
             }
         }
 
-        if (!_isListening) return;
+        if (!_isListening)
+        {
+            return;
+        }
 
         _hotkeyService.RawInputReceived -= OnRawInputReceived;
         _hotkeyService.RawKeyReleased -= OnRawKeyReleased;
@@ -174,10 +185,15 @@ public class ShortcutService : IShortcutService
                 t.IsEnabled &&
                 string.Equals(t.HotkeyString, e.HotkeyString, StringComparison.OrdinalIgnoreCase));
 
-            if (matchingTask is null) return;
+            if (matchingTask is null)
+            {
+                return;
+            }
 
             if (matchingTask.RunWhileHeld && _activePlayers.ContainsKey(matchingTask.Id))
+            {
                 return;
+            }
 
             if (!matchingTask.RunWhileHeld && _activePlayers.TryGetValue(matchingTask.Id, out playerToStop))
             {
@@ -200,7 +216,7 @@ public class ShortcutService : IShortcutService
         // Stop player outside lock
         if (playerToStop is not null)
         {
-            playerToStop.Stop();
+            playerToStop.StopPlayback();
             SafeUpdate(() => matchingTask.LastStatus = "Stopped");
             return;
         }
@@ -248,7 +264,7 @@ public class ShortcutService : IShortcutService
 
         foreach (var (_, player) in playersToStop)
         {
-            player.Stop();
+            player.StopPlayback();
         }
     }
 
@@ -271,7 +287,7 @@ public class ShortcutService : IShortcutService
                 return;
             }
 
-            var macro = await _fileManager.LoadAsync(task.MacroFilePath);
+            var macro = await _fileManager.LoadAsync(task.MacroFilePath).ConfigureAwait(false);
             if (macro is null)
             {
                 SafeUpdate(() =>
@@ -288,7 +304,7 @@ public class ShortcutService : IShortcutService
                 task.LastStatus = "Running...";
                 task.LastTriggeredTime = DateTime.UtcNow;
             });
-            ShortcutStarting?.Invoke(this, task);
+            ShortcutStarting?.Invoke(this, new ShortcutStartingEventArgs(task));
 
             player = _playerFactory();
 
@@ -311,7 +327,7 @@ public class ShortcutService : IShortcutService
                 RepeatDelayMaxMs = task.RepeatDelayMaxMs,
             };
 
-            await player.PlayAsync(macro, options, cancellationToken);
+            await player.PlayAsync(macro, options, cancellationToken).ConfigureAwait(false);
 
             SafeUpdate(() =>
             {
@@ -346,7 +362,7 @@ public class ShortcutService : IShortcutService
                 task.LastTriggeredTime = DateTime.UtcNow;
             });
             ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, success: false, ex.Message));
-            Log.Error(ex, "[ShortcutService] Error executing shortcut task {TaskName}", task.Name);
+            Log.LogError(ex, "[ShortcutService] Error executing shortcut task {TaskName}", task.Name);
         }
         finally
         {
@@ -411,7 +427,7 @@ public class ShortcutService : IShortcutService
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        await ExecuteTaskAsync(task, cancellationToken);
+        await ExecuteTaskAsync(task, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task LoadAsync()
@@ -419,7 +435,10 @@ public class ShortcutService : IShortcutService
         EnsureSyncContext();
         try
         {
-            if (!File.Exists(_shortcutsFilePath)) return;
+            if (!File.Exists(_shortcutsFilePath))
+            {
+                return;
+            }
 
             var tasks = await FileBackedJsonStorage.ReadAsync(
                     _shortcutsFilePath,
@@ -435,6 +454,7 @@ public class ShortcutService : IShortcutService
                         Tasks.Clear();
                         foreach (var task in tasks)
                         {
+                            task.Normalize();
                             Tasks.Add(task);
                         }
                     }
@@ -498,9 +518,13 @@ public class ShortcutService : IShortcutService
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
+
         _disposed = true;
 
-        Stop();
+        StopShortcuts();
     }
 }

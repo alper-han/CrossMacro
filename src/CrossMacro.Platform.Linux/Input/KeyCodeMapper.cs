@@ -29,15 +29,28 @@ public class KeyCodeMapper : IKeyCodeMapper
 
     public int GetKeyCode(string keyName)
     {
+        ArgumentNullException.ThrowIfNull(keyName);
         // Modifier keys
         if (keyName.Equals("Ctrl", StringComparison.OrdinalIgnoreCase))
+        {
             return 29;
+        }
+
         if (keyName.Equals("Shift", StringComparison.OrdinalIgnoreCase))
+        {
             return 42;
+        }
+
         if (keyName.Equals("Alt", StringComparison.OrdinalIgnoreCase))
+        {
             return 56;
+        }
+
         if (keyName.Equals("AltGr", StringComparison.OrdinalIgnoreCase))
+        {
             return 100;
+        }
+
         if (keyName.Equals("Super", StringComparison.OrdinalIgnoreCase) ||
             keyName.Equals("Meta", StringComparison.OrdinalIgnoreCase))
         {
@@ -45,35 +58,55 @@ public class KeyCodeMapper : IKeyCodeMapper
         }
 
         // Function keys
-        if (keyName.StartsWith("F", StringComparison.OrdinalIgnoreCase) &&
-            int.TryParse(keyName[1..], out var fNum))
+        if (keyName.Length > 0 && keyName[0] is 'F' or 'f' &&
+            int.TryParse(keyName[1..], CultureInfo.InvariantCulture, out var fNum))
         {
-            if (fNum >= 1 && fNum <= 10)
+            if (fNum is >= 1 and <= 10)
+            {
                 return 59 + fNum - 1;
+            }
+
             if (fNum is 11)
+            {
                 return 87;
+            }
+
             if (fNum is 12)
+            {
                 return 88;
-            if (fNum >= 13 && fNum <= 20)
+            }
+
+            if (fNum is >= 13 and <= 20)
+            {
                 return 183 + fNum - 13;
+            }
         }
 
         // Special keys
         var special = GetSpecialKeyCode(keyName);
-        if (special != -1) return special;
+        if (special != -1)
+        {
+            return special;
+        }
 
         // Mouse buttons
         var mouseCode = GetMouseButtonCode(keyName);
-        if (mouseCode != -1) return mouseCode;
+        if (mouseCode != -1)
+        {
+            return mouseCode;
+        }
 
         // Try layout service first
         var code = _layoutService.GetKeyCode(keyName);
-        if (code != -1) return code;
+        if (code != -1)
+        {
+            return code;
+        }
 
         // Letter keys (QWERTY layout fallback)
         if (keyName.Length is 1 && char.IsLetter(keyName[0]))
         {
-            return GetLetterKeyCode(char.ToUpper(keyName[0]));
+            return GetLetterKeyCode(char.ToUpper(keyName[0], CultureInfo.InvariantCulture));
         }
 
         // Digit keys
@@ -163,11 +196,23 @@ public class KeyCodeMapper : IKeyCodeMapper
             "Pause" => 119,
 
             // Numpad
-            "Numpad7" => 71, "Numpad8" => 72, "Numpad9" => 73, "Numpad-" => 74,
-            "Numpad4" => 75, "Numpad5" => 76, "Numpad6" => 77, "Numpad+" or "NumpadPlus" => 78,
-            "Numpad1" => 79, "Numpad2" => 80, "Numpad3" => 81,
-            "Numpad0" => 82, "Numpad." => 83, "NumpadEnter" => 96, "Numpad/" => 98,
-            "Numpad*" => 55, "Numpad=" => 117,
+            "Numpad7" => 71,
+            "Numpad8" => 72,
+            "Numpad9" => 73,
+            "Numpad-" => 74,
+            "Numpad4" => 75,
+            "Numpad5" => 76,
+            "Numpad6" => 77,
+            "Numpad+" or "NumpadPlus" => 78,
+            "Numpad1" => 79,
+            "Numpad2" => 80,
+            "Numpad3" => 81,
+            "Numpad0" => 82,
+            "Numpad." => 83,
+            "NumpadEnter" => 96,
+            "Numpad/" => 98,
+            "Numpad*" => 55,
+            "Numpad=" => 117,
 
             _ => -1,
         };
@@ -193,12 +238,32 @@ public class KeyCodeMapper : IKeyCodeMapper
     {
         return letter switch
         {
-            'Q' => 16, 'W' => 17, 'E' => 18, 'R' => 19, 'T' => 20,
-            'Y' => 21, 'U' => 22, 'I' => 23, 'O' => 24, 'P' => 25,
-            'A' => 30, 'S' => 31, 'D' => 32, 'F' => 33, 'G' => 34,
-            'H' => 35, 'J' => 36, 'K' => 37, 'L' => 38,
-            'Z' => 44, 'X' => 45, 'C' => 46, 'V' => 47, 'B' => 48,
-            'N' => 49, 'M' => 50,
+            'Q' => 16,
+            'W' => 17,
+            'E' => 18,
+            'R' => 19,
+            'T' => 20,
+            'Y' => 21,
+            'U' => 22,
+            'I' => 23,
+            'O' => 24,
+            'P' => 25,
+            'A' => 30,
+            'S' => 31,
+            'D' => 32,
+            'F' => 33,
+            'G' => 34,
+            'H' => 35,
+            'J' => 36,
+            'K' => 37,
+            'L' => 38,
+            'Z' => 44,
+            'X' => 45,
+            'C' => 46,
+            'V' => 47,
+            'B' => 48,
+            'N' => 49,
+            'M' => 50,
             _ => -1,
         };
     }

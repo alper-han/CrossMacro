@@ -10,7 +10,7 @@ public static class PersistedMacroCodec
         ArgumentNullException.ThrowIfNull(document);
         if (document.SchemaVersion > PersistedMacroDocument.CurrentSchemaVersion)
         {
-            throw new InvalidOperationException($"Unsupported macro schema version {document.SchemaVersion}.");
+            throw new InvalidOperationException($"Unsupported macro schema version {document.SchemaVersion.ToString(CultureInfo.InvariantCulture)}.");
         }
 
         return document.ToRuntime();

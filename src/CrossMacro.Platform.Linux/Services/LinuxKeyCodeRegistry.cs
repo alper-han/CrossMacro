@@ -326,13 +326,17 @@ public static class LinuxKeyCodeRegistry
     public static string GetKeyName(int keyCode)
     {
         if (KeyNames.TryGetValue(keyCode, out var name))
+        {
             return name;
+        }
 
         // Generate name for unknown codes
-        if (keyCode >= 0x100 && keyCode < 0x120)
-            return $"BTN_{keyCode:X3}";
+        if (keyCode is >= 0x100 and < 0x120)
+        {
+            return $"BTN_{keyCode.ToString("X3", CultureInfo.InvariantCulture)}";
+        }
 
-        return $"KEY_{keyCode}";
+        return $"KEY_{keyCode.ToString(CultureInfo.InvariantCulture)}";
     }
 
     /// <summary>
@@ -349,9 +353,14 @@ public static class LinuxKeyCodeRegistry
 
         // Remove KEY_ or BTN_ prefix for display
         if (name.StartsWith("KEY_", StringComparison.Ordinal))
+        {
             return name[4..];
+        }
+
         if (name.StartsWith("BTN_", StringComparison.Ordinal))
+        {
             return name[4..];
+        }
 
         return name;
     }

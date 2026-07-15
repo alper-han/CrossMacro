@@ -28,7 +28,7 @@ internal sealed class DesktopQuickSetupGateService
             var flatpakQuickSetupService = _getFlatpakQuickSetupService();
             if (flatpakQuickSetupService is not null && flatpakQuickSetupService.IsApplicable())
             {
-                await HandleFlatpakQuickSetupAsync(desktop, startupPreferences, unsupportedSessionReason, startDesktopRuntimeAsync);
+                await HandleFlatpakQuickSetupAsync(desktop, startupPreferences, unsupportedSessionReason, startDesktopRuntimeAsync).ConfigureAwait(false);
                 return true;
             }
 
@@ -39,7 +39,7 @@ internal sealed class DesktopQuickSetupGateService
         var appImageQuickSetupService = _getAppImageQuickSetupService();
         if ((appImageQuickSetupService?.ShouldPrompt()) is true)
         {
-            await HandleAppImageQuickSetupAsync(desktop, startupPreferences, startDesktopRuntimeAsync);
+            await HandleAppImageQuickSetupAsync(desktop, startupPreferences, startDesktopRuntimeAsync).ConfigureAwait(false);
             return true;
         }
 
@@ -77,28 +77,28 @@ internal sealed class DesktopQuickSetupGateService
                     dangerYes: false,
                     dangerNo: true);
 
-                var shouldRunSetup = await setupDialog.ShowDialog<bool>(bootstrapOwner);
+                var shouldRunSetup = await setupDialog.ShowDialog<bool>(bootstrapOwner).ConfigureAwait(false);
                 if (!shouldRunSetup)
                 {
                     ShowUnsupportedSessionDialog(desktop, initialReason);
                     return;
                 }
 
-                var setupResult = await quickSetupService.RunAsync();
+                var setupResult = await quickSetupService.RunAsync().ConfigureAwait(false);
                 if (!setupResult.Success)
                 {
                     ShowUnsupportedSessionDialog(desktop, $"{initialReason}\n\n{setupResult.Message}");
                     return;
                 }
 
-                await startDesktopRuntimeAsync(desktop, startupPreferences);
+                await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[DesktopStartupCoordinator] Flatpak quick setup flow failed");
+                Log.LogError(ex, "[DesktopStartupCoordinator] Flatpak quick setup flow failed");
                 ShowUnsupportedSessionDialog(desktop, "Quick setup failed due to an unexpected error.");
             }
-        });
+        }).ConfigureAwait(false);
     }
 
     private async Task HandleAppImageQuickSetupAsync(
@@ -109,7 +109,7 @@ internal sealed class DesktopQuickSetupGateService
         var quickSetupService = _getAppImageQuickSetupService();
         if (quickSetupService is null)
         {
-            await startDesktopRuntimeAsync(desktop, startupPreferences);
+            await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
             return;
         }
 
@@ -131,10 +131,10 @@ internal sealed class DesktopQuickSetupGateService
                     dangerYes: false,
                     dangerNo: false);
 
-                var shouldRunSetup = await setupDialog.ShowDialog<bool>(bootstrapOwner);
+                var shouldRunSetup = await setupDialog.ShowDialog<bool>(bootstrapOwner).ConfigureAwait(false);
                 if (shouldRunSetup)
                 {
-                    var setupResult = await quickSetupService.RunAsync();
+                    var setupResult = await quickSetupService.RunAsync().ConfigureAwait(false);
                     if (!setupResult.Success)
                     {
                         var failureDialog = DesktopPermissionGateService.CreateCenteredConfirmationDialog(
@@ -144,18 +144,18 @@ internal sealed class DesktopQuickSetupGateService
 noText: null,
                             dangerYes: false);
 
-                        await failureDialog.ShowDialog<bool>(bootstrapOwner);
+                        await failureDialog.ShowDialog<bool>(bootstrapOwner).ConfigureAwait(false);
                     }
                 }
 
-                await startDesktopRuntimeAsync(desktop, startupPreferences);
+                await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[DesktopStartupCoordinator] AppImage quick setup flow failed");
-                await startDesktopRuntimeAsync(desktop, startupPreferences);
+                Log.LogError(ex, "[DesktopStartupCoordinator] AppImage quick setup flow failed");
+                await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
             }
-        });
+        }).ConfigureAwait(false);
     }
 
     internal static void ShowUnsupportedSessionDialog(IClassicDesktopStyleApplicationLifetime desktop, string reason)

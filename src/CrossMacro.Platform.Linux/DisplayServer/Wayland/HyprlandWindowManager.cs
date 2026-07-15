@@ -18,7 +18,9 @@ public sealed class HyprlandWindowManager : IWindowManager
     {
         var response = await _ipcClient.SendCommandAsync("j/activewindow", cancellationToken).ConfigureAwait(false);
         if (response is null)
+        {
             return null;
+        }
 
         try
         {
@@ -36,17 +38,23 @@ public sealed class HyprlandWindowManager : IWindowManager
     {
         var response = await _ipcClient.SendCommandAsync("j/clients", cancellationToken).ConfigureAwait(false);
         if (response is null)
+        {
             return [];
+        }
 
         try
         {
             var dtos = JsonSerializer.Deserialize(response, HyprlandJsonContext.Default.HyprlandWindowDtoArray);
             if (dtos is null)
+            {
                 return [];
+            }
 
             var result = new List<WindowInfo>(dtos.Length);
             foreach (var dto in dtos)
+            {
                 result.Add(MapWindow(dto, isFocused: dto.FocusHistoryId is 0));
+            }
 
             return result;
         }
@@ -60,7 +68,9 @@ public sealed class HyprlandWindowManager : IWindowManager
     public async Task<bool> FocusWindowByAddressAsync(string address, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(address))
+        {
             return false;
+        }
 
         var addr = NormalizeAddress(address);
         var response = await _ipcClient.SendCommandAsync($"dispatch focuswindow address:{addr}", cancellationToken).ConfigureAwait(false);
@@ -70,7 +80,9 @@ public sealed class HyprlandWindowManager : IWindowManager
     public async Task<bool> FocusWindowByTitleAsync(string titleSubstring, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(titleSubstring))
+        {
             return false;
+        }
 
         var response = await _ipcClient.SendCommandAsync($"dispatch focuswindow title:{titleSubstring}", cancellationToken).ConfigureAwait(false);
         return IsOkResponse(response);
@@ -79,7 +91,9 @@ public sealed class HyprlandWindowManager : IWindowManager
     public async Task<bool> FocusWindowByClassAsync(string classSubstring, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(classSubstring))
+        {
             return false;
+        }
 
         var response = await _ipcClient.SendCommandAsync($"dispatch focuswindow class:{classSubstring}", cancellationToken).ConfigureAwait(false);
         return IsOkResponse(response);
@@ -88,7 +102,9 @@ public sealed class HyprlandWindowManager : IWindowManager
     public async Task<bool> CloseWindowByAddressAsync(string address, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(address))
+        {
             return false;
+        }
 
         var addr = NormalizeAddress(address);
         var response = await _ipcClient.SendCommandAsync($"dispatch closewindow address:{addr}", cancellationToken).ConfigureAwait(false);
@@ -98,7 +114,9 @@ public sealed class HyprlandWindowManager : IWindowManager
     public async Task<bool> CloseWindowByTitleAsync(string titleSubstring, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(titleSubstring))
+        {
             return false;
+        }
 
         var response = await _ipcClient.SendCommandAsync($"dispatch closewindow title:{titleSubstring}", cancellationToken).ConfigureAwait(false);
         return IsOkResponse(response);
@@ -107,13 +125,13 @@ public sealed class HyprlandWindowManager : IWindowManager
 
     public async Task<bool> MoveActiveWindowAsync(int x, int y, CancellationToken cancellationToken = default)
     {
-        var response = await _ipcClient.SendCommandAsync($"dispatch movewindowpixel exact {x} {y},active", cancellationToken).ConfigureAwait(false);
+        var response = await _ipcClient.SendCommandAsync($"dispatch movewindowpixel exact {x.ToString(CultureInfo.InvariantCulture)} {y.ToString(CultureInfo.InvariantCulture)},active", cancellationToken).ConfigureAwait(false);
         return IsOkResponse(response);
     }
 
     public async Task<bool> ResizeActiveWindowAsync(int width, int height, CancellationToken cancellationToken = default)
     {
-        var response = await _ipcClient.SendCommandAsync($"dispatch resizewindowpixel exact {width} {height},active", cancellationToken).ConfigureAwait(false);
+        var response = await _ipcClient.SendCommandAsync($"dispatch resizewindowpixel exact {width.ToString(CultureInfo.InvariantCulture)} {height.ToString(CultureInfo.InvariantCulture)},active", cancellationToken).ConfigureAwait(false);
         return IsOkResponse(response);
     }
 
@@ -145,7 +163,9 @@ public sealed class HyprlandWindowManager : IWindowManager
     {
         var response = await _ipcClient.SendCommandAsync("j/activeworkspace", cancellationToken).ConfigureAwait(false);
         if (response is null)
+        {
             return null;
+        }
 
         try
         {
@@ -162,7 +182,9 @@ public sealed class HyprlandWindowManager : IWindowManager
     public async Task<bool> SwitchWorkspaceAsync(string workspace, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(workspace))
+        {
             return false;
+        }
 
         var response = await _ipcClient.SendCommandAsync($"dispatch workspace {workspace}", cancellationToken).ConfigureAwait(false);
         return IsOkResponse(response);
@@ -171,7 +193,9 @@ public sealed class HyprlandWindowManager : IWindowManager
     public async Task<bool> MoveActiveWindowToWorkspaceAsync(string workspace, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(workspace))
+        {
             return false;
+        }
 
         var response = await _ipcClient.SendCommandAsync($"dispatch movetoworkspacesilent {workspace}", cancellationToken).ConfigureAwait(false);
         return IsOkResponse(response);
@@ -180,7 +204,9 @@ public sealed class HyprlandWindowManager : IWindowManager
     public async Task<bool> MoveWindowToWorkspaceByAddressAsync(string address, string workspace, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(address) || string.IsNullOrWhiteSpace(workspace))
+        {
             return false;
+        }
 
         var addr = NormalizeAddress(address);
         var response = await _ipcClient.SendCommandAsync($"dispatch movetoworkspacesilent {workspace},address:{addr}", cancellationToken).ConfigureAwait(false);
@@ -201,7 +227,11 @@ public sealed class HyprlandWindowManager : IWindowManager
             IsMaximized = dto.Fullscreen is 1,
             IsFloating = dto.Floating,
             IsPinned = dto.Pinned,
-            IsHidden = dto.Hidden, X = dto.At is not null && dto.At.Length >= 2 ? dto.At[0] : 0, Y = dto.At is not null && dto.At.Length >= 2 ? dto.At[1] : 0, Width = dto.Size is not null && dto.Size.Length >= 2 ? dto.Size[0] : 0, Height = dto.Size is not null && dto.Size.Length >= 2 ? dto.Size[1] : 0,
+            IsHidden = dto.Hidden,
+            X = dto.At is not null && dto.At.Length >= 2 ? dto.At[0] : 0,
+            Y = dto.At is not null && dto.At.Length >= 2 ? dto.At[1] : 0,
+            Width = dto.Size is not null && dto.Size.Length >= 2 ? dto.Size[0] : 0,
+            Height = dto.Size is not null && dto.Size.Length >= 2 ? dto.Size[1] : 0,
         };
 
     private static string NormalizeAddress(string address) =>
@@ -210,7 +240,9 @@ public sealed class HyprlandWindowManager : IWindowManager
     private static bool IsOkResponse(string? response)
     {
         if (response is null)
+        {
             return false;
+        }
 
         var trimmed = response.Trim();
         return trimmed.Equals("ok", StringComparison.OrdinalIgnoreCase)

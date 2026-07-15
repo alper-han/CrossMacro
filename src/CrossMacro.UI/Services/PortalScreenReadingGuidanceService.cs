@@ -29,7 +29,7 @@ internal sealed class PortalScreenReadingGuidanceService : IPortalScreenReadingG
         await _dialogService.ShowMessageAsync(
             UIStrings.PortalScreenReadingGuidanceTitle,
             UIStrings.PortalScreenReadingGuidanceMessage,
-            UIStrings.ContinueButton);
+            UIStrings.ContinueButton).ConfigureAwait(false);
     }
 
     private bool ShouldShowGuidance()

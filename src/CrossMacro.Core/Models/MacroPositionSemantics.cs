@@ -39,7 +39,7 @@ public static class MacroPositionSemantics
 
     public static bool HasExplicitCoordinateMode(MacroEvent ev)
     {
-        return IsCoordinateBearing(ev) && ev.CoordinateMode.HasValue;
+        return IsCoordinateBearing(ev) && ev.CoordinateMode is not null;
     }
 
     public static MouseCoordinateMode? ResolveCoordinateMode(MacroEvent ev, bool legacyIsAbsolute)
@@ -151,11 +151,11 @@ public static class MacroPositionSemantics
         return !IsScrollButton(ev.Button);
     }
 
-    public static bool IsScrollButton(MouseButton button)
+    public static bool IsScrollButton(MacroMouseButton button)
     {
-        return button is MouseButton.ScrollUp
-            or MouseButton.ScrollDown
-            or MouseButton.ScrollLeft
-            or MouseButton.ScrollRight;
+        return button is MacroMouseButton.ScrollUp
+            or MacroMouseButton.ScrollDown
+            or MacroMouseButton.ScrollLeft
+            or MacroMouseButton.ScrollRight;
     }
 }

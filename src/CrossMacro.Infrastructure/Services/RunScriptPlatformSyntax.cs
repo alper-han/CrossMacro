@@ -36,7 +36,7 @@ internal static class RunScriptPlatformSyntax
 
     public static bool TryParseScreenshotStep(
         string step,
-        out RunScriptSyntax.ScreenshotStep screenshotStep,
+        out ScreenshotStep screenshotStep,
         out string? error)
     {
         screenshotStep = default;
@@ -121,7 +121,7 @@ internal static class RunScriptPlatformSyntax
             error = "Screenshot requires at least one destination: output <path> or clipboard.";
             return false;
         }
-        screenshotStep = new RunScriptSyntax.ScreenshotStep(outputPath, copyToClipboard, useRegion,
+        screenshotStep = new ScreenshotStep(outputPath, copyToClipboard, useRegion,
             regionX, regionY, regionWidth, regionHeight);
         return true;
     }
@@ -130,7 +130,7 @@ internal static class RunScriptPlatformSyntax
     {
         error = null;
         if (!int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-            && !(token.StartsWith("$", StringComparison.Ordinal) && EditorActionScriptTokens.IsValidVariableName(token)))
+            && !(token.StartsWith('$') && EditorActionScriptTokens.IsValidVariableName(token)))
         {
             error = $"Invalid screenshot region value '{token}'. Expected integer or $variable.";
             return false;
@@ -144,7 +144,7 @@ internal static class RunScriptPlatformSyntax
         {
             return value > 0;
         }
-        return token.StartsWith("$", StringComparison.Ordinal) && EditorActionScriptTokens.IsValidVariableName(token);
+        return token.StartsWith('$') && EditorActionScriptTokens.IsValidVariableName(token);
     }
 
     private static bool TryReadWord(string value, ref int index, out string token)

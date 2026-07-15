@@ -22,4 +22,10 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="CrossMacro.Platform.Linux.Tests" />
+    <InternalsVisibleTo Include="CrossMacro.Daemon.Tests" />
+    <InternalsVisibleTo Include="CrossMacro.Infrastructure.Tests" />
+  </ItemGroup>
+
 </Project>

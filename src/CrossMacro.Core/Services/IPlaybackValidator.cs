@@ -3,5 +3,5 @@ namespace CrossMacro.Core.Services;
 
 public interface IPlaybackValidator
 {
-    ValidationResult Validate(MacroSequence macro);
+    public PlaybackValidationResult Validate(MacroSequence macro);
 }

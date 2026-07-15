@@ -11,7 +11,7 @@ public class IpcClientIntegrationTests
     public async Task ConnectAsync_WhenDaemonReturnsHandshakeError_ShouldThrowHandshakeFailed()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.ErrorResponse);
+        await using var daemon = (await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.ErrorResponse));
         using var client = new IpcClient(() => socketPath);
 
         var exception = await Assert.ThrowsAsync<IpcClientException>(() =>
@@ -24,7 +24,7 @@ public class IpcClientIntegrationTests
     public async Task ConnectAsync_WhenProtocolVersionMismatches_ShouldThrowProtocolMismatch()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.ProtocolMismatch);
+        await using var daemon = (await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.ProtocolMismatch));
         using var client = new IpcClient(() => socketPath);
 
         var exception = await Assert.ThrowsAsync<IpcClientException>(() =>
@@ -37,7 +37,7 @@ public class IpcClientIntegrationTests
     public async Task ConnectAsync_WhenHandshakeTimesOut_ShouldThrowTimeout()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.NoResponse);
+        await using var daemon = (await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.NoResponse));
         using var client = new IpcClient(() => socketPath);
 
         var exception = await Assert.ThrowsAsync<IpcClientException>(() =>
@@ -50,7 +50,7 @@ public class IpcClientIntegrationTests
     public async Task ConnectAsync_WhenCallerCancellationFiresDuringHandshake_ShouldPropagateCancellationWithinCallerBudget()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.NoResponse);
+        await using var daemon = (await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.NoResponse));
         using var client = new IpcClient(() => socketPath);
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
 
@@ -80,7 +80,7 @@ public class IpcClientIntegrationTests
 
             await daemon1.DisposeAsync();
             daemon1Disposed = true;
-            await using var daemon2 = await TestIpcDaemon.StartAsync(socketPath);
+            await using var daemon2 = (await TestIpcDaemon.StartAsync(socketPath));
 
             await daemon2.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(8));
             var commands = daemon2.GetCommandsSnapshot();
@@ -118,7 +118,7 @@ public class IpcClientIntegrationTests
 
             await daemon1.DisposeAsync();
             daemon1Disposed = true;
-            await using var daemon2 = await TestIpcDaemon.StartAsync(socketPath);
+            await using var daemon2 = (await TestIpcDaemon.StartAsync(socketPath));
 
             await daemon2.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(8));
             await Task.Delay(TimeSpan.FromMilliseconds(200));
@@ -152,7 +152,7 @@ public class IpcClientIntegrationTests
 
             await daemon1.DisposeAsync();
             daemon1Disposed = true;
-            await using var daemon2 = await TestIpcDaemon.StartAsync(socketPath);
+            await using var daemon2 = (await TestIpcDaemon.StartAsync(socketPath));
 
             await Task.Delay(TimeSpan.FromSeconds(2));
             var commands = daemon2.GetCommandsSnapshot();
@@ -227,7 +227,7 @@ public class IpcClientIntegrationTests
     public async Task StartStopCapture_MultiConsumer_ShouldSendOnlyAggregateTransitions()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
+        await using var daemon = (await TestIpcDaemon.StartAsync(socketPath));
         using var client = new IpcClient(() => socketPath);
 
         await client.ConnectAsync(CancellationToken.None);
@@ -269,9 +269,9 @@ public class IpcClientIntegrationTests
     public async Task StartCaptureAsync_WhenPendingStartFailsAfterOtherConsumerUnsubscribes_ShouldRollbackAsyncOriginWithoutRetry()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(
+        await using var daemon = (await TestIpcDaemon.StartAsync(
             socketPath,
-            HandshakeBehavior.FailSecondStartAfterDelay);
+            HandshakeBehavior.FailSecondStartAfterDelay));
         using var client = new IpcClient(() => socketPath, autoReconnect: false);
 
         await client.ConnectAsync(CancellationToken.None);
@@ -301,9 +301,9 @@ public class IpcClientIntegrationTests
     public async Task StartCaptureAsync_WhenWidenFailsAndOtherConsumerUnsubscribes_ShouldReconcileToRemainingMask()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(
+        await using var daemon = (await TestIpcDaemon.StartAsync(
             socketPath,
-            HandshakeBehavior.FailSecondStartAfterDelay);
+            HandshakeBehavior.FailSecondStartAfterDelay));
         using var client = new IpcClient(() => socketPath, autoReconnect: false);
 
         await client.ConnectAsync(CancellationToken.None);
@@ -346,9 +346,9 @@ public class IpcClientIntegrationTests
     public async Task StartCaptureAsync_WhenSharedStartFailsButSyncConsumerStillNeedsMask_ShouldRetrySameMask()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(
+        await using var daemon = (await TestIpcDaemon.StartAsync(
             socketPath,
-            HandshakeBehavior.FailSecondStartAfterDelay);
+            HandshakeBehavior.FailSecondStartAfterDelay));
         using var client = new IpcClient(() => socketPath, autoReconnect: false);
 
         await client.ConnectAsync(CancellationToken.None);
@@ -379,9 +379,9 @@ public class IpcClientIntegrationTests
     public async Task StartCapture_WhenSyncJoinRequestsFailureNotification_ShouldObserveErrorBeforePendingTaskCompletion()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(
+        await using var daemon = (await TestIpcDaemon.StartAsync(
             socketPath,
-            HandshakeBehavior.FailFirstStartAfterDelay);
+            HandshakeBehavior.FailFirstStartAfterDelay));
         using var client = new IpcClient(() => socketPath, autoReconnect: false);
 
         await client.ConnectAsync(CancellationToken.None);
@@ -413,9 +413,9 @@ public class IpcClientIntegrationTests
     public async Task StartCaptureAsync_WhenCallsOverlap_ShouldReuseSingleInFlightStart()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(
+        await using var daemon = (await TestIpcDaemon.StartAsync(
             socketPath,
-            HandshakeBehavior.DelayAllCaptureStartAcks);
+            HandshakeBehavior.DelayAllCaptureStartAcks));
         using var client = new IpcClient(() => socketPath, autoReconnect: false);
 
         await client.ConnectAsync(CancellationToken.None);
@@ -439,9 +439,9 @@ public class IpcClientIntegrationTests
     public async Task StartCaptureAsync_WhenSameConsumerOverlapsAndSharedStartFails_ShouldRollbackAndReconcilePreviousMask()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(
+        await using var daemon = (await TestIpcDaemon.StartAsync(
             socketPath,
-            HandshakeBehavior.FailSecondStartAfterDelay);
+            HandshakeBehavior.FailSecondStartAfterDelay));
         using var client = new IpcClient(() => socketPath, autoReconnect: false);
 
         await client.ConnectAsync(CancellationToken.None);
@@ -484,7 +484,7 @@ public class IpcClientIntegrationTests
             client.ConnectAsync(CancellationToken.None));
         Assert.Equal(IpcClientFailureReason.ConnectFailed, exception.Reason);
 
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
+        await using var daemon = (await TestIpcDaemon.StartAsync(socketPath));
 
         await client.ConnectAsync(CancellationToken.None);
         await daemon.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
@@ -507,7 +507,7 @@ public class IpcClientIntegrationTests
             client,
             new CaptureCommand(CaptureCommandType.Start, CaptureMouse: true, CaptureKeyboard: false));
 
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
+        await using var daemon = (await TestIpcDaemon.StartAsync(socketPath));
 
         await client.ConnectAsync(CancellationToken.None).WaitAsync(AsyncOperationTimeout);
 
@@ -526,7 +526,7 @@ public class IpcClientIntegrationTests
     public async Task LinuxIpcInputCapture_StartAsync_WhenHandshakeTimesOut_ShouldRaiseFriendlyError()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.NoResponse);
+        await using var daemon = (await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.NoResponse));
         using var client = new IpcClient(() => socketPath, autoReconnect: false);
         using var capture = new LinuxIpcInputCapture(client, "test-capture");
 
@@ -555,7 +555,7 @@ public class IpcClientIntegrationTests
     public async Task LinuxIpcInputCapture_StartAsync_WhenProtocolVersionMismatches_ShouldRaiseFriendlyMismatchError()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.ProtocolMismatch);
+        await using var daemon = (await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.ProtocolMismatch));
         using var client = new IpcClient(() => socketPath, autoReconnect: false);
         using var capture = new LinuxIpcInputCapture(client, "protocol-mismatch-capture");
 
@@ -571,7 +571,7 @@ public class IpcClientIntegrationTests
     public async Task LinuxIpcInputCapture_StartAsync_WhenInitialProtocolMismatchWithAutoReconnectEnabled_ShouldFailImmediately()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.ProtocolMismatch);
+        await using var daemon = (await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.ProtocolMismatch));
         using var client = new IpcClient(() => socketPath, autoReconnect: true);
         using var capture = new LinuxIpcInputCapture(client, "protocol-mismatch-autoreconnect-capture");
 
@@ -599,7 +599,7 @@ public class IpcClientIntegrationTests
 
         await daemon1.DisposeAsync();
         daemon1Disposed = true;
-        await using var daemon2 = await TestIpcDaemon.StartAsync(socketPath);
+        await using var daemon2 = (await TestIpcDaemon.StartAsync(socketPath));
 
         await startTask.WaitAsync(TimeSpan.FromSeconds(8));
         await daemon2.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
@@ -620,7 +620,7 @@ public class IpcClientIntegrationTests
     public async Task LinuxIpcInputCapture_StartAsync_WhenConnected_ShouldSendStartAndStop()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
+        await using var daemon = (await TestIpcDaemon.StartAsync(socketPath));
         using var client = new IpcClient(() => socketPath, autoReconnect: false);
         await client.ConnectAsync(CancellationToken.None);
 
@@ -645,9 +645,9 @@ public class IpcClientIntegrationTests
     public async Task LinuxIpcInputCapture_StartAsync_WhenCallsOverlapOnSameInstance_ShouldReuseInFlightStartup()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(
+        await using var daemon = (await TestIpcDaemon.StartAsync(
             socketPath,
-            HandshakeBehavior.DelayAllCaptureStartAcks);
+            HandshakeBehavior.DelayAllCaptureStartAcks));
         using var client = new IpcClient(() => socketPath, autoReconnect: false);
         await client.ConnectAsync(CancellationToken.None);
 
@@ -737,7 +737,7 @@ public class IpcClientIntegrationTests
     public async Task LinuxIpcInputSimulator_WhenConnected_ShouldSendConfigureAndSimulateEvents()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
+        await using var daemon = (await TestIpcDaemon.StartAsync(socketPath));
         using var client = new IpcClient(() => socketPath, autoReconnect: false);
         await client.ConnectAsync(CancellationToken.None);
         using var simulator = new LinuxIpcInputSimulator(client);
@@ -765,7 +765,7 @@ public class IpcClientIntegrationTests
     public async Task LinuxIpcInputSimulator_WhenBatchSupported_ShouldSendBatchAndWaitForAck()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
+        await using var daemon = (await TestIpcDaemon.StartAsync(socketPath));
         using var client = new IpcClient(() => socketPath, autoReconnect: false);
         await client.ConnectAsync(CancellationToken.None);
         using var simulator = new LinuxIpcInputSimulator(client);
@@ -796,7 +796,7 @@ public class IpcClientIntegrationTests
     public async Task SimulateEventBatch_WhenDaemonReturnsFailure_ShouldThrowConnectFailed()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.FailSimulationBatch);
+        await using var daemon = (await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.FailSimulationBatch));
         using var client = new IpcClient(() => socketPath, autoReconnect: false);
         await client.ConnectAsync(CancellationToken.None);
 
@@ -812,7 +812,7 @@ public class IpcClientIntegrationTests
     public async Task SimulateEventBatch_WhenTransportDropsBeforeAck_ShouldFailPendingWaiter()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.DropSimulationBatchBeforeAck);
+        await using var daemon = (await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.DropSimulationBatchBeforeAck));
         using var client = new IpcClient(() => socketPath, autoReconnect: false);
         await client.ConnectAsync(CancellationToken.None);
 
@@ -828,7 +828,7 @@ public class IpcClientIntegrationTests
     public async Task SimulateEventBatch_WhenDaemonKeepsConnectionOpenWithoutAck_ShouldTimeout()
     {
         var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.HoldSimulationBatchWithoutAck);
+        await using var daemon = (await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.HoldSimulationBatchWithoutAck));
         using var client = new IpcClient(() => socketPath, autoReconnect: false);
         await client.ConnectAsync(CancellationToken.None);
 

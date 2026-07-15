@@ -92,7 +92,7 @@ public class GitHubUpdateServiceTests
 
         result.HasUpdate.Should().BeTrue();
         result.LatestVersion.Should().Be("99.99.99");
-        result.ReleaseUrl.Should().Be("http://example.com");
+        result.ReleaseUrl.Should().Be(new Uri("http://example.com"));
     }
 
     [Fact]

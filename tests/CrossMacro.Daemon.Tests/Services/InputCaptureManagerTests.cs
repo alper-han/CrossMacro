@@ -35,7 +35,7 @@ public class InputCaptureManagerTests
                     Path = "/dev/input/event-test",
                     Name = "Combo Device",
                     IsMouse = true,
-                    IsKeyboard = true
+                    IsKeyboard = true,
                 },
             },
             _ => reader);
@@ -63,7 +63,7 @@ public class InputCaptureManagerTests
                 {
                     Path = "/dev/input/event-test",
                     Name = "Test Keyboard",
-                    IsKeyboard = true
+                    IsKeyboard = true,
                 },
             ],
             _ => reader);
@@ -86,7 +86,7 @@ public class InputCaptureManagerTests
                     Path = "/dev/input/event-test",
                     Name = "Combo Device",
                     IsMouse = true,
-                    IsKeyboard = true
+                    IsKeyboard = true,
                 },
             },
             _ => reader);
@@ -114,7 +114,7 @@ public class InputCaptureManagerTests
                 {
                     Path = "/dev/input/event-test",
                     Name = "Absolute Pointer",
-                    IsMouse = true
+                    IsMouse = true,
                 },
             },
             _ => reader);
@@ -148,7 +148,7 @@ public class InputCaptureManagerTests
                 {
                     Path = "/dev/input/event-real",
                     Name = "Real Keyboard",
-                    IsKeyboard = true
+                    IsKeyboard = true,
                 },
             },
             device =>
@@ -184,7 +184,7 @@ public class InputCaptureManagerTests
                     Name = VirtualDeviceConstants.DeviceName,
                     IsKeyboard = true,
                     VendorId = 0x9999,
-                    ProductId = 0x8888
+                    ProductId = 0x8888,
                 },
             },
             _ => reader);
@@ -211,7 +211,7 @@ public class InputCaptureManagerTests
                     IsVirtual = true,
                     IsKeyboard = true,
                     VendorId = 0xdec0,
-                    ProductId = 0x5eba
+                    ProductId = 0x5eba,
                 },
             },
             _ => virtualKeyboardReader);

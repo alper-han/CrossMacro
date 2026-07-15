@@ -26,7 +26,7 @@ public class PlaybackValidatorTests
     {
         var macro = new MacroSequence
         {
-            ScriptSteps = ["pixelcolor 1 2 sampled", "bogus"],
+            ScriptSteps = {"pixelcolor 1 2 sampled", "bogus"},
         };
 
         var result = _validator.Validate(macro);
@@ -43,7 +43,7 @@ public class PlaybackValidatorTests
     {
         var macro = new MacroSequence
         {
-            ScriptSteps = ["pixelcolor 1 2 sampled", scriptStep],
+            ScriptSteps = {"pixelcolor 1 2 sampled", scriptStep},
         };
 
         var result = _validator.Validate(macro);
@@ -71,9 +71,8 @@ public class PlaybackValidatorTests
         // Arrange
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.MouseMove, X = 100, Y = 200 }
+            Events = {
+                new() { Type = EventType.MouseMove, X = 100, Y = 200 },
             },
         };
 
@@ -91,10 +90,9 @@ public class PlaybackValidatorTests
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = true,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 500, Y = 300 },
-                new() { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 0, Y = 0 }
+                new() { Type = EventType.ButtonPress, Button = MacroMouseButton.Left, X = 0, Y = 0 },
             },
         };
 
@@ -112,10 +110,9 @@ public class PlaybackValidatorTests
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = false,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 500, Y = 300, CoordinateMode = MouseCoordinateMode.Relative },
-                new() { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 0, Y = 0, CoordinateMode = MouseCoordinateMode.Absolute }
+                new() { Type = EventType.ButtonPress, Button = MacroMouseButton.Left, X = 0, Y = 0, CoordinateMode = MouseCoordinateMode.Absolute },
             },
         };
 
@@ -133,10 +130,9 @@ public class PlaybackValidatorTests
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = true,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 500, Y = 300, CoordinateMode = MouseCoordinateMode.Absolute },
-                new() { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 0, Y = 0, CoordinateMode = MouseCoordinateMode.Relative }
+                new() { Type = EventType.ButtonPress, Button = MacroMouseButton.Left, X = 0, Y = 0, CoordinateMode = MouseCoordinateMode.Relative },
             },
         };
 
@@ -154,10 +150,9 @@ public class PlaybackValidatorTests
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = true,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 400, Y = 250 },
-                new() { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 0, Y = 0 }
+                new() { Type = EventType.ButtonPress, Button = MacroMouseButton.Left, X = 0, Y = 0 },
             },
         };
 
@@ -175,10 +170,9 @@ public class PlaybackValidatorTests
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = true,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 400, Y = 250 },
-                new() { Type = EventType.Click, Button = MouseButton.Left, UseCurrentPosition = true, X = 0, Y = 0 }
+                new() { Type = EventType.Click, Button = MacroMouseButton.Left, UseCurrentPosition = true, X = 0, Y = 0 },
             },
         };
 
@@ -196,10 +190,9 @@ public class PlaybackValidatorTests
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = true,
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new() { Type = EventType.MouseMove, X = 400, Y = 250 },
-                new() { Type = EventType.Click, Button = MouseButton.ScrollUp, X = 0, Y = 0 }
+                new() { Type = EventType.Click, Button = MacroMouseButton.ScrollUp, X = 0, Y = 0 },
             },
         };
 
@@ -216,9 +209,8 @@ public class PlaybackValidatorTests
         // Arrange - Delay over 10 seconds
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.MouseMove, DelayMs = 15000 }
+            Events = {
+                new() { Type = EventType.MouseMove, DelayMs = 15000 },
             },
         };
 
@@ -236,9 +228,8 @@ public class PlaybackValidatorTests
         var macro = new MacroSequence
         {
             TotalDurationMs = 350000, // ~5.8 minutes
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.MouseMove }
+            Events = {
+                new() { Type = EventType.MouseMove },
             },
         };
 
@@ -257,7 +248,8 @@ public class PlaybackValidatorTests
             .Select(_ => new MacroEvent { Type = EventType.MouseMove })
             .ToList();
 
-        var macro = new MacroSequence { Events = events };
+        var macro = new MacroSequence();
+        macro.ReplaceEvents(events);
 
         // Act
         var result = _validator.Validate(macro);
@@ -277,9 +269,8 @@ public class PlaybackValidatorTests
         var validator = new PlaybackValidator(CreateKeyCodeMapper(), positionProvider);
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.MouseMove }
+            Events = {
+                new() { Type = EventType.MouseMove },
             },
         };
 
@@ -298,9 +289,8 @@ public class PlaybackValidatorTests
         var validator = new PlaybackValidator(CreateKeyCodeMapper());
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.MouseMove }
+            Events = {
+                new() { Type = EventType.MouseMove },
             },
         };
 
@@ -312,10 +302,10 @@ public class PlaybackValidatorTests
     }
 
     [Fact]
-    public void ValidationResult_IsValid_TrueWhenNoErrors()
+    public void PlaybackValidationResult_IsValid_TrueWhenNoErrors()
     {
         // Arrange
-        var result = new ValidationResult();
+        var result = new PlaybackValidationResult();
         result.AddWarning("Some warning");
 
         // Assert
@@ -324,10 +314,10 @@ public class PlaybackValidatorTests
     }
 
     [Fact]
-    public void ValidationResult_IsValid_FalseWhenHasErrors()
+    public void PlaybackValidationResult_IsValid_FalseWhenHasErrors()
     {
         // Arrange
-        var result = new ValidationResult();
+        var result = new PlaybackValidationResult();
         result.AddError("Some error");
 
         // Assert

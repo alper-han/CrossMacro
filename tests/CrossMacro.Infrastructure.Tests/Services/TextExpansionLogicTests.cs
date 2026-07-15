@@ -50,8 +50,8 @@ public class TextExpansionLogicTests
     public async Task ExpansionTriggered_WhenBufferMatches()
     {
         // Arrange
-        var expansion = new Core.Models.TextExpansion("abc", "expanded");
-        _storageService.GetCurrent().Returns(new List<Core.Models.TextExpansion> { expansion });
+        var expansion = new Core.Models.TextExpansionEntry("abc", "expanded");
+        _storageService.GetCurrent().Returns(new List<Core.Models.TextExpansionEntry> { expansion });
         var expansionTriggered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         _executor
             .ExpandAsync(expansion)
@@ -79,8 +79,8 @@ public class TextExpansionLogicTests
     public async Task Buffer_Clears_AfterMatch()
     {
         // Arrange
-        var expansion = new Core.Models.TextExpansion("abc", "expanded");
-        _storageService.GetCurrent().Returns(new List<Core.Models.TextExpansion> { expansion });
+        var expansion = new Core.Models.TextExpansionEntry("abc", "expanded");
+        _storageService.GetCurrent().Returns(new List<Core.Models.TextExpansionEntry> { expansion });
         var expansionCount = 0;
         var firstExpansionStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var firstExpansionAllowedToFinish = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -137,12 +137,12 @@ public class TextExpansionLogicTests
 
     private void RaiseKey(int code)
     {
-        _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(
+        _inputCapture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(
             this,
-            new InputCaptureEventArgs { Type = InputEventType.Key, Code = code, Value = 1 }); // Press
+            new CapturedInputEventArgs { Type = InputEventType.Key, Code = code, Value = 1 }); // Press
 
-        _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(
+        _inputCapture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(
             this,
-            new InputCaptureEventArgs { Type = InputEventType.Key, Code = code, Value = 0 }); // Release
+            new CapturedInputEventArgs { Type = InputEventType.Key, Code = code, Value = 0 }); // Release
     }
 }

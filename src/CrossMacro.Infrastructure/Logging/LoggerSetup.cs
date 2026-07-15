@@ -59,7 +59,9 @@ public static class LoggerSetup
     public static void SetLogLevel(string logLevel)
     {
         if (_levelSwitch is null)
+        {
             return;
+        }
 
         var newLevel = ParseLogLevel(logLevel);
         if (_levelSwitch.MinimumLevel != newLevel)

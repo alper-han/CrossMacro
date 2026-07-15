@@ -11,9 +11,8 @@ public class PlaybackValidatorExtendedTests
         // Arrange
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
-                new() { Type = (EventType)999 } // Invalid enum val
+            Events = {
+                new() { Type = (EventType)999 }, // Invalid enum val
             },
         };
 
@@ -31,9 +30,8 @@ public class PlaybackValidatorExtendedTests
         // Arrange
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
-            {
-                new() { Type = EventType.None }
+            Events = {
+                new() { Type = EventType.None },
             },
         };
 

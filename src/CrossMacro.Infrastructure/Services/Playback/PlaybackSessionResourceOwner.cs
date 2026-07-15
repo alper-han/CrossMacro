@@ -61,13 +61,13 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
         if (_simulatorPool is not null)
         {
             _simulator = _simulatorPool.Acquire(width, height);
-            await _waitAsync(TimeSpan.FromMilliseconds(20), cancellationToken);
+            await _waitAsync(TimeSpan.FromMilliseconds(20), cancellationToken).ConfigureAwait(false);
         }
         else if (_simulatorFactory is not null)
         {
             _simulator = _simulatorFactory();
             _simulator.Initialize(width, height);
-            await _waitAsync(TimeSpan.FromMilliseconds(50), cancellationToken);
+            await _waitAsync(TimeSpan.FromMilliseconds(50), cancellationToken).ConfigureAwait(false);
         }
         else
         {
@@ -102,7 +102,7 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
         _pauseEvent.Reset();
     }
 
-    public void Resume()
+    public void ResumePlayback()
     {
         if (!IsPlaying || !_isPaused)
         {
@@ -114,17 +114,12 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
             _buttons?.RestoreAll(_simulator, _pausedButtons);
             if (_keys is not null)
             {
-                var modifiers = new List<int>();
-                foreach (var key in _pausedKeys)
-                {
-                    if (key is InputEventCode.KEY_LEFTCTRL or InputEventCode.KEY_RIGHTCTRL
+                var modifiers = _pausedKeys
+                    .Where(key => key is InputEventCode.KEY_LEFTCTRL or InputEventCode.KEY_RIGHTCTRL
                         or InputEventCode.KEY_LEFTSHIFT or InputEventCode.KEY_RIGHTSHIFT
                         or InputEventCode.KEY_LEFTALT or InputEventCode.KEY_RIGHTALT
                         or InputEventCode.KEY_LEFTMETA or InputEventCode.KEY_RIGHTMETA)
-                    {
-                        modifiers.Add(key);
-                    }
-                }
+                    .ToList();
 
                 _keys.RestoreAll(_simulator, modifiers);
             }
@@ -137,7 +132,7 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
         _pauseEvent.Set();
     }
 
-    public void Stop()
+    public void StopPlayback()
     {
         _executor?.ReleaseAll();
         _pauseEvent.Set();
@@ -148,7 +143,7 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
     {
         if (_isPaused)
         {
-            await Task.Run(() => _pauseEvent.Wait(cancellationToken), cancellationToken);
+            await Task.Run(() => _pauseEvent.Wait(cancellationToken), cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -187,7 +182,7 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
 
     public void Dispose()
     {
-        Stop();
+        StopPlayback();
         End();
         _pauseEvent.Dispose();
         GC.SuppressFinalize(this);

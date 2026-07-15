@@ -12,6 +12,6 @@ public sealed class ScheduleListCommandHandler : CliCommandHandlerBase<ScheduleL
 
     protected override async Task<CliCommandExecutionResult> ExecuteAsync(ScheduleListCliOptions options, CancellationToken cancellationToken)
     {
-        return await _scheduleCliService.ListAsync(cancellationToken);
+        return await _scheduleCliService.ListAsync(cancellationToken).ConfigureAwait(false);
     }
 }

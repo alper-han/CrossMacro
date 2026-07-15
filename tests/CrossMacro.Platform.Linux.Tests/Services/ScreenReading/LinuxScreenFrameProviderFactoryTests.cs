@@ -90,10 +90,10 @@ public class LinuxScreenFrameProviderFactoryTests
     {
         var kWinProvider = new RecordingScreenFrameProvider(
             "kwin",
-            ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.CaptureFailed, "kwin capture failed"));
+            ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, "kwin capture failed"));
         var extProvider = new RecordingScreenFrameProvider(
             "ext",
-            ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.CaptureFailed, "ext should not capture"));
+            ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, "ext should not capture"));
         var factory = CreateFactoryWithProviders(
             isFlatpak: false,
             compositor: CompositorType.KDE,
@@ -120,7 +120,7 @@ public class LinuxScreenFrameProviderFactoryTests
         var kWinCapture = new FakeKWinScreenShotCapture(KWinScreenShotSupportResult.Supported());
         var extProvider = new RecordingScreenFrameProvider(
             "ext",
-            ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.CaptureFailed, "ext capture failed"));
+            ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, "ext capture failed"));
         var factory = CreateFactoryWithProviders(
             isFlatpak: false,
             compositor: CompositorType.KDE,
@@ -179,7 +179,7 @@ public class LinuxScreenFrameProviderFactoryTests
         var kWinCapture = new FakeKWinScreenShotCapture(KWinScreenShotSupportResult.Supported());
         var extProvider = new RecordingScreenFrameProvider(
             "ext",
-            ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.PermissionDenied, "ext denied"));
+            ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.PermissionDenied, "ext denied"));
         var factory = CreateFactoryWithProviders(
             isFlatpak: false,
             compositor: CompositorType.KDE,
@@ -475,7 +475,7 @@ public class LinuxScreenFrameProviderFactoryTests
 
         public Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
         {
-            return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(
+            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.CaptureFailed,
                 "Test provider does not capture frames."));
         }

@@ -110,9 +110,9 @@ public class LinuxIpcInputSimulator : IInputSimulator, IInputSimulatorCapabiliti
 
     public void Scroll(int delta, bool isHorizontal = false)
     {
-         ushort axis = isHorizontal ? REL_HWHEEL : REL_WHEEL;
-         Span<(ushort, ushort, int)> events = stackalloc (ushort, ushort, int)[]
-        {
+        ushort axis = isHorizontal ? REL_HWHEEL : REL_WHEEL;
+        Span<(ushort, ushort, int)> events = stackalloc (ushort, ushort, int)[]
+       {
             (EV_REL, axis, delta),
             (EV_SYN, SYN_REPORT, 0),
         };

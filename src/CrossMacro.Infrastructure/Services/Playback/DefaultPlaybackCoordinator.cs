@@ -44,8 +44,8 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
         {
             try
             {
-                var pos = await _positionProvider.GetAbsolutePositionAsync();
-                if (pos.HasValue)
+                var pos = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+                if (pos is not null)
                 {
                     CurrentX = pos.Value.X;
                     CurrentY = pos.Value.Y;
@@ -54,7 +54,7 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[PlaybackCoordinator] Failed to get initial position from provider");
+                Log.LogError(ex, "[PlaybackCoordinator] Failed to get initial position from provider");
             }
         }
 
@@ -69,7 +69,7 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
         }
         else if (firstCoordinateMode is MouseCoordinateMode.Relative)
         {
-            await InitializeRelativeModeAsync(macro, simulator, cancellationToken);
+            await InitializeRelativeModeAsync(macro, simulator, cancellationToken).ConfigureAwait(false);
         }
         else
         {
@@ -87,7 +87,7 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
             // Recording did Corner Reset, so we should too
             Log.Information("[PlaybackCoordinator] Relative mode: Performing Corner Reset (0,0)...");
             simulator.MoveRelative(-20000, -20000);
-            await Task.Delay(10, cancellationToken);
+            await Task.Delay(10, cancellationToken).ConfigureAwait(false);
             CurrentX = 0;
             CurrentY = 0;
         }
@@ -108,7 +108,9 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
     {
         // First iteration is handled by InitializeAsync
         if (iteration is 0)
+        {
             return;
+        }
 
         var firstPositionRelevantMouseEvent = FindFirstPositionRelevantMouseEvent(macro);
         var firstCoordinateMode = firstPositionRelevantMouseEvent.Type is EventType.None
@@ -122,8 +124,8 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
             {
                 try
                 {
-                    var pos = await _positionProvider.GetAbsolutePositionAsync();
-                    if (pos.HasValue)
+                    var pos = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+                    if (pos is not null)
                     {
                         CurrentX = pos.Value.X;
                         CurrentY = pos.Value.Y;
@@ -143,7 +145,7 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
             // Relative mode with Corner Reset
             Log.Information("[PlaybackCoordinator] Iteration {I}: Performing Corner Reset (0,0)", iteration + 1);
             simulator.MoveRelative(-20000, -20000);
-            await Task.Delay(10, cancellationToken);
+            await Task.Delay(10, cancellationToken).ConfigureAwait(false);
             CurrentX = 0;
             CurrentY = 0;
         }

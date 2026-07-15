@@ -16,7 +16,7 @@ public sealed class RunCommandHandler : CliCommandHandlerBase<RunCliOptions>
     {
         if (!options.DryRun)
         {
-            var preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Run, cancellationToken);
+            var preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Run, cancellationToken).ConfigureAwait(false);
             if (!preflight.Success)
             {
                 return CliCommandExecutionResult.Fail(preflight.ExitCode, preflight.Message, preflight.Errors, preflight.Warnings);
@@ -26,19 +26,19 @@ public sealed class RunCommandHandler : CliCommandHandlerBase<RunCliOptions>
         return await CommandTimeoutRunner.RunAsync(
             options.TimeoutSeconds,
             cancellationToken,
-            token => ExecuteInternalAsync(options, token));
+            token => ExecuteInternalAsync(options, token)).ConfigureAwait(false);
     }
 
     private async Task<CliCommandExecutionResult> ExecuteInternalAsync(RunCliOptions options, CancellationToken cancellationToken)
     {
-        var result = await _runScriptExecutionService.ExecuteAsync(new CrossMacro.Cli.Services.RunExecutionRequest
+        var result = await _runScriptExecutionService.ExecuteAsync(new Services.RunExecutionRequest
         {
             Steps = options.Steps,
             StepFilePath = options.StepFilePath,
             SpeedMultiplier = options.SpeedMultiplier,
             CountdownSeconds = options.CountdownSeconds,
             DryRun = options.DryRun,
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
 
         return result.Success
             ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings)

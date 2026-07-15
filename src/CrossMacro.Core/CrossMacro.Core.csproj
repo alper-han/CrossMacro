@@ -8,4 +8,10 @@
     <Description>Core logic for CrossMacro, a cross-platform mouse and keyboard macro automation tool.</Description>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="CrossMacro.Core.Tests" />
+    <InternalsVisibleTo Include="CrossMacro.Infrastructure" />
+    <InternalsVisibleTo Include="CrossMacro.UI.Core" />
+  </ItemGroup>
+
 </Project>

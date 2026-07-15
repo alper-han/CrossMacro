@@ -202,7 +202,7 @@ internal static class DbusWrapperProtocolTestHelpers
 
     private static void Align(List<byte> bytes, int alignment)
     {
-        int padding = ((alignment - (bytes.Count % alignment)) % alignment);
+        int padding = (alignment - (bytes.Count % alignment)) % alignment;
         for (int i = 0; i < padding; i++)
         {
             bytes.Add(0);

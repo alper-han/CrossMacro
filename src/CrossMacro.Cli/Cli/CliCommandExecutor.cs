@@ -12,7 +12,7 @@ public sealed class CliCommandExecutor
 
     public async Task<int> ExecuteAsync(CliCommandOptions options, CancellationToken cancellationToken)
     {
-        var result = await ExecuteWithResolvedHandlerAsync(options, cancellationToken);
+        var result = await ExecuteWithResolvedHandlerAsync(options, cancellationToken).ConfigureAwait(false);
         CliOutputFormatter.Write(result, options.JsonOutput);
         return result.ExitCode;
     }
@@ -27,6 +27,6 @@ public sealed class CliCommandExecutor
                 $"No handler registered for command options type: {options.GetType().Name}");
         }
 
-        return await handler.ExecuteAsync(options, cancellationToken);
+        return await handler.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
     }
 }

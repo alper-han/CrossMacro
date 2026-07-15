@@ -248,7 +248,7 @@ public partial class FilesViewModel : ViewModelBase
             return null;
         }
 
-        if (sessionId.HasValue)
+        if (sessionId is not null)
         {
             var updatedItem = _loadedMacroSession.UpdateMacro(sessionId.Value, macro, sourcePath);
             if (updatedItem is not null)
@@ -310,7 +310,7 @@ public partial class FilesViewModel : ViewModelBase
             var baseName = macroNameToSave.EndsWith(".macro", StringComparison.OrdinalIgnoreCase)
                 ? macroNameToSave[..^6]
                 : macroNameToSave;
-            var filePath = await _dialogService.ShowSaveFileDialogAsync(_localizationService["Files_SaveDialogTitle"], $"{baseName}.macro", filters);
+            var filePath = await _dialogService.ShowSaveFileDialogAsync(_localizationService["Files_SaveDialogTitle"], $"{baseName}.macro", filters).ConfigureAwait(false);
 
             if (string.IsNullOrEmpty(filePath))
             {
@@ -319,7 +319,7 @@ public partial class FilesViewModel : ViewModelBase
             }
 
             var macroToSave = CreateSaveSnapshot(currentMacro, macroNameToSave);
-            await _fileManager.SaveAsync(macroToSave, filePath);
+            await _fileManager.SaveAsync(macroToSave, filePath).ConfigureAwait(false);
             currentItem.UpdateSourcePath(filePath);
 
             SetTransientStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusSavedTo"], Path.GetFileName(filePath)));
@@ -345,7 +345,7 @@ public partial class FilesViewModel : ViewModelBase
                     new FileDialogFilter { Name = _localizationService["Files_OpenMacroDialogFilter"], Extensions = new[] { "macro" } },
                 };
 
-            var filePath = await _dialogService.ShowOpenFileDialogAsync(_localizationService["Files_LoadDialogTitle"], filters);
+            var filePath = await _dialogService.ShowOpenFileDialogAsync(_localizationService["Files_LoadDialogTitle"], filters).ConfigureAwait(false);
 
             if (string.IsNullOrEmpty(filePath))
             {
@@ -353,7 +353,7 @@ public partial class FilesViewModel : ViewModelBase
                 return;
             }
 
-            var macro = await _fileManager.LoadAsync(filePath);
+            var macro = await _fileManager.LoadAsync(filePath).ConfigureAwait(false);
             if (macro is null)
             {
                 SetTransientStatus(_localizationService["Files_StatusLoadUnreadable"]);
@@ -416,7 +416,7 @@ public partial class FilesViewModel : ViewModelBase
 
         var confirmed = await _dialogService.ShowConfirmationAsync(
             _localizationService["Files_DeleteLoadedMacroTitle"],
-            string.Format(_localizationService.CurrentCulture, _localizationService["Files_DeleteLoadedMacroMessage"], item.Name));
+            string.Format(_localizationService.CurrentCulture, _localizationService["Files_DeleteLoadedMacroMessage"], item.Name)).ConfigureAwait(false);
 
         if (!confirmed)
         {

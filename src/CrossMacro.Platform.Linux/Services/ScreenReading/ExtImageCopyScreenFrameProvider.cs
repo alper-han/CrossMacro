@@ -28,7 +28,7 @@ public sealed class ExtImageCopyScreenFrameProvider : IScreenFrameProvider
 
         if (!_support.IsSupported)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 _support.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
                 _support.ErrorMessage ?? "ext-image-copy-capture-v1 is unavailable.");
         }
@@ -59,7 +59,7 @@ public sealed class ExtImageCopyScreenFrameProvider : IScreenFrameProvider
         var frame = captureResult.Frame;
         if (frame is null)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.CaptureFailed,
                 "Successful ext-image-copy capture did not include a frame.");
         }
@@ -73,12 +73,12 @@ public sealed class ExtImageCopyScreenFrameProvider : IScreenFrameProvider
         {
             if (!frame.LogicalBounds.Contains(region.Value))
             {
-                return ScreenReadResult<ScreenFrame>.Failure(
+                return ScreenReadResultFactory.Failure<ScreenFrame>(
                     ScreenReadErrorKind.OutOfBounds,
                     $"Requested region {region.Value} is outside ext-image-copy frame bounds {frame.LogicalBounds}.");
             }
 
-            return ScreenReadResult<ScreenFrame>.Success(LinuxScreenFrameProviderResults.CopyRegion(
+            return ScreenReadResultFactory.Success<ScreenFrame>(LinuxScreenFrameProviderResults.CopyRegion(
                 frame.LogicalBounds,
                 frame.Stride,
                 frame.PixelFormat,

@@ -14,7 +14,7 @@ internal static class HostCommandProbe
                     FileName = "sh",
                     ArgumentList = { "-c", $"command -v {fileName} >/dev/null 2>&1" },
                     UseShellExecute = false,
-                    CreateNoWindow = true
+                    CreateNoWindow = true,
                 },
             };
 
@@ -39,7 +39,7 @@ internal static class HostCommandProbe
                     FileName = "flatpak-spawn",
                     ArgumentList = { "--host", "sh", "-c", $"command -v {fileName} >/dev/null 2>&1" },
                     UseShellExecute = false,
-                    CreateNoWindow = true
+                    CreateNoWindow = true,
                 },
             };
 

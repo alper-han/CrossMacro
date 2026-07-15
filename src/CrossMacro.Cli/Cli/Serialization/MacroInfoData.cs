@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Cli.Serialization;
 
-public sealed record MacroInfoData(
+public sealed record class MacroInfoData(
     [property: JsonPropertyName("macroPath")] string MacroPath,
     [property: JsonPropertyName("macroName")] string MacroName,
     [property: JsonPropertyName("createdAt")] DateTime CreatedAt,

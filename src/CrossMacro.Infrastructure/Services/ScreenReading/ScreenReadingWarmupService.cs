@@ -28,7 +28,9 @@ public sealed class ScreenReadingWarmupService : IScreenReadingWarmupService
 
         lock (_lock)
         {
-            if (_warmupTask is { IsCompleted: false } || _warmupTask is { IsCompletedSuccessfully: true })
+            if (_warmupTask is
+            { IsCompleted: false } or
+            { IsCompletedSuccessfully: true })
             {
                 return _warmupTask;
             }

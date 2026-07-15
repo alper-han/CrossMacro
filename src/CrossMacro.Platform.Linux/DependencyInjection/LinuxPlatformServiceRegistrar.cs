@@ -12,7 +12,7 @@ public sealed class LinuxPlatformServiceRegistrar : IPlatformServiceRegistrar
         RegisterPlatformServices(services, LinuxEnvironmentVariables.CaptureCurrentSnapshot());
     }
 
-    public void RegisterPlatformServices(IServiceCollection services, LinuxEnvironmentSnapshot environment)
+    public static void RegisterPlatformServices(IServiceCollection services, LinuxEnvironmentSnapshot environment)
     {
         services.AddSingleton(typeof(LinuxEnvironmentSnapshot), environment);
         services.AddLinuxCoreServices(environment);
@@ -24,6 +24,6 @@ public sealed class LinuxPlatformServiceRegistrar : IPlatformServiceRegistrar
         services.AddLinuxStrategySelectors();
         services.AddLinuxPositionProviderSelectors();
         services.AddLinuxCoordinateStrategy();
-            services.AddLinuxInputSimulatorPool();
+        services.AddLinuxInputSimulatorPool();
     }
 }

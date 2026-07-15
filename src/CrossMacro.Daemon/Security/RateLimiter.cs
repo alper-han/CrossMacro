@@ -49,7 +49,7 @@ public class RateLimiter
             if (_connectionAttempts.TryGetValue(uid, out var record))
             {
                 // Check if currently banned
-                if (record.BannedUntil.HasValue && now < record.BannedUntil.Value)
+                if (record.BannedUntil is not null && now < record.BannedUntil.Value)
                 {
                     var remaining = record.BannedUntil.Value - now;
                     Log.Warning("[RateLimiter] UID {Uid} is banned for {Seconds}s more", uid, (int)remaining.TotalSeconds);
@@ -57,7 +57,7 @@ public class RateLimiter
                 }
 
                 // Ban period elapsed: start a fresh window for the next attempt.
-                if (record.BannedUntil.HasValue)
+                if (record.BannedUntil is not null)
                 {
                     record.BannedUntil = null;
                     record.WindowStart = now;
@@ -124,7 +124,7 @@ public class RateLimiter
         {
             if (_connectionAttempts.TryGetValue(uid, out var record))
             {
-                var isBanned = record.BannedUntil.HasValue && _utcNow() < record.BannedUntil.Value;
+                var isBanned = record.BannedUntil is not null && _utcNow() < record.BannedUntil.Value;
                 return (record.Count, isBanned);
             }
             return (0, false);

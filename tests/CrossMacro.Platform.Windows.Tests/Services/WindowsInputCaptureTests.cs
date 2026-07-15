@@ -27,10 +27,12 @@ public class WindowsInputCaptureTests
     [WindowsFact]
     public async Task StartAsync_WhenMouseHookInstallFails_ThrowsInvalidOperationException()
     {
-        using var capture = new FailingWindowsInputCapture(failMouse: true, failKeyboard: false);
+        var hookInstaller = new FailingHookInstaller(failMouse: true, failKeyboard: false);
+        using var capture = new WindowsInputCapture(hookInstaller);
         capture.Configure(captureMouse: true, captureKeyboard: false);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => capture.StartAsync(CancellationToken.None));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => capture.StartAsync(CancellationToken.None));
 
         Assert.Contains("mouse hook", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -38,10 +40,12 @@ public class WindowsInputCaptureTests
     [WindowsFact]
     public async Task StartAsync_WhenKeyboardHookInstallFails_ThrowsInvalidOperationException()
     {
-        using var capture = new FailingWindowsInputCapture(failMouse: false, failKeyboard: true);
+        var hookInstaller = new FailingHookInstaller(failMouse: false, failKeyboard: true);
+        using var capture = new WindowsInputCapture(hookInstaller);
         capture.Configure(captureMouse: false, captureKeyboard: true);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => capture.StartAsync(CancellationToken.None));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => capture.StartAsync(CancellationToken.None));
 
         Assert.Contains("keyboard hook", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -50,60 +54,68 @@ public class WindowsInputCaptureTests
     public async Task StartAsync_WhenCancelledDuringStartup_CancelsPromptly()
     {
         using var cts = new CancellationTokenSource();
-        using var capture = new BlockingWindowsInputCapture();
+        var hookInstaller = new BlockingHookInstaller();
+        using var capture = new WindowsInputCapture(hookInstaller);
         capture.Configure(captureMouse: true, captureKeyboard: false);
 
         var startTask = capture.StartAsync(cts.Token);
-        await capture.HookInstallStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await hookInstaller.HookInstallStarted.Task
+            .WaitAsync(TimeSpan.FromSeconds(2))
+            ;
 
         cts.Cancel();
-        capture.ReleaseHookInstall();
+        hookInstaller.ReleaseHookInstall();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => startTask);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => startTask);
     }
 
-    private sealed class FailingWindowsInputCapture : WindowsInputCapture
+    private sealed class FailingHookInstaller : IWindowsHookInstaller
     {
+        private static readonly IntPtr SuccessfulHookHandle = new(1);
+
         private readonly bool _failMouse;
         private readonly bool _failKeyboard;
 
-        public FailingWindowsInputCapture(bool failMouse, bool failKeyboard)
+        public FailingHookInstaller(bool failMouse, bool failKeyboard)
         {
             _failMouse = failMouse;
             _failKeyboard = failKeyboard;
         }
 
-        protected override IntPtr InstallMouseHook(IntPtr moduleHandle)
-            => _failMouse ? IntPtr.Zero : base.InstallMouseHook(moduleHandle);
+        public IntPtr InstallMouseHook(IntPtr moduleHandle, User32.HookProc hookProc)
+            => _failMouse ? IntPtr.Zero : SuccessfulHookHandle;
 
-        protected override IntPtr InstallKeyboardHook(IntPtr moduleHandle)
-            => _failKeyboard ? IntPtr.Zero : base.InstallKeyboardHook(moduleHandle);
+        public IntPtr InstallKeyboardHook(IntPtr moduleHandle, User32.HookProc hookProc)
+            => _failKeyboard ? IntPtr.Zero : SuccessfulHookHandle;
     }
 
-    private sealed class BlockingWindowsInputCapture : WindowsInputCapture
+    private sealed class BlockingHookInstaller : IWindowsHookInstaller
     {
-        private readonly TaskCompletionSource _releaseHookInstall = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _releaseHookInstall =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public TaskCompletionSource HookInstallStarted { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        protected override IntPtr InstallMouseHook(IntPtr moduleHandle)
+        public IntPtr InstallMouseHook(IntPtr moduleHandle, User32.HookProc hookProc)
         {
             HookInstallStarted.TrySetResult();
+
             if (!_releaseHookInstall.Task.Wait(TimeSpan.FromSeconds(2)))
             {
-                throw new TimeoutException("Timed out waiting for the blocking hook-install fake to be released.");
+                throw new TimeoutException(
+                    "Timed out waiting for the blocking hook-install fake to be released.");
             }
 
             return IntPtr.Zero;
         }
 
-        public void ReleaseHookInstall() => _releaseHookInstall.TrySetResult();
+        public IntPtr InstallKeyboardHook(IntPtr moduleHandle, User32.HookProc hookProc)
+            => throw new InvalidOperationException(
+                "Keyboard hook installation was not expected during this test.");
 
-        public new void Dispose()
-        {
-            ReleaseHookInstall();
-            base.Dispose();
-        }
+        public void ReleaseHookInstall()
+            => _releaseHookInstall.TrySetResult();
     }
 }

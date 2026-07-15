@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Abstractions;
 
-public sealed record ScreenshotCaptureResult(
+public sealed record class ScreenshotCaptureResult(
     bool Success,
     ScreenshotCaptureFailureKind? FailureKind,
     ScreenReadErrorKind? ScreenReadErrorKind,

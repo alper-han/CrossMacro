@@ -1,14 +1,14 @@
 
 namespace CrossMacro.Cli;
 
-public sealed record TriggerCliOptions(
+public sealed record class TriggerCliOptions(
     TriggerCliAction Action,
     string? TaskId = null,
     string? Name = null,
     TriggerField? Field = null,
     TriggerMatchMode? MatchMode = null,
     string? Value = null,
-    TriggerAction? TriggerActionVal = null,
+    TriggerOperation? TriggerActionVal = null,
     string? TargetProfileId = null,
     string? MacroFilePath = null,
     TriggerFireMode? FireMode = null,

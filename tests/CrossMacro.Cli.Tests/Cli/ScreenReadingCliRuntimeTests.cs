@@ -232,7 +232,7 @@ public sealed class ScreenReadingCliRuntimeTests
         {
             options.CancellationToken.ThrowIfCancellationRequested();
             GetPixelPoints.Add(point);
-            return Task.FromResult(ScreenReadResult<ScreenPixelColor>.Success(new ScreenPixelColor(0x12, 0x34, 0x56)));
+            return Task.FromResult(ScreenReadResultFactory.Success<ScreenPixelColor>(new ScreenPixelColor(0x12, 0x34, 0x56)));
         }
 
         public Task<ScreenReadResult<ScreenPixelColor>> WaitForPixelAsync(
@@ -242,7 +242,7 @@ public sealed class ScreenReadingCliRuntimeTests
         {
             options.CancellationToken.ThrowIfCancellationRequested();
             WaitCalls.Add((point, expected, options));
-            return Task.FromResult(ScreenReadResult<ScreenPixelColor>.Success(expected));
+            return Task.FromResult(ScreenReadResultFactory.Success<ScreenPixelColor>(expected));
         }
 
         public Task<ScreenReadResult<ScreenPixelSearchMatch>> SearchPixelAsync(
@@ -253,7 +253,7 @@ public sealed class ScreenReadingCliRuntimeTests
         {
             options.CancellationToken.ThrowIfCancellationRequested();
             SearchCalls.Add((region, expected, tolerance, options));
-            return Task.FromResult(ScreenReadResult<ScreenPixelSearchMatch>.Success(SearchMatch));
+            return Task.FromResult(ScreenReadResultFactory.Success<ScreenPixelSearchMatch>(SearchMatch));
         }
 
         public void Dispose()

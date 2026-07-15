@@ -2,7 +2,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:converters="using:CrossMacro.UI.Converters"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
-             xmlns:core="using:CrossMacro.Core.Models"
              xmlns:local="using:CrossMacro.UI.Views.Tabs"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
@@ -51,7 +50,7 @@
 
                     <ItemsControl ItemsSource="{Binding Tasks}">
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="core:ScheduledTask">
+                             <DataTemplate x:DataType="vm:ScheduledTaskEditor">
                                 <Border Padding="10,8"
                                         CornerRadius="8"
                                         Margin="0,2"

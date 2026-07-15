@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Cli.Serialization;
 
-public sealed record HeadlessRuntimeData(
+public sealed record class HeadlessRuntimeData(
     [property: JsonPropertyName("globalHotkeys")] bool GlobalHotkeys,
     [property: JsonPropertyName("scheduler")] bool Scheduler,
     [property: JsonPropertyName("shortcuts")] bool Shortcuts,

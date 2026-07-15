@@ -81,18 +81,34 @@ public class WindowsKeyboardLayoutService : IKeyboardLayoutService
     public string GetKeyName(int keyCode)
     {
         ushort vk = WindowsKeyMap.GetVirtualKey(keyCode);
-        if (vk is 0) return $"Key_{keyCode}";
+        if (vk is 0)
+        {
+            return $"Key_{keyCode.ToString(CultureInfo.InvariantCulture)}";
+        }
 
-        if (SpecialKeyNames.TryGetValue(vk, out var specialName)) return specialName;
-        if (ModifierKeyNames.TryGetValue(vk, out var modifierName)) return modifierName;
-        if (MediaKeyNames.TryGetValue(vk, out var mediaName)) return mediaName;
+        if (SpecialKeyNames.TryGetValue(vk, out var specialName))
+        {
+            return specialName;
+        }
+
+        if (ModifierKeyNames.TryGetValue(vk, out var modifierName))
+        {
+            return modifierName;
+        }
+
+        if (MediaKeyNames.TryGetValue(vk, out var mediaName))
+        {
+            return mediaName;
+        }
 
         uint scanCode = User32.MapVirtualKey(vk, User32.MAPVK_VK_TO_VSC);
 
         int lParam = (int)(scanCode << ScanCodeToLParamShift);
 
-        if (vk >= Vk.PageUp && vk <= Vk.Delete)
+        if (vk is >= Vk.PageUp and <= Vk.Delete)
+        {
             lParam |= ExtendedKeyMask;
+        }
 
         var sb = new StringBuilder(KeyNameBufferSize);
         if (User32.GetKeyNameTextW(lParam, sb, sb.Capacity) > 0)
@@ -100,15 +116,19 @@ public class WindowsKeyboardLayoutService : IKeyboardLayoutService
             return sb.ToString();
         }
 
-        return vk.ToString();
+        return vk.ToString(CultureInfo.InvariantCulture);
     }
 
     public int GetKeyCode(string keyName)
     {
+        ArgumentNullException.ThrowIfNull(keyName);
         if (keyName.Length is 1)
         {
             var (vk, _, _) = GetVkForChar(keyName[0]);
-            if (vk is not 0) return WindowsKeyMap.GetEvdevCode((ushort)vk);
+            if (vk is not 0)
+            {
+                return WindowsKeyMap.GetEvdevCode((ushort)vk);
+            }
         }
         return -1;
     }
@@ -116,7 +136,10 @@ public class WindowsKeyboardLayoutService : IKeyboardLayoutService
     public char? GetCharFromKeyCode(int keyCode, bool leftShift, bool rightShift, bool rightAlt, bool leftAlt, bool leftCtrl, bool capsLock)
     {
         ushort vk = WindowsKeyMap.GetVirtualKey(keyCode);
-        if (vk is 0) return null;
+        if (vk is 0)
+        {
+            return null;
+        }
 
         uint scanCode = User32.MapVirtualKey(vk, User32.MAPVK_VK_TO_VSC);
 
@@ -142,8 +165,8 @@ public class WindowsKeyboardLayoutService : IKeyboardLayoutService
 
         if (leftAlt)
         {
-             keyState[Vk.Alt] = 0x80; // VK_MENU
-             keyState[Vk.LeftAlt] = 0x80; // VK_LMENU
+            keyState[Vk.Alt] = 0x80; // VK_MENU
+            keyState[Vk.LeftAlt] = 0x80; // VK_LMENU
         }
 
         // AltGr / Right Alt Logic
@@ -188,20 +211,29 @@ public class WindowsKeyboardLayoutService : IKeyboardLayoutService
     public (int KeyCode, bool Shift, bool AltGr)? GetInputForChar(char c)
     {
         var result = GetVkForChar(c);
-        if (result.vk is 0) return null;
+        if (result.vk is 0)
+        {
+            return null;
+        }
 
         int evdev = WindowsKeyMap.GetEvdevCode((ushort)result.vk);
-        if (evdev is 0) return null;
+        if (evdev is 0)
+        {
+            return null;
+        }
 
         return (evdev, result.shift, result.altGr);
     }
 
-    private (int vk, bool shift, bool altGr) GetVkForChar(char c)
+    private static (int vk, bool shift, bool altGr) GetVkForChar(char c)
     {
         IntPtr layout = User32.GetKeyboardLayout(0);
         short scanResult = User32.VkKeyScanEx(c, layout);
 
-        if (scanResult == -1) return (0, false, false);
+        if (scanResult == -1)
+        {
+            return (0, false, false);
+        }
 
         int vk = scanResult & 0xFF;
         int shiftState = (scanResult >> 8) & 0xFF;

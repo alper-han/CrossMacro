@@ -145,8 +145,16 @@ public static class ScreenFramePngEncoder
     private static uint Crc32(ReadOnlySpan<byte> type, ReadOnlySpan<byte> data)
     {
         var crc = 0xFFFFFFFFu;
-        foreach (var b in type) crc = (crc >> 8) ^ CrcTable[(crc ^ b) & 0xFF];
-        foreach (var b in data) crc = (crc >> 8) ^ CrcTable[(crc ^ b) & 0xFF];
+        foreach (var b in type)
+        {
+            crc = (crc >> 8) ^ CrcTable[(crc ^ b) & 0xFF];
+        }
+
+        foreach (var b in data)
+        {
+            crc = (crc >> 8) ^ CrcTable[(crc ^ b) & 0xFF];
+        }
+
         return crc ^ 0xFFFFFFFFu;
     }
 

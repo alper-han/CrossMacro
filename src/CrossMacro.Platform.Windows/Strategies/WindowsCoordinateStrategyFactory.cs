@@ -25,9 +25,7 @@ public class WindowsCoordinateStrategyFactory : ICoordinateStrategyFactory
         {
             return new WindowsAbsoluteCoordinateStrategy(_positionProvider);
         }
-        else
-        {
-            return new RelativeCoordinateStrategy();
-        }
+
+        return new RelativeCoordinateStrategy();
     }
 }

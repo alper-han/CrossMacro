@@ -42,7 +42,11 @@ internal static class TriggerCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "trigger.list", ref jsonOutput, ref logLevel, out var commonResult))
             {
-                if (commonResult is not null) return commonResult;
+                if (commonResult is not null)
+                {
+                    return commonResult;
+                }
+
                 continue;
             }
 
@@ -59,14 +63,18 @@ internal static class TriggerCommandParser
         {
             if (TryHandleOption(args, ref i, "trigger.add", state, out var optionResult))
             {
-                if (optionResult is not null) return optionResult;
+                if (optionResult is not null)
+                {
+                    return optionResult;
+                }
+
                 continue;
             }
 
             return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unexpected argument for trigger add: {args[i]}", state.JsonOutput);
         }
 
-        if (string.IsNullOrWhiteSpace(state.Name) || !state.Field.HasValue || !state.MatchMode.HasValue || !state.TriggerActionVal.HasValue)
+        if (string.IsNullOrWhiteSpace(state.Name) || state.Field is null || state.MatchMode is null || state.TriggerActionVal is null)
         {
             return CliParseHelpers.MissingRequiredOperands(
                 "trigger add requires --name <name>, --field <field>, --match-mode <mode>, and --action <action>.",
@@ -98,7 +106,11 @@ internal static class TriggerCommandParser
         {
             if (TryHandleOption(args, ref i, "trigger.edit", state, out var optionResult))
             {
-                if (optionResult is not null) return optionResult;
+                if (optionResult is not null)
+                {
+                    return optionResult;
+                }
+
                 continue;
             }
 
@@ -129,7 +141,11 @@ internal static class TriggerCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, helpTopic, ref state.JsonOutput, ref state.LogLevel, out var commonResult))
             {
-                if (commonResult is not null) return commonResult;
+                if (commonResult is not null)
+                {
+                    return commonResult;
+                }
+
                 continue;
             }
 
@@ -213,7 +229,7 @@ internal static class TriggerCommandParser
                 return true;
             }
 
-            if (!Enum.TryParse<TriggerAction>(actionStr, ignoreCase: true, out var action))
+            if (!Enum.TryParse<TriggerOperation>(actionStr, ignoreCase: true, out var action))
             {
                 result = CliParseHelpers.Error($"Invalid action: {actionStr}. Expected: SwitchProfile, RunMacro", state.JsonOutput);
                 return true;
@@ -309,7 +325,7 @@ internal static class TriggerCommandParser
         public TriggerField? Field;
         public TriggerMatchMode? MatchMode;
         public string? Value;
-        public TriggerAction? TriggerActionVal;
+        public TriggerOperation? TriggerActionVal;
         public string? TargetProfileId;
         public string? MacroFilePath;
         public TriggerFireMode? FireMode;

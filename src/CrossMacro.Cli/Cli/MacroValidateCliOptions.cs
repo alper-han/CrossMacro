@@ -1,4 +1,4 @@
 namespace CrossMacro.Cli;
 
-public sealed record MacroValidateCliOptions(string MacroFilePath, bool JsonOutput = false, string? LogLevel = null)
+public sealed record class MacroValidateCliOptions(string MacroFilePath, bool JsonOutput = false, string? LogLevel = null)
     : CliCommandOptions(JsonOutput, LogLevel);

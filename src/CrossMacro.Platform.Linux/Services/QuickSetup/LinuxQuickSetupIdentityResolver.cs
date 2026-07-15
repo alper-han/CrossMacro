@@ -23,7 +23,7 @@ internal sealed class LinuxQuickSetupIdentityResolver
     public LinuxQuickSetupIdentity? Resolve()
     {
         var uid = _getEffectiveUid();
-        if (uid.HasValue)
+        if (uid is not null)
         {
             var uidText = uid.Value.ToString(CultureInfo.InvariantCulture);
             return new LinuxQuickSetupIdentity(uidText, $"uid:{uidText}");
@@ -46,15 +46,7 @@ internal sealed class LinuxQuickSetupIdentityResolver
 
     private static bool HasControlCharacters(string value)
     {
-        foreach (var c in value)
-        {
-            if (char.IsControl(c))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return value.Any(char.IsControl);
     }
 
     private static uint? TryGetEffectiveUid()

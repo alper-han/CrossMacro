@@ -31,7 +31,7 @@ public static class CliOutputFormatter
         var writer = result.Success ? Console.Out : Console.Error;
 
         writer.WriteLine($"Status: {(result.Success ? "ok" : "error")}");
-        writer.WriteLine($"Code: {result.ExitCode}");
+        writer.WriteLine($"Code: {result.ExitCode.ToString(CultureInfo.InvariantCulture)}");
         writer.WriteLine($"Message: {result.Message}");
 
         if (result.Data is not null)
@@ -123,28 +123,28 @@ public static class CliOutputFormatter
                 break;
 
             case JsonValueKind.Array:
-            {
-                var hasItems = false;
-                foreach (var item in element.EnumerateArray())
                 {
-                    hasItems = true;
-                    if (IsScalar(item))
+                    var hasItems = false;
+                    foreach (var item in element.EnumerateArray())
                     {
-                        writer.WriteLine($"{indent}- {FormatScalar(item)}");
-                        continue;
+                        hasItems = true;
+                        if (IsScalar(item))
+                        {
+                            writer.WriteLine($"{indent}- {FormatScalar(item)}");
+                            continue;
+                        }
+
+                        writer.WriteLine($"{indent}-");
+                        WriteTextData(writer, item, indentLevel + 1);
                     }
 
-                    writer.WriteLine($"{indent}-");
-                    WriteTextData(writer, item, indentLevel + 1);
-                }
+                    if (!hasItems)
+                    {
+                        writer.WriteLine($"{indent}[]");
+                    }
 
-                if (!hasItems)
-                {
-                    writer.WriteLine($"{indent}[]");
+                    break;
                 }
-
-                break;
-            }
 
             default:
                 writer.WriteLine($"{indent}{FormatScalar(element)}");

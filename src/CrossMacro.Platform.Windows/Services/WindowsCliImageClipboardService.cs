@@ -67,9 +67,21 @@ internal sealed class WindowsCliImageClipboardService : IImageClipboardService
 
             if (!User32.OpenClipboard(hwndOwner))
             {
-                if (hDib != IntPtr.Zero) Kernel32.GlobalFree(hDib);
-                if (hPng != IntPtr.Zero) Kernel32.GlobalFree(hPng);
-                if (hImagePng != IntPtr.Zero) Kernel32.GlobalFree(hImagePng);
+                if (hDib != IntPtr.Zero)
+                {
+                    Kernel32.GlobalFree(hDib);
+                }
+
+                if (hPng != IntPtr.Zero)
+                {
+                    Kernel32.GlobalFree(hPng);
+                }
+
+                if (hImagePng != IntPtr.Zero)
+                {
+                    Kernel32.GlobalFree(hImagePng);
+                }
+
                 throw new InvalidOperationException("Failed to open Windows clipboard.");
             }
 
@@ -103,9 +115,20 @@ internal sealed class WindowsCliImageClipboardService : IImageClipboardService
                 }
                 finally
                 {
-                    if (hPng != IntPtr.Zero && !pngOwned) Kernel32.GlobalFree(hPng);
-                    if (hImagePng != IntPtr.Zero && !imagePngOwned) Kernel32.GlobalFree(hImagePng);
-                    if (hDib != IntPtr.Zero && !dibOwned) Kernel32.GlobalFree(hDib);
+                    if (hPng != IntPtr.Zero && !pngOwned)
+                    {
+                        Kernel32.GlobalFree(hPng);
+                    }
+
+                    if (hImagePng != IntPtr.Zero && !imagePngOwned)
+                    {
+                        Kernel32.GlobalFree(hImagePng);
+                    }
+
+                    if (hDib != IntPtr.Zero && !dibOwned)
+                    {
+                        Kernel32.GlobalFree(hDib);
+                    }
                 }
             }
             finally
@@ -116,7 +139,7 @@ internal sealed class WindowsCliImageClipboardService : IImageClipboardService
         });
     }
 
-    private IntPtr CreateDibFromPng(byte[] pngBytes)
+    private static IntPtr CreateDibFromPng(byte[] pngBytes)
     {
         IntPtr hGlobal = IntPtr.Zero;
         IntPtr pStream = IntPtr.Zero;
@@ -127,16 +150,28 @@ internal sealed class WindowsCliImageClipboardService : IImageClipboardService
         {
             var input = new GdiplusStartupInput { GdiplusVersion = 1 };
             int status = GdiplusStartup(out token, ref input, IntPtr.Zero);
-            if (status is not 0) return IntPtr.Zero;
+            if (status is not 0)
+            {
+                return IntPtr.Zero;
+            }
 
             pStream = Shlwapi.SHCreateMemStream(pngBytes, (uint)pngBytes.Length);
-            if (pStream == IntPtr.Zero) return IntPtr.Zero;
+            if (pStream == IntPtr.Zero)
+            {
+                return IntPtr.Zero;
+            }
 
             status = GdipCreateBitmapFromStream(pStream, out pBitmap);
-            if (status is not 0) return IntPtr.Zero;
+            if (status is not 0)
+            {
+                return IntPtr.Zero;
+            }
 
-            status = GdipGetImageWidth(pBitmap, out uint width);
-            status = GdipGetImageHeight(pBitmap, out uint height);
+            if (GdipGetImageWidth(pBitmap, out uint width) is not 0 ||
+                GdipGetImageHeight(pBitmap, out uint height) is not 0)
+            {
+                return IntPtr.Zero;
+            }
 
             const int format32bppArgb = 0x26200A;
 
@@ -144,7 +179,10 @@ internal sealed class WindowsCliImageClipboardService : IImageClipboardService
             BitmapData bmpData = new BitmapData();
 
             status = GdipBitmapLockBits(pBitmap, ref rect, 1, format32bppArgb, ref bmpData);
-            if (status is not 0) return IntPtr.Zero;
+            if (status is not 0)
+            {
+                return IntPtr.Zero;
+            }
 
             try
             {
@@ -154,7 +192,10 @@ internal sealed class WindowsCliImageClipboardService : IImageClipboardService
                 const uint headerSize = 40;
 
                 hGlobal = Kernel32.GlobalAlloc(Kernel32.GHND, (UIntPtr)(headerSize + bufferSize));
-                if (hGlobal == IntPtr.Zero) return IntPtr.Zero;
+                if (hGlobal == IntPtr.Zero)
+                {
+                    return IntPtr.Zero;
+                }
 
                 IntPtr target = Kernel32.GlobalLock(hGlobal);
                 if (target == IntPtr.Zero)
@@ -203,14 +244,29 @@ internal sealed class WindowsCliImageClipboardService : IImageClipboardService
         }
         catch
         {
-            if (hGlobal != IntPtr.Zero) Kernel32.GlobalFree(hGlobal);
+            if (hGlobal != IntPtr.Zero)
+            {
+                Kernel32.GlobalFree(hGlobal);
+            }
+
             return IntPtr.Zero;
         }
         finally
         {
-            if (pBitmap != IntPtr.Zero) GdipDisposeImage(pBitmap);
-            if (pStream != IntPtr.Zero) Marshal.Release(pStream);
-            if (token != IntPtr.Zero) GdiplusShutdown(token);
+            if (pBitmap != IntPtr.Zero)
+            {
+                GdipDisposeImage(pBitmap);
+            }
+
+            if (pStream != IntPtr.Zero)
+            {
+                Marshal.Release(pStream);
+            }
+
+            if (token != IntPtr.Zero)
+            {
+                GdiplusShutdown(token);
+            }
         }
     }
 

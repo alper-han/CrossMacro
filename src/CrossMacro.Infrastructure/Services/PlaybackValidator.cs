@@ -17,9 +17,9 @@ public class PlaybackValidator : IPlaybackValidator
         _scriptValidator = scriptValidator ?? new PlaybackScriptValidator(keyCodeMapper, scriptValidationService);
     }
 
-    public ValidationResult Validate(MacroSequence macro)
+    public PlaybackValidationResult Validate(MacroSequence macro)
     {
-        var result = new ValidationResult();
+        var result = new PlaybackValidationResult();
 
         if (macro is null || (macro.Events.Count is 0 && !HasRuntimeScriptSteps(macro)))
         {
@@ -56,17 +56,17 @@ public class PlaybackValidator : IPlaybackValidator
         if (longDelays.Any())
         {
             var maxDelay = longDelays.Max(e => e.DelayMs);
-            result.AddWarning($"Macro contains {longDelays.Count} delay(s) > 10 seconds (max: {maxDelay / 1000f:F1}s)");
+            result.AddWarning($"Macro contains {longDelays.Count.ToString(CultureInfo.InvariantCulture)} delay(s) > 10 seconds (max: {(maxDelay / 1000f).ToString("F1", CultureInfo.InvariantCulture)}s)");
         }
 
         if (macro.TotalDurationMs > 300000)
         {
-            result.AddWarning($"Macro is very long ({macro.TotalDurationMs / 1000f / 60f:F1} minutes)");
+            result.AddWarning($"Macro is very long ({(macro.TotalDurationMs / 1000f / 60f).ToString("F1", CultureInfo.InvariantCulture)} minutes)");
         }
 
         if (macro.Events.Count > 10000)
         {
-            result.AddWarning($"Macro has {macro.Events.Count} events - playback may be resource intensive");
+            result.AddWarning($"Macro has {macro.Events.Count.ToString(CultureInfo.InvariantCulture)} events - playback may be resource intensive");
         }
 
         AddSuspiciousAbsoluteButtonCoordinateWarning(macro, result);
@@ -76,12 +76,12 @@ public class PlaybackValidator : IPlaybackValidator
 
 
 
-    private bool IsSpecialControlEvent(MacroEvent e)
+    private static bool IsSpecialControlEvent(MacroEvent e)
     {
         return false;
     }
 
-    private static void AddSuspiciousAbsoluteButtonCoordinateWarning(MacroSequence macro, ValidationResult result)
+    private static void AddSuspiciousAbsoluteButtonCoordinateWarning(MacroSequence macro, PlaybackValidationResult result)
     {
         var buttonEvents = macro.Events
             .Where(ev => IsNonScrollButtonEvent(ev)
@@ -117,10 +117,10 @@ public class PlaybackValidator : IPlaybackValidator
             return false;
         }
 
-        return ev.Button is not MouseButton.ScrollUp
-            and not MouseButton.ScrollDown
-            and not MouseButton.ScrollLeft
-            and not MouseButton.ScrollRight;
+        return ev.Button is not MacroMouseButton.ScrollUp
+            and not MacroMouseButton.ScrollDown
+            and not MacroMouseButton.ScrollLeft
+            and not MacroMouseButton.ScrollRight;
     }
 
     private static bool HasRuntimeScriptSteps(MacroSequence macro)
@@ -128,7 +128,7 @@ public class PlaybackValidator : IPlaybackValidator
         return macro.ScriptSteps.Any(RunScriptRuntimeStepClassifier.IsRuntimeStep);
     }
 
-    private void ValidateScriptSteps(MacroSequence macro, ValidationResult result)
+    private void ValidateScriptSteps(MacroSequence macro, PlaybackValidationResult result)
     {
         var error = _scriptValidator.Validate(macro);
         if (error is not null)

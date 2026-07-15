@@ -7,5 +7,5 @@ namespace CrossMacro.Platform.Abstractions;
 public interface IWindowManager : IWindowQueryService, IWindowMutationService, IWorkspaceManagementService
 {
     /// <summary>Returns whether the current platform/session can perform window operations.</summary>
-    bool IsSupported => true;
+    public bool IsSupported => true;
 }

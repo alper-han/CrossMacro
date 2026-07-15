@@ -72,7 +72,7 @@ public sealed class RunScriptRuntimeService : IRunExecutionService
             compileResult.InitialHasRandomDelay,
             compileResult.InitialRandomDelayMinMs,
             compileResult.InitialRandomDelayMaxMs,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
 
         var status = executionResult.Success
             ? RunExecutionStatus.Succeeded

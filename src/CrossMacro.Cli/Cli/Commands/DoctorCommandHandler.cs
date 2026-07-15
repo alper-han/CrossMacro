@@ -12,7 +12,7 @@ public sealed class DoctorCommandHandler : CliCommandHandlerBase<DoctorCliOption
 
     protected override async Task<CliCommandExecutionResult> ExecuteAsync(DoctorCliOptions options, CancellationToken cancellationToken)
     {
-        var report = await _doctorService.RunAsync(options.Verbose, cancellationToken);
+        var report = await _doctorService.RunAsync(options.Verbose, cancellationToken).ConfigureAwait(false);
 
         var warningMessages = report.Checks
             .Where(x => x.Status is DoctorCheckStatus.Warn)

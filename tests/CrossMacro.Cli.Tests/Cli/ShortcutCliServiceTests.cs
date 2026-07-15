@@ -15,7 +15,7 @@ public class ShortcutCliServiceTests
                 Name = "Shortcut 1",
                 HotkeyString = "F9",
                 MacroFilePath = "/tmp/a.macro",
-                IsEnabled = true
+                IsEnabled = true,
             },
         }));
 
@@ -65,7 +65,7 @@ public class ShortcutCliServiceTests
                 Id = id,
                 Name = "Shortcut 1",
                 MacroFilePath = "/tmp/a.macro",
-                HotkeyString = "F9"
+                HotkeyString = "F9",
             },
         }));
 
@@ -89,7 +89,7 @@ public class ShortcutCliServiceTests
                 Id = id,
                 Name = "Shortcut 1",
                 MacroFilePath = "/tmp/a.macro",
-                HotkeyString = "F9"
+                HotkeyString = "F9",
             },
         };
 

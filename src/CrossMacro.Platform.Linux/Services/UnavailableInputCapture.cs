@@ -19,10 +19,10 @@ public sealed class UnavailableInputCapture : IInputCapture
     public bool IsSupported => false;
 
 #pragma warning disable CS0067 // Interface event contract; this implementation never raises input events.
-    public event EventHandler<InputCaptureEventArgs>? InputReceived;
+    public event EventHandler<CapturedInputEventArgs>? InputReceived;
 #pragma warning restore CS0067
 
-    public event EventHandler<string>? Error;
+    public event EventHandler<InputCaptureErrorEventArgs>? CaptureError;
 
     public void Configure(bool captureMouse, bool captureKeyboard)
     {
@@ -30,11 +30,11 @@ public sealed class UnavailableInputCapture : IInputCapture
 
     public Task StartAsync(CancellationToken ct)
     {
-        Error?.Invoke(this, FailureMessage);
+        CaptureError?.Invoke(this, new InputCaptureErrorEventArgs(FailureMessage));
         return Task.FromException(new InvalidOperationException(FailureMessage));
     }
 
-    public void Stop()
+    public void StopCapture()
     {
     }
 

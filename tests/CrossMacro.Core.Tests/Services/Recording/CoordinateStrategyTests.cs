@@ -25,8 +25,8 @@ public class CoordinateStrategyTests
     {
         // Arrange
         var strategy = new RelativeCoordinateStrategy();
-        var xEvent = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
-        var yEvent = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_Y, Value = 20 };
+        var xEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
+        var yEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_Y, Value = 20 };
 
         // Act
         var resultX = strategy.ProcessPosition(xEvent);
@@ -42,9 +42,9 @@ public class CoordinateStrategyTests
     {
         // Arrange
         var strategy = new RelativeCoordinateStrategy();
-        var xEvent = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
-        var yEvent = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_Y, Value = 20 };
-        var syncEvent = new InputCaptureEventArgs { Type = InputEventType.Sync, Code = 0, Value = 0 };
+        var xEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
+        var yEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_Y, Value = 20 };
+        var syncEvent = new CapturedInputEvent { Type = InputEventType.Sync, Code = 0, Value = 0 };
 
         // Act
         strategy.ProcessPosition(xEvent);
@@ -61,8 +61,8 @@ public class CoordinateStrategyTests
     {
         // Arrange
         var strategy = new RelativeCoordinateStrategy();
-        var xEvent = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 5 };
-        var buttonEvent = new InputCaptureEventArgs { Type = InputEventType.MouseButton, Code = 272, Value = 1 };
+        var xEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 5 };
+        var buttonEvent = new CapturedInputEvent { Type = InputEventType.MouseButton, Code = 272, Value = 1 };
 
         // Act
         strategy.ProcessPosition(xEvent);
@@ -78,8 +78,8 @@ public class CoordinateStrategyTests
     {
         // Arrange
         var strategy = new RelativeCoordinateStrategy();
-        var xEvent = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
-        var syncEvent = new InputCaptureEventArgs { Type = InputEventType.Sync, Code = 0, Value = 0 };
+        var xEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
+        var syncEvent = new CapturedInputEvent { Type = InputEventType.Sync, Code = 0, Value = 0 };
 
         // Act
         strategy.ProcessPosition(xEvent);
@@ -95,10 +95,10 @@ public class CoordinateStrategyTests
     {
         // Arrange
         var strategy = new RelativeCoordinateStrategy();
-        var xEvent1 = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 5 };
-        var xEvent2 = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 3 };
-        var yEvent = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_Y, Value = -2 };
-        var syncEvent = new InputCaptureEventArgs { Type = InputEventType.Sync, Code = 0, Value = 0 };
+        var xEvent1 = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 5 };
+        var xEvent2 = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 3 };
+        var yEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_Y, Value = -2 };
+        var syncEvent = new CapturedInputEvent { Type = InputEventType.Sync, Code = 0, Value = 0 };
 
         // Act
         strategy.ProcessPosition(xEvent1);
@@ -146,8 +146,8 @@ public class CoordinateStrategyTests
         using var cts = new CancellationTokenSource(TestTimeout);
         await strategy.InitializeAsync(cts.Token);
 
-        var xEvent = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
-        var yEvent = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_Y, Value = 20 };
+        var xEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
+        var yEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_Y, Value = 20 };
 
         // Act
         strategy.ProcessPosition(xEvent);
@@ -167,7 +167,7 @@ public class CoordinateStrategyTests
         // Arrange
         var positionProvider = Substitute.For<IMousePositionProvider>();
         var strategy = new AbsoluteCoordinateStrategy(positionProvider);
-        var syncEvent = new InputCaptureEventArgs { Type = InputEventType.Sync, Code = 0, Value = 0 };
+        var syncEvent = new CapturedInputEvent { Type = InputEventType.Sync, Code = 0, Value = 0 };
 
         // Act
         var result = strategy.ProcessPosition(syncEvent);
@@ -193,7 +193,7 @@ public class CoordinateStrategyTests
         await strategy.InitializeAsync(cts.Token);
 
         // Assert - defaults to (0, 0)
-        var xEvent = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 5 };
+        var xEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 5 };
         var result = strategy.ProcessPosition(xEvent);
         result.X.Should().Be(5); // 0 + 5
 

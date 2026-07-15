@@ -123,11 +123,11 @@ public class PlaybackViewModelTests
         {
             Name = "Screen Reading Macro",
             ScriptSteps =
-            [
+            {
                 "pixelcolor 10 20 color",
                 "waitcolor 11 22 00FFAA 2500",
-                "pixelsearch 0 0 3 3 123456 x y"
-            ],
+                "pixelsearch 0 0 3 3 123456 x y",
+            },
         };
         _viewModel.SetMacro(macro);
         _viewModel.CanPlayMacroExternal = true;
@@ -257,6 +257,37 @@ public class PlaybackViewModelTests
     }
 
     [Fact]
+    public async Task PlayMacroAsync_WhenSequentialCycleUsesRandomDelay_ResolvesInclusiveRangeThroughPlaybackPath()
+    {
+        var requestedRange = (min: 0, max: 0);
+        var viewModel = new PlaybackViewModel(
+            _player,
+            _settingsService,
+            _loadedMacroSession,
+            _localizationService,
+            _dialogService,
+            (min, max) =>
+            {
+                requestedRange = (min, max);
+                return max;
+            });
+        var first = _loadedMacroSession.AddMacro(CreateMacro("First"));
+        _loadedMacroSession.AddMacro(CreateMacro("Second"));
+        _loadedMacroSession.SelectedMacroItem = first;
+        _loadedMacroSession.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
+        viewModel.IsLooping = true;
+        viewModel.LoopCount = 2;
+        viewModel.UseRandomLoopDelay = true;
+        viewModel.LoopDelayMinMs = 4;
+        viewModel.LoopDelayMaxMs = 9;
+
+        await viewModel.PlayMacroAsync();
+
+        requestedRange.Should().Be((4, 9));
+        await _player.Received(4).PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task PlayMacroAsync_WhenSequentialCycleContainsInvalidLaterMacro_DoesNotStartPlayback()
     {
         var first = _loadedMacroSession.AddMacro(CreateMacro("First"));
@@ -279,7 +310,7 @@ public class PlaybackViewModelTests
         var scriptOnly = _loadedMacroSession.AddMacro(new MacroSequence
         {
             Name = "Screen Reading Macro",
-            ScriptSteps = ["waitcolor 11 22 00FFAA 2500"],
+            ScriptSteps = {"waitcolor 11 22 00FFAA 2500"},
         });
         _loadedMacroSession.SelectedMacroItem = first;
         _loadedMacroSession.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
@@ -389,7 +420,7 @@ public class PlaybackViewModelTests
 
         _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(second);
         _viewModel.PlaybackStatus.Should().Be("[Playback_StatusStopped]");
-        _player.Received(1).Stop();
+        _player.Received(1).StopPlayback();
     }
 
     [Fact]
@@ -436,7 +467,7 @@ public class PlaybackViewModelTests
 
         _viewModel.TogglePause();
 
-        _player.Received(1).Resume();
+        _player.Received(1).ResumePlayback();
         _viewModel.IsPaused.Should().BeFalse();
     }
 
@@ -447,7 +478,7 @@ public class PlaybackViewModelTests
 
         _viewModel.StopPlayback();
 
-        _player.Received(1).Stop();
+        _player.Received(1).StopPlayback();
         _viewModel.IsPlaying.Should().BeFalse();
         _viewModel.PlaybackStatus.Should().Be("[Playback_StatusStopped]");
     }
@@ -514,7 +545,7 @@ public class PlaybackViewModelTests
 
         _viewModel.TogglePlayback();
 
-        _player.DidNotReceive().Stop();
+        _player.DidNotReceive().StopPlayback();
         _ = _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
     }
 

@@ -7,7 +7,7 @@ internal sealed class AppImageQuickSetupService : IAppImageQuickSetupService
     private const string SessionTypeKey = "XDG_SESSION_TYPE";
 
     private readonly Func<string, string?> _getEnvironmentVariable;
-    private readonly ILinuxInputCapabilityDetector _capabilityDetector;
+    private readonly ILinuxInputCapabilityDetector? _capabilityDetector;
     private readonly ILinuxCapabilitySnapshotProvider? _snapshotProvider;
     private readonly LinuxQuickSetupExecutor _executor;
     private readonly IPrivilegedHostCommandLauncher _launcher;
@@ -21,7 +21,7 @@ internal sealed class AppImageQuickSetupService : IAppImageQuickSetupService
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         _launcher = launcher ?? throw new ArgumentNullException(nameof(launcher));
         _getEnvironmentVariable = _ => null;
-        _capabilityDetector = null!;
+        _capabilityDetector = null;
     }
 
     internal AppImageQuickSetupService(
@@ -34,7 +34,7 @@ internal sealed class AppImageQuickSetupService : IAppImageQuickSetupService
         _getEnvironmentVariable = getEnvironmentVariable ?? throw new ArgumentNullException(nameof(getEnvironmentVariable));
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         _launcher = launcher ?? throw new ArgumentNullException(nameof(launcher));
-        _capabilityDetector = null!;
+        _capabilityDetector = null;
     }
 
     internal AppImageQuickSetupService(
@@ -102,8 +102,13 @@ internal sealed class AppImageQuickSetupService : IAppImageQuickSetupService
                    (!input.CanUseDirectUInput || !input.CanReadInputEvents);
         }
 
-        var mode = _capabilityDetector.DetermineMode();
-        return mode is InputProviderMode.None || (mode is InputProviderMode.Legacy && !_capabilityDetector.CanReadInputEvents);
+        if (_capabilityDetector is not null)
+        {
+            var mode = _capabilityDetector.DetermineMode();
+            return mode is InputProviderMode.None || (mode is InputProviderMode.Legacy && !_capabilityDetector.CanReadInputEvents);
+        }
+
+        return false;
     }
 
     public async Task<QuickSetupResult> RunAsync(CancellationToken cancellationToken = default)
@@ -113,7 +118,7 @@ internal sealed class AppImageQuickSetupService : IAppImageQuickSetupService
             LinuxQuickSetupScriptOptions.Strict,
             "AppImageQuickSetupService",
             "Failed to run quick setup command from AppImage.",
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
 
         if (result.Success)
         {
@@ -123,7 +128,7 @@ internal sealed class AppImageQuickSetupService : IAppImageQuickSetupService
             }
             else
             {
-                _capabilityDetector.InvalidateCache();
+                _capabilityDetector?.InvalidateCache();
             }
         }
 

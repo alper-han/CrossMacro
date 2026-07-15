@@ -28,7 +28,7 @@ public sealed class WlrScreencopyScreenFrameProvider : IScreenFrameProvider
 
         if (!_support.IsSupported)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 _support.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
                 _support.ErrorMessage ?? "wlr-screencopy-unstable-v1 is unavailable.");
         }
@@ -59,7 +59,7 @@ public sealed class WlrScreencopyScreenFrameProvider : IScreenFrameProvider
         var frame = captureResult.Frame;
         if (frame is null)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.CaptureFailed,
                 "Successful wlr-screencopy capture did not include a frame.");
         }

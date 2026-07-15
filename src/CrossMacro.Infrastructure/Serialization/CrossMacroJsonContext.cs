@@ -7,8 +7,8 @@ namespace CrossMacro.Infrastructure.Serialization;
 /// </summary>
 [JsonSerializable(typeof(AppSettings))]
 [JsonSerializable(typeof(HotkeySettings))]
-[JsonSerializable(typeof(TextExpansion))]
-[JsonSerializable(typeof(List<TextExpansion>))]
+[JsonSerializable(typeof(TextExpansionEntry))]
+[JsonSerializable(typeof(List<TextExpansionEntry>))]
 [JsonSerializable(typeof(ScheduledTask))]
 [JsonSerializable(typeof(List<ScheduledTask>))]
 [JsonSerializable(typeof(ShortcutTask))]
@@ -24,6 +24,4 @@ namespace CrossMacro.Infrastructure.Serialization;
     WriteIndented = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     GenerationMode = JsonSourceGenerationMode.Metadata)]
-public partial class CrossMacroJsonContext : JsonSerializerContext
-{
-}
+public partial class CrossMacroJsonContext : JsonSerializerContext;

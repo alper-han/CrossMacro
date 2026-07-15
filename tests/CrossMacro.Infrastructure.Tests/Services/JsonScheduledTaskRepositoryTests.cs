@@ -75,7 +75,10 @@ public class JsonScheduledTaskRepositoryTests : IDisposable
         }
         finally
         {
-            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true);
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
         }
     }
 

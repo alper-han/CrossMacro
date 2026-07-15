@@ -36,7 +36,7 @@ internal sealed class DaemonInputEventEncoder
 
         if (type == UInputNative.EV_ABS)
         {
-            if (code == UInputNative.ABS_X || code == UInputNative.ABS_Y)
+            if (code is UInputNative.ABS_X or UInputNative.ABS_Y)
             {
                 return (byte)InputEventType.MouseMove;
             }

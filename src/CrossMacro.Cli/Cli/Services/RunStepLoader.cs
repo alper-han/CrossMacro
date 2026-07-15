@@ -33,7 +33,7 @@ internal static class RunStepLoader
                     throw new InvalidDataException("Run steps path must refer to a regular file.");
                 }
 
-                if (fileInfo.Length <= 0 || fileInfo.Length > MaxStepFileBytes)
+                if (fileInfo.Length is <= 0 or > MaxStepFileBytes)
                 {
                     throw new InvalidDataException(fileInfo.Length <= 0
                         ? "Run steps file is empty."
@@ -44,7 +44,7 @@ internal static class RunStepLoader
                 using var reader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 65536);
                 var lineReader = new BoundedLineReader(reader, MaxStepLineChars);
                 var lineIndex = 0;
-                while (await lineReader.ReadLineAsync(cancellationToken) is { } line)
+                while (await lineReader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
                 {
                     lineIndex++;
                     if (lineIndex > MaxStepFileLines)
@@ -118,7 +118,7 @@ internal static class RunStepLoader
         public async Task<string?> ReadLineAsync(CancellationToken cancellationToken)
         {
             var builder = new StringBuilder();
-            while (await _reader.ReadAsync(_buffer.AsMemory(0, 1), cancellationToken) > 0)
+            while (await _reader.ReadAsync(_buffer.AsMemory(0, 1), cancellationToken).ConfigureAwait(false) > 0)
             {
                 if (_buffer[0] == '\n')
                 {
@@ -132,7 +132,7 @@ internal static class RunStepLoader
 
                 if (builder.Length >= _maxChars)
                 {
-                    throw new InvalidDataException($"Run steps line exceeds the maximum of {_maxChars} characters.");
+                    throw new InvalidDataException($"Run steps line exceeds the maximum of {_maxChars.ToString(CultureInfo.InvariantCulture)} characters.");
                 }
 
                 builder.Append(_buffer[0]);

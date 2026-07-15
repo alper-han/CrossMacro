@@ -72,7 +72,7 @@ public sealed class PortalScreenCastDbusSessionFactoryTests
     }
 
     private static PortalScreenCastSession CreateSession(
-        IReadOnlyList<PortalStream> streams,
+        IReadOnlyList<PortalStreamDescriptor> streams,
         CountingDisposable? owner = null,
         string? restoreToken = null)
     {
@@ -84,7 +84,7 @@ public sealed class PortalScreenCastDbusSessionFactoryTests
             restoreToken);
     }
 
-    private static PortalStream Stream(
+    private static PortalStreamDescriptor Stream(
         uint nodeId,
         string? id = "monitor",
         uint sourceType = 1U,
@@ -105,7 +105,7 @@ public sealed class PortalScreenCastDbusSessionFactoryTests
             properties["id"] = id;
         }
 
-        return new PortalStream(nodeId, properties);
+        return new PortalStreamDescriptor(nodeId, properties);
     }
 
     private sealed class FakeRestoreTokenStore : IPortalScreenCastRestoreTokenStore

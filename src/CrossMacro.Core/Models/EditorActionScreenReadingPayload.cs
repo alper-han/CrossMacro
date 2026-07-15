@@ -43,7 +43,7 @@ public readonly record struct EditorActionScreenReadingPayload(
     public bool ImageSearchScaleAware { get; init; } = DefaultImageSearchScaleAware;
     public EditorImageMatchMode ImageSearchMatchMode { get; init; } = EditorImageMatchMode.FirstThresholdMatch;
     public bool ImageSearchMatchModeWasExplicit { get; init; }
-    public MouseButton Button { get; init; } = MouseButton.Left;
+    public MacroMouseButton Button { get; init; } = MacroMouseButton.Left;
 
     public int ScreenRight => checked(ScreenLeft + ScreenWidth);
 
@@ -120,6 +120,34 @@ public readonly record struct EditorActionScreenReadingPayload(
             EditorActionType.ImageSearch => ForImageSearch(),
             EditorActionType.ImageClick => ForImageClick(),
             EditorActionType.WaitImage => ForWaitImage(),
+            EditorActionType.MouseMove
+                or EditorActionType.MouseClick
+                or EditorActionType.MouseDown
+                or EditorActionType.MouseUp
+                or EditorActionType.KeyPress
+                or EditorActionType.KeyDown
+                or EditorActionType.KeyUp
+                or EditorActionType.Delay
+                or EditorActionType.ScrollVertical
+                or EditorActionType.ScrollHorizontal
+                or EditorActionType.TextInput
+                or EditorActionType.SetVariable
+                or EditorActionType.IncrementVariable
+                or EditorActionType.DecrementVariable
+                or EditorActionType.RepeatBlockStart
+                or EditorActionType.IfBlockStart
+                or EditorActionType.ElseBlockStart
+                or EditorActionType.WhileBlockStart
+                or EditorActionType.ForBlockStart
+                or EditorActionType.BlockEnd
+                or EditorActionType.Break
+                or EditorActionType.Continue
+                or EditorActionType.ClipboardGet
+                or EditorActionType.ClipboardSet
+                or EditorActionType.ShellCommand
+                or EditorActionType.Screenshot
+                or EditorActionType.WindowCommand
+                or EditorActionType.RawScriptStep => default,
             _ => default,
         };
 
@@ -240,11 +268,13 @@ IsAbsolute: true,
             ImageSearchSimilarity = DefaultImageSearchSimilarity,
             ImageSearchDownsample = DefaultImageSearchDownsample,
             ImageSearchScaleAware = DefaultImageSearchScaleAware,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
         };
     }
 
-    public IEnumerable<string> GetOutputVariableNames()
+    public IEnumerable<string> OutputVariableNames => GetOutputVariableNames();
+
+    private IEnumerable<string> GetOutputVariableNames()
     {
         switch (Type)
         {
@@ -295,6 +325,7 @@ IsAbsolute: true,
                 EditorActionScreenReadingVariableRole.Number,
             EditorActionType.WaitImage when string.Equals(ScreenFoundYVariableName, variableName, StringComparison.Ordinal) =>
                 EditorActionScreenReadingVariableRole.Number,
+            EditorActionType.MouseMove or EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp or EditorActionType.KeyPress or EditorActionType.KeyDown or EditorActionType.KeyUp or EditorActionType.Delay or EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal or EditorActionType.TextInput or EditorActionType.SetVariable or EditorActionType.IncrementVariable or EditorActionType.DecrementVariable or EditorActionType.RepeatBlockStart or EditorActionType.IfBlockStart or EditorActionType.ElseBlockStart or EditorActionType.WhileBlockStart or EditorActionType.ForBlockStart or EditorActionType.BlockEnd or EditorActionType.Break or EditorActionType.Continue or EditorActionType.ClipboardGet or EditorActionType.ClipboardSet or EditorActionType.ShellCommand or EditorActionType.Screenshot or EditorActionType.WindowCommand or EditorActionType.RawScriptStep => EditorActionScreenReadingVariableRole.None,
             _ => EditorActionScreenReadingVariableRole.None,
         };
     }
@@ -306,15 +337,7 @@ IsAbsolute: true,
             return false;
         }
 
-        foreach (var ch in ScreenColorHex)
-        {
-            if (!Uri.IsHexDigit(ch))
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return ScreenColorHex.All(Uri.IsHexDigit);
     }
 
     public bool HasValidTargetColor()
@@ -322,6 +345,7 @@ IsAbsolute: true,
         return ScreenTargetColorSource switch
         {
             EditorActionScreenTargetColorSource.Variable => HasValidTargetColorVariableName(),
+            EditorActionScreenTargetColorSource.ManualHex => HasValidRgbColor(),
             _ => HasValidRgbColor(),
         };
     }

@@ -5,7 +5,7 @@ internal sealed class DesignMacroRecorder : IMacroRecorder
 {
     public bool IsRecording { get; private set; }
 
-    public event EventHandler<MacroEvent>? EventRecorded
+    public event EventHandler<MacroEventRecordedEventArgs>? EventRecorded
     {
         add { }
         remove { }

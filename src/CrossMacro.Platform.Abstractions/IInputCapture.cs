@@ -3,17 +3,17 @@ namespace CrossMacro.Platform.Abstractions;
 
 public interface IInputCapture : IDisposable
 {
-    string ProviderName { get; }
+    public string ProviderName { get; }
 
-    bool IsSupported { get; }
+    public bool IsSupported { get; }
 
-    event EventHandler<InputCaptureEventArgs>? InputReceived;
+    public event EventHandler<CapturedInputEventArgs>? InputReceived;
 
-    event EventHandler<string>? Error;
+    public event EventHandler<InputCaptureErrorEventArgs>? CaptureError;
 
-    void Configure(bool captureMouse, bool captureKeyboard);
+    public void Configure(bool captureMouse, bool captureKeyboard);
 
-    Task StartAsync(CancellationToken ct);
+    public Task StartAsync(CancellationToken ct);
 
-    void Stop();
+    public void StopCapture();
 }

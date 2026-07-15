@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.MacOS.Services;
 
-public class MacOSInputCapture : IInputCapture
+public sealed class MacOSInputCapture : IInputCapture
 {
     private readonly Lock _stateLock = new();
     private IntPtr _eventTap;
@@ -19,13 +19,13 @@ public class MacOSInputCapture : IInputCapture
     private TaskCompletionSource<object?>? _startupCompletionSource;
     private readonly Func<bool> _requestListenEventAccess;
 
-    private CoreGraphics.CGEventTapCallBack _callbackDelegate;
+    private readonly CoreGraphics.CGEventTapCallBack _callbackDelegate;
 
     public string ProviderName => "macOS CoreGraphics";
     public bool IsSupported => OperatingSystem.IsMacOS();
 
-    public event EventHandler<InputCaptureEventArgs>? InputReceived;
-    public event EventHandler<string>? Error;
+    public event EventHandler<CapturedInputEventArgs>? InputReceived;
+    public event EventHandler<InputCaptureErrorEventArgs>? CaptureError;
 
     public MacOSInputCapture()
         : this(MacOSPermissionChecker.RequestListenEventAccess)
@@ -47,14 +47,11 @@ public class MacOSInputCapture : IInputCapture
     {
         lock (_stateLock)
         {
-            if (_disposed)
-            {
-                throw new ObjectDisposedException(nameof(MacOSInputCapture));
-            }
+            ObjectDisposedException.ThrowIf(_disposed, this);
 
             if (!IsSupported)
             {
-                Error?.Invoke(this, "Input capture is only supported on macOS.");
+                CaptureError?.Invoke(this, new InputCaptureErrorEventArgs("Input capture is only supported on macOS."));
                 return Task.CompletedTask;
             }
 
@@ -85,7 +82,7 @@ public class MacOSInputCapture : IInputCapture
         return _startupTask!;
     }
 
-    public void Stop()
+    public void StopCapture()
     {
         _stopRequested = true;
         _startCancellationRegistration.Dispose();
@@ -108,7 +105,9 @@ public class MacOSInputCapture : IInputCapture
 
     private void RequestStop()
     {
+#pragma warning disable MA0045
         _startCancellationRegistration.Dispose();
+#pragma warning restore MA0045
 
         if (_eventTap != IntPtr.Zero)
         {
@@ -131,7 +130,10 @@ public class MacOSInputCapture : IInputCapture
         try
         {
             _runLoop = CoreFoundation.CFRunLoopGetCurrent();
-            if (_stopRequested) return;
+            if (_stopRequested)
+            {
+                return;
+            }
 
             _systemDefinedEventTap = CoreGraphics.CGEventTapCreate(
                 CoreGraphics.CGEventTapLocation.SessionEventTap,
@@ -183,7 +185,11 @@ public class MacOSInputCapture : IInputCapture
             CoreFoundation.CFRunLoopAddSource(_runLoop, _runLoopSource, CoreFoundation.kCFRunLoopCommonModes);
             CoreGraphics.CGEventTapEnable(_eventTap, enable: true);
 
-            if (_stopRequested) return;
+            if (_stopRequested)
+            {
+                return;
+            }
+
             startupCompletionSource.TrySetResult(null);
 
             CoreFoundation.CFRunLoopRun();
@@ -194,10 +200,25 @@ public class MacOSInputCapture : IInputCapture
         }
         finally
         {
-            if (_systemDefinedRunLoopSource != IntPtr.Zero) CoreFoundation.CFRelease(_systemDefinedRunLoopSource);
-            if (_systemDefinedEventTap != IntPtr.Zero) CoreFoundation.CFRelease(_systemDefinedEventTap);
-            if (_runLoopSource != IntPtr.Zero) CoreFoundation.CFRelease(_runLoopSource);
-            if (_eventTap != IntPtr.Zero) CoreFoundation.CFRelease(_eventTap);
+            if (_systemDefinedRunLoopSource != IntPtr.Zero)
+            {
+                CoreFoundation.CFRelease(_systemDefinedRunLoopSource);
+            }
+
+            if (_systemDefinedEventTap != IntPtr.Zero)
+            {
+                CoreFoundation.CFRelease(_systemDefinedEventTap);
+            }
+
+            if (_runLoopSource != IntPtr.Zero)
+            {
+                CoreFoundation.CFRelease(_runLoopSource);
+            }
+
+            if (_eventTap != IntPtr.Zero)
+            {
+                CoreFoundation.CFRelease(_eventTap);
+            }
 
             _systemDefinedRunLoopSource = IntPtr.Zero;
             _systemDefinedEventTap = IntPtr.Zero;
@@ -223,7 +244,7 @@ public class MacOSInputCapture : IInputCapture
         if (!startupCompletionSource.TrySetException(exception) &&
             !startupCompletionSource.Task.IsCanceled)
         {
-            Error?.Invoke(this, errorMessage ?? exception.Message);
+            CaptureError?.Invoke(this, new InputCaptureErrorEventArgs(errorMessage ?? exception.Message));
         }
     }
 
@@ -249,7 +270,7 @@ public class MacOSInputCapture : IInputCapture
             System.Diagnostics.Debug.WriteLine($"[MacOSInputCapture] Error in callback: {ex}");
             try
             {
-                Error?.Invoke(this, $"Error processing event: {ex.Message}");
+                CaptureError?.Invoke(this, new InputCaptureErrorEventArgs($"Error processing event: {ex.Message}"));
             }
             catch (Exception errorHandlerException)
             {
@@ -275,8 +296,15 @@ public class MacOSInputCapture : IInputCapture
 
     private void ProcessAndFire(CoreGraphics.CGEventType type, IntPtr eventRef)
     {
-        if (!_captureMouse && IsMouseEvent(type)) return;
-        if (!_captureKeyboard && IsKeyEvent(type)) return;
+        if (!_captureMouse && IsMouseEvent(type))
+        {
+            return;
+        }
+
+        if (!_captureKeyboard && IsKeyEvent(type))
+        {
+            return;
+        }
 
         if (IsKeyEvent(type) &&
             ShouldIgnoreKeyboardEvent(CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.EventSourceUserData)))
@@ -298,7 +326,7 @@ public class MacOSInputCapture : IInputCapture
                     return;
                 }
 
-                InputReceived?.Invoke(this, systemDefinedEvent);
+                InputReceived?.Invoke(this, new CapturedInputEventArgs(systemDefinedEvent));
                 return;
             }
 
@@ -312,7 +340,7 @@ public class MacOSInputCapture : IInputCapture
                 return;
             }
 
-            InputReceived?.Invoke(this, keyEvent);
+            InputReceived?.Invoke(this, new CapturedInputEventArgs(keyEvent));
         }
         else if (IsMouseEvent(type))
         {
@@ -327,19 +355,24 @@ public class MacOSInputCapture : IInputCapture
             else if (type is CoreGraphics.CGEventType.OtherMouseDown or CoreGraphics.CGEventType.OtherMouseUp)
             {
                 long btnNum = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.MouseEventButtonNumber);
-                if (btnNum == 2) FireBtn(MouseButtonCode.Middle, type is CoreGraphics.CGEventType.OtherMouseDown, timestamp);
+                if (btnNum == 2)
+                {
+                    FireBtn(MouseButtonCode.Middle, type is CoreGraphics.CGEventType.OtherMouseDown, timestamp);
+                }
             }
 
             if (type is CoreGraphics.CGEventType.MouseMoved or CoreGraphics.CGEventType.LeftMouseDragged or CoreGraphics.CGEventType.RightMouseDragged or CoreGraphics.CGEventType.OtherMouseDragged)
             {
                 var loc = CoreGraphics.CGEventGetLocation(eventRef);
-                InputReceived?.Invoke(this, new InputCaptureEventArgs {
+                InputReceived?.Invoke(this, new CapturedInputEventArgs
+                {
                     Type = InputEventType.MouseMove,
                     Code = InputEventCode.ABS_X,
                     Value = (int)loc.X,
                     Timestamp = timestamp,
                 });
-                InputReceived?.Invoke(this, new InputCaptureEventArgs {
+                InputReceived?.Invoke(this, new CapturedInputEventArgs
+                {
                     Type = InputEventType.MouseMove,
                     Code = InputEventCode.ABS_Y,
                     Value = (int)loc.Y,
@@ -347,7 +380,8 @@ public class MacOSInputCapture : IInputCapture
                 });
 
                 // SYNC event to ensure X and Y are processed together
-                InputReceived?.Invoke(this, new InputCaptureEventArgs {
+                InputReceived?.Invoke(this, new CapturedInputEventArgs
+                {
                     Type = InputEventType.Sync,
                     Code = 0,
                     Value = 0,
@@ -361,7 +395,8 @@ public class MacOSInputCapture : IInputCapture
                 long dy = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.ScrollWheelEventDeltaAxis1);
                 if (dy != 0)
                 {
-                    InputReceived?.Invoke(this, new InputCaptureEventArgs {
+                    InputReceived?.Invoke(this, new CapturedInputEventArgs
+                    {
                         Type = InputEventType.MouseScroll,
                         Code = InputEventCode.REL_WHEEL,
                         Value = (int)dy,
@@ -374,7 +409,8 @@ public class MacOSInputCapture : IInputCapture
 
     private void FireBtn(int btnCode, bool pressed, long timestamp)
     {
-        InputReceived?.Invoke(this, new InputCaptureEventArgs {
+        InputReceived?.Invoke(this, new CapturedInputEventArgs
+        {
             Type = InputEventType.MouseButton,
             Code = btnCode,
             Value = pressed ? 1 : 0,
@@ -387,7 +423,7 @@ public class MacOSInputCapture : IInputCapture
         ushort nativeKeyCode,
         CoreGraphics.CGEventFlags flags,
         long timestamp,
-        out InputCaptureEventArgs inputEvent)
+        out CapturedInputEvent inputEvent)
     {
         inputEvent = default;
 
@@ -407,7 +443,7 @@ public class MacOSInputCapture : IInputCapture
             value = isPressed ? 1 : 0;
         }
 
-        inputEvent = new InputCaptureEventArgs
+        inputEvent = new CapturedInputEvent
         {
             Type = InputEventType.Key,
             Code = code,
@@ -423,7 +459,7 @@ public class MacOSInputCapture : IInputCapture
         long subtype,
         long data1,
         long timestamp,
-        out InputCaptureEventArgs inputEvent)
+        out CapturedInputEvent inputEvent)
     {
         inputEvent = default;
 
@@ -434,14 +470,26 @@ public class MacOSInputCapture : IInputCapture
 
         int valueState = (int)((data1 >> 8) & 0xFF);
         int value;
-        if (valueState == MacOSSystemKeyMap.SystemDefinedKeyDownState) value = 1;
-        else if (valueState == MacOSSystemKeyMap.SystemDefinedKeyUpState) value = 0;
-        else return false;
+        if (valueState == MacOSSystemKeyMap.SystemDefinedKeyDownState)
+        {
+            value = 1;
+        }
+        else if (valueState == MacOSSystemKeyMap.SystemDefinedKeyUpState)
+        {
+            value = 0;
+        }
+        else
+        {
+            return false;
+        }
 
         int keyType = (int)((data1 >> 16) & 0xFFFF);
-        if (!MacOSSystemKeyMap.TryGetInputEventCode(keyType, out var code)) return false;
+        if (!MacOSSystemKeyMap.TryGetInputEventCode(keyType, out var code))
+        {
+            return false;
+        }
 
-        inputEvent = new InputCaptureEventArgs
+        inputEvent = new CapturedInputEvent
         {
             Type = InputEventType.Key,
             Code = code,
@@ -495,20 +543,40 @@ public class MacOSInputCapture : IInputCapture
 
     private static bool IsModifierPressed(int code, CoreGraphics.CGEventFlags flags)
     {
-        if (code == InputEventCode.KEY_LEFTSHIFT || code == InputEventCode.KEY_RIGHTSHIFT) return flags.HasFlag(CoreGraphics.CGEventFlags.Shift);
-        if (code == InputEventCode.KEY_LEFTCTRL || code == InputEventCode.KEY_RIGHTCTRL) return flags.HasFlag(CoreGraphics.CGEventFlags.Control);
-        if (code == InputEventCode.KEY_LEFTALT || code == InputEventCode.KEY_RIGHTALT) return flags.HasFlag(CoreGraphics.CGEventFlags.Alternate);
-        if (code == InputEventCode.KEY_LEFTMETA || code == InputEventCode.KEY_RIGHTMETA) return flags.HasFlag(CoreGraphics.CGEventFlags.Command);
-        if (code == InputEventCode.KEY_CAPSLOCK) return flags.HasFlag(CoreGraphics.CGEventFlags.AlphaShift);
+        if (code is InputEventCode.KEY_LEFTSHIFT or InputEventCode.KEY_RIGHTSHIFT)
+        {
+            return flags.HasFlag(CoreGraphics.CGEventFlags.Shift);
+        }
+
+        if (code is InputEventCode.KEY_LEFTCTRL or InputEventCode.KEY_RIGHTCTRL)
+        {
+            return flags.HasFlag(CoreGraphics.CGEventFlags.Control);
+        }
+
+        if (code is InputEventCode.KEY_LEFTALT or InputEventCode.KEY_RIGHTALT)
+        {
+            return flags.HasFlag(CoreGraphics.CGEventFlags.Alternate);
+        }
+
+        if (code is InputEventCode.KEY_LEFTMETA or InputEventCode.KEY_RIGHTMETA)
+        {
+            return flags.HasFlag(CoreGraphics.CGEventFlags.Command);
+        }
+
+        if (code == InputEventCode.KEY_CAPSLOCK)
+        {
+            return flags.HasFlag(CoreGraphics.CGEventFlags.AlphaShift);
+        }
+
         return false;
     }
 
-    private bool IsMouseEvent(CoreGraphics.CGEventType type)
+    private static bool IsMouseEvent(CoreGraphics.CGEventType type)
     {
         return type is not (CoreGraphics.CGEventType.KeyDown or CoreGraphics.CGEventType.KeyUp or CoreGraphics.CGEventType.FlagsChanged or CoreGraphics.CGEventType.SystemDefined);
     }
 
-    private bool IsKeyEvent(CoreGraphics.CGEventType type)
+    private static bool IsKeyEvent(CoreGraphics.CGEventType type)
     {
         return type is CoreGraphics.CGEventType.KeyDown or CoreGraphics.CGEventType.KeyUp or CoreGraphics.CGEventType.FlagsChanged or CoreGraphics.CGEventType.SystemDefined;
     }
@@ -531,7 +599,7 @@ public class MacOSInputCapture : IInputCapture
         }
 
         _disposed = true;
-        Stop();
+        StopCapture();
         GC.SuppressFinalize(this);
     }
 }

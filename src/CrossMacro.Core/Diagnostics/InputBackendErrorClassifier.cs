@@ -41,14 +41,6 @@ public static class InputBackendErrorClassifier
             return false;
         }
 
-        foreach (var fragment in KnownUnavailableFragments)
-        {
-            if (message.Contains(fragment, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return KnownUnavailableFragments.Any(fragment => message.Contains(fragment, StringComparison.OrdinalIgnoreCase));
     }
 }

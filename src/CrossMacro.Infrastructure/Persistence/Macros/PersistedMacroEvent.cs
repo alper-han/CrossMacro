@@ -6,7 +6,7 @@ public class PersistedMacroEvent
     public EventType Type { get; init; }
     public int X { get; init; }
     public int Y { get; init; }
-    public MouseButton Button { get; init; }
+    public MacroMouseButton Button { get; init; }
     public long Timestamp { get; init; }
     public int DelayMs { get; init; }
     public bool HasRandomDelay { get; init; }

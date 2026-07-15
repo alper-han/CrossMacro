@@ -13,7 +13,7 @@ public interface IPositionSyncService : IDisposable
     /// <param name="onPositionChanged">Callback when position changes significantly</param>
     /// <param name="getCurrentPosition">Function to get current cached position</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    Task StartAsync(
+    public Task StartAsync(
         Action<int, int, long> onPositionChanged,
         Func<(int X, int Y)> getCurrentPosition,
         CancellationToken cancellationToken);
@@ -21,10 +21,10 @@ public interface IPositionSyncService : IDisposable
     /// <summary>
     /// Stop position synchronization
     /// </summary>
-    void Stop();
+    public void StopPositionSync();
 
     /// <summary>
     /// Whether sync is currently running
     /// </summary>
-    bool IsRunning { get; }
+    public bool IsRunning { get; }
 }

@@ -19,6 +19,28 @@ public static class RunScriptConditionParser
             return false;
         }
 
+        var (bestOperator, bestOperatorIndex, sawInvalidBoundaryCandidate) = FindBestOperator(payload);
+
+        if (bestOperatorIndex > 0)
+        {
+            var leftToken = payload[..bestOperatorIndex].Trim();
+            var rightToken = payload[(bestOperatorIndex + bestOperator.Length)..].Trim();
+            condition = new RunScriptCondition(leftToken, bestOperator, rightToken);
+            return true;
+        }
+
+        if (sawInvalidBoundaryCandidate)
+        {
+            error = "Condition must be in the form: <left> <op> <right>.";
+            return false;
+        }
+
+        error = "Unsupported condition operator. Allowed: ==, !=, >, >=, <, <=.";
+        return false;
+    }
+
+    private static (string Operator, int Index, bool SawInvalidBoundaryCandidate) FindBestOperator(string payload)
+    {
         var bestOperator = string.Empty;
         var bestOperatorIndex = -1;
         var bestBoundaryScore = -1;
@@ -75,21 +97,6 @@ public static class RunScriptConditionParser
             }
         }
 
-        if (bestOperatorIndex > 0)
-        {
-            var leftToken = payload[..bestOperatorIndex].Trim();
-            var rightToken = payload[(bestOperatorIndex + bestOperator.Length)..].Trim();
-            condition = new RunScriptCondition(leftToken, bestOperator, rightToken);
-            return true;
-        }
-
-        if (sawInvalidBoundaryCandidate)
-        {
-            error = "Condition must be in the form: <left> <op> <right>.";
-            return false;
-        }
-
-        error = "Unsupported condition operator. Allowed: ==, !=, >, >=, <, <=.";
-        return false;
+        return (bestOperator, bestOperatorIndex, sawInvalidBoundaryCandidate);
     }
 }

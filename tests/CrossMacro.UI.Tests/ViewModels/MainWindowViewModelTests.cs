@@ -98,9 +98,8 @@ public class MainWindowViewModelTests
 
         _schedulerService = Substitute.For<ISchedulerService>();
         _schedulerService.LoadAsync().Returns(Task.CompletedTask);
-        var timeProvider = Substitute.For<ITimeProvider>();
-        timeProvider.Now.Returns(new DateTime(2026, 1, 1, 10, 0, 0));
-        timeProvider.UtcNow.Returns(new DateTime(2026, 1, 1, 7, 0, 0));
+        var timeProvider = Substitute.For<TimeProvider>();
+        timeProvider.GetUtcNow().Returns(new DateTimeOffset(2026, 1, 1, 7, 0, 0, TimeSpan.Zero));
         _scheduleViewModel = new ScheduleViewModel(_schedulerService, dialogService, timeProvider, _localizationService);
 
         _shortcutService = Substitute.For<IShortcutService>();
@@ -312,7 +311,7 @@ extensionNotifier: null);
             {
                 HasUpdate = true,
                 LatestVersion = "9.9.9",
-                ReleaseUrl = "https://example.invalid/releases/9.9.9",
+                ReleaseUrl = new Uri("https://example.invalid/releases/9.9.9"),
             };
         });
 
@@ -345,7 +344,7 @@ extensionNotifier: null);
         {
             HasUpdate = true,
             LatestVersion = "1.2.3",
-            ReleaseUrl = "https://example.invalid/releases/1.2.3",
+            ReleaseUrl = new Uri("https://example.invalid/releases/1.2.3"),
         }));
 
         var viewModel = CreateMainWindowViewModel(
@@ -590,11 +589,11 @@ extensionNotifier: null);
         {
             Name = "Screen Reading Macro",
             ScriptSteps =
-            [
+            {
                 "pixelcolor 10 20 color",
                 "waitcolor 11 22 00FFAA 2500",
-                "pixelsearch 0 0 3 3 123456 x y"
-            ],
+                "pixelsearch 0 0 3 3 123456 x y",
+            },
         };
 
         RaiseEditorMacroCreated(macro);
@@ -935,9 +934,8 @@ extensionNotifier: null);
             schedulerService.LoadAsync().Returns(Task.CompletedTask);
         }
 
-        var timeProvider = Substitute.For<ITimeProvider>();
-        timeProvider.Now.Returns(new DateTime(2026, 1, 1, 10, 0, 0));
-        timeProvider.UtcNow.Returns(new DateTime(2026, 1, 1, 7, 0, 0));
+        var timeProvider = Substitute.For<TimeProvider>();
+        timeProvider.GetUtcNow().Returns(new DateTimeOffset(2026, 1, 1, 7, 0, 0, TimeSpan.Zero));
         var scheduleViewModel = new ScheduleViewModel(schedulerService, dialogService, timeProvider, localizationService);
 
         var shortcutService = Substitute.For<IShortcutService>();
@@ -1001,7 +999,7 @@ extensionNotifier: null);
     private sealed class FakeExtensionStatusNotifier : IExtensionStatusNotifier
     {
         public event EventHandler<ExtensionStatusChangedEventArgs>? ExtensionStatusUpdated;
-        public event EventHandler<string>? ExtensionStatusChanged;
+        public event EventHandler<ExtensionStatusMessageEventArgs>? ExtensionStatusChanged;
 
         public ExtensionStatusChangedEventArgs? CurrentExtensionStatus { get; private set; }
 
@@ -1010,7 +1008,7 @@ extensionNotifier: null);
             var args = new ExtensionStatusChangedEventArgs(code, message);
             CurrentExtensionStatus = args;
             ExtensionStatusUpdated?.Invoke(this, args);
-            ExtensionStatusChanged?.Invoke(this, message);
+            ExtensionStatusChanged?.Invoke(this, new ExtensionStatusMessageEventArgs(message));
         }
     }
 

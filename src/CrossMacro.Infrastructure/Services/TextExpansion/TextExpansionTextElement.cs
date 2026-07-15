@@ -8,7 +8,7 @@ internal readonly record struct TextExpansionTextElement(
     char? KeyboardLayoutCharacter,
     bool IsNewLine)
 {
-    public bool CanUseKeyboardLayoutMapping => KeyboardLayoutCharacter.HasValue;
+    public bool CanUseKeyboardLayoutMapping => KeyboardLayoutCharacter is not null;
 
     public string GetText(string source)
     {

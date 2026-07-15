@@ -37,7 +37,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     public event EventHandler? TogglePauseRequested;
     public event EventHandler<RawHotkeyInputEventArgs>? RawInputReceived;
     public event EventHandler<RawHotkeyInputEventArgs>? RawKeyReleased;
-    public event EventHandler<string>? ErrorOccurred;
+    public event EventHandler<GlobalHotkeyErrorEventArgs>? ErrorOccurred;
 
     // Properties
     public int RecordingHotkeyCode => _recordingHotkey.MainKey;
@@ -76,7 +76,10 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     {
         using (_lock.EnterScope())
         {
-            if (_isRunning) return;
+            if (_isRunning)
+            {
+                return;
+            }
 
             if (_inputCaptureFactory is null)
             {
@@ -98,7 +101,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         }
     }
 
-    public void Stop()
+    public void StopHotkeyService()
     {
         using (_lock.EnterScope())
         {
@@ -171,7 +174,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         {
             try
             {
-                return await _captureTcs.Task;
+                return await _captureTcs.Task.ConfigureAwait(false);
             }
             finally
             {
@@ -181,27 +184,28 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         }
     }
 
-    private void OnInputReceived(object? sender, InputCaptureEventArgs e)
+    private void OnInputReceived(object? sender, CapturedInputEventArgs e)
     {
-        if (e.Type is InputEventType.Key)
+        var inputEvent = e.Event;
+        if (inputEvent.Type is InputEventType.Key)
         {
-            HandleKeyboardInput(e);
+            HandleKeyboardInput(inputEvent);
             return;
         }
 
-        if (e.Type is InputEventType.MouseButton)
+        if (inputEvent.Type is InputEventType.MouseButton)
         {
-            HandleMouseButtonInput(e);
+            HandleMouseButtonInput(inputEvent);
         }
     }
 
-    private void HandleKeyboardInput(InputCaptureEventArgs e)
+    private void HandleKeyboardInput(CapturedInputEvent e)
     {
         if (e.Value is 1)
         {
             _modifierTracker.OnKeyPressed(e.Code);
             Log.Debug("[GlobalHotkeyService] Key pressed: Code={Code}, CurrentModifiers=[{Modifiers}]",
-                e.Code, string.Join("+", _modifierTracker.CurrentModifiers));
+                e.Code, string.Join('+', _modifierTracker.CurrentModifiers));
         }
         else if (e.Value is 0)
         {
@@ -213,16 +217,22 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         }
 
         if (e.Value is not 1)
+        {
             return;
+        }
 
         // Skip if this is a modifier key
         var currentModifiers = _modifierTracker.CurrentModifiers;
         if (currentModifiers.Contains(e.Code))
+        {
             return;
+        }
 
         // Block pure mouse left (BTN_LEFT) and right (BTN_RIGHT) clicks without modifiers
         if ((e.Code == InputEventCode.BTN_LEFT || e.Code == InputEventCode.BTN_RIGHT) && !_modifierTracker.HasModifiers)
+        {
             return;
+        }
 
         // Build hotkey string
         var hotkeyString = _hotkeyStringBuilder.Build(e.Code, currentModifiers);
@@ -232,7 +242,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         if (_isCapturing && _captureTcs is not null)
         {
             Log.Debug("[GlobalHotkeyService] Captured hotkey: {HotkeyString}", hotkeyString);
-            Task.Run(() => _captureTcs.TrySetResult(hotkeyString));
+            _ = Task.Run(() => _captureTcs.TrySetResult(hotkeyString));
             return;
         }
 
@@ -262,7 +272,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         RawInputReceived?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, currentModifiers, hotkeyString));
     }
 
-    private void HandleMouseButtonInput(InputCaptureEventArgs e)
+    private void HandleMouseButtonInput(CapturedInputEvent e)
     {
         var currentModifiers = _modifierTracker.CurrentModifiers;
 
@@ -275,21 +285,27 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         }
 
         if (e.Value is not 1)
+        {
             return;
+        }
 
         // Block pure left/right click without modifiers
         if ((e.Code == InputEventCode.BTN_LEFT || e.Code == InputEventCode.BTN_RIGHT) && !_modifierTracker.HasModifiers)
+        {
             return;
+        }
 
         var mouseButtonName = _mouseButtonMapper.GetMouseButtonName(e.Code);
         if (string.IsNullOrEmpty(mouseButtonName))
+        {
             return;
+        }
 
         var hotkeyString = _hotkeyStringBuilder.BuildForMouse(mouseButtonName, currentModifiers);
 
         if (_isCapturing && _captureTcs is not null)
         {
-            Task.Run(() => _captureTcs.TrySetResult(hotkeyString));
+            _ = Task.Run(() => _captureTcs.TrySetResult(hotkeyString));
             return;
         }
 
@@ -318,8 +334,9 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         RawInputReceived?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, currentModifiers, hotkeyString));
     }
 
-    private void OnInputCaptureError(object? sender, string errorMessage)
+    private void OnInputCaptureError(object? sender, InputCaptureErrorEventArgs e)
     {
+        var errorMessage = e.Message;
         var shouldRestart = false;
         var shouldNotify = false;
 
@@ -331,7 +348,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             }
             else
             {
-                Log.Error("[GlobalHotkeyService] Input capture error: {Error}", errorMessage);
+                Log.LogError("[GlobalHotkeyService] Input capture error: {Error}", errorMessage);
             }
 
             LastError = errorMessage;
@@ -347,7 +364,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
         if (shouldNotify)
         {
-            ErrorOccurred?.Invoke(this, errorMessage);
+            ErrorOccurred?.Invoke(this, new GlobalHotkeyErrorEventArgs(errorMessage));
         }
 
         if (shouldRestart)
@@ -373,7 +390,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         }
 
         _disposed = true;
-        Stop();
+        StopHotkeyService();
         _persistenceQueue.Dispose();
     }
 
@@ -384,7 +401,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             LastError = errorMessage;
         }
 
-        ErrorOccurred?.Invoke(this, errorMessage);
+        ErrorOccurred?.Invoke(this, new GlobalHotkeyErrorEventArgs(errorMessage));
     }
 
     private void StartCapture_NoLock()
@@ -404,7 +421,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         _captureLifecycle.Cleanup(
             OnInputReceived,
             OnInputCaptureError,
-            ex => Log.Error(ex, "[GlobalHotkeyService] Error stopping input capture"));
+            ex => Log.LogError(ex, "[GlobalHotkeyService] Error stopping input capture"));
     }
 
     private void OnCaptureStarted(IInputCapture capture)
@@ -434,8 +451,8 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             CleanupCapture_NoLock();
         }
 
-        Log.Error(ex, "[GlobalHotkeyService] Input capture failed during startup");
-        ErrorOccurred?.Invoke(this, ex.Message);
+        Log.LogError(ex, "[GlobalHotkeyService] Input capture failed during startup");
+        ErrorOccurred?.Invoke(this, new GlobalHotkeyErrorEventArgs(ex.Message));
     }
 
     private async Task TryRestartCaptureAsync(string cause)
@@ -447,7 +464,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
         try
         {
-            await Task.Delay(250);
+            await Task.Delay(250).ConfigureAwait(false);
 
             using (_lock.EnterScope())
             {
@@ -470,8 +487,8 @@ public class GlobalHotkeyService : IGlobalHotkeyService
                     CleanupCapture_NoLock();
                     _isRunning = false;
                     LastError = $"Restart failed: {ex.Message}";
-                    ErrorOccurred?.Invoke(this, LastError);
-                    Log.Error(ex, "[GlobalHotkeyService] Failed to restart input capture");
+                    ErrorOccurred?.Invoke(this, new GlobalHotkeyErrorEventArgs(LastError));
+                    Log.LogError(ex, "[GlobalHotkeyService] Failed to restart input capture");
                 }
             }
         }
@@ -528,7 +545,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "Failed to save hotkey configuration asynchronously");
+                    Log.LogError(ex, "Failed to save hotkey configuration asynchronously");
                     _reportFailure($"Failed to save hotkey configuration to '{request.ConfigPath}': {ex.Message}");
                 }
             }

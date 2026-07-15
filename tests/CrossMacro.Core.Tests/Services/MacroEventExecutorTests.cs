@@ -109,30 +109,30 @@ public class MacroEventExecutorTests
     public void Execute_ButtonPress_MapsButtonAndEmits()
     {
         // Arrange
-        var ev = new MacroEvent { Type = EventType.ButtonPress, Button = MouseButton.Left };
-        _buttonMapper.Map(MouseButton.Left).Returns((int)MouseButton.Left);
+        var ev = new MacroEvent { Type = EventType.ButtonPress, Button = MacroMouseButton.Left };
+        _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
 
         // Act
         _executor.Execute(ev, coordinateMode: null);
 
         // Assert
-        _simulator.Received(1).MouseButton((ushort)MouseButton.Left, pressed: true);
-        _buttonTracker.Received(1).Press((ushort)MouseButton.Left);
+        _simulator.Received(1).MouseButton((ushort)MacroMouseButton.Left, pressed: true);
+        _buttonTracker.Received(1).Press((ushort)MacroMouseButton.Left);
     }
 
     [Fact]
     public void Execute_ButtonRelease_MapsButtonAndEmits()
     {
         // Arrange
-        var ev = new MacroEvent { Type = EventType.ButtonRelease, Button = MouseButton.Left };
-        _buttonMapper.Map(MouseButton.Left).Returns((int)MouseButton.Left);
+        var ev = new MacroEvent { Type = EventType.ButtonRelease, Button = MacroMouseButton.Left };
+        _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
 
         // Act
         _executor.Execute(ev, coordinateMode: null);
 
         // Assert
-        _simulator.Received(1).MouseButton((ushort)MouseButton.Left, pressed: false);
-        _buttonTracker.Received(1).Release((ushort)MouseButton.Left);
+        _simulator.Received(1).MouseButton((ushort)MacroMouseButton.Left, pressed: false);
+        _buttonTracker.Received(1).Release((ushort)MacroMouseButton.Left);
     }
 
     [Fact]
@@ -153,15 +153,15 @@ public class MacroEventExecutorTests
     public void Execute_Click_SimulatesPressAndRelease()
     {
         // Arrange
-        var ev = new MacroEvent { Type = EventType.Click, Button = MouseButton.Right };
-        _buttonMapper.Map(MouseButton.Right).Returns((int)MouseButton.Right);
+        var ev = new MacroEvent { Type = EventType.Click, Button = MacroMouseButton.Right };
+        _buttonMapper.Map(MacroMouseButton.Right).Returns((int)MacroMouseButton.Right);
 
         // Act
         _executor.Execute(ev, coordinateMode: null);
 
         // Assert
-        _simulator.Received(1).MouseButton((ushort)MouseButton.Right, pressed: true);
-        _simulator.Received(1).MouseButton((ushort)MouseButton.Right, pressed: false);
+        _simulator.Received(1).MouseButton((ushort)MacroMouseButton.Right, pressed: true);
+        _simulator.Received(1).MouseButton((ushort)MacroMouseButton.Right, pressed: false);
     }
 
     [Fact]
@@ -171,12 +171,12 @@ public class MacroEventExecutorTests
         var ev = new MacroEvent
         {
             Type = EventType.Click,
-            Button = MouseButton.Left,
+            Button = MacroMouseButton.Left,
             X = 500,
             Y = 300,
             UseCurrentPosition = true,
         };
-        _buttonMapper.Map(MouseButton.Left).Returns((int)MouseButton.Left);
+        _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
 
         // Act
         _executor.Execute(ev, coordinateMode: null);
@@ -184,8 +184,8 @@ public class MacroEventExecutorTests
         // Assert
         _simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
         _simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
-        _simulator.Received(1).MouseButton((ushort)MouseButton.Left, pressed: true);
-        _simulator.Received(1).MouseButton((ushort)MouseButton.Left, pressed: false);
+        _simulator.Received(1).MouseButton((ushort)MacroMouseButton.Left, pressed: true);
+        _simulator.Received(1).MouseButton((ushort)MacroMouseButton.Left, pressed: false);
     }
 
     [Fact]
@@ -216,7 +216,7 @@ public class MacroEventExecutorTests
     public void Execute_Scroll_SimulatesScroll()
     {
         // Arrange
-        var ev = new MacroEvent { Type = EventType.Click, Button = MouseButton.ScrollUp };
+        var ev = new MacroEvent { Type = EventType.Click, Button = MacroMouseButton.ScrollUp };
 
         // Act
         _executor.Execute(ev, coordinateMode: null);
@@ -228,15 +228,15 @@ public class MacroEventExecutorTests
     [Fact]
     public void Execute_ButtonPress_Absolute_MovesToRecordedPositionBeforeButton()
     {
-        var ev = new MacroEvent { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 100, Y = 200 };
-        _buttonMapper.Map(MouseButton.Left).Returns((int)MouseButton.Left);
+        var ev = new MacroEvent { Type = EventType.ButtonPress, Button = MacroMouseButton.Left, X = 100, Y = 200 };
+        _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
 
         _executor.Execute(ev, MouseCoordinateMode.Absolute);
 
         Received.InOrder(() =>
         {
             _simulator.MoveAbsolute(100, 200);
-            _simulator.MouseButton((ushort)MouseButton.Left, pressed: true);
+            _simulator.MouseButton((ushort)MacroMouseButton.Left, pressed: true);
         });
         _coordinator.Received(1).UpdatePosition(100, 200);
     }
@@ -244,15 +244,15 @@ public class MacroEventExecutorTests
     [Fact]
     public void Execute_ButtonPress_Relative_MovesByDeltaBeforeButton()
     {
-        var ev = new MacroEvent { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 10, Y = -5 };
-        _buttonMapper.Map(MouseButton.Left).Returns((int)MouseButton.Left);
+        var ev = new MacroEvent { Type = EventType.ButtonPress, Button = MacroMouseButton.Left, X = 10, Y = -5 };
+        _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
 
         _executor.Execute(ev, MouseCoordinateMode.Relative);
 
         Received.InOrder(() =>
         {
             _simulator.MoveRelative(10, -5);
-            _simulator.MouseButton((ushort)MouseButton.Left, pressed: true);
+            _simulator.MouseButton((ushort)MacroMouseButton.Left, pressed: true);
         });
         _coordinator.Received(1).AddDelta(10, -5);
     }
@@ -260,14 +260,14 @@ public class MacroEventExecutorTests
     [Fact]
     public void Execute_ButtonPress_NullMode_EmitsButtonWithoutImplicitMovement()
     {
-        var ev = new MacroEvent { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 10, Y = -5 };
-        _buttonMapper.Map(MouseButton.Left).Returns((int)MouseButton.Left);
+        var ev = new MacroEvent { Type = EventType.ButtonPress, Button = MacroMouseButton.Left, X = 10, Y = -5 };
+        _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
 
         _executor.Execute(ev, coordinateMode: null);
 
         _simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
         _simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
-        _simulator.Received(1).MouseButton((ushort)MouseButton.Left, pressed: true);
+        _simulator.Received(1).MouseButton((ushort)MacroMouseButton.Left, pressed: true);
     }
 
     [Fact]
@@ -277,7 +277,7 @@ public class MacroEventExecutorTests
         var coordinator = Substitute.For<IPlaybackCoordinator>();
         coordinator.CurrentX.Returns(25);
         coordinator.CurrentY.Returns(40);
-        _buttonMapper.Map(MouseButton.Left).Returns((int)MouseButton.Left);
+        _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
 
         var executor = new MacroEventExecutor(
             simulator,
@@ -287,7 +287,7 @@ public class MacroEventExecutorTests
             coordinator);
         executor.Initialize(0, 0);
 
-        var act = () => executor.Execute(new MacroEvent { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 100, Y = 90 }, MouseCoordinateMode.Absolute);
+        var act = () => executor.Execute(new MacroEvent { Type = EventType.ButtonPress, Button = MacroMouseButton.Left, X = 100, Y = 90 }, MouseCoordinateMode.Absolute);
 
         Assert.Throws<AbsolutePlaybackUnsupportedException>(act);
         Assert.Null(simulator.LastRelativeMove);

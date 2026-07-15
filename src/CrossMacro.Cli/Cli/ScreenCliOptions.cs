@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Cli;
 
-public sealed record ScreenCliOptions(
+public sealed record class ScreenCliOptions(
     ScreenCliAction Action,
     int X = 0,
     int Y = 0,
@@ -20,7 +20,7 @@ public sealed record ScreenCliOptions(
     int Downsample = 1,
     ScreenImageMatchMode MatchMode = ScreenImageMatchMode.First,
     bool ScaleAware = false,
-    MouseButton Button = MouseButton.Left,
+    MacroMouseButton Button = MacroMouseButton.Left,
     bool JsonOutput = false,
     string? LogLevel = null)
     : CliCommandOptions(JsonOutput, LogLevel);

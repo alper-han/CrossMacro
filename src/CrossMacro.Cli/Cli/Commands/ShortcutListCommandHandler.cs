@@ -12,6 +12,6 @@ public sealed class ShortcutListCommandHandler : CliCommandHandlerBase<ShortcutL
 
     protected override async Task<CliCommandExecutionResult> ExecuteAsync(ShortcutListCliOptions options, CancellationToken cancellationToken)
     {
-        return await _shortcutCliService.ListAsync(cancellationToken);
+        return await _shortcutCliService.ListAsync(cancellationToken).ConfigureAwait(false);
     }
 }

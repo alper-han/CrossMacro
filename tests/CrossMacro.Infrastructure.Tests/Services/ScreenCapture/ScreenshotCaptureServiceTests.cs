@@ -72,7 +72,7 @@ public sealed class ScreenshotCaptureServiceTests
         var service = new ScreenshotCaptureService(
             new FakeScreenFrameProvider
             {
-                Failure = ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.PermissionDenied, "permission denied"),
+                Failure = ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.PermissionDenied, "permission denied"),
             },
             new FakeImageClipboardService());
 
@@ -117,7 +117,7 @@ public sealed class ScreenshotCaptureServiceTests
 
             var bounds = region ?? new ScreenRect(0, 0, 2, 1);
             byte[] pixels = [0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00];
-            return Task.FromResult(ScreenReadResult<ScreenFrame>.Success(new ScreenFrame(
+            return Task.FromResult(ScreenReadResultFactory.Success<ScreenFrame>(new ScreenFrame(
                 bounds,
                 bounds.Width * 3,
                 ScreenPixelFormat.Rgb24,

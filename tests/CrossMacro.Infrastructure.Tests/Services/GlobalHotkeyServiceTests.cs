@@ -144,10 +144,10 @@ public class GlobalHotkeyServiceTests
     {
         _service.Start();
 
-        _service.Stop();
-        _service.Stop();
+        _service.StopHotkeyService();
+        _service.StopHotkeyService();
 
-        _inputCapture.Received(1).Stop();
+        _inputCapture.Received(1).StopCapture();
         _inputCapture.Received(1).Dispose();
         Assert.False(_service.IsRunning);
     }
@@ -161,10 +161,10 @@ public class GlobalHotkeyServiceTests
         _service.ToggleRecordingRequested += (s, e) => eventFired = true;
 
         // Simulate F9 Press (Code 67, Value 1)
-        var args = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 67, Value = 1 };
+        var args = new CapturedInputEvent { Type = InputEventType.Key, Code = 67, Value = 1 };
 
         // Use NSubstitute to raise event
-        _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(this, args);
+        _inputCapture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(this, new CapturedInputEventArgs(args));
 
         // Assert
         Assert.True(eventFired);
@@ -179,8 +179,8 @@ public class GlobalHotkeyServiceTests
         _service.ToggleRecordingRequested += (s, e) => eventFired = true;
 
         // Simulate F8 Press (Code 66, Value 1)
-        var args = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 66, Value = 1 };
-        _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(this, args);
+        var args = new CapturedInputEvent { Type = InputEventType.Key, Code = 66, Value = 1 };
+        _inputCapture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(this, new CapturedInputEventArgs(args));
 
         // Assert
         Assert.False(eventFired);
@@ -195,13 +195,13 @@ public class GlobalHotkeyServiceTests
         _service.RawInputReceived += (_, e) => received = e;
 
         // Act
-        var args = new InputCaptureEventArgs
+        var args = new CapturedInputEvent
         {
             Type = InputEventType.MouseButton,
             Code = InputEventCode.BTN_EXTRA,
             Value = 1,
         };
-        _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(this, args);
+        _inputCapture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(this, new CapturedInputEventArgs(args));
 
         // Assert
         Assert.NotNull(received);
@@ -218,13 +218,13 @@ public class GlobalHotkeyServiceTests
         _service.RawKeyReleased += (_, e) => released = e;
 
         // Act
-        var args = new InputCaptureEventArgs
+        var args = new CapturedInputEvent
         {
             Type = InputEventType.MouseButton,
             Code = InputEventCode.BTN_EXTRA,
             Value = 0,
         };
-        _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(this, args);
+        _inputCapture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(this, new CapturedInputEventArgs(args));
 
         // Assert
         Assert.NotNull(released);
@@ -304,7 +304,7 @@ public class GlobalHotkeyServiceTests
     {
         var observed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         _config.TrySave(Arg.Any<HotkeyConfigurationSaveRequest>()).Returns(returnThis: false);
-        _service.ErrorOccurred += (_, error) => observed.TrySetResult(error);
+        _service.ErrorOccurred += (_, error) => observed.TrySetResult(error.Message);
 
         _service.UpdateHotkeys("F1", "F10", "F11");
         var error = await observed.Task.WaitAsync(TestTimeout);
@@ -322,15 +322,15 @@ public class GlobalHotkeyServiceTests
         var playbackRequests = 0;
         service.TogglePlaybackRequested += (_, _) => playbackRequests++;
 
-        capture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(
+        capture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(
             this,
-            new InputCaptureEventArgs
-            {
-                Type = InputEventType.Key,
-                Code = InputEventCode.KEY_F9,
-                Value = 1,
-                Timestamp = 123,
-            });
+                new CapturedInputEventArgs
+                {
+                    Type = InputEventType.Key,
+                    Code = InputEventCode.KEY_F9,
+                    Value = 1,
+                    Timestamp = 123,
+                });
 
         Assert.Equal(1, playbackRequests);
     }
@@ -347,15 +347,15 @@ public class GlobalHotkeyServiceTests
         var playbackRequests = 0;
         service.TogglePlaybackRequested += (_, _) => playbackRequests++;
 
-        capture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(
+        capture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(
             this,
-            new InputCaptureEventArgs
-            {
-                Type = InputEventType.Key,
-                Code = inputCode,
-                Value = 1,
-                Timestamp = 123,
-            });
+                new CapturedInputEventArgs
+                {
+                    Type = InputEventType.Key,
+                    Code = inputCode,
+                    Value = 1,
+                    Timestamp = 123,
+                });
 
         Assert.Equal(0, playbackRequests);
     }
@@ -416,17 +416,17 @@ public class GlobalHotkeyServiceTests
 
         restartingService.Start();
 
-        firstCapture.Error += Raise.Event<EventHandler<string>>(this, "simulated capture error");
+        firstCapture.CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(this, new InputCaptureErrorEventArgs("simulated capture error"));
         await secondStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
-        firstCapture.Received(1).Stop();
+        firstCapture.Received(1).StopCapture();
         firstCapture.Received(1).Dispose();
         secondCapture.Received(1).Configure(captureMouse: true, captureKeyboard: true);
         await secondCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
 
         Received.InOrder(() =>
         {
-            firstCapture.Stop();
+            firstCapture.StopCapture();
             firstCapture.Dispose();
             secondCapture.Configure(captureMouse: true, captureKeyboard: true);
             secondCapture.StartAsync(Arg.Any<CancellationToken>());
@@ -461,12 +461,12 @@ public class GlobalHotkeyServiceTests
         restartingService.Start();
 
         firstStarted.TrySetResult(true);
-        firstCapture.Error += Raise.Event<EventHandler<string>>(this, "transient post-start failure");
+        firstCapture.CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(this, new InputCaptureErrorEventArgs("transient post-start failure"));
 
         await secondStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         Assert.True(restartingService.IsRunning);
-        firstCapture.Received(1).Stop();
+        firstCapture.Received(1).StopCapture();
         firstCapture.Received(1).Dispose();
         secondCapture.Received(1).Configure(captureMouse: true, captureKeyboard: true);
         await secondCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
@@ -500,15 +500,15 @@ public class GlobalHotkeyServiceTests
         restartingService.ErrorOccurred += (_, _) => notified = true;
 
         restartingService.Start();
-        firstCapture.Error += Raise.Event<EventHandler<string>>(
+        firstCapture.CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(
             this,
-            "Recovery: Windows session unlocked; restarting input capture.");
+            new InputCaptureErrorEventArgs("Recovery: Windows session unlocked; restarting input capture."));
 
         await secondStarted.WaitAsync(TestTimeout);
 
         Assert.False(notified);
         _modifierTracker.Received(1).Clear();
-        firstCapture.Received(1).Stop();
+        firstCapture.Received(1).StopCapture();
         firstCapture.Received(1).Dispose();
         secondCapture.Received(1).Configure(captureMouse: true, captureKeyboard: true);
         await secondCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
@@ -540,7 +540,7 @@ public class GlobalHotkeyServiceTests
 
         restartingService.ErrorOccurred += (_, error) =>
         {
-            if (error is "startup failed")
+            if (error.Message is "startup failed")
             {
                 startupFaultObserved.Signal();
             }
@@ -553,7 +553,7 @@ public class GlobalHotkeyServiceTests
         Assert.False(restartingService.IsRunning);
         Assert.Equal(1, factoryCallCount);
         Assert.Equal("startup failed", restartingService.LastError);
-        firstCapture.Received(1).Stop();
+        firstCapture.Received(1).StopCapture();
         firstCapture.Received(1).Dispose();
         await firstCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
     }
@@ -583,7 +583,7 @@ public class GlobalHotkeyServiceTests
 
         restartingService.ErrorOccurred += (_, error) =>
         {
-            if (error.Contains("Restart failed", StringComparison.OrdinalIgnoreCase))
+            if (error.Message.Contains("Restart failed", StringComparison.OrdinalIgnoreCase))
             {
                 restartFailureObserved.Signal();
             }
@@ -591,28 +591,28 @@ public class GlobalHotkeyServiceTests
 
         restartingService.Start();
 
-        firstCapture.Error += Raise.Event<EventHandler<string>>(this, "simulated capture error");
+        firstCapture.CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(this, new InputCaptureErrorEventArgs("simulated capture error"));
         await restartFailureObserved.WaitAsync(TestTimeout);
 
         Assert.False(restartingService.IsRunning);
         Assert.Contains("Restart failed", restartingService.LastError, StringComparison.OrdinalIgnoreCase);
-        firstCapture.Received(1).Stop();
+        firstCapture.Received(1).StopCapture();
         firstCapture.Received(1).Dispose();
         secondCapture.Received(1).Configure(captureMouse: true, captureKeyboard: true);
         await secondCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
-        secondCapture.Received(1).Stop();
+        secondCapture.Received(1).StopCapture();
         secondCapture.Received(1).Dispose();
 
         Received.InOrder(() =>
         {
-            firstCapture.Stop();
+            firstCapture.StopCapture();
             firstCapture.Dispose();
             secondCapture.Configure(captureMouse: true, captureKeyboard: true);
             secondCapture.StartAsync(Arg.Any<CancellationToken>());
-            secondCapture.Stop();
+            secondCapture.StopCapture();
             secondCapture.Dispose();
         });
 
-        restartingService.Stop();
+        restartingService.StopHotkeyService();
     }
 }

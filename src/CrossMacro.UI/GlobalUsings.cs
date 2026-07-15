@@ -6,7 +6,6 @@ global using Avalonia.Data.Converters;
 global using Avalonia.Data;
 global using Avalonia.Input.Platform;
 global using Avalonia.Input;
-global using MouseButton = CrossMacro.Core.Models.MouseButton;
 global using Avalonia.Interactivity;
 global using Avalonia.Markup.Xaml.MarkupExtensions;
 global using Avalonia.Markup.Xaml;

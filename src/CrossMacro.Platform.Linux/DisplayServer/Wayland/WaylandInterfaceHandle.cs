@@ -5,7 +5,9 @@ internal sealed class WaylandInterfaceHandle : IDisposable
 {
     private readonly WlCString _name;
     private readonly WlMessage[] _methods;
+#pragma warning disable S1450
     private readonly WlMessage[] _events;
+#pragma warning restore S1450
     private readonly List<WlCString> _strings = [];
     private readonly List<GCHandle> _typeHandles = [];
     private readonly GCHandle _methodsHandle;

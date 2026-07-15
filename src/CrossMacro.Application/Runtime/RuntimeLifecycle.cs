@@ -19,7 +19,11 @@ public sealed class RuntimeLifecycle : IRuntimeLifecycle
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (_started) return;
+            if (_started)
+            {
+                return;
+            }
+
             try
             {
                 foreach (var step in _steps)
@@ -47,11 +51,18 @@ public sealed class RuntimeLifecycle : IRuntimeLifecycle
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (_stopped) return;
+            if (_stopped)
+            {
+                return;
+            }
+
             var cleanupErrors = await StopStartedStepsAsync(cancellationToken).ConfigureAwait(false);
             _started = false;
             _stopped = true;
-            if (cleanupErrors.Count > 0) throw new AggregateException("Runtime shutdown failed.", cleanupErrors);
+            if (cleanupErrors.Count > 0)
+            {
+                throw new AggregateException("Runtime shutdown failed.", cleanupErrors);
+            }
         }
         finally { _gate.Release(); }
     }
@@ -76,7 +87,11 @@ public sealed class RuntimeLifecycle : IRuntimeLifecycle
 
     private static void ThrowWithCleanupErrors(Exception startError, IReadOnlyList<Exception> cleanupErrors)
     {
-        if (cleanupErrors.Count is 0) throw startError;
+        if (cleanupErrors.Count is 0)
+        {
+            throw startError;
+        }
+
         var errors = new List<Exception> { startError };
         errors.AddRange(cleanupErrors);
         throw new AggregateException("Runtime startup and rollback failed.", errors);

@@ -42,7 +42,7 @@ internal sealed class DesktopPermissionGateService
         var startupGateKind = GetStartupPermissionGateKind(permissionChecker);
         if (startupGateKind is not StartupPermissionGateKind.None)
         {
-            var permissionResolved = await HandleStartupPermissionGateAsync(desktop, permissionChecker!, startupGateKind);
+            var permissionResolved = await HandleStartupPermissionGateAsync(desktop, permissionChecker!, startupGateKind).ConfigureAwait(false);
             if (!permissionResolved)
             {
                 return GateResult.HandledByDialog();
@@ -134,7 +134,7 @@ internal sealed class DesktopPermissionGateService
 
         try
         {
-            await action(bootstrapOwner);
+            await action(bootstrapOwner).ConfigureAwait(false);
         }
         finally
         {
@@ -149,7 +149,7 @@ internal sealed class DesktopPermissionGateService
         }
     }
 
-    private async Task<bool> HandleStartupPermissionGateAsync(
+    private static async Task<bool> HandleStartupPermissionGateAsync(
         IClassicDesktopStyleApplicationLifetime desktop,
         IPermissionChecker permissionChecker,
         StartupPermissionGateKind gateKind)
@@ -171,7 +171,7 @@ internal sealed class DesktopPermissionGateService
                         dangerYes: false,
                         dangerNo: true);
 
-                    var shouldOpenSettings = await permissionDialog.ShowDialog<bool>(bootstrapOwner);
+                    var shouldOpenSettings = await permissionDialog.ShowDialog<bool>(bootstrapOwner).ConfigureAwait(false);
                     if (!shouldOpenSettings)
                     {
                         return;
@@ -187,7 +187,7 @@ internal sealed class DesktopPermissionGateService
                         dangerYes: false,
                         dangerNo: true);
 
-                    var shouldRecheck = await recheckDialog.ShowDialog<bool>(bootstrapOwner);
+                    var shouldRecheck = await recheckDialog.ShowDialog<bool>(bootstrapOwner).ConfigureAwait(false);
                     if (!shouldRecheck)
                     {
                         return;
@@ -196,7 +196,7 @@ internal sealed class DesktopPermissionGateService
                     currentGateKind = GetStartupPermissionGateKind(permissionChecker);
                     if (currentGateKind is not StartupPermissionGateKind.None)
                     {
-                        await ShowApprovalPendingDialogAsync(bootstrapOwner, currentGateKind);
+                        await ShowApprovalPendingDialogAsync(bootstrapOwner, currentGateKind).ConfigureAwait(false);
                         return;
                     }
                 }
@@ -205,9 +205,9 @@ internal sealed class DesktopPermissionGateService
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[DesktopStartupCoordinator] macOS startup permission gate flow failed");
+                Log.LogError(ex, "[DesktopStartupCoordinator] macOS startup permission gate flow failed");
             }
-        });
+        }).ConfigureAwait(false);
 
         if (!permissionResolved)
         {
@@ -254,7 +254,7 @@ internal sealed class DesktopPermissionGateService
             noText: null,
             dangerYes: true);
 
-        await pendingDialog.ShowDialog<bool>(bootstrapOwner);
+        await pendingDialog.ShowDialog<bool>(bootstrapOwner).ConfigureAwait(false);
     }
 
     private static string GetApprovalPendingMessage(StartupPermissionGateKind gateKind)

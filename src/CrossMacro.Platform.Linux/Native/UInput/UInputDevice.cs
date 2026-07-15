@@ -40,7 +40,7 @@ public class UInputDevice : IUInputDevice
         try
         {
             SetupDeviceInternal();
-            await WaitForDeviceStabilizationAsync();
+            await WaitForDeviceStabilizationAsync().ConfigureAwait(false);
         }
         catch
         {
@@ -125,7 +125,7 @@ public class UInputDevice : IUInputDevice
                     return;
                 }
             }
-            await Task.Delay(5);
+            await Task.Delay(5, CancellationToken.None).ConfigureAwait(false);
         }
         Log.Warning("[UInputDevice] Virtual device stabilization timed out after 500ms (async).");
     }
@@ -159,7 +159,7 @@ public class UInputDevice : IUInputDevice
         if (_fd < 0)
         {
             var errno = SelectOpenUInputErrno(primaryErrno, alternateErrno);
-            Log.Error(
+            Log.LogError(
                 "[UInputDevice] Failed to open uinput paths {PrimaryPath} (errno: {PrimaryErrno}) and {AlternatePath} (errno: {AlternateErrno}). Selected errno: {Errno}",
                 LinuxSystemPaths.UInputDevicePath,
                 primaryErrno,
@@ -227,16 +227,16 @@ public class UInputDevice : IUInputDevice
         if (result.ToInt32() < 0)
         {
             var errno = Marshal.GetLastWin32Error();
-            Log.Error("[UInputDevice] Failed to write uinput_user_dev. Errno: {Errno}", errno);
-            throw new InvalidOperationException($"Failed to write uinput_user_dev (Errno: {errno})");
+            Log.LogError("[UInputDevice] Failed to write uinput_user_dev. Errno: {Errno}", errno);
+            throw new InvalidOperationException($"Failed to write uinput_user_dev (Errno: {errno.ToString(CultureInfo.InvariantCulture)})");
         }
 
         int createResult = UInputNative.ioctl(_fd, UInputNative.UI_DEV_CREATE, 0);
         if (createResult < 0)
         {
             var errno = Marshal.GetLastWin32Error();
-            Log.Error("[UInputDevice] Failed to create device (UI_DEV_CREATE). Errno: {Errno}", errno);
-            throw new InvalidOperationException($"Failed to create device (Errno: {errno})");
+            Log.LogError("[UInputDevice] Failed to create device (UI_DEV_CREATE). Errno: {Errno}", errno);
+            throw new InvalidOperationException($"Failed to create device (Errno: {errno.ToString(CultureInfo.InvariantCulture)})");
         }
 
         Log.Information("[UInputDevice] Virtual input device (mouse + keyboard) created successfully.");
@@ -247,14 +247,17 @@ public class UInputDevice : IUInputDevice
         if (UInputNative.ioctl(_fd, request, bit) < 0)
         {
             var errno = Marshal.GetLastWin32Error();
-            Log.Error("[UInputDevice] Failed to enable bit {Bit} for request {Request}. Errno: {Errno}", bit, request, errno);
-            throw new InvalidOperationException($"Failed to enable bit {bit} (Errno: {errno})");
+            Log.LogError("[UInputDevice] Failed to enable bit {Bit} for request {Request}. Errno: {Errno}", bit, request, errno);
+            throw new InvalidOperationException($"Failed to enable bit {bit.ToString(CultureInfo.InvariantCulture)} (Errno: {errno.ToString(CultureInfo.InvariantCulture)})");
         }
     }
 
     public void SendEvent(ushort type, ushort code, int value)
     {
-        if (_fd < 0) return;
+        if (_fd < 0)
+        {
+            return;
+        }
 
         var ev = new UInputNative.input_event
         {
@@ -282,7 +285,10 @@ public class UInputDevice : IUInputDevice
 
     public void Move(int dx, int dy)
     {
-        if (_fd < 0) return;
+        if (_fd < 0)
+        {
+            return;
+        }
 
         Emit(UInputNative.EV_REL, UInputNative.REL_X, dx);
         Emit(UInputNative.EV_REL, UInputNative.REL_Y, dy);
@@ -291,10 +297,20 @@ public class UInputDevice : IUInputDevice
 
     public void MoveAbsolute(int x, int y)
     {
-        if (_fd < 0) return;
+        if (_fd < 0)
+        {
+            return;
+        }
 
-        if (_width > 0) x = Math.Clamp(x, 0, _width - 1);
-        if (_height > 0) y = Math.Clamp(y, 0, _height - 1);
+        if (_width > 0)
+        {
+            x = Math.Clamp(x, 0, _width - 1);
+        }
+
+        if (_height > 0)
+        {
+            y = Math.Clamp(y, 0, _height - 1);
+        }
 
         Emit(UInputNative.EV_ABS, UInputNative.ABS_X, x);
         Emit(UInputNative.EV_ABS, UInputNative.ABS_Y, y);
@@ -344,7 +360,7 @@ public class UInputDevice : IUInputDevice
     internal static string BuildOpenUInputErrorMessage(int errno)
     {
         var baseMessage =
-            $"Cannot open {LinuxSystemPaths.UInputDevicePath} or {LinuxSystemPaths.UInputAlternatePath} (Errno: {errno}).";
+            $"Cannot open {LinuxSystemPaths.UInputDevicePath} or {LinuxSystemPaths.UInputAlternatePath} (Errno: {errno.ToString(CultureInfo.InvariantCulture)}).";
 
         return errno switch
         {
@@ -376,6 +392,6 @@ public class UInputDevice : IUInputDevice
 
     private static bool IsPermissionErrno(int errno)
     {
-        return errno == ErrnoPermissionDenied || errno == ErrnoOperationNotPermitted;
+        return errno is ErrnoPermissionDenied or ErrnoOperationNotPermitted;
     }
 }

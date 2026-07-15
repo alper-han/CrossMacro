@@ -26,7 +26,11 @@ internal static class ScreenshotCommandParser
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "screenshot", ref jsonOutput, ref logLevel, out var common))
             {
-                if (common is not null) return common;
+                if (common is not null)
+                {
+                    return common;
+                }
+
                 continue;
             }
 
@@ -34,7 +38,10 @@ internal static class ScreenshotCommandParser
                 string.Equals(args[i], "-o", StringComparison.OrdinalIgnoreCase))
             {
                 if (i + 1 >= args.Length)
+                {
                     return CliParseHelpers.Error("--output requires a file path.", jsonOutput);
+                }
+
                 outputPath = args[++i];
                 continue;
             }
@@ -48,16 +55,29 @@ internal static class ScreenshotCommandParser
             if (string.Equals(args[i], "--region", StringComparison.OrdinalIgnoreCase))
             {
                 if (i + 4 >= args.Length)
+                {
                     return CliParseHelpers.Error("--region requires <x> <y> <width> <height>.", jsonOutput);
+                }
 
                 if (!int.TryParse(args[i + 1], out var rx))
+                {
                     return CliParseHelpers.Error($"Invalid integer for region x: {args[i + 1]}", jsonOutput);
+                }
+
                 if (!int.TryParse(args[i + 2], out var ry))
+                {
                     return CliParseHelpers.Error($"Invalid integer for region y: {args[i + 2]}", jsonOutput);
+                }
+
                 if (!int.TryParse(args[i + 3], out var rw) || rw <= 0)
+                {
                     return CliParseHelpers.Error($"Invalid region width: {args[i + 3]}", jsonOutput);
+                }
+
                 if (!int.TryParse(args[i + 4], out var rh) || rh <= 0)
+                {
                     return CliParseHelpers.Error($"Invalid region height: {args[i + 4]}", jsonOutput);
+                }
 
                 try
                 {

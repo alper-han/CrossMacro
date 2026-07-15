@@ -39,7 +39,7 @@ public sealed class DesktopStartupRuntimeServiceTests
             PersistTrayEnabled: false,
             UseStartupTrayOnly: false);
 
-        var plan = service.CreateDisplayPlan(preferences, trayAvailable: true);
+        var plan = DesktopStartupRuntimeService.CreateDisplayPlan(preferences, trayAvailable: true);
 
         Assert.Equal(DesktopStartupDisplayMode.Visible, plan.DisplayMode);
         Assert.Equal(ShutdownMode.OnLastWindowClose, plan.ShutdownMode);
@@ -58,7 +58,7 @@ public sealed class DesktopStartupRuntimeServiceTests
             PersistTrayEnabled: true,
             UseStartupTrayOnly: false);
 
-        var plan = service.CreateDisplayPlan(preferences, trayAvailable: false);
+        var plan = DesktopStartupRuntimeService.CreateDisplayPlan(preferences, trayAvailable: false);
 
         Assert.Equal(DesktopStartupDisplayMode.Minimized, plan.DisplayMode);
         Assert.Equal(ShutdownMode.OnLastWindowClose, plan.ShutdownMode);
@@ -77,7 +77,7 @@ public sealed class DesktopStartupRuntimeServiceTests
             PersistTrayEnabled: false,
             UseStartupTrayOnly: true);
 
-        var plan = service.CreateDisplayPlan(preferences, trayAvailable: true);
+        var plan = DesktopStartupRuntimeService.CreateDisplayPlan(preferences, trayAvailable: true);
 
         Assert.Equal(DesktopStartupDisplayMode.HiddenToTray, plan.DisplayMode);
         Assert.Equal(ShutdownMode.OnExplicitShutdown, plan.ShutdownMode);
@@ -96,7 +96,7 @@ public sealed class DesktopStartupRuntimeServiceTests
             PersistTrayEnabled: true,
             UseStartupTrayOnly: false);
 
-        var plan = service.CreateDisplayPlan(preferences, trayAvailable: true);
+        var plan = DesktopStartupRuntimeService.CreateDisplayPlan(preferences, trayAvailable: true);
 
         Assert.Equal(DesktopStartupDisplayMode.HiddenToTray, plan.DisplayMode);
         Assert.Equal(ShutdownMode.OnExplicitShutdown, plan.ShutdownMode);

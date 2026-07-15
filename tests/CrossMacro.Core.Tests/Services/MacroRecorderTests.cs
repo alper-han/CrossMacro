@@ -112,19 +112,19 @@ public class MacroRecorderTests
         var recorder = CreateRecorder();
 
         var receivedEvents = new List<MacroEvent>();
-        recorder.EventRecorded += (s, e) => receivedEvents.Add(e);
+        recorder.EventRecorded += (s, e) => receivedEvents.Add(e.MacroEvent);
 
         // Setup processor to return an event when Process is called
-        _processor.Process(Arg.Any<InputCaptureEventArgs>(), Arg.Any<long>())
+        _processor.Process(Arg.Any<CapturedInputEvent>(), Arg.Any<long>())
             .Returns(new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 });
 
         // Act
         await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true);
 
         // Simulate input
-        _capture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(
-            this,
-            new InputCaptureEventArgs { Type = InputEventType.Key, Code = 30, Value = 1 });
+        _capture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(
+        this,
+        new CapturedInputEventArgs { Type = InputEventType.Key, Code = 30, Value = 1 });
 
         recorder.StopRecording();
 
@@ -294,7 +294,7 @@ public class MacroRecorderTests
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("start failed");
         recorder.IsRecording.Should().BeFalse();
-        _capture.Received(1).Stop();
+        _capture.Received(1).StopCapture();
         _capture.Received(1).Dispose();
     }
 
@@ -304,7 +304,7 @@ public class MacroRecorderTests
         // Arrange
         var recorder = CreateRecorder();
         await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true);
-        _capture.When(x => x.Stop()).Do(_ => throw new Exception("stop fail"));
+        _capture.When(x => x.StopCapture()).Do(_ => throw new Exception("stop fail"));
 
         // Act
         var result = recorder.StopRecording();

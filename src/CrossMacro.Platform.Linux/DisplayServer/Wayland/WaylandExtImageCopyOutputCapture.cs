@@ -9,7 +9,6 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
     private readonly WaylandProtocolTables _protocol;
     private readonly IntPtr _display;
     private readonly WaylandRegistryState _registry;
-    private readonly IntPtr _output;
     private readonly IntPtr _source;
     private IntPtr _buffer;
     private WaylandExtImageCopySessionState? _bufferSessionState;
@@ -27,11 +26,9 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
         _protocol = protocol;
         _display = display;
         _registry = registry;
-        _output = output;
-
         try
         {
-            _source = _library.CreateExtImageSource(_registry.ExtOutputSourceManager, _output, _protocol.ExtCaptureSource);
+            _source = _library.CreateExtImageSource(_registry.ExtOutputSourceManager, output, _protocol.ExtCaptureSource);
         }
         catch
         {
@@ -241,7 +238,9 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
 
     private sealed class WaylandExtImageCopySessionState
     {
+#pragma warning disable S1450
         private readonly SessionDispatcher _dispatcher;
+#pragma warning restore S1450
         private readonly List<uint> _advertisedShmFormats = [];
 
         public WaylandExtImageCopySessionState()
@@ -297,7 +296,9 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
 
     private sealed class WaylandExtImageCopyFrameState
     {
+#pragma warning disable S1450
         private readonly FrameDispatcher _dispatcher;
+#pragma warning restore S1450
 
         public WaylandExtImageCopyFrameState()
         {

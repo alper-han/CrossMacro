@@ -6,7 +6,7 @@ namespace CrossMacro.Platform.Abstractions;
 /// </summary>
 public interface ITaggedKeyboardInputSimulator
 {
-    bool SupportsTaggedKeyboardInput { get; }
+    public bool SupportsTaggedKeyboardInput { get; }
 
-    void KeyPressTagged(int keyCode, bool pressed, long tag);
+    public void KeyPressTagged(int keyCode, bool pressed, long tag);
 }

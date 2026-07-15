@@ -3,21 +3,21 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion;
 
 public interface IInputProcessor
 {
-    bool AreModifiersPressed { get; }
+    public bool AreModifiersPressed { get; }
 
-    bool IsKeyPressed(int keyCode);
+    public bool IsKeyPressed(int keyCode);
 
-    bool IsSuspended { get; }
+    public bool IsSuspended { get; }
 
-    event Action<char> CharacterReceived;
+    public event Action<char> CharacterReceived;
 
-    event Action<int> SpecialKeyReceived;
+    public event Action<int> SpecialKeyReceived;
 
-    void ProcessEvent(InputCaptureEventArgs e);
+    public void ProcessEvent(CapturedInputEvent e);
 
-    void Reset();
+    public void Reset();
 
-    void Suspend();
+    public void Suspend();
 
-    void Resume();
+    public void ResumeInputProcessing();
 }

@@ -3,9 +3,9 @@ namespace CrossMacro.Cli.Services;
 
 public interface ITextExpansionCliService
 {
-    Task<CliCommandExecutionResult> ListAsync(string? profileIdentifier, CancellationToken cancellationToken);
+    public Task<CliCommandExecutionResult> ListAsync(string? profileIdentifier, CancellationToken cancellationToken);
 
-    Task<CliCommandExecutionResult> AddAsync(
+    public Task<CliCommandExecutionResult> AddAsync(
         string trigger,
         string replacement,
         PasteMethod method,
@@ -14,11 +14,11 @@ public interface ITextExpansionCliService
         string? profileIdentifier,
         CancellationToken cancellationToken);
 
-    Task<CliCommandExecutionResult> RemoveAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken);
+    public Task<CliCommandExecutionResult> RemoveAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken);
 
-    Task<CliCommandExecutionResult> EnableAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken);
+    public Task<CliCommandExecutionResult> EnableAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken);
 
-    Task<CliCommandExecutionResult> DisableAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken);
+    public Task<CliCommandExecutionResult> DisableAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken);
 
-    Task<CliCommandExecutionResult> TestAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken);
+    public Task<CliCommandExecutionResult> TestAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken);
 }

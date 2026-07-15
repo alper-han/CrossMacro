@@ -20,7 +20,7 @@ public class DoctorCommandHandlerTests
             {
                 Checks =
                 [
-                    new DoctorCheck { Name = "display-session", Status = DoctorCheckStatus.Fail, Message = "unsupported" }
+                    new DoctorCheck { Name = "display-session", Status = DoctorCheckStatus.Fail, Message = "unsupported" },
                 ],
             });
 
@@ -38,7 +38,7 @@ public class DoctorCommandHandlerTests
             {
                 Checks =
                 [
-                    new DoctorCheck { Name = "linux-uinput", Status = DoctorCheckStatus.Warn, Message = "warn" }
+                    new DoctorCheck { Name = "linux-uinput", Status = DoctorCheckStatus.Warn, Message = "warn" },
                 ],
             });
 

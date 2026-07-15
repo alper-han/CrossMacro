@@ -5,5 +5,5 @@ namespace CrossMacro.Core.Services;
 /// </summary>
 public interface IRuntimeLogLevelService
 {
-    void SetLogLevel(string logLevel);
+    public void SetLogLevel(string logLevel);
 }

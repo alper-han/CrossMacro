@@ -3,5 +3,5 @@ namespace CrossMacro.UI.Services;
 
 internal interface IPortalScreenReadingGuidanceService
 {
-    Task ShowBeforePortalWarmupAsync();
+    public Task ShowBeforePortalWarmupAsync();
 }

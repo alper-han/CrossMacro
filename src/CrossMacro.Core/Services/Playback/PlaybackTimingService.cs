@@ -14,6 +14,8 @@ public class PlaybackTimingService : IPlaybackTimingService
 
     public async Task WaitAsync(int delayMs, IPlaybackPauseToken pauseToken, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(pauseToken);
+
         if (delayMs <= 0)
         {
             return;
@@ -30,7 +32,7 @@ public class PlaybackTimingService : IPlaybackTimingService
             {
                 var pauseStartTicks = Stopwatch.GetTimestamp();
                 Log.Debug("[PlaybackTimingService] Pause detected during delay wait");
-                await pauseToken.WaitIfPausedAsync(cancellationToken);
+                await pauseToken.WaitIfPausedAsync(cancellationToken).ConfigureAwait(false);
                 var pausedTicks = Stopwatch.GetTimestamp() - pauseStartTicks;
                 deadlineTicks += pausedTicks;
                 continue;
@@ -47,38 +49,46 @@ public class PlaybackTimingService : IPlaybackTimingService
             {
                 int delaySliceMs = Math.Min(
                     MaxDelayChunkMs,
-                    Math.Max(1, (int)Math.Floor(remainingMs) - CoarseSafetyMarginMs));
-                await Task.Delay(delaySliceMs, cancellationToken);
+                    Math.Max(1, Convert.ToInt32(Math.Floor(remainingMs)) - CoarseSafetyMarginMs));
+                await Task.Delay(delaySliceMs, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
             if (remainingMs > FinalSpinWindowMs)
             {
-                await Task.Delay(1, cancellationToken);
+                await Task.Delay(1, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
-            var spinner = new SpinWait();
-            while (deadlineTicks - Stopwatch.GetTimestamp() > 0)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (pauseToken.IsPaused)
-                {
-                    break;
-                }
+            SpinUntilDeadline(deadlineTicks, pauseToken, cancellationToken);
+        }
+    }
 
-                spinner.SpinOnce(sleep1Threshold: -1);
-                if (spinner.Count % YieldSpinInterval is 0)
-                {
-                    Thread.Yield();
-                }
+    private static void SpinUntilDeadline(
+        long deadlineTicks,
+        IPlaybackPauseToken pauseToken,
+        CancellationToken cancellationToken)
+    {
+        var spinner = new SpinWait();
+        while (deadlineTicks - Stopwatch.GetTimestamp() > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (pauseToken.IsPaused)
+            {
+                break;
+            }
+
+            spinner.SpinOnce(sleep1Threshold: -1);
+            if (spinner.Count % YieldSpinInterval is 0)
+            {
+                Thread.Yield();
             }
         }
     }
 
     private static long MillisecondsToTicks(double milliseconds)
     {
-        return (long)(milliseconds * Stopwatch.Frequency / 1000d);
+        return Convert.ToInt64(Math.Truncate(milliseconds * Stopwatch.Frequency / 1000d));
     }
 
     private static double TicksToMilliseconds(long ticks)

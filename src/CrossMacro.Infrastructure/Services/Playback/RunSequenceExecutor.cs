@@ -5,13 +5,23 @@ internal sealed class RunSequenceExecutor
 {
     private readonly Func<IMacroPlayer> _macroPlayerFactory;
     private readonly Func<TimeSpan, CancellationToken, Task> _delayAsync;
+    private readonly Func<int, int, int> _randomInclusive;
 
     public RunSequenceExecutor(
         Func<IMacroPlayer> macroPlayerFactory,
         Func<TimeSpan, CancellationToken, Task>? delayAsync = null)
+        : this(macroPlayerFactory, delayAsync, RandomNumberGeneratorUtility.GetInt32Inclusive)
+    {
+    }
+
+    internal RunSequenceExecutor(
+        Func<IMacroPlayer> macroPlayerFactory,
+        Func<TimeSpan, CancellationToken, Task>? delayAsync,
+        Func<int, int, int> randomInclusive)
     {
         _macroPlayerFactory = macroPlayerFactory ?? throw new ArgumentNullException(nameof(macroPlayerFactory));
         _delayAsync = delayAsync ?? Task.Delay;
+        _randomInclusive = randomInclusive ?? throw new ArgumentNullException(nameof(randomInclusive));
     }
 
     public async Task<RunSequenceExecutionResult> ExecuteAsync(
@@ -29,7 +39,7 @@ internal sealed class RunSequenceExecutor
             var normalizedSpeed = PlaybackOptions.NormalizeSpeedMultiplier(speedMultiplier);
             if (countdownSeconds > 0)
             {
-                await _delayAsync(TimeSpan.FromSeconds(countdownSeconds), cancellationToken);
+                await _delayAsync(TimeSpan.FromSeconds(countdownSeconds), cancellationToken).ConfigureAwait(false);
             }
 
             var resolvedInitialDelayMs = ResolveDelayMs(
@@ -42,7 +52,7 @@ internal sealed class RunSequenceExecutor
                 var adjustedInitialDelayMs = (int)Math.Floor(resolvedInitialDelayMs / normalizedSpeed);
                 if (adjustedInitialDelayMs > 0)
                 {
-                    await _delayAsync(TimeSpan.FromMilliseconds(adjustedInitialDelayMs), cancellationToken);
+                    await _delayAsync(TimeSpan.FromMilliseconds(adjustedInitialDelayMs), cancellationToken).ConfigureAwait(false);
                 }
             }
 
@@ -56,14 +66,14 @@ internal sealed class RunSequenceExecutor
             {
                 try
                 {
-                    player.Stop();
+                    player.StopPlayback();
                 }
                 catch
                 {
                 }
             });
 
-            await player.PlayAsync(sequence, playbackOptions, cancellationToken);
+            await player.PlayAsync(sequence, playbackOptions, cancellationToken).ConfigureAwait(false);
             var runtimeVariables = player is IRunScriptRuntimeVariableSource variableSource
                 ? variableSource.RuntimeVariables
                 : null;
@@ -87,7 +97,7 @@ internal sealed class RunSequenceExecutor
         }
     }
 
-    private static int ResolveDelayMs(int fixedDelayMs, bool hasRandomDelay, int randomDelayMinMs, int randomDelayMaxMs)
+    private int ResolveDelayMs(int fixedDelayMs, bool hasRandomDelay, int randomDelayMinMs, int randomDelayMaxMs)
     {
         long totalDelayMs = Math.Max(0, fixedDelayMs);
 
@@ -95,18 +105,7 @@ internal sealed class RunSequenceExecutor
         {
             var min = Math.Min(randomDelayMinMs, randomDelayMaxMs);
             var max = Math.Max(randomDelayMinMs, randomDelayMaxMs);
-            if (min == max)
-            {
-                totalDelayMs += min;
-            }
-            else if (max == int.MaxValue)
-            {
-                totalDelayMs += Random.Shared.NextInt64(min, (long)max + 1);
-            }
-            else
-            {
-                totalDelayMs += Random.Shared.Next(min, max + 1);
-            }
+            totalDelayMs += ResolveRandomDelay(min, max);
         }
 
         if (totalDelayMs > int.MaxValue)
@@ -115,5 +114,10 @@ internal sealed class RunSequenceExecutor
         }
 
         return (int)totalDelayMs;
+    }
+
+    private int ResolveRandomDelay(int min, int max)
+    {
+        return min == max ? min : _randomInclusive(min, max);
     }
 }

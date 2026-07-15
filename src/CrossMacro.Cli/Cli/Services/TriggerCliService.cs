@@ -18,7 +18,7 @@ public sealed class TriggerCliService : ITriggerCliService
             cancellationToken: cancellationToken,
             loadAsync: async () => _tasks = (await _manageTrigger.ListAsync(cancellationToken).ConfigureAwait(false)).Tasks,
             getTasks: () => _tasks,
-            mapTask: MapTask);
+            mapTask: MapTask).ConfigureAwait(false);
     }
 
     public Task<CliCommandExecutionResult> ExecuteAsync(TriggerCliOptions options, CancellationToken cancellationToken)
@@ -43,7 +43,7 @@ public sealed class TriggerCliService : ITriggerCliService
             Field = options.Field ?? TriggerField.None,
             MatchMode = options.MatchMode ?? TriggerMatchMode.Equals,
             Value = options.Value ?? string.Empty,
-            Action = options.TriggerActionVal ?? TriggerAction.SwitchProfile,
+            Action = options.TriggerActionVal ?? TriggerOperation.SwitchProfile,
             TargetProfileId = options.TargetProfileId ?? string.Empty,
             MacroFilePath = options.MacroFilePath ?? string.Empty,
             FireMode = options.FireMode ?? TriggerFireMode.OnceOnChange,
@@ -51,9 +51,9 @@ public sealed class TriggerCliService : ITriggerCliService
             DebounceMs = options.DebounceMs,
         };
 
-        if (options.Enabled.HasValue)
+        if (options.Enabled is not null)
         {
-            task.IsEnabled = options.Enabled.Value;
+            task.TrySetEnabled(options.Enabled.Value);
         }
 
         await _manageTrigger.AddAsync(task, cancellationToken).ConfigureAwait(false);
@@ -63,20 +63,66 @@ public sealed class TriggerCliService : ITriggerCliService
     private async Task<CliCommandExecutionResult> EditAsync(TriggerCliOptions options, CancellationToken cancellationToken)
     {
         var parsed = await LoadAndFindAsync(options.TaskId ?? string.Empty, cancellationToken).ConfigureAwait(false);
-        if (parsed.Result is not null) return parsed.Result;
+        if (parsed.Result is not null)
+        {
+            return parsed.Result;
+        }
 
         var task = parsed.Task!;
-        if (!string.IsNullOrWhiteSpace(options.Name)) task.Name = options.Name;
-        if (options.Field.HasValue) task.Field = options.Field.Value;
-        if (options.MatchMode.HasValue) task.MatchMode = options.MatchMode.Value;
-        if (options.Value is not null) task.Value = options.Value;
-        if (options.TriggerActionVal.HasValue) task.Action = options.TriggerActionVal.Value;
-        if (options.TargetProfileId is not null) task.TargetProfileId = options.TargetProfileId;
-        if (options.MacroFilePath is not null) task.MacroFilePath = options.MacroFilePath;
-        if (options.FireMode.HasValue) task.FireMode = options.FireMode.Value;
-        if (options.CooldownMs.HasValue) task.CooldownMs = options.CooldownMs.Value is 0 ? null : options.CooldownMs.Value;
-        if (options.DebounceMs.HasValue) task.DebounceMs = options.DebounceMs.Value is 0 ? null : options.DebounceMs.Value;
-        if (options.Enabled.HasValue) task.IsEnabled = options.Enabled.Value;
+        if (!string.IsNullOrWhiteSpace(options.Name))
+        {
+            task.Name = options.Name;
+        }
+
+        if (options.Field is not null)
+        {
+            task.Field = options.Field.Value;
+        }
+
+        if (options.MatchMode is not null)
+        {
+            task.MatchMode = options.MatchMode.Value;
+        }
+
+        if (options.Value is not null)
+        {
+            task.Value = options.Value;
+        }
+
+        if (options.TriggerActionVal is not null)
+        {
+            task.Action = options.TriggerActionVal.Value;
+        }
+
+        if (options.TargetProfileId is not null)
+        {
+            task.TargetProfileId = options.TargetProfileId;
+        }
+
+        if (options.MacroFilePath is not null)
+        {
+            task.MacroFilePath = options.MacroFilePath;
+        }
+
+        if (options.FireMode is not null)
+        {
+            task.FireMode = options.FireMode.Value;
+        }
+
+        if (options.CooldownMs is not null)
+        {
+            task.CooldownMs = options.CooldownMs.Value is 0 ? null : options.CooldownMs.Value;
+        }
+
+        if (options.DebounceMs is not null)
+        {
+            task.DebounceMs = options.DebounceMs.Value is 0 ? null : options.DebounceMs.Value;
+        }
+
+        if (options.Enabled is not null)
+        {
+            task.TrySetEnabled(options.Enabled.Value);
+        }
 
         cancellationToken.ThrowIfCancellationRequested();
         await _manageTrigger.UpdateAsync(task, cancellationToken).ConfigureAwait(false);
@@ -86,7 +132,10 @@ public sealed class TriggerCliService : ITriggerCliService
     private async Task<CliCommandExecutionResult> RemoveAsync(string taskId, CancellationToken cancellationToken)
     {
         var parsed = await LoadAndFindAsync(taskId, cancellationToken).ConfigureAwait(false);
-        if (parsed.Result is not null) return parsed.Result;
+        if (parsed.Result is not null)
+        {
+            return parsed.Result;
+        }
 
         var task = parsed.Task!;
         cancellationToken.ThrowIfCancellationRequested();
@@ -97,7 +146,10 @@ public sealed class TriggerCliService : ITriggerCliService
     private async Task<CliCommandExecutionResult> SetEnabledAsync(string taskId, bool enabled, CancellationToken cancellationToken)
     {
         var parsed = await LoadAndFindAsync(taskId, cancellationToken).ConfigureAwait(false);
-        if (parsed.Result is not null) return parsed.Result;
+        if (parsed.Result is not null)
+        {
+            return parsed.Result;
+        }
 
         var task = parsed.Task!;
         if (enabled && !task.CanBeEnabled)
@@ -110,7 +162,7 @@ public sealed class TriggerCliService : ITriggerCliService
 
         cancellationToken.ThrowIfCancellationRequested();
         await _manageTrigger.SetEnabledAsync(new TaskRequest(task.Id, enabled), cancellationToken).ConfigureAwait(false);
-        task.IsEnabled = enabled;
+        task.TrySetEnabled(enabled);
         var verb = enabled ? "enabled" : "disabled";
         return CliCommandExecutionResult.Ok($"Trigger task {verb}: {task.Name}.", MapTask(task));
     }
@@ -123,7 +175,7 @@ public sealed class TriggerCliService : ITriggerCliService
             "Trigger",
             cancellationToken,
             async () => _tasks = (await _manageTrigger.ListAsync(cancellationToken).ConfigureAwait(false)).Tasks,
-            task => task.Id);
+            task => task.Id).ConfigureAwait(false);
     }
 
     private static TriggerTaskData MapTask(TriggerTask task)
@@ -136,8 +188,8 @@ public sealed class TriggerCliService : ITriggerCliService
             task.MatchMode.ToString(),
             task.Value,
             task.Action.ToString(),
-            task.Action is TriggerAction.SwitchProfile ? task.TargetProfileId : null,
-            task.Action is TriggerAction.RunMacro ? task.MacroFilePath : null,
+            task.Action is TriggerOperation.SwitchProfile ? task.TargetProfileId : null,
+            task.Action is TriggerOperation.RunMacro ? task.MacroFilePath : null,
             task.FireMode.ToString(),
             task.CooldownMs,
             task.DebounceMs,

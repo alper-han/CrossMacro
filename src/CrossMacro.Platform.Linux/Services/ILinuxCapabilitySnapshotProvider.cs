@@ -2,7 +2,7 @@ namespace CrossMacro.Platform.Linux.Services;
 
 public interface ILinuxCapabilitySnapshotProvider
 {
-    LinuxCapabilitySnapshot GetSnapshot();
+    public LinuxCapabilitySnapshot GetSnapshot();
 
-    void InvalidateCache();
+    public void InvalidateCache();
 }

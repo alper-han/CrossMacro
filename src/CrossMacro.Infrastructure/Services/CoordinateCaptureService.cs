@@ -44,7 +44,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
             {
                 // Fallback: Just get current position immediately
                 Log.Warning("[CoordinateCaptureService] No input capture factory available, using current position");
-                return await _positionProvider.GetAbsolutePositionAsync();
+                return await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
             }
 
             using var capture = _inputCaptureFactory();
@@ -62,31 +62,31 @@ public class CoordinateCaptureService : ICoordinateCaptureService
                 }
             };
 
-            capture.Error += (s, error) =>
-            {
-                if (InputBackendErrorClassifier.IsKnownUnavailableMessage(error))
-                {
-                    Log.Warning("[CoordinateCaptureService] Mouse position capture unavailable: {Error}", error);
-                }
-                else
-                {
-                    Log.Error("[CoordinateCaptureService] Input capture error while capturing mouse position: {Error}", error);
-                }
+            capture.CaptureError += (s, error) =>
+    {
+        if (InputBackendErrorClassifier.IsKnownUnavailableMessage(error.Message))
+        {
+            Log.Warning("[CoordinateCaptureService] Mouse position capture unavailable: {Error}", error.Message);
+        }
+        else
+        {
+            Log.LogError("[CoordinateCaptureService] Input capture error while capturing mouse position: {Error}", error.Message);
+        }
 
-                tcs.TrySetResult(null);
-            };
+        tcs.TrySetResult(null);
+    };
 
             using (captureCts.Token.Register(() => tcs.TrySetResult(null)))
             {
-                await capture.StartAsync(captureCts.Token);
-                var result = await tcs.Task;
+                await capture.StartAsync(captureCts.Token).ConfigureAwait(false);
+                var result = await tcs.Task.ConfigureAwait(false);
                 Task[] pendingCallbacks;
                 lock (callbackTasks)
                 {
                     pendingCallbacks = callbackTasks.ToArray();
                 }
 
-                await Task.WhenAll(pendingCallbacks);
+                await Task.WhenAll(pendingCallbacks).ConfigureAwait(false);
                 return result;
             }
         }
@@ -102,7 +102,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
                 return null;
             }
 
-            Log.Error(ex, "[CoordinateCaptureService] Error during mouse position capture");
+            Log.LogError(ex, "[CoordinateCaptureService] Error during mouse position capture");
             return null;
         }
         finally
@@ -112,7 +112,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
     }
 
     private async Task ProcessMouseInputAsync(
-        InputCaptureEventArgs input,
+        CapturedInputEventArgs input,
         TaskCompletionSource<(int X, int Y)?> completion)
     {
         try
@@ -132,7 +132,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[CoordinateCaptureService] Error processing mouse capture callback");
+            Log.LogError(ex, "[CoordinateCaptureService] Error processing mouse capture callback");
             completion.TrySetResult(null);
         }
     }
@@ -165,24 +165,24 @@ public class CoordinateCaptureService : ICoordinateCaptureService
                 }
             };
 
-            capture.Error += (s, error) =>
-            {
-                if (InputBackendErrorClassifier.IsKnownUnavailableMessage(error))
-                {
-                    Log.Warning("[CoordinateCaptureService] Key code capture unavailable: {Error}", error);
-                }
-                else
-                {
-                    Log.Error("[CoordinateCaptureService] Input capture error while capturing key code: {Error}", error);
-                }
+            capture.CaptureError += (s, error) =>
+    {
+        if (InputBackendErrorClassifier.IsKnownUnavailableMessage(error.Message))
+        {
+            Log.Warning("[CoordinateCaptureService] Key code capture unavailable: {Error}", error.Message);
+        }
+        else
+        {
+            Log.LogError("[CoordinateCaptureService] Input capture error while capturing key code: {Error}", error.Message);
+        }
 
-                tcs.TrySetResult(null);
-            };
+        tcs.TrySetResult(null);
+    };
 
             using (captureCts.Token.Register(() => tcs.TrySetResult(null)))
             {
-                await capture.StartAsync(captureCts.Token);
-                return await tcs.Task;
+                await capture.StartAsync(captureCts.Token).ConfigureAwait(false);
+                return await tcs.Task.ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -197,7 +197,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
                 return null;
             }
 
-            Log.Error(ex, "[CoordinateCaptureService] Error during key code capture");
+            Log.LogError(ex, "[CoordinateCaptureService] Error during key code capture");
             return null;
         }
         finally

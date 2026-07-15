@@ -31,48 +31,54 @@ public class CompositeClipboardService : IClipboardService
 
     private async Task InitializeLinuxAsync(CancellationToken cancellationToken)
     {
-        if (_linuxInitialized) return;
+        if (_linuxInitialized)
+        {
+            return;
+        }
 
-        await _linuxService.InitializeAsync(cancellationToken);
+        await _linuxService.InitializeAsync(cancellationToken).ConfigureAwait(false);
         _linuxInitialized = true;
     }
 
     private async Task InitializeFlatpakHostAsync(CancellationToken cancellationToken)
     {
-        if (_flatpakHostInitialized) return;
+        if (_flatpakHostInitialized)
+        {
+            return;
+        }
 
-        await _flatpakHostService.InitializeAsync(cancellationToken);
+        await _flatpakHostService.InitializeAsync(cancellationToken).ConfigureAwait(false);
         _flatpakHostInitialized = true;
     }
 
     public async Task SetTextAsync(string text, CancellationToken cancellationToken = default)
     {
-        if (_runtimeContext.IsFlatpak && await TrySetFlatpakHostAsync(text, cancellationToken))
+        if (_runtimeContext.IsFlatpak && await TrySetFlatpakHostAsync(text, cancellationToken).ConfigureAwait(false))
         {
             return;
         }
 
-        if (ShouldPreferAvaloniaOnNativeX11() && await TrySetAvaloniaAsync(text, cancellationToken))
+        if (ShouldPreferAvaloniaOnNativeX11() && await TrySetAvaloniaAsync(text, cancellationToken).ConfigureAwait(false))
         {
             return;
         }
 
-        await InitializeLinuxAsync(cancellationToken);
+        await InitializeLinuxAsync(cancellationToken).ConfigureAwait(false);
 
         if (_linuxService.IsSupported)
         {
-            await _linuxService.SetTextAsync(text, cancellationToken);
+            await _linuxService.SetTextAsync(text, cancellationToken).ConfigureAwait(false);
             return;
         }
 
-        await SetAvaloniaFallbackAsync(text, cancellationToken);
+        await SetAvaloniaFallbackAsync(text, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
     {
         if (_runtimeContext.IsFlatpak)
         {
-            var flatpakHostResult = await TryGetFlatpakHostAsync(cancellationToken);
+            var flatpakHostResult = await TryGetFlatpakHostAsync(cancellationToken).ConfigureAwait(false);
             if (flatpakHostResult.Handled)
             {
                 return flatpakHostResult.Text;
@@ -81,21 +87,21 @@ public class CompositeClipboardService : IClipboardService
 
         if (ShouldPreferAvaloniaOnNativeX11())
         {
-            var avaloniaResult = await TryGetAvaloniaAsync(cancellationToken);
+            var avaloniaResult = await TryGetAvaloniaAsync(cancellationToken).ConfigureAwait(false);
             if (avaloniaResult.Handled)
             {
                 return avaloniaResult.Text;
             }
         }
 
-        await InitializeLinuxAsync(cancellationToken);
+        await InitializeLinuxAsync(cancellationToken).ConfigureAwait(false);
 
         if (_linuxService.IsSupported)
         {
-            return await _linuxService.GetTextAsync(cancellationToken);
+            return await _linuxService.GetTextAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        return await GetAvaloniaFallbackAsync(cancellationToken);
+        return await GetAvaloniaFallbackAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private bool ShouldPreferAvaloniaOnNativeX11()
@@ -119,7 +125,7 @@ public class CompositeClipboardService : IClipboardService
         try
         {
             Log.Debug("[CompositeClipboard] Native X11 detected, using Avalonia clipboard before shell fallbacks");
-            await _avaloniaService.SetTextAsync(text, cancellationToken);
+            await _avaloniaService.SetTextAsync(text, cancellationToken).ConfigureAwait(false);
             _preferAvaloniaOnNativeX11 = true;
             return true;
         }
@@ -146,7 +152,7 @@ public class CompositeClipboardService : IClipboardService
         try
         {
             Log.Debug("[CompositeClipboard] Native X11 detected, reading Avalonia clipboard before shell fallbacks");
-            var text = await _avaloniaService.GetTextAsync(cancellationToken);
+            var text = await _avaloniaService.GetTextAsync(cancellationToken).ConfigureAwait(false);
             _preferAvaloniaOnNativeX11 = true;
             return (true, text);
         }
@@ -165,18 +171,18 @@ public class CompositeClipboardService : IClipboardService
     private async Task SetAvaloniaFallbackAsync(string text, CancellationToken cancellationToken)
     {
         Log.Debug("[CompositeClipboard] Linux shell clipboard tools not found, falling back to Avalonia clipboard");
-        await _avaloniaService.SetTextAsync(text, cancellationToken);
+        await _avaloniaService.SetTextAsync(text, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<string?> GetAvaloniaFallbackAsync(CancellationToken cancellationToken)
     {
         Log.Debug("[CompositeClipboard] Linux shell clipboard tools not found, falling back to Avalonia clipboard");
-        return await _avaloniaService.GetTextAsync(cancellationToken);
+        return await _avaloniaService.GetTextAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<bool> TrySetFlatpakHostAsync(string text, CancellationToken cancellationToken)
     {
-        await InitializeFlatpakHostAsync(cancellationToken);
+        await InitializeFlatpakHostAsync(cancellationToken).ConfigureAwait(false);
 
         if (!_flatpakHostService.IsSupported)
         {
@@ -187,7 +193,7 @@ public class CompositeClipboardService : IClipboardService
         try
         {
             Log.Debug("[CompositeClipboard] Flatpak detected, using host clipboard via flatpak-spawn");
-            await _flatpakHostService.SetTextAsync(text, cancellationToken);
+            await _flatpakHostService.SetTextAsync(text, cancellationToken).ConfigureAwait(false);
             return true;
         }
         catch (OperationCanceledException)
@@ -203,7 +209,7 @@ public class CompositeClipboardService : IClipboardService
 
     private async Task<(bool Handled, string? Text)> TryGetFlatpakHostAsync(CancellationToken cancellationToken)
     {
-        await InitializeFlatpakHostAsync(cancellationToken);
+        await InitializeFlatpakHostAsync(cancellationToken).ConfigureAwait(false);
 
         if (!_flatpakHostService.IsSupported)
         {
@@ -214,7 +220,7 @@ public class CompositeClipboardService : IClipboardService
         try
         {
             Log.Debug("[CompositeClipboard] Flatpak detected, reading host clipboard via flatpak-spawn");
-            return (true, await _flatpakHostService.GetTextAsync(cancellationToken));
+            return (true, await _flatpakHostService.GetTextAsync(cancellationToken).ConfigureAwait(false));
         }
         catch (OperationCanceledException)
         {

@@ -96,7 +96,7 @@ internal static class RunCommandParser
                 continue;
             }
 
-            if (!token.StartsWith("-", StringComparison.Ordinal))
+            if (!token.StartsWith('-'))
             {
                 if (!TryParseInlineRunStep(args, ref i, out var inlineStep, out var inlineError))
                 {
@@ -129,7 +129,7 @@ internal static class RunCommandParser
             return CliParseHelpers.Error("--timeout must be >= 0", jsonOutput);
         }
 
-        if (speed < PlaybackOptions.MinSpeedMultiplier || speed > PlaybackOptions.MaxSpeedMultiplier)
+        if (speed is < PlaybackOptions.MinSpeedMultiplier or > PlaybackOptions.MaxSpeedMultiplier)
         {
             return CliParseHelpers.Error("--speed must be between 0.1 and 10.", jsonOutput);
         }
@@ -541,7 +541,7 @@ internal static class RunCommandParser
         }
 
         var candidate = args[index + 1];
-        if (candidate.StartsWith("-", StringComparison.Ordinal)
+        if (candidate.StartsWith('-')
             || IsInlineRunCommandToken(candidate))
         {
             return false;

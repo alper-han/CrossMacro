@@ -2,7 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:converters="using:CrossMacro.UI.Converters"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
-             xmlns:core="using:CrossMacro.Core.Models"
+              xmlns:shortcut="using:CrossMacro.UI.ViewModels"
              xmlns:controls="using:CrossMacro.UI.Controls"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
@@ -51,7 +51,7 @@
                     
                     <ItemsControl ItemsSource="{Binding Tasks}">
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="core:ShortcutTask">
+                             <DataTemplate x:DataType="shortcut:ShortcutTaskEditor">
                                 <Border Padding="10,8" 
                                         CornerRadius="8" 
                                         Margin="0,2"
@@ -147,7 +147,7 @@
                     <!-- Shortcut Name -->
                     <StackPanel Spacing="4">
                         <TextBlock Text="{localization:Loc Shortcut_Name}" Classes="caption"/>
-                        <TextBox Text="{Binding SelectedTask?.Name, Mode=TwoWay, FallbackValue=''}"
+                          <TextBox Text="{Binding SelectedTask.Name, Mode=TwoWay, FallbackValue=''}"
                                 PlaceholderText="{localization:Loc Shortcut_NamePlaceholder}"/>
                     </StackPanel>
                     
@@ -166,12 +166,12 @@
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBlock Grid.Column="0" Classes="label" Text="{localization:Loc Shortcut_PlaybackSpeed}"/>
                             <TextBlock Grid.Column="1" 
-                                      Text="{Binding SelectedTask?.PlaybackSpeed, StringFormat='{}{0:0.0}x', FallbackValue='1.0x'}"
+                                       Text="{Binding SelectedTask.PlaybackSpeed, StringFormat='{}{0:0.0}x', FallbackValue='1.0x'}"
                                       FontWeight="Medium"
                                       FontSize="16"
                                       Foreground="{DynamicResource PrimaryBrush}"/>
                         </Grid>
-                        <Slider Value="{Binding SelectedTask?.PlaybackSpeed, Mode=TwoWay, FallbackValue=1.0}"
+                         <Slider Value="{Binding SelectedTask.PlaybackSpeed, Mode=TwoWay, FallbackValue=1.0}"
                                Minimum="0.1" 
                                Maximum="10.0" 
                                TickFrequency="0.1"
@@ -181,48 +181,48 @@
                     <!-- Loop Playback (same pattern as Playback tab) -->
                     <StackPanel Spacing="12">
                         <CheckBox Content="{localization:Loc Shortcut_LoopPlayback}"
-                                  IsChecked="{Binding SelectedTask?.IsLoopEnabled, Mode=TwoWay}"/>
-                        <StackPanel Spacing="8" IsVisible="{Binding SelectedTask?.IsLoopEnabled, FallbackValue=False}">
+                                   IsChecked="{Binding SelectedTask.IsLoopEnabled, Mode=TwoWay}"/>
+                         <StackPanel Spacing="8" IsVisible="{Binding SelectedTask.IsLoopEnabled, FallbackValue=False}">
                             <RadioButton GroupName="LoopTrigger"
                                          Content="{localization:Loc Shortcut_PressToStartStop}"
-                                         IsChecked="{Binding SelectedTask?.LoopEnabled, Mode=TwoWay}"
+                                         IsChecked="{Binding SelectedTask.LoopEnabled, Mode=TwoWay}"
                                          ToolTip.Tip="{localization:Loc Shortcut_PressToStartStopTooltip}"/>
                             <RadioButton GroupName="LoopTrigger"
                                          Content="{localization:Loc Shortcut_RunWhenHeld}"
-                                         IsChecked="{Binding SelectedTask?.RunWhileHeld, Mode=TwoWay}"
+                                         IsChecked="{Binding SelectedTask.RunWhileHeld, Mode=TwoWay}"
                                          ToolTip.Tip="{localization:Loc Shortcut_RunWhenHeldTooltip}"/>
                             <CheckBox Content="{localization:Loc Playback_RandomizeLoopDelay}"
-                                      IsChecked="{Binding SelectedTask?.UseRandomRepeatDelay, Mode=TwoWay}"/>
+                                       IsChecked="{Binding SelectedTask.UseRandomRepeatDelay, Mode=TwoWay}"/>
                             <Grid ColumnDefinitions="*,*"
-                                  IsVisible="{Binding SelectedTask?.LoopEnabled}">
+                                   IsVisible="{Binding SelectedTask.LoopEnabled}">
                                 <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
                                     <TextBlock Classes="label" Text="{localization:Loc Shortcut_LoopCount}"/>
-                                    <NumericUpDown Value="{Binding SelectedTask?.RepeatCount, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="10000" FormatString="0"/>
+                                     <NumericUpDown Value="{Binding SelectedTask.RepeatCount, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="10000" FormatString="0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Spacing="4" Margin="8,0,0,0">
                                     <TextBlock Classes="label" Text="{localization:Loc Shortcut_LoopDelayMs}"/>
-                                    <NumericUpDown Value="{Binding SelectedTask?.RepeatDelayMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"
-                                                   IsVisible="{Binding !SelectedTask?.UseRandomRepeatDelay}"/>
+                                     <NumericUpDown Value="{Binding SelectedTask.RepeatDelayMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"
+                                                    IsVisible="{Binding !SelectedTask.UseRandomRepeatDelay}"/>
                                     <Grid ColumnDefinitions="*,8,*"
-                                          IsVisible="{Binding SelectedTask?.UseRandomRepeatDelay}">
-                                        <NumericUpDown Value="{Binding SelectedTask?.RepeatDelayMinMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
-                                        <NumericUpDown Grid.Column="2" Value="{Binding SelectedTask?.RepeatDelayMaxMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
+                                          IsVisible="{Binding SelectedTask.UseRandomRepeatDelay}">
+                                         <NumericUpDown Value="{Binding SelectedTask.RepeatDelayMinMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
+                                         <NumericUpDown Grid.Column="2" Value="{Binding SelectedTask.RepeatDelayMaxMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
                                     </Grid>
                                 </StackPanel>
                             </Grid>
                             <StackPanel Spacing="4"
-                                        IsVisible="{Binding SelectedTask?.RunWhileHeld}">
+                                       IsVisible="{Binding SelectedTask.RunWhileHeld}">
                                 <TextBlock Classes="label" Text="{localization:Loc Shortcut_LoopDelayMs}"/>
-                                <NumericUpDown Value="{Binding SelectedTask?.RepeatDelayMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"
-                                               IsVisible="{Binding !SelectedTask?.UseRandomRepeatDelay}"/>
+                                 <NumericUpDown Value="{Binding SelectedTask.RepeatDelayMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"
+                                                IsVisible="{Binding !SelectedTask.UseRandomRepeatDelay}"/>
                                 <Grid ColumnDefinitions="*,8,*"
-                                      IsVisible="{Binding SelectedTask?.UseRandomRepeatDelay}">
-                                    <NumericUpDown Value="{Binding SelectedTask?.RepeatDelayMinMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
-                                    <NumericUpDown Grid.Column="2" Value="{Binding SelectedTask?.RepeatDelayMaxMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
+                                      IsVisible="{Binding SelectedTask.UseRandomRepeatDelay}">
+                                     <NumericUpDown Value="{Binding SelectedTask.RepeatDelayMinMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
+                                     <NumericUpDown Grid.Column="2" Value="{Binding SelectedTask.RepeatDelayMaxMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"/>
                                 </Grid>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4" Margin="0,4,0,0"
-                                        IsVisible="{Binding SelectedTask?.LoopEnabled}">
+                                        IsVisible="{Binding SelectedTask.LoopEnabled}">
                                 <icons:EmojiAppIcon Icon="Tip" Classes="caption-colored-icon"/>
                                 <TextBlock Text="{localization:Loc Shortcut_LoopTip}" Classes="caption"/>
                             </StackPanel>

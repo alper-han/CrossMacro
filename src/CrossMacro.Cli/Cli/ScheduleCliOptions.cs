@@ -1,6 +1,6 @@
 namespace CrossMacro.Cli;
 
-public sealed record ScheduleCliOptions(
+public sealed record class ScheduleCliOptions(
     ScheduleCliAction Action,
     string? TaskId = null,
     string? Name = null,

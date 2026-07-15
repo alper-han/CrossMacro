@@ -1,6 +1,6 @@
 namespace CrossMacro.Cli;
 
-public sealed record ShortcutCliOptions(
+public sealed record class ShortcutCliOptions(
     ShortcutCliAction Action,
     string? TaskId = null,
     string? Name = null,

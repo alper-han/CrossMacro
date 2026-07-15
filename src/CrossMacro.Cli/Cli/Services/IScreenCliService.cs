@@ -3,5 +3,5 @@ namespace CrossMacro.Cli.Services;
 
 public interface IScreenCliService
 {
-    Task<CliCommandExecutionResult> ExecuteAsync(ScreenCliOptions options, CancellationToken cancellationToken);
+    public Task<CliCommandExecutionResult> ExecuteAsync(ScreenCliOptions options, CancellationToken cancellationToken);
 }

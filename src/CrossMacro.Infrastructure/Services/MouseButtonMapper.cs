@@ -48,9 +48,9 @@ public class MouseButtonMapper : IMouseButtonMapper
         }
 
         // Generic fallback for unknown buttons
-        if (buttonCode >= BtnLeft && buttonCode <= BtnTask + 10)
+        if (buttonCode is >= BtnLeft and <= (BtnTask + 10))
         {
-            return $"Mouse{buttonCode - BtnLeft + 1}";
+            return $"Mouse{(buttonCode - BtnLeft + 1).ToString(CultureInfo.InvariantCulture)}";
         }
 
         return string.Empty;
@@ -64,6 +64,6 @@ public class MouseButtonMapper : IMouseButtonMapper
     public bool IsMouseButton(int code)
     {
         // BTN_LEFT (272) through BTN_TASK (279) and a few beyond
-        return code >= BtnLeft && code <= BtnTask + 10;
+        return code is >= BtnLeft and <= (BtnTask + 10);
     }
 }

@@ -14,7 +14,7 @@ internal sealed class GdiWindowsScreenCaptureBackend : IWindowsScreenCaptureBack
 
         if (width <= 0 || height <= 0)
         {
-            throw new InvalidOperationException($"Windows virtual screen dimensions are invalid: {width}x{height}.");
+            throw new InvalidOperationException($"Windows virtual screen dimensions are invalid: {width.ToString(CultureInfo.InvariantCulture)}x{height.ToString(CultureInfo.InvariantCulture)}.");
         }
 
         return new ScreenRect(x, y, width, height);
@@ -119,7 +119,7 @@ internal sealed class GdiWindowsScreenCaptureBackend : IWindowsScreenCaptureBack
                 biPlanes = 1,
                 biBitCount = BitsPerPixel,
                 biCompression = Gdi32.BiRgb,
-                biSizeImage = (uint)checked(width * height * ScreenFrame.GetBytesPerPixel(ScreenPixelFormat.Bgra8888))
+                biSizeImage = (uint)checked(width * height * ScreenFrame.GetBytesPerPixel(ScreenPixelFormat.Bgra8888)),
             },
         };
     }

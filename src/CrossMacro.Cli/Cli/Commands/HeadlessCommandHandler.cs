@@ -14,13 +14,13 @@ public sealed class HeadlessCommandHandler : CliCommandHandlerBase<HeadlessCliOp
 
     protected override async Task<CliCommandExecutionResult> ExecuteAsync(HeadlessCliOptions options, CancellationToken cancellationToken)
     {
-        var preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Headless, cancellationToken);
+        var preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Headless, cancellationToken).ConfigureAwait(false);
         if (!preflight.Success)
         {
             return CliCommandExecutionResult.Fail(preflight.ExitCode, preflight.Message, preflight.Errors, preflight.Warnings);
         }
 
-        var result = await _headlessRuntimeService.RunAsync(cancellationToken);
+        var result = await _headlessRuntimeService.RunAsync(cancellationToken).ConfigureAwait(false);
 
         return result.Success
             ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings)

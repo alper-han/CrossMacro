@@ -16,11 +16,29 @@ public static class LinuxBackendSelectionPolicy
             return new LinuxBackendSelection(InputProviderMode.None, CaptureSupported: true, "native-x11");
         }
 
-        var mode = snapshot.Input.ResolvedMode ?? (snapshot.Input.DaemonHandshakeSucceeded
-            ? InputProviderMode.Daemon
-            : snapshot.Input.CanUseDirectUInput
-                ? InputProviderMode.Legacy
-                : InputProviderMode.None);
+        if (snapshot.Input.ResolvedMode is not null)
+        {
+            return new LinuxBackendSelection(snapshot.Input.ResolvedMode.Value, snapshot.Input.ResolvedMode.Value is not InputProviderMode.None, snapshot.Input.ResolvedMode.Value switch
+            {
+                InputProviderMode.Daemon => "daemon",
+                InputProviderMode.Legacy => "direct-device",
+                _ => "no-backend",
+            });
+        }
+
+        InputProviderMode mode;
+        if (snapshot.Input.DaemonHandshakeSucceeded)
+        {
+            mode = InputProviderMode.Daemon;
+        }
+        else if (snapshot.Input.CanUseDirectUInput)
+        {
+            mode = InputProviderMode.Legacy;
+        }
+        else
+        {
+            mode = InputProviderMode.None;
+        }
 
         if (forCapture && mode is InputProviderMode.Legacy && !snapshot.Input.CanReadInputEvents)
         {

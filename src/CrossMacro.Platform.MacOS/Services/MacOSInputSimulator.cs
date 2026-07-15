@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.MacOS.Services;
 
-public class MacOSInputSimulator :
+public sealed class MacOSInputSimulator :
     IInputSimulator,
     IInputSimulatorCapabilities,
     IUnicodeTextInputSimulator,
@@ -9,7 +9,7 @@ public class MacOSInputSimulator :
     ITaggedUnicodeTextInputSimulator,
     IPlatformPasteShortcutProvider
 {
-    private readonly object _keyboardLock = new();
+    private readonly Lock _keyboardLock = new();
     private readonly Func<bool> _requestPostEventAccess;
     private readonly Func<bool> _isMacOS;
     private readonly HashSet<int> _pressedModifierKeys = [];
@@ -42,14 +42,14 @@ public class MacOSInputSimulator :
     {
         RequestPostEventAccessOnce();
         var point = new CoreGraphics.CGPoint { X = x, Y = y };
-         var eventRef = CoreGraphics.CGEventCreateMouseEvent(
-             IntPtr.Zero,
-             CoreGraphics.CGEventType.MouseMoved,
-             point,
-             CoreGraphics.CGMouseButton.Left
-         );
-         CoreGraphics.CGEventPost(CoreGraphics.CGEventTapLocation.HIDEventTap, eventRef);
-         CoreFoundation.CFRelease(eventRef);
+        var eventRef = CoreGraphics.CGEventCreateMouseEvent(
+            IntPtr.Zero,
+            CoreGraphics.CGEventType.MouseMoved,
+            point,
+            CoreGraphics.CGMouseButton.Left
+        );
+        CoreGraphics.CGEventPost(CoreGraphics.CGEventTapLocation.HIDEventTap, eventRef);
+        CoreFoundation.CFRelease(eventRef);
     }
 
     public void MoveRelative(int dx, int dy)
@@ -63,35 +63,19 @@ public class MacOSInputSimulator :
         RequestPostEventAccessOnce();
         var current = GetCursorPos();
 
-        CoreGraphics.CGMouseButton macBtn = CoreGraphics.CGMouseButton.Left;
-        CoreGraphics.CGEventType type = CoreGraphics.CGEventType.Null;
-
-        switch (button)
+        var (macBtn, type) = button switch
         {
-            case MouseButtonCode.Left:
-                macBtn = CoreGraphics.CGMouseButton.Left;
-                type = pressed ? CoreGraphics.CGEventType.LeftMouseDown : CoreGraphics.CGEventType.LeftMouseUp;
-                break;
-            case MouseButtonCode.Right:
-                macBtn = CoreGraphics.CGMouseButton.Right;
-                type = pressed ? CoreGraphics.CGEventType.RightMouseDown : CoreGraphics.CGEventType.RightMouseUp;
-                break;
-            case MouseButtonCode.Middle:
-                macBtn = CoreGraphics.CGMouseButton.Center;
-                type = pressed ? CoreGraphics.CGEventType.OtherMouseDown : CoreGraphics.CGEventType.OtherMouseUp;
-                break;
-            default:
-                macBtn = CoreGraphics.CGMouseButton.Center;
-                type = pressed ? CoreGraphics.CGEventType.OtherMouseDown : CoreGraphics.CGEventType.OtherMouseUp;
-                break;
-        }
+            MouseButtonCode.Left => (CoreGraphics.CGMouseButton.Left, pressed ? CoreGraphics.CGEventType.LeftMouseDown : CoreGraphics.CGEventType.LeftMouseUp),
+            MouseButtonCode.Right => (CoreGraphics.CGMouseButton.Right, pressed ? CoreGraphics.CGEventType.RightMouseDown : CoreGraphics.CGEventType.RightMouseUp),
+            _ => (CoreGraphics.CGMouseButton.Center, pressed ? CoreGraphics.CGEventType.OtherMouseDown : CoreGraphics.CGEventType.OtherMouseUp),
+        };
 
         var eventRef = CoreGraphics.CGEventCreateMouseEvent(IntPtr.Zero, type, current, macBtn);
 
-        if (button != MouseButtonCode.Left && button != MouseButtonCode.Right && button != MouseButtonCode.Middle)
+        if (button is not MouseButtonCode.Left and not MouseButtonCode.Right and not MouseButtonCode.Middle)
         {
-             long btnNum = button;
-             CoreGraphics.CGEventSetIntegerValueField(eventRef, CoreGraphics.CGEventField.MouseEventButtonNumber, btnNum);
+            long btnNum = button;
+            CoreGraphics.CGEventSetIntegerValueField(eventRef, CoreGraphics.CGEventField.MouseEventButtonNumber, btnNum);
         }
 
         CoreGraphics.CGEventPost(CoreGraphics.CGEventTapLocation.HIDEventTap, eventRef);
@@ -166,7 +150,7 @@ public class MacOSInputSimulator :
         PostUnicodeKeyboardEvent(codeUnits, keyDown: false, marker);
     }
 
-    private CoreGraphics.CGPoint GetCursorPos()
+    private static CoreGraphics.CGPoint GetCursorPos()
     {
         var eventRef = CoreGraphics.CGEventCreate(IntPtr.Zero);
         var loc = CoreGraphics.CGEventGetLocation(eventRef);
@@ -303,7 +287,7 @@ public class MacOSInputSimulator :
 
     private CoreGraphics.CGEventFlags UpdateKeyboardFlagsCore(int keyCode, bool pressed)
     {
-        if (GetModifierFlag(keyCode) == 0)
+        if (GetModifierFlag(keyCode) == default)
         {
             return _keyboardFlags;
         }
@@ -341,13 +325,13 @@ public class MacOSInputSimulator :
             InputEventCode.KEY_LEFTALT or InputEventCode.KEY_RIGHTALT => CoreGraphics.CGEventFlags.Alternate,
             InputEventCode.KEY_LEFTMETA or InputEventCode.KEY_RIGHTMETA => CoreGraphics.CGEventFlags.Command,
             InputEventCode.KEY_CAPSLOCK => CoreGraphics.CGEventFlags.AlphaShift,
-            _ => 0,
+            _ => default,
         };
     }
 
     private static void ApplyKeyboardMarker(IntPtr eventRef, long? marker)
     {
-        if (marker.HasValue)
+        if (marker is not null)
         {
             CoreGraphics.CGEventSetIntegerValueField(eventRef, CoreGraphics.CGEventField.EventSourceUserData, marker.Value);
         }

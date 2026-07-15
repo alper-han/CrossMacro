@@ -312,12 +312,12 @@ public class ServiceCollectionExtensionsTests
         public string ProviderName => "dummy-cap";
         public bool IsSupported => true;
 #pragma warning disable CS0067
-        public event EventHandler<InputCaptureEventArgs>? InputReceived;
-        public event EventHandler<string>? Error;
+        public event EventHandler<CapturedInputEventArgs>? InputReceived;
+        public event EventHandler<InputCaptureErrorEventArgs>? CaptureError;
 #pragma warning restore CS0067
         public void Configure(bool captureMouse, bool captureKeyboard) { }
         public Task StartAsync(CancellationToken ct) => Task.CompletedTask;
-        public void Stop() { }
+        public void StopCapture() { }
         public void Dispose() { }
     }
 

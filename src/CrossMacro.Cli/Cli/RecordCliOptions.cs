@@ -1,6 +1,6 @@
 namespace CrossMacro.Cli;
 
-public sealed record RecordCliOptions(
+public sealed record class RecordCliOptions(
     string OutputFilePath,
     bool RecordMouse = true,
     bool RecordKeyboard = true,

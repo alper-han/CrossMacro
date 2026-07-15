@@ -16,7 +16,7 @@ internal sealed class DesignSchedulerService : ISchedulerService
 
     public event EventHandler<TaskExecutedEventArgs>? TaskExecuted;
 
-    public event EventHandler<ScheduledTask>? TaskStarting;
+    public event EventHandler<ScheduledTaskStartingEventArgs>? TaskStarting;
 
     public void AddTask(ScheduledTask task) => Tasks.Add(task);
 
@@ -47,7 +47,7 @@ internal sealed class DesignSchedulerService : ISchedulerService
         var task = Tasks.FirstOrDefault(item => item.Id == taskId);
         if (task is not null)
         {
-            TaskStarting?.Invoke(this, task);
+            TaskStarting?.Invoke(this, new ScheduledTaskStartingEventArgs(task));
             TaskExecuted?.Invoke(this, new TaskExecutedEventArgs(task, success: true, message: "Preview macro run completed"));
         }
 
@@ -56,11 +56,11 @@ internal sealed class DesignSchedulerService : ISchedulerService
 
     public void Start() => IsRunning = true;
 
-    public void Stop() => IsRunning = false;
+    public void StopScheduler() => IsRunning = false;
 
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
-        Stop();
+        StopScheduler();
         return Task.CompletedTask;
     }
 

@@ -110,7 +110,7 @@ public sealed class FlatpakHostImageClipboardService : IImageClipboardService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[FlatpakHostImageClipboard] Failed to set host image clipboard");
+            Log.LogError(ex, "[FlatpakHostImageClipboard] Failed to set host image clipboard");
             throw;
         }
     }

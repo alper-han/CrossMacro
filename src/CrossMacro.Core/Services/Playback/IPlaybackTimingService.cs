@@ -13,5 +13,5 @@ public interface IPlaybackTimingService
     /// <param name="delayMs">Delay in milliseconds</param>
     /// <param name="pauseToken">Token to check for pause state</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    Task WaitAsync(int delayMs, IPlaybackPauseToken pauseToken, CancellationToken cancellationToken);
+    public Task WaitAsync(int delayMs, IPlaybackPauseToken pauseToken, CancellationToken cancellationToken);
 }

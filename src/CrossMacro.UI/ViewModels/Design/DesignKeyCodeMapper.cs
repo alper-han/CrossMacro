@@ -3,7 +3,7 @@ namespace CrossMacro.UI.ViewModels;
 
 internal sealed class DesignKeyCodeMapper : IKeyCodeMapper
 {
-    public string GetKeyName(int keyCode) => $"Key{keyCode}";
+    public string GetKeyName(int keyCode) => $"Key{keyCode.ToString(CultureInfo.InvariantCulture)}";
 
     public int GetKeyCode(string keyName) => 0;
 

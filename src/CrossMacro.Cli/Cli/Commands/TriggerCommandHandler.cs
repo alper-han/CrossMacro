@@ -12,6 +12,6 @@ public sealed class TriggerCommandHandler : CliCommandHandlerBase<TriggerCliOpti
 
     protected override async Task<CliCommandExecutionResult> ExecuteAsync(TriggerCliOptions options, CancellationToken cancellationToken)
     {
-        return await _triggerCliService.ExecuteAsync(options, cancellationToken);
+        return await _triggerCliService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
     }
 }

@@ -1,9 +1,9 @@
 
 namespace CrossMacro.Daemon;
 
-class Program
+internal class Program
 {
-    static async Task Main(string[] args)
+    private static async Task Main(string[] args)
     {
         var logLevel = Environment.GetEnvironmentVariable("CROSSMACRO_LOG_LEVEL") ?? "Information";
         LoggerSetup.Initialize(logLevel, enableFileLogging: false);
@@ -19,7 +19,10 @@ class Program
             ctx.Cancel = true;
 
             var levelSwitch = LoggerSetup.LevelSwitch;
-            if (levelSwitch is null) return;
+            if (levelSwitch is null)
+            {
+                return;
+            }
 
             if (levelSwitch.MinimumLevel is LogEventLevel.Debug)
             {
@@ -58,7 +61,7 @@ class Program
                 socketPathResolver,
                 sessionHandlerFactory);
 
-            await service.RunAsync(cts.Token);
+            await service.RunAsync(cts.Token).ConfigureAwait(false);
 
         }
         catch (OperationCanceledException)
@@ -84,9 +87,20 @@ class Program
         IDisposable? security)
     {
         var errors = new List<Exception>();
-        if (inputCapture is not null) TryDispose(inputCapture, errors);
-        if (virtualDevice is not null) TryDispose(virtualDevice, errors);
-        if (security is not null) TryDispose(security, errors);
+        if (inputCapture is not null)
+        {
+            TryDispose(inputCapture, errors);
+        }
+
+        if (virtualDevice is not null)
+        {
+            TryDispose(virtualDevice, errors);
+        }
+
+        if (security is not null)
+        {
+            TryDispose(security, errors);
+        }
 
         if (errors.Count > 0)
         {

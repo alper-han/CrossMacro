@@ -6,5 +6,5 @@ namespace CrossMacro.Platform.Abstractions;
 /// </summary>
 public interface IPlatformServiceRegistrar
 {
-    void RegisterPlatformServices(IServiceCollection services);
+    public void RegisterPlatformServices(IServiceCollection services);
 }

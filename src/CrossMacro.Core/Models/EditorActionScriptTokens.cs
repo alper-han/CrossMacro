@@ -38,7 +38,7 @@ public static class EditorActionScriptTokens
     public static string NormalizeVariableToken(string value)
     {
         var token = value?.Trim() ?? string.Empty;
-        return token.StartsWith("$", StringComparison.Ordinal) ? token[1..] : token;
+        return token.StartsWith('$') ? token[1..] : token;
     }
 
     public static bool ValidateNumericToken(ScriptNumericSourceType sourceType, string token)
@@ -53,6 +53,8 @@ public static class EditorActionScriptTokens
 
     public static bool ValidateOperandToken(ScriptOperandType operandType, string token)
     {
+        ArgumentNullException.ThrowIfNull(token);
+
         return operandType switch
         {
             ScriptOperandType.VariableReference => IsValidVariableName(token),
@@ -74,11 +76,15 @@ public static class EditorActionScriptTokens
 
     public static string FormatOperandToken(ScriptOperandType operandType, string value)
     {
+        ArgumentNullException.ThrowIfNull(value);
+
         var token = value.Trim();
         return operandType switch
         {
             ScriptOperandType.VariableReference => $"${NormalizeVariableToken(token)}",
+            ScriptOperandType.Number => token,
             ScriptOperandType.Text => EscapeLiteralDollar(token),
+            ScriptOperandType.Boolean => token,
             ScriptOperandType.Color => TryFormatRgbHexColor(token, out var color) ? color : token,
             _ => token,
         };
@@ -86,15 +92,26 @@ public static class EditorActionScriptTokens
 
     public static string FormatSetValueToken(ScriptValueType valueType, string value)
     {
-        return valueType switch
+        ArgumentNullException.ThrowIfNull(value);
+
+        switch (valueType)
         {
-            ScriptValueType.VariableReference => $"${NormalizeVariableToken(value)}",
-            ScriptValueType.Boolean => bool.TryParse(value, out var boolValue)
-                ? boolValue.ToString().ToLowerInvariant()
-                : value.Trim(),
-            ScriptValueType.Text => EscapeLiteralDollar(value.Trim()),
-            _ => value.Trim(),
-        };
+            case ScriptValueType.VariableReference:
+                return $"${NormalizeVariableToken(value)}";
+            case ScriptValueType.Number:
+                return value.Trim();
+            case ScriptValueType.Text:
+                return EscapeLiteralDollar(value.Trim());
+            case ScriptValueType.Boolean:
+                if (bool.TryParse(value, out var boolValue))
+                {
+                    return boolValue ? "true" : "false";
+                }
+
+                return value.Trim();
+            default:
+                return value.Trim();
+        }
     }
 
     public static string ToOperatorToken(ScriptConditionOperator op)
@@ -113,11 +130,15 @@ public static class EditorActionScriptTokens
 
     public static string EscapeLiteralDollar(string value)
     {
+        ArgumentNullException.ThrowIfNull(value);
+
         return value.Replace("$", "$$", StringComparison.Ordinal);
     }
 
     public static string UnescapeLiteralDollar(string value)
     {
+        ArgumentNullException.ThrowIfNull(value);
+
         return value.Replace("$$", "$", StringComparison.Ordinal);
     }
 
@@ -140,13 +161,10 @@ public static class EditorActionScriptTokens
             return false;
         }
 
-        foreach (var ch in token)
+        if (!token.All(Uri.IsHexDigit))
         {
-            if (!Uri.IsHexDigit(ch))
-            {
-                color = string.Empty;
-                return false;
-            }
+            color = string.Empty;
+            return false;
         }
 
         color = token.ToUpperInvariant();

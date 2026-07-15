@@ -5,5 +5,5 @@ namespace CrossMacro.Platform.Abstractions;
 /// </summary>
 public interface ITaggedUnicodeTextInputSimulator : IUnicodeTextInputSimulator
 {
-    void TypeTextTagged(string text, long tag);
+    public void TypeTextTagged(string text, long tag);
 }
